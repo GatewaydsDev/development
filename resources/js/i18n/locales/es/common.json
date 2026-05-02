@@ -1,0 +1,57 @@
+{
+  "app": {
+    "name": "Gateway Door Systems"
+  },
+  "navigation": {
+    "home": "Inicio",
+    "about": "Nosotros"
+  },
+  "auth": {
+    "dashboard": "Panel",
+    "login": "Iniciar sesión",
+    "register": "Registrarse",
+    "customerPortal": "Portal de clientes",
+    "createAccount": "Crear cuenta"
+  },
+  "theme": {
+    "label": "Modo de color",
+    "change": "Cambiar modo de color",
+    "light": "Claro",
+    "dark": "Oscuro",
+    "system": "Sistema"
+  },
+  "language": {
+    "label": "Idioma",
+    "change": "Cambiar idioma",
+    "en": "Inglés",
+    "es": "Español",
+    "pt-BR": "Portugués de Brasil"
+  },
+  "footer": {
+    "description": "Soluciones de accesos seguros para instalaciones que dependen de puertas confiables, herrajes coordinados y servicio receptivo.",
+    "supportTitle": "¿Necesitas soporte?",
+    "supportText": "Usa el portal de clientes para acceder a tu cuenta o comunícate para programar servicio, mantenimiento o una revisión de proyecto.",
+    "company": "Compañía",
+    "services": "Servicios",
+    "markets": "Mercados",
+    "access": "Acceso",
+    "copyright": "© {{year}} Gateway Door Systems. Todos los derechos reservados.",
+    "tags": {
+      "doors": "Sistemas de puertas",
+      "hardware": "Herrajes",
+      "access": "Soporte de acceso"
+    },
+    "serviceItems": {
+      "installation": "Instalación de puertas comerciales",
+      "maintenance": "Mantenimiento preventivo",
+      "repair": "Reparación de emergencia",
+      "accessControl": "Coordinación de control de acceso"
+    },
+    "marketItems": {
+      "commercial": "Propiedades comerciales",
+      "industrial": "Instalaciones industriales",
+      "healthcare": "Edificios de salud",
+      "education": "Campus educativos"
+    }
+  }
+}

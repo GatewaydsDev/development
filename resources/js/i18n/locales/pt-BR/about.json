@@ -1,0 +1,54 @@
+{
+  "meta": {
+    "title": "Sobre nós"
+  },
+  "hero": {
+    "badge": "Sobre nós",
+    "title": "Suporte para portas, ferragens e acesso com disciplina de obra.",
+    "description": "A Gateway Door Systems atende clientes que precisam de acessos confiáveis, orientação prática e uma equipe que entende como o acesso afeta toda a instalação."
+  },
+  "snapshot": {
+    "label": "Resumo da empresa",
+    "items": {
+      "assessment": "Avaliação da abertura",
+      "fit": "Adequação de produto e ferragem",
+      "support": "Instalação e suporte"
+    }
+  },
+  "role": {
+    "eyebrow": "Nosso papel",
+    "title": "Um parceiro local para acessos mais seguros e simples.",
+    "description": "As empresas de referência destacam suporte de ciclo de vida, capacidade técnica e experiência por mercado. A Gateway pode falar a essas mesmas necessidades com uma mensagem direta e sólida baseada em serviço confiável."
+  },
+  "values": {
+    "uptime": {
+      "title": "Continuidade operacional",
+      "description": "Focamos em portas, operadores e sistemas de acesso que mantêm propriedades movimentadas funcionando."
+    },
+    "service": {
+      "title": "Serviço claro",
+      "description": "Os clientes devem entender o que está acontecendo, quando o trabalho será feito e qual é o próximo passo."
+    },
+    "growth": {
+      "title": "Preparado para crescer",
+      "description": "Nosso modelo de serviço pode escalar de uma única abertura até suporte contínuo para múltiplas propriedades."
+    }
+  },
+  "audiences": {
+    "eyebrow": "Quem atendemos",
+    "title": "Criado para quem mantém prédios abertos, seguros e em movimento.",
+    "items": {
+      "contractors": "Empreiteiras gerais",
+      "facility": "Gestores de facilities",
+      "property": "Operadores de propriedades",
+      "education": "Equipes escolares e campi",
+      "healthcare": "Prédios de saúde",
+      "industrial": "Locais industriais"
+    }
+  },
+  "next": {
+    "eyebrow": "Próximos passos",
+    "title": "Esta estrutura está pronta para serviços, projetos, setores e páginas de contato.",
+    "description": "A partir daqui, cada capacidade principal pode virar sua própria página: instalação, reparos, manutenção, controle de acesso, setores atendidos e uma rota de contato focada em conversão."
+  }
+}

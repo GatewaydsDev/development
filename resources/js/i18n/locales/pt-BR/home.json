@@ -1,0 +1,132 @@
+{
+  "meta": {
+    "title": "Início"
+  },
+  "hero": {
+    "badge": "Suporte completo para acessos",
+    "title": "Acesso seguro e confiável do primeiro desenho à última chamada de serviço.",
+    "description": "A Gateway Door Systems reúne portas comerciais, ferragens, operadores e coordenação de acesso em um fluxo confiável para instalações que não podem sofrer paradas evitáveis.",
+    "primaryCta": "Explorar capacidades",
+    "secondaryCta": "Portal do cliente"
+  },
+  "carousel": {
+    "eyebrow": "Gateway Door Systems",
+    "title": "Soluções de portas para instalações comerciais que precisam de acesso confiável.",
+    "description": "Destaque o trabalho da Gateway Door Systems em portas comerciais, aberturas de alto tráfego, manutenção e acesso seguro para instalações.",
+    "slides": {
+      "commercialDoors": {
+        "label": "Portas comerciais",
+        "title": "Sistemas de portas comerciais para uso diário.",
+        "description": "A Gateway apoia instalações com portas duráveis, ferragens coordenadas e caminhos de instalação alinhados às necessidades do edifício.",
+        "alt": "Interior de prédio comercial representando sistemas de portas comerciais Gateway"
+      },
+      "rollingDoors": {
+        "label": "Enrolar e seccionais",
+        "title": "Aberturas de alto tráfego para operações movimentadas.",
+        "description": "Áreas de carga, entradas de armazém e portas de serviço precisam de produtos confiáveis que mantenham pessoas, veículos e materiais em movimento.",
+        "alt": "Instalação de armazém representando portas comerciais de enrolar e seccionais"
+      },
+      "maintenance": {
+        "label": "Serviço e manutenção",
+        "title": "Suporte de manutenção que reduz paradas.",
+        "description": "A Gateway pode ajudar a manter portas, operadores, sensores e ferragens funcionando com planejamento de reparo e manutenção.",
+        "alt": "Técnico revisando plantas de obra para serviço de portas comerciais"
+      },
+      "secureAccess": {
+        "label": "Acesso seguro",
+        "title": "Soluções de acesso para fluxo predial mais seguro.",
+        "description": "De operadores e controles à coordenação de ferragens, a Gateway ajuda instalações a gerenciar movimento seguro por aberturas críticas.",
+        "alt": "Instalação industrial representando acesso seguro e coordenação de portas comerciais"
+      }
+    }
+  },
+  "dashboard": {
+    "label": "Painel de serviço",
+    "title": "Trabalhos ativos",
+    "badge": "Equipe pronta",
+    "jobs": {
+      "survey": {
+        "type": "Vistoria",
+        "name": "Revisão de acesso da doca de carga",
+        "status": "Hoje"
+      },
+      "install": {
+        "type": "Instalação",
+        "name": "Substituição de porta de enrolar",
+        "status": "Agendado"
+      },
+      "support": {
+        "type": "Suporte",
+        "name": "Reparo de operador e sensor",
+        "status": "Em andamento"
+      }
+    },
+    "stages": {
+      "plan": "Planejar",
+      "build": "Instalar",
+      "maintain": "Manter"
+    }
+  },
+  "markets": {
+    "eyebrow": "Criado para instalações que precisam de acessos seguros todos os dias",
+    "items": {
+      "commercial": "Comercial",
+      "healthcare": "Saúde",
+      "education": "Educação",
+      "industrial": "Industrial",
+      "government": "Governo",
+      "multiSite": "Multiunidade"
+    }
+  },
+  "capabilities": {
+    "eyebrow": "Capacidades",
+    "title": "Uma equipe para acessos, ferragens, controle e serviço contínuo.",
+    "description": "Os sites de referência organizam a mensagem em capacidades, setores, suporte e confiança. Esta página segue essa estrutura com mensagens originais para a Gateway.",
+    "items": {
+      "planning": {
+        "title": "Projeto e planejamento",
+        "description": "Orientação inicial para aberturas, ferragens, operadores, necessidades de acesso e manutenção de longo prazo."
+      },
+      "installation": {
+        "title": "Instalação",
+        "description": "Portas comerciais, batentes, ferragens, operadores e controles instalados com disciplina de campo."
+      },
+      "security": {
+        "title": "Segurança e acesso",
+        "description": "Ferragens, fechaduras, controles de entrada e suporte perimetral para instalações mais seguras."
+      },
+      "aftermarket": {
+        "title": "Serviço pós-instalação",
+        "description": "Reparo ágil, manutenção preventiva, peças de reposição e suporte durante todo o ciclo de vida."
+      }
+    }
+  },
+  "products": {
+    "eyebrow": "Produtos e sistemas",
+    "title": "Uma combinação prática de portas, ferragens e soluções de acesso.",
+    "description": "De novas obras a substituições urgentes, a Gateway pode apresentar um catálogo claro de produtos e caminhos de serviço sem sobrecarregar o visitante.",
+    "items": {
+      "sectional": "Portas seccionais e de enrolar",
+      "hollowMetal": "Portas e batentes metálicos",
+      "hardware": "Ferragens comerciais",
+      "operators": "Operadores e controles",
+      "access": "Coordenação de controle de acesso",
+      "inspection": "Inspeção e manutenção"
+    }
+  },
+  "process": {
+    "eyebrow": "Modelo de suporte",
+    "title": "Etapas claras da avaliação ao suporte de ciclo de vida.",
+    "steps": {
+      "assess": "Avaliar a abertura, o tráfego do local e os requisitos de segurança.",
+      "match": "Escolher o produto, as ferragens e a estratégia de controle corretos.",
+      "coordinate": "Coordenar a instalação com mínima interrupção operacional.",
+      "support": "Dar suporte ao sistema com manutenção, reparo e comunicação clara."
+    }
+  },
+  "cta": {
+    "eyebrow": "Pronto para a próxima seção?",
+    "title": "Adicione páginas de serviços, setores, localidades e uma rota de contato sobre esta base.",
+    "button": "Conhecer a empresa"
+  }
+}

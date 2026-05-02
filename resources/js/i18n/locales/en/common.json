@@ -1,0 +1,57 @@
+{
+  "app": {
+    "name": "Gateway Door Systems"
+  },
+  "navigation": {
+    "home": "Home",
+    "about": "About us"
+  },
+  "auth": {
+    "dashboard": "Dashboard",
+    "login": "Log in",
+    "register": "Register",
+    "customerPortal": "Customer portal",
+    "createAccount": "Create account"
+  },
+  "theme": {
+    "label": "Color mode",
+    "change": "Change color mode",
+    "light": "Daylight",
+    "dark": "Dark",
+    "system": "System"
+  },
+  "language": {
+    "label": "Language",
+    "change": "Change language",
+    "en": "English",
+    "es": "Spanish",
+    "pt-BR": "Brazilian Portuguese"
+  },
+  "footer": {
+    "description": "Secure opening solutions for facilities that depend on reliable doors, coordinated hardware, and responsive service.",
+    "supportTitle": "Need support?",
+    "supportText": "Use the customer portal for account access or reach out to schedule service, maintenance, or a project review.",
+    "company": "Company",
+    "services": "Services",
+    "markets": "Markets",
+    "access": "Access",
+    "copyright": "© {{year}} Gateway Door Systems. All rights reserved.",
+    "tags": {
+      "doors": "Door systems",
+      "hardware": "Hardware",
+      "access": "Access support"
+    },
+    "serviceItems": {
+      "installation": "Commercial door installation",
+      "maintenance": "Preventive maintenance",
+      "repair": "Emergency repair",
+      "accessControl": "Access control coordination"
+    },
+    "marketItems": {
+      "commercial": "Commercial properties",
+      "industrial": "Industrial facilities",
+      "healthcare": "Healthcare buildings",
+      "education": "Education campuses"
+    }
+  }
+}

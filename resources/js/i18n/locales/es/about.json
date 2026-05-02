@@ -1,0 +1,54 @@
+{
+  "meta": {
+    "title": "Nosotros"
+  },
+  "hero": {
+    "badge": "Nosotros",
+    "title": "Soporte de puertas, herrajes y acceso con disciplina de obra.",
+    "description": "Gateway Door Systems está pensado para clientes que necesitan accesos confiables, orientación práctica y un equipo que entiende cómo el acceso afecta a toda la instalación."
+  },
+  "snapshot": {
+    "label": "Resumen de la compañía",
+    "items": {
+      "assessment": "Evaluación de apertura",
+      "fit": "Ajuste de producto y herraje",
+      "support": "Instalación y soporte"
+    }
+  },
+  "role": {
+    "eyebrow": "Nuestro papel",
+    "title": "Un socio local para accesos más seguros y sencillos.",
+    "description": "Las compañías de referencia resaltan soporte de ciclo de vida, capacidad técnica y experiencia por mercado. Gateway puede hablar a esas mismas necesidades con un mensaje directo y sólido basado en servicio confiable."
+  },
+  "values": {
+    "uptime": {
+      "title": "Continuidad operativa",
+      "description": "Nos enfocamos en puertas, operadores y sistemas de acceso que mantienen en movimiento a propiedades ocupadas."
+    },
+    "service": {
+      "title": "Servicio claro",
+      "description": "Los clientes deben entender qué ocurre, cuándo se programa el trabajo y cuál es el siguiente paso."
+    },
+    "growth": {
+      "title": "Preparado para crecer",
+      "description": "Nuestro modelo de servicio puede escalar desde una sola apertura hasta soporte continuo para múltiples propiedades."
+    }
+  },
+  "audiences": {
+    "eyebrow": "A quién apoyamos",
+    "title": "Diseñado para quienes mantienen edificios abiertos, seguros y en movimiento.",
+    "items": {
+      "contractors": "Contratistas generales",
+      "facility": "Gerentes de instalaciones",
+      "property": "Operadores de propiedades",
+      "education": "Equipos escolares y campus",
+      "healthcare": "Edificios de salud",
+      "industrial": "Sitios industriales"
+    }
+  },
+  "next": {
+    "eyebrow": "Qué sigue",
+    "title": "Esta estructura está lista para servicios, proyectos, industrias y páginas de contacto.",
+    "description": "Desde aquí, cada capacidad principal puede convertirse en su propia página: instalación, reparaciones, mantenimiento, control de acceso, industrias atendidas y una ruta de contacto enfocada en conversión."
+  }
+}

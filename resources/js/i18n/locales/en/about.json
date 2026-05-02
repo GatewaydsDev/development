@@ -1,0 +1,54 @@
+{
+  "meta": {
+    "title": "About us"
+  },
+  "hero": {
+    "badge": "About us",
+    "title": "Door, hardware, and access support with jobsite discipline.",
+    "description": "Gateway Door Systems is positioned for customers who need dependable openings, practical guidance, and a team that understands how access affects the whole facility."
+  },
+  "snapshot": {
+    "label": "Company snapshot",
+    "items": {
+      "assessment": "Opening assessment",
+      "fit": "Product and hardware fit",
+      "support": "Install and support"
+    }
+  },
+  "role": {
+    "eyebrow": "Our role",
+    "title": "A local partner for safer, simpler facility access.",
+    "description": "The reference companies emphasize lifecycle support, technical capability, and market expertise. Gateway can speak to the same buyer concerns with a direct, grounded message built around dependable service."
+  },
+  "values": {
+    "uptime": {
+      "title": "Operational uptime",
+      "description": "We focus on doors, operators, and access systems that keep busy properties moving."
+    },
+    "service": {
+      "title": "Clear service",
+      "description": "Customers should understand what is happening, when work is scheduled, and what comes next."
+    },
+    "growth": {
+      "title": "Built for growth",
+      "description": "Our service model can scale from a single opening to ongoing support across multiple properties."
+    }
+  },
+  "audiences": {
+    "eyebrow": "Who we support",
+    "title": "Built for the people responsible for keeping buildings open, safe, and moving.",
+    "items": {
+      "contractors": "General contractors",
+      "facility": "Facility managers",
+      "property": "Property operators",
+      "education": "School and campus teams",
+      "healthcare": "Healthcare buildings",
+      "industrial": "Industrial sites"
+    }
+  },
+  "next": {
+    "eyebrow": "What comes next",
+    "title": "This structure is ready for services, projects, industries, and contact pages.",
+    "description": "From here, each major capability can become its own page: installation, repairs, maintenance, access control, industries served, and a conversion-focused contact path."
+  }
+}
