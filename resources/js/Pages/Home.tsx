@@ -50,19 +50,19 @@ const carouselDuration = 5000;
 const carouselSlides = [
     {
         key: 'commercialDoors',
-        image: 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1600&q=80',
+        image: '/images/gateway-door-project-secure-entry.webp',
     },
     {
         key: 'rollingDoors',
-        image: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1600&q=80',
+        image: '/images/gateway-door-project-facility-access.webp',
     },
     {
         key: 'maintenance',
-        image: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=1600&q=80',
+        image: '/images/gateway-door-project-reliable-openings.webp',
     },
     {
         key: 'secureAccess',
-        image: 'https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?auto=format&fit=crop&w=1600&q=80',
+        image: '/images/gateway-door-project-secure-facility.webp',
     },
 ];
 
