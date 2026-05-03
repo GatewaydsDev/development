@@ -3,21 +3,45 @@ import Dropdown from '@/Components/Dropdown';
 import NavLink from '@/Components/NavLink';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
 import ThemeModeToggle from '@/Components/ThemeModeToggle';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuGroup,
+    DropdownMenuItem,
+    DropdownMenuSub,
+    DropdownMenuSubContent,
+    DropdownMenuSubTrigger,
+    DropdownMenuTrigger,
+} from '@/Components/ui/dropdown-menu';
+import { PageProps } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
+import {
+    ChevronDownIcon,
+    ShieldIcon,
+    SlidersHorizontalIcon,
+    UserPlusIcon,
+    UsersIcon,
+} from 'lucide-react';
 import { PropsWithChildren, ReactNode, useState } from 'react';
 
 export default function Authenticated({
     header,
     children,
 }: PropsWithChildren<{ header?: ReactNode }>) {
-    const user = usePage().props.auth.user;
+    const { auth } = usePage<PageProps>().props;
+    const user = auth.user;
+    const canManageUsers = Boolean(auth.can?.manageUsers);
+    const canViewUsers = Boolean(auth.can?.viewUsers);
+    const canCreateUsers = Boolean(auth.can?.createUsers);
+    const canManageAccess = Boolean(auth.can?.manageAccess);
+    const canOpenAdministration = canManageUsers || canManageAccess;
 
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
         useState(false);
 
     return (
-        <div className="min-h-screen bg-background text-foreground">
-            <nav className="border-b border-border bg-background">
+        <div className="min-h-screen bg-muted/30 text-foreground">
+            <nav className="border-b border-border bg-background/95 backdrop-blur">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                     <div className="flex min-h-20 items-center justify-between gap-4 sm:min-h-24 lg:min-h-28 lg:gap-8">
                         <div className="flex">
@@ -27,13 +51,109 @@ export default function Authenticated({
                                 </Link>
                             </div>
 
-                            <div className="hidden gap-8 sm:-my-px sm:ms-10 sm:flex">
+                            <div className="hidden gap-8 sm:-my-px sm:ms-10 sm:flex sm:items-center">
                                 <NavLink
                                     href={route('dashboard')}
                                     active={route().current('dashboard')}
                                 >
                                     Dashboard
                                 </NavLink>
+
+                                {canOpenAdministration && (
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <button
+                                                type="button"
+                                                className={
+                                                    'inline-flex items-center gap-1 border-b-2 px-1 pt-1 text-sm font-medium leading-5 transition duration-150 ease-in-out focus:outline-none ' +
+                                                    (route().current(
+                                                        'admin.*',
+                                                    )
+                                                        ? 'border-emerald-500 text-emerald-700 focus:border-emerald-600 dark:border-emerald-400 dark:text-emerald-300 dark:focus:border-emerald-300'
+                                                        : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground focus:border-border focus:text-foreground')
+                                                }
+                                            >
+                                                <ShieldIcon className="size-4" />
+                                                Administration
+                                                <ChevronDownIcon className="size-4" />
+                                            </button>
+                                        </DropdownMenuTrigger>
+
+                                        <DropdownMenuContent
+                                            align="start"
+                                            sideOffset={2}
+                                            className="w-56"
+                                        >
+                                            <DropdownMenuGroup>
+                                                {(canManageUsers ||
+                                                    canManageAccess) && (
+                                                    <DropdownMenuSub>
+                                                        <DropdownMenuSubTrigger>
+                                                            <UsersIcon className="size-4" />
+                                                            Users
+                                                        </DropdownMenuSubTrigger>
+                                                        <DropdownMenuSubContent className="min-w-44">
+                                                            {(canViewUsers ||
+                                                                canCreateUsers) && (
+                                                                <>
+                                                                    {canViewUsers && (
+                                                                        <DropdownMenuItem
+                                                                            asChild
+                                                                        >
+                                                                            <Link
+                                                                                href={route(
+                                                                                    'admin.users.index',
+                                                                                )}
+                                                                                className="flex items-center gap-2"
+                                                                            >
+                                                                                <UsersIcon className="size-4" />
+                                                                                See
+                                                                                all
+                                                                            </Link>
+                                                                        </DropdownMenuItem>
+                                                                    )}
+                                                                    {canCreateUsers && (
+                                                                        <DropdownMenuItem
+                                                                            asChild
+                                                                        >
+                                                                            <Link
+                                                                                href={route(
+                                                                                    'admin.users.create',
+                                                                                )}
+                                                                                className="flex items-center gap-2"
+                                                                            >
+                                                                                <UserPlusIcon className="size-4" />
+                                                                                Add
+                                                                                new
+                                                                            </Link>
+                                                                        </DropdownMenuItem>
+                                                                    )}
+                                                                </>
+                                                            )}
+
+                                                            {canManageAccess && (
+                                                                <DropdownMenuItem
+                                                                    asChild
+                                                                >
+                                                                    <Link
+                                                                        href={route(
+                                                                            'admin.access-control.edit',
+                                                                        )}
+                                                                        className="flex items-center gap-2"
+                                                                    >
+                                                                        <SlidersHorizontalIcon className="size-4" />
+                                                                        Access
+                                                                        Control
+                                                                    </Link>
+                                                                </DropdownMenuItem>
+                                                            )}
+                                                        </DropdownMenuSubContent>
+                                                    </DropdownMenuSub>
+                                                )}
+                                            </DropdownMenuGroup>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                )}
                             </div>
                         </div>
 
@@ -140,6 +260,75 @@ export default function Authenticated({
                         >
                             Dashboard
                         </ResponsiveNavLink>
+
+                        {canOpenAdministration && (
+                            <div className="mt-2 border-t border-border pt-3">
+                                <div className="px-4 pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                    Administration
+                                </div>
+                                {(canManageUsers || canManageAccess) && (
+                                    <>
+                                        <div className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-foreground">
+                                        <UsersIcon className="size-4" />
+                                            Users
+                                        </div>
+                                        {(canViewUsers || canCreateUsers) && (
+                                            <>
+                                                {canViewUsers && (
+                                                    <ResponsiveNavLink
+                                                        href={route(
+                                                            'admin.users.index',
+                                                        )}
+                                                        active={route().current(
+                                                            'admin.users.index',
+                                                        )}
+                                                        className="ps-8"
+                                                    >
+                                                        <span className="inline-flex items-center gap-2">
+                                                            <UsersIcon className="size-4" />
+                                                            See all
+                                                        </span>
+                                                    </ResponsiveNavLink>
+                                                )}
+                                                {canCreateUsers && (
+                                                    <ResponsiveNavLink
+                                                        href={route(
+                                                            'admin.users.create',
+                                                        )}
+                                                        active={route().current(
+                                                            'admin.users.create',
+                                                        )}
+                                                        className="ps-8"
+                                                    >
+                                                        <span className="inline-flex items-center gap-2">
+                                                            <UserPlusIcon className="size-4" />
+                                                            Add new
+                                                        </span>
+                                                    </ResponsiveNavLink>
+                                                )}
+                                            </>
+                                        )}
+
+                                        {canManageAccess && (
+                                            <ResponsiveNavLink
+                                                href={route(
+                                                    'admin.access-control.edit',
+                                                )}
+                                                active={route().current(
+                                                    'admin.access-control.edit',
+                                                )}
+                                                className="ps-8"
+                                            >
+                                                <span className="inline-flex items-center gap-2">
+                                                    <SlidersHorizontalIcon className="size-4" />
+                                                    Access Control
+                                                </span>
+                                            </ResponsiveNavLink>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     <div className="border-t border-border pb-1 pt-4">
@@ -173,7 +362,7 @@ export default function Authenticated({
             </nav>
 
             {header && (
-                <header className="bg-card shadow">
+                <header className="border-b border-border bg-card shadow-sm">
                     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
                         {header}
                     </div>

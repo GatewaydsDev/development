@@ -51,7 +51,7 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                                         className={
                                             'inline-flex items-center rounded-full px-3 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2 focus:ring-offset-background ' +
                                             (route().current(item.route)
-                                                ? 'bg-emerald-400/10 text-emerald-300'
+                                                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
                                                 : 'text-muted-foreground hover:bg-muted hover:text-foreground')
                                         }
                                     >
@@ -140,7 +140,7 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                                 className={
                                     'block rounded-md px-3 py-2 text-base font-medium transition ' +
                                     (route().current(item.route)
-                                        ? 'bg-emerald-400/10 text-emerald-300'
+                                        ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
                                         : 'text-muted-foreground hover:bg-muted hover:text-foreground')
                                 }
                             >
@@ -189,7 +189,7 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                                 {t('footer.description')}
                             </p>
                             <div className="mt-8 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-5">
-                                <p className="text-sm font-semibold uppercase tracking-wide text-emerald-300">
+                                <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
                                     {t('footer.supportTitle')}
                                 </p>
                                 <p className="mt-2 text-sm leading-6 text-muted-foreground">

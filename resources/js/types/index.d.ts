@@ -3,6 +3,10 @@ export interface User {
     name: string;
     email: string;
     email_verified_at?: string;
+    level?: {
+        id: number;
+        name: string;
+    } | null;
 }
 
 export type PageProps<
@@ -10,5 +14,12 @@ export type PageProps<
 > = T & {
     auth: {
         user: User;
+        can: {
+            manageUsers: boolean;
+            viewUsers: boolean;
+            createUsers: boolean;
+            updateUsers: boolean;
+            manageAccess: boolean;
+        };
     };
 };

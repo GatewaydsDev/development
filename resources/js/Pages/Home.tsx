@@ -118,9 +118,9 @@ export default function Home() {
                     <div className="self-center lg:self-end">
                         <Badge
                             variant="outline"
-                            className="border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
+                            className="border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
                         >
-                            <span className="h-2 w-2 rounded-full bg-emerald-300" />
+                            <span className="h-2 w-2 rounded-full bg-emerald-600 dark:bg-emerald-300" />
                             {t('hero.badge')}
                         </Badge>
                         <h1 className="mt-8 max-w-4xl text-4xl font-semibold tracking-tight text-foreground sm:text-5xl lg:text-7xl">
@@ -139,7 +139,7 @@ export default function Home() {
                     </div>
 
                     <div className="rounded-3xl border border-border bg-background/80 p-4 shadow-2xl shadow-emerald-950/10 backdrop-blur-md dark:shadow-emerald-950/30 sm:p-5 lg:self-end">
-                        <p className="text-sm font-semibold uppercase tracking-wide text-emerald-300">
+                        <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
                             {t('carousel.eyebrow')}
                         </p>
                         <h2 className="mt-2 max-w-xl text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
@@ -183,7 +183,7 @@ export default function Home() {
 
             <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
                 <div className="max-w-2xl">
-                    <p className="text-sm font-semibold uppercase tracking-wide text-emerald-300">
+                    <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
                         {t('capabilities.eyebrow')}
                     </p>
                     <h2 className="mt-4 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
@@ -201,8 +201,8 @@ export default function Home() {
                             className="border-border bg-card text-card-foreground transition hover:border-emerald-400/40 hover:bg-emerald-400/[0.04]"
                         >
                             <CardHeader className="p-5 sm:p-6">
-                                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-400/10 text-emerald-300">
-                                    <span className="h-2.5 w-2.5 rounded-full bg-emerald-300" />
+                                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                                    <span className="h-2.5 w-2.5 rounded-full bg-emerald-600 dark:bg-emerald-300" />
                                 </div>
                                 <CardTitle>
                                     {t(`capabilities.items.${item}.title`)}
@@ -221,7 +221,7 @@ export default function Home() {
             <section className="border-y border-border bg-muted/30">
                 <div className="mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[0.9fr_1.1fr] lg:px-8 lg:py-24">
                     <div>
-                        <p className="text-sm font-semibold uppercase tracking-wide text-emerald-300">
+                        <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
                             {t('products.eyebrow')}
                         </p>
                         <h2 className="mt-4 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
@@ -250,7 +250,7 @@ export default function Home() {
                     <div>
                         <Badge
                             variant="outline"
-                            className="border-emerald-400/20 text-emerald-300"
+                            className="border-emerald-500/20 text-emerald-700 dark:text-emerald-300"
                         >
                             {t('process.eyebrow')}
                         </Badge>
@@ -263,7 +263,7 @@ export default function Home() {
                         {processSteps.map((step, index) => (
                             <div key={step}>
                                 <div className="flex gap-5">
-                                    <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-emerald-400/10 text-sm font-semibold text-emerald-300">
+                                    <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
                                         {index + 1}
                                     </div>
                                     <p className="pt-2 leading-7 text-muted-foreground">

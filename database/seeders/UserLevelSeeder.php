@@ -19,8 +19,16 @@ class UserLevelSeeder extends Seeder
             'Project Manager',
             'User',
             'Visitor',
-        ])->each(fn (string $name) => UserLevel::firstOrCreate([
-            'name' => $name,
-        ]));
+        ])->each(function (string $name): void {
+            $level = UserLevel::firstOrCreate([
+                'name' => $name,
+            ]);
+
+            if ($level->permissions === null) {
+                $level->forceFill([
+                    'permissions' => $level->defaultPermissions(),
+                ])->save();
+            }
+        });
     }
 }

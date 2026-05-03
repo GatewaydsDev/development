@@ -39,7 +39,7 @@ export default function About() {
                     <div className="max-w-3xl">
                         <Badge
                             variant="outline"
-                            className="border-emerald-400/20 text-emerald-300"
+                            className="border-emerald-500/20 text-emerald-700 dark:text-emerald-300"
                         >
                             {t('hero.badge')}
                         </Badge>
@@ -67,7 +67,7 @@ export default function About() {
                                     key={label}
                                     className="flex items-center justify-between gap-4"
                                 >
-                                    <p className="text-4xl font-semibold text-emerald-300">
+                                    <p className="text-4xl font-semibold text-emerald-700 dark:text-emerald-300">
                                         {value}
                                     </p>
                                     <p className="text-sm text-muted-foreground">
@@ -79,7 +79,7 @@ export default function About() {
                     </Card>
 
                     <div>
-                        <p className="text-sm font-semibold uppercase tracking-wide text-emerald-300">
+                        <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
                             {t('role.eyebrow')}
                         </p>
                         <h2 className="mt-4 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
@@ -113,7 +113,7 @@ export default function About() {
             <section className="border-y border-border bg-muted/30">
                 <div className="mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[1fr_1fr] lg:px-8 lg:py-24">
                     <div>
-                        <p className="text-sm font-semibold uppercase tracking-wide text-emerald-300">
+                        <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
                             {t('audiences.eyebrow')}
                         </p>
                         <h2 className="mt-4 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
@@ -135,7 +135,7 @@ export default function About() {
 
             <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
                 <div className="max-w-3xl">
-                    <p className="text-sm font-semibold uppercase tracking-wide text-emerald-300">
+                    <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
                         {t('next.eyebrow')}
                     </p>
                     <h2 className="mt-4 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">

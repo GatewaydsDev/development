@@ -78,4 +78,13 @@ class User extends Authenticatable
     {
         return $this->hasUserLevel(\App\Models\UserLevel::SUPER_ADMIN);
     }
+
+    public function hasPermission(string $permission): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        return $this->level?->hasPermission($permission) ?? false;
+    }
 }
