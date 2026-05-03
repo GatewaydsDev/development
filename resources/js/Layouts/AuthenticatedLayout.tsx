@@ -16,6 +16,7 @@ import {
 import { PageProps } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import {
+    Building2Icon,
     ChevronDownIcon,
     ShieldIcon,
     SlidersHorizontalIcon,
@@ -34,7 +35,9 @@ export default function Authenticated({
     const canViewUsers = Boolean(auth.can?.viewUsers);
     const canCreateUsers = Boolean(auth.can?.createUsers);
     const canManageAccess = Boolean(auth.can?.manageAccess);
-    const canOpenAdministration = canManageUsers || canManageAccess;
+    const canViewCompany = Boolean(auth.can?.viewCompany);
+    const canOpenAdministration =
+        canManageUsers || canManageAccess || canViewCompany;
 
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
         useState(false);
@@ -52,6 +55,13 @@ export default function Authenticated({
                             </div>
 
                             <div className="hidden gap-8 sm:-my-px sm:ms-10 sm:flex sm:items-center">
+                                <NavLink
+                                    href={route('home')}
+                                    active={route().current('home')}
+                                >
+                                    Home
+                                </NavLink>
+
                                 <NavLink
                                     href={route('dashboard')}
                                     active={route().current('dashboard')}
@@ -85,6 +95,20 @@ export default function Authenticated({
                                             className="w-56"
                                         >
                                             <DropdownMenuGroup>
+                                                {canViewCompany && (
+                                                    <DropdownMenuItem asChild>
+                                                        <Link
+                                                            href={route(
+                                                                'admin.company.show',
+                                                            )}
+                                                            className="flex items-center gap-2"
+                                                        >
+                                                            <Building2Icon className="size-4" />
+                                                            Company
+                                                        </Link>
+                                                    </DropdownMenuItem>
+                                                )}
+
                                                 {(canManageUsers ||
                                                     canManageAccess) && (
                                                     <DropdownMenuSub>
@@ -255,6 +279,13 @@ export default function Authenticated({
                 >
                     <div className="flex flex-col gap-1 pb-3 pt-2">
                         <ResponsiveNavLink
+                            href={route('home')}
+                            active={route().current('home')}
+                        >
+                            Home
+                        </ResponsiveNavLink>
+
+                        <ResponsiveNavLink
                             href={route('dashboard')}
                             active={route().current('dashboard')}
                         >
@@ -266,6 +297,20 @@ export default function Authenticated({
                                 <div className="px-4 pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                     Administration
                                 </div>
+                                {canViewCompany && (
+                                    <ResponsiveNavLink
+                                        href={route('admin.company.show')}
+                                        active={route().current(
+                                            'admin.company.show',
+                                        )}
+                                    >
+                                        <span className="inline-flex items-center gap-2">
+                                            <Building2Icon className="size-4" />
+                                            Company
+                                        </span>
+                                    </ResponsiveNavLink>
+                                )}
+
                                 {(canManageUsers || canManageAccess) && (
                                     <>
                                         <div className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-foreground">

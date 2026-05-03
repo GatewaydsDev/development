@@ -10,6 +10,7 @@ import {
 import { Separator } from '@/Components/ui/separator';
 import PublicLayout from '@/Layouts/PublicLayout';
 import { Head, Link } from '@inertiajs/react';
+import { PhoneCallIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -66,10 +67,15 @@ const carouselSlides = [
     },
 ];
 
-export default function Home() {
+type HomeProps = {
+    companyPhoneNumber?: string | null;
+};
+
+export default function Home({ companyPhoneNumber }: HomeProps) {
     const { t } = useTranslation('home');
     const [activeSlide, setActiveSlide] = useState(0);
     const [progress, setProgress] = useState(0);
+    const quotePhoneNumber = companyPhoneNumber?.replace(/\D/g, '') ?? '';
 
     useEffect(() => {
         const startedAt = Date.now();
@@ -95,6 +101,16 @@ export default function Home() {
     return (
         <PublicLayout>
             <Head title={t('meta.title')} />
+
+            {quotePhoneNumber && (
+                <a
+                    href={`tel:${quotePhoneNumber}`}
+                    className="fixed bottom-4 right-4 z-40 inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-2xl shadow-emerald-950/20 transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-background sm:bottom-6 sm:right-6 sm:px-5"
+                >
+                    <PhoneCallIcon className="size-4" />
+                    <span>{t('floatingQuote.button')}</span>
+                </a>
+            )}
 
             <section className="relative overflow-hidden border-b border-border">
                 {carouselSlides.map((slide, index) => (

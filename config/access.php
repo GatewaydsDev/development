@@ -29,6 +29,11 @@ return [
             'group' => 'Administration',
             'description' => 'Open edit user pages and save user updates.',
         ],
+        'view-company' => [
+            'name' => 'View company',
+            'group' => 'Administration',
+            'description' => 'Open the company profile page.',
+        ],
         'manage-access' => [
             'name' => 'Manage access control',
             'group' => 'Administration',
@@ -48,6 +53,7 @@ return [
             'view-users',
             'create-users',
             'update-users',
+            'view-company',
             'manage-access',
             'manage-projects',
         ],
@@ -57,6 +63,7 @@ return [
             'view-users',
             'create-users',
             'update-users',
+            'view-company',
             'manage-projects',
         ],
         UserLevel::ADMIN => [
@@ -65,6 +72,7 @@ return [
             'view-users',
             'create-users',
             'update-users',
+            'view-company',
         ],
         UserLevel::PROJECT_MANAGER => [
             'view-dashboard',

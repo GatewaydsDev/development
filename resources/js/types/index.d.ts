@@ -19,6 +19,7 @@ export type PageProps<
             viewUsers: boolean;
             createUsers: boolean;
             updateUsers: boolean;
+            viewCompany: boolean;
             manageAccess: boolean;
         };
     };

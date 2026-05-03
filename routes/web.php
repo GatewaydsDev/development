@@ -1,13 +1,22 @@
 <?php
 
 use App\Http\Controllers\Admin\AccessControlController;
+use App\Http\Controllers\Admin\CompanyController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\ProfileController;
+use App\Models\Company;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/', function () {
-    return Inertia::render('Home');
+    $company = Company::query()
+        ->where('is_active', true)
+        ->latest()
+        ->first();
+
+    return Inertia::render('Home', [
+        'companyPhoneNumber' => $company?->contact_phone_number,
+    ]);
 })->name('home');
 
 Route::get('/about', function () {
@@ -28,6 +37,16 @@ Route::middleware(['auth', 'prevent-back-history'])
     ->prefix('administration')
     ->name('admin.')
     ->group(function () {
+        Route::get('/company', [CompanyController::class, 'show'])
+            ->middleware('can:view-company')
+            ->name('company.show');
+        Route::post('/company', [CompanyController::class, 'store'])
+            ->middleware('can:view-company')
+            ->name('company.store');
+        Route::patch('/company/{company}', [CompanyController::class, 'update'])
+            ->middleware('can:view-company')
+            ->name('company.update');
+
         Route::get('/users', [UserController::class, 'index'])
             ->middleware('can:view-users')
             ->name('users.index');

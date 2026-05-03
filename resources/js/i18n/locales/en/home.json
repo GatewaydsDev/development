@@ -9,6 +9,9 @@
     "primaryCta": "Explore capabilities",
     "secondaryCta": "Customer portal"
   },
+  "floatingQuote": {
+    "button": "Call now for a quote"
+  },
   "carousel": {
     "eyebrow": "Gateway Door Systems",
     "title": "Door solutions for commercial facilities that need dependable access.",

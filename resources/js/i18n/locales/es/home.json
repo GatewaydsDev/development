@@ -9,6 +9,9 @@
     "primaryCta": "Explorar capacidades",
     "secondaryCta": "Portal de clientes"
   },
+  "floatingQuote": {
+    "button": "Llama ahora para cotizar"
+  },
   "carousel": {
     "eyebrow": "Gateway Door Systems",
     "title": "Soluciones de puertas para instalaciones comerciales que necesitan acceso confiable.",
