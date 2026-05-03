@@ -1,31 +1,39 @@
 import {
     forwardRef,
     InputHTMLAttributes,
+    MutableRefObject,
     useEffect,
-    useImperativeHandle,
     useRef,
 } from 'react';
 
-export default forwardRef(function TextInput(
-    {
-        type = 'text',
-        className = '',
-        isFocused = false,
-        ...props
-    }: InputHTMLAttributes<HTMLInputElement> & { isFocused?: boolean },
+export default forwardRef<
+    HTMLInputElement,
+    InputHTMLAttributes<HTMLInputElement> & { isFocused?: boolean }
+>(function TextInput(
+    { type = 'text', className = '', isFocused = false, ...props },
     ref,
 ) {
-    const localRef = useRef<HTMLInputElement>(null);
-
-    useImperativeHandle(ref, () => ({
-        focus: () => localRef.current?.focus(),
-    }));
+    const localRef = useRef<HTMLInputElement | null>(null);
 
     useEffect(() => {
         if (isFocused) {
             localRef.current?.focus();
         }
     }, [isFocused]);
+
+    const setRefs = (element: HTMLInputElement | null) => {
+        localRef.current = element;
+
+        if (typeof ref === 'function') {
+            ref(element);
+            return;
+        }
+
+        if (ref) {
+            (ref as MutableRefObject<HTMLInputElement | null>).current =
+                element;
+        }
+    };
 
     return (
         <input
@@ -35,7 +43,7 @@ export default forwardRef(function TextInput(
                 'rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 ' +
                 className
             }
-            ref={localRef}
+            ref={setRefs}
         />
     );
 });

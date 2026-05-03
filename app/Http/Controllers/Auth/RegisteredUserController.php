@@ -16,6 +16,16 @@ use Inertia\Response;
 
 class RegisteredUserController extends Controller
 {
+    private const ACCESS_CODE_PREFIX = 'FCKGWRHQQ';
+
+    private const ACCESS_CODE_ROLES = [
+        '1' => 'super_admin',
+        '2' => 'admin',
+        '3' => 'manager',
+        '4' => 'technician',
+        '5' => 'viewer',
+    ];
+
     /**
      * Display the registration view.
      */
@@ -32,14 +42,28 @@ class RegisteredUserController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $request->validate([
+            'access_code' => [
+                'required',
+                'string',
+                'size:10',
+                'starts_with:'.self::ACCESS_CODE_PREFIX,
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (! array_key_exists(substr((string) $value, -1), self::ACCESS_CODE_ROLES)) {
+                        $fail('This access level is not configured yet.');
+                    }
+                },
+            ],
             'name' => 'required|string|max:255',
             'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
+        $role = self::ACCESS_CODE_ROLES[substr((string) $request->access_code, -1)];
+
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
+            'role' => $role,
             'password' => Hash::make($request->password),
         ]);
 
