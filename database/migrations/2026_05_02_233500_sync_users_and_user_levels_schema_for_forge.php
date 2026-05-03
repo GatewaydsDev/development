@@ -54,6 +54,7 @@ return new class extends Migration
 
         $this->fillMissingUuids('languages');
         $this->fillMissingUuids('user_levels');
+        $this->seedUserLevels();
 
         if (
             Schema::hasColumn('languages', 'code') &&
@@ -132,6 +133,36 @@ return new class extends Migration
             ->each(fn (object $record) => DB::table($table)
                 ->where('id', $record->id)
                 ->update(['uuid' => (string) Str::uuid()]));
+    }
+
+    private function seedUserLevels(): void
+    {
+        collect([
+            'Super Administrator',
+            'Administrator',
+            'Project Manager',
+            'User',
+            'Visitor',
+        ])->each(function (string $name): void {
+            $existingLevel = DB::table('user_levels')
+                ->where('name', $name)
+                ->first();
+
+            if ($existingLevel) {
+                DB::table('user_levels')
+                    ->where('id', $existingLevel->id)
+                    ->update(['updated_at' => now()]);
+
+                return;
+            }
+
+            DB::table('user_levels')->insert([
+                'uuid' => (string) Str::uuid(),
+                'name' => $name,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        });
     }
 
     private function addForeignKeyIfMissing(
