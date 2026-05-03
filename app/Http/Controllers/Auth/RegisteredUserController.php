@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\UserLevel;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,19 +20,30 @@ class RegisteredUserController extends Controller
     private const ACCESS_CODE_PREFIX = 'FCKGWRHQQ';
 
     private const ACCESS_CODE_ROLES = [
-        '1' => 'super_admin',
-        '2' => 'admin',
-        '3' => 'manager',
-        '4' => 'technician',
-        '5' => 'viewer',
+        '1' => ['role' => 'super_admin', 'level' => UserLevel::SUPER_ADMIN],
+        '2' => ['role' => 'administrator', 'level' => UserLevel::ADMINISTRATOR],
+        '3' => ['role' => 'admin', 'level' => UserLevel::ADMIN],
+        '4' => ['role' => 'project_manager', 'level' => UserLevel::PROJECT_MANAGER],
+        '5' => ['role' => 'user', 'level' => UserLevel::USER],
+        '6' => ['role' => 'visitor', 'level' => UserLevel::VISITOR],
     ];
 
     /**
      * Display the registration view.
      */
-    public function create(): Response
+    public function create(Request $request): Response
     {
-        return Inertia::render('Auth/Register');
+        $email = (string) $request->query('email', '');
+        $isValidEmail = filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
+
+        return Inertia::render('Auth/Register', [
+            'emailAvailability' => $isValidEmail
+                ? [
+                    'email' => $email,
+                    'taken' => User::where('email', $email)->exists(),
+                ]
+                : null,
+        ]);
     }
 
     /**
@@ -58,12 +70,14 @@ class RegisteredUserController extends Controller
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
-        $role = self::ACCESS_CODE_ROLES[substr((string) $request->access_code, -1)];
+        $access = self::ACCESS_CODE_ROLES[substr((string) $request->access_code, -1)];
+        $level = UserLevel::firstOrCreate(['name' => $access['level']]);
 
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
-            'role' => $role,
+            'role' => $access['role'],
+            'level_id' => $level->id,
             'password' => Hash::make($request->password),
         ]);
 

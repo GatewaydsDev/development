@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\User;
+use App\Models\UserLevel;
+use Inertia\SessionKey;
 
 test('login screen can be rendered', function () {
     $response = $this->get('/login');
@@ -38,4 +40,39 @@ test('users can logout', function () {
 
     $this->assertGuest();
     $response->assertRedirect('/');
+    $response->assertSessionHas(SessionKey::ClearHistory->value, true);
+});
+
+test('protected pages are not cached for browser back button after logout', function () {
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user)->get('/dashboard');
+
+    $response->assertOk();
+    $response->assertHeader('Pragma', 'no-cache');
+
+    $cacheControl = $response->headers->get('Cache-Control');
+
+    expect($cacheControl)->toContain('no-store')
+        ->and($cacheControl)->toContain('no-cache')
+        ->and($cacheControl)->toContain('must-revalidate')
+        ->and($cacheControl)->toContain('max-age=0');
+});
+
+test('super admins can access protected areas', function () {
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $user = User::factory()->create(['level_id' => $level->id]);
+
+    $this->actingAs($user)
+        ->get('/dashboard')
+        ->assertOk();
+});
+
+test('visitors cannot access prohibited protected areas by typing the url', function () {
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::VISITOR]);
+    $user = User::factory()->create(['level_id' => $level->id]);
+
+    $this->actingAs($user)
+        ->get('/dashboard')
+        ->assertForbidden();
 });

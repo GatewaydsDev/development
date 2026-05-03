@@ -8,6 +8,18 @@ use Illuminate\Support\Str;
 
 class UserLevel extends Model
 {
+    public const SUPER_ADMIN = 'Super Admin';
+
+    public const ADMINISTRATOR = 'Administrator';
+
+    public const ADMIN = 'Admin';
+
+    public const PROJECT_MANAGER = 'Project Manager';
+
+    public const USER = 'User';
+
+    public const VISITOR = 'Visitor';
+
     protected $fillable = [
         'uuid',
         'name',

@@ -12,18 +12,20 @@ import PublicLayout from '@/Layouts/PublicLayout';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Head, Link, router } from '@inertiajs/react';
 import { REGEXP_ONLY_DIGITS_AND_CHARS } from 'input-otp';
-import { Fragment, useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
+import { Fragment, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 const accessCodePrefix = 'FCKGWRHQQ';
 
 const userLevels = {
-    '1': { label: 'Super admin', role: 'super_admin' },
-    '2': { label: 'Admin', role: 'admin' },
-    '3': { label: 'Manager', role: 'manager' },
-    '4': { label: 'Technician', role: 'technician' },
-    '5': { label: 'Viewer', role: 'viewer' },
+    '1': { label: 'Super Admin', role: 'super_admin' },
+    '2': { label: 'Administrator', role: 'administrator' },
+    '3': { label: 'Admin', role: 'admin' },
+    '4': { label: 'Project Manager', role: 'project_manager' },
+    '5': { label: 'User', role: 'user' },
+    '6': { label: 'Visitor', role: 'visitor' },
 } as const;
 
 const otpGroups = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [9]];
@@ -57,8 +59,21 @@ const registerSchema = z
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
-export default function Register() {
+type EmailAvailability = {
+    email: string;
+    taken: boolean;
+} | null;
+
+export default function Register({
+    emailAvailability,
+}: {
+    emailAvailability?: EmailAvailability;
+}) {
     const [processing, setProcessing] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showPasswordConfirmation, setShowPasswordConfirmation] =
+        useState(false);
+    const [checkingEmail, setCheckingEmail] = useState(false);
 
     const {
         control,
@@ -81,8 +96,43 @@ export default function Register() {
     });
 
     const accessCode = watch('accessCode');
+    const email = watch('email');
     const userLevel = getUserLevel(accessCode);
     const hasAccessCodeError = Boolean(validationErrors.accessCode);
+    const hasEmailFormatError = Boolean(validationErrors.email);
+    const emailTaken =
+        emailAvailability?.email === email.trim() && emailAvailability.taken;
+
+    useEffect(() => {
+        const trimmedEmail = email.trim();
+
+        if (!trimmedEmail || hasEmailFormatError) {
+            setCheckingEmail(false);
+            return;
+        }
+
+        const timeout = window.setTimeout(() => {
+            setCheckingEmail(true);
+
+            router.get(
+                route('register'),
+                { email: trimmedEmail },
+                {
+                    only: ['emailAvailability'],
+                    preserveScroll: true,
+                    preserveState: true,
+                    replace: true,
+                    onFinish: () => {
+                        setCheckingEmail(false);
+                    },
+                },
+            );
+        }, 450);
+
+        return () => {
+            window.clearTimeout(timeout);
+        };
+    }, [email, hasEmailFormatError]);
 
     const submit = (values: RegisterFormValues) => {
         router.post(
@@ -164,6 +214,7 @@ export default function Register() {
                                             <InputOTP
                                                 id="accessCode"
                                                 maxLength={10}
+                                                autoFocus
                                                 pattern={
                                                     REGEXP_ONLY_DIGITS_AND_CHARS
                                                 }
@@ -271,6 +322,27 @@ export default function Register() {
                                         }
                                         className="text-destructive"
                                     />
+
+                                    {checkingEmail && (
+                                        <p className="text-sm text-muted-foreground">
+                                            Checking email availability...
+                                        </p>
+                                    )}
+
+                                    {emailTaken && !checkingEmail && (
+                                        <p className="max-w-xs text-xs leading-5 text-destructive">
+                                            This email has already been taken.
+                                            <br />
+                                            Please{' '}
+                                            <Link
+                                                href={route('login')}
+                                                className="font-medium underline underline-offset-4"
+                                            >
+                                                click here to login
+                                            </Link>
+                                            .
+                                        </p>
+                                    )}
                                 </div>
 
                                 <div className="flex flex-col gap-2">
@@ -280,13 +352,39 @@ export default function Register() {
                                         className="text-foreground"
                                     />
 
-                                    <TextInput
-                                        id="password"
-                                        type="password"
-                                        className="block h-10 w-full border-border bg-background px-3 text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
-                                        autoComplete="new-password"
-                                        {...register('password')}
-                                    />
+                                    <div className="relative">
+                                        <TextInput
+                                            id="password"
+                                            type={
+                                                showPassword
+                                                    ? 'text'
+                                                    : 'password'
+                                            }
+                                            className="block h-10 w-full border-border bg-background px-3 pe-10 text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
+                                            autoComplete="new-password"
+                                            {...register('password')}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setShowPassword(
+                                                    (current) => !current,
+                                                )
+                                            }
+                                            className="absolute inset-y-0 end-0 flex items-center px-3 text-muted-foreground transition hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+                                            aria-label={
+                                                showPassword
+                                                    ? 'Hide password'
+                                                    : 'Show password'
+                                            }
+                                        >
+                                            {showPassword ? (
+                                                <EyeOff className="size-4" />
+                                            ) : (
+                                                <Eye className="size-4" />
+                                            )}
+                                        </button>
+                                    </div>
 
                                     <InputError
                                         message={
@@ -303,13 +401,41 @@ export default function Register() {
                                         className="text-foreground"
                                     />
 
-                                    <TextInput
-                                        id="password_confirmation"
-                                        type="password"
-                                        className="block h-10 w-full border-border bg-background px-3 text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
-                                        autoComplete="new-password"
-                                        {...register('password_confirmation')}
-                                    />
+                                    <div className="relative">
+                                        <TextInput
+                                            id="password_confirmation"
+                                            type={
+                                                showPasswordConfirmation
+                                                    ? 'text'
+                                                    : 'password'
+                                            }
+                                            className="block h-10 w-full border-border bg-background px-3 pe-10 text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
+                                            autoComplete="new-password"
+                                            {...register(
+                                                'password_confirmation',
+                                            )}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setShowPasswordConfirmation(
+                                                    (current) => !current,
+                                                )
+                                            }
+                                            className="absolute inset-y-0 end-0 flex items-center px-3 text-muted-foreground transition hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+                                            aria-label={
+                                                showPasswordConfirmation
+                                                    ? 'Hide password confirmation'
+                                                    : 'Show password confirmation'
+                                            }
+                                        >
+                                            {showPasswordConfirmation ? (
+                                                <EyeOff className="size-4" />
+                                            ) : (
+                                                <Eye className="size-4" />
+                                            )}
+                                        </button>
+                                    </div>
 
                                     <InputError
                                         message={
@@ -325,7 +451,7 @@ export default function Register() {
                                     type="submit"
                                     size="lg"
                                     className="w-full"
-                                    disabled={processing}
+                                    disabled={processing || emailTaken}
                                 >
                                     Sign up
                                 </Button>

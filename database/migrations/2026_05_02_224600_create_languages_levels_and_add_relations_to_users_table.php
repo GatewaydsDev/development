@@ -13,15 +13,16 @@ return new class extends Migration
     {
         Schema::create('languages', function (Blueprint $table) {
             $table->id();
+            $table->uuid('uuid')->unique();
             $table->string('name')->unique();
-            $table->string('code')->unique();
+            $table->string('abbreviation')->unique();
             $table->timestamps();
         });
 
-        Schema::create('levels', function (Blueprint $table) {
+        Schema::create('user_levels', function (Blueprint $table) {
             $table->id();
+            $table->uuid('uuid')->unique();
             $table->string('name')->unique();
-            $table->string('code')->unique();
             $table->timestamps();
         });
 
@@ -35,7 +36,7 @@ return new class extends Migration
             $table->foreignId('level_id')
                 ->nullable()
                 ->after('language_id')
-                ->constrained()
+                ->constrained('user_levels')
                 ->nullOnDelete();
         });
     }
@@ -50,7 +51,7 @@ return new class extends Migration
             $table->dropConstrainedForeignId('language_id');
         });
 
-        Schema::dropIfExists('levels');
+        Schema::dropIfExists('user_levels');
         Schema::dropIfExists('languages');
     }
 };

@@ -14,9 +14,11 @@ class UserLevelSeeder extends Seeder
     {
         collect([
             'Super Admin',
+            'Administrator',
             'Admin',
             'Project Manager',
             'User',
+            'Visitor',
         ])->each(fn (string $name) => UserLevel::firstOrCreate([
             'name' => $name,
         ]));

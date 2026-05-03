@@ -59,4 +59,23 @@ class User extends Authenticatable
     {
         return $this->belongsTo(\App\Models\UserLevel::class);
     }
+
+    public function hasUserLevel(string|array $levels): bool
+    {
+        $levels = (array) $levels;
+
+        if (! $this->level_id) {
+            return false;
+        }
+
+        return \App\Models\UserLevel::query()
+            ->whereKey($this->level_id)
+            ->whereIn('name', $levels)
+            ->exists();
+    }
+
+    public function isSuperAdmin(): bool
+    {
+        return $this->hasUserLevel(\App\Models\UserLevel::SUPER_ADMIN);
+    }
 }

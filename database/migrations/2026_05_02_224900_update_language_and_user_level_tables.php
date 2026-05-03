@@ -13,6 +13,18 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (
+            ! Schema::hasTable('levels') &&
+            Schema::hasTable('user_levels') &&
+            Schema::hasColumn('languages', 'uuid') &&
+            Schema::hasColumn('languages', 'abbreviation') &&
+            Schema::hasColumn('user_levels', 'uuid') &&
+            ! Schema::hasColumn('languages', 'code') &&
+            ! Schema::hasColumn('user_levels', 'code')
+        ) {
+            return;
+        }
+
         Schema::table('users', function (Blueprint $table) {
             $table->dropForeign(['level_id']);
         });
