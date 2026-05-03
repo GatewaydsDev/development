@@ -153,47 +153,11 @@ export default function Home() {
                             )}
                         </p>
 
-                        <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                            {carouselSlides.map((slide, index) => (
-                                <button
-                                    key={slide.key}
-                                    type="button"
-                                    onClick={() => {
-                                        setActiveSlide(index);
-                                        setProgress(0);
-                                    }}
-                                    className={
-                                        'rounded-2xl border p-3 text-left transition sm:p-4 ' +
-                                        (activeSlide === index
-                                            ? 'border-emerald-400/50 bg-emerald-400/10'
-                                            : 'border-border bg-card hover:border-emerald-400/30')
-                                    }
-                                >
-                                    <div className="flex items-center justify-between gap-4">
-                                        <span className="text-sm font-medium text-foreground sm:text-base">
-                                            {t(
-                                                `carousel.slides.${slide.key}.label`,
-                                            )}
-                                        </span>
-                                        <span className="text-xs font-semibold text-emerald-300">
-                                            {String(index + 1).padStart(2, '0')}
-                                        </span>
-                                    </div>
-                                    <div className="mt-3 h-1 overflow-hidden rounded-full bg-muted">
-                                        <div
-                                            className="h-full rounded-full bg-emerald-400 transition-[width] duration-75"
-                                            style={{
-                                                width:
-                                                    activeSlide === index
-                                                        ? `${progress}%`
-                                                        : index < activeSlide
-                                                          ? '100%'
-                                                          : '0%',
-                                            }}
-                                        />
-                                    </div>
-                                </button>
-                            ))}
+                        <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-muted">
+                            <div
+                                className="h-full rounded-full bg-emerald-400 transition-[width] duration-75"
+                                style={{ width: `${progress}%` }}
+                            />
                         </div>
                     </div>
                 </div>
