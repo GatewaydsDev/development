@@ -3,133 +3,51 @@
     "title": "Inicio"
   },
   "hero": {
-    "badge": "Soporte integral para accesos",
-    "title": "Acceso seguro y confiable desde el primer plano hasta la última visita de servicio.",
-    "description": "Gateway Door Systems reúne puertas comerciales, herrajes, operadores y coordinación de acceso en un flujo confiable para instalaciones que no pueden permitirse interrupciones evitables.",
-    "primaryCta": "Explorar capacidades",
-    "secondaryCta": "Portal de clientes"
+    "badge": "Instalación de puertas de alta seguridad",
+    "title": "Instalación de puertas para SCIF e instalaciones seguras",
+    "description": "Nos especializamos en la instalación de puertas de alta seguridad para entornos sensibles, incluidos proyectos relacionados con requisitos SCIF (Sensitive Compartmented Information Facility). Aunque no construimos SCIFs, ofrecemos una instalación precisa de puertas que respalda el control de acceso seguro, la durabilidad y el rendimiento en espacios de alta seguridad.",
+    "imageAlt": "Puerta comercial segura que representa instalación de puertas para SCIF e instalaciones seguras",
+    "primaryCta": "Explorar puertas de alta seguridad",
+    "secondaryCta": "Llamar ahora",
+    "progressLabel": "Progreso del carrusel de imágenes del hero",
+    "keywords": {
+      "scifDoorInstallation": "SCIF door installation",
+      "secureFacilityDoorInstaller": "secure facility door installer",
+      "highSecurityDoorContractor": "high-security door contractor"
+    },
+    "slides": {
+      "secureEntry": "Puerta de entrada comercial segura para acceso a instalaciones sensibles",
+      "secureFacility": "Puerta de instalación de alta seguridad y área de acceso controlado",
+      "facilityAccess": "Puerta de acceso seguro para operaciones comerciales",
+      "reliableOpenings": "Apertura de puerta comercial confiable para uso de alta seguridad"
+    },
+    "card": {
+      "title": "Diseñado para accesos seguros",
+      "description": "Gateway se enfoca en la instalación de puertas que respalda el acceso controlado, la operación confiable y el rendimiento durable en instalaciones sensibles."
+    }
   },
   "floatingQuote": {
     "button": "Llama ahora para cotizar"
   },
-  "carousel": {
-    "eyebrow": "Gateway Door Systems",
-    "title": "Soluciones de puertas para instalaciones comerciales que necesitan acceso confiable.",
-    "description": "Destaca el trabajo de Gateway Door Systems en puertas comerciales, accesos de alto tráfico, mantenimiento y acceso seguro para instalaciones.",
-    "slides": {
-      "commercialDoors": {
-        "label": "Puertas comerciales",
-        "title": "Sistemas de puertas comerciales para uso diario.",
-        "description": "Gateway apoya instalaciones con puertas duraderas, herrajes coordinados y rutas de instalación ajustadas a las necesidades del edificio.",
-        "alt": "Interior de edificio comercial que representa sistemas de puertas comerciales Gateway"
-      },
-      "rollingDoors": {
-        "label": "Enrollables y seccionales",
-        "title": "Aperturas de alto tráfico para operaciones ocupadas.",
-        "description": "Áreas de carga, entradas de almacén y puertas de servicio necesitan productos confiables que mantengan personas, vehículos y materiales en movimiento.",
-        "alt": "Instalación de almacén que representa puertas comerciales enrollables y seccionales"
-      },
-      "maintenance": {
-        "label": "Servicio y mantenimiento",
-        "title": "Soporte de mantenimiento que reduce interrupciones.",
-        "description": "Gateway puede ayudar a mantener puertas, operadores, sensores y herrajes funcionando con planificación de reparación y mantenimiento.",
-        "alt": "Técnico revisando planos de obra para servicio de puertas comerciales"
-      },
-      "secureAccess": {
-        "label": "Acceso seguro",
-        "title": "Soluciones de acceso para un flujo más seguro.",
-        "description": "Desde operadores y controles hasta coordinación de herrajes, Gateway ayuda a las instalaciones a gestionar el movimiento seguro por aperturas críticas.",
-        "alt": "Instalación industrial que representa acceso seguro y coordinación de puertas comerciales"
-      }
-    }
-  },
-  "dashboard": {
-    "label": "Panel de servicio",
-    "title": "Trabajos activos",
-    "badge": "Equipo listo",
-    "jobs": {
-      "survey": {
-        "type": "Revisión",
-        "name": "Evaluación de acceso en muelle de carga",
-        "status": "Hoy"
-      },
-      "install": {
-        "type": "Instalación",
-        "name": "Reemplazo de puerta enrollable",
-        "status": "Programado"
-      },
-      "support": {
-        "type": "Soporte",
-        "name": "Reparación de operador y sensor",
-        "status": "En progreso"
-      }
+  "highSecurity": {
+    "eyebrow": "Aperturas reforzadas de alta resistencia",
+    "title": "Instalación de puertas de alta seguridad",
+    "description": "Instalamos sistemas de puertas reforzadas y de alta resistencia para propiedades residenciales y comerciales. Nuestro trabajo se enfoca en ajuste preciso, refuerzo estructural y confiabilidad a largo plazo.",
+    "keywords": {
+      "secureDoorInstallation": "secure door installation",
+      "steelDoorInstallation": "steel door installation",
+      "reinforcedDoorSystems": "reinforced door systems",
+      "commercialDoorContractor": "commercial door contractor"
     },
-    "stages": {
-      "plan": "Planear",
-      "build": "Instalar",
-      "maintain": "Mantener"
-    }
-  },
-  "markets": {
-    "eyebrow": "Creado para instalaciones que necesitan accesos seguros todos los días",
-    "items": {
-      "commercial": "Comercial",
-      "healthcare": "Salud",
-      "education": "Educación",
-      "industrial": "Industrial",
-      "government": "Gobierno",
-      "multiSite": "Multi-sede"
-    }
-  },
-  "capabilities": {
-    "eyebrow": "Capacidades",
-    "title": "Un solo equipo para accesos, herrajes, control y servicio continuo.",
-    "description": "Los sitios de referencia organizan su mensaje alrededor de capacidades, industrias, soporte y confianza. Esta página sigue esa estructura con mensajes originales para Gateway.",
-    "items": {
-      "planning": {
-        "title": "Diseño y planificación",
-        "description": "Guía temprana para aperturas, herrajes, operadores, necesidades de acceso y mantenimiento a largo plazo."
-      },
-      "installation": {
-        "title": "Instalación",
-        "description": "Puertas comerciales, marcos, herrajes, operadores y controles instalados con disciplina de campo."
-      },
-      "security": {
-        "title": "Seguridad y acceso",
-        "description": "Herrajes, cerraduras, controles de entrada y soporte perimetral para instalaciones más seguras."
-      },
-      "aftermarket": {
-        "title": "Servicio posterior",
-        "description": "Reparación receptiva, mantenimiento preventivo, repuestos y soporte durante el ciclo de vida."
-      }
-    }
-  },
-  "products": {
-    "eyebrow": "Productos y sistemas",
-    "title": "Una combinación práctica de puertas, herrajes y soluciones de acceso.",
-    "description": "Desde obra nueva hasta reemplazos urgentes, Gateway puede presentar un catálogo claro de productos y rutas de servicio sin abrumar a los visitantes.",
-    "items": {
-      "sectional": "Puertas seccionales y enrollables",
-      "hollowMetal": "Puertas y marcos de metal hueco",
-      "hardware": "Herrajes comerciales",
-      "operators": "Operadores y controles",
-      "access": "Coordinación de control de acceso",
-      "inspection": "Inspección y mantenimiento"
-    }
-  },
-  "process": {
-    "eyebrow": "Modelo de soporte",
-    "title": "Pasos claros desde la evaluación hasta el soporte del ciclo de vida.",
-    "steps": {
-      "assess": "Evaluar la apertura, el tráfico del sitio y los requisitos de seguridad.",
-      "match": "Seleccionar el producto, los herrajes y la estrategia de control adecuados.",
-      "coordinate": "Coordinar la instalación con mínima interrupción operativa.",
-      "support": "Respaldar el sistema con mantenimiento, reparación y comunicación clara."
+    "images": {
+      "reliableOpenings": "Apertura de puerta reforzada confiable para una propiedad de alta seguridad",
+      "secureFacility": "Sistema de puerta reforzada segura para una instalación comercial",
+      "accessCard": "Tarjeta de acceso usada en una puerta residencial o comercial segura"
     }
   },
   "cta": {
-    "eyebrow": "¿Listo para la siguiente sección?",
-    "title": "Agrega páginas de servicios, industrias, ubicaciones y una ruta de contacto sobre esta base.",
-    "button": "Conocer más"
+    "eyebrow": "¿Listo para revisar una apertura segura?",
+    "title": "Habla con Gateway sobre instalación de puertas de alta seguridad para tu instalación.",
+    "button": "Llamar ahora"
   }
 }

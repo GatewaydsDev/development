@@ -8,14 +8,10 @@ import homeEn from './locales/en/home.json';
 import aboutEs from './locales/es/about.json';
 import commonEs from './locales/es/common.json';
 import homeEs from './locales/es/home.json';
-import aboutPtBr from './locales/pt-BR/about.json';
-import commonPtBr from './locales/pt-BR/common.json';
-import homePtBr from './locales/pt-BR/home.json';
 
 export const languages = [
     { code: 'en', labelKey: 'language.en', flag: '🇺🇸' },
     { code: 'es', labelKey: 'language.es', flag: '🇪🇸' },
-    { code: 'pt-BR', labelKey: 'language.pt-BR', flag: '🇧🇷' },
 ] as const;
 
 export type LanguageCode = (typeof languages)[number]['code'];
@@ -37,11 +33,6 @@ i18n.use(LanguageDetector)
                 common: commonEs,
                 home: homeEs,
                 about: aboutEs,
-            },
-            'pt-BR': {
-                common: commonPtBr,
-                home: homePtBr,
-                about: aboutPtBr,
             },
         },
         detection: {

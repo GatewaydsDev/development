@@ -7,63 +7,49 @@ import {
     CardHeader,
     CardTitle,
 } from '@/Components/ui/card';
-import { Separator } from '@/Components/ui/separator';
 import PublicLayout from '@/Layouts/PublicLayout';
-import { Head, Link } from '@inertiajs/react';
-import { PhoneCallIcon } from 'lucide-react';
+import { Head } from '@inertiajs/react';
+import {
+    CheckCircle2Icon,
+    DoorOpenIcon,
+    PhoneCallIcon,
+    ShieldCheckIcon,
+} from 'lucide-react';
+import type { MouseEvent } from 'react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-const markets = [
-    'commercial',
-    'healthcare',
-    'education',
-    'industrial',
-    'government',
-    'multiSite',
+const heroKeywords = [
+    'scifDoorInstallation',
+    'secureFacilityDoorInstaller',
+    'highSecurityDoorContractor',
 ];
 
-const capabilities = [
-    'planning',
-    'installation',
-    'security',
-    'aftermarket',
+const highSecurityKeywords = [
+    'secureDoorInstallation',
+    'steelDoorInstallation',
+    'reinforcedDoorSystems',
+    'commercialDoorContractor',
 ];
 
-const processSteps = [
-    'assess',
-    'match',
-    'coordinate',
-    'support',
-];
+const heroCarouselDuration = 8000;
 
-const productGroups = [
-    'sectional',
-    'hollowMetal',
-    'hardware',
-    'operators',
-    'access',
-    'inspection',
-];
-
-const carouselDuration = 5000;
-
-const carouselSlides = [
+const heroSlides = [
     {
-        key: 'commercialDoors',
+        key: 'secureEntry',
         image: '/images/gateway-door-project-secure-entry.webp',
     },
     {
-        key: 'rollingDoors',
+        key: 'secureFacility',
+        image: '/images/gateway-door-project-secure-facility.webp',
+    },
+    {
+        key: 'facilityAccess',
         image: '/images/gateway-door-project-facility-access.webp',
     },
     {
-        key: 'maintenance',
+        key: 'reliableOpenings',
         image: '/images/gateway-door-project-reliable-openings.webp',
-    },
-    {
-        key: 'secureAccess',
-        image: '/images/gateway-door-project-secure-facility.webp',
     },
 ];
 
@@ -82,7 +68,7 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
 
         const interval = window.setInterval(() => {
             const nextProgress = Math.min(
-                ((Date.now() - startedAt) / carouselDuration) * 100,
+                ((Date.now() - startedAt) / heroCarouselDuration) * 100,
                 100,
             );
 
@@ -90,13 +76,35 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
 
             if (nextProgress >= 100) {
                 setActiveSlide(
-                    (currentSlide) => (currentSlide + 1) % carouselSlides.length,
+                    (currentSlide) => (currentSlide + 1) % heroSlides.length,
                 );
             }
-        }, 50);
+        }, 80);
 
         return () => window.clearInterval(interval);
     }, [activeSlide]);
+
+    const handleExploreClick = (event: MouseEvent<HTMLAnchorElement>) => {
+        event.preventDefault();
+
+        const section = document.getElementById(
+            'high-security-door-installation',
+        );
+
+        if (!section) {
+            return;
+        }
+
+        const stickyHeaderOffset = 96;
+
+        window.scrollTo({
+            top:
+                section.getBoundingClientRect().top +
+                window.scrollY -
+                stickyHeaderOffset,
+            behavior: 'smooth',
+        });
+    };
 
     return (
         <PublicLayout>
@@ -113,25 +121,25 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
             )}
 
             <section className="relative overflow-hidden border-b border-border">
-                {carouselSlides.map((slide, index) => (
+                {heroSlides.map((slide, index) => (
                     <img
                         key={slide.key}
                         src={slide.image}
-                        alt={t(`carousel.slides.${slide.key}.alt`)}
+                        alt={t(`hero.slides.${slide.key}`)}
                         className={
-                            'absolute inset-0 h-full w-full object-cover transition duration-1000 ease-out ' +
+                            'absolute inset-0 size-full object-cover transition duration-1000 ease-out ' +
                             (activeSlide === index
                                 ? 'scale-100 opacity-100'
                                 : 'scale-105 opacity-0')
                         }
                     />
                 ))}
-                <div className="absolute inset-0 bg-gradient-to-r from-background via-background/85 to-background/35" />
-                <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-background/20" />
+                <div className="absolute inset-0 bg-gradient-to-r from-background via-background/90 to-background/45" />
+                <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-background/20" />
                 <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.045)_1px,_transparent_1px),linear-gradient(90deg,_rgba(0,0,0,0.045)_1px,_transparent_1px)] bg-[size:56px_56px] dark:bg-[linear-gradient(rgba(255,255,255,0.035)_1px,_transparent_1px),linear-gradient(90deg,_rgba(255,255,255,0.035)_1px,_transparent_1px)]" />
 
-                <div className="relative mx-auto grid min-h-[calc(100vh-5rem)] max-w-7xl gap-10 px-4 py-16 sm:min-h-[calc(100vh-6rem)] sm:px-6 sm:py-20 lg:min-h-[calc(100vh-7rem)] lg:grid-cols-[0.95fr_1.05fr] lg:items-end lg:px-8 lg:py-20">
-                    <div className="self-center lg:self-end">
+                <div className="relative mx-auto grid min-h-[calc(100vh-5rem)] max-w-7xl gap-10 px-4 py-16 sm:min-h-[calc(100vh-6rem)] sm:px-6 sm:py-20 lg:min-h-[calc(100vh-7rem)] lg:grid-cols-[1fr_0.8fr] lg:items-center lg:px-8 lg:py-24">
+                    <div>
                         <Badge
                             variant="outline"
                             className="border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
@@ -145,152 +153,127 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
                         <p className="mt-6 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
                             {t('hero.description')}
                         </p>
-                        <div className="mt-10 flex flex-col gap-3 sm:flex-row">
-                            <Button asChild size="lg">
-                                <Link href={route('about')}>
-                                    {t('hero.primaryCta')}
-                                </Link>
-                            </Button>
+                        <div className="mt-6 flex flex-wrap gap-2">
+                            {heroKeywords.map((keyword) => (
+                                <Badge
+                                    key={keyword}
+                                    variant="outline"
+                                    className="border-emerald-500/20 bg-background/70 text-emerald-700 backdrop-blur dark:text-emerald-300"
+                                >
+                                    {t(`hero.keywords.${keyword}`)}
+                                </Badge>
+                            ))}
                         </div>
-                    </div>
-
-                    <div className="rounded-3xl border border-border bg-background/80 p-4 shadow-2xl shadow-emerald-950/10 backdrop-blur-md dark:shadow-emerald-950/30 sm:p-5 lg:self-end">
-                        <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
-                            {t('carousel.eyebrow')}
-                        </p>
-                        <h2 className="mt-2 max-w-xl text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-                            {t(
-                                `carousel.slides.${carouselSlides[activeSlide].key}.title`,
+                        <div className="mt-10 flex flex-col gap-3 sm:flex-row">
+                            <Button asChild size="lg" className="w-full sm:w-auto">
+                                <a
+                                    href="#high-security-door-installation"
+                                    onClick={handleExploreClick}
+                                >
+                                    {t('hero.primaryCta')}
+                                </a>
+                            </Button>
+                            {quotePhoneNumber && (
+                                <Button
+                                    asChild
+                                    variant="outline"
+                                    size="lg"
+                                    className="w-full sm:w-auto"
+                                >
+                                    <a href={`tel:${quotePhoneNumber}`}>
+                                        <PhoneCallIcon className="size-4" />
+                                        {t('hero.secondaryCta')}
+                                    </a>
+                                </Button>
                             )}
-                        </h2>
-                        <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground sm:text-base">
-                            {t(
-                                `carousel.slides.${carouselSlides[activeSlide].key}.description`,
-                            )}
-                        </p>
-
-                        <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-muted">
+                        </div>
+                        <div
+                            className="mt-8 h-1.5 max-w-full overflow-hidden rounded-full bg-muted sm:max-w-md"
+                            aria-label={t('hero.progressLabel')}
+                        >
                             <div
-                                className="h-full rounded-full bg-emerald-400 transition-[width] duration-75"
+                                className="h-full rounded-full bg-emerald-400 transition-[width] duration-100"
                                 style={{ width: `${progress}%` }}
                             />
                         </div>
                     </div>
-                </div>
-            </section>
 
-            <section className="border-b border-border bg-muted/30">
-                <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-                    <p className="text-center text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">
-                        {t('markets.eyebrow')}
-                    </p>
-                    <div className="mt-8 grid grid-cols-2 gap-4 text-center text-sm font-semibold text-muted-foreground sm:grid-cols-3 lg:grid-cols-6">
-                        {markets.map((market) => (
-                            <div
-                                key={market}
-                                className="rounded-lg border border-border bg-card px-4 py-3"
-                            >
-                                {t(`markets.items.${market}`)}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </section>
-
-            <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
-                <div className="max-w-2xl">
-                    <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
-                        {t('capabilities.eyebrow')}
-                    </p>
-                    <h2 className="mt-4 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
-                        {t('capabilities.title')}
-                    </h2>
-                    <p className="mt-5 text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
-                        {t('capabilities.description')}
-                    </p>
-                </div>
-
-                <div className="mt-12 grid gap-4 md:grid-cols-2">
-                    {capabilities.map((item) => (
-                        <Card
-                            key={item}
-                            className="border-border bg-card text-card-foreground transition hover:border-emerald-400/40 hover:bg-emerald-400/[0.04]"
-                        >
-                            <CardHeader className="p-5 sm:p-6">
-                                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
-                                    <span className="h-2.5 w-2.5 rounded-full bg-emerald-600 dark:bg-emerald-300" />
-                                </div>
-                                <CardTitle>
-                                    {t(`capabilities.items.${item}.title`)}
-                                </CardTitle>
-                                <CardDescription className="leading-7">
-                                    {t(
-                                        `capabilities.items.${item}.description`,
-                                    )}
-                                </CardDescription>
-                            </CardHeader>
-                        </Card>
-                    ))}
-                </div>
-            </section>
-
-            <section className="border-y border-border bg-muted/30">
-                <div className="mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[0.9fr_1.1fr] lg:px-8 lg:py-24">
-                    <div>
-                        <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
-                            {t('products.eyebrow')}
-                        </p>
-                        <h2 className="mt-4 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
-                            {t('products.title')}
-                        </h2>
-                        <p className="mt-5 text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
-                            {t('products.description')}
-                        </p>
-                    </div>
-
-                    <div className="grid gap-3 sm:grid-cols-2">
-                        {productGroups.map((item) => (
-                            <div
-                                key={item}
-                                className="rounded-xl border border-border bg-card p-5 text-sm font-medium text-card-foreground"
-                            >
-                                {t(`products.items.${item}`)}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </section>
-
-            <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
-                <div className="grid gap-12 lg:grid-cols-[1fr_1fr]">
-                    <div>
-                        <Badge
-                            variant="outline"
-                            className="border-emerald-500/20 text-emerald-700 dark:text-emerald-300"
-                        >
-                            {t('process.eyebrow')}
-                        </Badge>
-                        <h2 className="mt-5 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
-                            {t('process.title')}
-                        </h2>
-                    </div>
-
-                    <div className="flex flex-col gap-6">
-                        {processSteps.map((step, index) => (
-                            <div key={step}>
-                                <div className="flex gap-5">
-                                    <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
-                                        {index + 1}
+                    <Card className="border-border bg-background/80 shadow-2xl shadow-emerald-950/10 backdrop-blur-md dark:shadow-emerald-950/30">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <ShieldCheckIcon className="size-5 text-emerald-700 dark:text-emerald-300" />
+                                {t('hero.card.title')}
+                            </CardTitle>
+                            <CardDescription className="leading-7">
+                                {t('hero.card.description')}
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid gap-3">
+                                {heroKeywords.map((keyword) => (
+                                    <div
+                                        key={keyword}
+                                        className="flex items-center gap-3 rounded-xl border border-border bg-background p-4 text-sm font-medium text-foreground"
+                                    >
+                                        <CheckCircle2Icon className="size-4 text-emerald-700 dark:text-emerald-300" />
+                                        {t(`hero.keywords.${keyword}`)}
                                     </div>
-                                    <p className="pt-2 leading-7 text-muted-foreground">
-                                        {t(`process.steps.${step}`)}
-                                    </p>
-                                </div>
-                                {index < processSteps.length - 1 && (
-                                    <Separator className="mt-6" />
-                                )}
+                                ))}
                             </div>
-                        ))}
+                        </CardContent>
+                    </Card>
+                </div>
+            </section>
+
+            <section
+                id="high-security-door-installation"
+                className="border-y border-border bg-muted/40"
+            >
+                <div className="mx-auto flex max-w-7xl justify-end px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
+                    <div className="ml-auto flex max-w-4xl flex-col gap-8 text-left sm:items-end sm:text-right">
+                        <div className="grid w-full gap-4 sm:grid-cols-2 sm:items-end">
+                            <img
+                                src="/images/high-security-door-row.jpeg"
+                                alt={t('highSecurity.images.reliableOpenings')}
+                                className="ml-auto h-48 w-full rounded-3xl border border-border object-cover shadow-xl shadow-emerald-950/10 sm:h-64"
+                            />
+                            <img
+                                src="/images/high-security-reinforced-door.jpeg"
+                                alt={t('highSecurity.images.secureFacility')}
+                                className="ml-auto h-64 w-full rounded-3xl border border-border object-cover shadow-2xl shadow-emerald-950/10 sm:row-span-2 sm:h-full"
+                            />
+                            <img
+                                src="/images/high-security-access-card-door.jpeg"
+                                alt={t('highSecurity.images.accessCard')}
+                                className="ml-auto h-48 w-full rounded-3xl border border-border object-cover shadow-xl shadow-emerald-950/10 sm:h-64"
+                            />
+                        </div>
+
+                        <div className="max-w-3xl">
+                            <Badge
+                                variant="outline"
+                                className="border-emerald-500/20 bg-background/70 text-emerald-700 dark:text-emerald-300"
+                            >
+                                {t('highSecurity.eyebrow')}
+                            </Badge>
+                            <h2 className="mt-5 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
+                                {t('highSecurity.title')}
+                            </h2>
+                            <p className="mt-5 text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
+                                {t('highSecurity.description')}
+                            </p>
+                            <div className="mt-6 flex flex-wrap gap-2 sm:justify-end">
+                                {highSecurityKeywords.map((keyword) => (
+                                    <Badge
+                                        key={keyword}
+                                        variant="outline"
+                                        className="border-emerald-500/20 bg-background text-emerald-700 dark:text-emerald-300"
+                                    >
+                                        {t(`highSecurity.keywords.${keyword}`)}
+                                    </Badge>
+                                ))}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -299,6 +282,9 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
                 <Card className="overflow-hidden border-emerald-400/20 bg-emerald-400 text-zinc-950">
                     <CardContent className="grid gap-8 p-6 sm:p-8 md:grid-cols-[1fr_auto] md:items-center lg:p-10">
                         <div>
+                            <div className="mb-4 flex size-10 items-center justify-center rounded-full bg-zinc-950/10">
+                                <DoorOpenIcon className="size-5" />
+                            </div>
                             <p className="text-sm font-semibold uppercase tracking-wide">
                                 {t('cta.eyebrow')}
                             </p>
@@ -306,9 +292,19 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
                                 {t('cta.title')}
                             </h2>
                         </div>
-                        <Button asChild variant="secondary" size="lg">
-                            <Link href={route('about')}>{t('cta.button')}</Link>
-                        </Button>
+                        {quotePhoneNumber && (
+                            <Button
+                                asChild
+                                variant="secondary"
+                                size="lg"
+                                className="w-full md:w-auto"
+                            >
+                                <a href={`tel:${quotePhoneNumber}`}>
+                                    <PhoneCallIcon className="size-4" />
+                                    {t('cta.button')}
+                                </a>
+                            </Button>
+                        )}
                     </CardContent>
                 </Card>
             </section>

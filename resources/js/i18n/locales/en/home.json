@@ -3,133 +3,51 @@
     "title": "Home"
   },
   "hero": {
-    "badge": "Total opening support",
-    "title": "Secure, reliable access from the first drawing to the final service call.",
-    "description": "Gateway Door Systems brings commercial openings, hardware, operators, and access coordination into one dependable workflow for facilities that cannot afford avoidable downtime.",
-    "primaryCta": "Explore capabilities",
-    "secondaryCta": "Customer portal"
+    "badge": "High-security door installation",
+    "title": "SCIF & Secure Facility Door Installation",
+    "description": "We specialize in the installation of high-security doors for sensitive environments, including projects related to SCIF (Sensitive Compartmented Information Facility) requirements. While we do not construct SCIFs, we provide precise door installation that supports secure access control, durability, and performance in high-security settings.",
+    "imageAlt": "Secure commercial doorway representing SCIF and secure facility door installation",
+    "primaryCta": "Explore high-security doors",
+    "secondaryCta": "Call now",
+    "progressLabel": "Hero image carousel progress",
+    "keywords": {
+      "scifDoorInstallation": "SCIF door installation",
+      "secureFacilityDoorInstaller": "secure facility door installer",
+      "highSecurityDoorContractor": "high-security door contractor"
+    },
+    "slides": {
+      "secureEntry": "Secure commercial entry door for sensitive facility access",
+      "secureFacility": "High-security facility door and controlled access area",
+      "facilityAccess": "Secure facility access door for commercial operations",
+      "reliableOpenings": "Reliable commercial door opening for high-security use"
+    },
+    "card": {
+      "title": "Built around secure openings",
+      "description": "Gateway focuses on the door installation work that supports controlled access, reliable operation, and durable performance in sensitive facilities."
+    }
   },
   "floatingQuote": {
     "button": "Call now for a quote"
   },
-  "carousel": {
-    "eyebrow": "Gateway Door Systems",
-    "title": "Door solutions for commercial facilities that need dependable access.",
-    "description": "Highlight Gateway Door Systems work across commercial doors, high-traffic openings, maintenance, and secure facility access.",
-    "slides": {
-      "commercialDoors": {
-        "label": "Commercial doors",
-        "title": "Commercial door systems built for daily use.",
-        "description": "Gateway supports facilities with durable door assemblies, coordinated hardware, and installation paths that match the building's needs.",
-        "alt": "Commercial building interior representing Gateway commercial door systems"
-      },
-      "rollingDoors": {
-        "label": "Rolling & sectional",
-        "title": "High-traffic openings for busy operations.",
-        "description": "Loading areas, warehouse entries, and service doors need reliable products that keep people, vehicles, and materials moving.",
-        "alt": "Warehouse facility representing rolling and sectional commercial doors"
-      },
-      "maintenance": {
-        "label": "Service & maintenance",
-        "title": "Maintenance support that reduces downtime.",
-        "description": "Gateway can help keep doors, operators, sensors, and hardware working with repair and maintenance planning.",
-        "alt": "Technician reviewing jobsite plans for commercial door service"
-      },
-      "secureAccess": {
-        "label": "Secure access",
-        "title": "Access solutions for safer building flow.",
-        "description": "From operators and controls to hardware coordination, Gateway helps facilities manage secure movement through critical openings.",
-        "alt": "Industrial facility representing secure access and commercial door coordination"
-      }
-    }
-  },
-  "dashboard": {
-    "label": "Service dashboard",
-    "title": "Active jobs",
-    "badge": "Field ready",
-    "jobs": {
-      "survey": {
-        "type": "Survey",
-        "name": "Loading dock access review",
-        "status": "Today"
-      },
-      "install": {
-        "type": "Install",
-        "name": "Rolling door replacement",
-        "status": "Scheduled"
-      },
-      "support": {
-        "type": "Support",
-        "name": "Operator and sensor repair",
-        "status": "In progress"
-      }
+  "highSecurity": {
+    "eyebrow": "Heavy-duty reinforced openings",
+    "title": "High-Security Door Installation",
+    "description": "We install heavy-duty, reinforced door systems for residential and commercial properties. Our work focuses on precision fitting, structural reinforcement, and long-term reliability.",
+    "keywords": {
+      "secureDoorInstallation": "secure door installation",
+      "steelDoorInstallation": "steel door installation",
+      "reinforcedDoorSystems": "reinforced door systems",
+      "commercialDoorContractor": "commercial door contractor"
     },
-    "stages": {
-      "plan": "Plan",
-      "build": "Build",
-      "maintain": "Maintain"
-    }
-  },
-  "markets": {
-    "eyebrow": "Built for facilities that need secure openings to work every day",
-    "items": {
-      "commercial": "Commercial",
-      "healthcare": "Healthcare",
-      "education": "Education",
-      "industrial": "Industrial",
-      "government": "Government",
-      "multiSite": "Multi-site"
-    }
-  },
-  "capabilities": {
-    "eyebrow": "Capabilities",
-    "title": "One team for openings, hardware, access, and ongoing service.",
-    "description": "The reference sites organize their message around capabilities, industries, support, and trust. This page follows that proven structure with original Gateway messaging.",
-    "items": {
-      "planning": {
-        "title": "Design & Planning",
-        "description": "Early guidance for openings, hardware, operators, access needs, and long-term maintainability."
-      },
-      "installation": {
-        "title": "Installation",
-        "description": "Commercial doors, frames, hardware, operators, and controls installed with field-tested discipline."
-      },
-      "security": {
-        "title": "Security & Access",
-        "description": "Door hardware, locksets, entry controls, and perimeter access support for safer facilities."
-      },
-      "aftermarket": {
-        "title": "Aftermarket Service",
-        "description": "Responsive repair, preventive maintenance, replacement parts, and lifecycle support."
-      }
-    }
-  },
-  "products": {
-    "eyebrow": "Products & systems",
-    "title": "A practical mix of door, hardware, and access solutions.",
-    "description": "From new construction to urgent replacement work, Gateway can present a clear catalog of products and service paths without overwhelming visitors.",
-    "items": {
-      "sectional": "Sectional and rolling doors",
-      "hollowMetal": "Hollow metal doors and frames",
-      "hardware": "Commercial hardware",
-      "operators": "Operators and controls",
-      "access": "Access control coordination",
-      "inspection": "Inspection and maintenance"
-    }
-  },
-  "process": {
-    "eyebrow": "Support model",
-    "title": "Clear steps from assessment to lifecycle support.",
-    "steps": {
-      "assess": "Assess the opening, site traffic, and security requirements.",
-      "match": "Match the right product, hardware, and control strategy.",
-      "coordinate": "Coordinate installation with minimal disruption to operations.",
-      "support": "Support the system with maintenance, repair, and clear communication."
+    "images": {
+      "reliableOpenings": "Reliable reinforced door opening for a high-security property",
+      "secureFacility": "Secure reinforced door system for a commercial facility",
+      "accessCard": "Access card used at a secure residential or commercial door"
     }
   },
   "cta": {
-    "eyebrow": "Ready for the next section?",
-    "title": "Add service pages, industries, locations, and a contact path on top of this foundation.",
-    "button": "Learn about us"
+    "eyebrow": "Ready to review a secure opening?",
+    "title": "Talk with Gateway about high-security door installation for your facility.",
+    "button": "Call now"
   }
 }
