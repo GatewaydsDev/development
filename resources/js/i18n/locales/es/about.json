@@ -3,52 +3,93 @@
     "title": "Nosotros"
   },
   "hero": {
-    "badge": "Nosotros",
-    "title": "Soporte de puertas, herrajes y acceso con disciplina de obra.",
-    "description": "Gateway Door Systems está pensado para clientes que necesitan accesos confiables, orientación práctica y un equipo que entiende cómo el acceso afecta a toda la instalación."
+    "badge": "Sobre Gateway Door Systems",
+    "title": "Instalación de puertas seguras para instalaciones donde el acceso debe estar controlado.",
+    "description": "Gateway Door Systems apoya proyectos comerciales, gubernamentales y de instalaciones sensibles con instalación profesional de puertas seguras, marcos reforzados, herrajes comerciales y aperturas preparadas para control de acceso. Nuestro trabajo es enfocado, disciplinado y alineado con las necesidades de los equipos responsables de espacios protegidos.",
+    "primaryCta": "Solicitar revisión de puerta segura",
+    "secondaryCta": "Ver capacidades",
+    "images": {
+      "overview": "Instalación de puertas seguras, seguridad reforzada y soluciones preparadas para control de acceso",
+      "reinforced": "Herrajes reforzados y sistema de cierre para puerta de alta seguridad",
+      "access": "Lector de tarjeta de acceso usado en una puerta comercial segura"
+    }
   },
-  "snapshot": {
-    "label": "Resumen de la compañía",
+  "capabilities": {
+    "badge": "Aperturas seguras relacionadas con SCIF",
+    "title": "Instalamos los sistemas de puertas que respaldan espacios seguros.",
+    "description": "Los entornos SCIF y de acceso controlado dependen de que cada apertura funcione como debe. Aunque Gateway Door Systems no construye ni certifica salas SCIF, ofrecemos instalación cuidadosa de puertas, marcos, herrajes, sellos y componentes preparados para control de acceso usados en aperturas de instalaciones seguras.",
+    "note": "Los requisitos del proyecto pueden variar según la instalación, la autoridad y la especificación. Nuestro papel es coordinar con claridad, instalar con precisión y respaldar el alcance de puertas seguras asignado a nuestro equipo.",
     "items": {
-      "assessment": "Evaluación de apertura",
-      "fit": "Ajuste de producto y herraje",
-      "support": "Instalación y soporte"
+      "secureOpenings": {
+        "title": "Aperturas seguras",
+        "description": "Soporte de instalación para puertas, marcos, bisagras, cerraduras, sellos y herrajes comerciales relacionados con seguridad."
+      },
+      "reinforcedAssemblies": {
+        "title": "Conjuntos reforzados",
+        "description": "Instalación de puertas y marcos enfocada en ajuste, alineación, durabilidad y operación confiable en áreas seguras de alto uso."
+      },
+      "accessControl": {
+        "title": "Preparadas para control de acceso",
+        "description": "Aperturas preparadas para lectores de tarjetas, cerraduras eléctricas, cerraduras magnéticas, cierrapuertas, barras antipánico y sistemas de seguridad integrados."
+      }
     }
   },
-  "role": {
-    "eyebrow": "Nuestro papel",
-    "title": "Un socio local para accesos más seguros y sencillos.",
-    "description": "Las compañías de referencia resaltan soporte de ciclo de vida, capacidad técnica y experiencia por mercado. Gateway puede hablar a esas mismas necesidades con un mensaje directo y sólido basado en servicio confiable."
-  },
-  "values": {
-    "uptime": {
-      "title": "Continuidad operativa",
-      "description": "Nos enfocamos en puertas, operadores y sistemas de acceso que mantienen en movimiento a propiedades ocupadas."
-    },
-    "service": {
-      "title": "Servicio claro",
-      "description": "Los clientes deben entender qué ocurre, cuándo se programa el trabajo y cuál es el siguiente paso."
-    },
-    "growth": {
-      "title": "Preparado para crecer",
-      "description": "Nuestro modelo de servicio puede escalar desde una sola apertura hasta soporte continuo para múltiples propiedades."
-    }
-  },
-  "audiences": {
-    "eyebrow": "A quién apoyamos",
-    "title": "Diseñado para quienes mantienen edificios abiertos, seguros y en movimiento.",
+  "trust": {
+    "badge": "Estándares profesionales",
+    "title": "Un socio cuidadoso para trabajos sensibles y de acceso controlado.",
+    "description": "Los equipos gubernamentales y de instalaciones necesitan contratistas que entiendan alcance, programación, documentación y conducta profesional en entornos sensibles. Gateway aborda los proyectos de puertas seguras con comunicación clara y respeto por los procedimientos del sitio.",
+    "imageAlt": "Fila de puertas comerciales seguras para entornos de acceso controlado",
     "items": {
-      "contractors": "Contratistas generales",
-      "facility": "Gerentes de instalaciones",
-      "property": "Operadores de propiedades",
-      "education": "Equipos escolares y campus",
-      "healthcare": "Edificios de salud",
-      "industrial": "Sitios industriales"
+      "definedScope": {
+        "title": "Alcance definido",
+        "description": "Mantenemos claro el alcance de puertas, marcos y herrajes para que los equipos entiendan responsabilidades antes de comenzar."
+      },
+      "coordination": {
+        "title": "Coordinación en sitio",
+        "description": "Trabajamos alrededor de las necesidades de acceso de la instalación, los horarios del proyecto y la realidad de espacios ocupados o restringidos."
+      },
+      "documentation": {
+        "title": "Soporte de documentación",
+        "description": "Apoyamos una comunicación clara sobre aperturas, herrajes instalados, ajuste de productos y avance en obra."
+      },
+      "secureMindset": {
+        "title": "Mentalidad de seguridad",
+        "description": "Tratamos las áreas sensibles con discreción, profesionalismo y atención a los requisitos de acceso controlado."
+      }
     }
   },
-  "next": {
-    "eyebrow": "Qué sigue",
-    "title": "Esta estructura está lista para servicios, proyectos, industrias y páginas de contacto.",
-    "description": "Desde aquí, cada capacidad principal puede convertirse en su propia página: instalación, reparaciones, mantenimiento, control de acceso, industrias atendidas y una ruta de contacto enfocada en conversión."
+  "process": {
+    "badge": "Cómo trabajamos",
+    "title": "Un enfoque estructurado para instalación de puertas seguras.",
+    "description": "Desde reemplazos hasta nuevas aperturas seguras, nuestro proceso está diseñado para reducir sorpresas y mantener la instalación alineada con los requisitos de la instalación.",
+    "cardLabel": "Flujo del proyecto",
+    "items": {
+      "review": {
+        "title": "Revisar la apertura",
+        "description": "Evaluamos la apertura existente o planificada, las necesidades de herrajes, las condiciones del sitio y los requisitos de control de acceso."
+      },
+      "fit": {
+        "title": "Confirmar ajuste de puerta y herrajes",
+        "description": "Coordinamos puerta, marco, sello, cierrapuertas, cerradura y preparación para control de acceso antes de avanzar con la instalación."
+      },
+      "install": {
+        "title": "Instalar con precisión",
+        "description": "Nos enfocamos en alineación, refuerzo, operación e integración limpia con el paquete de herrajes especificado."
+      },
+      "handoff": {
+        "title": "Apoyar la entrega",
+        "description": "Comunicamos el trabajo completado, notas de instalación y cualquier seguimiento necesario para el equipo del proyecto."
+      }
+    }
+  },
+  "environments": {
+    "items": {
+      "government": "Instalaciones gubernamentales",
+      "commercial": "Edificios comerciales",
+      "restricted": "Áreas de acceso restringido",
+      "operations": "Salas de operaciones y equipos",
+      "critical": "Aperturas de instalaciones críticas",
+      "retrofit": "Proyectos de reemplazo y modernización"
+    }
   }
 }

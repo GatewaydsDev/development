@@ -1,4 +1,5 @@
 import ApplicationLogo from '@/Components/ApplicationLogo';
+import ContactSlideOver from '@/Components/ContactSlideOver';
 import LanguageSwitcher from '@/Components/LanguageSwitcher';
 import ThemeModeToggle from '@/Components/ThemeModeToggle';
 import { PageProps } from '@/types';
@@ -278,6 +279,8 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                     </div>
                 </div>
             </footer>
+
+            <ContactSlideOver />
         </div>
     );
 }

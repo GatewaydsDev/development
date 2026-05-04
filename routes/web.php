@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AccessControlController;
 use App\Http\Controllers\Admin\CompanyController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\ContactSubmissionController;
 use App\Http\Controllers\ProfileController;
 use App\Models\Company;
 use Illuminate\Support\Facades\Route;
@@ -22,6 +23,10 @@ Route::get('/', function () {
 Route::get('/about', function () {
     return Inertia::render('About');
 })->name('about');
+
+Route::post('/contact', [ContactSubmissionController::class, 'store'])
+    ->middleware('throttle:5,1')
+    ->name('contact.store');
 
 Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');

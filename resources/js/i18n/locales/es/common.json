@@ -26,6 +26,41 @@
     "en": "Inglés",
     "es": "Español"
   },
+  "contact": {
+    "tab": "Contáctanos",
+    "open": "Abrir formulario de contacto",
+    "close": "Cerrar formulario de contacto",
+    "eyebrow": "Revisión de proyecto de puerta segura",
+    "title": "Cuéntanos sobre tu apertura.",
+    "description": "Comparte la información básica y Gateway Door Systems revisará la solicitud relacionada con puerta segura, control de acceso o apertura relacionada con SCIF.",
+    "submit": "Enviar solicitud",
+    "submitting": "Enviando solicitud",
+    "done": "Listo",
+    "successTitle": "Solicitud recibida",
+    "successDescription": "Gracias. Tu información fue guardada y enviada a nuestro equipo para revisión.",
+    "fields": {
+      "name": "Nombre completo",
+      "email": "Correo electrónico",
+      "phone": "Número de teléfono",
+      "organization": "Organización o instalación",
+      "projectType": "Tipo de proyecto",
+      "projectTypePlaceholder": "Selecciona un tipo de proyecto",
+      "message": "Detalles del proyecto"
+    },
+    "projectTypes": {
+      "secureDoorInstallation": "Instalación de puerta segura",
+      "scifRelatedOpening": "Apertura segura relacionada con SCIF",
+      "accessControlReady": "Puerta preparada para control de acceso",
+      "retrofitReplacement": "Reemplazo o modernización",
+      "generalInquiry": "Consulta general"
+    },
+    "validation": {
+      "name": "Ingresa tu nombre.",
+      "email": "Ingresa un correo electrónico válido.",
+      "message": "Cuéntanos sobre el proyecto.",
+      "messageMax": "Los detalles del proyecto deben tener 5,000 caracteres o menos."
+    }
+  },
   "footer": {
     "description": "Soluciones de accesos seguros para instalaciones que dependen de puertas confiables, herrajes coordinados y servicio receptivo.",
     "supportTitle": "¿Necesitas soporte?",

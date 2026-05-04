@@ -16,7 +16,7 @@ import {
     ShieldCheckIcon,
 } from 'lucide-react';
 import type { MouseEvent } from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const heroKeywords = [
@@ -61,6 +61,9 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
     const { t } = useTranslation('home');
     const [activeSlide, setActiveSlide] = useState(0);
     const [progress, setProgress] = useState(0);
+    const [isSecureDoorImageVisible, setIsSecureDoorImageVisible] =
+        useState(false);
+    const secureDoorSectionRef = useRef<HTMLElement>(null);
     const quotePhoneNumber = companyPhoneNumber?.replace(/\D/g, '') ?? '';
 
     useEffect(() => {
@@ -84,12 +87,38 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
         return () => window.clearInterval(interval);
     }, [activeSlide]);
 
+    useEffect(() => {
+        const section = secureDoorSectionRef.current;
+
+        if (!section || !('IntersectionObserver' in window)) {
+            setIsSecureDoorImageVisible(true);
+            return;
+        }
+
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (!entry.isIntersecting) {
+                    return;
+                }
+
+                setIsSecureDoorImageVisible(true);
+                observer.unobserve(entry.target);
+            },
+            {
+                rootMargin: '-20% 0px -35% 0px',
+                threshold: 0.2,
+            },
+        );
+
+        observer.observe(section);
+
+        return () => observer.disconnect();
+    }, []);
+
     const handleExploreClick = (event: MouseEvent<HTMLAnchorElement>) => {
         event.preventDefault();
 
-        const section = document.getElementById(
-            'high-security-door-installation',
-        );
+        const section = document.getElementById('secure-door-solutions');
 
         if (!section) {
             return;
@@ -134,6 +163,7 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
                         }
                     />
                 ))}
+
                 <div className="absolute inset-0 bg-gradient-to-r from-background via-background/90 to-background/45" />
                 <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-background/20" />
                 <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.045)_1px,_transparent_1px),linear-gradient(90deg,_rgba(0,0,0,0.045)_1px,_transparent_1px)] bg-[size:56px_56px] dark:bg-[linear-gradient(rgba(255,255,255,0.035)_1px,_transparent_1px),linear-gradient(90deg,_rgba(255,255,255,0.035)_1px,_transparent_1px)]" />
@@ -147,12 +177,15 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
                             <span className="h-2 w-2 rounded-full bg-emerald-600 dark:bg-emerald-300" />
                             {t('hero.badge')}
                         </Badge>
+
                         <h1 className="mt-8 max-w-4xl text-4xl font-semibold tracking-tight text-foreground sm:text-5xl lg:text-7xl">
                             {t('hero.title')}
                         </h1>
+
                         <p className="mt-6 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
                             {t('hero.description')}
                         </p>
+
                         <div className="mt-6 flex flex-wrap gap-2">
                             {heroKeywords.map((keyword) => (
                                 <Badge
@@ -164,15 +197,17 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
                                 </Badge>
                             ))}
                         </div>
+
                         <div className="mt-10 flex flex-col gap-3 sm:flex-row">
                             <Button asChild size="lg" className="w-full sm:w-auto">
                                 <a
-                                    href="#high-security-door-installation"
+                                    href="#secure-door-solutions"
                                     onClick={handleExploreClick}
                                 >
                                     {t('hero.primaryCta')}
                                 </a>
                             </Button>
+
                             {quotePhoneNumber && (
                                 <Button
                                     asChild
@@ -187,6 +222,7 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
                                 </Button>
                             )}
                         </div>
+
                         <div
                             className="mt-8 h-1.5 max-w-full overflow-hidden rounded-full bg-muted sm:max-w-md"
                             aria-label={t('hero.progressLabel')}
@@ -204,10 +240,12 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
                                 <ShieldCheckIcon className="size-5 text-emerald-700 dark:text-emerald-300" />
                                 {t('hero.card.title')}
                             </CardTitle>
+
                             <CardDescription className="leading-7">
                                 {t('hero.card.description')}
                             </CardDescription>
                         </CardHeader>
+
                         <CardContent>
                             <div className="grid gap-3">
                                 {heroKeywords.map((keyword) => (
@@ -226,72 +264,118 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
             </section>
 
             <section
-                id="high-security-door-installation"
+                ref={secureDoorSectionRef}
+                id="secure-door-solutions"
                 className="border-y border-border bg-muted/40"
             >
-                <div className="mx-auto flex max-w-7xl justify-end px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
-                    <div className="ml-auto flex max-w-4xl flex-col gap-8 text-left sm:items-end sm:text-right">
-                        <div className="grid w-full gap-4 sm:grid-cols-2 sm:items-end">
-                            <img
-                                src="/images/high-security-door-row.jpeg"
-                                alt={t('highSecurity.images.reliableOpenings')}
-                                className="ml-auto h-48 w-full rounded-3xl border border-border object-cover shadow-xl shadow-emerald-950/10 sm:h-64"
-                            />
-                            <img
-                                src="/images/high-security-reinforced-door.jpeg"
-                                alt={t('highSecurity.images.secureFacility')}
-                                className="ml-auto h-64 w-full rounded-3xl border border-border object-cover shadow-2xl shadow-emerald-950/10 sm:row-span-2 sm:h-full"
-                            />
-                            <img
-                                src="/images/high-security-access-card-door.jpeg"
-                                alt={t('highSecurity.images.accessCard')}
-                                className="ml-auto h-48 w-full rounded-3xl border border-border object-cover shadow-xl shadow-emerald-950/10 sm:h-64"
-                            />
-                        </div>
-
-                        <div className="max-w-3xl">
+                <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
+                    <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+                        <div>
                             <Badge
                                 variant="outline"
                                 className="border-emerald-500/20 bg-background/70 text-emerald-700 dark:text-emerald-300"
                             >
-                                {t('highSecurity.eyebrow')}
+                                {t('secureDoor.badge')}
                             </Badge>
+
                             <h2 className="mt-5 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
-                                {t('highSecurity.title')}
+                                {t('secureDoor.title')}
                             </h2>
+
                             <p className="mt-5 text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
-                                {t('highSecurity.description')}
+                                {t('secureDoor.description')}
                             </p>
-                            <div className="mt-6 flex flex-wrap gap-2 sm:justify-end">
-                                {highSecurityKeywords.map((keyword) => (
-                                    <Badge
-                                        key={keyword}
-                                        variant="outline"
-                                        className="border-emerald-500/20 bg-background text-emerald-700 dark:text-emerald-300"
-                                    >
-                                        {t(`highSecurity.keywords.${keyword}`)}
-                                    </Badge>
-                                ))}
-                            </div>
+                        </div>
+
+                        <div
+                            className={
+                                'group relative overflow-hidden rounded-3xl transition duration-1000 ease-out ' +
+                                (isSecureDoorImageVisible
+                                    ? 'translate-y-0 scale-100 opacity-100 shadow-2xl shadow-emerald-950/20'
+                                    : 'translate-y-8 scale-95 opacity-0')
+                            }
+                        >
+                            <div
+                                className={
+                                    'absolute -inset-1 rounded-3xl bg-emerald-400/20 blur-2xl transition duration-1000 ' +
+                                    (isSecureDoorImageVisible
+                                        ? 'opacity-100'
+                                        : 'opacity-0')
+                                }
+                            />
+
+                            <img
+                                src="/images/gateway-hero-section.png"
+                                alt={t('secureDoor.imageAlt')}
+                                className="relative w-full rounded-3xl border border-border object-cover transition duration-700 group-hover:scale-[1.02]"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        <div className="rounded-2xl border border-border bg-background p-5">
+                            <ShieldCheckIcon className="mb-4 size-6 text-emerald-700 dark:text-emerald-300" />
+                            <h3 className="font-semibold text-foreground">
+                                {t('secureDoor.features.scif.title')}
+                            </h3>
+                            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                                {t('secureDoor.features.scif.description')}
+                            </p>
+                        </div>
+
+                        <div className="rounded-2xl border border-border bg-background p-5">
+                            <DoorOpenIcon className="mb-4 size-6 text-emerald-700 dark:text-emerald-300" />
+                            <h3 className="font-semibold text-foreground">
+                                {t('secureDoor.features.commercial.title')}
+                            </h3>
+                            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                                {t('secureDoor.features.commercial.description')}
+                            </p>
+                        </div>
+
+                        <div className="rounded-2xl border border-border bg-background p-5">
+                            <CheckCircle2Icon className="mb-4 size-6 text-emerald-700 dark:text-emerald-300" />
+                            <h3 className="font-semibold text-foreground">
+                                {t('secureDoor.features.accessControl.title')}
+                            </h3>
+                            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                                {t('secureDoor.features.accessControl.description')}
+                            </p>
+                        </div>
+
+                        <div className="rounded-2xl border border-border bg-background p-5">
+                            <PhoneCallIcon className="mb-4 size-6 text-emerald-700 dark:text-emerald-300" />
+                            <h3 className="font-semibold text-foreground">
+                                {t('secureDoor.features.retrofit.title')}
+                            </h3>
+                            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                                {t('secureDoor.features.retrofit.description')}
+                            </p>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 sm:pb-20 lg:px-8 lg:pb-24">
+            <section
+                id="quote"
+                className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24"
+            >
                 <Card className="overflow-hidden border-emerald-400/20 bg-emerald-400 text-zinc-950">
                     <CardContent className="grid gap-8 p-6 sm:p-8 md:grid-cols-[1fr_auto] md:items-center lg:p-10">
                         <div>
                             <div className="mb-4 flex size-10 items-center justify-center rounded-full bg-zinc-950/10">
                                 <DoorOpenIcon className="size-5" />
                             </div>
+
                             <p className="text-sm font-semibold uppercase tracking-wide">
                                 {t('cta.eyebrow')}
                             </p>
+
                             <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl lg:text-4xl">
                                 {t('cta.title')}
                             </h2>
                         </div>
+
                         {quotePhoneNumber && (
                             <Button
                                 asChild

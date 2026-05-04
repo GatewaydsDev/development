@@ -7,7 +7,7 @@
     "title": "SCIF & Secure Facility Door Installation",
     "description": "We specialize in the installation of high-security doors for sensitive environments, including projects related to SCIF (Sensitive Compartmented Information Facility) requirements. While we do not construct SCIFs, we provide precise door installation that supports secure access control, durability, and performance in high-security settings.",
     "imageAlt": "Secure commercial doorway representing SCIF and secure facility door installation",
-    "primaryCta": "Explore high-security doors",
+    "primaryCta": "Secure door installation",
     "secondaryCta": "Call now",
     "progressLabel": "Hero image carousel progress",
     "keywords": {
@@ -28,6 +28,30 @@
   },
   "floatingQuote": {
     "button": "Call now for a quote"
+  },
+  "secureDoor": {
+    "badge": "Secure Door Installation",
+    "title": "Secure Door Installation for SCIF, Commercial & Controlled-Access Areas",
+    "description": "Gateway Door Systems provides professional installation of secure doors, reinforced door frames, commercial hardware, access-control ready openings, and specialty doors for sensitive areas. We do not construct SCIF rooms, but we can install doors and door systems used in secure facilities, government spaces, commercial buildings, and controlled-access environments.",
+    "imageAlt": "Secure door installation, reinforced security, and access control ready door solutions",
+    "features": {
+      "scif": {
+        "title": "SCIF-Related Door Installation",
+        "description": "Installation support for secure-rated doors, frames, seals, hinges, locks, and hardware used in sensitive facility openings."
+      },
+      "commercial": {
+        "title": "Commercial Secure Doors",
+        "description": "Heavy-duty door installation for offices, warehouses, mechanical rooms, restricted areas, and commercial entry points."
+      },
+      "accessControl": {
+        "title": "Access-Control Ready",
+        "description": "Door openings prepared for card readers, electric strikes, maglocks, closers, panic bars, and other security hardware."
+      },
+      "retrofit": {
+        "title": "Retrofit & Replacement",
+        "description": "Replacement of outdated or damaged doors with stronger, better-fitted secure door systems."
+      }
+    }
   },
   "highSecurity": {
     "eyebrow": "Heavy-duty reinforced openings",

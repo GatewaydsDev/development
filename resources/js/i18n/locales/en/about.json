@@ -3,52 +3,93 @@
     "title": "About us"
   },
   "hero": {
-    "badge": "About us",
-    "title": "Door, hardware, and access support with jobsite discipline.",
-    "description": "Gateway Door Systems is positioned for customers who need dependable openings, practical guidance, and a team that understands how access affects the whole facility."
+    "badge": "About Gateway Door Systems",
+    "title": "Secure door installation for facilities where access must be controlled.",
+    "description": "Gateway Door Systems supports commercial, government, and sensitive facility projects with professional installation of secure doors, reinforced frames, commercial hardware, and access-control ready openings. Our work is focused, disciplined, and aligned with the needs of teams responsible for protected spaces.",
+    "primaryCta": "Request a secure door review",
+    "secondaryCta": "View capabilities",
+    "images": {
+      "overview": "Secure door installation, reinforced security, and access control ready door solutions",
+      "reinforced": "Reinforced high-security door hardware and locking system",
+      "access": "Access card reader used at a secure commercial door"
+    }
   },
-  "snapshot": {
-    "label": "Company snapshot",
+  "capabilities": {
+    "badge": "SCIF-related secure openings",
+    "title": "We install the door systems that support secure spaces.",
+    "description": "SCIF and controlled-access environments depend on every opening performing as intended. While Gateway Door Systems does not construct or certify SCIF rooms, we provide careful installation of doors, frames, hardware, seals, and access-control ready components used in secure facility openings.",
+    "note": "Project requirements can vary by facility, authority, and specification. Our role is to coordinate clearly, install precisely, and support the secure-door scope assigned to our team.",
     "items": {
-      "assessment": "Opening assessment",
-      "fit": "Product and hardware fit",
-      "support": "Install and support"
+      "secureOpenings": {
+        "title": "Secure openings",
+        "description": "Installation support for secure-rated doors, frames, hinges, locks, seals, and related commercial hardware."
+      },
+      "reinforcedAssemblies": {
+        "title": "Reinforced assemblies",
+        "description": "Door and frame installation focused on fit, alignment, durability, and dependable operation in high-use secure areas."
+      },
+      "accessControl": {
+        "title": "Access-control ready",
+        "description": "Openings prepared for card readers, electric strikes, maglocks, closers, panic hardware, and integrated security systems."
+      }
     }
   },
-  "role": {
-    "eyebrow": "Our role",
-    "title": "A local partner for safer, simpler facility access.",
-    "description": "The reference companies emphasize lifecycle support, technical capability, and market expertise. Gateway can speak to the same buyer concerns with a direct, grounded message built around dependable service."
-  },
-  "values": {
-    "uptime": {
-      "title": "Operational uptime",
-      "description": "We focus on doors, operators, and access systems that keep busy properties moving."
-    },
-    "service": {
-      "title": "Clear service",
-      "description": "Customers should understand what is happening, when work is scheduled, and what comes next."
-    },
-    "growth": {
-      "title": "Built for growth",
-      "description": "Our service model can scale from a single opening to ongoing support across multiple properties."
-    }
-  },
-  "audiences": {
-    "eyebrow": "Who we support",
-    "title": "Built for the people responsible for keeping buildings open, safe, and moving.",
+  "trust": {
+    "badge": "Professional standards",
+    "title": "A careful partner for sensitive and controlled-access work.",
+    "description": "Government and facility teams need contractors who understand scope, scheduling, documentation, and professional conduct around sensitive environments. Gateway approaches secure door projects with clear communication and respect for site procedures.",
+    "imageAlt": "Row of secure commercial doors for controlled access environments",
     "items": {
-      "contractors": "General contractors",
-      "facility": "Facility managers",
-      "property": "Property operators",
-      "education": "School and campus teams",
-      "healthcare": "Healthcare buildings",
-      "industrial": "Industrial sites"
+      "definedScope": {
+        "title": "Defined scope",
+        "description": "We keep the door, frame, and hardware scope clear so project teams understand responsibilities before work begins."
+      },
+      "coordination": {
+        "title": "Site coordination",
+        "description": "We work around facility access needs, project schedules, and the practical realities of occupied or restricted spaces."
+      },
+      "documentation": {
+        "title": "Documentation support",
+        "description": "We support clean communication around openings, installed hardware, product fit, and jobsite progress."
+      },
+      "secureMindset": {
+        "title": "Security-minded work",
+        "description": "We treat sensitive areas with discretion, professionalism, and attention to controlled access requirements."
+      }
     }
   },
-  "next": {
-    "eyebrow": "What comes next",
-    "title": "This structure is ready for services, projects, industries, and contact pages.",
-    "description": "From here, each major capability can become its own page: installation, repairs, maintenance, access control, industries served, and a conversion-focused contact path."
+  "process": {
+    "badge": "How we work",
+    "title": "A structured approach for secure door installation.",
+    "description": "From retrofit work to new secure openings, our process is designed to reduce surprises and keep the installation aligned with the facility's requirements.",
+    "cardLabel": "Project flow",
+    "items": {
+      "review": {
+        "title": "Review the opening",
+        "description": "We evaluate the existing or planned opening, hardware needs, site conditions, and access-control requirements."
+      },
+      "fit": {
+        "title": "Confirm the door and hardware fit",
+        "description": "We coordinate door, frame, seal, closer, lock, and access-control readiness before installation proceeds."
+      },
+      "install": {
+        "title": "Install with precision",
+        "description": "We focus on alignment, reinforcement, operation, and clean integration with the specified hardware package."
+      },
+      "handoff": {
+        "title": "Support the handoff",
+        "description": "We communicate completed work, installation notes, and any follow-up items needed for the project team."
+      }
+    }
+  },
+  "environments": {
+    "items": {
+      "government": "Government facilities",
+      "commercial": "Commercial buildings",
+      "restricted": "Restricted access areas",
+      "operations": "Operations and equipment rooms",
+      "critical": "Critical facility openings",
+      "retrofit": "Retrofit and replacement projects"
+    }
   }
 }

@@ -7,7 +7,7 @@
     "title": "Instalación de puertas para SCIF e instalaciones seguras",
     "description": "Nos especializamos en la instalación de puertas de alta seguridad para entornos sensibles, incluidos proyectos relacionados con requisitos SCIF (Sensitive Compartmented Information Facility). Aunque no construimos SCIFs, ofrecemos una instalación precisa de puertas que respalda el control de acceso seguro, la durabilidad y el rendimiento en espacios de alta seguridad.",
     "imageAlt": "Puerta comercial segura que representa instalación de puertas para SCIF e instalaciones seguras",
-    "primaryCta": "Explorar puertas de alta seguridad",
+    "primaryCta": "Instalación de puertas seguras",
     "secondaryCta": "Llamar ahora",
     "progressLabel": "Progreso del carrusel de imágenes del hero",
     "keywords": {
@@ -28,6 +28,30 @@
   },
   "floatingQuote": {
     "button": "Llama ahora para cotizar"
+  },
+  "secureDoor": {
+    "badge": "Instalación de puertas seguras",
+    "title": "Instalación de puertas seguras para SCIF, comercios y áreas de acceso controlado",
+    "description": "Gateway Door Systems ofrece instalación profesional de puertas seguras, marcos reforzados, herrajes comerciales, aperturas preparadas para control de acceso y puertas especiales para áreas sensibles. No construimos salas SCIF, pero podemos instalar puertas y sistemas de puertas utilizados en instalaciones seguras, espacios gubernamentales, edificios comerciales y entornos de acceso controlado.",
+    "imageAlt": "Instalación de puertas seguras, seguridad reforzada y soluciones preparadas para control de acceso",
+    "features": {
+      "scif": {
+        "title": "Instalación de puertas relacionadas con SCIF",
+        "description": "Soporte de instalación para puertas, marcos, sellos, bisagras, cerraduras y herrajes de seguridad usados en aperturas de instalaciones sensibles."
+      },
+      "commercial": {
+        "title": "Puertas comerciales seguras",
+        "description": "Instalación de puertas de alta resistencia para oficinas, almacenes, cuartos mecánicos, áreas restringidas y entradas comerciales."
+      },
+      "accessControl": {
+        "title": "Preparadas para control de acceso",
+        "description": "Aperturas de puertas preparadas para lectores de tarjetas, cerraduras eléctricas, cerraduras magnéticas, cierrapuertas, barras antipánico y otros herrajes de seguridad."
+      },
+      "retrofit": {
+        "title": "Reemplazo y modernización",
+        "description": "Reemplazo de puertas antiguas o dañadas por sistemas de puertas seguras más resistentes y mejor ajustados."
+      }
+    }
   },
   "highSecurity": {
     "eyebrow": "Aperturas reforzadas de alta resistencia",

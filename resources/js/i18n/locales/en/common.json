@@ -26,6 +26,41 @@
     "en": "English",
     "es": "Spanish"
   },
+  "contact": {
+    "tab": "Contact us",
+    "open": "Open contact form",
+    "close": "Close contact form",
+    "eyebrow": "Secure door project review",
+    "title": "Tell us about your opening.",
+    "description": "Share the basics and Gateway Door Systems will review the secure door, access-control, or SCIF-related opening request.",
+    "submit": "Send request",
+    "submitting": "Sending request",
+    "done": "Done",
+    "successTitle": "Request received",
+    "successDescription": "Thank you. Your information has been saved and sent to our team for review.",
+    "fields": {
+      "name": "Full name",
+      "email": "Email address",
+      "phone": "Phone number",
+      "organization": "Organization or facility",
+      "projectType": "Project type",
+      "projectTypePlaceholder": "Select a project type",
+      "message": "Project details"
+    },
+    "projectTypes": {
+      "secureDoorInstallation": "Secure door installation",
+      "scifRelatedOpening": "SCIF-related secure opening",
+      "accessControlReady": "Access-control ready door",
+      "retrofitReplacement": "Retrofit or replacement",
+      "generalInquiry": "General inquiry"
+    },
+    "validation": {
+      "name": "Enter your name.",
+      "email": "Enter a valid email address.",
+      "message": "Tell us about the project.",
+      "messageMax": "Project details must be 5,000 characters or fewer."
+    }
+  },
   "footer": {
     "description": "Secure opening solutions for facilities that depend on reliable doors, coordinated hardware, and responsive service.",
     "supportTitle": "Need support?",
