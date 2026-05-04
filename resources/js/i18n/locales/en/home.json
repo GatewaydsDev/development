@@ -4,16 +4,20 @@
   },
   "hero": {
     "badge": "High-security door installation",
-    "title": "SCIF & Secure Facility Door Installation",
-    "description": "We specialize in the installation of high-security doors for sensitive environments, including projects related to SCIF (Sensitive Compartmented Information Facility) requirements. While we do not construct SCIFs, we provide precise door installation that supports secure access control, durability, and performance in high-security settings.",
+    "title": "Specialty Door Installation You Can Trust",
+    "description": "Expert installation of secure, high-performance doors—including SCIF-rated systems—built for compliance, durability, and precision.",
     "imageAlt": "Secure commercial doorway representing SCIF and secure facility door installation",
-    "primaryCta": "Secure door installation",
+    "primaryCta": "Get a Free Quote",
     "secondaryCta": "Call now",
     "progressLabel": "Hero image carousel progress",
     "keywords": {
-      "scifDoorInstallation": "SCIF door installation",
-      "secureFacilityDoorInstaller": "secure facility door installer",
-      "highSecurityDoorContractor": "high-security door contractor"
+      "radioFrequencyDoors": "Radio Frequency doors",
+      "soundTransmission": "Sound Transmission",
+      "bullet": "Bullet",
+      "blast": "Blast",
+      "oversizedAssemblies": "Oversized Assemblies",
+      "hurricaneAndTornado": "Hurricane and tornado",
+      "forcedEntryDoors": "Forced Entry doors"
     },
     "slides": {
       "secureEntry": "Secure commercial entry door for sensitive facility access",

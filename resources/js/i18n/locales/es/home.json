@@ -4,16 +4,20 @@
   },
   "hero": {
     "badge": "Instalación de puertas de alta seguridad",
-    "title": "Instalación de puertas para SCIF e instalaciones seguras",
-    "description": "Nos especializamos en la instalación de puertas de alta seguridad para entornos sensibles, incluidos proyectos relacionados con requisitos SCIF (Sensitive Compartmented Information Facility). Aunque no construimos SCIFs, ofrecemos una instalación precisa de puertas que respalda el control de acceso seguro, la durabilidad y el rendimiento en espacios de alta seguridad.",
+    "title": "Instalación de puertas especiales en la que puedes confiar",
+    "description": "Instalación experta de puertas seguras y de alto rendimiento, incluidos sistemas con clasificación SCIF, diseñadas para cumplimiento, durabilidad y precisión.",
     "imageAlt": "Puerta comercial segura que representa instalación de puertas para SCIF e instalaciones seguras",
-    "primaryCta": "Instalación de puertas seguras",
+    "primaryCta": "Obtén una cotización gratis",
     "secondaryCta": "Llamar ahora",
     "progressLabel": "Progreso del carrusel de imágenes del hero",
     "keywords": {
-      "scifDoorInstallation": "SCIF door installation",
-      "secureFacilityDoorInstaller": "secure facility door installer",
-      "highSecurityDoorContractor": "high-security door contractor"
+      "radioFrequencyDoors": "Radio Frequency doors",
+      "soundTransmission": "Sound Transmission",
+      "bullet": "Bullet",
+      "blast": "Blast",
+      "oversizedAssemblies": "Oversized Assemblies",
+      "hurricaneAndTornado": "Hurricane and tornado",
+      "forcedEntryDoors": "Forced Entry doors"
     },
     "slides": {
       "secureEntry": "Puerta de entrada comercial segura para acceso a instalaciones sensibles",

@@ -24,7 +24,7 @@ class UserLevelSeeder extends Seeder
                 'name' => $name,
             ]);
 
-            if ($level->permissions === null) {
+            if ($level->permissions === null || $level->name === UserLevel::ADMINISTRATOR) {
                 $level->forceFill([
                     'permissions' => $level->defaultPermissions(),
                 ])->save();

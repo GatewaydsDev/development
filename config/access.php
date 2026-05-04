@@ -64,6 +64,7 @@ return [
             'create-users',
             'update-users',
             'view-company',
+            'manage-access',
             'manage-projects',
         ],
         UserLevel::ADMIN => [

@@ -20,9 +20,13 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const heroKeywords = [
-    'scifDoorInstallation',
-    'secureFacilityDoorInstaller',
-    'highSecurityDoorContractor',
+    'radioFrequencyDoors',
+    'soundTransmission',
+    'bullet',
+    'blast',
+    'oversizedAssemblies',
+    'hurricaneAndTornado',
+    'forcedEntryDoors',
 ];
 
 const highSecurityKeywords = [
@@ -115,10 +119,10 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
         return () => observer.disconnect();
     }, []);
 
-    const handleExploreClick = (event: MouseEvent<HTMLAnchorElement>) => {
+    const handleQuoteClick = (event: MouseEvent<HTMLAnchorElement>) => {
         event.preventDefault();
 
-        const section = document.getElementById('secure-door-solutions');
+        const section = document.getElementById('quote');
 
         if (!section) {
             return;
@@ -201,8 +205,8 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
                         <div className="mt-10 flex flex-col gap-3 sm:flex-row">
                             <Button asChild size="lg" className="w-full sm:w-auto">
                                 <a
-                                    href="#secure-door-solutions"
-                                    onClick={handleExploreClick}
+                                    href="#quote"
+                                    onClick={handleQuoteClick}
                                 >
                                     {t('hero.primaryCta')}
                                 </a>
