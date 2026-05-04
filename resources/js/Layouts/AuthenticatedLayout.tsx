@@ -50,7 +50,7 @@ export default function Authenticated({
                         <div className="flex">
                             <div className="flex shrink-0 items-center">
                                 <Link href="/">
-                                    <ApplicationLogo className="block h-16 w-auto max-w-none sm:h-20 lg:h-24" />
+                                    <ApplicationLogo className="block h-28 w-auto max-w-none sm:h-32 lg:h-36" />
                                 </Link>
                             </div>
 

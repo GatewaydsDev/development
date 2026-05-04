@@ -40,7 +40,7 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                         <div className="flex min-w-0 items-center">
                             <div className="flex shrink-0 items-center">
                                 <Link href={route('home')}>
-                                    <ApplicationLogo className="block h-16 w-auto max-w-none sm:h-20 lg:h-24" />
+                                    <ApplicationLogo className="block h-28 w-auto max-w-none sm:h-32 lg:h-36" />
                                 </Link>
                             </div>
 
@@ -185,7 +185,7 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                 <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
                     <div className="grid gap-12 lg:grid-cols-[1.2fr_2fr]">
                         <div>
-                            <ApplicationLogo className="h-16 w-auto max-w-none sm:h-20" />
+                            <ApplicationLogo className="h-28 w-auto max-w-none sm:h-32" />
                             <p className="mt-6 max-w-md leading-7 text-muted-foreground">
                                 {t('footer.description')}
                             </p>

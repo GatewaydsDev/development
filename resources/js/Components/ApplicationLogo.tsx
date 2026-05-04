@@ -10,7 +10,7 @@ export default function ApplicationLogo({
             {...props}
             alt={alt}
             className={`object-contain ${className}`}
-            src="/images/gateway-door-systems-logo-transparent.webp"
+            src="/images/App-Logo.png"
         />
     );
 }
