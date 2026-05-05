@@ -120,7 +120,7 @@ export default function About() {
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(52,211,153,0.14),_transparent_32%),radial-gradient(circle_at_bottom_right,_rgba(16,185,129,0.12),_transparent_34%)]" />
                 <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.035)_1px,_transparent_1px),linear-gradient(90deg,_rgba(0,0,0,0.035)_1px,_transparent_1px)] bg-[size:56px_56px] dark:bg-[linear-gradient(rgba(255,255,255,0.035)_1px,_transparent_1px),linear-gradient(90deg,_rgba(255,255,255,0.035)_1px,_transparent_1px)]" />
 
-                <div className="relative mx-auto grid max-w-7xl gap-12 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:px-8 lg:py-28">
+                <div className="relative mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:gap-12 sm:px-6 sm:py-20 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:px-8 lg:py-28">
                     <div
                         className={cn(
                             'transition duration-1000 ease-out',
@@ -136,7 +136,7 @@ export default function About() {
                             {t('hero.badge')}
                         </Badge>
 
-                        <h1 className="mt-5 text-4xl font-semibold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
+                        <h1 className="mt-5 text-3xl font-semibold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
                             {t('hero.title')}
                         </h1>
 
@@ -156,7 +156,7 @@ export default function About() {
                             ))}
                         </div>
 
-                        <div className="mt-10 flex flex-col gap-3 sm:flex-row">
+                        <div className="mt-8 flex flex-col gap-3 sm:mt-10 sm:flex-row">
                             <Button asChild size="lg" className="w-full sm:w-auto">
                                 <a href="/#quote">{t('hero.primaryCta')}</a>
                             </Button>
@@ -184,23 +184,23 @@ export default function About() {
                     >
                         <div className="absolute -inset-4 rounded-[2rem] bg-emerald-400/15 blur-3xl" />
 
-                        <div className="relative grid gap-4 sm:grid-cols-2">
+                        <div className="relative grid gap-3 sm:grid-cols-2 sm:gap-4">
                             <img
                                 src="/images/gateway-hero-section.png"
                                 alt={t('hero.images.overview')}
-                                className="h-72 w-full rounded-3xl border border-border object-cover shadow-2xl shadow-emerald-950/20 transition duration-700 hover:scale-[1.01] sm:col-span-2"
+                                className="h-56 w-full rounded-2xl border border-border object-cover shadow-2xl shadow-emerald-950/20 transition duration-700 hover:scale-[1.01] sm:col-span-2 sm:h-72 sm:rounded-3xl"
                             />
 
                             <img
                                 src="/images/high-security-reinforced-door.jpeg"
                                 alt={t('hero.images.reinforced')}
-                                className="h-52 w-full rounded-3xl border border-border object-cover shadow-xl shadow-emerald-950/10 transition duration-700 hover:-translate-y-1 hover:scale-[1.02]"
+                                className="h-40 w-full rounded-2xl border border-border object-cover shadow-xl shadow-emerald-950/10 transition duration-700 hover:-translate-y-1 hover:scale-[1.02] sm:h-52 sm:rounded-3xl"
                             />
 
                             <img
                                 src="/images/high-security-access-card-door.jpeg"
                                 alt={t('hero.images.access')}
-                                className="h-52 w-full rounded-3xl border border-border object-cover shadow-xl shadow-emerald-950/10 transition duration-700 hover:-translate-y-1 hover:scale-[1.02]"
+                                className="h-40 w-full rounded-2xl border border-border object-cover shadow-xl shadow-emerald-950/10 transition duration-700 hover:-translate-y-1 hover:scale-[1.02] sm:h-52 sm:rounded-3xl"
                             />
                         </div>
                     </div>
@@ -210,9 +210,9 @@ export default function About() {
             <section
                 id="secure-door-capabilities"
                 ref={capabilityReveal.ref}
-                className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24"
+                className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-24"
             >
-                <div className="grid gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
+                <div className="grid gap-8 lg:grid-cols-[0.85fr_1.15fr] lg:items-start lg:gap-10">
                     <div
                         className={cn(
                             'transition duration-1000 ease-out',
@@ -228,7 +228,7 @@ export default function About() {
                             {t('capabilities.badge')}
                         </Badge>
 
-                        <h2 className="mt-5 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
+                        <h2 className="mt-5 text-2xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
                             {t('capabilities.title')}
                         </h2>
 
@@ -277,7 +277,7 @@ export default function About() {
             </section>
 
             <section className="border-y border-border bg-muted/30">
-                <div className="mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[0.95fr_1.05fr] lg:items-center lg:px-8 lg:py-24">
+                <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[0.95fr_1.05fr] lg:items-center lg:gap-10 lg:px-8 lg:py-24">
                     <div>
                         <Badge
                             variant="outline"
@@ -286,7 +286,7 @@ export default function About() {
                             {t('trust.badge')}
                         </Badge>
 
-                        <h2 className="mt-5 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
+                        <h2 className="mt-5 text-2xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
                             {t('trust.title')}
                         </h2>
 
@@ -297,7 +297,7 @@ export default function About() {
                         <img
                             src="/images/high-security-door-row.jpeg"
                             alt={t('trust.imageAlt')}
-                            className="mt-8 h-72 w-full rounded-3xl border border-border object-cover shadow-xl shadow-emerald-950/10 transition duration-700 hover:scale-[1.01]"
+                            className="mt-6 h-56 w-full rounded-2xl border border-border object-cover shadow-xl shadow-emerald-950/10 transition duration-700 hover:scale-[1.01] sm:mt-8 sm:h-72 sm:rounded-3xl"
                         />
                     </div>
 
@@ -326,8 +326,8 @@ export default function About() {
                 </div>
             </section>
 
-            <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
-                <div className="grid gap-10 lg:grid-cols-[1fr_0.9fr] lg:items-start">
+            <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-24">
+                <div className="grid gap-8 lg:grid-cols-[1fr_0.9fr] lg:items-start lg:gap-10">
                     <div>
                         <Badge
                             variant="outline"
@@ -336,7 +336,7 @@ export default function About() {
                             {t('process.badge')}
                         </Badge>
 
-                        <h2 className="mt-5 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
+                        <h2 className="mt-5 text-2xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
                             {t('process.title')}
                         </h2>
 

@@ -36,11 +36,11 @@ export default function PublicLayout({ children }: PropsWithChildren) {
         <div className="min-h-screen bg-background text-foreground">
             <nav className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                    <div className="flex min-h-20 items-center justify-between gap-4 sm:min-h-24 lg:min-h-28 lg:gap-8">
+                    <div className="flex min-h-16 items-center justify-between gap-3 sm:min-h-20 lg:min-h-28 lg:gap-8">
                         <div className="flex min-w-0 items-center">
                             <div className="flex shrink-0 items-center">
                                 <Link href={route('home')}>
-                                    <ApplicationLogo className="block h-28 w-auto max-w-none sm:h-32 lg:h-36" />
+                                    <ApplicationLogo className="block h-20 w-auto max-w-none sm:h-28 lg:h-36" />
                                 </Link>
                             </div>
 
@@ -62,7 +62,7 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                             </div>
                         </div>
 
-                        <div className="hidden gap-2 sm:ms-4 sm:flex sm:items-center lg:gap-4 lg:ms-6">
+                        <div className="hidden gap-2 lg:ms-6 lg:flex lg:items-center lg:gap-4">
                             <LanguageSwitcher />
                             <ThemeModeToggle />
 
@@ -83,7 +83,7 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                             )}
                         </div>
 
-                        <div className="-me-2 flex items-center sm:hidden">
+                        <div className="-me-2 flex items-center lg:hidden">
                             <button
                                 type="button"
                                 onClick={() =>
@@ -130,7 +130,7 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                 <div
                     className={
                         (showingNavigationDropdown ? 'block' : 'hidden') +
-                        ' border-t border-border sm:hidden'
+                        ' border-t border-border lg:hidden'
                     }
                 >
                     <div className="flex flex-col gap-1 px-4 pb-3 pt-4">
@@ -185,7 +185,7 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                 <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
                     <div className="grid gap-12 lg:grid-cols-[1.2fr_2fr]">
                         <div>
-                            <ApplicationLogo className="h-28 w-auto max-w-none sm:h-32" />
+                            <ApplicationLogo className="h-20 w-auto max-w-none sm:h-28" />
                             <p className="mt-6 max-w-md leading-7 text-muted-foreground">
                                 {t('footer.description')}
                             </p>

@@ -146,7 +146,7 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
             {quotePhoneNumber && (
                 <a
                     href={`tel:${quotePhoneNumber}`}
-                    className="fixed bottom-4 right-4 z-40 inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-2xl shadow-emerald-950/20 transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-background sm:bottom-6 sm:right-6 sm:px-5"
+                    className="fixed bottom-4 left-4 right-4 z-40 inline-flex items-center justify-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-2xl shadow-emerald-950/20 transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-background sm:bottom-6 sm:left-auto sm:right-6 sm:px-5"
                 >
                     <PhoneCallIcon className="size-4" />
                     <span>{t('floatingQuote.button')}</span>
@@ -160,7 +160,7 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
                         src={slide.image}
                         alt={t(`hero.slides.${slide.key}`)}
                         className={
-                            'absolute inset-0 size-full object-cover transition duration-1000 ease-out ' +
+                            'absolute inset-0 size-full object-cover object-[62%_center] transition duration-1000 ease-out sm:object-center ' +
                             (activeSlide === index
                                 ? 'scale-100 opacity-100'
                                 : 'scale-105 opacity-0')
@@ -168,11 +168,11 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
                     />
                 ))}
 
-                <div className="absolute inset-0 bg-gradient-to-r from-background via-background/90 to-background/45" />
-                <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-background/20" />
+                <div className="absolute inset-0 bg-gradient-to-r from-background via-background/95 to-background/70 sm:to-background/45" />
+                <div className="absolute inset-0 bg-gradient-to-t from-background via-background/35 to-background/20" />
                 <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.045)_1px,_transparent_1px),linear-gradient(90deg,_rgba(0,0,0,0.045)_1px,_transparent_1px)] bg-[size:56px_56px] dark:bg-[linear-gradient(rgba(255,255,255,0.035)_1px,_transparent_1px),linear-gradient(90deg,_rgba(255,255,255,0.035)_1px,_transparent_1px)]" />
 
-                <div className="relative mx-auto grid min-h-[calc(100vh-5rem)] max-w-7xl gap-10 px-4 py-16 sm:min-h-[calc(100vh-6rem)] sm:px-6 sm:py-20 lg:min-h-[calc(100vh-7rem)] lg:grid-cols-[1fr_0.8fr] lg:items-center lg:px-8 lg:py-24">
+                <div className="relative mx-auto grid min-h-[calc(100svh-4rem)] max-w-7xl gap-8 px-4 py-10 sm:min-h-[calc(100svh-5rem)] sm:px-6 sm:py-16 lg:min-h-[calc(100vh-7rem)] lg:grid-cols-[1fr_0.8fr] lg:items-center lg:px-8 lg:py-24">
                     <div>
                         <Badge
                             variant="outline"
@@ -182,15 +182,15 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
                             {t('hero.badge')}
                         </Badge>
 
-                        <h1 className="mt-8 max-w-4xl text-4xl font-semibold tracking-tight text-foreground sm:text-5xl lg:text-7xl">
+                        <h1 className="mt-6 max-w-4xl text-3xl font-semibold tracking-tight text-foreground sm:mt-8 sm:text-5xl lg:text-7xl">
                             {t('hero.title')}
                         </h1>
 
-                        <p className="mt-6 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
+                        <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground sm:mt-6 sm:text-lg sm:leading-8">
                             {t('hero.description')}
                         </p>
 
-                        <div className="mt-6 flex flex-wrap gap-2">
+                        <div className="mt-5 flex max-h-28 flex-wrap gap-2 overflow-y-auto pr-1 sm:mt-6 sm:max-h-none sm:overflow-visible sm:pr-0">
                             {heroKeywords.map((keyword) => (
                                 <Badge
                                     key={keyword}
@@ -202,7 +202,7 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
                             ))}
                         </div>
 
-                        <div className="mt-10 flex flex-col gap-3 sm:flex-row">
+                        <div className="mt-8 flex flex-col gap-3 sm:mt-10 sm:flex-row">
                             <Button asChild size="lg" className="w-full sm:w-auto">
                                 <a
                                     href="#quote"
@@ -238,7 +238,7 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
                         </div>
                     </div>
 
-                    <Card className="border-border bg-background/80 shadow-2xl shadow-emerald-950/10 backdrop-blur-md dark:shadow-emerald-950/30">
+                    <Card className="hidden border-border bg-background/80 shadow-2xl shadow-emerald-950/10 backdrop-blur-md dark:shadow-emerald-950/30 md:flex">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <ShieldCheckIcon className="size-5 text-emerald-700 dark:text-emerald-300" />
@@ -272,8 +272,8 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
                 id="secure-door-solutions"
                 className="border-y border-border bg-muted/40"
             >
-                <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
-                    <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+                <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-24">
+                    <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:gap-10">
                         <div>
                             <Badge
                                 variant="outline"
@@ -282,7 +282,7 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
                                 {t('secureDoor.badge')}
                             </Badge>
 
-                            <h2 className="mt-5 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
+                            <h2 className="mt-5 text-2xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
                                 {t('secureDoor.title')}
                             </h2>
 
@@ -311,12 +311,12 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
                             <img
                                 src="/images/gateway-hero-section.png"
                                 alt={t('secureDoor.imageAlt')}
-                                className="relative w-full rounded-3xl border border-border object-cover transition duration-700 group-hover:scale-[1.02]"
+                                className="relative h-64 w-full rounded-3xl border border-border object-cover transition duration-700 group-hover:scale-[1.02] sm:h-80 lg:h-auto"
                             />
                         </div>
                     </div>
 
-                    <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="mt-8 grid gap-4 sm:mt-10 sm:grid-cols-2 lg:grid-cols-4">
                         <div className="rounded-2xl border border-border bg-background p-5">
                             <ShieldCheckIcon className="mb-4 size-6 text-emerald-700 dark:text-emerald-300" />
                             <h3 className="font-semibold text-foreground">
@@ -362,10 +362,10 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
 
             <section
                 id="quote"
-                className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24"
+                className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-24"
             >
                 <Card className="overflow-hidden border-emerald-400/20 bg-emerald-400 text-zinc-950">
-                    <CardContent className="grid gap-8 p-6 sm:p-8 md:grid-cols-[1fr_auto] md:items-center lg:p-10">
+                    <CardContent className="grid gap-6 p-5 sm:gap-8 sm:p-8 md:grid-cols-[1fr_auto] md:items-center lg:p-10">
                         <div>
                             <div className="mb-4 flex size-10 items-center justify-center rounded-full bg-zinc-950/10">
                                 <DoorOpenIcon className="size-5" />
@@ -375,7 +375,7 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
                                 {t('cta.eyebrow')}
                             </p>
 
-                            <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl lg:text-4xl">
+                            <h2 className="mt-3 text-xl font-semibold tracking-tight sm:text-3xl lg:text-4xl">
                                 {t('cta.title')}
                             </h2>
                         </div>
