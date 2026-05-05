@@ -66,19 +66,12 @@ return [
         UserLevel::ADMINISTRATOR => [
             'view-dashboard',
             'manage-profile',
-            'view-users',
-            'create-users',
-            'update-users',
             'view-company',
-            'manage-access',
             'manage-projects',
         ],
         UserLevel::ADMIN => [
             'view-dashboard',
             'manage-profile',
-            'view-users',
-            'create-users',
-            'update-users',
             'view-company',
         ],
         UserLevel::PROJECT_MANAGER => [

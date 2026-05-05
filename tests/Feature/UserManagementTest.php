@@ -11,15 +11,15 @@ function userWithLevel(string $levelName): User
     return User::factory()->create(['level_id' => $level->id]);
 }
 
-test('administrators can view the users list', function () {
-    $administrator = userWithLevel(UserLevel::ADMINISTRATOR);
+test('super admins can view the users list', function () {
+    $superAdmin = userWithLevel(UserLevel::SUPER_ADMIN);
 
     User::factory()->create([
         'name' => 'Gateway Manager',
         'email' => 'manager@example.com',
     ]);
 
-    $this->actingAs($administrator)
+    $this->actingAs($superAdmin)
         ->get(route('admin.users.index', ['search' => 'manager@example.com']))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
@@ -36,11 +36,11 @@ test('users without management access cannot view the users list', function () {
         ->assertForbidden();
 });
 
-test('administrators can create users', function () {
-    $administrator = userWithLevel(UserLevel::ADMINISTRATOR);
+test('super admins can create users', function () {
+    $superAdmin = userWithLevel(UserLevel::SUPER_ADMIN);
     $adminLevel = UserLevel::firstOrCreate(['name' => UserLevel::ADMIN]);
 
-    $this->actingAs($administrator)
+    $this->actingAs($superAdmin)
         ->post(route('admin.users.store'), [
             'name' => 'New Gateway Admin',
             'email' => 'new-admin@example.com',
@@ -57,14 +57,14 @@ test('administrators can create users', function () {
     ]);
 });
 
-test('administrators can update users', function () {
-    $administrator = userWithLevel(UserLevel::ADMINISTRATOR);
+test('super admins can update users', function () {
+    $superAdmin = userWithLevel(UserLevel::SUPER_ADMIN);
     $managedUser = userWithLevel(UserLevel::USER);
     $projectManagerLevel = UserLevel::firstOrCreate([
         'name' => UserLevel::PROJECT_MANAGER,
     ]);
 
-    $this->actingAs($administrator)
+    $this->actingAs($superAdmin)
         ->patch(route('admin.users.update', $managedUser), [
             'name' => 'Updated Manager',
             'email' => 'updated-manager@example.com',
@@ -82,15 +82,15 @@ test('administrators can update users', function () {
     ]);
 });
 
-test('user list access does not grant create or update access', function () {
+test('custom user permissions cannot grant user crud access without super admin level', function () {
     $level = UserLevel::firstOrCreate(['name' => 'List Only']);
     $level->forceFill([
         'permissions' => [
             'view-dashboard' => true,
             'manage-profile' => true,
             'view-users' => true,
-            'create-users' => false,
-            'update-users' => false,
+            'create-users' => true,
+            'update-users' => true,
             'manage-access' => false,
             'manage-projects' => false,
         ],
@@ -101,7 +101,7 @@ test('user list access does not grant create or update access', function () {
 
     $this->actingAs($user)
         ->get(route('admin.users.index'))
-        ->assertOk();
+        ->assertForbidden();
 
     $this->actingAs($user)
         ->get(route('admin.users.create'))
@@ -112,34 +112,3 @@ test('user list access does not grant create or update access', function () {
         ->assertForbidden();
 });
 
-test('create user access does not grant update access', function () {
-    $level = UserLevel::firstOrCreate(['name' => 'Create Only']);
-    $level->forceFill([
-        'permissions' => [
-            'view-dashboard' => true,
-            'manage-profile' => true,
-            'view-users' => true,
-            'create-users' => true,
-            'update-users' => false,
-            'manage-access' => false,
-            'manage-projects' => false,
-        ],
-    ])->save();
-
-    $user = User::factory()->create(['level_id' => $level->id]);
-    $managedUser = userWithLevel(UserLevel::USER);
-
-    $this->actingAs($user)
-        ->get(route('admin.users.create'))
-        ->assertOk();
-
-    $this->actingAs($user)
-        ->patch(route('admin.users.update', $managedUser), [
-            'name' => 'Should Not Update',
-            'email' => 'blocked-update@example.com',
-            'level_id' => $managedUser->level_id,
-            'password' => '',
-            'password_confirmation' => '',
-        ])
-        ->assertForbidden();
-});

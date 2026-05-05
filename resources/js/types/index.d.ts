@@ -31,6 +31,7 @@ export type PageProps<
         user: User;
         can: {
             manageUsers: boolean;
+            manageOwnAccount: boolean;
             viewUsers: boolean;
             createUsers: boolean;
             updateUsers: boolean;

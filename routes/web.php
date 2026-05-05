@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AccessControlController;
+use App\Http\Controllers\Admin\AccountController;
 use App\Http\Controllers\Admin\CompanyController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\ContactSubmissionController;
@@ -99,6 +100,11 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::patch('/users/{user}', [UserController::class, 'update'])
             ->middleware('can:update-users')
             ->name('users.update');
+
+        Route::get('/account', [AccountController::class, 'edit'])
+            ->name('account.edit');
+        Route::patch('/account', [AccountController::class, 'update'])
+            ->name('account.update');
     });
 
 Route::middleware(['auth', 'prevent-back-history', 'can:manage-access'])

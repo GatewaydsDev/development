@@ -3,17 +3,17 @@ import InputLabel from '@/Components/InputLabel';
 import PhoneInput from '@/Components/PhoneInput';
 import TextInput from '@/Components/TextInput';
 import { Button } from '@/Components/ui/button';
+import { openContactFormEventName } from '@/lib/contact';
 import { cn } from '@/lib/utils';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from '@inertiajs/react';
 import {
     CheckCircle2Icon,
     LoaderCircleIcon,
-    MailIcon,
     MessageSquareTextIcon,
     XIcon,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -88,7 +88,7 @@ export default function ContactSlideOver() {
         mode: 'onChange',
     });
 
-    const openForm = () => {
+    const openForm = useCallback(() => {
         setWasSubmitted(false);
         clearErrors();
         reset({
@@ -104,7 +104,14 @@ export default function ContactSlideOver() {
         setIsOpen(true);
 
         window.setTimeout(() => setFocus('name'), 150);
-    };
+    }, [clearErrors, reset, setFocus]);
+
+    useEffect(() => {
+        window.addEventListener(openContactFormEventName, openForm);
+
+        return () =>
+            window.removeEventListener(openContactFormEventName, openForm);
+    }, [openForm]);
 
     const closeForm = () => {
         setIsOpen(false);
@@ -146,21 +153,12 @@ export default function ContactSlideOver() {
             <button
                 type="button"
                 onClick={openForm}
-                className="fixed right-0 top-1/2 z-50 hidden -translate-y-1/2 rounded-l-2xl border border-emerald-500/20 bg-emerald-600 px-3 py-4 text-sm font-semibold text-white shadow-2xl shadow-emerald-950/20 transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-background lg:block"
+                className="fixed right-0 top-[calc(50%+3.75rem)] z-50 -translate-y-1/2 rounded-l-xl border border-emerald-500/20 bg-emerald-600 px-2 py-3 text-xs font-semibold text-white shadow-2xl shadow-emerald-950/20 transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-background lg:top-1/2 lg:rounded-l-2xl lg:px-3 lg:py-4 lg:text-sm"
                 aria-label={t('contact.open')}
             >
                 <span className="block [writing-mode:vertical-rl]">
                     {t('contact.tab')}
                 </span>
-            </button>
-
-            <button
-                type="button"
-                onClick={openForm}
-                className="fixed bottom-20 right-4 z-50 inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-2xl shadow-emerald-950/20 transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-background sm:right-6 lg:hidden"
-            >
-                <MailIcon className="size-4" />
-                {t('contact.tab')}
             </button>
 
             <div

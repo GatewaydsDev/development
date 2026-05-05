@@ -19,13 +19,15 @@ test('super admins can view the access control page', function () {
         );
 });
 
-test('admins cannot view access control unless granted permission', function () {
-    $adminLevel = UserLevel::firstOrCreate(['name' => UserLevel::ADMIN]);
-    $admin = User::factory()->create(['level_id' => $adminLevel->id]);
+test('non super admins cannot view access control', function () {
+    foreach ([UserLevel::ADMINISTRATOR, UserLevel::ADMIN, UserLevel::PROJECT_MANAGER, UserLevel::USER] as $levelName) {
+        $level = UserLevel::firstOrCreate(['name' => $levelName]);
+        $user = User::factory()->create(['level_id' => $level->id]);
 
-    $this->actingAs($admin)
-        ->get(route('admin.access-control.edit'))
-        ->assertForbidden();
+        $this->actingAs($user)
+            ->get(route('admin.access-control.edit'))
+            ->assertForbidden();
+    }
 });
 
 test('administrators have configured administrator gate permissions by default', function () {
@@ -40,6 +42,7 @@ test('administrators have configured administrator gate permissions by default',
         expect(Gate::forUser($administrator)->allows($permission))->toBeTrue();
     }
 
+    expect(Gate::forUser($administrator)->allows('manage-access'))->toBeFalse();
     expect(Gate::forUser($administrator)->allows('manage-notifications'))->toBeFalse();
 });
 
@@ -51,7 +54,7 @@ test('permission changes are enforced by laravel gates', function () {
 
     $this->actingAs($admin)
         ->get(route('admin.users.index'))
-        ->assertOk();
+        ->assertForbidden();
 
     $this->actingAs($superAdmin)
         ->patch(route('admin.access-control.update'), [
@@ -71,5 +74,21 @@ test('permission changes are enforced by laravel gates', function () {
 
     $this->actingAs($admin)
         ->get(route('admin.users.index'))
+        ->assertForbidden();
+});
+
+test('custom permissions cannot grant access control without super admin level', function () {
+    $level = UserLevel::firstOrCreate(['name' => 'Access Control Only']);
+    $level->forceFill([
+        'permissions' => [
+            'view-dashboard' => true,
+            'manage-profile' => true,
+            'manage-access' => true,
+        ],
+    ])->save();
+    $user = User::factory()->create(['level_id' => $level->id]);
+
+    $this->actingAs($user)
+        ->get(route('admin.access-control.edit'))
         ->assertForbidden();
 });

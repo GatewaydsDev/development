@@ -25,6 +25,7 @@ import {
     MailOpenIcon,
     ShieldIcon,
     SlidersHorizontalIcon,
+    UserCogIcon,
     UserPlusIcon,
     UsersIcon,
 } from 'lucide-react';
@@ -44,8 +45,12 @@ export default function Authenticated({
     const canManageAccess = Boolean(auth.can?.manageAccess);
     const canManageNotifications = Boolean(auth.can?.manageNotifications);
     const canViewCompany = Boolean(auth.can?.viewCompany);
+    const canManageOwnAccount = Boolean(auth.can?.manageOwnAccount);
     const canOpenAdministration =
-        canManageUsers || canManageAccess || canViewCompany;
+        canManageUsers ||
+        canManageAccess ||
+        canViewCompany ||
+        canManageOwnAccount;
     const notifications = auth.notifications;
     const hasUnreadNotifications = notifications.unreadCount > 0;
     const previousUnreadCount = useRef(notifications.unreadCount);
@@ -155,6 +160,20 @@ export default function Authenticated({
                                             className="w-56"
                                         >
                                             <DropdownMenuGroup>
+                                                {canManageOwnAccount && (
+                                                    <DropdownMenuItem asChild>
+                                                        <Link
+                                                            href={route(
+                                                                'admin.account.edit',
+                                                            )}
+                                                            className="flex items-center gap-2"
+                                                        >
+                                                            <UserCogIcon className="size-4" />
+                                                            Account
+                                                        </Link>
+                                                    </DropdownMenuItem>
+                                                )}
+
                                                 {canViewCompany && (
                                                     <DropdownMenuItem asChild>
                                                         <Link
@@ -457,6 +476,20 @@ export default function Authenticated({
                                 <div className="px-4 pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                     Administration
                                 </div>
+                                {canManageOwnAccount && (
+                                    <ResponsiveNavLink
+                                        href={route('admin.account.edit')}
+                                        active={route().current(
+                                            'admin.account.edit',
+                                        )}
+                                    >
+                                        <span className="inline-flex items-center gap-2">
+                                            <UserCogIcon className="size-4" />
+                                            Account
+                                        </span>
+                                    </ResponsiveNavLink>
+                                )}
+
                                 {canViewCompany && (
                                     <ResponsiveNavLink
                                         href={route('admin.company.show')}

@@ -38,6 +38,7 @@ class HandleInertiaRequests extends Middleware
                     'manageUsers' => $request->user()
                         ? Gate::forUser($request->user())->any(['view-users', 'create-users', 'update-users'])
                         : false,
+                    'manageOwnAccount' => $request->user()?->canManageOwnAccount() ?? false,
                     'viewUsers' => $request->user()
                         ? Gate::forUser($request->user())->allows('view-users')
                         : false,

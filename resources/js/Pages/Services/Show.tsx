@@ -9,6 +9,7 @@ import {
 } from '@/Components/ui/card';
 import { serviceDefinitionsByKey, type ServiceKey } from '@/data/services';
 import PublicLayout from '@/Layouts/PublicLayout';
+import { openContactForm } from '@/lib/contact';
 import { Head } from '@inertiajs/react';
 import {
     CheckCircle2Icon,
@@ -123,8 +124,13 @@ export default function ServiceShow({
                         </p>
 
                         <div className="mt-8 flex flex-col gap-3 sm:mt-10 sm:flex-row">
-                            <Button asChild size="lg" className="w-full sm:w-auto">
-                                <a href="/#quote">{t('shared.primaryCta')}</a>
+                            <Button
+                                type="button"
+                                size="lg"
+                                className="w-full sm:w-auto"
+                                onClick={openContactForm}
+                            >
+                                {t('shared.primaryCta')}
                             </Button>
 
                             <Button
@@ -334,12 +340,13 @@ export default function ServiceShow({
                         </div>
 
                         <Button
-                            asChild
+                            type="button"
                             variant="secondary"
                             size="lg"
                             className="w-full md:w-auto"
+                            onClick={openContactForm}
                         >
-                            <a href="/#quote">{t('shared.ctaButton')}</a>
+                            {t('shared.ctaButton')}
                         </Button>
                     </CardContent>
                 </Card>

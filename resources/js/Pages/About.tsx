@@ -9,6 +9,7 @@ import {
 } from '@/Components/ui/card';
 import { Separator } from '@/Components/ui/separator';
 import PublicLayout from '@/Layouts/PublicLayout';
+import { openContactForm } from '@/lib/contact';
 import { cn } from '@/lib/utils';
 import { Head } from '@inertiajs/react';
 import {
@@ -157,8 +158,13 @@ export default function About() {
                         </div>
 
                         <div className="mt-8 flex flex-col gap-3 sm:mt-10 sm:flex-row">
-                            <Button asChild size="lg" className="w-full sm:w-auto">
-                                <a href="/#quote">{t('hero.primaryCta')}</a>
+                            <Button
+                                type="button"
+                                size="lg"
+                                className="w-full sm:w-auto"
+                                onClick={openContactForm}
+                            >
+                                {t('hero.primaryCta')}
                             </Button>
 
                             <Button

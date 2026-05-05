@@ -9,6 +9,7 @@ import {
 } from '@/Components/ui/card';
 import { serviceDefinitions } from '@/data/services';
 import PublicLayout from '@/Layouts/PublicLayout';
+import { openContactForm } from '@/lib/contact';
 import { Head } from '@inertiajs/react';
 import {
     CheckCircle2Icon,
@@ -16,7 +17,6 @@ import {
     PhoneCallIcon,
     ShieldCheckIcon,
 } from 'lucide-react';
-import type { MouseEvent } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -120,26 +120,6 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
         return () => observer.disconnect();
     }, []);
 
-    const handleQuoteClick = (event: MouseEvent<HTMLAnchorElement>) => {
-        event.preventDefault();
-
-        const section = document.getElementById('quote');
-
-        if (!section) {
-            return;
-        }
-
-        const stickyHeaderOffset = 96;
-
-        window.scrollTo({
-            top:
-                section.getBoundingClientRect().top +
-                window.scrollY -
-                stickyHeaderOffset,
-            behavior: 'smooth',
-        });
-    };
-
     return (
         <PublicLayout>
             <Head title={t('meta.title')} />
@@ -147,10 +127,12 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
             {quotePhoneNumber && (
                 <a
                     href={`tel:${quotePhoneNumber}`}
-                    className="fixed bottom-4 left-4 right-4 z-40 inline-flex items-center justify-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-2xl shadow-emerald-950/20 transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-background sm:bottom-6 sm:left-auto sm:right-6 sm:px-5"
+                    className="fixed right-0 top-[calc(50%-3.75rem)] z-40 inline-flex -translate-y-1/2 items-center justify-center rounded-l-xl border border-emerald-500/20 bg-emerald-600 px-2 py-3 text-xs font-semibold text-white shadow-2xl shadow-emerald-950/20 transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-background lg:bottom-6 lg:top-auto lg:translate-y-0 lg:gap-2 lg:rounded-full lg:px-5 lg:py-3 lg:text-sm"
                 >
-                    <PhoneCallIcon className="size-4" />
-                    <span>{t('floatingQuote.button')}</span>
+                    <PhoneCallIcon className="size-4 lg:size-4" />
+                    <span className="block [writing-mode:vertical-rl] lg:[writing-mode:horizontal-tb]">
+                        {t('floatingQuote.button')}
+                    </span>
                 </a>
             )}
 
@@ -204,13 +186,13 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
                         </div>
 
                         <div className="mt-8 flex flex-col gap-3 sm:mt-10 sm:flex-row">
-                            <Button asChild size="lg" className="w-full sm:w-auto">
-                                <a
-                                    href="#quote"
-                                    onClick={handleQuoteClick}
-                                >
-                                    {t('hero.primaryCta')}
-                                </a>
+                            <Button
+                                type="button"
+                                size="lg"
+                                className="w-full sm:w-auto"
+                                onClick={openContactForm}
+                            >
+                                {t('hero.primaryCta')}
                             </Button>
 
                             {quotePhoneNumber && (
@@ -383,17 +365,13 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
 
                                 <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                                     <Button
-                                        asChild
+                                        type="button"
                                         variant="secondary"
                                         size="lg"
                                         className="w-full sm:w-auto"
+                                        onClick={openContactForm}
                                     >
-                                        <a
-                                            href="#quote"
-                                            onClick={handleQuoteClick}
-                                        >
-                                            {t('services.primaryCta')}
-                                        </a>
+                                        {t('services.primaryCta')}
                                     </Button>
 
                                     {quotePhoneNumber && (
