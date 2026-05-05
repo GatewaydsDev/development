@@ -57,6 +57,43 @@
       }
     }
   },
+  "services": {
+    "badge": "Our services",
+    "title": "Door installation services built for secure, reliable access.",
+    "description": "From reinforced openings to access-control ready hardware, Gateway helps facilities upgrade the doors that protect people, equipment, and sensitive spaces.",
+    "primaryCta": "Request a service quote",
+    "secondaryCta": "Call about services",
+    "items": {
+      "radioFrequencyDoors": {
+        "title": "Radio Frequency doors",
+        "description": "Door systems installed to support sensitive areas where radio frequency performance matters."
+      },
+      "soundTransmission": {
+        "title": "Sound Transmission",
+        "description": "Specialty openings fitted to help manage sound transfer and acoustic performance."
+      },
+      "bullet": {
+        "title": "Bullet",
+        "description": "Installation support for bullet-resistant doors, frames, and related secure hardware."
+      },
+      "blast": {
+        "title": "Blast",
+        "description": "Specialized door installation for openings requiring blast-resistant assemblies."
+      },
+      "oversizedAssemblies": {
+        "title": "Oversized Assemblies",
+        "description": "Precision installation for large-format specialty doors and reinforced assemblies."
+      },
+      "hurricaneAndTornado": {
+        "title": "Hurricane and tornado",
+        "description": "Storm-rated door installation for facilities that need stronger protection from severe weather."
+      },
+      "forcedEntryDoors": {
+        "title": "Forced Entry doors",
+        "description": "Secure door systems installed to resist unauthorized entry and protect controlled spaces."
+      }
+    }
+  },
   "highSecurity": {
     "eyebrow": "Heavy-duty reinforced openings",
     "title": "High-Security Door Installation",

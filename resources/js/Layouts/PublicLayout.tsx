@@ -2,8 +2,17 @@ import ApplicationLogo from '@/Components/ApplicationLogo';
 import ContactSlideOver from '@/Components/ContactSlideOver';
 import LanguageSwitcher from '@/Components/LanguageSwitcher';
 import ThemeModeToggle from '@/Components/ThemeModeToggle';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuGroup,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/Components/ui/dropdown-menu';
+import { serviceDefinitions } from '@/data/services';
 import { PageProps } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
+import { ChevronDownIcon } from 'lucide-react';
 import { PropsWithChildren, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -59,6 +68,45 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                                         {t(item.labelKey)}
                                     </Link>
                                 ))}
+
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger className="inline-flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2 focus:ring-offset-background data-open:bg-emerald-500/10 data-open:text-emerald-700 dark:data-open:text-emerald-300">
+                                        {t('navigation.services')}
+                                        <ChevronDownIcon className="size-4" />
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent className="w-72 p-2">
+                                        <DropdownMenuGroup>
+                                            {serviceDefinitions.map((service) => {
+                                                const Icon = service.Icon;
+
+                                                return (
+                                                    <DropdownMenuItem
+                                                        key={service.key}
+                                                        asChild
+                                                        className="p-0"
+                                                    >
+                                                        <Link
+                                                            href={route(
+                                                                'services.show',
+                                                                service.slug,
+                                                            )}
+                                                            className="flex w-full items-center gap-3 rounded-md px-2 py-2 text-sm"
+                                                        >
+                                                            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                                                                <Icon className="size-4" />
+                                                            </span>
+                                                            <span>
+                                                                {t(
+                                                                    `navigation.serviceItems.${service.key}`,
+                                                                )}
+                                                            </span>
+                                                        </Link>
+                                                    </DropdownMenuItem>
+                                                );
+                                            })}
+                                        </DropdownMenuGroup>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             </div>
                         </div>
 
@@ -148,6 +196,42 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                                 {t(item.labelKey)}
                             </Link>
                         ))}
+
+                        <div className="mt-2 rounded-xl border border-border bg-muted/30 p-2">
+                            <p className="px-2 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                {t('navigation.services')}
+                            </p>
+                            <div className="mt-1 flex flex-col gap-1">
+                                {serviceDefinitions.map((service) => {
+                                    const Icon = service.Icon;
+
+                                    return (
+                                        <Link
+                                            key={service.key}
+                                            href={route(
+                                                'services.show',
+                                                service.slug,
+                                            )}
+                                            onClick={() =>
+                                                setShowingNavigationDropdown(
+                                                    false,
+                                                )
+                                            }
+                                            className="flex items-center gap-3 rounded-md px-2 py-2 text-sm font-medium text-muted-foreground transition hover:bg-background hover:text-foreground"
+                                        >
+                                            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                                                <Icon className="size-4" />
+                                            </span>
+                                            <span>
+                                                {t(
+                                                    `navigation.serviceItems.${service.key}`,
+                                                )}
+                                            </span>
+                                        </Link>
+                                    );
+                                })}
+                            </div>
+                        </div>
                     </div>
 
                     <div className="border-t border-border px-4 pb-4 pt-4">

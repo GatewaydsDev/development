@@ -5,9 +5,11 @@ import { initReactI18next } from 'react-i18next';
 import aboutEn from './locales/en/about.json';
 import commonEn from './locales/en/common.json';
 import homeEn from './locales/en/home.json';
+import servicesEn from './locales/en/services.json';
 import aboutEs from './locales/es/about.json';
 import commonEs from './locales/es/common.json';
 import homeEs from './locales/es/home.json';
+import servicesEs from './locales/es/services.json';
 
 export const languages = [
     { code: 'en', labelKey: 'language.en', flag: '🇺🇸' },
@@ -22,17 +24,19 @@ i18n.use(LanguageDetector)
         fallbackLng: 'en',
         supportedLngs: languages.map((language) => language.code),
         defaultNS: 'common',
-        ns: ['common', 'home', 'about'],
+        ns: ['common', 'home', 'about', 'services'],
         resources: {
             en: {
                 common: commonEn,
                 home: homeEn,
                 about: aboutEn,
+                services: servicesEn,
             },
             es: {
                 common: commonEs,
                 home: homeEs,
                 about: aboutEs,
+                services: servicesEs,
             },
         },
         detection: {

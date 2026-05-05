@@ -1,0 +1,194 @@
+{
+  "notFound": {
+    "metaTitle": "Service not found",
+    "title": "Service not found",
+    "description": "The requested service page could not be found."
+  },
+  "shared": {
+    "heroBadge": "Gateway Door Systems service",
+    "overviewBadge": "Service overview",
+    "capabilitiesBadge": "What we coordinate",
+    "applicationsBadge": "Common applications",
+    "processBadge": "Installation process",
+    "processTitle": "Built around the full opening.",
+    "processDescription": "Each service page focuses on the installed assembly, because the door, frame, hardware, seals, and surrounding conditions all affect performance.",
+    "primaryCta": "Request a service quote",
+    "secondaryCta": "View all services",
+    "ctaEyebrow": "Plan your secure opening",
+    "ctaTitle": "Need help choosing the right specialty door system?",
+    "ctaDescription": "Gateway can review the opening, door type, hardware requirements, and project constraints before installation begins.",
+    "ctaButton": "Start with a quote",
+    "capabilityTitles": {
+      "performance": "Performance details",
+      "coordination": "Project coordination",
+      "handoff": "Reliable handoff"
+    }
+  },
+  "services": {
+    "radioFrequencyDoors": {
+      "metaTitle": "Radio Frequency Door Installation | Gateway Door Systems",
+      "metaDescription": "Radio Frequency door installation for sensitive facilities, secure openings, and controlled-access environments.",
+      "title": "Radio Frequency Door Installation",
+      "description": "Specialty door installation for facilities where radio frequency performance, fit, sealing, and secure access all matter.",
+      "imageAlt": "Secure specialty door installed for radio frequency performance",
+      "overviewTitle": "Installed for sensitive spaces that depend on controlled performance.",
+      "overviewText": "Radio Frequency doors require careful coordination between the door, frame, seals, hardware, and surrounding opening. Gateway focuses on accurate installation so the assembly can support the performance expected from the specified system.",
+      "supportText": "We help teams replace, retrofit, or install RF-focused doors in secure commercial, government, and sensitive facility environments.",
+      "capabilities": {
+        "performance": "Door, frame, seal, and threshold alignment for performance-critical openings.",
+        "coordination": "Coordination with project requirements, access hardware, and facility constraints.",
+        "handoff": "Clean installation handoff focused on reliable operation and long-term serviceability."
+      },
+      "applications": {
+        "secureAreas": "Sensitive rooms and controlled-access areas",
+        "retrofits": "Retrofit projects replacing underperforming openings",
+        "facilities": "Government, commercial, and technical facilities",
+        "hardware": "Openings paired with secure hardware or access control"
+      }
+    },
+    "soundTransmission": {
+      "metaTitle": "Sound Transmission Door Installation | Gateway Door Systems",
+      "metaDescription": "Sound Transmission door installation for openings that need better acoustic control and reliable secure operation.",
+      "title": "Sound Transmission Door Installation",
+      "description": "Specialty door installation for spaces where acoustic performance, sealing, and dependable hardware need to work together.",
+      "imageAlt": "Commercial specialty door installed for sound transmission control",
+      "overviewTitle": "Better acoustic control starts with the full opening.",
+      "overviewText": "Sound Transmission doors depend on more than the leaf itself. Frame fit, perimeter seals, bottom seals, thresholds, and hardware all influence how the opening performs once it is in daily use.",
+      "supportText": "Gateway installs sound-conscious door assemblies for offices, secure areas, mechanical rooms, operations spaces, and retrofit projects.",
+      "capabilities": {
+        "performance": "Attention to seal contact, clearances, hardware fit, and closing performance.",
+        "coordination": "Coordination with specified STC-rated components and site conditions.",
+        "handoff": "Installation focused on smooth operation without sacrificing acoustic intent."
+      },
+      "applications": {
+        "secureAreas": "Quiet rooms, offices, and restricted spaces",
+        "retrofits": "Existing openings that need better sound control",
+        "facilities": "Commercial, institutional, and operational facilities",
+        "hardware": "Door assemblies with closers, seals, and latching hardware"
+      }
+    },
+    "bullet": {
+      "metaTitle": "Bullet-Resistant Door Installation | Gateway Door Systems",
+      "metaDescription": "Bullet-resistant door installation for secure commercial, government, and controlled-access facilities.",
+      "title": "Bullet-Resistant Door Installation",
+      "description": "Installation support for bullet-resistant doors, frames, and secure hardware in facilities that require stronger protection.",
+      "imageAlt": "Reinforced specialty door installed for bullet-resistant protection",
+      "overviewTitle": "Protective assemblies need precise installation.",
+      "overviewText": "Bullet-resistant openings require close attention to the full assembly, including the door, frame, anchoring, glazing where applicable, and hardware. The installation must respect the specified system and the conditions around the opening.",
+      "supportText": "Gateway supports secure facility teams with installation and replacement work for protective door systems in controlled environments.",
+      "capabilities": {
+        "performance": "Installation practices aligned with reinforced doors, frames, and secure hardware.",
+        "coordination": "Coordination with specifications, anchoring requirements, and access needs.",
+        "handoff": "Operational checks focused on latching, closing, and everyday reliability."
+      },
+      "applications": {
+        "secureAreas": "Controlled-access and restricted rooms",
+        "retrofits": "Upgrades from standard openings to reinforced assemblies",
+        "facilities": "Commercial, public-sector, and sensitive facilities",
+        "hardware": "Protective doors paired with locks, closers, and access hardware"
+      }
+    },
+    "blast": {
+      "metaTitle": "Blast-Resistant Door Installation | Gateway Door Systems",
+      "metaDescription": "Blast-resistant door installation for specialty openings, reinforced assemblies, and secure facilities.",
+      "title": "Blast-Resistant Door Installation",
+      "description": "Specialized installation for openings that require reinforced blast-resistant door assemblies and reliable secure access.",
+      "imageAlt": "Reinforced specialty door installed for blast-resistant applications",
+      "overviewTitle": "Blast-resistant openings demand careful coordination.",
+      "overviewText": "Blast-resistant door assemblies are built around specified performance requirements. Gateway focuses on the installation details that affect fit, anchoring, swing, hardware operation, and the long-term reliability of the opening.",
+      "supportText": "We support project teams installing or replacing reinforced doors in facilities where the opening must align with protective design intent.",
+      "capabilities": {
+        "performance": "Door, frame, anchoring, and hardware installation for reinforced assemblies.",
+        "coordination": "Coordination with project specifications, wall conditions, and site access.",
+        "handoff": "Final checks for closing force, latching, clearances, and hardware operation."
+      },
+      "applications": {
+        "secureAreas": "Sensitive facility openings",
+        "retrofits": "Replacement of outdated or damaged reinforced doors",
+        "facilities": "Industrial, government, and critical operations spaces",
+        "hardware": "Assemblies requiring coordinated secure hardware"
+      }
+    },
+    "oversizedAssemblies": {
+      "metaTitle": "Oversized Door Assembly Installation | Gateway Door Systems",
+      "metaDescription": "Oversized door assembly installation for large specialty openings, reinforced frames, and commercial facilities.",
+      "title": "Oversized Door Assembly Installation",
+      "description": "Precision installation for large-format specialty doors, reinforced frames, and oversized openings that need reliable operation.",
+      "imageAlt": "Large reinforced specialty door assembly installed in a commercial facility",
+      "overviewTitle": "Large openings need disciplined installation.",
+      "overviewText": "Oversized assemblies add complexity around handling, alignment, frame support, clearances, and hardware. Gateway plans the installation around the size of the opening and the way the door will be used every day.",
+      "supportText": "We install oversized specialty doors for commercial, industrial, secure, and retrofit projects where standard installation approaches are not enough.",
+      "capabilities": {
+        "performance": "Careful handling, alignment, and hardware setup for large door systems.",
+        "coordination": "Coordination around site access, staging, frame conditions, and project timing.",
+        "handoff": "Operational checks for swing, latch, closer behavior, and clearances."
+      },
+      "applications": {
+        "secureAreas": "Large restricted or equipment access openings",
+        "retrofits": "Replacement of worn oversized doors and frames",
+        "facilities": "Commercial, industrial, warehouse, and operations facilities",
+        "hardware": "Heavy-duty hinges, closers, locks, and exit hardware"
+      }
+    },
+    "hurricaneAndTornado": {
+      "metaTitle": "Hurricane and Tornado Door Installation | Gateway Door Systems",
+      "metaDescription": "Hurricane and tornado door installation for storm-rated openings, reinforced assemblies, and resilient facilities.",
+      "title": "Hurricane and Tornado Door Installation",
+      "description": "Storm-rated door installation for facilities that need stronger openings prepared for severe weather exposure.",
+      "imageAlt": "Reinforced storm-rated door installed for severe weather protection",
+      "overviewTitle": "Storm-rated openings protect only when installed correctly.",
+      "overviewText": "Hurricane and tornado door assemblies rely on the relationship between the door, frame, anchoring, hardware, and surrounding structure. Gateway installs these systems with attention to fit, fastening, and daily usability.",
+      "supportText": "We support commercial and facility teams upgrading openings for severe weather readiness, resilience planning, and secure access.",
+      "capabilities": {
+        "performance": "Installation attention to anchors, frame fit, hardware, seals, and clearances.",
+        "coordination": "Coordination with specified storm-rated assemblies and site requirements.",
+        "handoff": "Reliable operation checks for facilities that still need everyday access."
+      },
+      "applications": {
+        "secureAreas": "Exterior and protected facility openings",
+        "retrofits": "Severe-weather upgrades for existing door systems",
+        "facilities": "Commercial, institutional, and operations buildings",
+        "hardware": "Storm-rated doors paired with secure latching hardware"
+      }
+    },
+    "forcedEntryDoors": {
+      "metaTitle": "Forced Entry Door Installation | Gateway Door Systems",
+      "metaDescription": "Forced Entry door installation for controlled-access areas, reinforced openings, and secure commercial facilities.",
+      "title": "Forced Entry Door Installation",
+      "description": "Secure door systems installed to resist unauthorized entry and protect controlled areas, equipment, and sensitive spaces.",
+      "imageAlt": "Secure access door installed for forced entry resistance",
+      "overviewTitle": "Security depends on the complete opening.",
+      "overviewText": "Forced Entry doors require coordination between the door, frame, anchoring, locks, hinges, closers, and access hardware. Gateway installs the full opening with a focus on strength, fit, and reliable operation.",
+      "supportText": "We help commercial and secure facilities replace vulnerable openings with stronger assemblies designed for controlled access.",
+      "capabilities": {
+        "performance": "Reinforced door, frame, hinge, lock, and closer installation support.",
+        "coordination": "Coordination with access-control hardware, facility operations, and project scope.",
+        "handoff": "Final checks for latching, alignment, closing, and secure daily use."
+      },
+      "applications": {
+        "secureAreas": "Restricted rooms and controlled-access corridors",
+        "retrofits": "Security upgrades for weak or damaged openings",
+        "facilities": "Commercial, government, warehouse, and critical-use buildings",
+        "hardware": "Locks, panic bars, electric strikes, maglocks, and access hardware"
+      }
+    }
+  },
+  "process": {
+    "review": {
+      "title": "Review the opening",
+      "description": "We look at the existing condition, project goals, and the specified door system."
+    },
+    "coordinate": {
+      "title": "Coordinate hardware and fit",
+      "description": "Frames, locks, closers, seals, and access-control needs are reviewed before installation."
+    },
+    "install": {
+      "title": "Install with precision",
+      "description": "The assembly is installed with attention to alignment, anchoring, clearances, and operation."
+    },
+    "verify": {
+      "title": "Verify operation",
+      "description": "We check swing, closing, latching, hardware function, and handoff details."
+    }
+  }
+}

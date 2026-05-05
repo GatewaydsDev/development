@@ -4,7 +4,17 @@
   },
   "navigation": {
     "home": "Inicio",
-    "about": "Nosotros"
+    "about": "Nosotros",
+    "services": "Servicios",
+    "serviceItems": {
+      "radioFrequencyDoors": "Radio Frequency doors",
+      "soundTransmission": "Sound Transmission",
+      "bullet": "Bullet",
+      "blast": "Blast",
+      "oversizedAssemblies": "Oversized Assemblies",
+      "hurricaneAndTornado": "Hurricane and tornado",
+      "forcedEntryDoors": "Forced Entry doors"
+    }
   },
   "auth": {
     "dashboard": "Panel",

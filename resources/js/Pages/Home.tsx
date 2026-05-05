@@ -7,6 +7,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@/Components/ui/card';
+import { serviceDefinitions } from '@/data/services';
 import PublicLayout from '@/Layouts/PublicLayout';
 import { Head } from '@inertiajs/react';
 import {
@@ -355,6 +356,98 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
                             <p className="mt-2 text-sm leading-6 text-muted-foreground">
                                 {t('secureDoor.features.retrofit.description')}
                             </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="services" className="bg-background">
+                <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-24">
+                    <div className="overflow-hidden rounded-3xl border border-emerald-500/20 bg-emerald-950 text-white shadow-2xl shadow-emerald-950/20">
+                        <div className="grid gap-8 bg-[radial-gradient(circle_at_top_left,_rgba(52,211,153,0.35),_transparent_36%),linear-gradient(135deg,_rgba(6,78,59,0.92),_rgba(6,95,70,0.72)_48%,_rgba(2,6,23,0.98))] p-6 sm:p-8 lg:grid-cols-[1fr_0.85fr] lg:items-center lg:p-10">
+                            <div>
+                                <Badge
+                                    variant="outline"
+                                    className="border-emerald-300/30 bg-white/10 text-emerald-50"
+                                >
+                                    {t('services.badge')}
+                                </Badge>
+
+                                <h2 className="mt-5 max-w-3xl text-2xl font-semibold tracking-tight sm:text-4xl lg:text-5xl">
+                                    {t('services.title')}
+                                </h2>
+
+                                <p className="mt-5 max-w-2xl text-base leading-7 text-emerald-50/80 sm:text-lg sm:leading-8">
+                                    {t('services.description')}
+                                </p>
+
+                                <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                                    <Button
+                                        asChild
+                                        variant="secondary"
+                                        size="lg"
+                                        className="w-full sm:w-auto"
+                                    >
+                                        <a
+                                            href="#quote"
+                                            onClick={handleQuoteClick}
+                                        >
+                                            {t('services.primaryCta')}
+                                        </a>
+                                    </Button>
+
+                                    {quotePhoneNumber && (
+                                        <Button
+                                            asChild
+                                            variant="outline"
+                                            size="lg"
+                                            className="w-full border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white sm:w-auto"
+                                        >
+                                            <a href={`tel:${quotePhoneNumber}`}>
+                                                <PhoneCallIcon data-icon="inline-start" />
+                                                {t('services.secondaryCta')}
+                                            </a>
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="grid gap-3">
+                                {serviceDefinitions.map((service) => {
+                                    const Icon = service.Icon;
+
+                                    return (
+                                        <a
+                                            key={service.key}
+                                            id={`service-${service.key}`}
+                                            href={route(
+                                                'services.show',
+                                                service.slug,
+                                            )}
+                                            className="scroll-mt-28 rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur"
+                                        >
+                                            <div className="flex gap-4">
+                                                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-emerald-300/20 text-emerald-100">
+                                                    <Icon className="size-5" />
+                                                </div>
+
+                                                <div>
+                                                    <h3 className="font-semibold">
+                                                        {t(
+                                                            `services.items.${service.key}.title`,
+                                                        )}
+                                                    </h3>
+                                                    <p className="mt-1 text-sm leading-6 text-emerald-50/75">
+                                                        {t(
+                                                            `services.items.${service.key}.description`,
+                                                        )}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </a>
+                                    );
+                                })}
+                            </div>
                         </div>
                     </div>
                 </div>

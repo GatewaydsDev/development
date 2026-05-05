@@ -25,6 +25,26 @@ Route::get('/about', function () {
     return Inertia::render('About');
 })->name('about');
 
+Route::get('/services/{service}', function (string $service) {
+    $services = [
+        'radio-frequency-doors' => 'radioFrequencyDoors',
+        'sound-transmission' => 'soundTransmission',
+        'bullet-resistant-doors' => 'bullet',
+        'blast-resistant-doors' => 'blast',
+        'oversized-door-assemblies' => 'oversizedAssemblies',
+        'hurricane-tornado-doors' => 'hurricaneAndTornado',
+        'forced-entry-doors' => 'forcedEntryDoors',
+    ];
+
+    abort_unless(array_key_exists($service, $services), 404);
+
+    return Inertia::render('Services/Show', [
+        'serviceKey' => $services[$service],
+        'serviceSlug' => $service,
+        'canonicalUrl' => url()->current(),
+    ]);
+})->name('services.show');
+
 Route::post('/contact', [ContactSubmissionController::class, 'store'])
     ->middleware('throttle:5,1')
     ->name('contact.store');

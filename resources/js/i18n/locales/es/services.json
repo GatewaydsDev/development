@@ -1,0 +1,194 @@
+{
+  "notFound": {
+    "metaTitle": "Servicio no encontrado",
+    "title": "Servicio no encontrado",
+    "description": "No se pudo encontrar la página de servicio solicitada."
+  },
+  "shared": {
+    "heroBadge": "Servicio de Gateway Door Systems",
+    "overviewBadge": "Resumen del servicio",
+    "capabilitiesBadge": "Qué coordinamos",
+    "applicationsBadge": "Aplicaciones comunes",
+    "processBadge": "Proceso de instalación",
+    "processTitle": "Diseñado alrededor de toda la apertura.",
+    "processDescription": "Cada página de servicio se enfoca en el conjunto instalado, porque la puerta, el marco, los herrajes, los sellos y las condiciones alrededor afectan el rendimiento.",
+    "primaryCta": "Solicitar cotización",
+    "secondaryCta": "Ver todos los servicios",
+    "ctaEyebrow": "Planifica tu apertura segura",
+    "ctaTitle": "¿Necesitas ayuda para elegir el sistema de puerta especial adecuado?",
+    "ctaDescription": "Gateway puede revisar la apertura, el tipo de puerta, los requisitos de herrajes y las condiciones del proyecto antes de iniciar la instalación.",
+    "ctaButton": "Comenzar con una cotización",
+    "capabilityTitles": {
+      "performance": "Detalles de rendimiento",
+      "coordination": "Coordinación del proyecto",
+      "handoff": "Entrega confiable"
+    }
+  },
+  "services": {
+    "radioFrequencyDoors": {
+      "metaTitle": "Instalación de Radio Frequency Doors | Gateway Door Systems",
+      "metaDescription": "Instalación de Radio Frequency doors para instalaciones sensibles, aperturas seguras y entornos de acceso controlado.",
+      "title": "Instalación de Radio Frequency Doors",
+      "description": "Instalación de puertas especiales para instalaciones donde el rendimiento de radiofrecuencia, el ajuste, los sellos y el acceso seguro son importantes.",
+      "imageAlt": "Puerta especial segura instalada para rendimiento de radiofrecuencia",
+      "overviewTitle": "Instaladas para espacios sensibles que dependen de rendimiento controlado.",
+      "overviewText": "Las Radio Frequency doors requieren coordinación cuidadosa entre puerta, marco, sellos, herrajes y la apertura existente. Gateway se enfoca en una instalación precisa para que el conjunto respalde el rendimiento esperado del sistema especificado.",
+      "supportText": "Ayudamos a equipos a reemplazar, modernizar o instalar puertas enfocadas en RF en entornos comerciales, gubernamentales e instalaciones sensibles.",
+      "capabilities": {
+        "performance": "Alineación de puerta, marco, sellos y umbral para aperturas críticas.",
+        "coordination": "Coordinación con requisitos del proyecto, herrajes de acceso y condiciones de la instalación.",
+        "handoff": "Entrega enfocada en operación confiable y facilidad de mantenimiento."
+      },
+      "applications": {
+        "secureAreas": "Salas sensibles y áreas de acceso controlado",
+        "retrofits": "Modernización de aperturas con bajo rendimiento",
+        "facilities": "Instalaciones gubernamentales, comerciales y técnicas",
+        "hardware": "Aperturas con herrajes seguros o control de acceso"
+      }
+    },
+    "soundTransmission": {
+      "metaTitle": "Instalación de Sound Transmission Doors | Gateway Door Systems",
+      "metaDescription": "Instalación de Sound Transmission doors para aperturas que necesitan mejor control acústico y operación segura.",
+      "title": "Instalación de Sound Transmission Doors",
+      "description": "Instalación de puertas especiales para espacios donde el rendimiento acústico, los sellos y los herrajes confiables deben trabajar juntos.",
+      "imageAlt": "Puerta comercial especial instalada para control de transmisión de sonido",
+      "overviewTitle": "Un mejor control acústico empieza con toda la apertura.",
+      "overviewText": "Las Sound Transmission doors dependen de más que la hoja de la puerta. El ajuste del marco, los sellos perimetrales, los sellos inferiores, los umbrales y los herrajes influyen en el desempeño de la apertura.",
+      "supportText": "Gateway instala conjuntos de puertas con enfoque acústico para oficinas, áreas seguras, cuartos mecánicos, espacios operativos y modernizaciones.",
+      "capabilities": {
+        "performance": "Atención al contacto de sellos, holguras, ajuste de herrajes y cierre.",
+        "coordination": "Coordinación con componentes STC especificados y condiciones del sitio.",
+        "handoff": "Instalación enfocada en operación fluida sin perder la intención acústica."
+      },
+      "applications": {
+        "secureAreas": "Salas silenciosas, oficinas y espacios restringidos",
+        "retrofits": "Aperturas existentes que necesitan mejor control de sonido",
+        "facilities": "Instalaciones comerciales, institucionales y operativas",
+        "hardware": "Conjuntos con cierrapuertas, sellos y herrajes de cierre"
+      }
+    },
+    "bullet": {
+      "metaTitle": "Instalación de puertas resistentes a impactos balísticos | Gateway Door Systems",
+      "metaDescription": "Instalación de puertas resistentes a impactos balísticos para instalaciones comerciales, gubernamentales y de acceso controlado.",
+      "title": "Instalación de puertas Bullet",
+      "description": "Soporte de instalación para puertas, marcos y herrajes seguros resistentes a impactos balísticos en instalaciones que requieren mayor protección.",
+      "imageAlt": "Puerta especial reforzada instalada para protección resistente a impactos balísticos",
+      "overviewTitle": "Los conjuntos de protección necesitan instalación precisa.",
+      "overviewText": "Las aperturas Bullet requieren atención al conjunto completo, incluyendo puerta, marco, anclaje, vidrio cuando aplica y herrajes. La instalación debe respetar el sistema especificado y las condiciones de la apertura.",
+      "supportText": "Gateway apoya a equipos de instalaciones seguras con instalación y reemplazo de sistemas de puertas protectoras en entornos controlados.",
+      "capabilities": {
+        "performance": "Prácticas de instalación alineadas con puertas, marcos y herrajes reforzados.",
+        "coordination": "Coordinación con especificaciones, requisitos de anclaje y necesidades de acceso.",
+        "handoff": "Revisión de operación enfocada en cierre, pestillo y confiabilidad diaria."
+      },
+      "applications": {
+        "secureAreas": "Salas restringidas y de acceso controlado",
+        "retrofits": "Actualizaciones de aperturas estándar a conjuntos reforzados",
+        "facilities": "Instalaciones comerciales, públicas y sensibles",
+        "hardware": "Puertas protectoras con cerraduras, cierrapuertas y herrajes de acceso"
+      }
+    },
+    "blast": {
+      "metaTitle": "Instalación de puertas resistentes a explosiones | Gateway Door Systems",
+      "metaDescription": "Instalación de puertas Blast para aperturas especiales, conjuntos reforzados e instalaciones seguras.",
+      "title": "Instalación de puertas Blast",
+      "description": "Instalación especializada para aperturas que requieren conjuntos reforzados resistentes a explosiones y acceso seguro confiable.",
+      "imageAlt": "Puerta especial reforzada instalada para aplicaciones resistentes a explosiones",
+      "overviewTitle": "Las aperturas Blast exigen coordinación cuidadosa.",
+      "overviewText": "Los conjuntos de puertas Blast se diseñan alrededor de requisitos específicos de rendimiento. Gateway se enfoca en detalles de instalación que afectan ajuste, anclaje, apertura, operación de herrajes y confiabilidad a largo plazo.",
+      "supportText": "Apoyamos a equipos de proyecto que instalan o reemplazan puertas reforzadas en instalaciones donde la apertura debe alinearse con la intención de protección.",
+      "capabilities": {
+        "performance": "Instalación de puerta, marco, anclaje y herrajes para conjuntos reforzados.",
+        "coordination": "Coordinación con especificaciones, condiciones de muro y acceso al sitio.",
+        "handoff": "Revisión final de fuerza de cierre, pestillo, holguras y operación."
+      },
+      "applications": {
+        "secureAreas": "Aperturas de instalaciones sensibles",
+        "retrofits": "Reemplazo de puertas reforzadas antiguas o dañadas",
+        "facilities": "Espacios industriales, gubernamentales y de operaciones críticas",
+        "hardware": "Conjuntos que requieren herrajes seguros coordinados"
+      }
+    },
+    "oversizedAssemblies": {
+      "metaTitle": "Instalación de Oversized Door Assemblies | Gateway Door Systems",
+      "metaDescription": "Instalación de Oversized Assemblies para aperturas especiales grandes, marcos reforzados e instalaciones comerciales.",
+      "title": "Instalación de Oversized Assemblies",
+      "description": "Instalación precisa para puertas especiales de gran formato, marcos reforzados y aperturas sobredimensionadas que necesitan operación confiable.",
+      "imageAlt": "Conjunto de puerta especial grande instalado en una instalación comercial",
+      "overviewTitle": "Las aperturas grandes necesitan instalación disciplinada.",
+      "overviewText": "Los Oversized Assemblies agregan complejidad en manipulación, alineación, soporte de marco, holguras y herrajes. Gateway planifica la instalación según el tamaño de la apertura y el uso diario de la puerta.",
+      "supportText": "Instalamos puertas especiales sobredimensionadas para proyectos comerciales, industriales, seguros y de modernización donde un enfoque estándar no es suficiente.",
+      "capabilities": {
+        "performance": "Manipulación, alineación y configuración de herrajes para sistemas grandes.",
+        "coordination": "Coordinación de acceso al sitio, preparación, condiciones de marco y tiempos del proyecto.",
+        "handoff": "Revisión de apertura, pestillo, cierrapuertas y holguras."
+      },
+      "applications": {
+        "secureAreas": "Aperturas grandes para acceso restringido o equipos",
+        "retrofits": "Reemplazo de puertas y marcos grandes desgastados",
+        "facilities": "Instalaciones comerciales, industriales, bodegas y operaciones",
+        "hardware": "Bisagras, cierrapuertas, cerraduras y barras de salida de alta resistencia"
+      }
+    },
+    "hurricaneAndTornado": {
+      "metaTitle": "Instalación de puertas Hurricane and Tornado | Gateway Door Systems",
+      "metaDescription": "Instalación de puertas Hurricane and Tornado para aperturas clasificadas para tormentas, conjuntos reforzados e instalaciones resilientes.",
+      "title": "Instalación de puertas Hurricane and Tornado",
+      "description": "Instalación de puertas clasificadas para tormentas en instalaciones que necesitan aperturas más fuertes ante clima severo.",
+      "imageAlt": "Puerta reforzada clasificada para tormentas instalada para protección ante clima severo",
+      "overviewTitle": "Las aperturas clasificadas para tormentas protegen solo si se instalan correctamente.",
+      "overviewText": "Los conjuntos Hurricane and Tornado dependen de la relación entre puerta, marco, anclaje, herrajes y estructura alrededor. Gateway instala estos sistemas con atención al ajuste, fijación y uso diario.",
+      "supportText": "Apoyamos a equipos comerciales y de instalaciones que actualizan aperturas para preparación ante clima severo, resiliencia y acceso seguro.",
+      "capabilities": {
+        "performance": "Atención a anclajes, ajuste de marco, herrajes, sellos y holguras.",
+        "coordination": "Coordinación con conjuntos clasificados para tormentas y requisitos del sitio.",
+        "handoff": "Revisión de operación confiable para instalaciones que necesitan acceso diario."
+      },
+      "applications": {
+        "secureAreas": "Aperturas exteriores y protegidas",
+        "retrofits": "Actualizaciones para clima severo en sistemas existentes",
+        "facilities": "Edificios comerciales, institucionales y operativos",
+        "hardware": "Puertas clasificadas con herrajes de cierre seguros"
+      }
+    },
+    "forcedEntryDoors": {
+      "metaTitle": "Instalación de Forced Entry Doors | Gateway Door Systems",
+      "metaDescription": "Instalación de Forced Entry doors para áreas de acceso controlado, aperturas reforzadas e instalaciones comerciales seguras.",
+      "title": "Instalación de Forced Entry Doors",
+      "description": "Sistemas de puertas seguras instalados para resistir el acceso no autorizado y proteger áreas controladas, equipos y espacios sensibles.",
+      "imageAlt": "Puerta de acceso seguro instalada para resistencia contra entrada forzada",
+      "overviewTitle": "La seguridad depende de toda la apertura.",
+      "overviewText": "Las Forced Entry doors requieren coordinación entre puerta, marco, anclaje, cerraduras, bisagras, cierrapuertas y herrajes de acceso. Gateway instala la apertura completa con enfoque en resistencia, ajuste y operación confiable.",
+      "supportText": "Ayudamos a instalaciones comerciales y seguras a reemplazar aperturas vulnerables por conjuntos más fuertes diseñados para acceso controlado.",
+      "capabilities": {
+        "performance": "Soporte de instalación para puerta, marco, bisagras, cerradura y cierrapuertas reforzados.",
+        "coordination": "Coordinación con herrajes de control de acceso, operaciones de la instalación y alcance del proyecto.",
+        "handoff": "Revisión final de pestillo, alineación, cierre y uso seguro diario."
+      },
+      "applications": {
+        "secureAreas": "Salas restringidas y corredores de acceso controlado",
+        "retrofits": "Actualizaciones de seguridad para aperturas débiles o dañadas",
+        "facilities": "Edificios comerciales, gubernamentales, bodegas y uso crítico",
+        "hardware": "Cerraduras, barras antipánico, cerraduras eléctricas, maglocks y herrajes de acceso"
+      }
+    }
+  },
+  "process": {
+    "review": {
+      "title": "Revisar la apertura",
+      "description": "Evaluamos la condición existente, los objetivos del proyecto y el sistema de puerta especificado."
+    },
+    "coordinate": {
+      "title": "Coordinar herrajes y ajuste",
+      "description": "Marcos, cerraduras, cierrapuertas, sellos y necesidades de control de acceso se revisan antes de instalar."
+    },
+    "install": {
+      "title": "Instalar con precisión",
+      "description": "El conjunto se instala con atención a alineación, anclaje, holguras y operación."
+    },
+    "verify": {
+      "title": "Verificar operación",
+      "description": "Revisamos apertura, cierre, pestillo, función de herrajes y detalles de entrega."
+    }
+  }
+}

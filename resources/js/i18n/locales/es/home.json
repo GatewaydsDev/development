@@ -57,6 +57,43 @@
       }
     }
   },
+  "services": {
+    "badge": "Nuestros servicios",
+    "title": "Servicios de instalación de puertas para accesos seguros y confiables.",
+    "description": "Desde aperturas reforzadas hasta herrajes preparados para control de acceso, Gateway ayuda a las instalaciones a mejorar las puertas que protegen personas, equipos y espacios sensibles.",
+    "primaryCta": "Solicitar cotización",
+    "secondaryCta": "Llamar por servicios",
+    "items": {
+      "radioFrequencyDoors": {
+        "title": "Radio Frequency doors",
+        "description": "Sistemas de puertas instalados para áreas sensibles donde el rendimiento de radiofrecuencia es importante."
+      },
+      "soundTransmission": {
+        "title": "Sound Transmission",
+        "description": "Aperturas especiales instaladas para ayudar a controlar la transferencia de sonido y el rendimiento acústico."
+      },
+      "bullet": {
+        "title": "Bullet",
+        "description": "Soporte de instalación para puertas, marcos y herrajes seguros resistentes a impactos balísticos."
+      },
+      "blast": {
+        "title": "Blast",
+        "description": "Instalación especializada para aperturas que requieren conjuntos resistentes a explosiones."
+      },
+      "oversizedAssemblies": {
+        "title": "Oversized Assemblies",
+        "description": "Instalación precisa de puertas especiales de gran formato y conjuntos reforzados."
+      },
+      "hurricaneAndTornado": {
+        "title": "Hurricane and tornado",
+        "description": "Instalación de puertas clasificadas para tormentas en instalaciones que necesitan mayor protección contra clima severo."
+      },
+      "forcedEntryDoors": {
+        "title": "Forced Entry doors",
+        "description": "Sistemas de puertas seguras instalados para resistir el acceso no autorizado y proteger espacios controlados."
+      }
+    }
+  },
   "highSecurity": {
     "eyebrow": "Aperturas reforzadas de alta resistencia",
     "title": "Instalación de puertas de alta seguridad",
