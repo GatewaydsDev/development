@@ -12,11 +12,3 @@ Route::get('/status', fn (): array => [
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
-
-Route::post('/resend/inbound', function (Request $request) {
-    Log::info('RESEND EMAIL RECEIVED', $request->all());
-
-    return response()->json([
-        'status' => 'received',
-    ]);
-});
