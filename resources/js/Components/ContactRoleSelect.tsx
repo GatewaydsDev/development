@@ -15,7 +15,8 @@ import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import { router } from '@inertiajs/react';
 import { BriefcaseBusinessIcon, SparklesIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { z } from 'zod';
 
 export type ContactRoleOption = {
     id: number;
@@ -30,6 +31,12 @@ type ContactRoleSelectProps = {
     error?: string;
 };
 
+const newRoleSchema = z
+    .string()
+    .trim()
+    .min(1, 'Enter the new role name.')
+    .min(4, 'Role name must be at least 4 characters.');
+
 export default function ContactRoleSelect({
     id,
     value,
@@ -42,11 +49,28 @@ export default function ContactRoleSelect({
     const [isAddingRole, setIsAddingRole] = useState(false);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const newRoleInputRef = useRef<HTMLInputElement>(null);
     const normalizedNewRoleName = newRoleName.trim();
     const matchingRole = roles.find(
         (role) =>
             role.name.toLowerCase() === normalizedNewRoleName.toLowerCase(),
     );
+    const newRoleValidation = newRoleSchema.safeParse(newRoleName);
+    const newRoleError =
+        newRoleName.length > 0 && !newRoleValidation.success
+            ? newRoleValidation.error.issues[0]?.message
+            : undefined;
+    const canReviewNewRole = newRoleValidation.success;
+
+    useEffect(() => {
+        if (!isAddingRole) {
+            return;
+        }
+
+        window.requestAnimationFrame(() => {
+            newRoleInputRef.current?.focus();
+        });
+    }, [isAddingRole]);
 
     const selectRole = (roleId: string) => {
         if (roleId === '__add_new__') {
@@ -64,7 +88,7 @@ export default function ContactRoleSelect({
     };
 
     const reviewNewRole = () => {
-        if (!normalizedNewRoleName) {
+        if (!canReviewNewRole) {
             return;
         }
 
@@ -81,7 +105,7 @@ export default function ContactRoleSelect({
     const confirmCreateRole = () => {
         const roleName = normalizedNewRoleName;
 
-        if (!roleName) {
+        if (!canReviewNewRole) {
             return;
         }
 
@@ -163,6 +187,7 @@ export default function ContactRoleSelect({
                         />
                         <div className="flex flex-col gap-2 sm:flex-row">
                             <TextInput
+                                ref={newRoleInputRef}
                                 id={`${id}-new-role-inline`}
                                 value={newRoleName}
                                 className="h-11 w-full border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
@@ -174,14 +199,15 @@ export default function ContactRoleSelect({
                             <Button
                                 type="button"
                                 variant="outline"
-                                disabled={!normalizedNewRoleName}
+                                disabled={!canReviewNewRole}
                                 onClick={reviewNewRole}
                             >
                                 Add new content
                             </Button>
                         </div>
+                        <InputError message={newRoleError} />
                         <p className="text-xs text-muted-foreground">
-                            Enter a role name to enable the confirmation dialog.
+                            Enter at least 4 characters to enable the confirmation dialog.
                         </p>
                     </div>
                 )}
@@ -217,6 +243,7 @@ export default function ContactRoleSelect({
                                 setNewRoleName(event.target.value)
                             }
                         />
+                        <InputError message={newRoleError} />
                         {matchingRole && (
                             <p className="text-sm text-muted-foreground">
                                 This role already exists. Confirming will select
@@ -229,7 +256,7 @@ export default function ContactRoleSelect({
                             Not now
                         </AlertDialogCancel>
                         <AlertDialogAction
-                            disabled={isSaving || !normalizedNewRoleName}
+                            disabled={isSaving || !canReviewNewRole}
                             onClick={(event) => {
                                 event.preventDefault();
                                 confirmCreateRole();

@@ -1,6 +1,7 @@
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import CustomerSelect from '@/Components/CustomerSelect';
+import FormActionFab from '@/Components/FormActionFab';
 import TextInput from '@/Components/TextInput';
 import { Button } from '@/Components/ui/button';
 import {
@@ -10,8 +11,16 @@ import {
     CardHeader,
     CardTitle,
 } from '@/Components/ui/card';
-import { Link, useForm } from '@inertiajs/react';
-import { FormEventHandler } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Link, router } from '@inertiajs/react';
+import { FormEventHandler, useMemo, useState } from 'react';
+import {
+    FieldErrors,
+    FieldPath,
+    PathValue,
+    useForm,
+} from 'react-hook-form';
+import { z } from 'zod';
 import {
     optionLabel,
     projectToFormData,
@@ -30,6 +39,94 @@ type ProjectFormProps = {
     project?: ProjectPayload;
 };
 
+const optionalDateSchema = z
+    .string()
+    .refine(
+        (value) => value === '' || !Number.isNaN(Date.parse(value)),
+        'Enter a valid date.',
+    );
+
+const optionalMoneySchema = z
+    .string()
+    .refine(
+        (value) => value === '' || Number(value) >= 0,
+        'Budget amount must be zero or greater.',
+    );
+
+function projectSchema(options: ProjectOptions, canEditCoreFields: boolean) {
+    return z
+        .object({
+            name: canEditCoreFields
+                ? z.string().trim().min(1, 'Enter the project name.').max(255)
+                : z.string(),
+            project_number: z.string().trim().max(255),
+            customer_id: canEditCoreFields
+                ? z.string().min(1, 'Select a customer.')
+                : z.string(),
+            assigned_to: z.string(),
+            service_type: z
+                .string()
+                .refine(
+                    (value) => value === '' || options.serviceTypes.includes(value),
+                    'Select a valid service type.',
+                ),
+            status: z
+                .string()
+                .refine(
+                    (value) => options.statuses.includes(value),
+                    'Select a valid status.',
+                ),
+            priority: z
+                .string()
+                .refine(
+                    (value) => options.priorities.includes(value),
+                    'Select a valid priority.',
+                ),
+            site_address_line_1: z.string().trim().max(255),
+            site_address_line_2: z.string().trim().max(255),
+            site_city: z.string().trim().max(255),
+            site_state: z.string().trim().max(255),
+            site_postal_code: z.string().trim().max(50),
+            site_country: z.string().trim().max(255),
+            estimated_start_date: optionalDateSchema,
+            estimated_end_date: optionalDateSchema,
+            completed_at: optionalDateSchema,
+            budget_amount: optionalMoneySchema,
+            public_notes: z.string().trim().max(5000, 'Project notes must be 5,000 characters or less.'),
+            internal_notes: z.string().trim().max(5000, 'Internal notes must be 5,000 characters or less.'),
+        })
+        .refine(
+            (values) =>
+                values.estimated_start_date === '' ||
+                values.estimated_end_date === '' ||
+                new Date(values.estimated_end_date) >=
+                    new Date(values.estimated_start_date),
+            {
+                path: ['estimated_end_date'],
+                message: 'Estimated end must be on or after estimated start.',
+            },
+        );
+}
+
+function errorMessage(
+    errors: FieldErrors<ProjectFormData>,
+    path: string,
+): string | undefined {
+    const fieldError = path.split('.').reduce<unknown>((carry, segment) => {
+        if (!carry || typeof carry !== 'object') {
+            return undefined;
+        }
+
+        return (carry as Record<string, unknown>)[segment];
+    }, errors);
+
+    return typeof fieldError === 'object' &&
+        fieldError !== null &&
+        'message' in fieldError
+        ? String((fieldError as { message?: string }).message)
+        : undefined;
+}
+
 export default function ProjectForm({
     action,
     method = 'post',
@@ -39,25 +136,65 @@ export default function ProjectForm({
     options,
     project,
 }: ProjectFormProps) {
-    const { data, setData, errors, processing, post, patch } =
-        useForm<ProjectFormData>(projectToFormData(project));
-    const canEditCoreFields = options.can.create || options.can.viewCustomerContactFields;
+    const [processing, setProcessing] = useState(false);
+    const canEditCoreFields =
+        options.can.create || options.can.viewCustomerContactFields;
     const canViewSensitive = options.can.viewSensitiveFields;
+    const validationSchema = useMemo(
+        () => projectSchema(options, canEditCoreFields),
+        [canEditCoreFields, options],
+    );
+    const {
+        handleSubmit,
+        setError,
+        setValue,
+        watch,
+        formState: { errors: validationErrors },
+    } = useForm<ProjectFormData>({
+        resolver: zodResolver(validationSchema),
+        defaultValues: projectToFormData(project),
+        mode: 'onChange',
+    });
+    const data = watch();
 
-    const submit: FormEventHandler = (event) => {
-        event.preventDefault();
+    const submit = handleSubmit((values) => {
+        const submitOptions = {
+            onBefore: () => setProcessing(true),
+            onError: (serverErrors: Record<string, string>) => {
+                Object.entries(serverErrors).forEach(([field, message]) => {
+                    setError(field as FieldPath<ProjectFormData>, {
+                        type: 'server',
+                        message: String(message),
+                    });
+                });
+            },
+            onFinish: () => setProcessing(false),
+        };
 
         if (method === 'patch') {
-            patch(action);
+            router.patch(action, values, submitOptions);
             return;
         }
 
-        post(action);
-    };
+        router.post(action, values, submitOptions);
+    }) as FormEventHandler;
 
     const inputClassName =
         'h-11 w-full border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring';
     const labelClassName = 'text-emerald-700 dark:text-emerald-300';
+    const errors = new Proxy({} as Record<string, string | undefined>, {
+        get: (_target, property) =>
+            errorMessage(validationErrors, String(property)),
+    });
+    const setData = <Field extends FieldPath<ProjectFormData>>(
+        field: Field,
+        value: PathValue<ProjectFormData, Field>,
+    ) => {
+        setValue(field, value, {
+            shouldDirty: true,
+            shouldValidate: true,
+        });
+    };
 
     return (
         <Card className="shadow-sm">
@@ -66,7 +203,12 @@ export default function ProjectForm({
                 <CardDescription>{description}</CardDescription>
             </CardHeader>
             <CardContent>
-                <form onSubmit={submit} className="flex flex-col gap-6">
+                <form onSubmit={submit} className="flex flex-col gap-6 pr-14 sm:pr-16">
+                    <FormActionFab
+                        cancelHref={route('admin.projects.index')}
+                        saveLabel={submitLabel}
+                        disabled={processing}
+                    />
                     {canEditCoreFields && (
                         <>
                             <section className="grid gap-5 md:grid-cols-2">
@@ -462,16 +604,6 @@ export default function ProjectForm({
                         )}
                     </section>
 
-                    <div className="flex flex-col-reverse gap-3 border-t border-border pt-5 sm:flex-row sm:justify-end">
-                        <Button variant="outline" asChild>
-                            <Link href={route('admin.projects.index')}>
-                                Cancel
-                            </Link>
-                        </Button>
-                        <Button type="submit" disabled={processing}>
-                            {submitLabel}
-                        </Button>
-                    </div>
                 </form>
             </CardContent>
         </Card>

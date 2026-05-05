@@ -1,6 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import FormActionFab from '@/Components/FormActionFab';
 import { Badge } from '@/Components/ui/badge';
-import { Button } from '@/Components/ui/button';
 import {
     Card,
     CardContent,
@@ -113,7 +113,12 @@ export default function Edit({
 
             <div className="py-6 sm:py-8">
                 <div className="mx-auto flex max-w-[96rem] flex-col gap-6 px-4 sm:px-6 lg:px-8">
-                    <form onSubmit={submit}>
+                    <form onSubmit={submit} className="pr-14 sm:pr-16">
+                        <FormActionFab
+                            cancelHref={route('admin.users.index')}
+                            saveLabel="Save permissions"
+                            disabled={processing}
+                        />
                         <Card className="shadow-sm">
                             <CardHeader className="gap-4 sm:grid-cols-[1fr_auto] sm:items-center">
                                 <div>
@@ -123,9 +128,6 @@ export default function Edit({
                                         Super Admin remains fully checked.
                                     </CardDescription>
                                 </div>
-                                <Button type="submit" disabled={processing}>
-                                    Save permissions
-                                </Button>
                             </CardHeader>
 
                             <CardContent className="flex flex-col gap-6">

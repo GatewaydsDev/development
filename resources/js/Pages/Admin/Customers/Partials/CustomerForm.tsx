@@ -1,4 +1,5 @@
 import ContactRoleSelect from '@/Components/ContactRoleSelect';
+import FormActionFab from '@/Components/FormActionFab';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PhoneInput from '@/Components/PhoneInput';
@@ -11,8 +12,16 @@ import {
     CardHeader,
     CardTitle,
 } from '@/Components/ui/card';
-import { Link, useForm } from '@inertiajs/react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Link, router } from '@inertiajs/react';
 import { FormEventHandler, useEffect, useState } from 'react';
+import {
+    FieldErrors,
+    FieldPath,
+    PathValue,
+    useForm,
+} from 'react-hook-form';
+import { z } from 'zod';
 import {
     blankContact,
     customerToFormData,
@@ -33,6 +42,102 @@ type CustomerFormProps = {
     contactRoles: CustomerContactRole[];
 };
 
+const optionalEmailSchema = z
+    .string()
+    .trim()
+    .max(255, 'Email must be 255 characters or less.')
+    .refine(
+        (value) =>
+            value === '' ||
+            /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
+        'Enter a valid email address.',
+    );
+
+const customerContactSchema = z.object({
+    name: z.string().trim().max(255, 'Contact name must be 255 characters or less.'),
+    title: z.string().trim().max(255, 'Title must be 255 characters or less.'),
+    email: optionalEmailSchema,
+    phone_number: z.string().trim().max(50, 'Phone number must be 50 characters or less.'),
+    notes: z.string().trim().max(1000, 'Notes must be 1,000 characters or less.'),
+    is_primary: z.boolean(),
+    customer_contact_role_id: z.string(),
+});
+
+const customerSchema = z
+    .object({
+        name: z.string().trim().min(1, 'Enter the customer name.').max(255),
+        company_name: z.string().trim().max(255),
+        email: z.string(),
+        phone_number: z.string(),
+        contacts: z.array(customerContactSchema).min(1, 'Add at least one contact.'),
+        address_line_1: z.string().trim().max(255),
+        address_line_2: z.string().trim().max(255),
+        city: z.string().trim().max(255),
+        state: z.string().trim().max(255),
+        postal_code: z.string().trim().max(50),
+        country: z.string().trim().max(255),
+    })
+    .superRefine((values, context) => {
+        const seenEmails = new Map<string, number>();
+        const seenPhones = new Map<string, number>();
+
+        values.contacts.forEach((contact, index) => {
+            const email = contact.email.trim().toLowerCase();
+            const phoneDigits = contact.phone_number.replace(/\D/g, '');
+
+            if (email) {
+                const firstIndex = seenEmails.get(email);
+
+                if (firstIndex !== undefined) {
+                    [firstIndex, index].forEach((contactIndex) => {
+                        context.addIssue({
+                            code: 'custom',
+                            path: ['contacts', contactIndex, 'email'],
+                            message: 'This email is already used in this customer form.',
+                        });
+                    });
+                } else {
+                    seenEmails.set(email, index);
+                }
+            }
+
+            if (phoneDigits) {
+                const firstIndex = seenPhones.get(phoneDigits);
+
+                if (firstIndex !== undefined) {
+                    [firstIndex, index].forEach((contactIndex) => {
+                        context.addIssue({
+                            code: 'custom',
+                            path: ['contacts', contactIndex, 'phone_number'],
+                            message: 'This phone number is already used in this customer form.',
+                        });
+                    });
+                } else {
+                    seenPhones.set(phoneDigits, index);
+                }
+            }
+        });
+    });
+
+function errorMessage(
+    errors: FieldErrors<CustomerFormData>,
+    path: string,
+): string | undefined {
+    const fieldError = path.split('.').reduce<unknown>((carry, segment) => {
+        if (!carry || typeof carry !== 'object') {
+            return undefined;
+        }
+
+        return (carry as Record<string, unknown>)[segment];
+    }, errors);
+
+    return typeof fieldError === 'object' &&
+        fieldError !== null &&
+        'message' in fieldError
+        ? String((fieldError as { message?: string }).message)
+        : undefined;
+}
+
 export default function CustomerForm({
     action,
     method = 'post',
@@ -42,27 +147,63 @@ export default function CustomerForm({
     customer,
     contactRoles,
 }: CustomerFormProps) {
-    const { data, setData, errors, processing, post, patch } =
-        useForm<CustomerFormData>(customerToFormData(customer));
+    const [processing, setProcessing] = useState(false);
     const [availabilityErrors, setAvailabilityErrors] = useState<
         Record<string, string>
     >({});
+    const {
+        handleSubmit,
+        setError,
+        setValue,
+        watch,
+        formState: { errors: validationErrors },
+    } = useForm<CustomerFormData>({
+        resolver: zodResolver(customerSchema),
+        defaultValues: customerToFormData(customer),
+        mode: 'onChange',
+    });
+    const data = watch();
 
-    const submit: FormEventHandler = (event) => {
-        event.preventDefault();
+    const submit = handleSubmit((values) => {
+        const submitOptions = {
+            onBefore: () => setProcessing(true),
+            onError: (serverErrors: Record<string, string>) => {
+                Object.entries(serverErrors).forEach(([field, message]) => {
+                    setError(field as FieldPath<CustomerFormData>, {
+                        type: 'server',
+                        message: String(message),
+                    });
+                });
+            },
+            onFinish: () => setProcessing(false),
+        };
 
         if (method === 'patch') {
-            patch(action);
+            router.patch(action, values, submitOptions);
             return;
         }
 
-        post(action);
-    };
+        router.post(action, values, submitOptions);
+    }) as FormEventHandler;
 
     const inputClassName =
         'h-11 w-full border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring';
     const labelClassName = 'text-emerald-700 dark:text-emerald-300';
-    const formErrors = errors as Record<string, string | undefined>;
+    const errors = new Proxy({} as Record<string, string | undefined>, {
+        get: (_target, property) =>
+            errorMessage(validationErrors, String(property)),
+    });
+    const formErrors = errors;
+
+    const setData = <Field extends FieldPath<CustomerFormData>>(
+        field: Field,
+        value: PathValue<CustomerFormData, Field>,
+    ) => {
+        setValue(field, value, {
+            shouldDirty: true,
+            shouldValidate: true,
+        });
+    };
 
     useEffect(() => {
         const controller = new AbortController();
@@ -231,7 +372,12 @@ export default function CustomerForm({
                 <CardDescription>{description}</CardDescription>
             </CardHeader>
             <CardContent>
-                <form onSubmit={submit} className="flex flex-col gap-6">
+                <form onSubmit={submit} className="flex flex-col gap-6 pr-14 sm:pr-16">
+                    <FormActionFab
+                        cancelHref={route('admin.customers.index')}
+                        saveLabel={submitLabel}
+                        disabled={processing}
+                    />
                     <section className="grid gap-5 md:grid-cols-2">
                         <div className="flex flex-col gap-2">
                             <InputLabel
@@ -581,16 +727,6 @@ export default function CustomerForm({
                         </div>
                     </section>
 
-                    <div className="flex flex-col-reverse gap-3 border-t border-border pt-5 sm:flex-row sm:justify-end">
-                        <Button variant="outline" asChild>
-                            <Link href={route('admin.customers.index')}>
-                                Cancel
-                            </Link>
-                        </Button>
-                        <Button type="submit" disabled={processing}>
-                            {submitLabel}
-                        </Button>
-                    </div>
                 </form>
             </CardContent>
         </Card>

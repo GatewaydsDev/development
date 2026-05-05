@@ -1,10 +1,10 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import FormActionFab from '@/Components/FormActionFab';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PhoneInput from '@/Components/PhoneInput';
 import TextInput from '@/Components/TextInput';
 import { Badge } from '@/Components/ui/badge';
-import { Button } from '@/Components/ui/button';
 import {
     Card,
     CardContent,
@@ -356,7 +356,16 @@ export default function Show({ company }: ShowProps) {
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <form onSubmit={submit} className="flex flex-col gap-6">
+                            <form onSubmit={submit} className="flex flex-col gap-6 pr-14 sm:pr-16">
+                                <FormActionFab
+                                    cancelHref={route('dashboard')}
+                                    saveLabel={
+                                        company
+                                            ? 'Save company data'
+                                            : 'Add company data'
+                                    }
+                                    disabled={processing}
+                                />
                                 <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
                                     <div className="flex flex-col gap-2">
                                         <InputLabel
@@ -683,14 +692,6 @@ export default function Show({ company }: ShowProps) {
                                     />
                                     Active company record
                                 </label>
-
-                                <div className="flex justify-end border-t border-border pt-5">
-                                    <Button type="submit" disabled={processing}>
-                                        {company
-                                            ? 'Save company data'
-                                            : 'Add company data'}
-                                    </Button>
-                                </div>
                             </form>
                         </CardContent>
                     </Card>

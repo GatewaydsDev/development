@@ -1,7 +1,7 @@
+import FormActionFab from '@/Components/FormActionFab';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
-import { Button } from '@/Components/ui/button';
 import {
     Card,
     CardContent,
@@ -9,7 +9,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@/Components/ui/card';
-import { Link, useForm } from '@inertiajs/react';
+import { useForm } from '@inertiajs/react';
 import { Eye, EyeOff } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
@@ -77,7 +77,12 @@ export default function UserForm({
                 <CardDescription>{description}</CardDescription>
             </CardHeader>
             <CardContent>
-                <form onSubmit={submit} className="flex flex-col gap-6">
+                <form onSubmit={submit} className="flex flex-col gap-6 pr-14 sm:pr-16">
+                    <FormActionFab
+                        cancelHref={route('admin.users.index')}
+                        saveLabel={submitLabel}
+                        disabled={processing}
+                    />
                     <div className="grid gap-5 md:grid-cols-2">
                         <div className="flex flex-col gap-2">
                             <InputLabel
@@ -245,17 +250,6 @@ export default function UserForm({
                                 message={errors.password_confirmation}
                             />
                         </div>
-                    </div>
-
-                    <div className="flex flex-col-reverse gap-3 border-t border-border pt-5 sm:flex-row sm:justify-end">
-                        <Button variant="outline" asChild>
-                            <Link href={route('admin.users.index')}>
-                                Cancel
-                            </Link>
-                        </Button>
-                        <Button type="submit" disabled={processing}>
-                            {submitLabel}
-                        </Button>
                     </div>
                 </form>
             </CardContent>

@@ -1,7 +1,7 @@
+import FormActionFab from '@/Components/FormActionFab';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
-import { Button } from '@/Components/ui/button';
 import {
     Card,
     CardContent,
@@ -91,8 +91,13 @@ export default function Edit({ account }: EditProps) {
                         <CardContent className="p-6 pt-0 sm:p-8 sm:pt-0">
                             <form
                                 onSubmit={submit}
-                                className="flex flex-col gap-8"
+                                className="flex flex-col gap-8 pr-14 sm:pr-16"
                             >
+                                <FormActionFab
+                                    cancelHref={route('dashboard')}
+                                    saveLabel="Save changes"
+                                    disabled={processing}
+                                />
                                 <div className="grid gap-6 md:grid-cols-2">
                                     <div className="flex flex-col gap-3">
                                         <InputLabel
@@ -237,21 +242,11 @@ export default function Edit({ account }: EditProps) {
                                     </div>
                                 </div>
 
-                                <div className="flex flex-col-reverse gap-3 border-t border-border pt-6 sm:flex-row sm:items-center sm:justify-end">
-                                    {recentlySuccessful && (
-                                        <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
-                                            Account updated.
-                                        </p>
-                                    )}
-                                    <Button
-                                        type="submit"
-                                        size="lg"
-                                        disabled={processing}
-                                        className="h-12 px-6"
-                                    >
-                                        Save changes
-                                    </Button>
-                                </div>
+                                {recentlySuccessful && (
+                                    <p className="border-t border-border pt-6 text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                                        Account updated.
+                                    </p>
+                                )}
                             </form>
                         </CardContent>
                     </Card>
