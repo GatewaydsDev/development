@@ -54,6 +54,34 @@ class HandleInertiaRequests extends Middleware
                         ? Gate::forUser($request->user())->allows('manage-access')
                         : false,
                 ],
+                'notifications' => $request->user()
+                    ? [
+                        'unreadCount' => $request->user()->unreadNotifications()->count(),
+                        'latestUnread' => $request->user()
+                            ->unreadNotifications()
+                            ->latest()
+                            ->limit(5)
+                            ->get()
+                            ->map(fn ($notification): array => [
+                                'id' => $notification->id,
+                                'title' => $notification->data['title'] ?? 'Notification',
+                                'name' => $notification->data['name'] ?? null,
+                                'email' => $notification->data['email'] ?? null,
+                                'phoneNumber' => $notification->data['phone_number'] ?? null,
+                                'organization' => $notification->data['organization'] ?? null,
+                                'projectType' => $notification->data['project_type'] ?? null,
+                                'message' => $notification->data['message'] ?? null,
+                                'contactSubmissionId' => $notification->data['contact_submission_id'] ?? null,
+                                'createdAt' => $notification->created_at?->toISOString(),
+                                'readAt' => $notification->read_at?->toISOString(),
+                                'isRead' => $notification->read(),
+                            ])
+                            ->values(),
+                    ]
+                    : [
+                        'unreadCount' => 0,
+                        'latestUnread' => [],
+                    ],
             ],
         ];
     }

@@ -5,9 +5,12 @@ namespace App\Http\Controllers;
 use App\Mail\ContactSubmissionReceived;
 use App\Models\Company;
 use App\Models\ContactSubmission;
+use App\Models\User;
+use App\Notifications\NewContactSubmissionNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Notification;
 use Throwable;
 
 class ContactSubmissionController extends Controller
@@ -32,6 +35,8 @@ class ContactSubmissionController extends Controller
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
         ]);
+
+        $this->notifyDashboardUsers($submission);
 
         $recipient = $this->notificationRecipient();
 
@@ -66,5 +71,20 @@ class ContactSubmissionController extends Controller
         }
 
         return config('mail.from.address');
+    }
+
+    private function notifyDashboardUsers(ContactSubmission $submission): void
+    {
+        $users = User::query()
+            ->with('level')
+            ->get()
+            ->filter(fn (User $user): bool => $user->hasPermission('view-company')
+                || $user->hasPermission('manage-access'));
+
+        if ($users->isEmpty()) {
+            return;
+        }
+
+        Notification::send($users, new NewContactSubmissionNotification($submission));
     }
 }

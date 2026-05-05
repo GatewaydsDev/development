@@ -3,7 +3,11 @@
 use App\Mail\ContactSubmissionReceived;
 use App\Models\Company;
 use App\Models\ContactSubmission;
+use App\Models\User;
+use App\Models\UserLevel;
+use App\Notifications\NewContactSubmissionNotification;
 use Illuminate\Support\Facades\Mail;
+use Inertia\Testing\AssertableInertia as Assert;
 
 test('contact form submissions are saved before notifications are sent', function () {
     Mail::fake();
@@ -79,4 +83,114 @@ test('contact notifications fall back to the active company email', function () 
     ): bool {
         return $mail->hasTo('office@gatewaydoors.test');
     });
+});
+
+test('contact form submissions create dashboard notifications for administrators', function () {
+    Mail::fake();
+
+    $administratorLevel = UserLevel::firstOrCreate(['name' => UserLevel::ADMINISTRATOR]);
+    $administrator = User::factory()->create([
+        'level_id' => $administratorLevel->id,
+    ]);
+
+    $this
+        ->post(route('contact.store'), [
+            'name' => 'Morgan Security',
+            'email' => 'morgan@example.com',
+            'phone_number' => '555-5000',
+            'organization' => 'Security Co',
+            'project_type' => 'forcedEntryDoors',
+            'message' => 'We need forced entry door help.',
+            'source_url' => 'https://gatewaydoors.test/',
+            'website' => '',
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('contact.success', true);
+
+    expect($administrator->unreadNotifications()->count())->toBe(1);
+
+    $notification = $administrator->unreadNotifications()->firstOrFail();
+
+    expect($notification->data['title'])->toBe('New contact request')
+        ->and($notification->data['name'])->toBe('Morgan Security')
+        ->and($notification->data['email'])->toBe('morgan@example.com')
+        ->and($notification->data['message'])->toBe('We need forced entry door help.');
+});
+
+test('users can mark their contact notifications as read', function () {
+    Mail::fake();
+
+    $administratorLevel = UserLevel::firstOrCreate(['name' => UserLevel::ADMINISTRATOR]);
+    $administrator = User::factory()->create([
+        'level_id' => $administratorLevel->id,
+    ]);
+
+    ContactSubmission::create([
+        'name' => 'Taylor Contact',
+        'email' => 'taylor@example.com',
+        'message' => 'Please review this contact request.',
+    ]);
+
+    $submission = ContactSubmission::query()->firstOrFail();
+    $administrator->notify(
+        new NewContactSubmissionNotification($submission)
+    );
+
+    $notification = $administrator->unreadNotifications()->firstOrFail();
+
+    $this->actingAs($administrator)
+        ->post(route('notifications.read', $notification->id))
+        ->assertRedirect();
+
+    expect($administrator->fresh()->unreadNotifications()->count())->toBe(0);
+});
+
+test('users can list open update and delete their notifications', function () {
+    Mail::fake();
+
+    $administratorLevel = UserLevel::firstOrCreate(['name' => UserLevel::ADMINISTRATOR]);
+    $administrator = User::factory()->create([
+        'level_id' => $administratorLevel->id,
+    ]);
+    $submission = ContactSubmission::create([
+        'name' => 'Jordan Lead',
+        'email' => 'jordan@example.com',
+        'message' => 'Please send information about blast doors.',
+    ]);
+
+    $administrator->notify(new NewContactSubmissionNotification($submission));
+
+    $notification = $administrator->unreadNotifications()->firstOrFail();
+
+    $this->actingAs($administrator)
+        ->get(route('notifications.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Notifications/Index')
+            ->has('notifications', 1)
+            ->where('notifications.0.email', 'jordan@example.com')
+        );
+
+    $this->actingAs($administrator)
+        ->get(route('notifications.show', $notification->id))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Notifications/Show')
+            ->where('notification.email', 'jordan@example.com')
+            ->where('notification.isRead', true)
+        );
+
+    $this->actingAs($administrator)
+        ->patch(route('notifications.update', $notification->id), [
+            'read' => false,
+        ])
+        ->assertRedirect();
+
+    expect($notification->fresh()->unread())->toBeTrue();
+
+    $this->actingAs($administrator)
+        ->delete(route('notifications.destroy', $notification->id))
+        ->assertRedirect(route('notifications.index', absolute: false));
+
+    expect($administrator->notifications()->count())->toBe(0);
 });

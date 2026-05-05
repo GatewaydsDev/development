@@ -3,27 +3,34 @@ import Dropdown from '@/Components/Dropdown';
 import NavLink from '@/Components/NavLink';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
 import ThemeModeToggle from '@/Components/ThemeModeToggle';
+import { Badge } from '@/Components/ui/badge';
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuGroup,
     DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
     DropdownMenuSub,
     DropdownMenuSubContent,
     DropdownMenuSubTrigger,
     DropdownMenuTrigger,
 } from '@/Components/ui/dropdown-menu';
 import { PageProps } from '@/types';
-import { Link, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import {
     Building2Icon,
+    BellIcon,
     ChevronDownIcon,
+    MailOpenIcon,
     ShieldIcon,
     SlidersHorizontalIcon,
     UserPlusIcon,
     UsersIcon,
 } from 'lucide-react';
-import { PropsWithChildren, ReactNode, useState } from 'react';
+import { PropsWithChildren, ReactNode, useEffect, useRef, useState } from 'react';
+
+const notificationPollInterval = 60_000;
 
 export default function Authenticated({
     header,
@@ -38,9 +45,57 @@ export default function Authenticated({
     const canViewCompany = Boolean(auth.can?.viewCompany);
     const canOpenAdministration =
         canManageUsers || canManageAccess || canViewCompany;
+    const notifications = auth.notifications;
+    const hasUnreadNotifications = notifications.unreadCount > 0;
+    const previousUnreadCount = useRef(notifications.unreadCount);
+    const [shouldShakeBell, setShouldShakeBell] = useState(false);
 
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
         useState(false);
+
+    useEffect(() => {
+        const refreshNotifications = () => {
+            router.reload({
+                only: ['auth'],
+            });
+        };
+
+        const interval = window.setInterval(
+            refreshNotifications,
+            notificationPollInterval,
+        );
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                refreshNotifications();
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        return () => {
+            window.clearInterval(interval);
+            document.removeEventListener(
+                'visibilitychange',
+                handleVisibilityChange,
+            );
+        };
+    }, []);
+
+    useEffect(() => {
+        if (notifications.unreadCount > previousUnreadCount.current) {
+            setShouldShakeBell(true);
+
+            const timeout = window.setTimeout(() => {
+                setShouldShakeBell(false);
+            }, 1400);
+
+            previousUnreadCount.current = notifications.unreadCount;
+
+            return () => window.clearTimeout(timeout);
+        }
+
+        previousUnreadCount.current = notifications.unreadCount;
+    }, [notifications.unreadCount]);
 
     return (
         <div className="min-h-screen bg-muted/30 text-foreground">
@@ -183,6 +238,104 @@ export default function Authenticated({
 
                         <div className="hidden gap-2 sm:ms-4 sm:flex sm:items-center lg:gap-4 lg:ms-6">
                             <ThemeModeToggle />
+
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <button
+                                        type="button"
+                                        className={
+                                            'relative inline-flex size-9 items-center justify-center rounded-md border bg-background transition hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background ' +
+                                            (hasUnreadNotifications
+                                                ? 'border-destructive/50 text-destructive shadow-sm shadow-destructive/20'
+                                                : 'border-border text-muted-foreground') +
+                                            (shouldShakeBell
+                                                ? ' animate-bell-shake'
+                                                : '')
+                                        }
+                                        aria-label="Open notifications"
+                                    >
+                                        <BellIcon className="size-4" />
+                                        {hasUnreadNotifications && (
+                                            <span className="absolute -right-1 -top-1 flex min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[0.65rem] font-semibold leading-5 text-white ring-2 ring-background">
+                                                {notifications.unreadCount}
+                                            </span>
+                                        )}
+                                    </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent
+                                    align="end"
+                                    className="w-80"
+                                >
+                                    <DropdownMenuLabel className="flex items-center justify-between gap-3">
+                                        Notifications
+                                        {hasUnreadNotifications && (
+                                            <Badge variant="destructive">
+                                                {notifications.unreadCount} new
+                                            </Badge>
+                                        )}
+                                    </DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuGroup>
+                                        {notifications.latestUnread.length >
+                                        0 ? (
+                                            notifications.latestUnread.map(
+                                                (notification) => (
+                                                    <DropdownMenuItem
+                                                        key={notification.id}
+                                                        asChild
+                                                        className="items-start"
+                                                    >
+                                                        <Link
+                                                            href={route(
+                                                                'notifications.show',
+                                                                notification.id,
+                                                            )}
+                                                            className="flex w-full items-start gap-3 rounded-md px-2 py-2 text-left"
+                                                        >
+                                                            <MailOpenIcon className="mt-0.5 size-4 text-muted-foreground" />
+                                                            <span className="flex min-w-0 flex-1 flex-col gap-1">
+                                                                <span className="font-medium text-foreground">
+                                                                    {
+                                                                        notification.title
+                                                                    }
+                                                                </span>
+                                                                <span className="text-xs text-muted-foreground">
+                                                                    {notification.name ||
+                                                                        notification.email ||
+                                                                        'New contact'}
+                                                                </span>
+                                                                {notification.message && (
+                                                                    <span className="line-clamp-2 text-xs text-muted-foreground">
+                                                                        {
+                                                                            notification.message
+                                                                        }
+                                                                    </span>
+                                                                )}
+                                                                <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                                                                    Open message
+                                                                </span>
+                                                            </span>
+                                                        </Link>
+                                                    </DropdownMenuItem>
+                                                ),
+                                            )
+                                        ) : (
+                                            <div className="px-2 py-4 text-sm text-muted-foreground">
+                                                No unread notifications.
+                                            </div>
+                                        )}
+                                    </DropdownMenuGroup>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem asChild>
+                                        <Link
+                                            href={route('notifications.index')}
+                                            className="justify-center font-medium"
+                                        >
+                                            View all notifications
+                                        </Link>
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
 
                             <div className="relative ms-3">
                                 <Dropdown>
@@ -379,6 +532,52 @@ export default function Authenticated({
                     <div className="border-t border-border pb-1 pt-4">
                         <div className="px-4 pb-4">
                             <ThemeModeToggle />
+                        </div>
+
+                        <div className="border-b border-border px-4 pb-4">
+                            <div className="mb-2 flex items-center justify-between text-sm font-semibold text-foreground">
+                                <span>Notifications</span>
+                                {hasUnreadNotifications && (
+                                    <Badge variant="destructive">
+                                        {notifications.unreadCount} new
+                                    </Badge>
+                                )}
+                            </div>
+                            {notifications.latestUnread.length > 0 ? (
+                                <div className="flex flex-col gap-2">
+                                    {notifications.latestUnread.map(
+                                        (notification) => (
+                                            <Link
+                                                key={notification.id}
+                                                href={route(
+                                                    'notifications.show',
+                                                    notification.id,
+                                                )}
+                                                className="rounded-md border border-border bg-background px-3 py-2 text-left text-sm"
+                                            >
+                                                <span className="block font-medium text-foreground">
+                                                    {notification.title}
+                                                </span>
+                                                <span className="mt-1 line-clamp-2 block text-xs text-muted-foreground">
+                                                    {notification.message ||
+                                                        notification.email ||
+                                                        'New contact message'}
+                                                </span>
+                                            </Link>
+                                        ),
+                                    )}
+                                </div>
+                            ) : (
+                                <p className="text-sm text-muted-foreground">
+                                    No unread notifications.
+                                </p>
+                            )}
+                            <Link
+                                href={route('notifications.index')}
+                                className="mt-3 block rounded-md border border-border px-3 py-2 text-center text-sm font-medium text-foreground"
+                            >
+                                View all notifications
+                            </Link>
                         </div>
 
                         <div className="px-4">

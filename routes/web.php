@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AccessControlController;
 use App\Http\Controllers\Admin\CompanyController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\ContactSubmissionController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Models\Company;
 use Illuminate\Support\Facades\Route;
@@ -37,6 +38,17 @@ Route::middleware(['auth', 'prevent-back-history', 'can:manage-profile'])->group
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
+
+Route::middleware(['auth', 'prevent-back-history'])
+    ->prefix('notifications')
+    ->name('notifications.')
+    ->group(function () {
+        Route::get('/', [NotificationController::class, 'index'])->name('index');
+        Route::get('/{notification}', [NotificationController::class, 'show'])->name('show');
+        Route::patch('/{notification}', [NotificationController::class, 'update'])->name('update');
+        Route::delete('/{notification}', [NotificationController::class, 'destroy'])->name('destroy');
+        Route::post('/{notification}/read', [NotificationController::class, 'markAsRead'])->name('read');
+    });
 
 Route::middleware(['auth', 'prevent-back-history'])
     ->prefix('administration')
