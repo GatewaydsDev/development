@@ -21,12 +21,14 @@ import { Link, router, usePage } from '@inertiajs/react';
 import {
     Building2Icon,
     BellIcon,
+    BriefcaseIcon,
     ChevronDownIcon,
     MailOpenIcon,
     ShieldIcon,
     SlidersHorizontalIcon,
     UserCogIcon,
     UserPlusIcon,
+    UserRoundIcon,
     UsersIcon,
 } from 'lucide-react';
 import { PropsWithChildren, ReactNode, useEffect, useRef, useState } from 'react';
@@ -46,10 +48,14 @@ export default function Authenticated({
     const canManageNotifications = Boolean(auth.can?.manageNotifications);
     const canViewCompany = Boolean(auth.can?.viewCompany);
     const canManageOwnAccount = Boolean(auth.can?.manageOwnAccount);
+    const canViewProjects = Boolean(auth.can?.viewProjects);
+    const canManageCustomers = Boolean(auth.can?.manageCustomers);
     const canOpenAdministration =
         canManageUsers ||
         canManageAccess ||
         canViewCompany ||
+        canViewProjects ||
+        canManageCustomers ||
         canManageOwnAccount;
     const notifications = auth.notifications;
     const hasUnreadNotifications = notifications.unreadCount > 0;
@@ -184,6 +190,34 @@ export default function Authenticated({
                                                         >
                                                             <Building2Icon className="size-4" />
                                                             Company
+                                                        </Link>
+                                                    </DropdownMenuItem>
+                                                )}
+
+                                                {canViewProjects && (
+                                                    <DropdownMenuItem asChild>
+                                                        <Link
+                                                            href={route(
+                                                                'admin.projects.index',
+                                                            )}
+                                                            className="flex items-center gap-2"
+                                                        >
+                                                            <BriefcaseIcon className="size-4" />
+                                                            Projects
+                                                        </Link>
+                                                    </DropdownMenuItem>
+                                                )}
+
+                                                {canManageCustomers && (
+                                                    <DropdownMenuItem asChild>
+                                                        <Link
+                                                            href={route(
+                                                                'admin.customers.index',
+                                                            )}
+                                                            className="flex items-center gap-2"
+                                                        >
+                                                            <UserRoundIcon className="size-4" />
+                                                            Customers
                                                         </Link>
                                                     </DropdownMenuItem>
                                                 )}
@@ -500,6 +534,34 @@ export default function Authenticated({
                                         <span className="inline-flex items-center gap-2">
                                             <Building2Icon className="size-4" />
                                             Company
+                                        </span>
+                                    </ResponsiveNavLink>
+                                )}
+
+                                {canViewProjects && (
+                                    <ResponsiveNavLink
+                                        href={route('admin.projects.index')}
+                                        active={route().current(
+                                            'admin.projects.*',
+                                        )}
+                                    >
+                                        <span className="inline-flex items-center gap-2">
+                                            <BriefcaseIcon className="size-4" />
+                                            Projects
+                                        </span>
+                                    </ResponsiveNavLink>
+                                )}
+
+                                {canManageCustomers && (
+                                    <ResponsiveNavLink
+                                        href={route('admin.customers.index')}
+                                        active={route().current(
+                                            'admin.customers.*',
+                                        )}
+                                    >
+                                        <span className="inline-flex items-center gap-2">
+                                            <UserRoundIcon className="size-4" />
+                                            Customers
                                         </span>
                                     </ResponsiveNavLink>
                                 )}

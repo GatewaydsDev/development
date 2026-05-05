@@ -38,6 +38,13 @@ export type PageProps<
             viewCompany: boolean;
             manageAccess: boolean;
             manageNotifications: boolean;
+            viewProjects: boolean;
+            createProjects: boolean;
+            updateProjects: boolean;
+            deleteProjects: boolean;
+            viewSensitiveProjectFields: boolean;
+            viewProjectCustomerContactFields: boolean;
+            manageCustomers: boolean;
         };
         notifications: {
             unreadCount: number;

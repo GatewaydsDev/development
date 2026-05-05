@@ -49,6 +49,11 @@ return [
             'group' => 'Operations',
             'description' => 'Access future project management pages and actions.',
         ],
+        'manage-customers' => [
+            'name' => 'Manage customers',
+            'group' => 'Operations',
+            'description' => 'List, add, and update customer records.',
+        ],
     ],
 
     'defaults' => [
@@ -62,22 +67,27 @@ return [
             'manage-access',
             'manage-notifications',
             'manage-projects',
+            'manage-customers',
         ],
         UserLevel::ADMINISTRATOR => [
             'view-dashboard',
             'manage-profile',
             'view-company',
             'manage-projects',
+            'manage-customers',
         ],
         UserLevel::ADMIN => [
             'view-dashboard',
             'manage-profile',
             'view-company',
+            'manage-projects',
+            'manage-customers',
         ],
         UserLevel::PROJECT_MANAGER => [
             'view-dashboard',
             'manage-profile',
             'manage-projects',
+            'manage-customers',
         ],
         UserLevel::USER => [
             'view-dashboard',

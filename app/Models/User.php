@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -58,6 +59,16 @@ class User extends Authenticatable
     public function level(): BelongsTo
     {
         return $this->belongsTo(\App\Models\UserLevel::class);
+    }
+
+    public function assignedProjects(): HasMany
+    {
+        return $this->hasMany(Project::class, 'assigned_to');
+    }
+
+    public function createdProjects(): HasMany
+    {
+        return $this->hasMany(Project::class, 'created_by');
     }
 
     public function hasUserLevel(string|array $levels): bool

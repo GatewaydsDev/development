@@ -2,6 +2,8 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\CustomerAccess;
+use App\Support\ProjectAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Middleware;
@@ -56,6 +58,27 @@ class HandleInertiaRequests extends Middleware
                         : false,
                     'manageNotifications' => $request->user()
                         ? Gate::forUser($request->user())->allows('manage-notifications')
+                        : false,
+                    'viewProjects' => $request->user()
+                        ? ProjectAccess::canView($request->user())
+                        : false,
+                    'createProjects' => $request->user()
+                        ? ProjectAccess::canCreate($request->user())
+                        : false,
+                    'updateProjects' => $request->user()
+                        ? ProjectAccess::canUpdate($request->user())
+                        : false,
+                    'deleteProjects' => $request->user()
+                        ? ProjectAccess::canDelete($request->user())
+                        : false,
+                    'viewSensitiveProjectFields' => $request->user()
+                        ? ProjectAccess::canViewSensitiveFields($request->user())
+                        : false,
+                    'viewProjectCustomerContactFields' => $request->user()
+                        ? ProjectAccess::canViewCustomerContactFields($request->user())
+                        : false,
+                    'manageCustomers' => $request->user()
+                        ? CustomerAccess::canManage($request->user())
                         : false,
                 ],
                 'notifications' => $request->user() && Gate::forUser($request->user())->allows('manage-notifications')
