@@ -53,8 +53,11 @@ class HandleInertiaRequests extends Middleware
                     'manageAccess' => $request->user()
                         ? Gate::forUser($request->user())->allows('manage-access')
                         : false,
+                    'manageNotifications' => $request->user()
+                        ? Gate::forUser($request->user())->allows('manage-notifications')
+                        : false,
                 ],
-                'notifications' => $request->user()
+                'notifications' => $request->user() && Gate::forUser($request->user())->allows('manage-notifications')
                     ? [
                         'unreadCount' => $request->user()->unreadNotifications()->count(),
                         'latestUnread' => $request->user()

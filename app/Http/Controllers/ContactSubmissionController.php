@@ -78,8 +78,7 @@ class ContactSubmissionController extends Controller
         $users = User::query()
             ->with('level')
             ->get()
-            ->filter(fn (User $user): bool => $user->hasPermission('view-company')
-                || $user->hasPermission('manage-access'));
+            ->filter(fn (User $user): bool => $user->hasPermission('manage-notifications'));
 
         if ($users->isEmpty()) {
             return;

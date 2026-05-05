@@ -39,6 +39,11 @@ return [
             'group' => 'Administration',
             'description' => 'Grant or deny user level permissions.',
         ],
+        'manage-notifications' => [
+            'name' => 'Manage notifications',
+            'group' => 'Administration',
+            'description' => 'Open, update, and delete dashboard notifications.',
+        ],
         'manage-projects' => [
             'name' => 'Manage projects',
             'group' => 'Operations',
@@ -55,6 +60,7 @@ return [
             'update-users',
             'view-company',
             'manage-access',
+            'manage-notifications',
             'manage-projects',
         ],
         UserLevel::ADMINISTRATOR => [

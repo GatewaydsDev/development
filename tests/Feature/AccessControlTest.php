@@ -28,7 +28,7 @@ test('admins cannot view access control unless granted permission', function () 
         ->assertForbidden();
 });
 
-test('administrators have every configured gate permission by default', function () {
+test('administrators have configured administrator gate permissions by default', function () {
     $administratorLevel = UserLevel::firstOrCreate(['name' => UserLevel::ADMINISTRATOR]);
     $administratorLevel->forceFill([
         'permissions' => $administratorLevel->defaultPermissions(),
@@ -36,9 +36,11 @@ test('administrators have every configured gate permission by default', function
 
     $administrator = User::factory()->create(['level_id' => $administratorLevel->id]);
 
-    foreach (array_keys(config('access.permissions', [])) as $permission) {
+    foreach (config('access.defaults.'.UserLevel::ADMINISTRATOR, []) as $permission) {
         expect(Gate::forUser($administrator)->allows($permission))->toBeTrue();
     }
+
+    expect(Gate::forUser($administrator)->allows('manage-notifications'))->toBeFalse();
 });
 
 test('permission changes are enforced by laravel gates', function () {

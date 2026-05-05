@@ -36,6 +36,7 @@ export type PageProps<
             updateUsers: boolean;
             viewCompany: boolean;
             manageAccess: boolean;
+            manageNotifications: boolean;
         };
         notifications: {
             unreadCount: number;

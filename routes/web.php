@@ -39,7 +39,7 @@ Route::middleware(['auth', 'prevent-back-history', 'can:manage-profile'])->group
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-Route::middleware(['auth', 'prevent-back-history'])
+Route::middleware(['auth', 'prevent-back-history', 'can:manage-notifications'])
     ->prefix('notifications')
     ->name('notifications.')
     ->group(function () {

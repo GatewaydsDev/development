@@ -42,6 +42,7 @@ export default function Authenticated({
     const canViewUsers = Boolean(auth.can?.viewUsers);
     const canCreateUsers = Boolean(auth.can?.createUsers);
     const canManageAccess = Boolean(auth.can?.manageAccess);
+    const canManageNotifications = Boolean(auth.can?.manageNotifications);
     const canViewCompany = Boolean(auth.can?.viewCompany);
     const canOpenAdministration =
         canManageUsers || canManageAccess || canViewCompany;
@@ -54,6 +55,10 @@ export default function Authenticated({
         useState(false);
 
     useEffect(() => {
+        if (!canManageNotifications) {
+            return;
+        }
+
         const refreshNotifications = () => {
             router.reload({
                 only: ['auth'],
@@ -79,7 +84,7 @@ export default function Authenticated({
                 handleVisibilityChange,
             );
         };
-    }, []);
+    }, [canManageNotifications]);
 
     useEffect(() => {
         if (notifications.unreadCount > previousUnreadCount.current) {
@@ -239,6 +244,7 @@ export default function Authenticated({
                         <div className="hidden gap-2 sm:ms-4 sm:flex sm:items-center lg:gap-4 lg:ms-6">
                             <ThemeModeToggle />
 
+                            {canManageNotifications && (
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <button
@@ -336,6 +342,7 @@ export default function Authenticated({
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
+                            )}
 
                             <div className="relative ms-3">
                                 <Dropdown>
@@ -534,6 +541,7 @@ export default function Authenticated({
                             <ThemeModeToggle />
                         </div>
 
+                        {canManageNotifications && (
                         <div className="border-b border-border px-4 pb-4">
                             <div className="mb-2 flex items-center justify-between text-sm font-semibold text-foreground">
                                 <span>Notifications</span>
@@ -579,6 +587,7 @@ export default function Authenticated({
                                 View all notifications
                             </Link>
                         </div>
+                        )}
 
                         <div className="px-4">
                             <div className="text-base font-medium text-foreground">

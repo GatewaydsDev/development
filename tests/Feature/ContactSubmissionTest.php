@@ -85,12 +85,12 @@ test('contact notifications fall back to the active company email', function () 
     });
 });
 
-test('contact form submissions create dashboard notifications for administrators', function () {
+test('contact form submissions create dashboard notifications for super admins', function () {
     Mail::fake();
 
-    $administratorLevel = UserLevel::firstOrCreate(['name' => UserLevel::ADMINISTRATOR]);
-    $administrator = User::factory()->create([
-        'level_id' => $administratorLevel->id,
+    $superAdminLevel = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $superAdmin = User::factory()->create([
+        'level_id' => $superAdminLevel->id,
     ]);
 
     $this
@@ -107,9 +107,9 @@ test('contact form submissions create dashboard notifications for administrators
         ->assertRedirect()
         ->assertSessionHas('contact.success', true);
 
-    expect($administrator->unreadNotifications()->count())->toBe(1);
+    expect($superAdmin->unreadNotifications()->count())->toBe(1);
 
-    $notification = $administrator->unreadNotifications()->firstOrFail();
+    $notification = $superAdmin->unreadNotifications()->firstOrFail();
 
     expect($notification->data['title'])->toBe('New contact request')
         ->and($notification->data['name'])->toBe('Morgan Security')
@@ -120,9 +120,9 @@ test('contact form submissions create dashboard notifications for administrators
 test('users can mark their contact notifications as read', function () {
     Mail::fake();
 
-    $administratorLevel = UserLevel::firstOrCreate(['name' => UserLevel::ADMINISTRATOR]);
-    $administrator = User::factory()->create([
-        'level_id' => $administratorLevel->id,
+    $superAdminLevel = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $superAdmin = User::factory()->create([
+        'level_id' => $superAdminLevel->id,
     ]);
 
     ContactSubmission::create([
@@ -132,25 +132,25 @@ test('users can mark their contact notifications as read', function () {
     ]);
 
     $submission = ContactSubmission::query()->firstOrFail();
-    $administrator->notify(
+    $superAdmin->notify(
         new NewContactSubmissionNotification($submission)
     );
 
-    $notification = $administrator->unreadNotifications()->firstOrFail();
+    $notification = $superAdmin->unreadNotifications()->firstOrFail();
 
-    $this->actingAs($administrator)
+    $this->actingAs($superAdmin)
         ->post(route('notifications.read', $notification->id))
         ->assertRedirect();
 
-    expect($administrator->fresh()->unreadNotifications()->count())->toBe(0);
+    expect($superAdmin->fresh()->unreadNotifications()->count())->toBe(0);
 });
 
 test('users can list open update and delete their notifications', function () {
     Mail::fake();
 
-    $administratorLevel = UserLevel::firstOrCreate(['name' => UserLevel::ADMINISTRATOR]);
-    $administrator = User::factory()->create([
-        'level_id' => $administratorLevel->id,
+    $superAdminLevel = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $superAdmin = User::factory()->create([
+        'level_id' => $superAdminLevel->id,
     ]);
     $submission = ContactSubmission::create([
         'name' => 'Jordan Lead',
@@ -158,11 +158,11 @@ test('users can list open update and delete their notifications', function () {
         'message' => 'Please send information about blast doors.',
     ]);
 
-    $administrator->notify(new NewContactSubmissionNotification($submission));
+    $superAdmin->notify(new NewContactSubmissionNotification($submission));
 
-    $notification = $administrator->unreadNotifications()->firstOrFail();
+    $notification = $superAdmin->unreadNotifications()->firstOrFail();
 
-    $this->actingAs($administrator)
+    $this->actingAs($superAdmin)
         ->get(route('notifications.index'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
@@ -171,7 +171,7 @@ test('users can list open update and delete their notifications', function () {
             ->where('notifications.0.email', 'jordan@example.com')
         );
 
-    $this->actingAs($administrator)
+    $this->actingAs($superAdmin)
         ->get(route('notifications.show', $notification->id))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
@@ -180,7 +180,7 @@ test('users can list open update and delete their notifications', function () {
             ->where('notification.isRead', true)
         );
 
-    $this->actingAs($administrator)
+    $this->actingAs($superAdmin)
         ->patch(route('notifications.update', $notification->id), [
             'read' => false,
         ])
@@ -188,9 +188,35 @@ test('users can list open update and delete their notifications', function () {
 
     expect($notification->fresh()->unread())->toBeTrue();
 
-    $this->actingAs($administrator)
+    $this->actingAs($superAdmin)
         ->delete(route('notifications.destroy', $notification->id))
         ->assertRedirect(route('notifications.index', absolute: false));
 
-    expect($administrator->notifications()->count())->toBe(0);
+    expect($superAdmin->notifications()->count())->toBe(0);
+});
+
+test('notification center access can be granted to a user level', function () {
+    Mail::fake();
+
+    $level = UserLevel::firstOrCreate(['name' => 'Notification Manager']);
+    $level->forceFill([
+        'permissions' => [
+            ...$level->defaultPermissions(),
+            'manage-notifications' => true,
+        ],
+    ])->save();
+    $user = User::factory()->create(['level_id' => $level->id]);
+
+    $this->actingAs($user)
+        ->get(route('notifications.index'))
+        ->assertOk();
+});
+
+test('users without notification access cannot open the notification center', function () {
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::USER]);
+    $user = User::factory()->create(['level_id' => $level->id]);
+
+    $this->actingAs($user)
+        ->get(route('notifications.index'))
+        ->assertForbidden();
 });
