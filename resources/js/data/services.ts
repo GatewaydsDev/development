@@ -35,9 +35,9 @@ export const serviceDefinitions: ServiceDefinition[] = [
         slug: 'radio-frequency-doors',
         Icon: RadioTowerIcon,
         images: {
-            hero: '/images/gateway-hero-section.png',
-            detail: '/images/high-security-reinforced-door.jpeg',
-            support: '/images/high-security-access-card-door.jpeg',
+            hero: '/images/rf_door_0_0.webp',
+            detail: '/images/rf_door_0_1.webp',
+            support: '/images/rf_door_0_2.webp',
         },
     },
     {
@@ -45,9 +45,9 @@ export const serviceDefinitions: ServiceDefinition[] = [
         slug: 'sound-transmission',
         Icon: Volume2Icon,
         images: {
-            hero: '/images/high-security-door-row.jpeg',
-            detail: '/images/gateway-hero-section.png',
-            support: '/images/high-security-reinforced-door.jpeg',
+            hero: '/images/rf_door_0_1.webp',
+            detail: '/images/rf_door_0_2.webp',
+            support: '/images/rf_door_0_3.webp',
         },
     },
     {
@@ -55,9 +55,9 @@ export const serviceDefinitions: ServiceDefinition[] = [
         slug: 'bullet-resistant-doors',
         Icon: ShieldIcon,
         images: {
-            hero: '/images/high-security-reinforced-door.jpeg',
-            detail: '/images/high-security-door-row.jpeg',
-            support: '/images/gateway-hero-section.png',
+            hero: '/images/rf_door_0_2.webp',
+            detail: '/images/rf_door_0_3.webp',
+            support: '/images/rf_door_1_0.webp',
         },
     },
     {
@@ -65,9 +65,9 @@ export const serviceDefinitions: ServiceDefinition[] = [
         slug: 'blast-resistant-doors',
         Icon: BombIcon,
         images: {
-            hero: '/images/high-security-reinforced-door.jpeg',
-            detail: '/images/gateway-hero-section.png',
-            support: '/images/high-security-door-row.jpeg',
+            hero: '/images/rf_door_0_3.webp',
+            detail: '/images/rf_door_1_0.webp',
+            support: '/images/rf_door_1_1.webp',
         },
     },
     {
@@ -75,9 +75,9 @@ export const serviceDefinitions: ServiceDefinition[] = [
         slug: 'oversized-door-assemblies',
         Icon: ExpandIcon,
         images: {
-            hero: '/images/high-security-door-row.jpeg',
-            detail: '/images/high-security-reinforced-door.jpeg',
-            support: '/images/high-security-access-card-door.jpeg',
+            hero: '/images/rf_door_1_0.webp',
+            detail: '/images/rf_door_1_1.webp',
+            support: '/images/rf_door_1_2.webp',
         },
     },
     {
@@ -85,9 +85,9 @@ export const serviceDefinitions: ServiceDefinition[] = [
         slug: 'hurricane-tornado-doors',
         Icon: CloudLightningIcon,
         images: {
-            hero: '/images/gateway-hero-section.png',
-            detail: '/images/high-security-door-row.jpeg',
-            support: '/images/high-security-reinforced-door.jpeg',
+            hero: '/images/rf_door_1_1.webp',
+            detail: '/images/rf_door_1_2.webp',
+            support: '/images/rf_door_1_3.webp',
         },
     },
     {
@@ -95,9 +95,9 @@ export const serviceDefinitions: ServiceDefinition[] = [
         slug: 'forced-entry-doors',
         Icon: LockKeyholeIcon,
         images: {
-            hero: '/images/high-security-access-card-door.jpeg',
-            detail: '/images/high-security-reinforced-door.jpeg',
-            support: '/images/gateway-hero-section.png',
+            hero: '/images/rf_door_1_2.webp',
+            detail: '/images/rf_door_1_3.webp',
+            support: '/images/rf_door_0_0.webp',
         },
     },
 ];

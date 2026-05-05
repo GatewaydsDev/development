@@ -147,19 +147,19 @@ export default function ServiceShow({
                             <img
                                 src={service.images.hero}
                                 alt={t(`${servicePath}.imageAlt`)}
-                                className="h-56 w-full rounded-2xl border border-border object-cover shadow-2xl shadow-emerald-950/20 transition duration-700 hover:scale-[1.01] sm:col-span-2 sm:h-72 sm:rounded-3xl lg:h-80"
+                                className="h-72 w-full rounded-2xl border border-border bg-muted/50 object-contain p-2 shadow-2xl shadow-emerald-950/20 transition duration-700 hover:scale-[1.01] sm:col-span-2 sm:h-[28rem] sm:rounded-3xl lg:h-[34rem]"
                             />
 
                             <img
                                 src={service.images.detail}
                                 alt={t(`${servicePath}.imageAlt`)}
-                                className="h-40 w-full rounded-2xl border border-border object-cover shadow-xl shadow-emerald-950/10 transition duration-700 hover:-translate-y-1 hover:scale-[1.02] sm:h-52 sm:rounded-3xl"
+                                className="h-56 w-full rounded-2xl border border-border bg-muted/50 object-contain p-2 shadow-xl shadow-emerald-950/10 transition duration-700 hover:-translate-y-1 hover:scale-[1.02] sm:h-72 sm:rounded-3xl lg:h-80"
                             />
 
                             <img
                                 src={service.images.support}
                                 alt={t(`${servicePath}.imageAlt`)}
-                                className="h-40 w-full rounded-2xl border border-border object-cover shadow-xl shadow-emerald-950/10 transition duration-700 hover:-translate-y-1 hover:scale-[1.02] sm:h-52 sm:rounded-3xl"
+                                className="h-56 w-full rounded-2xl border border-border bg-muted/50 object-contain p-2 shadow-xl shadow-emerald-950/10 transition duration-700 hover:-translate-y-1 hover:scale-[1.02] sm:h-72 sm:rounded-3xl lg:h-80"
                             />
                         </div>
                     </div>
@@ -252,7 +252,7 @@ export default function ServiceShow({
                     <img
                         src={service.images.detail}
                         alt={t(`${servicePath}.imageAlt`)}
-                        className="mt-6 h-56 w-full rounded-2xl border border-border object-cover shadow-xl shadow-emerald-950/10 transition duration-700 hover:scale-[1.01] sm:mt-8 sm:h-72 sm:rounded-3xl"
+                        className="mt-6 h-72 w-full rounded-2xl border border-border bg-muted/50 object-contain p-2 shadow-xl shadow-emerald-950/10 transition duration-700 hover:scale-[1.01] sm:mt-8 sm:h-96 sm:rounded-3xl lg:h-[28rem]"
                     />
                 </div>
 
