@@ -23,7 +23,9 @@ import {
     BellIcon,
     BriefcaseIcon,
     ChevronDownIcon,
+    ListIcon,
     MailOpenIcon,
+    PlusCircleIcon,
     ShieldIcon,
     SlidersHorizontalIcon,
     UserCogIcon,
@@ -49,6 +51,7 @@ export default function Authenticated({
     const canViewCompany = Boolean(auth.can?.viewCompany);
     const canManageOwnAccount = Boolean(auth.can?.manageOwnAccount);
     const canViewProjects = Boolean(auth.can?.viewProjects);
+    const canCreateProjects = Boolean(auth.can?.createProjects);
     const canManageCustomers = Boolean(auth.can?.manageCustomers);
     const canOpenAdministration =
         canManageUsers ||
@@ -195,31 +198,73 @@ export default function Authenticated({
                                                 )}
 
                                                 {canViewProjects && (
-                                                    <DropdownMenuItem asChild>
-                                                        <Link
-                                                            href={route(
-                                                                'admin.projects.index',
-                                                            )}
-                                                            className="flex items-center gap-2"
-                                                        >
+                                                    <DropdownMenuSub>
+                                                        <DropdownMenuSubTrigger>
                                                             <BriefcaseIcon className="size-4" />
                                                             Projects
-                                                        </Link>
-                                                    </DropdownMenuItem>
+                                                        </DropdownMenuSubTrigger>
+                                                        <DropdownMenuSubContent className="min-w-44">
+                                                            <DropdownMenuItem asChild>
+                                                                <Link
+                                                                    href={route(
+                                                                        'admin.projects.index',
+                                                                    )}
+                                                                    className="flex items-center gap-2"
+                                                                >
+                                                                    <ListIcon className="size-4" />
+                                                                    See all
+                                                                </Link>
+                                                            </DropdownMenuItem>
+                                                            {canCreateProjects && (
+                                                                <DropdownMenuItem
+                                                                    asChild
+                                                                >
+                                                                    <Link
+                                                                        href={route(
+                                                                            'admin.projects.create',
+                                                                        )}
+                                                                        className="flex items-center gap-2"
+                                                                    >
+                                                                        <PlusCircleIcon className="size-4" />
+                                                                        Add new
+                                                                    </Link>
+                                                                </DropdownMenuItem>
+                                                            )}
+                                                        </DropdownMenuSubContent>
+                                                    </DropdownMenuSub>
                                                 )}
 
                                                 {canManageCustomers && (
-                                                    <DropdownMenuItem asChild>
-                                                        <Link
-                                                            href={route(
-                                                                'admin.customers.index',
-                                                            )}
-                                                            className="flex items-center gap-2"
-                                                        >
+                                                    <DropdownMenuSub>
+                                                        <DropdownMenuSubTrigger>
                                                             <UserRoundIcon className="size-4" />
                                                             Customers
-                                                        </Link>
-                                                    </DropdownMenuItem>
+                                                        </DropdownMenuSubTrigger>
+                                                        <DropdownMenuSubContent className="min-w-44">
+                                                            <DropdownMenuItem asChild>
+                                                                <Link
+                                                                    href={route(
+                                                                        'admin.customers.index',
+                                                                    )}
+                                                                    className="flex items-center gap-2"
+                                                                >
+                                                                    <UsersIcon className="size-4" />
+                                                                    See all
+                                                                </Link>
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem asChild>
+                                                                <Link
+                                                                    href={route(
+                                                                        'admin.customers.create',
+                                                                    )}
+                                                                    className="flex items-center gap-2"
+                                                                >
+                                                                    <UserPlusIcon className="size-4" />
+                                                                    Add new
+                                                                </Link>
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuSubContent>
+                                                    </DropdownMenuSub>
                                                 )}
 
                                                 {(canManageUsers ||
@@ -539,31 +584,77 @@ export default function Authenticated({
                                 )}
 
                                 {canViewProjects && (
-                                    <ResponsiveNavLink
-                                        href={route('admin.projects.index')}
-                                        active={route().current(
-                                            'admin.projects.*',
-                                        )}
-                                    >
-                                        <span className="inline-flex items-center gap-2">
+                                    <>
+                                        <div className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-foreground">
                                             <BriefcaseIcon className="size-4" />
                                             Projects
-                                        </span>
-                                    </ResponsiveNavLink>
+                                        </div>
+                                        <ResponsiveNavLink
+                                            href={route('admin.projects.index')}
+                                            active={route().current(
+                                                'admin.projects.index',
+                                            )}
+                                            className="ps-8"
+                                        >
+                                            <span className="inline-flex items-center gap-2">
+                                                <ListIcon className="size-4" />
+                                                See all
+                                            </span>
+                                        </ResponsiveNavLink>
+                                        {canCreateProjects && (
+                                            <ResponsiveNavLink
+                                                href={route(
+                                                    'admin.projects.create',
+                                                )}
+                                                active={route().current(
+                                                    'admin.projects.create',
+                                                )}
+                                                className="ps-8"
+                                            >
+                                                <span className="inline-flex items-center gap-2">
+                                                    <PlusCircleIcon className="size-4" />
+                                                    Add new
+                                                </span>
+                                            </ResponsiveNavLink>
+                                        )}
+                                    </>
                                 )}
 
                                 {canManageCustomers && (
-                                    <ResponsiveNavLink
-                                        href={route('admin.customers.index')}
-                                        active={route().current(
-                                            'admin.customers.*',
-                                        )}
-                                    >
-                                        <span className="inline-flex items-center gap-2">
+                                    <>
+                                        <div className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-foreground">
                                             <UserRoundIcon className="size-4" />
                                             Customers
-                                        </span>
-                                    </ResponsiveNavLink>
+                                        </div>
+                                        <ResponsiveNavLink
+                                            href={route(
+                                                'admin.customers.index',
+                                            )}
+                                            active={route().current(
+                                                'admin.customers.index',
+                                            )}
+                                            className="ps-8"
+                                        >
+                                            <span className="inline-flex items-center gap-2">
+                                                <UsersIcon className="size-4" />
+                                                See all
+                                            </span>
+                                        </ResponsiveNavLink>
+                                        <ResponsiveNavLink
+                                            href={route(
+                                                'admin.customers.create',
+                                            )}
+                                            active={route().current(
+                                                'admin.customers.create',
+                                            )}
+                                            className="ps-8"
+                                        >
+                                            <span className="inline-flex items-center gap-2">
+                                                <UserPlusIcon className="size-4" />
+                                                Add new
+                                            </span>
+                                        </ResponsiveNavLink>
+                                    </>
                                 )}
 
                                 {(canManageUsers || canManageAccess) && (

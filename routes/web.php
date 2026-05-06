@@ -164,4 +164,9 @@ Route::middleware(['auth', 'prevent-back-history', 'can:manage-access'])
             ->name('access-control.update');
     });
 
+    Route::get('/send-sms', function (\App\Services\TwilioSmsService $sms) {
+        $sms->send('+19736995232', 'Test SMS from Laravel 🚀');
+        return 'SMS sent (check your phone)';
+    });
+
 require __DIR__.'/auth.php';

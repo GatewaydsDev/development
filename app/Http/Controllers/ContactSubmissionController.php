@@ -7,6 +7,7 @@ use App\Models\Company;
 use App\Models\ContactSubmission;
 use App\Models\User;
 use App\Notifications\NewContactSubmissionNotification;
+use App\Services\TwilioSmsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -15,7 +16,7 @@ use Throwable;
 
 class ContactSubmissionController extends Controller
 {
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, TwilioSmsService $sms): RedirectResponse
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -37,6 +38,7 @@ class ContactSubmissionController extends Controller
         ]);
 
         $this->notifyDashboardUsers($submission);
+        $this->sendSmsNotification($submission, $sms);
 
         $recipient = $this->notificationRecipient();
 
@@ -85,5 +87,41 @@ class ContactSubmissionController extends Controller
         }
 
         Notification::send($users, new NewContactSubmissionNotification($submission));
+    }
+
+    private function sendSmsNotification(ContactSubmission $submission, TwilioSmsService $sms): void
+    {
+        $recipient = config('services.twilio.to');
+
+        if (! is_string($recipient) || $recipient === '') {
+            return;
+        }
+
+        try {
+            $sms->send($recipient, $this->smsMessage($submission));
+        } catch (Throwable $exception) {
+            report($exception);
+        }
+    }
+
+    private function smsMessage(ContactSubmission $submission): string
+    {
+        $parts = [
+            'New Gateway contact form submission.',
+            "Name: {$submission->name}",
+            "Email: {$submission->email}",
+        ];
+
+        if (is_string($submission->phone_number) && $submission->phone_number !== '') {
+            $parts[] = "Phone: {$submission->phone_number}";
+        }
+
+        if (is_string($submission->organization) && $submission->organization !== '') {
+            $parts[] = "Organization: {$submission->organization}";
+        }
+
+        $parts[] = 'Message: '.str($submission->message)->limit(160);
+
+        return implode("\n", $parts);
     }
 }

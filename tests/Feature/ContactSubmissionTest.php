@@ -6,6 +6,7 @@ use App\Models\ContactSubmission;
 use App\Models\User;
 use App\Models\UserLevel;
 use App\Notifications\NewContactSubmissionNotification;
+use App\Services\TwilioSmsService;
 use Illuminate\Support\Facades\Mail;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -115,6 +116,48 @@ test('contact form submissions create dashboard notifications for super admins',
         ->and($notification->data['name'])->toBe('Morgan Security')
         ->and($notification->data['email'])->toBe('morgan@example.com')
         ->and($notification->data['message'])->toBe('We need forced entry door help.');
+});
+
+test('validated contact form submissions send sms notifications', function () {
+    Mail::fake();
+    config([
+        'contact.recipient' => 'leads@gatewaydoors.test',
+        'services.twilio.to' => '+15551234567',
+    ]);
+    $fakeSms = new class extends TwilioSmsService
+    {
+        /**
+         * @var array<int, array{to: string, message: string}>
+         */
+        public array $messages = [];
+
+        public function send(string $to, string $message): void
+        {
+            $this->messages[] = compact('to', 'message');
+        }
+    };
+
+    $this->app->instance(TwilioSmsService::class, $fakeSms);
+
+    $this
+        ->post(route('contact.store'), [
+            'name' => 'Sam Contractor',
+            'email' => 'sam@example.com',
+            'phone_number' => '555-7000',
+            'organization' => 'Contractor Co',
+            'project_type' => 'blast',
+            'message' => 'Please send information about blast doors.',
+            'source_url' => 'https://gatewaydoors.test/',
+            'website' => '',
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('contact.success', true);
+
+    expect($fakeSms->messages)->toHaveCount(1)
+        ->and($fakeSms->messages[0]['to'])->toBe('+15551234567')
+        ->and($fakeSms->messages[0]['message'])->toContain('New Gateway contact form submission.')
+        ->and($fakeSms->messages[0]['message'])->toContain('Sam Contractor')
+        ->and($fakeSms->messages[0]['message'])->toContain('sam@example.com');
 });
 
 test('users can mark their contact notifications as read', function () {
