@@ -37,7 +37,13 @@ const projectTypes = [
     'generalInquiry',
 ];
 
-export default function ContactSlideOver() {
+type ContactSlideOverProps = {
+    showTrigger?: boolean;
+};
+
+export default function ContactSlideOver({
+    showTrigger = true,
+}: ContactSlideOverProps) {
     const { t } = useTranslation('common');
     const [isOpen, setIsOpen] = useState(false);
     const [wasSubmitted, setWasSubmitted] = useState(false);
@@ -150,16 +156,18 @@ export default function ContactSlideOver() {
 
     return (
         <>
-            <button
-                type="button"
-                onClick={openForm}
-                className="fixed right-0 top-[calc(50%+3.75rem)] z-50 -translate-y-1/2 rounded-l-xl border border-emerald-500/20 bg-emerald-600 px-2 py-3 text-xs font-semibold text-white shadow-2xl shadow-emerald-950/20 transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-background lg:top-1/2 lg:rounded-l-2xl lg:px-3 lg:py-4 lg:text-sm"
-                aria-label={t('contact.open')}
-            >
-                <span className="block [writing-mode:vertical-rl]">
-                    {t('contact.tab')}
-                </span>
-            </button>
+            {showTrigger && (
+                <button
+                    type="button"
+                    onClick={openForm}
+                    className="fixed right-0 top-[calc(50%+3.75rem)] z-50 -translate-y-1/2 rounded-l-xl border border-emerald-500/20 bg-emerald-600 px-2 py-3 text-xs font-semibold text-white shadow-2xl shadow-emerald-950/20 transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-background lg:top-1/2 lg:rounded-l-2xl lg:px-3 lg:py-4 lg:text-sm"
+                    aria-label={t('contact.open')}
+                >
+                    <span className="block [writing-mode:vertical-rl]">
+                        {t('contact.tab')}
+                    </span>
+                </button>
+            )}
 
             <div
                 className={cn(

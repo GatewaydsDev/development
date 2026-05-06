@@ -1,4 +1,5 @@
 import { openContactForm } from '@/lib/contact';
+import { openHelpCenterEventName } from '@/lib/help';
 import { Link } from '@inertiajs/react';
 import {
     Building2Icon,
@@ -14,6 +15,7 @@ import {
     XIcon,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const helpTopics = [
@@ -66,10 +68,22 @@ const helpTopics = [
 
 type HelpTopic = (typeof helpTopics)[number];
 
-export default function HelpCenter() {
+type HelpCenterProps = {
+    showTrigger?: boolean;
+};
+
+export default function HelpCenter({ showTrigger = true }: HelpCenterProps) {
     const { t } = useTranslation('common');
     const [isOpen, setIsOpen] = useState(false);
     const [question, setQuestion] = useState('');
+
+    useEffect(() => {
+        const openHelp = () => setIsOpen(true);
+
+        window.addEventListener(openHelpCenterEventName, openHelp);
+
+        return () => window.removeEventListener(openHelpCenterEventName, openHelp);
+    }, []);
 
     const filteredTopics = useMemo(() => {
         const normalizedQuestion = question.trim().toLowerCase();
@@ -100,15 +114,17 @@ export default function HelpCenter() {
 
     return (
         <>
-            <button
-                type="button"
-                onClick={() => setIsOpen(true)}
-                className="fixed bottom-6 left-4 z-40 inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-2xl shadow-emerald-950/20 transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2 focus:ring-offset-background"
-                aria-label={t('helpCenter.open')}
-            >
-                <HelpCircleIcon className="size-5" />
-                {t('helpCenter.button')}
-            </button>
+            {showTrigger && (
+                <button
+                    type="button"
+                    onClick={() => setIsOpen(true)}
+                    className="fixed bottom-6 left-4 z-40 inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-2xl shadow-emerald-950/20 transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2 focus:ring-offset-background"
+                    aria-label={t('helpCenter.open')}
+                >
+                    <HelpCircleIcon className="size-5" />
+                    {t('helpCenter.button')}
+                </button>
+            )}
 
             <div
                 className={

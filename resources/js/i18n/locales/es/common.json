@@ -71,6 +71,13 @@
       "messageMax": "Los detalles del proyecto deben tener 5,000 caracteres o menos."
     }
   },
+  "publicActions": {
+    "toggle": "Abrir acciones rápidas",
+    "caption": "Acciones",
+    "callNow": "Llamar ahora",
+    "contactUs": "Contáctanos",
+    "help": "Ayuda"
+  },
   "helpCenter": {
     "button": "Ayuda",
     "open": "Abrir centro de ayuda",

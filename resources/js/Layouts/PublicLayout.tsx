@@ -2,6 +2,7 @@ import ApplicationLogo from '@/Components/ApplicationLogo';
 import ContactSlideOver from '@/Components/ContactSlideOver';
 import HelpCenter from '@/Components/HelpCenter';
 import LanguageSwitcher from '@/Components/LanguageSwitcher';
+import PublicActionFab from '@/Components/PublicActionFab';
 import ThemeModeToggle from '@/Components/ThemeModeToggle';
 import {
     DropdownMenu,
@@ -49,7 +50,10 @@ const footerMarkets = [
 
 export default function PublicLayout({ children }: PropsWithChildren) {
     const { t } = useTranslation('common');
-    const { auth } = usePage<PageProps>().props;
+    const { auth, companyPhoneNumber } = usePage<
+        PageProps<{ companyPhoneNumber?: string | null }>
+    >().props;
+    const quotePhoneNumber = companyPhoneNumber?.replace(/\D/g, '') ?? '';
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
         useState(false);
 
@@ -423,8 +427,9 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                 </div>
             </footer>
 
-            <ContactSlideOver />
-            <HelpCenter />
+            <ContactSlideOver showTrigger={false} />
+            <HelpCenter showTrigger={false} />
+            <PublicActionFab callPhoneNumber={quotePhoneNumber} />
         </div>
     );
 }

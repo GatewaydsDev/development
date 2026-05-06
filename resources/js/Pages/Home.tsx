@@ -124,18 +124,6 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
         <PublicLayout>
             <Head title={t('meta.title')} />
 
-            {quotePhoneNumber && (
-                <a
-                    href={`tel:${quotePhoneNumber}`}
-                    className="fixed right-0 top-[calc(50%-3.75rem)] z-40 inline-flex -translate-y-1/2 items-center justify-center rounded-l-xl border border-emerald-500/20 bg-emerald-600 px-2 py-3 text-xs font-semibold text-white shadow-2xl shadow-emerald-950/20 transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-background lg:bottom-6 lg:top-auto lg:translate-y-0 lg:gap-2 lg:rounded-full lg:px-5 lg:py-3 lg:text-sm"
-                >
-                    <PhoneCallIcon className="size-4 lg:size-4" />
-                    <span className="block [writing-mode:vertical-rl] lg:[writing-mode:horizontal-tb]">
-                        {t('floatingQuote.button')}
-                    </span>
-                </a>
-            )}
-
             <section className="relative overflow-hidden border-b border-border">
                 {heroSlides.map((slide, index) => (
                     <img

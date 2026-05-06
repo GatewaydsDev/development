@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Company;
 use App\Support\CustomerAccess;
 use App\Support\ProjectAccess;
 use Illuminate\Http\Request;
@@ -32,8 +33,14 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $company = Company::query()
+            ->where('is_active', true)
+            ->latest()
+            ->first();
+
         return [
             ...parent::share($request),
+            'companyPhoneNumber' => $company?->contact_phone_number,
             'auth' => [
                 'user' => $request->user(),
                 'can' => [
