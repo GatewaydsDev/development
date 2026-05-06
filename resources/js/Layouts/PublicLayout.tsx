@@ -1,5 +1,6 @@
 import ApplicationLogo from '@/Components/ApplicationLogo';
 import ContactSlideOver from '@/Components/ContactSlideOver';
+import HelpCenter from '@/Components/HelpCenter';
 import LanguageSwitcher from '@/Components/LanguageSwitcher';
 import ThemeModeToggle from '@/Components/ThemeModeToggle';
 import {
@@ -13,11 +14,19 @@ import { serviceDefinitions } from '@/data/services';
 import { PageProps } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import {
+    AnchorIcon,
+    Building2Icon,
     ChevronDownIcon,
+    FactoryIcon,
+    GraduationCapIcon,
     HomeIcon,
+    HospitalIcon,
     InfoIcon,
+    KeyRoundIcon,
     LayoutDashboardIcon,
     LogInIcon,
+    LandmarkIcon,
+    ShieldIcon,
     WrenchIcon,
 } from 'lucide-react';
 import { PropsWithChildren, useState } from 'react';
@@ -28,18 +37,14 @@ const navigation = [
     { labelKey: 'navigation.about', route: 'about', Icon: InfoIcon },
 ];
 
-const footerServices = [
-    'installation',
-    'maintenance',
-    'repair',
-    'accessControl',
-];
-
 const footerMarkets = [
-    'commercial',
-    'industrial',
-    'healthcare',
-    'education',
+    { key: 'commercial', Icon: Building2Icon },
+    { key: 'industrial', Icon: FactoryIcon },
+    { key: 'healthcare', Icon: HospitalIcon },
+    { key: 'education', Icon: GraduationCapIcon },
+    { key: 'government', Icon: LandmarkIcon },
+    { key: 'military', Icon: ShieldIcon },
+    { key: 'navy', Icon: AnchorIcon },
 ];
 
 export default function PublicLayout({ children }: PropsWithChildren) {
@@ -284,19 +289,19 @@ export default function PublicLayout({ children }: PropsWithChildren) {
 
             <main>{children}</main>
 
-            <footer className="border-t border-border bg-card">
+            <footer className="border-t border-emerald-500/20 bg-gradient-to-br from-emerald-950 via-slate-950 to-background text-white">
                 <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
                     <div className="grid gap-12 lg:grid-cols-[1.2fr_2fr]">
                         <div>
                             <ApplicationLogo className="h-20 w-auto max-w-none sm:h-28" />
-                            <p className="mt-6 max-w-md leading-7 text-muted-foreground">
+                            <p className="mt-6 max-w-md leading-7 text-emerald-50/75">
                                 {t('footer.description')}
                             </p>
-                            <div className="mt-8 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-5">
-                                <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                            <div className="mt-8 rounded-2xl border border-emerald-300/20 bg-white/5 p-5 shadow-2xl shadow-emerald-950/20 backdrop-blur">
+                                <p className="text-sm font-semibold uppercase tracking-wide text-emerald-200">
                                     {t('footer.supportTitle')}
                                 </p>
-                                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                                <p className="mt-2 text-sm leading-6 text-emerald-50/75">
                                     {t('footer.supportText')}
                                 </p>
                             </div>
@@ -304,71 +309,106 @@ export default function PublicLayout({ children }: PropsWithChildren) {
 
                         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
                             <div>
-                                <h2 className="text-sm font-semibold uppercase tracking-wide text-foreground">
+                                <h2 className="text-sm font-semibold uppercase tracking-wide text-white">
                                     {t('footer.company')}
                                 </h2>
-                                <div className="mt-4 flex flex-col gap-3 text-sm text-muted-foreground">
-                                    {navigation.map((item) => (
-                                        <Link
-                                            key={item.route}
-                                            href={route(item.route)}
-                                            className="transition hover:text-foreground"
-                                        >
-                                            {t(item.labelKey)}
-                                        </Link>
-                                    ))}
+                                <div className="mt-4 flex flex-col gap-3 text-sm text-emerald-50/70">
+                                    {navigation.map((item) => {
+                                        const Icon = item.Icon;
+
+                                        return (
+                                            <Link
+                                                key={item.route}
+                                                href={route(item.route)}
+                                                className="group inline-flex items-center gap-2 transition hover:text-white"
+                                            >
+                                                <Icon className="size-4 shrink-0 text-emerald-300 transition group-hover:animate-bell-shake" />
+                                                <span>{t(item.labelKey)}</span>
+                                            </Link>
+                                        );
+                                    })}
                                 </div>
                             </div>
 
                             <div>
-                                <h2 className="text-sm font-semibold uppercase tracking-wide text-foreground">
+                                <h2 className="text-sm font-semibold uppercase tracking-wide text-white">
                                     {t('footer.services')}
                                 </h2>
-                                <div className="mt-4 flex flex-col gap-3 text-sm text-muted-foreground">
-                                    {footerServices.map((service) => (
-                                        <span key={service}>
-                                            {t(`footer.serviceItems.${service}`)}
-                                        </span>
-                                    ))}
+                                <div className="mt-4 flex flex-col gap-3 text-sm text-emerald-50/70">
+                                    {serviceDefinitions.map((service) => {
+                                        const Icon = service.Icon;
+
+                                        return (
+                                            <Link
+                                                key={service.key}
+                                                href={route(
+                                                    'services.show',
+                                                    service.slug,
+                                                )}
+                                                className="group inline-flex items-center gap-2 transition hover:text-white"
+                                            >
+                                                <Icon className="size-4 shrink-0 text-emerald-300 transition group-hover:animate-bell-shake" />
+                                                <span>
+                                                    {t(
+                                                        `navigation.serviceItems.${service.key}`,
+                                                    )}
+                                                </span>
+                                            </Link>
+                                        );
+                                    })}
                                 </div>
                             </div>
 
                             <div>
-                                <h2 className="text-sm font-semibold uppercase tracking-wide text-foreground">
+                                <h2 className="text-sm font-semibold uppercase tracking-wide text-white">
                                     {t('footer.markets')}
                                 </h2>
-                                <div className="mt-4 flex flex-col gap-3 text-sm text-muted-foreground">
-                                    {footerMarkets.map((market) => (
-                                        <span key={market}>
-                                            {t(`footer.marketItems.${market}`)}
-                                        </span>
-                                    ))}
+                                <div className="mt-4 flex flex-col gap-3 text-sm text-emerald-50/70">
+                                    {footerMarkets.map((market) => {
+                                        const Icon = market.Icon;
+
+                                        return (
+                                            <span
+                                                key={market.key}
+                                                className="group inline-flex items-center gap-2"
+                                            >
+                                                <Icon className="size-4 shrink-0 text-emerald-300 transition group-hover:animate-bell-shake" />
+                                                <span>
+                                                    {t(
+                                                        `footer.marketItems.${market.key}`,
+                                                    )}
+                                                </span>
+                                            </span>
+                                        );
+                                    })}
                                 </div>
                             </div>
 
                             <div>
-                                <h2 className="text-sm font-semibold uppercase tracking-wide text-foreground">
+                                <h2 className="text-sm font-semibold uppercase tracking-wide text-white">
                                     {t('footer.access')}
                                 </h2>
-                                <div className="mt-4 flex flex-col gap-3 text-sm text-muted-foreground">
+                                <div className="mt-4 flex flex-col gap-3 text-sm text-emerald-50/70">
                                     <Link
                                         href={route('login')}
-                                        className="transition hover:text-foreground"
+                                        className="group inline-flex items-center gap-2 transition hover:text-white"
                                     >
-                                        {t('auth.customerPortal')}
+                                        <LogInIcon className="size-4 shrink-0 text-emerald-300 transition group-hover:animate-bell-shake" />
+                                        <span>{t('auth.customerPortal')}</span>
                                     </Link>
                                     <Link
                                         href={route('register')}
-                                        className="transition hover:text-foreground"
+                                        className="group inline-flex items-center gap-2 transition hover:text-white"
                                     >
-                                        {t('auth.createAccount')}
+                                        <KeyRoundIcon className="size-4 shrink-0 text-emerald-300 transition group-hover:animate-bell-shake" />
+                                        <span>{t('auth.createAccount')}</span>
                                     </Link>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div className="mt-12 flex flex-col gap-4 border-t border-border pt-8 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+                    <div className="mt-12 flex flex-col gap-4 border-t border-white/10 pt-8 text-sm text-emerald-50/60 sm:flex-row sm:items-center sm:justify-between">
                         <p>
                             {t('footer.copyright', {
                                 year: new Date().getFullYear(),
@@ -384,6 +424,7 @@ export default function PublicLayout({ children }: PropsWithChildren) {
             </footer>
 
             <ContactSlideOver />
+            <HelpCenter />
         </div>
     );
 }

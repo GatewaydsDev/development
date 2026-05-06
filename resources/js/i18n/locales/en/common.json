@@ -71,6 +71,65 @@
       "messageMax": "Project details must be 5,000 characters or fewer."
     }
   },
+  "helpCenter": {
+    "button": "Help",
+    "open": "Open help center",
+    "close": "Close help center",
+    "eyebrow": "Customer help center",
+    "title": "How can we help?",
+    "description": "Type a question or choose a quick help topic.",
+    "questionLabel": "Type your question",
+    "questionPlaceholder": "Example: how do I contact you?",
+    "contactButton": "Contact our team",
+    "noResults": "No matching help topics yet. Contact our team and we will help you directly.",
+    "topics": {
+      "contact": {
+        "title": "How do I contact Gateway Door Systems?",
+        "answer": "Open the contact form and send your name, email, phone number, and project details. Our team will review your request and follow up.",
+        "keywords": "contact call email phone message support help reach"
+      },
+      "services": {
+        "title": "How can I check your services?",
+        "answer": "Use the Services menu or the services section on the home page to review specialty door services like RF, blast, bullet, hurricane, oversized, and forced entry doors.",
+        "keywords": "services door rf blast bullet hurricane oversized forced entry sound transmission"
+      },
+      "quote": {
+        "title": "How do I request a quote?",
+        "answer": "Use the contact form and describe the opening, facility, service type, and timeline. The more details you provide, the easier it is for us to review the project.",
+        "keywords": "quote estimate pricing project request start"
+      },
+      "call": {
+        "title": "Can I call about a project?",
+        "answer": "Yes. Use the contact options on the site or send the contact form with your phone number and project details so the team can follow up.",
+        "keywords": "call phone talk quote contact number"
+      },
+      "secureOpenings": {
+        "title": "What secure door openings do you support?",
+        "answer": "Gateway Door Systems supports secure openings including RF doors, sound transmission, bullet, blast, oversized assemblies, hurricane and tornado, and forced entry doors.",
+        "keywords": "secure openings rf sound transmission bullet blast oversized hurricane tornado forced entry scif"
+      },
+      "process": {
+        "title": "How does the project review process work?",
+        "answer": "Start with a project review, then the team coordinates fit, service requirements, installation needs, and handoff details for the opening.",
+        "keywords": "process review fit install handoff project steps coordination"
+      },
+      "markets": {
+        "title": "What markets and facilities do you serve?",
+        "answer": "The site highlights support for commercial, industrial, healthcare, education, government, military, navy, restricted, operations, and critical facilities.",
+        "keywords": "markets facilities commercial industrial healthcare education government military navy restricted critical"
+      },
+      "about": {
+        "title": "Where can I learn more about the company?",
+        "answer": "Visit the About page to learn about Gateway Door Systems capabilities, environments served, project coordination, and secure door approach.",
+        "keywords": "about company gateway door systems capabilities environments"
+      },
+      "portal": {
+        "title": "How do I access my customer portal?",
+        "answer": "Use Customer portal to log in. If you do not have access yet, create an account or contact the Gateway Door Systems team for help.",
+        "keywords": "portal login account register password access"
+      }
+    }
+  },
   "footer": {
     "description": "Secure opening solutions for facilities that depend on reliable doors, coordinated hardware, and responsive service.",
     "supportTitle": "Need support?",
@@ -95,7 +154,10 @@
       "commercial": "Commercial properties",
       "industrial": "Industrial facilities",
       "healthcare": "Healthcare buildings",
-      "education": "Education campuses"
+      "education": "Education campuses",
+      "government": "Government institutions",
+      "military": "Military facilities",
+      "navy": "Navy and maritime facilities"
     }
   }
 }

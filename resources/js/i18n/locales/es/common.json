@@ -71,6 +71,65 @@
       "messageMax": "Los detalles del proyecto deben tener 5,000 caracteres o menos."
     }
   },
+  "helpCenter": {
+    "button": "Ayuda",
+    "open": "Abrir centro de ayuda",
+    "close": "Cerrar centro de ayuda",
+    "eyebrow": "Centro de ayuda para clientes",
+    "title": "¿Cómo podemos ayudarte?",
+    "description": "Escribe una pregunta o elige un tema rápido de ayuda.",
+    "questionLabel": "Escribe tu pregunta",
+    "questionPlaceholder": "Ejemplo: ¿cómo puedo contactarlos?",
+    "contactButton": "Contactar a nuestro equipo",
+    "noResults": "Todavía no hay temas que coincidan. Contacta a nuestro equipo y te ayudaremos directamente.",
+    "topics": {
+      "contact": {
+        "title": "¿Cómo contacto a Gateway Door Systems?",
+        "answer": "Abre el formulario de contacto y envía tu nombre, correo, teléfono y detalles del proyecto. Nuestro equipo revisará tu solicitud y dará seguimiento.",
+        "keywords": "contacto llamar correo telefono mensaje soporte ayuda"
+      },
+      "services": {
+        "title": "¿Cómo puedo revisar sus servicios?",
+        "answer": "Usa el menú Servicios o la sección de servicios en la página de inicio para revisar puertas RF, blast, bullet, huracanes, sobredimensionadas y forced entry.",
+        "keywords": "servicios puerta rf blast bullet huracan sobredimensionadas forced entry transmision sonido"
+      },
+      "quote": {
+        "title": "¿Cómo solicito una cotización?",
+        "answer": "Usa el formulario de contacto y describe la apertura, instalación, tipo de servicio y fecha estimada. Mientras más detalles compartas, mejor podremos revisar el proyecto.",
+        "keywords": "cotizacion precio estimado proyecto solicitud"
+      },
+      "call": {
+        "title": "¿Puedo llamar sobre un proyecto?",
+        "answer": "Sí. Usa las opciones de contacto del sitio o envía el formulario con tu número de teléfono y detalles del proyecto para que el equipo pueda dar seguimiento.",
+        "keywords": "llamar telefono hablar cotizacion contacto numero"
+      },
+      "secureOpenings": {
+        "title": "¿Qué aperturas de puertas seguras trabajan?",
+        "answer": "Gateway Door Systems trabaja aperturas seguras incluyendo puertas RF, transmisión de sonido, bullet, blast, ensamblajes sobredimensionados, huracanes y tornados, y forced entry.",
+        "keywords": "aperturas seguras rf transmision sonido bullet blast sobredimensionadas huracan tornado forced entry scif"
+      },
+      "process": {
+        "title": "¿Cómo funciona el proceso de revisión del proyecto?",
+        "answer": "Comienza con una revisión del proyecto, luego el equipo coordina ajuste, requisitos del servicio, necesidades de instalación y detalles de entrega de la apertura.",
+        "keywords": "proceso revision ajuste instalacion entrega proyecto pasos coordinacion"
+      },
+      "markets": {
+        "title": "¿Qué mercados e instalaciones atienden?",
+        "answer": "El sitio destaca soporte para instalaciones comerciales, industriales, salud, educación, gobierno, militares, navales, restringidas, operativas y críticas.",
+        "keywords": "mercados instalaciones comercial industrial salud educacion gobierno militar naval restringida critica"
+      },
+      "about": {
+        "title": "¿Dónde puedo aprender más sobre la compañía?",
+        "answer": "Visita la página Nosotros para conocer las capacidades de Gateway Door Systems, entornos atendidos, coordinación de proyectos y enfoque en puertas seguras.",
+        "keywords": "nosotros compania gateway door systems capacidades entornos"
+      },
+      "portal": {
+        "title": "¿Cómo accedo al portal de clientes?",
+        "answer": "Usa el portal de clientes para iniciar sesión. Si todavía no tienes acceso, crea una cuenta o contacta al equipo de Gateway Door Systems.",
+        "keywords": "portal iniciar sesion cuenta registro contraseña acceso"
+      }
+    }
+  },
   "footer": {
     "description": "Soluciones de accesos seguros para instalaciones que dependen de puertas confiables, herrajes coordinados y servicio receptivo.",
     "supportTitle": "¿Necesitas soporte?",
@@ -95,7 +154,10 @@
       "commercial": "Propiedades comerciales",
       "industrial": "Instalaciones industriales",
       "healthcare": "Edificios de salud",
-      "education": "Campus educativos"
+      "education": "Campus educativos",
+      "government": "Instituciones gubernamentales",
+      "military": "Instalaciones militares",
+      "navy": "Instalaciones navales y marítimas"
     }
   }
 }
