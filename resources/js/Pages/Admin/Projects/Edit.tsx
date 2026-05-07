@@ -1,5 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import ProjectForm from './Partials/ProjectForm';
 import type { ProjectOptions, ProjectPayload } from './types';
 
@@ -13,10 +13,18 @@ export default function Edit({ project, options }: EditProps) {
         <AuthenticatedLayout
             header={
                 <div>
-                    <nav className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                    <nav
+                        aria-label="Breadcrumb"
+                        className="flex items-center gap-2 text-sm font-medium text-muted-foreground"
+                    >
                         <span>Administration</span>
                         <span>/</span>
-                        <span>Projects</span>
+                        <Link
+                            href={route('admin.projects.index')}
+                            className="transition hover:text-foreground"
+                        >
+                            Projects
+                        </Link>
                         <span>/</span>
                         <span className="text-foreground">Edit</span>
                     </nav>

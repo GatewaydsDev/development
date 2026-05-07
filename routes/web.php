@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\AccountController;
 use App\Http\Controllers\Admin\CompanyController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\CustomerContactRoleController;
+use App\Http\Controllers\Admin\EmployeeController;
 use App\Http\Controllers\Admin\ProjectController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\ContactSubmissionController;
@@ -110,47 +111,67 @@ Route::middleware(['auth', 'prevent-back-history'])
             ->name('account.update');
 
         Route::get('/customers', [CustomerController::class, 'index'])
-            ->middleware('can:manage-customers')
+            ->middleware('can:view-customers')
             ->name('customers.index');
         Route::get('/customers/create', [CustomerController::class, 'create'])
-            ->middleware('can:manage-customers')
+            ->middleware('can:create-customers')
             ->name('customers.create');
         Route::post('/customers', [CustomerController::class, 'store'])
-            ->middleware('can:manage-customers')
+            ->middleware('can:create-customers')
             ->name('customers.store');
         Route::get('/customers/{customer}/edit', [CustomerController::class, 'edit'])
-            ->middleware('can:manage-customers')
+            ->middleware('can:update-customers')
             ->name('customers.edit');
         Route::patch('/customers/{customer}', [CustomerController::class, 'update'])
-            ->middleware('can:manage-customers')
+            ->middleware('can:update-customers')
             ->name('customers.update');
+        Route::delete('/customers/{customer}', [CustomerController::class, 'destroy'])
+            ->middleware('can:delete-customers')
+            ->name('customers.destroy');
         Route::get('/customer-contacts/availability', [CustomerController::class, 'contactAvailability'])
-            ->middleware('can:manage-customers')
             ->name('customer-contacts.availability');
         Route::post('/customer-contact-roles', [CustomerContactRoleController::class, 'store'])
-            ->middleware('can:manage-customers')
             ->name('customer-contact-roles.store');
 
+        Route::get('/employees', [EmployeeController::class, 'index'])
+            ->middleware('can:view-employees')
+            ->name('employees.index');
+        Route::get('/employees/create', [EmployeeController::class, 'create'])
+            ->middleware('can:create-employees')
+            ->name('employees.create');
+        Route::post('/employees', [EmployeeController::class, 'store'])
+            ->middleware('can:create-employees')
+            ->name('employees.store');
+        Route::get('/employees/{employee}/edit', [EmployeeController::class, 'edit'])
+            ->middleware('can:update-employees')
+            ->name('employees.edit');
+        Route::patch('/employees/{employee}', [EmployeeController::class, 'update'])
+            ->middleware('can:update-employees')
+            ->name('employees.update');
+        Route::delete('/employees/{employee}', [EmployeeController::class, 'destroy'])
+            ->middleware('can:delete-employees')
+            ->name('employees.destroy');
+
         Route::get('/projects', [ProjectController::class, 'index'])
-            ->middleware('can:manage-projects')
+            ->middleware('can:view-projects')
             ->name('projects.index');
         Route::get('/projects/create', [ProjectController::class, 'create'])
-            ->middleware('can:manage-projects')
+            ->middleware('can:create-projects')
             ->name('projects.create');
         Route::post('/projects', [ProjectController::class, 'store'])
-            ->middleware('can:manage-projects')
+            ->middleware('can:create-projects')
             ->name('projects.store');
         Route::get('/projects/{project}', [ProjectController::class, 'show'])
-            ->middleware('can:manage-projects')
+            ->middleware('can:view-projects')
             ->name('projects.show');
         Route::get('/projects/{project}/edit', [ProjectController::class, 'edit'])
-            ->middleware('can:manage-projects')
+            ->middleware('can:update-projects')
             ->name('projects.edit');
         Route::patch('/projects/{project}', [ProjectController::class, 'update'])
-            ->middleware('can:manage-projects')
+            ->middleware('can:update-projects')
             ->name('projects.update');
         Route::delete('/projects/{project}', [ProjectController::class, 'destroy'])
-            ->middleware('can:manage-projects')
+            ->middleware('can:delete-projects')
             ->name('projects.destroy');
     });
 

@@ -23,6 +23,7 @@ import {
     BellIcon,
     BriefcaseIcon,
     ChevronDownIcon,
+    IdCardIcon,
     ListIcon,
     MailOpenIcon,
     PlusCircleIcon,
@@ -52,14 +53,19 @@ export default function Authenticated({
     const canManageOwnAccount = Boolean(auth.can?.manageOwnAccount);
     const canViewProjects = Boolean(auth.can?.viewProjects);
     const canCreateProjects = Boolean(auth.can?.createProjects);
-    const canManageCustomers = Boolean(auth.can?.manageCustomers);
+    const canViewCustomers = Boolean(auth.can?.viewCustomers);
+    const canCreateCustomers = Boolean(auth.can?.createCustomers);
+    const canViewEmployees = Boolean(auth.can?.viewEmployees);
+    const canCreateEmployees = Boolean(auth.can?.createEmployees);
+    const canOpenProjects = canViewProjects || canCreateProjects;
+    const canOpenCustomers = canViewCustomers || canCreateCustomers;
+    const canOpenEmployees = canViewEmployees || canCreateEmployees;
+    const canOpenWorkspace = canManageOwnAccount || canViewCompany;
+    const canOpenOperations =
+        canOpenProjects || canOpenCustomers || canOpenEmployees;
+    const canOpenSecurity = canManageUsers || canManageAccess;
     const canOpenAdministration =
-        canManageUsers ||
-        canManageAccess ||
-        canViewCompany ||
-        canViewProjects ||
-        canManageCustomers ||
-        canManageOwnAccount;
+        canOpenWorkspace || canOpenOperations || canOpenSecurity;
     const notifications = auth.notifications;
     const hasUnreadNotifications = notifications.unreadCount > 0;
     const previousUnreadCount = useRef(notifications.unreadCount);
@@ -118,7 +124,7 @@ export default function Authenticated({
 
     return (
         <div className="min-h-screen bg-muted/30 text-foreground">
-            <nav className="border-b border-border bg-background/95 backdrop-blur">
+            <nav className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                     <div className="flex min-h-20 items-center justify-between gap-4 sm:min-h-24 lg:min-h-28 lg:gap-8">
                         <div className="flex">
@@ -168,116 +174,209 @@ export default function Authenticated({
                                             sideOffset={2}
                                             className="w-56"
                                         >
-                                            <DropdownMenuGroup>
-                                                {canManageOwnAccount && (
-                                                    <DropdownMenuItem asChild>
-                                                        <Link
-                                                            href={route(
-                                                                'admin.account.edit',
-                                                            )}
-                                                            className="flex items-center gap-2"
-                                                        >
-                                                            <UserCogIcon className="size-4" />
-                                                            Account
-                                                        </Link>
-                                                    </DropdownMenuItem>
-                                                )}
-
-                                                {canViewCompany && (
-                                                    <DropdownMenuItem asChild>
-                                                        <Link
-                                                            href={route(
-                                                                'admin.company.show',
-                                                            )}
-                                                            className="flex items-center gap-2"
-                                                        >
-                                                            <Building2Icon className="size-4" />
-                                                            Company
-                                                        </Link>
-                                                    </DropdownMenuItem>
-                                                )}
-
-                                                {canViewProjects && (
-                                                    <DropdownMenuSub>
-                                                        <DropdownMenuSubTrigger>
-                                                            <BriefcaseIcon className="size-4" />
-                                                            Projects
-                                                        </DropdownMenuSubTrigger>
-                                                        <DropdownMenuSubContent className="min-w-44">
-                                                            <DropdownMenuItem asChild>
+                                            {canOpenWorkspace && (
+                                                <>
+                                                    <DropdownMenuLabel>
+                                                        Workspace
+                                                    </DropdownMenuLabel>
+                                                    <DropdownMenuGroup>
+                                                        {canManageOwnAccount && (
+                                                            <DropdownMenuItem
+                                                                asChild
+                                                            >
                                                                 <Link
                                                                     href={route(
-                                                                        'admin.projects.index',
+                                                                        'admin.account.edit',
                                                                     )}
                                                                     className="flex items-center gap-2"
                                                                 >
-                                                                    <ListIcon className="size-4" />
-                                                                    See all
+                                                                    <UserCogIcon className="size-4" />
+                                                                    Account
                                                                 </Link>
                                                             </DropdownMenuItem>
-                                                            {canCreateProjects && (
-                                                                <DropdownMenuItem
-                                                                    asChild
-                                                                >
-                                                                    <Link
-                                                                        href={route(
-                                                                            'admin.projects.create',
-                                                                        )}
-                                                                        className="flex items-center gap-2"
-                                                                    >
-                                                                        <PlusCircleIcon className="size-4" />
-                                                                        Add new
-                                                                    </Link>
-                                                                </DropdownMenuItem>
-                                                            )}
-                                                        </DropdownMenuSubContent>
-                                                    </DropdownMenuSub>
-                                                )}
+                                                        )}
 
-                                                {canManageCustomers && (
-                                                    <DropdownMenuSub>
-                                                        <DropdownMenuSubTrigger>
-                                                            <UserRoundIcon className="size-4" />
-                                                            Customers
-                                                        </DropdownMenuSubTrigger>
-                                                        <DropdownMenuSubContent className="min-w-44">
-                                                            <DropdownMenuItem asChild>
+                                                        {canViewCompany && (
+                                                            <DropdownMenuItem
+                                                                asChild
+                                                            >
                                                                 <Link
                                                                     href={route(
-                                                                        'admin.customers.index',
+                                                                        'admin.company.show',
                                                                     )}
                                                                     className="flex items-center gap-2"
                                                                 >
+                                                                    <Building2Icon className="size-4" />
+                                                                    Company
+                                                                </Link>
+                                                            </DropdownMenuItem>
+                                                        )}
+                                                    </DropdownMenuGroup>
+                                                </>
+                                            )}
+
+                                            {canOpenWorkspace &&
+                                                (canOpenOperations ||
+                                                    canOpenSecurity) && (
+                                                    <DropdownMenuSeparator />
+                                                )}
+
+                                            {canOpenOperations && (
+                                                <>
+                                                    <DropdownMenuLabel>
+                                                        Operations
+                                                    </DropdownMenuLabel>
+                                                    <DropdownMenuGroup>
+                                                        {canOpenProjects && (
+                                                            <DropdownMenuSub>
+                                                                <DropdownMenuSubTrigger>
+                                                                    <BriefcaseIcon className="size-4" />
+                                                                    Projects
+                                                                </DropdownMenuSubTrigger>
+                                                                <DropdownMenuSubContent className="min-w-44">
+                                                                    {canViewProjects && (
+                                                                        <DropdownMenuItem
+                                                                            asChild
+                                                                        >
+                                                                            <Link
+                                                                                href={route(
+                                                                                    'admin.projects.index',
+                                                                                )}
+                                                                                className="flex items-center gap-2"
+                                                                            >
+                                                                                <ListIcon className="size-4" />
+                                                                                See
+                                                                                all
+                                                                            </Link>
+                                                                        </DropdownMenuItem>
+                                                                    )}
+                                                                    {canCreateProjects && (
+                                                                        <DropdownMenuItem
+                                                                            asChild
+                                                                        >
+                                                                            <Link
+                                                                                href={route(
+                                                                                    'admin.projects.create',
+                                                                                )}
+                                                                                className="flex items-center gap-2"
+                                                                            >
+                                                                                <PlusCircleIcon className="size-4" />
+                                                                                Add
+                                                                                new
+                                                                            </Link>
+                                                                        </DropdownMenuItem>
+                                                                    )}
+                                                                </DropdownMenuSubContent>
+                                                            </DropdownMenuSub>
+                                                        )}
+
+                                                        {canOpenCustomers && (
+                                                            <DropdownMenuSub>
+                                                                <DropdownMenuSubTrigger>
+                                                                    <UserRoundIcon className="size-4" />
+                                                                    Customers
+                                                                </DropdownMenuSubTrigger>
+                                                                <DropdownMenuSubContent className="min-w-44">
+                                                                    {canViewCustomers && (
+                                                                        <DropdownMenuItem
+                                                                            asChild
+                                                                        >
+                                                                            <Link
+                                                                                href={route(
+                                                                                    'admin.customers.index',
+                                                                                )}
+                                                                                className="flex items-center gap-2"
+                                                                            >
+                                                                                <UsersIcon className="size-4" />
+                                                                                See
+                                                                                all
+                                                                            </Link>
+                                                                        </DropdownMenuItem>
+                                                                    )}
+                                                                    {canCreateCustomers && (
+                                                                        <DropdownMenuItem
+                                                                            asChild
+                                                                        >
+                                                                            <Link
+                                                                                href={route(
+                                                                                    'admin.customers.create',
+                                                                                )}
+                                                                                className="flex items-center gap-2"
+                                                                            >
+                                                                                <UserPlusIcon className="size-4" />
+                                                                                Add
+                                                                                new
+                                                                            </Link>
+                                                                        </DropdownMenuItem>
+                                                                    )}
+                                                                </DropdownMenuSubContent>
+                                                            </DropdownMenuSub>
+                                                        )}
+
+                                                        {canOpenEmployees && (
+                                                            <DropdownMenuSub>
+                                                                <DropdownMenuSubTrigger>
+                                                                    <IdCardIcon className="size-4" />
+                                                                    Employees
+                                                                </DropdownMenuSubTrigger>
+                                                                <DropdownMenuSubContent className="min-w-44">
+                                                                    {canViewEmployees && (
+                                                                        <DropdownMenuItem
+                                                                            asChild
+                                                                        >
+                                                                            <Link
+                                                                                href={route(
+                                                                                    'admin.employees.index',
+                                                                                )}
+                                                                                className="flex items-center gap-2"
+                                                                            >
+                                                                                <UsersIcon className="size-4" />
+                                                                                See
+                                                                                all
+                                                                            </Link>
+                                                                        </DropdownMenuItem>
+                                                                    )}
+                                                                    {canCreateEmployees && (
+                                                                        <DropdownMenuItem
+                                                                            asChild
+                                                                        >
+                                                                            <Link
+                                                                                href={route(
+                                                                                    'admin.employees.create',
+                                                                                )}
+                                                                                className="flex items-center gap-2"
+                                                                            >
+                                                                                <UserPlusIcon className="size-4" />
+                                                                                Add
+                                                                                new
+                                                                            </Link>
+                                                                        </DropdownMenuItem>
+                                                                    )}
+                                                                </DropdownMenuSubContent>
+                                                            </DropdownMenuSub>
+                                                        )}
+                                                    </DropdownMenuGroup>
+                                                </>
+                                            )}
+
+                                            {canOpenOperations &&
+                                                canOpenSecurity && (
+                                                    <DropdownMenuSeparator />
+                                                )}
+
+                                            {canOpenSecurity && (
+                                                <>
+                                                    <DropdownMenuLabel>
+                                                        Security
+                                                    </DropdownMenuLabel>
+                                                    <DropdownMenuGroup>
+                                                        {canManageUsers && (
+                                                            <DropdownMenuSub>
+                                                                <DropdownMenuSubTrigger>
                                                                     <UsersIcon className="size-4" />
-                                                                    See all
-                                                                </Link>
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem asChild>
-                                                                <Link
-                                                                    href={route(
-                                                                        'admin.customers.create',
-                                                                    )}
-                                                                    className="flex items-center gap-2"
-                                                                >
-                                                                    <UserPlusIcon className="size-4" />
-                                                                    Add new
-                                                                </Link>
-                                                            </DropdownMenuItem>
-                                                        </DropdownMenuSubContent>
-                                                    </DropdownMenuSub>
-                                                )}
-
-                                                {(canManageUsers ||
-                                                    canManageAccess) && (
-                                                    <DropdownMenuSub>
-                                                        <DropdownMenuSubTrigger>
-                                                            <UsersIcon className="size-4" />
-                                                            Users
-                                                        </DropdownMenuSubTrigger>
-                                                        <DropdownMenuSubContent className="min-w-44">
-                                                            {(canViewUsers ||
-                                                                canCreateUsers) && (
-                                                                <>
+                                                                    Users
+                                                                </DropdownMenuSubTrigger>
+                                                                <DropdownMenuSubContent className="min-w-44">
                                                                     {canViewUsers && (
                                                                         <DropdownMenuItem
                                                                             asChild
@@ -310,29 +409,29 @@ export default function Authenticated({
                                                                             </Link>
                                                                         </DropdownMenuItem>
                                                                     )}
-                                                                </>
-                                                            )}
+                                                                </DropdownMenuSubContent>
+                                                            </DropdownMenuSub>
+                                                        )}
 
-                                                            {canManageAccess && (
-                                                                <DropdownMenuItem
-                                                                    asChild
+                                                        {canManageAccess && (
+                                                            <DropdownMenuItem
+                                                                asChild
+                                                            >
+                                                                <Link
+                                                                    href={route(
+                                                                        'admin.access-control.edit',
+                                                                    )}
+                                                                    className="flex items-center gap-2"
                                                                 >
-                                                                    <Link
-                                                                        href={route(
-                                                                            'admin.access-control.edit',
-                                                                        )}
-                                                                        className="flex items-center gap-2"
-                                                                    >
-                                                                        <SlidersHorizontalIcon className="size-4" />
-                                                                        Access
-                                                                        Control
-                                                                    </Link>
-                                                                </DropdownMenuItem>
-                                                            )}
-                                                        </DropdownMenuSubContent>
-                                                    </DropdownMenuSub>
-                                                )}
-                                            </DropdownMenuGroup>
+                                                                    <SlidersHorizontalIcon className="size-4" />
+                                                                    Access
+                                                                    Control
+                                                                </Link>
+                                                            </DropdownMenuItem>
+                                                        )}
+                                                    </DropdownMenuGroup>
+                                                </>
+                                            )}
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 )}
@@ -555,64 +654,128 @@ export default function Authenticated({
                                 <div className="px-4 pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                     Administration
                                 </div>
-                                {canManageOwnAccount && (
-                                    <ResponsiveNavLink
-                                        href={route('admin.account.edit')}
-                                        active={route().current(
-                                            'admin.account.edit',
-                                        )}
-                                    >
-                                        <span className="inline-flex items-center gap-2">
-                                            <UserCogIcon className="size-4" />
-                                            Account
-                                        </span>
-                                    </ResponsiveNavLink>
-                                )}
-
-                                {canViewCompany && (
-                                    <ResponsiveNavLink
-                                        href={route('admin.company.show')}
-                                        active={route().current(
-                                            'admin.company.show',
-                                        )}
-                                    >
-                                        <span className="inline-flex items-center gap-2">
-                                            <Building2Icon className="size-4" />
-                                            Company
-                                        </span>
-                                    </ResponsiveNavLink>
-                                )}
-
-                                {canViewProjects && (
+                                {canOpenWorkspace && (
                                     <>
-                                        <div className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-foreground">
-                                            <BriefcaseIcon className="size-4" />
-                                            Projects
+                                        <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                                            Workspace
                                         </div>
-                                        <ResponsiveNavLink
-                                            href={route('admin.projects.index')}
-                                            active={route().current(
-                                                'admin.projects.index',
-                                            )}
-                                            className="ps-8"
-                                        >
-                                            <span className="inline-flex items-center gap-2">
-                                                <ListIcon className="size-4" />
-                                                See all
-                                            </span>
-                                        </ResponsiveNavLink>
-                                        {canCreateProjects && (
+                                        {canManageOwnAccount && (
                                             <ResponsiveNavLink
                                                 href={route(
-                                                    'admin.projects.create',
+                                                    'admin.account.edit',
                                                 )}
                                                 active={route().current(
-                                                    'admin.projects.create',
+                                                    'admin.account.edit',
                                                 )}
                                                 className="ps-8"
                                             >
                                                 <span className="inline-flex items-center gap-2">
-                                                    <PlusCircleIcon className="size-4" />
+                                                    <UserCogIcon className="size-4" />
+                                                    Account
+                                                </span>
+                                            </ResponsiveNavLink>
+                                        )}
+
+                                        {canViewCompany && (
+                                            <ResponsiveNavLink
+                                                href={route(
+                                                    'admin.company.show',
+                                                )}
+                                                active={route().current(
+                                                    'admin.company.show',
+                                                )}
+                                                className="ps-8"
+                                            >
+                                                <span className="inline-flex items-center gap-2">
+                                                    <Building2Icon className="size-4" />
+                                                    Company
+                                                </span>
+                                            </ResponsiveNavLink>
+                                        )}
+                                    </>
+                                )}
+
+                                {canOpenOperations && (
+                                    <>
+                                        <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                                            Operations
+                                        </div>
+
+                                        {canOpenProjects && (
+                                            <>
+                                                <div className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-foreground">
+                                                    <BriefcaseIcon className="size-4" />
+                                                    Projects
+                                                </div>
+                                                {canViewProjects && (
+                                                    <ResponsiveNavLink
+                                                        href={route(
+                                                            'admin.projects.index',
+                                                        )}
+                                                        active={route().current(
+                                                            'admin.projects.index',
+                                                        )}
+                                                        className="ps-8"
+                                                    >
+                                                        <span className="inline-flex items-center gap-2">
+                                                            <ListIcon className="size-4" />
+                                                            See all
+                                                        </span>
+                                                    </ResponsiveNavLink>
+                                                )}
+                                                {canCreateProjects && (
+                                                    <ResponsiveNavLink
+                                                        href={route(
+                                                            'admin.projects.create',
+                                                        )}
+                                                        active={route().current(
+                                                            'admin.projects.create',
+                                                        )}
+                                                        className="ps-8"
+                                                    >
+                                                        <span className="inline-flex items-center gap-2">
+                                                            <PlusCircleIcon className="size-4" />
+                                                            Add new
+                                                        </span>
+                                                    </ResponsiveNavLink>
+                                                )}
+                                            </>
+                                        )}
+
+                                {canOpenCustomers && (
+                                    <>
+                                        <div className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-foreground">
+                                            <UserRoundIcon className="size-4" />
+                                            Customers
+                                        </div>
+                                        {canViewCustomers && (
+                                            <ResponsiveNavLink
+                                                href={route(
+                                                    'admin.customers.index',
+                                                )}
+                                                active={route().current(
+                                                    'admin.customers.index',
+                                                )}
+                                                className="ps-8"
+                                            >
+                                                <span className="inline-flex items-center gap-2">
+                                                    <UsersIcon className="size-4" />
+                                                    See all
+                                                </span>
+                                            </ResponsiveNavLink>
+                                        )}
+                                        {canCreateCustomers && (
+                                            <ResponsiveNavLink
+                                                href={route(
+                                                    'admin.customers.create',
+                                                )}
+                                                active={route().current(
+                                                    'admin.customers.create',
+                                                )}
+                                                className="ps-8"
+                                            >
+                                                <span className="inline-flex items-center gap-2">
+                                                    <UserPlusIcon className="size-4" />
                                                     Add new
                                                 </span>
                                             </ResponsiveNavLink>
@@ -620,51 +783,61 @@ export default function Authenticated({
                                     </>
                                 )}
 
-                                {canManageCustomers && (
+                                {canOpenEmployees && (
                                     <>
                                         <div className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-foreground">
-                                            <UserRoundIcon className="size-4" />
-                                            Customers
+                                            <IdCardIcon className="size-4" />
+                                            Employees
                                         </div>
-                                        <ResponsiveNavLink
-                                            href={route(
-                                                'admin.customers.index',
-                                            )}
-                                            active={route().current(
-                                                'admin.customers.index',
-                                            )}
-                                            className="ps-8"
-                                        >
-                                            <span className="inline-flex items-center gap-2">
-                                                <UsersIcon className="size-4" />
-                                                See all
-                                            </span>
-                                        </ResponsiveNavLink>
-                                        <ResponsiveNavLink
-                                            href={route(
-                                                'admin.customers.create',
-                                            )}
-                                            active={route().current(
-                                                'admin.customers.create',
-                                            )}
-                                            className="ps-8"
-                                        >
-                                            <span className="inline-flex items-center gap-2">
-                                                <UserPlusIcon className="size-4" />
-                                                Add new
-                                            </span>
-                                        </ResponsiveNavLink>
+                                        {canViewEmployees && (
+                                            <ResponsiveNavLink
+                                                href={route(
+                                                    'admin.employees.index',
+                                                )}
+                                                active={route().current(
+                                                    'admin.employees.index',
+                                                )}
+                                                className="ps-8"
+                                            >
+                                                <span className="inline-flex items-center gap-2">
+                                                    <UsersIcon className="size-4" />
+                                                    See all
+                                                </span>
+                                            </ResponsiveNavLink>
+                                        )}
+                                        {canCreateEmployees && (
+                                            <ResponsiveNavLink
+                                                href={route(
+                                                    'admin.employees.create',
+                                                )}
+                                                active={route().current(
+                                                    'admin.employees.create',
+                                                )}
+                                                className="ps-8"
+                                            >
+                                                <span className="inline-flex items-center gap-2">
+                                                    <UserPlusIcon className="size-4" />
+                                                    Add new
+                                                </span>
+                                            </ResponsiveNavLink>
+                                        )}
+                                    </>
+                                )}
                                     </>
                                 )}
 
-                                {(canManageUsers || canManageAccess) && (
+                                {canOpenSecurity && (
                                     <>
-                                        <div className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-foreground">
-                                        <UsersIcon className="size-4" />
-                                            Users
+                                        <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                                            Security
                                         </div>
-                                        {(canViewUsers || canCreateUsers) && (
+
+                                        {canManageUsers && (
                                             <>
+                                                <div className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-foreground">
+                                                    <UsersIcon className="size-4" />
+                                                    Users
+                                                </div>
                                                 {canViewUsers && (
                                                     <ResponsiveNavLink
                                                         href={route(

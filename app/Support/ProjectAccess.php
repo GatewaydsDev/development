@@ -9,7 +9,7 @@ class ProjectAccess
 {
     public static function canView(User $user): bool
     {
-        return $user->hasPermission('manage-projects');
+        return $user->hasPermission('view-projects');
     }
 
     public static function canCreate(User $user): bool
@@ -18,7 +18,7 @@ class ProjectAccess
             UserLevel::SUPER_ADMIN,
             UserLevel::ADMINISTRATOR,
             UserLevel::ADMIN,
-        ]);
+        ]) && $user->hasPermission('create-projects');
     }
 
     public static function canUpdate(User $user): bool
@@ -28,7 +28,7 @@ class ProjectAccess
             UserLevel::ADMINISTRATOR,
             UserLevel::ADMIN,
             UserLevel::PROJECT_MANAGER,
-        ]);
+        ]) && $user->hasPermission('update-projects');
     }
 
     public static function canDelete(User $user): bool
@@ -36,7 +36,7 @@ class ProjectAccess
         return $user->hasUserLevel([
             UserLevel::SUPER_ADMIN,
             UserLevel::ADMINISTRATOR,
-        ]);
+        ]) && $user->hasPermission('delete-projects');
     }
 
     public static function canViewSensitiveFields(User $user): bool

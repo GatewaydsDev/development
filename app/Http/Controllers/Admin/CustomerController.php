@@ -20,7 +20,7 @@ class CustomerController extends Controller
 {
     public function index(Request $request): Response
     {
-        $this->authorizeCustomerAccess($request);
+        abort_unless(CustomerAccess::canView($request->user()), 403);
 
         $search = (string) $request->query('search', '');
 
@@ -57,7 +57,7 @@ class CustomerController extends Controller
 
     public function create(Request $request): Response
     {
-        $this->authorizeCustomerAccess($request);
+        abort_unless(CustomerAccess::canCreate($request->user()), 403);
 
         return Inertia::render('Admin/Customers/Create', [
             'contactRoles' => $this->contactRoles(),
@@ -66,7 +66,7 @@ class CustomerController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $this->authorizeCustomerAccess($request);
+        abort_unless(CustomerAccess::canCreate($request->user()), 403);
 
         $validated = $this->validatedCustomer($request);
         $this->validateContactUniqueness($validated['contacts'] ?? []);
@@ -84,7 +84,7 @@ class CustomerController extends Controller
 
     public function edit(Request $request, Customer $customer): Response
     {
-        $this->authorizeCustomerAccess($request);
+        abort_unless(CustomerAccess::canUpdate($request->user()), 403);
 
         $customer->load([
             'contacts' => fn ($query) => $query->orderByDesc('is_primary')->orderBy('name'),
@@ -99,7 +99,7 @@ class CustomerController extends Controller
 
     public function update(Request $request, Customer $customer): RedirectResponse
     {
-        $this->authorizeCustomerAccess($request);
+        abort_unless(CustomerAccess::canUpdate($request->user()), 403);
 
         $validated = $this->validatedCustomer($request);
         $this->validateContactUniqueness($validated['contacts'] ?? [], $customer);
@@ -115,9 +115,27 @@ class CustomerController extends Controller
             ->with('success', 'Customer updated successfully.');
     }
 
+    public function destroy(Request $request, Customer $customer): RedirectResponse
+    {
+        abort_unless(CustomerAccess::canDelete($request->user()), 403);
+
+        if ($customer->project()->exists()) {
+            return back()->with('error', 'Customers linked to a project cannot be deleted.');
+        }
+
+        $customer->delete();
+
+        return redirect()
+            ->route('admin.customers.index')
+            ->with('success', 'Customer deleted successfully.');
+    }
+
     public function contactAvailability(Request $request): JsonResponse
     {
-        $this->authorizeCustomerAccess($request);
+        abort_unless(
+            CustomerAccess::canCreate($request->user()) || CustomerAccess::canUpdate($request->user()),
+            403,
+        );
 
         $validated = $request->validate([
             'field' => ['required', 'string', Rule::in(['email', 'phone_number'])],
@@ -145,11 +163,6 @@ class CustomerController extends Controller
         return response()->json([
             'available' => ! $query->exists(),
         ]);
-    }
-
-    private function authorizeCustomerAccess(Request $request): void
-    {
-        abort_unless(CustomerAccess::canManage($request->user()), 403);
     }
 
     /**

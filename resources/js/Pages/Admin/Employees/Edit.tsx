@@ -1,13 +1,14 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link } from '@inertiajs/react';
-import ProjectForm from './Partials/ProjectForm';
-import type { ProjectOptions } from './types';
+import EmployeeForm from './Partials/EmployeeForm';
+import type { EmployeePayload, EmployeeStatusOptions } from './types';
 
-type CreateProps = {
-    options: ProjectOptions;
+type EditProps = {
+    employee: EmployeePayload;
+    statusOptions: EmployeeStatusOptions;
 };
 
-export default function Create({ options }: CreateProps) {
+export default function Edit({ employee, statusOptions }: EditProps) {
     return (
         <AuthenticatedLayout
             header={
@@ -19,34 +20,35 @@ export default function Create({ options }: CreateProps) {
                         <span>Administration</span>
                         <span>/</span>
                         <Link
-                            href={route('admin.projects.index')}
+                            href={route('admin.employees.index')}
                             className="transition hover:text-foreground"
                         >
-                            Projects
+                            Employees
                         </Link>
                         <span>/</span>
-                        <span className="text-foreground">Add</span>
+                        <span className="text-foreground">Edit</span>
                     </nav>
                     <h2 className="text-xl font-semibold leading-tight text-emerald-700 dark:text-emerald-300">
-                        Add project
+                        Edit employee
                     </h2>
                 </div>
             }
         >
-            <Head title="Add Project" />
+            <Head title={`Edit ${employee.full_name}`} />
 
             <div className="py-6 sm:py-8">
                 <div className="mx-auto max-w-[96rem] px-4 sm:px-6 lg:px-8">
-                    <ProjectForm
-                        action={route('admin.projects.store')}
-                        submitLabel="Create project"
-                        title="Project information"
-                        description="Create a project and link it to an existing customer."
-                        options={options}
+                    <EmployeeForm
+                        action={route('admin.employees.update', employee.id)}
+                        method="patch"
+                        submitLabel="Save changes"
+                        title={employee.full_name}
+                        description="Update employee contact and role information."
+                        employee={employee}
+                        statusOptions={statusOptions}
                     />
                 </div>
             </div>
         </AuthenticatedLayout>
     );
 }
-

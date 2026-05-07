@@ -13,7 +13,10 @@ class CustomerContactRoleController extends Controller
 {
     public function store(Request $request): RedirectResponse
     {
-        abort_unless(CustomerAccess::canManage($request->user()), 403);
+        abort_unless(
+            CustomerAccess::canCreate($request->user()) || CustomerAccess::canUpdate($request->user()),
+            403,
+        );
 
         $validated = $request->validate([
             'name' => [

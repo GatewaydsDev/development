@@ -8,38 +8,60 @@ import {
     CardHeader,
     CardTitle,
 } from '@/Components/ui/card';
+import { cn } from '@/lib/utils';
 import { PageProps } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
-    BriefcaseIcon,
     EditIcon,
+    MailIcon,
     PlusIcon,
     SearchIcon,
     Trash2Icon,
     UserRoundIcon,
+    UsersRoundIcon,
 } from 'lucide-react';
 import { FormEvent, useState } from 'react';
-import type { CustomersPaginator } from './types';
+import type { EmployeesPaginator } from './types';
 
 type IndexProps = {
     filters: {
         search?: string;
     };
-    customers: CustomersPaginator;
+    employees: EmployeesPaginator;
 };
 
-export default function Index({ filters, customers }: IndexProps) {
+function statusBadgeClassName(status: string): string {
+    return cn(
+        status === 'active' &&
+            'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+        status === 'inactive' &&
+            'border-muted-foreground/30 bg-muted text-muted-foreground',
+        status === 'on_leave' &&
+            'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300',
+        status === 'terminated' &&
+            'border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300',
+    );
+}
+
+function statusLabel(status: string): string {
+    return status
+        .split('_')
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+}
+
+export default function Index({ filters, employees }: IndexProps) {
     const { auth } = usePage<PageProps>().props;
-    const canCreateCustomers = Boolean(auth.can?.createCustomers);
-    const canUpdateCustomers = Boolean(auth.can?.updateCustomers);
-    const canDeleteCustomers = Boolean(auth.can?.deleteCustomers);
+    const canCreateEmployees = Boolean(auth.can?.createEmployees);
+    const canUpdateEmployees = Boolean(auth.can?.updateEmployees);
+    const canDeleteEmployees = Boolean(auth.can?.deleteEmployees);
     const [search, setSearch] = useState(filters.search ?? '');
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
 
         router.get(
-            route('admin.customers.index'),
+            route('admin.employees.index'),
             { search },
             {
                 preserveState: true,
@@ -48,12 +70,12 @@ export default function Index({ filters, customers }: IndexProps) {
         );
     };
 
-    const destroyCustomer = (customerId: number, customerName: string) => {
-        if (!window.confirm(`Delete customer record for ${customerName}?`)) {
+    const destroyEmployee = (employeeId: number, employeeName: string) => {
+        if (!window.confirm(`Delete employee record for ${employeeName}?`)) {
             return;
         }
 
-        router.delete(route('admin.customers.destroy', customerId), {
+        router.delete(route('admin.employees.destroy', employeeId), {
             preserveScroll: true,
         });
     };
@@ -71,25 +93,25 @@ export default function Index({ filters, customers }: IndexProps) {
                         <nav className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                             <span>Administration</span>
                             <span>/</span>
-                            <span className="text-foreground">Customers</span>
+                            <span className="text-foreground">Employees</span>
                         </nav>
                         <h2 className="text-xl font-semibold leading-tight text-emerald-700 dark:text-emerald-300">
-                            Customers
+                            Employees
                         </h2>
                     </div>
 
-                    {canCreateCustomers && (
+                    {canCreateEmployees && (
                         <Button asChild>
-                            <Link href={route('admin.customers.create')}>
+                            <Link href={route('admin.employees.create')}>
                                 <PlusIcon className="size-4" />
-                                Add customer
+                                Add employee
                             </Link>
                         </Button>
                     )}
                 </div>
             }
         >
-            <Head title="Customers" />
+            <Head title="Employees" />
 
             <div className="py-6 sm:py-8">
                 <div className="mx-auto flex max-w-[96rem] flex-col gap-6 px-4 sm:px-6 lg:px-8">
@@ -97,16 +119,16 @@ export default function Index({ filters, customers }: IndexProps) {
                         <Card>
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
-                                    <UserRoundIcon className="size-4 text-muted-foreground" />
-                                    Total customers
+                                    <UsersRoundIcon className="size-4 text-muted-foreground" />
+                                    Total employees
                                 </CardTitle>
                                 <CardDescription>
-                                    Current customer records in the system.
+                                    Current employee records in the system.
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <p className="text-3xl font-semibold">
-                                    {customers.total}
+                                    {employees.total}
                                 </p>
                             </CardContent>
                         </Card>
@@ -115,10 +137,10 @@ export default function Index({ filters, customers }: IndexProps) {
                     <Card className="shadow-sm">
                         <CardHeader className="gap-4 md:grid-cols-[1fr_auto] md:items-center">
                             <div>
-                                <CardTitle>Customer directory</CardTitle>
+                                <CardTitle>Employee directory</CardTitle>
                                 <CardDescription>
-                                    Search, review, add, and update customer
-                                    records.
+                                    Search, review, add, update, and delete
+                                    employee records.
                                 </CardDescription>
                             </div>
                             <form
@@ -132,7 +154,7 @@ export default function Index({ filters, customers }: IndexProps) {
                                         onChange={(event) =>
                                             setSearch(event.target.value)
                                         }
-                                        placeholder="Search customers"
+                                        placeholder="Search employees"
                                         className="h-10 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring sm:w-72"
                                     />
                                 </div>
@@ -144,58 +166,63 @@ export default function Index({ filters, customers }: IndexProps) {
 
                         <CardContent>
                             <div className="overflow-hidden rounded-lg border border-border">
-                                <div className="hidden grid-cols-[1.2fr_1fr_1fr_1fr_auto] gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid">
-                                    <div>Customer</div>
-                                    <div>Email</div>
-                                    <div>Phone</div>
-                                    <div>Project</div>
+                                <div className="hidden grid-cols-[1.2fr_1fr_1fr_0.8fr_auto] gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid">
+                                    <div>Employee</div>
+                                    <div>Contact</div>
+                                    <div>Department</div>
+                                    <div>Status</div>
                                     <div className="text-right">Actions</div>
                                 </div>
 
-                                {customers.data.length > 0 ? (
-                                    customers.data.map((customer) => {
-                                        const primaryContact =
-                                            customer.contacts.find(
-                                                (contact) =>
-                                                    contact.is_primary,
-                                            ) ?? customer.contacts[0];
-
-                                        return (
-                                            <div
-                                                key={customer.id}
-                                                className="grid gap-3 border-b border-border px-4 py-4 last:border-b-0 md:grid-cols-[1.2fr_1fr_1fr_1fr_auto] md:items-center md:gap-4"
-                                            >
-                                            <div>
+                                {employees.data.length > 0 ? (
+                                    employees.data.map((employee) => (
+                                        <div
+                                            key={employee.id}
+                                            className="grid gap-3 border-b border-border px-4 py-4 last:border-b-0 md:grid-cols-[1.2fr_1fr_1fr_0.8fr_auto] md:items-center md:gap-4"
+                                        >
+                                            <div className="min-w-0">
                                                 <p className="font-medium text-foreground">
-                                                    {customer.name}
+                                                    {employee.full_name}
                                                 </p>
                                                 <p className="text-sm text-muted-foreground">
-                                                    {customer.company_name ||
-                                                        customer.uuid}
+                                                    {employee.job_title ||
+                                                        employee.uuid}
+                                                </p>
+                                            </div>
+                                            <div className="min-w-0 text-sm text-muted-foreground">
+                                                <p className="flex items-center gap-2 truncate">
+                                                    <MailIcon className="size-4 shrink-0" />
+                                                    {employee.email}
+                                                </p>
+                                                <p>
+                                                    {employee.phone_number ||
+                                                        'No phone added'}
                                                 </p>
                                             </div>
                                             <div className="text-sm text-muted-foreground">
-                                                {primaryContact?.email ||
+                                                {employee.department ||
                                                     'Not added'}
-                                            </div>
-                                            <div className="text-sm text-muted-foreground">
-                                                {primaryContact?.phone_number ||
-                                                    'Not added'}
-                                            </div>
-                                            <div>
-                                                {customer.project ? (
-                                                    <Badge variant="outline">
-                                                        <BriefcaseIcon className="size-3" />
-                                                        {customer.project.name}
-                                                    </Badge>
-                                                ) : (
-                                                    <Badge variant="secondary">
-                                                        No project
-                                                    </Badge>
+                                                {employee.hire_date && (
+                                                    <span className="block">
+                                                        Hired{' '}
+                                                        {employee.hire_date}
+                                                    </span>
                                                 )}
                                             </div>
+                                            <div>
+                                                <Badge
+                                                    variant="outline"
+                                                    className={statusBadgeClassName(
+                                                        employee.employment_status,
+                                                    )}
+                                                >
+                                                    {statusLabel(
+                                                        employee.employment_status,
+                                                    )}
+                                                </Badge>
+                                            </div>
                                             <div className="flex flex-wrap gap-2 md:justify-end">
-                                                {canUpdateCustomers && (
+                                                {canUpdateEmployees && (
                                                     <Button
                                                         variant="outline"
                                                         size="sm"
@@ -203,8 +230,8 @@ export default function Index({ filters, customers }: IndexProps) {
                                                     >
                                                         <Link
                                                             href={route(
-                                                                'admin.customers.edit',
-                                                                customer.id,
+                                                                'admin.employees.edit',
+                                                                employee.id,
                                                             )}
                                                         >
                                                             <EditIcon className="size-4" />
@@ -212,37 +239,35 @@ export default function Index({ filters, customers }: IndexProps) {
                                                         </Link>
                                                     </Button>
                                                 )}
-                                                {canDeleteCustomers &&
-                                                    !customer.project && (
-                                                        <Button
-                                                            type="button"
-                                                            variant="outline"
-                                                            size="sm"
-                                                            className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                                            onClick={() =>
-                                                                destroyCustomer(
-                                                                    customer.id,
-                                                                    customer.name,
-                                                                )
-                                                            }
-                                                        >
-                                                            <Trash2Icon className="size-4" />
-                                                            Delete
-                                                        </Button>
-                                                    )}
+                                                {canDeleteEmployees && (
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                                        onClick={() =>
+                                                            destroyEmployee(
+                                                                employee.id,
+                                                                employee.full_name,
+                                                            )
+                                                        }
+                                                    >
+                                                        <Trash2Icon className="size-4" />
+                                                        Delete
+                                                    </Button>
+                                                )}
                                             </div>
-                                            </div>
-                                        );
-                                    })
+                                        </div>
+                                    ))
                                 ) : (
                                     <div className="px-4 py-12 text-center">
                                         <UserRoundIcon className="mx-auto size-10 text-muted-foreground" />
                                         <p className="mt-3 font-medium">
-                                            No customers found
+                                            No employees found
                                         </p>
                                         <p className="mt-1 text-sm text-muted-foreground">
                                             Try another search or create the
-                                            first customer.
+                                            first employee.
                                         </p>
                                     </div>
                                 )}
@@ -250,13 +275,13 @@ export default function Index({ filters, customers }: IndexProps) {
 
                             <div className="mt-5 flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
                                 <p className="text-sm text-muted-foreground">
-                                    Showing {customers.from ?? 0} to{' '}
-                                    {customers.to ?? 0} of {customers.total}{' '}
-                                    customers
+                                    Showing {employees.from ?? 0} to{' '}
+                                    {employees.to ?? 0} of {employees.total}{' '}
+                                    employees
                                 </p>
                                 <div className="flex flex-wrap gap-2">
-                                    {customers.links.length > 3 &&
-                                        customers.links.map((link, index) =>
+                                    {employees.links.length > 3 &&
+                                        employees.links.map((link, index) =>
                                             link.url ? (
                                                 <Button
                                                     key={`${link.label}-${index}`}
@@ -296,4 +321,3 @@ export default function Index({ filters, customers }: IndexProps) {
         </AuthenticatedLayout>
     );
 }
-

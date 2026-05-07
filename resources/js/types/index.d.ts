@@ -44,7 +44,14 @@ export type PageProps<
             deleteProjects: boolean;
             viewSensitiveProjectFields: boolean;
             viewProjectCustomerContactFields: boolean;
-            manageCustomers: boolean;
+            viewCustomers: boolean;
+            createCustomers: boolean;
+            updateCustomers: boolean;
+            deleteCustomers: boolean;
+            viewEmployees: boolean;
+            createEmployees: boolean;
+            updateEmployees: boolean;
+            deleteEmployees: boolean;
         };
         notifications: {
             unreadCount: number;

@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Models\Company;
 use App\Support\CustomerAccess;
+use App\Support\EmployeeAccess;
 use App\Support\ProjectAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -84,8 +85,29 @@ class HandleInertiaRequests extends Middleware
                     'viewProjectCustomerContactFields' => $request->user()
                         ? ProjectAccess::canViewCustomerContactFields($request->user())
                         : false,
-                    'manageCustomers' => $request->user()
-                        ? CustomerAccess::canManage($request->user())
+                    'viewCustomers' => $request->user()
+                        ? CustomerAccess::canView($request->user())
+                        : false,
+                    'createCustomers' => $request->user()
+                        ? CustomerAccess::canCreate($request->user())
+                        : false,
+                    'updateCustomers' => $request->user()
+                        ? CustomerAccess::canUpdate($request->user())
+                        : false,
+                    'deleteCustomers' => $request->user()
+                        ? CustomerAccess::canDelete($request->user())
+                        : false,
+                    'viewEmployees' => $request->user()
+                        ? EmployeeAccess::canView($request->user())
+                        : false,
+                    'createEmployees' => $request->user()
+                        ? EmployeeAccess::canCreate($request->user())
+                        : false,
+                    'updateEmployees' => $request->user()
+                        ? EmployeeAccess::canUpdate($request->user())
+                        : false,
+                    'deleteEmployees' => $request->user()
+                        ? EmployeeAccess::canDelete($request->user())
                         : false,
                 ],
                 'notifications' => $request->user() && Gate::forUser($request->user())->allows('manage-notifications')
