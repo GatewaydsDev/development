@@ -7,20 +7,30 @@ type Level = {
     name: string;
 };
 
+type Language = {
+    id: number;
+    name: string;
+    abbreviation: string;
+};
+
 type ManagedUser = {
     id: number;
     name: string;
     email: string;
+    date_of_birth: string | null;
+    language_id: number | null;
+    preferred_language: Language | null;
     level_id: number | null;
     level: Level | null;
 };
 
 type EditProps = {
     levels: Level[];
+    languages: Language[];
     managedUser: ManagedUser;
 };
 
-export default function Edit({ levels, managedUser }: EditProps) {
+export default function Edit({ levels, languages, managedUser }: EditProps) {
     return (
         <AuthenticatedLayout
             header={
@@ -51,7 +61,9 @@ export default function Edit({ levels, managedUser }: EditProps) {
             <div className="py-6 sm:py-8">
                 <div className="mx-auto max-w-[96rem] px-4 sm:px-6 lg:px-8">
                     <UserForm
+                        userId={managedUser.id}
                         levels={levels}
+                        languages={languages}
                         title={`Update ${managedUser.name}`}
                         description="Review profile details, access level, and password settings for this user."
                         action={route('admin.users.update', managedUser.id)}
@@ -61,6 +73,10 @@ export default function Edit({ levels, managedUser }: EditProps) {
                         initialValues={{
                             name: managedUser.name,
                             email: managedUser.email,
+                            date_of_birth: managedUser.date_of_birth ?? '',
+                            language_id: managedUser.language_id
+                                ? String(managedUser.language_id)
+                                : '',
                             level_id: managedUser.level_id
                                 ? String(managedUser.level_id)
                                 : '',

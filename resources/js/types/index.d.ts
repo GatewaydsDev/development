@@ -58,4 +58,7 @@ export type PageProps<
             latestUnread: AppNotification[];
         };
     };
+    session: {
+        idleTimeoutMinutes: number;
+    };
 };

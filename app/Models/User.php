@@ -22,6 +22,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'date_of_birth',
         'role',
         'language_id',
         'level_id',
@@ -46,14 +47,20 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
+            'date_of_birth' => 'date',
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
     }
 
+    public function preferredLanguage(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Language::class, 'language_id');
+    }
+
     public function language(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\Language::class);
+        return $this->preferredLanguage();
     }
 
     public function level(): BelongsTo

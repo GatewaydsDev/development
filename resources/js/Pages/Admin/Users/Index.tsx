@@ -24,6 +24,12 @@ type UserRow = {
     id: number;
     name: string;
     email: string;
+    date_of_birth: string | null;
+    preferred_language: {
+        id: number;
+        name: string;
+        abbreviation: string;
+    } | null;
     level: {
         id: number;
         name: string;
@@ -195,11 +201,11 @@ export default function Index({ filters, users }: IndexProps) {
 
                         <CardContent>
                             <div className="overflow-hidden rounded-lg border border-border">
-                                <div className="hidden grid-cols-[1.4fr_1.4fr_0.9fr_0.8fr_minmax(220px,auto)] gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid">
+                                <div className="hidden grid-cols-[1.2fr_1.3fr_1fr_0.9fr_minmax(220px,auto)] gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid">
                                     <div>Name</div>
                                     <div>Email</div>
+                                    <div>Profile</div>
                                     <div>Level</div>
-                                    <div>Created</div>
                                     <div className="text-right">Actions</div>
                                 </div>
 
@@ -207,7 +213,7 @@ export default function Index({ filters, users }: IndexProps) {
                                     users.data.map((user) => (
                                         <div
                                             key={user.id}
-                                            className="grid gap-3 border-b border-border px-4 py-4 last:border-b-0 md:grid-cols-[1.4fr_1.4fr_0.9fr_0.8fr_minmax(220px,auto)] md:items-center md:gap-4"
+                                            className="grid gap-3 border-b border-border px-4 py-4 last:border-b-0 md:grid-cols-[1.2fr_1.3fr_1fr_0.9fr_minmax(220px,auto)] md:items-center md:gap-4"
                                         >
                                             <div>
                                                 <p className="font-medium text-foreground">
@@ -220,14 +226,24 @@ export default function Index({ filters, users }: IndexProps) {
                                             <div className="hidden text-sm text-muted-foreground md:block">
                                                 {user.email}
                                             </div>
+                                            <div className="text-sm text-muted-foreground">
+                                                <span className="block">
+                                                    DOB:{' '}
+                                                    {user.date_of_birth ??
+                                                        'Not added'}
+                                                </span>
+                                                <span className="block">
+                                                    Language:{' '}
+                                                    {user.preferred_language
+                                                        ? `${user.preferred_language.name} (${user.preferred_language.abbreviation.toUpperCase()})`
+                                                        : 'Not added'}
+                                                </span>
+                                            </div>
                                             <div>
                                                 <Badge variant="outline">
                                                     {user.level?.name ??
                                                         'No level'}
                                                 </Badge>
-                                            </div>
-                                            <div className="text-sm text-muted-foreground">
-                                                {user.created_at ?? 'Unknown'}
                                             </div>
                                             <div className="flex flex-wrap gap-2 md:justify-end">
                                                 {canManageAccess &&

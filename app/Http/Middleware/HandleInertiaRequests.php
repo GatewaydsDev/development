@@ -42,6 +42,9 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'companyPhoneNumber' => $company?->contact_phone_number,
+            'session' => [
+                'idleTimeoutMinutes' => max(0, (int) config('session.idle_timeout_minutes')),
+            ],
             'auth' => [
                 'user' => $request->user(),
                 'can' => [

@@ -7,7 +7,18 @@ type Level = {
     name: string;
 };
 
-export default function Create({ levels }: { levels: Level[] }) {
+type Language = {
+    id: number;
+    name: string;
+    abbreviation: string;
+};
+
+type CreateProps = {
+    levels: Level[];
+    languages: Language[];
+};
+
+export default function Create({ levels, languages }: CreateProps) {
     return (
         <AuthenticatedLayout
             header={
@@ -39,6 +50,7 @@ export default function Create({ levels }: { levels: Level[] }) {
                 <div className="mx-auto max-w-[96rem] px-4 sm:px-6 lg:px-8">
                     <UserForm
                         levels={levels}
+                        languages={languages}
                         title="Create a team member"
                         description="Invite an internal user and choose the correct access level for Gateway Door Systems."
                         action={route('admin.users.store')}

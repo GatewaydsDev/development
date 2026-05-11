@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Language;
 use App\Models\User;
 use App\Models\UserLevel;
+use Carbon\CarbonImmutable;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -24,7 +27,7 @@ class UserController extends Controller
                 'search' => $search,
             ],
             'users' => User::query()
-                ->with('level:id,name')
+                ->with(['level:id,name', 'preferredLanguage:id,name,abbreviation'])
                 ->when($search !== '', function ($query) use ($search): void {
                     $query->where(function ($query) use ($search): void {
                         $query
@@ -39,6 +42,14 @@ class UserController extends Controller
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
+                    'date_of_birth' => $user->date_of_birth?->format('m/d/Y'),
+                    'preferred_language' => $user->preferredLanguage
+                        ? [
+                            'id' => $user->preferredLanguage->id,
+                            'name' => $user->preferredLanguage->name,
+                            'abbreviation' => $user->preferredLanguage->abbreviation,
+                        ]
+                        : null,
                     'level' => $user->level
                         ? [
                             'id' => $user->level->id,
@@ -54,6 +65,38 @@ class UserController extends Controller
     {
         return Inertia::render('Admin/Users/Create', [
             'levels' => $this->levels(),
+            'languages' => $this->languages(),
+        ]);
+    }
+
+    public function emailAvailability(Request $request): JsonResponse
+    {
+        abort_unless(
+            $request->user()?->can('create-users') || $request->user()?->can('update-users'),
+            403,
+        );
+
+        $validated = $request->validate([
+            'email' => ['nullable', 'string', 'email', 'max:255'],
+            'user_id' => ['nullable', 'integer', Rule::exists(User::class, 'id')],
+        ]);
+
+        $email = strtolower(trim((string) ($validated['email'] ?? '')));
+
+        if ($email === '') {
+            return response()->json(['available' => true]);
+        }
+
+        $exists = User::query()
+            ->whereRaw('LOWER(email) = ?', [$email])
+            ->when(
+                $validated['user_id'] ?? null,
+                fn ($query, int $userId) => $query->whereKeyNot($userId),
+            )
+            ->exists();
+
+        return response()->json([
+            'available' => ! $exists,
         ]);
     }
 
@@ -62,6 +105,8 @@ class UserController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
+            'date_of_birth' => ['nullable', 'date_format:m/d/Y'],
+            'language_id' => ['nullable', 'integer', Rule::exists(Language::class, 'id')],
             'level_id' => ['required', 'integer', Rule::exists(UserLevel::class, 'id')],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
@@ -71,6 +116,8 @@ class UserController extends Controller
         User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
+            'date_of_birth' => $this->dateOfBirth($validated['date_of_birth'] ?? null),
+            'language_id' => $validated['language_id'] ?? null,
             'level_id' => $level->id,
             'role' => str($level->name)->lower()->replace(' ', '_')->toString(),
             'password' => Hash::make($validated['password']),
@@ -83,14 +130,24 @@ class UserController extends Controller
 
     public function edit(User $user): Response
     {
-        $user->load('level:id,name');
+        $user->load(['level:id,name', 'preferredLanguage:id,name,abbreviation']);
 
         return Inertia::render('Admin/Users/Edit', [
             'levels' => $this->levels(),
+            'languages' => $this->languages(),
             'managedUser' => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
+                'date_of_birth' => $user->date_of_birth?->format('m/d/Y'),
+                'language_id' => $user->language_id,
+                'preferred_language' => $user->preferredLanguage
+                    ? [
+                        'id' => $user->preferredLanguage->id,
+                        'name' => $user->preferredLanguage->name,
+                        'abbreviation' => $user->preferredLanguage->abbreviation,
+                    ]
+                    : null,
                 'level_id' => $user->level_id,
                 'level' => $user->level
                     ? [
@@ -114,6 +171,8 @@ class UserController extends Controller
                 'max:255',
                 Rule::unique(User::class)->ignore($user->id),
             ],
+            'date_of_birth' => ['nullable', 'date_format:m/d/Y'],
+            'language_id' => ['nullable', 'integer', Rule::exists(Language::class, 'id')],
             'level_id' => ['required', 'integer', Rule::exists(UserLevel::class, 'id')],
             'password' => ['nullable', 'confirmed', Rules\Password::defaults()],
         ]);
@@ -123,6 +182,8 @@ class UserController extends Controller
         $user->fill([
             'name' => $validated['name'],
             'email' => $validated['email'],
+            'date_of_birth' => $this->dateOfBirth($validated['date_of_birth'] ?? null),
+            'language_id' => $validated['language_id'] ?? null,
             'level_id' => $level->id,
             'role' => str($level->name)->lower()->replace(' ', '_')->toString(),
         ]);
@@ -151,5 +212,31 @@ class UserController extends Controller
                 'name' => $level->name,
             ])
             ->all();
+    }
+
+    /**
+     * @return array<int, array{id: int, name: string, abbreviation: string}>
+     */
+    private function languages(): array
+    {
+        return Language::query()
+            ->orderBy('name')
+            ->get(['id', 'name', 'abbreviation'])
+            ->map(fn (Language $language): array => [
+                'id' => $language->id,
+                'name' => $language->name,
+                'abbreviation' => $language->abbreviation,
+            ])
+            ->all();
+    }
+
+    private function dateOfBirth(?string $dateOfBirth): ?string
+    {
+        if (! $dateOfBirth) {
+            return null;
+        }
+
+        return CarbonImmutable::createFromFormat('m/d/Y', $dateOfBirth)
+            ->toDateString();
     }
 }

@@ -37,13 +37,22 @@ import {
 import { PropsWithChildren, ReactNode, useEffect, useRef, useState } from 'react';
 
 const notificationPollInterval = 60_000;
+const idleActivityEvents = [
+    'mousedown',
+    'mousemove',
+    'keydown',
+    'scroll',
+    'touchstart',
+    'click',
+] as const;
 
 export default function Authenticated({
     header,
     children,
 }: PropsWithChildren<{ header?: ReactNode }>) {
-    const { auth } = usePage<PageProps>().props;
+    const { auth, session } = usePage<PageProps>().props;
     const user = auth.user;
+    const idleTimeoutMinutes = Number(session?.idleTimeoutMinutes ?? 0);
     const canManageUsers = Boolean(auth.can?.manageUsers);
     const canViewUsers = Boolean(auth.can?.viewUsers);
     const canCreateUsers = Boolean(auth.can?.createUsers);
@@ -69,6 +78,8 @@ export default function Authenticated({
     const notifications = auth.notifications;
     const hasUnreadNotifications = notifications.unreadCount > 0;
     const previousUnreadCount = useRef(notifications.unreadCount);
+    const idleTimeoutRef = useRef<number | null>(null);
+    const hasIdleLoggedOut = useRef(false);
     const [shouldShakeBell, setShouldShakeBell] = useState(false);
 
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
@@ -121,6 +132,57 @@ export default function Authenticated({
 
         previousUnreadCount.current = notifications.unreadCount;
     }, [notifications.unreadCount]);
+
+    useEffect(() => {
+        if (!user || idleTimeoutMinutes <= 0) {
+            return;
+        }
+
+        const idleTimeoutMs = idleTimeoutMinutes * 60 * 1000;
+        const clearIdleTimeout = () => {
+            if (idleTimeoutRef.current !== null) {
+                window.clearTimeout(idleTimeoutRef.current);
+                idleTimeoutRef.current = null;
+            }
+        };
+        const logoutForInactivity = () => {
+            if (hasIdleLoggedOut.current) {
+                return;
+            }
+
+            hasIdleLoggedOut.current = true;
+            router.post(route('logout'), undefined, {
+                preserveScroll: false,
+            });
+        };
+        const resetIdleTimeout = () => {
+            if (hasIdleLoggedOut.current) {
+                return;
+            }
+
+            clearIdleTimeout();
+            idleTimeoutRef.current = window.setTimeout(
+                logoutForInactivity,
+                idleTimeoutMs,
+            );
+        };
+
+        resetIdleTimeout();
+        idleActivityEvents.forEach((eventName) => {
+            window.addEventListener(eventName, resetIdleTimeout, {
+                passive: true,
+            });
+        });
+        document.addEventListener('visibilitychange', resetIdleTimeout);
+
+        return () => {
+            clearIdleTimeout();
+            idleActivityEvents.forEach((eventName) => {
+                window.removeEventListener(eventName, resetIdleTimeout);
+            });
+            document.removeEventListener('visibilitychange', resetIdleTimeout);
+        };
+    }, [idleTimeoutMinutes, user]);
 
     return (
         <div className="min-h-screen bg-muted/30 text-foreground">

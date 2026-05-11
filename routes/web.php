@@ -98,6 +98,8 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::post('/users', [UserController::class, 'store'])
             ->middleware('can:create-users')
             ->name('users.store');
+        Route::get('/users/email-availability', [UserController::class, 'emailAvailability'])
+            ->name('users.email-availability');
         Route::get('/users/{user}/edit', [UserController::class, 'edit'])
             ->middleware('can:update-users')
             ->name('users.edit');
