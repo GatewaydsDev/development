@@ -20,6 +20,18 @@ test('reset password link can be requested', function () {
     Notification::assertSentTo($user, ResetPassword::class);
 });
 
+test('reset password link requires an existing user email', function () {
+    Notification::fake();
+
+    $response = $this->post('/forgot-password', [
+        'email' => 'missing@example.com',
+    ]);
+
+    $response->assertSessionHasErrors('email');
+
+    Notification::assertNothingSent();
+});
+
 test('reset password screen can be rendered', function () {
     Notification::fake();
 

@@ -11,7 +11,7 @@ import {
 } from '@/Components/ui/card';
 import { useForm } from '@inertiajs/react';
 import { Eye, EyeOff } from 'lucide-react';
-import { FormEventHandler, useEffect, useState } from 'react';
+import { FormEventHandler, useEffect, useMemo, useState } from 'react';
 
 type Level = {
     id: number;
@@ -47,6 +47,59 @@ type UserFormProps = {
     passwordOptional?: boolean;
 };
 
+const formatDateOfBirth = (value: string) => {
+    const digits = value.replace(/\D/g, '').slice(0, 8);
+
+    if (digits.length <= 2) {
+        return digits;
+    }
+
+    if (digits.length <= 4) {
+        return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    }
+
+    return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+};
+
+const parseDateOfBirth = (value: string) => {
+    const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+
+    if (!match) {
+        return null;
+    }
+
+    const month = Number(match[1]);
+    const day = Number(match[2]);
+    const year = Number(match[3]);
+    const date = new Date(year, month - 1, day);
+
+    if (
+        date.getFullYear() !== year ||
+        date.getMonth() !== month - 1 ||
+        date.getDate() !== day
+    ) {
+        return null;
+    }
+
+    return date;
+};
+
+const getAgeInYears = (dateOfBirth: Date) => {
+    const today = new Date();
+    let age = today.getFullYear() - dateOfBirth.getFullYear();
+    const birthdayThisYear = new Date(
+        today.getFullYear(),
+        dateOfBirth.getMonth(),
+        dateOfBirth.getDate(),
+    );
+
+    if (today < birthdayThisYear) {
+        age -= 1;
+    }
+
+    return age;
+};
+
 export default function UserForm({
     userId,
     levels,
@@ -74,6 +127,39 @@ export default function UserForm({
             password: '',
             password_confirmation: '',
         });
+    const dateOfBirthFeedback = useMemo(() => {
+        if (!data.date_of_birth) {
+            return null;
+        }
+
+        if (data.date_of_birth.length < 10) {
+            return {
+                type: 'error' as const,
+                message: 'Enter a complete date in MM/DD/YYYY format.',
+            };
+        }
+
+        const dateOfBirth = parseDateOfBirth(data.date_of_birth);
+        const today = new Date();
+
+        if (!dateOfBirth || dateOfBirth > today) {
+            return {
+                type: 'error' as const,
+                message: 'Enter a valid date of birth.',
+            };
+        }
+
+        const age = getAgeInYears(dateOfBirth);
+
+        return {
+            type: 'success' as const,
+            message:
+                age === 1
+                    ? '1 year old'
+                    : `${Math.max(age, 0).toLocaleString()} years old`,
+        };
+    }, [data.date_of_birth]);
+    const hasDateOfBirthError = dateOfBirthFeedback?.type === 'error';
 
     useEffect(() => {
         const email = data.email.trim();
@@ -131,6 +217,10 @@ export default function UserForm({
     const submit: FormEventHandler = (event) => {
         event.preventDefault();
 
+        if (hasDateOfBirthError) {
+            return;
+        }
+
         if (method === 'patch') {
             patch(action);
             return;
@@ -138,21 +228,6 @@ export default function UserForm({
 
         post(action);
     };
-
-    const formatDateOfBirth = (value: string) => {
-        const digits = value.replace(/\D/g, '').slice(0, 8);
-
-        if (digits.length <= 2) {
-            return digits;
-        }
-
-        if (digits.length <= 4) {
-            return `${digits.slice(0, 2)}/${digits.slice(2)}`;
-        }
-
-        return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
-    };
-
     return (
         <Card className="shadow-sm">
             <CardHeader>
@@ -164,7 +239,12 @@ export default function UserForm({
                     <FormActionFab
                         cancelHref={route('admin.users.index')}
                         saveLabel={submitLabel}
-                        disabled={processing || checkingEmail || emailTaken}
+                        disabled={
+                            processing ||
+                            checkingEmail ||
+                            emailTaken ||
+                            hasDateOfBirthError
+                        }
                     />
                     <div className="grid gap-5 md:grid-cols-2">
                         <div className="flex flex-col gap-2">
@@ -230,6 +310,9 @@ export default function UserForm({
                                 inputMode="numeric"
                                 maxLength={10}
                                 placeholder="MM/DD/YYYY"
+                                aria-invalid={
+                                    hasDateOfBirthError ? true : undefined
+                                }
                                 onChange={(event) =>
                                     setData(
                                         'date_of_birth',
@@ -238,6 +321,17 @@ export default function UserForm({
                                 }
                             />
                             <InputError message={errors.date_of_birth} />
+                            {dateOfBirthFeedback && (
+                                <p
+                                    className={
+                                        dateOfBirthFeedback.type === 'error'
+                                            ? 'text-sm text-destructive'
+                                            : 'text-sm text-muted-foreground'
+                                    }
+                                >
+                                    {dateOfBirthFeedback.message}
+                                </p>
+                            )}
                         </div>
 
                         <div className="flex flex-col gap-2">
