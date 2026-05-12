@@ -11,8 +11,24 @@ export type EmployeePayload = {
     employment_status: string;
     hire_date: string | null;
     notes: string | null;
+    pay_rates: EmployeePayRatePayload[];
     created_at: string | null;
     updated_at: string | null;
+};
+
+export type ProfessionOption = {
+    id: number;
+    name: string;
+};
+
+export type EmployeePayRatePayload = {
+    id: number;
+    profession_id: number;
+    profession: ProfessionOption | null;
+    rate_type: string;
+    custom_rate_type: string | null;
+    amount: string;
+    notes: string | null;
 };
 
 export type PaginationLink = {
@@ -42,9 +58,20 @@ export type EmployeeFormData = {
     employment_status: string;
     hire_date: string;
     notes: string;
+    pay_rates: EmployeePayRateFormData[];
 };
 
 export type EmployeeStatusOptions = Record<string, string>;
+
+export type EmployeeRateTypeOptions = Record<string, string>;
+
+export type EmployeePayRateFormData = {
+    profession_id: string;
+    rate_type: string;
+    custom_rate_type: string;
+    amount: string;
+    notes: string;
+};
 
 export function employeeToFormData(
     employee?: EmployeePayload,
@@ -59,5 +86,13 @@ export function employeeToFormData(
         employment_status: employee?.employment_status ?? 'active',
         hire_date: employee?.hire_date ?? '',
         notes: employee?.notes ?? '',
+        pay_rates:
+            employee?.pay_rates.map((payRate) => ({
+                profession_id: String(payRate.profession_id),
+                rate_type: payRate.rate_type,
+                custom_rate_type: payRate.custom_rate_type ?? '',
+                amount: payRate.amount,
+                notes: payRate.notes ?? '',
+            })) ?? [],
     };
 }

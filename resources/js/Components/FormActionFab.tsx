@@ -19,19 +19,34 @@ export default function FormActionFab({
     const [isOpen, setIsOpen] = useState(false);
 
     return (
-        <div className="fixed bottom-6 right-3 z-40 flex flex-col items-center gap-2 sm:bottom-8 sm:right-5">
+        <div
+            className="fixed bottom-6 right-3 z-40 flex flex-col items-center gap-2 sm:bottom-8 sm:right-5"
+            onMouseEnter={() => setIsOpen(true)}
+            onMouseLeave={() => setIsOpen(false)}
+            onFocus={() => setIsOpen(true)}
+            onBlur={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget)) {
+                    setIsOpen(false);
+                }
+            }}
+        >
             <div
                 className={cn(
-                    'flex flex-col items-center gap-2 transition duration-200',
+                    'flex flex-col items-center gap-2 transition-all duration-300 ease-out',
                     isOpen
                         ? 'translate-y-0 opacity-100'
-                        : 'pointer-events-none translate-y-3 opacity-0',
+                        : 'pointer-events-none translate-y-4 opacity-0',
                 )}
             >
                 <Button
                     type="submit"
                     disabled={disabled}
-                    className="size-12 rounded-full bg-emerald-600 text-white shadow-lg shadow-emerald-950/20 hover:bg-emerald-700"
+                    className={cn(
+                        'size-12 rounded-full bg-emerald-600 text-white shadow-lg shadow-emerald-950/20 transition-all duration-300 ease-out hover:bg-emerald-700',
+                        isOpen
+                            ? 'scale-100 opacity-100 delay-75'
+                            : 'scale-90 opacity-0 delay-0',
+                    )}
                     aria-label={saveLabel}
                     title={saveLabel}
                 >
@@ -40,7 +55,12 @@ export default function FormActionFab({
                 <Button
                     type="button"
                     variant="outline"
-                    className="size-12 rounded-full border-rose-200 bg-background text-rose-700 shadow-lg hover:bg-rose-50 dark:border-rose-900/70 dark:text-rose-300 dark:hover:bg-rose-950/30"
+                    className={cn(
+                        'size-12 rounded-full border-rose-200 bg-background text-rose-700 shadow-lg transition-all duration-300 ease-out hover:bg-rose-50 dark:border-rose-900/70 dark:text-rose-300 dark:hover:bg-rose-950/30',
+                        isOpen
+                            ? 'scale-100 opacity-100'
+                            : 'scale-90 opacity-0 delay-75',
+                    )}
                     aria-label={cancelLabel}
                     title={cancelLabel}
                     onClick={() => {
@@ -53,7 +73,7 @@ export default function FormActionFab({
 
             <Button
                 type="button"
-                className="size-14 rounded-full bg-primary text-primary-foreground shadow-xl shadow-primary/20 hover:bg-primary/90"
+                className="size-14 rounded-full bg-primary text-primary-foreground shadow-xl shadow-primary/20 transition hover:scale-105 hover:bg-primary/90"
                 aria-expanded={isOpen}
                 aria-label="Toggle form actions"
                 onClick={() => setIsOpen((current) => !current)}

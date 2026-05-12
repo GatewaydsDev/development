@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 class Employee extends Model
@@ -45,5 +46,10 @@ class Employee extends Model
     public function fullName(): string
     {
         return trim("{$this->first_name} {$this->last_name}");
+    }
+
+    public function payRates(): HasMany
+    {
+        return $this->hasMany(EmployeePayRate::class);
     }
 }

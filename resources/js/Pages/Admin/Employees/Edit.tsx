@@ -1,14 +1,26 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link } from '@inertiajs/react';
 import EmployeeForm from './Partials/EmployeeForm';
-import type { EmployeePayload, EmployeeStatusOptions } from './types';
+import type {
+    EmployeePayload,
+    EmployeeRateTypeOptions,
+    EmployeeStatusOptions,
+    ProfessionOption,
+} from './types';
 
 type EditProps = {
     employee: EmployeePayload;
+    professions: ProfessionOption[];
+    rateTypeOptions: EmployeeRateTypeOptions;
     statusOptions: EmployeeStatusOptions;
 };
 
-export default function Edit({ employee, statusOptions }: EditProps) {
+export default function Edit({
+    employee,
+    professions,
+    rateTypeOptions,
+    statusOptions,
+}: EditProps) {
     return (
         <AuthenticatedLayout
             header={
@@ -45,6 +57,8 @@ export default function Edit({ employee, statusOptions }: EditProps) {
                         title={employee.full_name}
                         description="Update employee contact and role information."
                         employee={employee}
+                        professions={professions}
+                        rateTypeOptions={rateTypeOptions}
                         statusOptions={statusOptions}
                     />
                 </div>

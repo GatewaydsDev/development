@@ -1,4 +1,13 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import {
+    AlertDialog,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/Components/ui/alert-dialog';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import {
@@ -12,6 +21,7 @@ import { cn } from '@/lib/utils';
 import { PageProps } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
+    DollarSignIcon,
     EditIcon,
     MailIcon,
     PlusIcon,
@@ -21,7 +31,7 @@ import {
     UsersRoundIcon,
 } from 'lucide-react';
 import { FormEvent, useState } from 'react';
-import type { EmployeesPaginator } from './types';
+import type { EmployeePayload, EmployeesPaginator } from './types';
 
 type IndexProps = {
     filters: {
@@ -50,12 +60,38 @@ function statusLabel(status: string): string {
         .join(' ');
 }
 
+function rateTypeLabel(rateType: string, customRateType?: string | null): string {
+    if (rateType === 'custom') {
+        return customRateType || 'Custom';
+    }
+
+    return rateType
+        .split('_')
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+}
+
+function formatCurrency(amount: string): string {
+    const numericAmount = Number(amount);
+
+    if (Number.isNaN(numericAmount)) {
+        return amount;
+    }
+
+    return numericAmount.toLocaleString('en-US', {
+        style: 'currency',
+        currency: 'USD',
+    });
+}
+
 export default function Index({ filters, employees }: IndexProps) {
     const { auth } = usePage<PageProps>().props;
     const canCreateEmployees = Boolean(auth.can?.createEmployees);
     const canUpdateEmployees = Boolean(auth.can?.updateEmployees);
     const canDeleteEmployees = Boolean(auth.can?.deleteEmployees);
     const [search, setSearch] = useState(filters.search ?? '');
+    const [selectedRatesEmployee, setSelectedRatesEmployee] =
+        useState<EmployeePayload | null>(null);
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
@@ -186,6 +222,9 @@ export default function Index({ filters, employees }: IndexProps) {
                                                 </p>
                                                 <p className="text-sm text-muted-foreground">
                                                     {employee.job_title ||
+                                                        employee.pay_rates[0]
+                                                            ?.profession
+                                                            ?.name ||
                                                         employee.uuid}
                                                 </p>
                                             </div>
@@ -222,6 +261,24 @@ export default function Index({ filters, employees }: IndexProps) {
                                                 </Badge>
                                             </div>
                                             <div className="flex flex-wrap gap-2 md:justify-end">
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() =>
+                                                        setSelectedRatesEmployee(
+                                                            employee,
+                                                        )
+                                                    }
+                                                >
+                                                    <DollarSignIcon className="size-4" />
+                                                    Rates (
+                                                    {
+                                                        employee.pay_rates
+                                                            .length
+                                                    }
+                                                    )
+                                                </Button>
                                                 {canUpdateEmployees && (
                                                     <Button
                                                         variant="outline"
@@ -318,6 +375,71 @@ export default function Index({ filters, employees }: IndexProps) {
                     </Card>
                 </div>
             </div>
+
+            <AlertDialog
+                open={selectedRatesEmployee !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setSelectedRatesEmployee(null);
+                    }
+                }}
+            >
+                <AlertDialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            {selectedRatesEmployee?.full_name} pay rates
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Review all configured rates for this employee.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+
+                    {selectedRatesEmployee?.pay_rates.length ? (
+                        <div className="overflow-hidden rounded-lg border border-border">
+                            <div className="hidden grid-cols-[1.2fr_1fr_0.8fr] gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid">
+                                <div>Profession</div>
+                                <div>Rate type</div>
+                                <div>Amount</div>
+                            </div>
+                            {selectedRatesEmployee.pay_rates.map((rate) => (
+                                <div
+                                    key={rate.id}
+                                    className="grid gap-2 border-b border-border px-4 py-4 last:border-b-0 md:grid-cols-[1.2fr_1fr_0.8fr] md:gap-4"
+                                >
+                                    <div>
+                                        <p className="font-medium text-foreground">
+                                            {rate.profession?.name ||
+                                                'Profession removed'}
+                                        </p>
+                                        {rate.notes && (
+                                            <p className="mt-1 text-sm text-muted-foreground">
+                                                {rate.notes}
+                                            </p>
+                                        )}
+                                    </div>
+                                    <div className="text-sm text-muted-foreground">
+                                        {rateTypeLabel(
+                                            rate.rate_type,
+                                            rate.custom_rate_type,
+                                        )}
+                                    </div>
+                                    <div className="font-semibold text-foreground">
+                                        {formatCurrency(rate.amount)}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="rounded-lg border border-dashed border-border bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+                            No pay rates have been added for this employee yet.
+                        </div>
+                    )}
+
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Close</AlertDialogCancel>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </AuthenticatedLayout>
     );
 }

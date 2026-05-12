@@ -3,15 +3,17 @@
 use App\Http\Controllers\Admin\AccessControlController;
 use App\Http\Controllers\Admin\AccountController;
 use App\Http\Controllers\Admin\CompanyController;
-use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\CustomerContactRoleController;
+use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\EmployeeController;
+use App\Http\Controllers\Admin\ProfessionController;
 use App\Http\Controllers\Admin\ProjectController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\ContactSubmissionController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Models\Company;
+use App\Services\TwilioSmsService;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -153,6 +155,8 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::delete('/employees/{employee}', [EmployeeController::class, 'destroy'])
             ->middleware('can:delete-employees')
             ->name('employees.destroy');
+        Route::post('/professions', [ProfessionController::class, 'store'])
+            ->name('professions.store');
 
         Route::get('/projects', [ProjectController::class, 'index'])
             ->middleware('can:view-projects')
@@ -187,9 +191,10 @@ Route::middleware(['auth', 'prevent-back-history', 'can:manage-access'])
             ->name('access-control.update');
     });
 
-    Route::get('/send-sms', function (\App\Services\TwilioSmsService $sms) {
-        $sms->send('+19736995232', 'Test SMS from Laravel 🚀');
-        return 'SMS sent (check your phone)';
-    });
+Route::get('/send-sms', function (TwilioSmsService $sms) {
+    $sms->send('+19736995232', 'Test SMS from Laravel 🚀');
+
+    return 'SMS sent (check your phone)';
+});
 
 require __DIR__.'/auth.php';

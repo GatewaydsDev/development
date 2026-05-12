@@ -1,13 +1,23 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link } from '@inertiajs/react';
 import EmployeeForm from './Partials/EmployeeForm';
-import type { EmployeeStatusOptions } from './types';
+import type {
+    EmployeeRateTypeOptions,
+    EmployeeStatusOptions,
+    ProfessionOption,
+} from './types';
 
 type CreateProps = {
+    professions: ProfessionOption[];
+    rateTypeOptions: EmployeeRateTypeOptions;
     statusOptions: EmployeeStatusOptions;
 };
 
-export default function Create({ statusOptions }: CreateProps) {
+export default function Create({
+    professions,
+    rateTypeOptions,
+    statusOptions,
+}: CreateProps) {
     return (
         <AuthenticatedLayout
             header={
@@ -42,6 +52,8 @@ export default function Create({ statusOptions }: CreateProps) {
                         submitLabel="Create employee"
                         title="Employee information"
                         description="Create an employee record with contact and role details."
+                        professions={professions}
+                        rateTypeOptions={rateTypeOptions}
                         statusOptions={statusOptions}
                     />
                 </div>

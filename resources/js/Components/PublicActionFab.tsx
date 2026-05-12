@@ -24,19 +24,34 @@ export default function PublicActionFab({
     const canCall = normalizedPhoneNumber !== '';
 
     return (
-        <div className="fixed bottom-6 right-4 z-40 flex flex-col items-end gap-3">
+        <div
+            className="fixed bottom-6 right-4 z-40 flex flex-col items-end gap-3"
+            onMouseEnter={() => setIsOpen(true)}
+            onMouseLeave={() => setIsOpen(false)}
+            onFocus={() => setIsOpen(true)}
+            onBlur={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget)) {
+                    setIsOpen(false);
+                }
+            }}
+        >
             <div
                 className={cn(
-                    'flex flex-col items-end gap-2 transition duration-200',
+                    'flex flex-col items-end gap-2 transition-all duration-300 ease-out',
                     isOpen
                         ? 'translate-y-0 opacity-100'
-                        : 'pointer-events-none translate-y-3 opacity-0',
+                        : 'pointer-events-none translate-y-4 opacity-0',
                 )}
             >
                 {canCall && (
                     <a
                         href={`tel:${normalizedPhoneNumber}`}
-                        className="group inline-flex items-center gap-3 rounded-full bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-xl shadow-emerald-950/20 transition hover:-translate-y-0.5 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2 focus:ring-offset-background"
+                        className={cn(
+                            'group inline-flex items-center gap-3 rounded-full bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-xl shadow-emerald-950/20 transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2 focus:ring-offset-background',
+                            isOpen
+                                ? 'scale-100 opacity-100 delay-150'
+                                : 'translate-x-3 scale-95 opacity-0 delay-0',
+                        )}
                     >
                         <span className="flex size-9 items-center justify-center rounded-full bg-white/15">
                             <PhoneCallIcon className="size-4 transition group-hover:animate-bell-shake" />
@@ -51,7 +66,12 @@ export default function PublicActionFab({
                         setIsOpen(false);
                         openContactForm();
                     }}
-                    className="group inline-flex items-center gap-3 rounded-full bg-sky-600 px-4 py-3 text-sm font-semibold text-white shadow-xl shadow-sky-950/20 transition hover:-translate-y-0.5 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:ring-offset-background"
+                    className={cn(
+                        'group inline-flex items-center gap-3 rounded-full bg-sky-600 px-4 py-3 text-sm font-semibold text-white shadow-xl shadow-sky-950/20 transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:ring-offset-background',
+                        isOpen
+                            ? 'scale-100 opacity-100 delay-75'
+                            : 'translate-x-3 scale-95 opacity-0 delay-75',
+                    )}
                 >
                     <span className="flex size-9 items-center justify-center rounded-full bg-white/15">
                         <MessageCircleIcon className="size-4 transition group-hover:animate-bell-shake" />
@@ -65,7 +85,12 @@ export default function PublicActionFab({
                         setIsOpen(false);
                         openHelpCenter();
                     }}
-                    className="group inline-flex items-center gap-3 rounded-full bg-violet-600 px-4 py-3 text-sm font-semibold text-white shadow-xl shadow-violet-950/20 transition hover:-translate-y-0.5 hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:ring-offset-2 focus:ring-offset-background"
+                    className={cn(
+                        'group inline-flex items-center gap-3 rounded-full bg-violet-600 px-4 py-3 text-sm font-semibold text-white shadow-xl shadow-violet-950/20 transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:ring-offset-2 focus:ring-offset-background',
+                        isOpen
+                            ? 'scale-100 opacity-100'
+                            : 'translate-x-3 scale-95 opacity-0 delay-150',
+                    )}
                 >
                     <span className="flex size-9 items-center justify-center rounded-full bg-white/15">
                         <HelpCircleIcon className="size-4 transition group-hover:animate-bell-shake" />
