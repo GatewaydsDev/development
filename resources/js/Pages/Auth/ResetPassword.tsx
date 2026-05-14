@@ -31,6 +31,11 @@ export default function ResetPassword({
             onFinish: () => reset('password', 'password_confirmation'),
         });
     };
+    const labelClassName = 'dark:text-white';
+    const inputClassName =
+        'border-gray-300 bg-white text-gray-900 placeholder:text-gray-500 focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-300 dark:bg-white dark:text-gray-900 dark:placeholder:text-gray-500';
+    const passwordToggleClassName =
+        'absolute inset-y-0 end-0 flex items-center px-3 text-gray-500 transition hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2';
 
     return (
         <GuestLayout>
@@ -41,7 +46,7 @@ export default function ResetPassword({
                     <InputLabel
                         htmlFor="email"
                         value="Email"
-                        className="dark:text-gray-100"
+                        className={labelClassName}
                     />
 
                     <TextInput
@@ -49,7 +54,7 @@ export default function ResetPassword({
                         type="email"
                         name="email"
                         value={data.email}
-                        className="mt-1 block w-full"
+                        className={`mt-1 block w-full ${inputClassName}`}
                         autoComplete="username"
                         onChange={(e) => setData('email', e.target.value)}
                     />
@@ -61,7 +66,7 @@ export default function ResetPassword({
                     <InputLabel
                         htmlFor="password"
                         value="Password"
-                        className="dark:text-gray-100"
+                        className={labelClassName}
                     />
 
                     <div className="relative mt-1">
@@ -70,7 +75,7 @@ export default function ResetPassword({
                             type={showPassword ? 'text' : 'password'}
                             name="password"
                             value={data.password}
-                            className="block w-full pe-10"
+                            className={`block w-full pe-10 ${inputClassName}`}
                             autoComplete="new-password"
                             isFocused={true}
                             onChange={(e) =>
@@ -82,7 +87,7 @@ export default function ResetPassword({
                             onClick={() =>
                                 setShowPassword((current) => !current)
                             }
-                            className="absolute inset-y-0 end-0 flex items-center px-3 text-muted-foreground transition hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+                            className={passwordToggleClassName}
                             aria-label={
                                 showPassword ? 'Hide password' : 'Show password'
                             }
@@ -102,7 +107,7 @@ export default function ResetPassword({
                     <InputLabel
                         htmlFor="password_confirmation"
                         value="Confirm Password"
-                        className="dark:text-gray-100"
+                        className={labelClassName}
                     />
 
                     <div className="relative mt-1">
@@ -112,7 +117,7 @@ export default function ResetPassword({
                             }
                             name="password_confirmation"
                             value={data.password_confirmation}
-                            className="block w-full pe-10"
+                            className={`block w-full pe-10 ${inputClassName}`}
                             autoComplete="new-password"
                             onChange={(e) =>
                                 setData(
@@ -128,7 +133,7 @@ export default function ResetPassword({
                                     (current) => !current,
                                 )
                             }
-                            className="absolute inset-y-0 end-0 flex items-center px-3 text-muted-foreground transition hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+                            className={passwordToggleClassName}
                             aria-label={
                                 showPasswordConfirmation
                                     ? 'Hide password confirmation'
