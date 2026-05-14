@@ -1,7 +1,7 @@
 <?php
 
 use App\Models\User;
-use Illuminate\Auth\Notifications\ResetPassword;
+use App\Notifications\ResetPasswordNotification;
 use Illuminate\Support\Facades\Notification;
 
 test('reset password link screen can be rendered', function () {
@@ -17,7 +17,7 @@ test('reset password link can be requested', function () {
 
     $this->post('/forgot-password', ['email' => $user->email]);
 
-    Notification::assertSentTo($user, ResetPassword::class);
+    Notification::assertSentTo($user, ResetPasswordNotification::class);
 });
 
 test('reset password link requires an existing user email', function () {
@@ -39,10 +39,57 @@ test('reset password screen can be rendered', function () {
 
     $this->post('/forgot-password', ['email' => $user->email]);
 
-    Notification::assertSentTo($user, ResetPassword::class, function ($notification) {
-        $response = $this->get('/reset-password/'.$notification->token);
+    Notification::assertSentTo($user, ResetPasswordNotification::class, function ($notification) use ($user) {
+        $response = $this->get('/reset-password/'.$notification->token.'?email='.urlencode($user->email));
 
         $response->assertStatus(200);
+
+        return true;
+    });
+});
+
+test('reset password screen rejects invalid or mismatched tokens', function () {
+    Notification::fake();
+
+    $user = User::factory()->create();
+    $otherUser = User::factory()->create();
+
+    $this->post('/forgot-password', ['email' => $user->email]);
+
+    Notification::assertSentTo($user, ResetPasswordNotification::class, function ($notification) use ($otherUser) {
+        $this
+            ->get('/reset-password/'.$notification->token.'?email='.urlencode($otherUser->email))
+            ->assertRedirect(route('password.request'))
+            ->assertSessionHasErrors('email');
+
+        $this
+            ->get('/reset-password/not-a-valid-token?email='.urlencode($otherUser->email))
+            ->assertRedirect(route('password.request'))
+            ->assertSessionHasErrors('email');
+
+        return true;
+    });
+});
+
+test('reset password email uses custom html and text views', function () {
+    Notification::fake();
+
+    $user = User::factory()->create();
+
+    $this->post('/forgot-password', ['email' => $user->email]);
+
+    Notification::assertSentTo($user, ResetPasswordNotification::class, function ($notification) use ($user) {
+        $mail = $notification->toMail($user);
+
+        expect($mail->subject)->toBe('Reset your Gateway Door Systems password');
+        expect($mail->view)->toBe([
+            'html' => 'emails.password-reset-html',
+            'text' => 'emails.password-reset-text',
+        ]);
+        expect($mail->viewData)
+            ->toHaveKey('resetUrl')
+            ->toHaveKey('expiresInMinutes')
+            ->toHaveKey('userEmail', $user->email);
 
         return true;
     });
@@ -55,7 +102,7 @@ test('password can be reset with valid token', function () {
 
     $this->post('/forgot-password', ['email' => $user->email]);
 
-    Notification::assertSentTo($user, ResetPassword::class, function ($notification) use ($user) {
+    Notification::assertSentTo($user, ResetPasswordNotification::class, function ($notification) use ($user) {
         $response = $this->post('/reset-password', [
             'token' => $notification->token,
             'email' => $user->email,

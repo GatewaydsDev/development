@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Notifications\ResetPasswordNotification;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -11,7 +13,7 @@ use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
+    /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
     /**
@@ -55,7 +57,7 @@ class User extends Authenticatable
 
     public function preferredLanguage(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\Language::class, 'language_id');
+        return $this->belongsTo(Language::class, 'language_id');
     }
 
     public function language(): BelongsTo
@@ -65,7 +67,7 @@ class User extends Authenticatable
 
     public function level(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\UserLevel::class);
+        return $this->belongsTo(UserLevel::class);
     }
 
     public function assignedProjects(): HasMany
@@ -86,7 +88,7 @@ class User extends Authenticatable
             return false;
         }
 
-        return \App\Models\UserLevel::query()
+        return UserLevel::query()
             ->whereKey($this->level_id)
             ->whereIn('name', $levels)
             ->exists();
@@ -94,7 +96,7 @@ class User extends Authenticatable
 
     public function isSuperAdmin(): bool
     {
-        return $this->hasUserLevel(\App\Models\UserLevel::SUPER_ADMIN);
+        return $this->hasUserLevel(UserLevel::SUPER_ADMIN);
     }
 
     public function canManageOwnAccount(): bool
@@ -113,5 +115,10 @@ class User extends Authenticatable
         }
 
         return $this->level?->hasPermission($permission) ?? false;
+    }
+
+    public function sendPasswordResetNotification(#[\SensitiveParameter] $token): void
+    {
+        $this->notify(new ResetPasswordNotification($token));
     }
 }

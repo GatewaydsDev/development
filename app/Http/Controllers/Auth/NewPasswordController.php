@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,11 +20,25 @@ class NewPasswordController extends Controller
     /**
      * Display the password reset view.
      */
-    public function create(Request $request): Response
+    public function create(Request $request): Response|RedirectResponse
     {
+        $email = strtolower(trim((string) $request->query('email')));
+        $token = (string) $request->route('token');
+        $user = $email !== ''
+            ? User::query()->whereRaw('LOWER(email) = ?', [$email])->first()
+            : null;
+
+        if (! $user || ! Password::tokenExists($user, $token)) {
+            return redirect()
+                ->route('password.request')
+                ->withErrors([
+                    'email' => 'This password reset link is invalid or has expired. Please request a new one.',
+                ]);
+        }
+
         return Inertia::render('Auth/ResetPassword', [
-            'email' => $request->email,
-            'token' => $request->route('token'),
+            'email' => $user->email,
+            'token' => $token,
         ]);
     }
 
