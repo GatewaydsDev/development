@@ -4,17 +4,59 @@ import TextInput from '@/Components/TextInput';
 import { Button } from '@/Components/ui/button';
 import PublicLayout from '@/Layouts/PublicLayout';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { FormEventHandler } from 'react';
+import { CheckCircleIcon, XCircleIcon } from 'lucide-react';
+import { FormEventHandler, useEffect, useState } from 'react';
+
+type ToastState = {
+    type: 'success' | 'error';
+    message: string;
+};
 
 export default function ForgotPassword({ status }: { status?: string }) {
+    const [toast, setToast] = useState<ToastState | null>(null);
     const { data, setData, post, processing, errors } = useForm({
         email: '',
     });
 
+    useEffect(() => {
+        if (status) {
+            setToast({
+                type: 'success',
+                message: status,
+            });
+        }
+    }, [status]);
+
+    useEffect(() => {
+        if (!toast) {
+            return;
+        }
+
+        const timeout = window.setTimeout(() => setToast(null), 6000);
+
+        return () => window.clearTimeout(timeout);
+    }, [toast]);
+
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
 
-        post(route('password.email'));
+        post(route('password.email'), {
+            onSuccess: () => {
+                setToast({
+                    type: 'success',
+                    message:
+                        'The password reset email has been sent. Please check your inbox and spam folder.',
+                });
+            },
+            onError: (formErrors) => {
+                setToast({
+                    type: 'error',
+                    message:
+                        formErrors.email ||
+                        'There was an error sending the email. Please try again in a moment.',
+                });
+            },
+        });
     };
 
     return (
@@ -44,6 +86,10 @@ export default function ForgotPassword({ status }: { status?: string }) {
                             {status && (
                                 <div className="mt-6 rounded-lg border border-primary/20 bg-primary/10 px-3 py-2 text-sm font-medium text-primary">
                                     {status}
+                                    <span className="mt-1 block text-xs font-normal text-muted-foreground">
+                                        If you do not see it soon, check your
+                                        spam folder.
+                                    </span>
                                 </div>
                             )}
 
@@ -116,6 +162,28 @@ export default function ForgotPassword({ status }: { status?: string }) {
                     </div>
                 </div>
             </section>
+
+            {toast && (
+                <div className="fixed bottom-6 right-4 z-50 max-w-sm rounded-xl border border-border bg-background p-4 text-sm text-foreground shadow-xl">
+                    <div className="flex gap-3">
+                        {toast.type === 'success' ? (
+                            <CheckCircleIcon className="mt-0.5 size-5 shrink-0 text-emerald-600" />
+                        ) : (
+                            <XCircleIcon className="mt-0.5 size-5 shrink-0 text-destructive" />
+                        )}
+                        <div>
+                            <p className="font-medium">
+                                {toast.type === 'success'
+                                    ? 'Email sent'
+                                    : 'Email not sent'}
+                            </p>
+                            <p className="mt-1 text-muted-foreground">
+                                {toast.message}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
         </PublicLayout>
     );
 }

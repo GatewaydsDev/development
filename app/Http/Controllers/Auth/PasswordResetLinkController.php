@@ -11,6 +11,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Throwable;
 
 class PasswordResetLinkController extends Controller
 {
@@ -48,15 +49,24 @@ class PasswordResetLinkController extends Controller
             'email.exists' => 'We could not find an account with that email address.',
         ]);
 
-        // We will send the password reset link to this user. Once we have attempted
-        // to send the link, we will examine the response then see the message we
-        // need to show to the user. Finally, we'll send out a proper response.
-        $status = Password::sendResetLink(
-            ['email' => $validated['email']]
-        );
+        try {
+            // We will send the password reset link to this user. Once we have attempted
+            // to send the link, we will examine the response then see the message we
+            // need to show to the user. Finally, we'll send out a proper response.
+            $status = Password::sendResetLink(
+                ['email' => $validated['email']]
+            );
+        } catch (Throwable) {
+            throw ValidationException::withMessages([
+                'email' => ['There was an error sending the email. Please try again in a moment.'],
+            ]);
+        }
 
         if ($status == Password::RESET_LINK_SENT) {
-            return back()->with('status', __($status));
+            return back()->with(
+                'status',
+                'The password reset email has been sent. Please check your inbox and spam folder.',
+            );
         }
 
         throw ValidationException::withMessages([
