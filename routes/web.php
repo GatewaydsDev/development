@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\EmployeeController;
 use App\Http\Controllers\Admin\ProfessionController;
 use App\Http\Controllers\Admin\ProjectController;
+use App\Http\Controllers\Admin\UserActivityController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\ContactSubmissionController;
 use App\Http\Controllers\NotificationController;
@@ -108,6 +109,8 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::patch('/users/{user}', [UserController::class, 'update'])
             ->middleware('can:update-users')
             ->name('users.update');
+        Route::get('/user-activities', [UserActivityController::class, 'index'])
+            ->name('user-activities.index');
 
         Route::get('/account', [AccountController::class, 'edit'])
             ->name('account.edit');

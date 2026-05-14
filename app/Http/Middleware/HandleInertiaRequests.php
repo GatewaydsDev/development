@@ -61,6 +61,7 @@ class HandleInertiaRequests extends Middleware
                     'updateUsers' => $request->user()
                         ? Gate::forUser($request->user())->allows('update-users')
                         : false,
+                    'viewUserActivity' => $request->user()?->isSuperAdmin() ?? false,
                     'viewCompany' => $request->user()
                         ? Gate::forUser($request->user())->allows('view-company')
                         : false,

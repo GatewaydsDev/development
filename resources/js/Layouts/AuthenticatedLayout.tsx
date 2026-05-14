@@ -19,6 +19,7 @@ import {
 import { PageProps } from '@/types';
 import { Link, router, usePage } from '@inertiajs/react';
 import {
+    ActivityIcon,
     Building2Icon,
     BellIcon,
     BriefcaseIcon,
@@ -56,6 +57,7 @@ export default function Authenticated({
     const canManageUsers = Boolean(auth.can?.manageUsers);
     const canViewUsers = Boolean(auth.can?.viewUsers);
     const canCreateUsers = Boolean(auth.can?.createUsers);
+    const canViewUserActivity = Boolean(auth.can?.viewUserActivity);
     const canManageAccess = Boolean(auth.can?.manageAccess);
     const canManageNotifications = Boolean(auth.can?.manageNotifications);
     const canViewCompany = Boolean(auth.can?.viewCompany);
@@ -72,7 +74,8 @@ export default function Authenticated({
     const canOpenWorkspace = canManageOwnAccount || canViewCompany;
     const canOpenOperations =
         canOpenProjects || canOpenCustomers || canOpenEmployees;
-    const canOpenSecurity = canManageUsers || canManageAccess;
+    const canOpenSecurity =
+        canManageUsers || canManageAccess || canViewUserActivity;
     const canOpenAdministration =
         canOpenWorkspace || canOpenOperations || canOpenSecurity;
     const notifications = auth.notifications;
@@ -488,6 +491,23 @@ export default function Authenticated({
                                                                     <SlidersHorizontalIcon className="size-4" />
                                                                     Access
                                                                     Control
+                                                                </Link>
+                                                            </DropdownMenuItem>
+                                                        )}
+
+                                                        {canViewUserActivity && (
+                                                            <DropdownMenuItem
+                                                                asChild
+                                                            >
+                                                                <Link
+                                                                    href={route(
+                                                                        'admin.user-activities.index',
+                                                                    )}
+                                                                    className="flex items-center gap-2"
+                                                                >
+                                                                    <ActivityIcon className="size-4" />
+                                                                    User
+                                                                    Activity
                                                                 </Link>
                                                             </DropdownMenuItem>
                                                         )}
@@ -948,6 +968,23 @@ export default function Authenticated({
                                                 <span className="inline-flex items-center gap-2">
                                                     <SlidersHorizontalIcon className="size-4" />
                                                     Access Control
+                                                </span>
+                                            </ResponsiveNavLink>
+                                        )}
+
+                                        {canViewUserActivity && (
+                                            <ResponsiveNavLink
+                                                href={route(
+                                                    'admin.user-activities.index',
+                                                )}
+                                                active={route().current(
+                                                    'admin.user-activities.*',
+                                                )}
+                                                className="ps-8"
+                                            >
+                                                <span className="inline-flex items-center gap-2">
+                                                    <ActivityIcon className="size-4" />
+                                                    User Activity
                                                 </span>
                                             </ResponsiveNavLink>
                                         )}

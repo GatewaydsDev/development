@@ -35,6 +35,7 @@ type UserRow = {
         name: string;
     } | null;
     created_at: string | null;
+    last_login_at: string | null;
 };
 
 type PaginationLink = {
@@ -237,6 +238,11 @@ export default function Index({ filters, users }: IndexProps) {
                                                     {user.preferred_language
                                                         ? `${user.preferred_language.name} (${user.preferred_language.abbreviation.toUpperCase()})`
                                                         : 'Not added'}
+                                                </span>
+                                                <span className="block">
+                                                    Last login:{' '}
+                                                    {user.last_login_at ??
+                                                        'Never'}
                                                 </span>
                                             </div>
                                             <div>

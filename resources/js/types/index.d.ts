@@ -35,6 +35,7 @@ export type PageProps<
             viewUsers: boolean;
             createUsers: boolean;
             updateUsers: boolean;
+            viewUserActivity: boolean;
             viewCompany: boolean;
             manageAccess: boolean;
             manageNotifications: boolean;

@@ -69,7 +69,7 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                                 </Link>
                             </div>
 
-                            <div className="hidden gap-8 lg:ms-12 lg:flex">
+                            <div className="hidden gap-8 sm:ms-10 sm:flex sm:items-center lg:ms-12">
                                 {navigation.map((item) => {
                                     const Icon = item.Icon;
 
@@ -132,7 +132,7 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                             </div>
                         </div>
 
-                        <div className="hidden gap-2 lg:ms-6 lg:flex lg:items-center lg:gap-4">
+                        <div className="hidden gap-2 sm:ms-4 sm:flex sm:items-center lg:ms-6 lg:gap-4">
                             <LanguageSwitcher />
                             <ThemeModeToggle />
 
@@ -155,7 +155,7 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                             )}
                         </div>
 
-                        <div className="-me-2 flex items-center lg:hidden">
+                        <div className="-me-2 flex items-center sm:hidden">
                             <button
                                 type="button"
                                 onClick={() =>
@@ -202,7 +202,7 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                 <div
                     className={
                         (showingNavigationDropdown ? 'block' : 'hidden') +
-                        ' border-t border-border lg:hidden'
+                        ' border-t border-border sm:hidden'
                     }
                 >
                     <div className="flex flex-col gap-1 px-4 pb-3 pt-4">
@@ -210,6 +210,9 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                             <Link
                                 key={item.route}
                                 href={route(item.route)}
+                                onClick={() =>
+                                    setShowingNavigationDropdown(false)
+                                }
                                 className={
                                     'group flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium transition ' +
                                     (route().current(item.route)
@@ -272,6 +275,9 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                             {auth.user ? (
                                 <Link
                                     href={route('dashboard')}
+                                    onClick={() =>
+                                        setShowingNavigationDropdown(false)
+                                    }
                                     className="group flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
                                 >
                                     <LayoutDashboardIcon className="size-4 shrink-0 transition group-hover:animate-bell-shake group-focus-visible:animate-bell-shake" />
@@ -280,6 +286,9 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                             ) : (
                                 <Link
                                     href={route('login')}
+                                    onClick={() =>
+                                        setShowingNavigationDropdown(false)
+                                    }
                                     className="group flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
                                 >
                                     <LogInIcon className="size-4 shrink-0 transition group-hover:animate-bell-shake group-focus-visible:animate-bell-shake" />

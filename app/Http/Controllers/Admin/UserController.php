@@ -57,6 +57,7 @@ class UserController extends Controller
                         ]
                         : null,
                     'created_at' => $user->created_at?->toFormattedDateString(),
+                    'last_login_at' => $user->last_login_at?->format('M j, Y g:i A'),
                 ]),
         ]);
     }

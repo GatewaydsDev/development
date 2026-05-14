@@ -25,6 +25,7 @@ class User extends Authenticatable
         'name',
         'email',
         'date_of_birth',
+        'last_login_at',
         'role',
         'language_id',
         'level_id',
@@ -51,6 +52,7 @@ class User extends Authenticatable
         return [
             'date_of_birth' => 'date',
             'email_verified_at' => 'datetime',
+            'last_login_at' => 'datetime',
             'password' => 'hashed',
         ];
     }
@@ -78,6 +80,11 @@ class User extends Authenticatable
     public function createdProjects(): HasMany
     {
         return $this->hasMany(Project::class, 'created_by');
+    }
+
+    public function activities(): HasMany
+    {
+        return $this->hasMany(UserActivity::class);
     }
 
     public function hasUserLevel(string|array $levels): bool
