@@ -202,11 +202,12 @@ export default function Index({ filters, users }: IndexProps) {
 
                         <CardContent>
                             <div className="overflow-hidden rounded-lg border border-border">
-                                <div className="hidden grid-cols-[1.2fr_1.3fr_1fr_0.9fr_minmax(220px,auto)] gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid">
+                                <div className="hidden grid-cols-[1.1fr_1.2fr_1fr_0.9fr_1fr_minmax(220px,auto)] gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid">
                                     <div>Name</div>
                                     <div>Email</div>
                                     <div>Profile</div>
                                     <div>Level</div>
+                                    <div>Last login</div>
                                     <div className="text-right">Actions</div>
                                 </div>
 
@@ -214,7 +215,7 @@ export default function Index({ filters, users }: IndexProps) {
                                     users.data.map((user) => (
                                         <div
                                             key={user.id}
-                                            className="grid gap-3 border-b border-border px-4 py-4 last:border-b-0 md:grid-cols-[1.2fr_1.3fr_1fr_0.9fr_minmax(220px,auto)] md:items-center md:gap-4"
+                                            className="grid gap-3 border-b border-border px-4 py-4 last:border-b-0 md:grid-cols-[1.1fr_1.2fr_1fr_0.9fr_1fr_minmax(220px,auto)] md:items-center md:gap-4"
                                         >
                                             <div>
                                                 <p className="font-medium text-foreground">
@@ -222,6 +223,11 @@ export default function Index({ filters, users }: IndexProps) {
                                                 </p>
                                                 <p className="text-sm text-muted-foreground md:hidden">
                                                     {user.email}
+                                                </p>
+                                                <p className="text-sm text-muted-foreground md:hidden">
+                                                    Last login:{' '}
+                                                    {user.last_login_at ??
+                                                        'Never'}
                                                 </p>
                                             </div>
                                             <div className="hidden text-sm text-muted-foreground md:block">
@@ -239,17 +245,15 @@ export default function Index({ filters, users }: IndexProps) {
                                                         ? `${user.preferred_language.name} (${user.preferred_language.abbreviation.toUpperCase()})`
                                                         : 'Not added'}
                                                 </span>
-                                                <span className="block">
-                                                    Last login:{' '}
-                                                    {user.last_login_at ??
-                                                        'Never'}
-                                                </span>
                                             </div>
                                             <div>
                                                 <Badge variant="outline">
                                                     {user.level?.name ??
                                                         'No level'}
                                                 </Badge>
+                                            </div>
+                                            <div className="hidden text-sm text-muted-foreground md:block">
+                                                {user.last_login_at ?? 'Never'}
                                             </div>
                                             <div className="flex flex-wrap gap-2 md:justify-end">
                                                 {canManageAccess &&
