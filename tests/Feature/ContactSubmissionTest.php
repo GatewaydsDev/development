@@ -93,6 +93,40 @@ test('contact notifications fall back to the active company email', function () 
     });
 });
 
+test('contact emails prefer the active company email over configured fallback', function () {
+    Mail::fake();
+
+    config(['contact.recipient' => 'fallback@gatewaydoors.test']);
+
+    Company::create([
+        'name' => 'Gateway Door Systems',
+        'email' => 'company@gatewaydoors.test',
+        'is_active' => true,
+    ]);
+
+    $this
+        ->post(route('contact.store'), [
+            'name' => 'Taylor Architect',
+            'email' => 'taylor@example.com',
+            'phone_number' => '',
+            'organization' => 'Architecture Co',
+            'project_type' => 'generalInquiry',
+            'message' => 'Please contact me about a secure door project.',
+            'source_url' => 'https://gatewaydoors.test/',
+            'website' => '',
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('contact.success', true)
+        ->assertSessionHas('contact.status', 'Your message has been sent to Gateway Door Systems.');
+
+    Mail::assertSent(ContactSubmissionReceived::class, function (
+        ContactSubmissionReceived $mail
+    ): bool {
+        return $mail->hasTo('company@gatewaydoors.test')
+            && ! $mail->hasTo('fallback@gatewaydoors.test');
+    });
+});
+
 test('contact form submissions create dashboard notifications for super admins', function () {
     Mail::fake();
 

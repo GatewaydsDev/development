@@ -12,6 +12,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Validation\ValidationException;
 use Throwable;
 
 class ContactSubmissionController extends Controller
@@ -50,19 +51,20 @@ class ContactSubmissionController extends Controller
             ])->save();
         } catch (Throwable $exception) {
             report($exception);
+
+            throw ValidationException::withMessages([
+                'email' => 'There was an error sending your message. Please try again in a moment.',
+            ]);
         }
 
-        return back()->with('contact.success', true);
+        return back()->with([
+            'contact.success' => true,
+            'contact.status' => 'Your message has been sent to Gateway Door Systems.',
+        ]);
     }
 
     private function notificationRecipient(): string
     {
-        $configuredRecipient = config('contact.recipient');
-
-        if (is_string($configuredRecipient) && $configuredRecipient !== '') {
-            return $configuredRecipient;
-        }
-
         $companyEmail = Company::query()
             ->where('is_active', true)
             ->latest()
@@ -70,6 +72,12 @@ class ContactSubmissionController extends Controller
 
         if (is_string($companyEmail) && $companyEmail !== '') {
             return $companyEmail;
+        }
+
+        $configuredRecipient = config('contact.recipient');
+
+        if (is_string($configuredRecipient) && $configuredRecipient !== '') {
+            return $configuredRecipient;
         }
 
         return config('mail.from.address');

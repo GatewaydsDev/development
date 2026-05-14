@@ -9,8 +9,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from '@inertiajs/react';
 import {
     CheckCircle2Icon,
+    CheckCircleIcon,
     LoaderCircleIcon,
     MessageSquareTextIcon,
+    XCircleIcon,
     XIcon,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -27,6 +29,11 @@ type ContactFormData = {
     message: string;
     source_url: string;
     website: string;
+};
+
+type ToastState = {
+    type: 'success' | 'error';
+    message: string;
 };
 
 const projectTypes = [
@@ -48,6 +55,7 @@ export default function ContactSlideOver({
     const [isOpen, setIsOpen] = useState(false);
     const [wasSubmitted, setWasSubmitted] = useState(false);
     const [processing, setProcessing] = useState(false);
+    const [toast, setToast] = useState<ToastState | null>(null);
     const contactSchema = useMemo(
         () =>
             z.object({
@@ -124,6 +132,16 @@ export default function ContactSlideOver({
         clearErrors();
     };
 
+    useEffect(() => {
+        if (!toast) {
+            return;
+        }
+
+        const timeout = window.setTimeout(() => setToast(null), 6000);
+
+        return () => window.clearTimeout(timeout);
+    }, [toast]);
+
     const submit = (values: ContactFormData) => {
         router.post(route('contact.store'), values, {
             preserveScroll: true,
@@ -131,6 +149,15 @@ export default function ContactSlideOver({
                 setProcessing(true);
             },
             onError: (serverErrors) => {
+                const firstMessage =
+                    Object.values(serverErrors)[0] ||
+                    'There was an error sending your message. Please try again in a moment.';
+
+                setToast({
+                    type: 'error',
+                    message: String(firstMessage),
+                });
+
                 Object.entries(serverErrors).forEach(([field, message]) => {
                     if (field in values) {
                         setError(field as keyof ContactFormData, {
@@ -143,6 +170,11 @@ export default function ContactSlideOver({
             onSuccess: () => {
                 reset();
                 setWasSubmitted(true);
+                setToast({
+                    type: 'success',
+                    message:
+                        'Your message has been sent to Gateway Door Systems.',
+                });
             },
             onFinish: () => {
                 setProcessing(false);
@@ -406,6 +438,28 @@ export default function ContactSlideOver({
                     )}
                 </div>
             </aside>
+
+            {toast && (
+                <div className="fixed bottom-6 right-4 z-[60] max-w-sm rounded-xl border border-border bg-background p-4 text-sm text-foreground shadow-xl">
+                    <div className="flex gap-3">
+                        {toast.type === 'success' ? (
+                            <CheckCircleIcon className="mt-0.5 size-5 shrink-0 text-emerald-600" />
+                        ) : (
+                            <XCircleIcon className="mt-0.5 size-5 shrink-0 text-destructive" />
+                        )}
+                        <div>
+                            <p className="font-medium">
+                                {toast.type === 'success'
+                                    ? 'Message sent'
+                                    : 'Message not sent'}
+                            </p>
+                            <p className="mt-1 text-muted-foreground">
+                                {toast.message}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 }
