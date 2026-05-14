@@ -16,17 +16,20 @@ import { Head, useForm } from '@inertiajs/react';
 import {
     Building2Icon,
     GlobeIcon,
+    ImageIcon,
     MailIcon,
     MapPinIcon,
     PhoneIcon,
+    Trash2Icon,
 } from 'lucide-react';
-import { FormEventHandler } from 'react';
+import { ChangeEvent, FormEventHandler, useEffect, useState } from 'react';
 
 type Company = {
     id: number;
     uuid: string;
     name: string;
     legal_name: string | null;
+    logo_url: string | null;
     email: string | null;
     phone_number: string | null;
     contact_phone_number: string | null;
@@ -62,6 +65,9 @@ type CompanyFormData = {
     contact_url: string;
     notes: string;
     is_active: boolean;
+    logo: File | null;
+    remove_logo: boolean;
+    _method: string;
 };
 
 function DetailItem({
@@ -84,7 +90,11 @@ function DetailItem({
 }
 
 export default function Show({ company }: ShowProps) {
-    const { data, setData, errors, processing, post, patch } =
+    const [localLogoPreviewUrl, setLocalLogoPreviewUrl] = useState<string | null>(
+        null,
+    );
+    const [selectedLogoName, setSelectedLogoName] = useState<string | null>(null);
+    const { data, setData, errors, processing, post } =
         useForm<CompanyFormData>({
             name: company?.name ?? '',
             legal_name: company?.legal_name ?? '',
@@ -101,7 +111,20 @@ export default function Show({ company }: ShowProps) {
             contact_url: company?.contact_url ?? '',
             notes: company?.notes ?? '',
             is_active: company?.is_active ?? true,
+            logo: null,
+            remove_logo: false,
+            _method: company ? 'patch' : '',
         });
+    const logoPreviewUrl =
+        localLogoPreviewUrl || (!data.remove_logo ? company?.logo_url : null);
+
+    useEffect(() => {
+        return () => {
+            if (localLogoPreviewUrl) {
+                URL.revokeObjectURL(localLogoPreviewUrl);
+            }
+        };
+    }, [localLogoPreviewUrl]);
 
     const fullAddress = company
         ? [
@@ -119,12 +142,38 @@ export default function Show({ company }: ShowProps) {
     const submit: FormEventHandler = (event) => {
         event.preventDefault();
 
-        if (company) {
-            patch(route('admin.company.update', company.id));
-            return;
+        post(
+            company
+                ? route('admin.company.update', company.id)
+                : route('admin.company.store'),
+            {
+                forceFormData: true,
+            },
+        );
+    };
+
+    const selectLogo = (event: ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0] ?? null;
+
+        if (localLogoPreviewUrl) {
+            URL.revokeObjectURL(localLogoPreviewUrl);
         }
 
-        post(route('admin.company.store'));
+        setData('logo', file);
+        setData('remove_logo', false);
+        setSelectedLogoName(file?.name ?? null);
+        setLocalLogoPreviewUrl(file ? URL.createObjectURL(file) : null);
+    };
+
+    const removeLogo = () => {
+        if (localLogoPreviewUrl) {
+            URL.revokeObjectURL(localLogoPreviewUrl);
+        }
+
+        setData('logo', null);
+        setData('remove_logo', true);
+        setSelectedLogoName(null);
+        setLocalLogoPreviewUrl(null);
     };
 
     const inputClassName =
@@ -156,27 +205,47 @@ export default function Show({ company }: ShowProps) {
                         <>
                             <Card className="shadow-sm">
                                 <CardHeader className="gap-4 sm:grid-cols-[1fr_auto] sm:items-start">
-                                    <div>
-                                        <CardTitle className="flex items-center gap-2">
-                                            <Building2Icon className="size-5 text-muted-foreground" />
-                                            {company.name}
-                                        </CardTitle>
-                                        <CardDescription>
-                                            {company.legal_name ||
-                                                'Gateway Door Systems company record'}
-                                        </CardDescription>
+                                    <div className="flex gap-4">
+                                        {company.logo_url ? (
+                                            <img
+                                                src={company.logo_url}
+                                                alt={`${company.name} logo`}
+                                                className="size-16 rounded-xl border border-border bg-background object-contain p-2"
+                                            />
+                                        ) : (
+                                            <div className="flex size-16 items-center justify-center rounded-xl border border-dashed border-border bg-background text-muted-foreground">
+                                                <ImageIcon className="size-6" />
+                                            </div>
+                                        )}
+                                        <div>
+                                            <CardTitle className="flex items-center gap-2">
+                                                <Building2Icon className="size-5 text-muted-foreground" />
+                                                {company.name}
+                                            </CardTitle>
+                                            <CardDescription>
+                                                {company.legal_name ||
+                                                    'Gateway Door Systems company record'}
+                                            </CardDescription>
+                                        </div>
                                     </div>
-                                    <Badge
-                                        variant={
-                                            company.is_active
-                                                ? 'default'
-                                                : 'outline'
-                                        }
-                                    >
-                                        {company.is_active
-                                            ? 'Active'
-                                            : 'Inactive'}
-                                    </Badge>
+                                    <div className="flex flex-col items-start gap-2 sm:items-end">
+                                        <Badge
+                                            variant={
+                                                company.is_active
+                                                    ? 'default'
+                                                    : 'outline'
+                                            }
+                                        >
+                                            {company.is_active
+                                                ? 'Active'
+                                                : 'Inactive'}
+                                        </Badge>
+                                        <Badge variant="outline">
+                                            {company.logo_url
+                                                ? 'Logo uploaded'
+                                                : 'No logo'}
+                                        </Badge>
+                                    </div>
                                 </CardHeader>
                                 <CardContent>
                                     <dl className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -429,6 +498,70 @@ export default function Show({ company }: ShowProps) {
                                             }
                                         />
                                         <InputError message={errors.email} />
+                                    </div>
+                                </div>
+
+                                <div className="rounded-xl border border-border bg-background p-4">
+                                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+                                        <div className="flex size-28 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted/40">
+                                            {logoPreviewUrl ? (
+                                                <img
+                                                    src={logoPreviewUrl}
+                                                    alt="Company logo preview"
+                                                    className="size-full object-contain p-3"
+                                                />
+                                            ) : (
+                                                <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                                                    <ImageIcon className="size-8" />
+                                                    <span className="text-xs">
+                                                        No logo
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="flex flex-1 flex-col gap-3">
+                                            <div>
+                                                <InputLabel
+                                                    htmlFor="logo"
+                                                    value="Company logo"
+                                                    className="text-emerald-700 dark:text-emerald-300"
+                                                />
+                                                <p className="mt-1 text-sm text-muted-foreground">
+                                                    Upload a PNG, JPG, WebP, or
+                                                    SVG logo up to 2 MB. Uploading
+                                                    a new logo replaces the
+                                                    current one.
+                                                </p>
+                                            </div>
+
+                                            <input
+                                                id="logo"
+                                                type="file"
+                                                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                                                onChange={selectLogo}
+                                                className="block w-full rounded-md border border-border bg-background text-sm text-foreground file:me-4 file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary-foreground hover:file:bg-primary/90"
+                                            />
+                                            <InputError message={errors.logo} />
+
+                                            {selectedLogoName && (
+                                                <p className="text-sm text-muted-foreground">
+                                                    Selected: {selectedLogoName}
+                                                </p>
+                                            )}
+
+                                            {(logoPreviewUrl ||
+                                                company?.logo_url) && (
+                                                <button
+                                                    type="button"
+                                                    onClick={removeLogo}
+                                                    className="inline-flex w-fit items-center gap-2 rounded-md border border-rose-200 px-3 py-2 text-sm font-medium text-rose-700 transition hover:bg-rose-50 dark:border-rose-900/70 dark:text-rose-300 dark:hover:bg-rose-950/30"
+                                                >
+                                                    <Trash2Icon className="size-4" />
+                                                    Remove logo
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
 

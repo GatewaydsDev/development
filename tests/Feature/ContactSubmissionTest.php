@@ -56,6 +56,9 @@ test('contact form submissions are saved before notifications are sent', functio
             && $mail->submission->is($submission)
             && $envelope->tags === ['contact-request']
             && $envelope->metadata['email_type'] === 'contact-request'
+            && $envelope->metadata['submission_id'] === (string) $submission->id
+            && array_key_exists('sender', $envelope->metadata)
+            && array_key_exists('source', $envelope->metadata)
             && $content->view === 'emails.contact-submission'
             && $content->text === 'emails.contact-submission-text';
     });

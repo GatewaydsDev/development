@@ -25,9 +25,9 @@ class ContactSubmissionReceived extends Mailable
             tags: ['contact-request'],
             metadata: [
                 'email_type' => 'contact-request',
-                'contact_submission_id' => (string) $this->submission->id,
-                'sender_email' => $this->submission->email,
-                'source_url' => (string) $this->submission->source_url,
+                'submission_id' => (string) $this->submission->id,
+                'sender' => str($this->submission->email)->limit(80, '')->toString(),
+                'source' => str((string) $this->submission->source_url)->limit(80, '')->toString(),
             ],
         );
     }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Company;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -24,6 +25,9 @@ class CompanyController extends Controller
                     'uuid' => $company->uuid,
                     'name' => $company->name,
                     'legal_name' => $company->legal_name,
+                    'logo_url' => $company->logo_path
+                        ? asset('storage/'.$company->logo_path)
+                        : null,
                     'email' => $company->email,
                     'phone_number' => $company->phone_number,
                     'contact_phone_number' => $company->contact_phone_number,
@@ -45,11 +49,12 @@ class CompanyController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $company = Company::query()->latest()->first();
+        $validated = $this->validatedCompanyData($request);
 
         if ($company) {
-            $company->update($this->validatedCompanyData($request));
+            $company->update($this->companyDataWithLogo($request, $company, $validated));
         } else {
-            Company::create($this->validatedCompanyData($request));
+            Company::create($this->companyDataWithLogo($request, null, $validated));
         }
 
         return redirect()
@@ -59,7 +64,11 @@ class CompanyController extends Controller
 
     public function update(Request $request, Company $company): RedirectResponse
     {
-        $company->update($this->validatedCompanyData($request));
+        $company->update($this->companyDataWithLogo(
+            $request,
+            $company,
+            $this->validatedCompanyData($request),
+        ));
 
         return redirect()
             ->route('admin.company.show')
@@ -87,6 +96,32 @@ class CompanyController extends Controller
             'contact_url' => ['nullable', 'url', 'max:255'],
             'notes' => ['nullable', 'string', 'max:5000'],
             'is_active' => ['boolean'],
+            'logo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp,svg', 'max:2048'],
+            'remove_logo' => ['boolean'],
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     * @return array<string, mixed>
+     */
+    private function companyDataWithLogo(Request $request, ?Company $company, array $validated): array
+    {
+        unset($validated['logo'], $validated['remove_logo']);
+
+        if ($request->boolean('remove_logo') && $company?->logo_path) {
+            Storage::disk('public')->delete($company->logo_path);
+            $validated['logo_path'] = null;
+        }
+
+        if ($request->hasFile('logo')) {
+            if ($company?->logo_path) {
+                Storage::disk('public')->delete($company->logo_path);
+            }
+
+            $validated['logo_path'] = $request->file('logo')->store('company-logos', 'public');
+        }
+
+        return $validated;
     }
 }

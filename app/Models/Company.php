@@ -11,6 +11,7 @@ class Company extends Model
         'uuid',
         'name',
         'legal_name',
+        'logo_path',
         'email',
         'phone_number',
         'contact_phone_number',
