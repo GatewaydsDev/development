@@ -16,6 +16,7 @@ return [
 
     'postmark' => [
         'token' => env('POSTMARK_TOKEN'),
+        'webhook_token' => env('POSTMARK_WEBHOOK_TOKEN'),
     ],
 
     'mailgun' => [

@@ -80,16 +80,17 @@ test('reset password email uses custom html and text views', function () {
 
     Notification::assertSentTo($user, ResetPasswordNotification::class, function ($notification) use ($user) {
         $mail = $notification->toMail($user);
+        $envelope = $mail->envelope();
+        $content = $mail->content();
 
-        expect($mail->subject)->toBe('Reset your Gateway Door Systems password');
-        expect($mail->view)->toBe([
-            'html' => 'emails.password-reset-html',
-            'text' => 'emails.password-reset-text',
-        ]);
-        expect($mail->viewData)
-            ->toHaveKey('resetUrl')
-            ->toHaveKey('expiresInMinutes')
-            ->toHaveKey('userEmail', $user->email);
+        expect($envelope->subject)->toBe('Reset your Gateway Door Systems password');
+        expect($envelope->tags)->toBe(['password-reset']);
+        expect($envelope->metadata)->toHaveKey('email_type', 'password-reset');
+        expect($content->view)->toBe('emails.password-reset-html');
+        expect($content->text)->toBe('emails.password-reset-text');
+        expect($mail->resetUrl)->toContain('/reset-password/');
+        expect($mail->expiresInMinutes)->toBe(config('auth.passwords.users.expire'));
+        expect($mail->userEmail)->toBe($user->email);
 
         return true;
     });

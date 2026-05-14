@@ -22,6 +22,11 @@ class ContactSubmissionReceived extends Mailable
         return new Envelope(
             replyTo: [$this->submission->email],
             subject: 'New secure door contact request from '.$this->submission->name,
+            tags: ['contact-request'],
+            metadata: [
+                'email_type' => 'contact-request',
+                'contact_submission_id' => (string) $this->submission->id,
+            ],
         );
     }
 
@@ -29,6 +34,7 @@ class ContactSubmissionReceived extends Mailable
     {
         return new Content(
             view: 'emails.contact-submission',
+            text: 'emails.contact-submission-text',
         );
     }
 }

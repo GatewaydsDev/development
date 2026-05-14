@@ -49,8 +49,15 @@ test('contact form submissions are saved before notifications are sent', functio
     Mail::assertSent(ContactSubmissionReceived::class, function (
         ContactSubmissionReceived $mail
     ) use ($submission): bool {
+        $envelope = $mail->envelope();
+        $content = $mail->content();
+
         return $mail->hasTo('leads@gatewaydoors.test')
-            && $mail->submission->is($submission);
+            && $mail->submission->is($submission)
+            && $envelope->tags === ['contact-request']
+            && $envelope->metadata['email_type'] === 'contact-request'
+            && $content->view === 'emails.contact-submission'
+            && $content->text === 'emails.contact-submission-text';
     });
 });
 
