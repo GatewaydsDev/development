@@ -86,6 +86,7 @@ test('reset password email uses custom html and text views', function () {
         expect($envelope->subject)->toBe('Reset your Gateway Door Systems password');
         expect($envelope->tags)->toBe(['password-reset']);
         expect($envelope->metadata)->toHaveKey('email_type', 'password-reset');
+        expect($mail->hasTo($user->email))->toBeTrue();
         expect($content->view)->toBe('emails.password-reset-html');
         expect($content->text)->toBe('emails.password-reset-text');
         expect($mail->resetUrl)->toContain('/reset-password/');

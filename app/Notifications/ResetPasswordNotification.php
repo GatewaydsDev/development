@@ -10,11 +10,11 @@ class ResetPasswordNotification extends ResetPassword
 {
     public function toMail($notifiable): Mailable
     {
-        return new PasswordResetMail(
+        return (new PasswordResetMail(
             resetUrl: $this->resetUrl($notifiable),
             expiresInMinutes: config('auth.passwords.'.config('auth.defaults.passwords').'.expire'),
             userEmail: $notifiable->getEmailForPasswordReset(),
             appName: config('app.name'),
-        );
+        ))->to($notifiable->routeNotificationFor('mail', $this));
     }
 }
