@@ -10,6 +10,7 @@ import {
 import { serviceDefinitionsByKey, type ServiceKey } from '@/data/services';
 import PublicLayout from '@/Layouts/PublicLayout';
 import { openContactForm } from '@/lib/contact';
+import { cn } from '@/lib/utils';
 import { Head } from '@inertiajs/react';
 import {
     CheckCircle2Icon,
@@ -61,6 +62,7 @@ export default function ServiceShow({
     }
 
     const ServiceIcon = service.Icon;
+    const isRadioFrequencyDoors = serviceKey === 'radioFrequencyDoors';
     const servicePath = `services.${service.key}`;
     const metaTitle = t(`${servicePath}.metaTitle`);
     const metaDescription = t(`${servicePath}.metaDescription`);
@@ -153,7 +155,11 @@ export default function ServiceShow({
                             <img
                                 src={service.images.hero}
                                 alt={t(`${servicePath}.imageAlt`)}
-                                className="h-72 w-full rounded-2xl bg-muted/50 object-contain shadow-2xl shadow-emerald-950/20 transition duration-700 hover:scale-[1.01] sm:h-[28rem] sm:rounded-3xl lg:h-[34rem]"
+                                className={cn(
+                                    'h-72 w-full rounded-2xl bg-muted/50 object-contain shadow-2xl shadow-emerald-950/20 transition duration-700 hover:scale-[1.01] sm:h-[28rem] sm:rounded-3xl lg:h-[34rem]',
+                                    isRadioFrequencyDoors &&
+                                        'border-0 ring-0 outline-none',
+                                )}
                             />
                         </div>
                     </div>
@@ -246,7 +252,12 @@ export default function ServiceShow({
                     <img
                         src={service.images.detail}
                         alt={t(`${servicePath}.imageAlt`)}
-                        className="mt-6 h-72 w-full rounded-2xl border border-border bg-muted/50 object-contain p-2 shadow-xl shadow-emerald-950/10 transition duration-700 hover:scale-[1.01] sm:mt-8 sm:h-96 sm:rounded-3xl lg:h-[28rem]"
+                        className={cn(
+                            'mt-6 h-72 w-full rounded-2xl bg-muted/50 object-contain shadow-xl shadow-emerald-950/10 transition duration-700 hover:scale-[1.01] sm:mt-8 sm:h-96 sm:rounded-3xl lg:h-[28rem]',
+                            isRadioFrequencyDoors
+                                ? 'border-0 p-0 ring-0 outline-none'
+                                : 'border border-border p-2',
+                        )}
                     />
                 </div>
 

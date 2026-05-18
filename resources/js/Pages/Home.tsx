@@ -265,7 +265,7 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
                             />
 
                             <img
-                                src="/images/gateway-hero-section.png"
+                                src="/images/3-images.png"
                                 alt={t('secureDoor.imageAlt')}
                                 className="relative h-64 w-full rounded-3xl border border-border object-cover transition duration-700 group-hover:scale-[1.02] sm:h-80 lg:h-auto"
                             />
