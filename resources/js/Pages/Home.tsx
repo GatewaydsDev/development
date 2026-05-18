@@ -3,9 +3,6 @@ import { Button } from '@/Components/ui/button';
 import {
     Card,
     CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
 } from '@/Components/ui/card';
 import { serviceDefinitions } from '@/data/services';
 import PublicLayout from '@/Layouts/PublicLayout';
@@ -209,32 +206,20 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
                         </div>
                     </div>
 
-                    <Card className="hidden border-border bg-background/80 shadow-2xl shadow-emerald-950/10 backdrop-blur-md dark:shadow-emerald-950/30 md:flex">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <ShieldCheckIcon className="size-5 text-emerald-700 dark:text-emerald-300" />
-                                {t('hero.card.title')}
-                            </CardTitle>
+                    <div className="group relative flex min-h-[20rem] items-center justify-center sm:min-h-[26rem] lg:min-h-[32rem]">
+                        <div className="absolute inset-x-6 top-8 h-56 rounded-full bg-emerald-400/20 blur-3xl transition duration-700 group-hover:bg-emerald-400/30 sm:inset-x-8 sm:h-72" />
+                        <div className="absolute bottom-10 right-4 size-40 rounded-full bg-primary/10 blur-2xl transition duration-700 group-hover:scale-110" />
 
-                            <CardDescription className="leading-7">
-                                {t('hero.card.description')}
-                            </CardDescription>
-                        </CardHeader>
+                        <div className="relative w-full max-w-[26rem] animate-in fade-in slide-in-from-bottom-6 duration-700 sm:max-w-[30rem] lg:max-w-[34rem]">
+                            <div className="absolute inset-0 translate-y-8 rounded-[2rem] bg-emerald-950/20 blur-2xl transition duration-700 group-hover:translate-y-10 group-hover:scale-105" />
 
-                        <CardContent>
-                            <div className="grid gap-3">
-                                {heroKeywords.map((keyword) => (
-                                    <div
-                                        key={keyword}
-                                        className="flex items-center gap-3 rounded-xl border border-border bg-background p-4 text-sm font-medium text-foreground"
-                                    >
-                                        <CheckCircle2Icon className="size-4 text-emerald-700 dark:text-emerald-300" />
-                                        {t(`hero.keywords.${keyword}`)}
-                                    </div>
-                                ))}
-                            </div>
-                        </CardContent>
-                    </Card>
+                            <img
+                                src="/images/section_1.png"
+                                alt={t('hero.card.title')}
+                                className="relative w-full rounded-[2rem] border border-white/30 object-contain shadow-2xl shadow-emerald-950/20 ring-1 ring-emerald-500/10 transition duration-700 ease-out group-hover:-translate-y-2 group-hover:scale-[1.02] dark:border-white/10 dark:shadow-emerald-950/40"
+                            />
+                        </div>
+                    </div>
                 </div>
             </section>
 

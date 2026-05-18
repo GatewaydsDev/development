@@ -149,23 +149,11 @@ export default function ServiceShow({
                     <div className="relative">
                         <div className="absolute -inset-4 rounded-[2rem] bg-emerald-400/15 blur-3xl" />
 
-                        <div className="relative grid gap-3 sm:grid-cols-2 sm:gap-4">
+                        <div className="relative">
                             <img
                                 src={service.images.hero}
                                 alt={t(`${servicePath}.imageAlt`)}
-                                className="h-72 w-full rounded-2xl border border-border bg-muted/50 object-contain p-2 shadow-2xl shadow-emerald-950/20 transition duration-700 hover:scale-[1.01] sm:col-span-2 sm:h-[28rem] sm:rounded-3xl lg:h-[34rem]"
-                            />
-
-                            <img
-                                src={service.images.detail}
-                                alt={t(`${servicePath}.imageAlt`)}
-                                className="h-56 w-full rounded-2xl border border-border bg-muted/50 object-contain p-2 shadow-xl shadow-emerald-950/10 transition duration-700 hover:-translate-y-1 hover:scale-[1.02] sm:h-72 sm:rounded-3xl lg:h-80"
-                            />
-
-                            <img
-                                src={service.images.support}
-                                alt={t(`${servicePath}.imageAlt`)}
-                                className="h-56 w-full rounded-2xl border border-border bg-muted/50 object-contain p-2 shadow-xl shadow-emerald-950/10 transition duration-700 hover:-translate-y-1 hover:scale-[1.02] sm:h-72 sm:rounded-3xl lg:h-80"
+                                className="h-72 w-full rounded-2xl bg-muted/50 object-contain shadow-2xl shadow-emerald-950/20 transition duration-700 hover:scale-[1.01] sm:h-[28rem] sm:rounded-3xl lg:h-[34rem]"
                             />
                         </div>
                     </div>

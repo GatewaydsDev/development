@@ -24,6 +24,8 @@ import {
 } from 'lucide-react';
 import { ChangeEvent, FormEventHandler, useEffect, useState } from 'react';
 
+const maxLogoSizeBytes = 2 * 1024 * 1024;
+
 type Company = {
     id: number;
     uuid: string;
@@ -94,7 +96,7 @@ export default function Show({ company }: ShowProps) {
         null,
     );
     const [selectedLogoName, setSelectedLogoName] = useState<string | null>(null);
-    const { data, setData, errors, processing, post } =
+    const { data, setData, errors, processing, post, setError, clearErrors } =
         useForm<CompanyFormData>({
             name: company?.name ?? '',
             legal_name: company?.legal_name ?? '',
@@ -159,6 +161,17 @@ export default function Show({ company }: ShowProps) {
             URL.revokeObjectURL(localLogoPreviewUrl);
         }
 
+        if (file && file.size > maxLogoSizeBytes) {
+            event.target.value = '';
+            setData('logo', null);
+            setSelectedLogoName(null);
+            setLocalLogoPreviewUrl(null);
+            setError('logo', 'The company logo must be 2 MB or smaller.');
+
+            return;
+        }
+
+        clearErrors('logo');
         setData('logo', file);
         setData('remove_logo', false);
         setSelectedLogoName(file?.name ?? null);
