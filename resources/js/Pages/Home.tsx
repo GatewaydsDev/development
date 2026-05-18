@@ -140,7 +140,7 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
                 <div className="absolute inset-0 bg-gradient-to-t from-background via-background/35 to-background/20" />
                 <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.045)_1px,_transparent_1px),linear-gradient(90deg,_rgba(0,0,0,0.045)_1px,_transparent_1px)] bg-[size:56px_56px] dark:bg-[linear-gradient(rgba(255,255,255,0.035)_1px,_transparent_1px),linear-gradient(90deg,_rgba(255,255,255,0.035)_1px,_transparent_1px)]" />
 
-                <div className="relative mx-auto grid min-h-[calc(100svh-4rem)] max-w-7xl gap-8 px-4 py-10 sm:min-h-[calc(100svh-5rem)] sm:px-6 sm:py-16 lg:min-h-[calc(100vh-7rem)] lg:grid-cols-[1fr_0.8fr] lg:items-center lg:px-8 lg:py-24">
+                <div className="relative mx-auto grid min-h-[calc(100svh-4rem)] max-w-7xl gap-8 px-4 py-10 sm:min-h-[calc(100svh-5rem)] sm:px-6 sm:py-16 lg:min-h-[calc(100vh-7rem)] lg:grid-cols-[0.9fr_1fr] lg:items-center lg:px-8 lg:py-24">
                     <div>
                         <Badge
                             variant="outline"
@@ -206,11 +206,11 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
                         </div>
                     </div>
 
-                    <div className="group relative flex min-h-[20rem] items-center justify-center sm:min-h-[26rem] lg:min-h-[32rem]">
-                        <div className="absolute inset-x-6 top-8 h-56 rounded-full bg-emerald-400/20 blur-3xl transition duration-700 group-hover:bg-emerald-400/30 sm:inset-x-8 sm:h-72" />
-                        <div className="absolute bottom-10 right-4 size-40 rounded-full bg-primary/10 blur-2xl transition duration-700 group-hover:scale-110" />
+                    <div className="group relative flex min-h-[24rem] items-center justify-center sm:min-h-[32rem] lg:min-h-[38rem]">
+                        <div className="absolute inset-x-4 top-8 h-64 rounded-full bg-emerald-400/20 blur-3xl transition duration-700 group-hover:bg-emerald-400/30 sm:h-80 lg:-inset-x-4 lg:h-96" />
+                        <div className="absolute bottom-10 right-4 size-48 rounded-full bg-primary/10 blur-2xl transition duration-700 group-hover:scale-110 lg:size-56" />
 
-                        <div className="relative w-full max-w-[26rem] animate-in fade-in slide-in-from-bottom-6 duration-700 sm:max-w-[30rem] lg:max-w-[34rem]">
+                        <div className="relative w-full max-w-[30rem] animate-in fade-in slide-in-from-bottom-6 duration-700 sm:max-w-[38rem] lg:max-w-[46rem] xl:max-w-[50rem]">
                             <div className="absolute inset-0 translate-y-8 rounded-[2rem] bg-emerald-950/20 blur-2xl transition duration-700 group-hover:translate-y-10 group-hover:scale-105" />
 
                             <img
