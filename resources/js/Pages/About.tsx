@@ -118,13 +118,12 @@ export default function About() {
                 ref={heroReveal.ref}
                 className="relative overflow-hidden border-b border-border bg-background"
             >
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(52,211,153,0.14),_transparent_32%),radial-gradient(circle_at_bottom_right,_rgba(16,185,129,0.12),_transparent_34%)]" />
-                <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.035)_1px,_transparent_1px),linear-gradient(90deg,_rgba(0,0,0,0.035)_1px,_transparent_1px)] bg-[size:56px_56px] dark:bg-[linear-gradient(rgba(255,255,255,0.035)_1px,_transparent_1px),linear-gradient(90deg,_rgba(255,255,255,0.035)_1px,_transparent_1px)]" />
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(52,211,153,0.14),_transparent_42%),linear-gradient(rgba(0,0,0,0.02)_1px,_transparent_1px),linear-gradient(90deg,_rgba(0,0,0,0.02)_1px,_transparent_1px)] bg-[size:auto_auto,56px_56px,56px_56px] dark:bg-[radial-gradient(circle_at_top_left,_rgba(52,211,153,0.12),_transparent_42%),linear-gradient(rgba(255,255,255,0.025)_1px,_transparent_1px),linear-gradient(90deg,_rgba(255,255,255,0.025)_1px,_transparent_1px)]" />
 
-                <div className="relative mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:gap-12 sm:px-6 sm:py-20 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:px-8 lg:py-28">
+                <div className="relative mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-24">
                     <div
                         className={cn(
-                            'transition duration-1000 ease-out',
+                            'max-w-3xl transition duration-1000 ease-out',
                             heroReveal.isVisible
                                 ? 'translate-y-0 opacity-100'
                                 : 'translate-y-8 opacity-0',
@@ -177,37 +176,6 @@ export default function About() {
                                     {t('hero.secondaryCta')}
                                 </a>
                             </Button>
-                        </div>
-                    </div>
-
-                    <div
-                        className={cn(
-                            'relative transition duration-1000 ease-out lg:delay-150',
-                            heroReveal.isVisible
-                                ? 'translate-y-0 scale-100 opacity-100'
-                                : 'translate-y-10 scale-95 opacity-0',
-                        )}
-                    >
-                        <div className="absolute -inset-4 rounded-[2rem] bg-emerald-400/15 blur-3xl" />
-
-                        <div className="relative grid gap-3 sm:grid-cols-2 sm:gap-4">
-                            <img
-                                src="/images/gateway-hero-section.png"
-                                alt={t('hero.images.overview')}
-                                className="h-56 w-full rounded-2xl border border-border object-cover shadow-2xl shadow-emerald-950/20 transition duration-700 hover:scale-[1.01] sm:col-span-2 sm:h-72 sm:rounded-3xl"
-                            />
-
-                            <img
-                                src="/images/high-security-reinforced-door.jpeg"
-                                alt={t('hero.images.reinforced')}
-                                className="h-40 w-full rounded-2xl border border-border object-cover shadow-xl shadow-emerald-950/10 transition duration-700 hover:-translate-y-1 hover:scale-[1.02] sm:h-52 sm:rounded-3xl"
-                            />
-
-                            <img
-                                src="/images/high-security-access-card-door.jpeg"
-                                alt={t('hero.images.access')}
-                                className="h-40 w-full rounded-2xl border border-border object-cover shadow-xl shadow-emerald-950/10 transition duration-700 hover:-translate-y-1 hover:scale-[1.02] sm:h-52 sm:rounded-3xl"
-                            />
                         </div>
                     </div>
                 </div>
@@ -303,7 +271,7 @@ export default function About() {
                         <img
                             src="/images/high-security-door-row.jpeg"
                             alt={t('trust.imageAlt')}
-                            className="mt-6 h-56 w-full rounded-2xl border border-border object-cover shadow-xl shadow-emerald-950/10 transition duration-700 hover:scale-[1.01] sm:mt-8 sm:h-72 sm:rounded-3xl"
+                            className="mt-6 h-[22rem] w-full rounded-2xl object-contain object-left transition duration-700 hover:scale-[1.01] sm:mt-8 sm:h-[30rem] sm:rounded-3xl lg:h-[36rem]"
                         />
                     </div>
 
