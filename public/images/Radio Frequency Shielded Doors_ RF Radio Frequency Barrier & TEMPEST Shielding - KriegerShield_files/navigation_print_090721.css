@@ -1,0 +1,35 @@
+/* Site Build - Beskar - Navigation Styles Only - PRINT
+========================================================================================================== */
+
+/* GLOBAL STYLES
+---------------------------------------------------------------------------------------------------------- */
+	
+
+/* ---- Search Input Styles ---- */
+input.searchfield[type=text] {
+	display: none;
+}
+
+input.searchbutton[type=submit] {
+	display: none;
+}
+
+
+.sidenav {display: none;}
+.nav320 {display: none;}
+.nav400 {display: none;}
+.nav768 {display: none;}
+.nav1200 {display: none;}
+
+.nav-print {
+	width: 100%;
+	display: block;
+}
+
+.nav-print-logo {
+	width: 225px;
+	height: 46px;
+	display: block;
+	margin: 0px auto 30px auto;
+}
+

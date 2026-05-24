@@ -1,0 +1,300 @@
+/* Site Build - Beskar 1.0 - Footer Styles Only
+========================================================================================================== */
+
+
+/* ---- Footer Link Styles ---- */
+.footercontent a.header:link, a.header:visited {
+		color: #8a1a1c;
+		font-size: 14px;
+		line-height: 16px;
+		font-weight: 600;
+		text-decoration: none;
+	}
+
+	.footercontent a.header:hover {
+		color: #dd0000;
+		font-size: 14px;
+		line-height: 14px;
+		font-weight: 600;
+		text-decoration: none;
+	}
+
+
+.footercontent .col a.item:link, a.item:visited {
+	color: #000000;
+	font-size: 12px;
+	line-height: 18px;
+	font-weight: 400;
+	text-decoration: none;
+}
+
+	.footercontent .col a.item:hover {
+		color: #8a1a1c;
+		font-size: 12px;
+		line-height: 18px;
+		font-weight: 400;
+		text-decoration: none;
+	}
+
+
+.mouseprint a:link, a:visited {
+	color: #aaaaaa;
+	font-size: 12px;
+	line-height: 20px;
+	font-weight: 400;
+	text-decoration: none;
+}
+
+	.mouseprint a:hover {
+		color: #8a1a1c;
+		font-size: 12px;
+		line-height: 20px;
+		font-weight: 400;
+		text-decoration: none;
+	}
+
+	
+/* EXTRA SMALL DEVICES (PHONES, 767PX AND DOWN) 
+---------------------------------------------------------------------------------------------------------- */
+@media only screen and (max-width: 767px) {
+
+	/* ---- Footer Styles ---- */
+	.footer {width: 100%; border-top: 1px solid #d4d4d4; background-color: #eeeeee; padding: 30px 15px 120px 15px;}
+	
+	.footercontent {
+		width: 100%;
+		margin: auto;
+		padding: 0px 0px 0px 0px;
+	}
+	
+	.footercontent .col {
+		width: 100%;
+		text-align: center;
+		display: block;
+		vertical-align: top;
+		padding: 0px 0px 20px 0px;
+	}
+	
+	.footercontent .col-2 {
+		width: 100%;
+		text-align: center;
+		display: block;
+		vertical-align: top;
+		margin: 0px 0px 0px 0px;
+		padding: 0px 0px 20px 0px;
+	}
+		
+	.footercontent .made-box {
+		width: 100%;
+		color: #555555;
+		font-size: 12px;
+		line-height: 20px;
+		font-weight: 400;
+		text-align: center;
+		padding: 20px 20px 20px 20px;
+		border: 1px solid #d4d4d4;
+	}	
+	
+	.footercontent .questions {
+		width: 100%;
+		color: #000000;
+		font-size: 16px;
+		line-height: 24px;
+		font-weight: 600;
+		text-align: center;
+		border-top: 1px solid #d4d4d4;
+		margin: 10px 0px 0px 0px;
+		padding: 8px 0px 0px 0px;
+	}
+	
+	.footercontent .allegion-logo {
+		width: 100%;
+		padding: 16px 0px 0px 0px;
+	}
+	
+	.mouseprint {
+		width: 100%;
+		margin: auto;
+		color: #aaaaaa;
+		font-size: 12px;
+		line-height: 20px;
+		font-weight: 400;
+		text-align: center;
+		border-top: 1px solid #d4d4d4;
+		padding: 10px 0px 0px 0px;
+	}
+
+}
+
+
+
+
+/* SMALL DEVICES (PORTRAIT TABLETS AND LARGE PHONES, 400PX AND UP)  
+
+This has been deprecated as of August 2023. 
+
+---------------------------------------------------------------------------------------------------------- */
+
+
+
+
+/* MEDIUM DEVICES (LANDSCAPE TABLETS, 768PX AND UP)
+---------------------------------------------------------------------------------------------------------- */
+@media only screen and (min-width: 768px) {
+
+	/* ---- Footer Styles ---- */
+	.footer {width: 100%; border-top: 1px solid #d4d4d4; background-color: #eeeeee; padding: 30px 20px 120px 20px;}
+	
+	.footercontent {
+		width: 100%;
+		margin: auto;
+		padding: 0px 0px 30px 0px;
+	}
+	
+	.footercontent .col {
+		width: 24%;
+		text-align: left;
+		display: inline-block;
+		vertical-align: top;
+		padding: 0px 0px 0px 0px;
+	}
+	
+	.footercontent .col-2 {
+		width: 28%;
+		text-align: center;
+		display: inline-block;
+		vertical-align: top;
+		margin: 0px 0px 0px 0px;
+		padding: 0px 0px 0px 0px;
+	}
+		
+	.footercontent .made-box {
+		width: 100%;
+		color: #555555;
+		font-size: 12px;
+		line-height: 18px;
+		font-weight: 400;
+		text-align: center;
+		padding: 10px 10px 10px 10px;
+		border: 1px solid #d4d4d4;
+	}	
+	
+	.footercontent .questions {
+		width: 100%;
+		color: #000000;
+		font-size: 14px;
+		line-height: 20px;
+		font-weight: 600;
+		text-align: center;
+		border-top: 1px solid #d4d4d4;
+		margin: 10px 0px 0px 0px;
+		padding: 8px 0px 0px 0px;
+	}
+	
+	.footercontent .allegion-logo {
+		width: 100%;
+		padding: 16px 0px 0px 0px;
+	}
+	
+	.mouseprint {
+		width: 100%;
+		margin: auto;
+		color: #aaaaaa;
+		font-size: 12px;
+		line-height: 18px;
+		font-weight: 400;
+		text-align: center;
+		border-top: 1px solid #d4d4d4;
+		padding: 10px 0px 0px 0px;
+	}
+	
+	
+} 
+
+
+
+
+/* LARGE DEVICES (LAPTOPS/DESKTOPS, 1200PX AND UP) 
+---------------------------------------------------------------------------------------------------------- */
+@media only screen and (min-width: 1240px) {
+			
+	/* ---- Footer Styles ---- */
+	.footer {width: 100%; border-top: 1px solid #d4d4d4; background-color: #eeeeee; padding: 30px 0px 120px 0px;}
+	
+	.footercontent {
+		width: 1200px;
+		margin: auto;
+		padding: 0px 15px 30px 15px;
+	}
+	
+	.footercontent .col {
+		width: 200px;
+		text-align: left;
+		display: inline-block;
+		vertical-align: top;
+		padding: 0px 0px 0px 0px;
+	}
+	
+	.footercontent .col-2 {
+		width: 530px;
+		text-align: left;
+		display: inline-block;
+		vertical-align: top;
+		padding: 0px 0px 0px 0px;
+		margin: 0px 0px 0px 40px;
+	}
+		
+	.footercontent .made-box {
+		width: 100%;
+		color: #555555;
+		font-size: 12px;
+		line-height: 18px;
+		font-weight: 400;
+		text-align: center;
+		padding: 20px 20px 18px 20px;
+		border: 1px solid #d4d4d4;
+	}	
+	
+	.footercontent .questions {
+		width: 100%;
+		color: #000000;
+		font-size: 16px;
+		line-height: 24px;
+		font-weight: 600;
+		text-align: center;
+		border-top: 1px solid #d4d4d4;
+		margin: 10px 0px 0px 0px;
+		padding: 8px 0px 0px 0px;
+	}
+
+	.footercontent .allegion-logo {
+		width: 100%;
+		padding: 18px 0px 0px 380px;
+	}
+
+	.mouseprint {
+		width: 1170px;
+		margin: auto;
+		color: #aaaaaa;
+		font-size: 12px;
+		line-height: 18px;
+		font-weight: 400;
+		text-align: center;
+		border-top: 1px solid #d4d4d4;
+		padding: 10px 0px 0px 0px;
+	}
+	
+		
+} 
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,1051 @@
+/* Site Build - Beskar 1.0 - Navigation Styles Only
+========================================================================================================== */
+
+/* GLOBAL STYLES
+---------------------------------------------------------------------------------------------------------- */
+
+/* ---- Print Styles ---- */
+.nav-print {display: none;}		
+
+
+/* ---- Search Styles ---- */
+button.btn-search,		
+button.btn-search:visited, button.btn-search:hover {	
+	width: 20px;
+	height: 20px;
+	cursor: pointer;
+	margin: 0px 0px 0px 0px;
+	vertical-align: top;
+	text-decoration: none;
+	background-color: #8a1a1c;
+	display: inline-block
+	outline: 0;
+	border: none;
+	-moz-outline-style: none;
+}
+	
+
+/* ---- Side Navigation Styles ---- */
+.sidenav {
+	height: 100%;
+	width: 0;
+	position: fixed;
+	z-index: 200;
+	top: 0;
+	left: -1px;
+	background-color: #fff;
+	overflow-x: hidden;
+	transition: 0.5s;
+	text-align: center;
+	border-right: 1px solid #000000;
+}
+
+.sidenav .contentholder {
+	min-width: 300px;
+	display: block;
+	margin: auto;
+	padding: 15px 15px 0px 15px;
+}
+
+.sidenav .top {
+	width: 100%;
+	border-bottom: 1px solid #cccccc;
+	padding: 0px 0px 15px 0px;
+}
+
+	.sidenav .left {
+		width: 20%;
+		height: 30px;
+		text-align: left;
+		vertical-align: top;
+		display: inline-block;
+	}
+
+	.sidenav .center {
+		width: 60%;
+		height: 30px;
+		text-align: center;
+		vertical-align: top;
+		display: inline-block;
+	}
+	
+	.sidenav .right {
+		width: 20%;
+		height: 30px;
+		text-align: right;
+		vertical-align: top;
+		display: inline-block;
+	}
+	
+.sidenav .closebtn {
+	position: absolute;
+	top: 5px;
+	right: 15px;
+	font-size: 36px;
+	color: #8a1a1c;
+	text-decoration: none;
+}	
+
+.sidenav .main {
+	width: 100%;
+	border-bottom: 1px solid #cccccc;
+	padding: 10px 0px 10px 0px;
+}
+
+.sidenav a.section:link {
+	text-decoration: none;
+	font-size: 20px;
+	font-weight: 600;
+	color: #8a1a1c;
+	display: block;
+	padding: 6px;
+}
+
+	.sidenav a.section:visited {
+		text-decoration: none;
+		font-size: 20px;
+		font-weight: 600;
+		color: #8a1a1c;
+		display: block;
+	}
+	
+	.sidenav a.section:hover {
+		text-decoration: none;
+		font-size: 20px;
+		font-weight: 600;
+		color: #8a1a1c;
+		display: block;
+	}
+
+.sidenav .bottom {
+	text-align: center;
+	padding: 10px 0px 10px 0px;
+	margin: auto;
+}
+
+.sidenav a.sidenav-bottom:link {
+	text-decoration: none;
+	font-size: 16px;
+	font-weight: 400;
+	color: #8a1a1c;
+	display: block;
+	padding: 6px;
+}
+
+	.sidenav a.sidenav-bottom:visited {
+		text-decoration: none;
+		font-size: 16px;
+		font-weight: 400;
+		color: #8a1a1c;
+		display: block;
+		padding: 6px;
+	}
+	
+	.sidenav a.sidenav-bottom:hover {
+		text-decoration: none;
+		font-size: 16px;
+		font-weight: 400;
+		color: #8a1a1c;
+		display: block;
+		padding: 6px;
+	}
+
+	
+	
+/* EXTRA SMALL DEVICES (PHONES, 400PX AND DOWN) 
+---------------------------------------------------------------------------------------------------------- */
+@media only screen and (max-width: 400px) {
+	
+	.nav400 {display: none;}
+	.nav768 {display: none;}
+	.nav1200 {display: none;}
+	
+	/* ---- Navigation Bar Styles ---- */
+	.nav320 {
+		width: 100%;
+		display: block;
+		position: fixed;
+  		top: 0;
+  		background-color: #8a1a1c;
+  		z-index: 100;
+  		border-bottom: 1px solid #ffffff;
+	}
+	
+	.nav320 .nav-area {
+		width: 100%;
+		text-align: center;
+		padding: 15px 15px 15px 15px;
+	}
+	
+	.nav320 .nav-area .left {
+		width: 20%;
+		height: 30px;
+		text-align: left;
+		vertical-align: top;
+		padding: 3px 0px 0px 0px;
+		display: inline-block;
+	}
+	
+	.nav320 .nav-area .center {
+		width: 60%;
+		height: 30px;
+		text-align: center;
+		vertical-align: top;
+		display: inline-block;
+	}
+	
+	.nav320 .nav-area .right {
+		width: 20%;
+		height: 30px;
+		text-align: right;
+		vertical-align: top;
+		display: inline-block;
+		padding: 5px 0px 0px 0px;
+	}
+	
+	
+	/* ---- Door and Window Navigation Page Styles ---- */
+	.nav400-nav-page {display: none;}
+	.nav768-nav-page {display: none;}
+	
+	.nav320-nav-page {
+		width: 100%;
+		text-align: center;
+		margin: auto;
+		padding: 7px 7px 0px 7px;
+		display: block;
+	}
+	
+	.nav320-nav-page .item {
+		width: 50%;
+		padding: 15px 15px 15px 15px;
+		vertical-align: top;
+		display: inline-block;
+	}
+
+	.nav320-nav-page .product-button {
+		width: 100%;
+		text-align: center;
+		font-size: 12px;
+		line-height: 16px;
+		color: #8a1a1c;
+		border-radius: 10px;
+		text-decoration: none;
+		vertical-align: top;
+		background-color: #f6f6f6;
+		padding: 10px;
+	}	
+
+}
+
+
+
+
+/* SMALL DEVICES (PORTRAIT TABLETS AND LARGE PHONES, 400PX AND UP)  
+---------------------------------------------------------------------------------------------------------- */
+@media only screen and (min-width: 400px) {
+	 
+	.nav320 {display: none;}
+	.nav768 {display: none;}
+	.nav1200 {display: none;}
+	 
+	 /* ---- Navigation Bar Styles ---- */
+	.nav400 {
+		width: 100%;
+		display: block;
+		position: fixed;
+  		top: 0;
+  		background-color: #8a1a1c;
+  		border-bottom: 1px solid #ffffff;
+  		z-index: 100;
+	}
+	
+	.nav400 .nav-area {
+		width: 100%;
+		text-align: center;
+		padding: 15px 15px 15px 15px;
+	}
+	
+	.nav400 .nav-area .left {
+		width: 20%;
+		height: 30px;
+		text-align: left;
+		vertical-align: top;
+		padding: 3px 0px 0px 0px;
+		display: inline-block;
+	}
+	
+	.nav400 .nav-area .center {
+		width: 60%;
+		height: 30px;
+		text-align: center;
+		vertical-align: top;
+		display: inline-block;
+	}
+	
+	.nav400 .nav-area .right {
+		width: 20%;
+		height: 30px;
+		text-align: right;
+		vertical-align: top;
+		display: inline-block;
+		padding: 5px 0px 0px 0px;
+	}
+	
+	
+	/* ---- Door and Window Navigation Page Styles ---- */
+	.nav320-nav-page {display: none;}
+	.nav768-nav-page {display: none;}
+	
+	.nav400-nav-page {
+		width: 100%;
+		text-align: center;
+		margin: auto;
+		padding: 7px 7px 0px 7px;
+		display: block;
+	}
+	
+	.nav400-nav-page .item {
+		width: 50%;
+		padding: 15px 15px 15px 15px;
+		vertical-align: top;
+		display: inline-block;
+	}
+
+	.nav400-nav-page .product-button {
+		width: 100%;
+		text-align: center;
+		font-size: 12px;
+		line-height: 16px;
+		color: #8a1a1c;
+		border-radius: 10px;
+		text-decoration: none;
+		vertical-align: top;
+		background-color: #f6f6f6;
+		padding: 10px;
+	}
+
+	
+}
+
+
+
+
+/* MEDIUM DEVICES (LANDSCAPE TABLETS, 768PX AND UP)
+---------------------------------------------------------------------------------------------------------- */
+@media only screen and (min-width: 768px) {
+		
+	.nav320 {display: none;}
+	.nav400 {display: none;}
+	.nav1200 {display: none;}
+	
+	/* ---- Navigation Bar Styles ---- */
+	.nav768 {
+		width: 100%;
+		display: block;
+		position: fixed;
+  		top: 0;
+  		background-color: #8a1a1c;
+  		border-bottom: 1px solid #ffffff;
+  		z-index: 100;
+	}
+	
+	.nav768 .redbar {
+		width: 100%;
+		height: 10px;
+		display: block;
+  		background-color: #8a1a1c;
+  		border-bottom: 1px solid #ffffff;
+	}
+	
+	.nav768 .nav-area {
+		width: 100%;
+		text-align: center;
+		padding: 15px 15px 15px 15px;
+	}
+	
+	.nav768 .nav-area .left {
+		width: 20%;
+		height: 30px;
+		text-align: left;
+		vertical-align: top;
+		padding: 3px 0px 0px 0px;
+		display: inline-block;
+	}
+	
+	.nav768 .nav-area .center {
+		width: 60%;
+		height: 30px;
+		text-align: center;
+		vertical-align: top;
+		display: inline-block;
+	}
+	
+	.nav768 .nav-area .right {
+		width: 20%;
+		height: 30px;
+		text-align: right;
+		vertical-align: top;
+		display: inline-block;
+		padding: 5px 0px 0px 0px;
+	}
+	
+	
+	/* ---- Door and Window Navigation Page Styles ---- */
+	.nav320-nav-page {display: none;}
+	.nav400-nav-page {display: none;}
+
+	.nav768-nav-page {
+		width: 100%;
+		text-align: center;
+		margin: auto;
+		padding: 7px 7px 0px 7px;
+		display: block;
+	}
+	
+	.nav768-nav-page .item {
+		width: 50%;
+		max-width: 300px;
+		padding: 15px 15px 15px 15px;
+		vertical-align: top;
+		display: inline-block;
+	}
+
+	.nav768-nav-page .product-button {
+		width: 100%;
+		text-align: center;
+		font-size: 12px;
+		line-height: 16px;
+		color: #8a1a1c;
+		border-radius: 10px;
+		text-decoration: none;
+		vertical-align: top;
+		background-color: #f6f6f6;
+		padding: 10px;
+	}
+	
+	
+} 
+
+
+
+
+/* LARGE DEVICES (LAPTOPS/DESKTOPS, 1200PX AND UP) 
+---------------------------------------------------------------------------------------------------------- */
+@media only screen and (min-width: 1240px) {
+	
+	.nav320 {display: none;}
+	.nav400 {display: none;}
+	.nav768 {display: none;}
+	 
+	/* ---- Navigation Bar Styles ---- */
+	.nav1200 {
+		width: 100%;
+		height: 71px;
+		display: block;
+		position: fixed;
+  		top: 0;
+  		background-color: #8a1a1c;
+  		z-index: 100;
+  		border-bottom: 1px solid #ffffff;
+	}
+		
+	.nav1200 .nav-area {
+		width: 1200px;
+		height: 70px;
+		padding: 0px 15px 0px 15px;
+		margin: auto;
+	}
+	
+	.nav1200 .logo {
+		width: 188px;
+		height: 40px;
+		padding: 16px 0px 0px 0px;
+		display: inline-block;
+		vertical-align: top;
+	}
+	
+	.nav1200 .main-items {
+		width: 794px;
+		padding: 30px 0px 0px 100px;
+		text-align: center;
+		display: inline-block;
+	}
+	
+	.nav1200 .right {
+		width: 188px;
+		text-align: right;
+		padding: 38px 0px 0px 0px;
+		display: inline-block;
+		vertical-align: top;
+	}
+	
+	.nav1200 .search {
+		background-color: #777;
+		cursor: pointer;
+		width: 20px;
+		height: 20px;
+		border: none;
+		outline: none;
+		padding: 0px;
+		display: inline-block;
+	}
+	
+	.nav1200 .account {
+		display: inline-block;
+		margin: 0px 0px 0px 0px;
+	}
+	
+	
+	/* ---- Dropdown Menu Styles ---- */
+	.nav1200 .dropbtn {
+		background-color: #8a1a1c;
+		color: #ffffff;
+		padding: 12px 10px 12px 10px;
+		margin: 0px 5px 0px 5px;
+		font-size: 16px;
+		line-height: 16px;
+		font-weight: 400;
+		border: none;
+	}
+
+	.nav1200 .dropdown {
+		position: relative;
+		display: inline-block;
+	}
+
+	.nav1200 .dropdown:hover .dropbtn {
+		background-image: url(../../images/navigation/main_nav_highlight_line_bg.gif);
+		background-repeat: repeat-x;
+  		background-size: 1px 2px;
+  		background-position: top;
+		background-color: #8a1a1c;
+	}
+	
+	.nav1200 .dropbtn-account {
+		width: 20px;
+		height: 32px;
+		padding: 0px 0px 10px 0px;
+		background-color: #8a1a1c;
+		border: none;
+	}
+	
+	a.main-nav:link {color: #ffffff; text-decoration: none;}	/* ---- This is to make the main item clickable ---- */
+		a.main-nav:visited {color: #ffffff; text-decoration: none;}
+		a.main-nav:hover {color: #ffffff; text-decoration: none;}
+
+
+	/* ---- MENU ITEMS - Doors and Windows ---- */
+	.nav1200 .dropdown:hover .dropdown-content-doors {display: block;}
+	
+	.nav1200 .dropdown-content-doors {
+		display: none;
+		position: absolute;
+		background-color: #ffffff;
+		width: 930px;
+		left: -178px;
+		box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.4);
+		padding: 30px 0px 30px 0px;
+		z-index: 10;
+	}
+	
+	.nav1200 .dropdown-content-doors:after, .dropdown-content-doors:before {
+		bottom: 100%;
+		left: 20%;
+		border: solid transparent;
+		content: " ";
+		height: 0;
+		width: 0;
+		position: absolute;
+		pointer-events: none;
+	}
+	
+	.nav1200 .dropdown-content-doors:after {
+		border-color: rgba(255, 255, 255, 0);
+		border-bottom-color: #ffffff;
+		border-width: 10px;
+		margin-left: 80px;
+	}
+
+	.nav1200 .dropdown-content-doors:before {
+		border-color: rgba(0, 0, 0, 0);
+		border-bottom-color: #bbbbbb;
+		border-width: 10px;
+		margin-left: 80px;
+	}
+	
+	
+	/* ---- MENU ITEMS - Gallery ---- */
+	.nav1200 .dropdown:hover .dropdown-content-gallery {display: block;}
+	
+	.nav1200 .dropdown-content-gallery {
+		display: none;
+		position: absolute;
+		background-color: #ffffff;
+		width: 930px;
+		left: -362px;
+		box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.4);
+		padding: 10px 0px 10px 10px;
+		z-index: 10;
+	}
+	
+	.nav1200 .dropdown-content-gallery:after, .dropdown-content-gallery:before {
+		bottom: 100%;
+		left: 20%;
+		border: solid transparent;
+		content: " ";
+		height: 0;
+		width: 0;
+		position: absolute;
+		pointer-events: none;
+	}
+
+	.nav1200 .dropdown-content-gallery:after {
+		border-color: rgba(255, 255, 255, 0);
+		border-bottom-color: #ffffff;
+		border-width: 10px;
+		margin-left: 214px;
+	}
+
+	.nav1200 .dropdown-content-gallery:before {
+		border-color: rgba(0, 0, 0, 0);
+		border-bottom-color: #bbbbbb;
+		border-width: 10px;
+		margin-left: 214px;
+	}
+	
+	
+	/* ---- MENU ITEMS - Support ---- */
+	.nav1200 .dropdown:hover .dropdown-content-support {display: block;}
+	
+	.nav1200 .dropdown-content-support {
+		display: none;
+		position: absolute;
+		background-color: #ffffff;
+		width: 930px;
+		left: -458px;
+		box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.4);
+		padding: 30px 0px 30px 0px;
+		z-index: 10;
+	}
+	
+	.nav1200 .dropdown-content-support:after, .dropdown-content-support:before {
+		bottom: 100%;
+		left: 20%;
+		border: solid transparent;
+		content: " ";
+		height: 0;
+		width: 0;
+		position: absolute;
+		pointer-events: none;
+	}
+
+	.nav1200 .dropdown-content-support:after {
+		border-color: rgba(255, 255, 255, 0);
+		border-bottom-color: #ffffff;
+		border-width: 10px;
+		margin-left: 314px;
+	}
+
+	.nav1200 .dropdown-content-support:before {
+		border-color: rgba(0, 0, 0, 0);
+		border-bottom-color: #bbbbbb;
+		border-width: 10px;
+		margin-left: 314px;
+	}
+	
+	
+	/* ---- MENU ITEMS - Quote ---- */
+	.nav1200 .dropdown:hover .dropdown-content-quote {display: block;}
+	
+	.nav1200 .dropdown-content-quote {
+		display: none;
+		position: absolute;
+		background-color: #ffffff;
+		width: 930px;
+		left: -559px;
+		box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.4);
+		padding: 30px 0px 30px 0px;
+		z-index: 10;
+	}
+	
+	.nav1200 .dropdown-content-quote:after, .dropdown-content-quote:before {
+		bottom: 100%;
+		left: 20%;
+		border: solid transparent;
+		content: " ";
+		height: 0;
+		width: 0;
+		position: absolute;
+		pointer-events: none;
+	}
+
+	.nav1200 .dropdown-content-quote:after {
+		border-color: rgba(255, 255, 255, 0);
+		border-bottom-color: #ffffff;
+		border-width: 10px;
+		margin-left: 440px;
+	}
+
+	.nav1200 .dropdown-content-quote:before {
+		border-color: rgba(0, 0, 0, 0);
+		border-bottom-color: #bbbbbb;
+		border-width: 10px;
+		margin-left: 440px;
+	}
+	
+	
+	/* ---- MENU ITEMS - Contact ---- */
+	.nav1200 .dropdown:hover .dropdown-content-contact {display: block;}
+	
+	.nav1200 .dropdown-content-contact {
+		display: none;
+		position: absolute;
+		background-color: #ffffff;
+		width: 930px;
+		left: -717px;
+		box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.4);
+		padding: 30px 0px 30px 0px;
+		z-index: 10;
+	}
+	
+	.nav1200 .dropdown-content-contact:after, .dropdown-content-contact:before {
+		bottom: 100%;
+		left: 20%;
+		border: solid transparent;
+		content: " ";
+		height: 0;
+		width: 0;
+		position: absolute;
+		pointer-events: none;
+	}
+
+	.nav1200 .dropdown-content-contact:after {
+		border-color: rgba(255, 255, 255, 0);
+		border-bottom-color: #ffffff;
+		border-width: 10px;
+		margin-left: 570px;
+	}
+
+	.nav1200 .dropdown-content-contact:before {
+		border-color: rgba(0, 0, 0, 0);
+		border-bottom-color: #bbbbbb;
+		border-width: 10px;
+		margin-left: 570px;
+	}
+	
+	
+	/* ---- MENU ITEMS - Account ---- */
+	.nav1200 .dropdown:hover .dropdown-content-account {display: block;}
+	
+	.nav1200 .dropdown-content-account {
+		display: none;
+		position: absolute;
+		background-color: #ffffff;
+		width: 300px;
+		left: -265px;
+		box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.4);
+		padding: 30px 0px 30px 0px;
+		z-index: 10;
+	}
+	
+	.nav1200 .dropdown-content-account:after, .dropdown-content-account:before {
+		bottom: 100%;
+		left: 20%;
+		border: solid transparent;
+		content: " ";
+		height: 0;
+		width: 0;
+		position: absolute;
+		pointer-events: none;
+	}
+
+	.nav1200 .dropdown-content-account:after {
+		border-color: rgba(255, 255, 255, 0);
+		border-bottom-color: #ffffff;
+		border-width: 10px;
+		margin-left: 205px;
+	}
+
+	.nav1200 .dropdown-content-account:before {
+		border-color: rgba(0, 0, 0, 0);
+		border-bottom-color: #bbbbbb;
+		border-width: 10px;
+		margin-left: 205px;
+	}
+	
+	
+	/* ---- Dropdown Menu Content Styles ---- */
+	.nav1200 .nav-one-col {
+		width: 100%;
+		padding: 0px 30px 0px 30px;
+		display: inline-block;
+		vertical-align: top;
+	}
+	
+		.nav1200 .nav-one-col-content {
+			width: 100%;
+			padding: 0px 9px 0px 9px;
+			display: inline-block;
+			vertical-align: top;
+		}
+	
+	.nav1200 .nav-two-col-border-left {
+			width: 619px;
+			padding: 0px 30px 0px 30px;
+			display: inline-block;
+			vertical-align: top;
+			border-width: 0px 0px 0px 1px;
+			border-color: #cccccc;
+			border-style: solid;
+		}
+		
+		.nav1200 .nav-two-col-nested-left {
+			width: 50%;
+			display: inline-block;
+			vertical-align: top;
+			padding: 0px 20px 0px 0px;
+		}
+		
+		.nav1200 .nav-two-col-nested-right {
+			width: 50%;
+			display: inline-block;
+			vertical-align: top;
+			padding: 0px 0px 0px 20px;
+		}
+	
+	.nav1200 .nav-three-col {
+		width: 310px;
+		padding: 0px 30px 0px 30px;
+		display: inline-block;
+		vertical-align: top;
+	}
+	
+		.nav1200 .nav-three-col-center {
+			width: 310px;
+			padding: 0px 30px 0px 30px;
+			display: inline-block;
+			vertical-align: top;
+			border-width: 0px 1px 0px 1px;
+			border-color: #cccccc;
+			border-style: solid;
+		}
+		
+	.nav1200 .nav-four-col {
+		width: 232px;
+		padding: 0px 30px 0px 30px;
+		display: inline-block;
+		vertical-align: top;
+		border-right: 1px solid #cccccc;
+	}	
+	
+		.nav1200 .nav-four-col-last {
+			width: 232px;
+			padding: 0px 30px 0px 30px;
+			display: inline-block;
+			vertical-align: top;
+		}
+		
+	.nav1200 .nav-line {
+		width: 100%;
+		height: 1px;
+		background-color: #cccccc;
+		margin: 30px 0px 10px 0px;
+	}
+		
+	.nav1200 .nav-section-line {
+		width: 100%;
+		height: 1px;
+		background-color: #cccccc;
+		margin: 40px 0px 20px 0px;
+	}
+	
+	.nav1200 .nav-section-icon {
+		width: 25px;
+		height: 25px;
+		display: inline-block;
+		vertical-align: top;
+		margin: 0px 0px 10px 0px;
+	}
+	
+	.nav1200 .nav-section-title {
+		width: 220px;
+		font-size: 18px;
+		font-weight: 600;
+		line-height: 18px;
+		text-align: left;
+		letter-spacing: -0.5px;
+		color: #000000;
+		padding: 3px 0px 0px 6px;
+		display: inline-block;
+		vertical-align: top;
+	}
+	
+	.nav1200 .nav-indent-area {
+		width: 100%;
+		vertical-align: top;
+		padding: 0px 0px 0px 8px;
+	}
+	
+	.nav1200 .nav-item-area {
+		width: 100%;
+		vertical-align: top;
+		text-align: left;
+		border-top: 1px solid #e5e5e5;
+		padding: 2px 0px 2px 0px;
+	}
+	
+		.nav1200 .nav-item-area-noline {
+			width: 100%;
+			vertical-align: top;
+			text-align: left;
+			padding: 2px 0px 2px 0px;
+		}
+	
+	.nav1200 a.nav-item:link {
+		width: 100%;
+		font-size: 14px;
+		font-weight: 400;
+		text-align: left;
+		color: #8a1a1c; 
+		text-decoration: none;
+		padding: 8px 9px 8px 9px;
+		display: block;
+	}
+	
+		.nav1200 a.nav-item:visited {
+			width: 100%;
+			font-size: 14px;
+			font-weight: 400;
+			text-align: left;
+			color: #8a1a1c; 
+			text-decoration: none;
+			padding: 8px 9px 8px 9px;
+			display: block;
+		}
+		
+		.nav1200 a.nav-item:hover {
+			width: 100%;
+			font-size: 14px;
+			font-weight: 400;
+			text-align: left;
+			color: #8a1a1c; 
+			text-decoration: none;
+			padding: 8px 9px 8px 9px;
+			background-color: #f6f6f6;
+			border-radius: 5px;
+			display: block;
+		}
+	
+	.nav1200 a.icon-button:link {
+		width: 100%;
+		color: #8a1a1c;
+		font-size: 16px;
+		line-height: 20px;
+		font-weight: 600;
+		text-decoration: none;
+		padding: 20px 10px 20px 10px;
+		margin: auto;
+		display: block;
+		
+	}
+	
+		.nav1200 a.icon-button:visited {
+			width: 100%;
+			color: #8a1a1c;
+			font-size: 16px;
+			line-height: 20px;
+			font-weight: 600;
+			text-decoration: none;
+			padding: 20px 10px 20px 10px;
+			margin: auto;
+			display: block;
+		}
+		
+		.nav1200 a.icon-button:hover {
+			width: 100%;
+			color: #8a1a1c;
+			font-size: 16px;
+			line-height: 20px;
+			font-weight: 600;
+			text-decoration: none;
+			padding: 20px 10px 20px 10px;
+			margin: auto;
+			display: block;
+			border-radius: 10px;
+			background-color: #f6f6f6;
+		}
+	
+		.nav1200 .nav-contact-line {
+			width: 100%;
+			height: 1px;
+			margin: 20px 0px 20px 0px;
+			background-color: #e5e5e5;
+		}
+		
+		.nav1200 .nav-contact-links {
+			width: 100%;
+			margin: 30px 0px 0px 0px;
+		}
+		
+		.nav1200 .nav-contact-more-info {
+			width: 100%;
+			text-align: right;
+			padding: 0px 8px 0px 8px;
+			margin: 112px 0px 0px 0px;
+		}
+		
+	.nav1200 .nav-gallery-image {
+		width: 350px;
+		height: 255px;
+		border: 1px solid #dddddd;
+		vertical-align: top;
+		display: inline-block;
+		background: #3333ee;
+	}
+	
+	.nav1200 .nav-gallery-text {
+		width: 570px;
+		text-align: left;
+		vertical-align: top;
+		display: inline-block;
+		padding: 50px 30px 0px 30px;
+	}
+	
+	
+	.nav1200 .nav-account-name {
+		width: 100%;
+		text-align: left;
+		font-size: 18px;
+		font-weight: 600;
+		color: #000000;
+		padding: 0px 9px 15px 9px;
+	}
+	
+	.nav1200 .nav-search-icon {
+		width: 20px;
+		vertical-align: top;
+		display: inline-block;
+		margin: 0px 20px 0px 0px;
+	}
+	
+	.nav1200 .nav-account-icon {
+		width: 20px;
+		vertical-align: top;
+		display: inline-block;
+		margin: 0px 0px 0px 0px;
+	}
+	
+} 
+
+
+
+
+
+
+
+
+
+
+
+

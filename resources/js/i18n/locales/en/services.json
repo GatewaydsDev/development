@@ -27,23 +27,49 @@
   "services": {
     "radioFrequencyDoors": {
       "metaTitle": "Radio Frequency Door Installation | Gateway Door Systems",
-      "metaDescription": "Radio Frequency door installation for sensitive facilities, secure openings, and controlled-access environments.",
+      "metaDescription": "Professional installation of radio frequency shielded doors for EMI-controlled openings, TEMPEST-related spaces, and facilities that need reliable performance at the doorway.",
       "title": "Radio Frequency Door Installation",
-      "description": "Specialty door installation for facilities where radio frequency performance, fit, sealing, and secure access all matter.",
-      "imageAlt": "Secure specialty door installed for radio frequency performance",
-      "overviewTitle": "Installed for sensitive spaces that depend on controlled performance.",
-      "overviewText": "Radio Frequency doors require careful coordination between the door, frame, seals, hardware, and surrounding opening. Gateway focuses on accurate installation so the assembly can support the performance expected from the specified system.",
-      "supportText": "We help teams replace, retrofit, or install RF-focused doors in secure commercial, government, and sensitive facility environments.",
+      "description": "Installation of RF-shielded door assemblies where electromagnetic containment, perimeter sealing, and secure daily access must work together at the opening.",
+      "imageAlt": "Radio frequency shielded specialty door installed at a secure facility opening",
+      "overviewTitle": "Shielding performance starts with how the full opening is built and fitted.",
+      "overviewText": "Radio frequency doors are designed to reduce electromagnetic energy passing through the door path—from magnetic fields at lower frequencies through higher microwave ranges, depending on the specified assembly. That intent only holds when the leaf, frame, gasketing, threshold, and hardware are aligned and sealed as one system. Gateway installs these specialty openings with attention to contact pressure, clearances, and coordination with surrounding RF or shielded construction.",
+      "supportText": "We support new construction and retrofit projects where teams need RF-rated doors for secure rooms, technical spaces, data environments, and other controlled-access areas. Our role is installation: we fit and commission the opening around the specified RF door system rather than manufacturing shielding products.",
       "capabilities": {
-        "performance": "Door, frame, seal, and threshold alignment for performance-critical openings.",
-        "coordination": "Coordination with project requirements, access hardware, and facility constraints.",
-        "handoff": "Clean installation handoff focused on reliable operation and long-term serviceability."
+        "performance": "Perimeter fit and seal quality so the installed assembly supports the shielding performance defined in the project specification.",
+        "coordination": "Planning around frame profiles, wall conditions, vision lites, power operators, and hardware that must work with the RF assembly.",
+        "handoff": "Operational checks focused on closing, latching, seal contact, clearances, and dependable use in sensitive environments."
       },
       "applications": {
-        "secureAreas": "Sensitive rooms and controlled-access areas",
-        "retrofits": "Retrofit projects replacing underperforming openings",
-        "facilities": "Government, commercial, and technical facilities",
-        "hardware": "Openings paired with secure hardware or access control"
+        "secureAreas": "SCIF-related rooms, test labs, and spaces where electromagnetic control is required at the doorway",
+        "retrofits": "Replacements where worn seals, misaligned frames, or failing hardware have reduced opening performance",
+        "facilities": "Government, defense support, commercial data, and technical operations buildings",
+        "hardware": "Assemblies paired with access control, power operators, closers, and secure latching hardware"
+      },
+      "showcase": {
+        "highlights": {
+          "fullOpening": {
+            "title": "Full opening",
+            "description": "Door, frame, gasketing, threshold, and hardware installed as one system."
+          },
+          "installFocus": {
+            "title": "Installation focus",
+            "description": "We fit and commission the specified RF door assembly on site."
+          }
+        },
+        "tiles": {
+          "shielding": {
+            "title": "RF shielding",
+            "description": "Perimeter fit and seals aligned to support specified EMI performance."
+          },
+          "secureOpening": {
+            "title": "Secure opening",
+            "description": "Frames, vision lites, and hardware coordinated with the RF assembly."
+          },
+          "accessControl": {
+            "title": "Access control",
+            "description": "Power operators, closers, and secure latching integrated at install."
+          }
+        }
       }
     },
     "soundTransmission": {

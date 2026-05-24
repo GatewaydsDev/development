@@ -35,8 +35,8 @@ export const serviceDefinitions: ServiceDefinition[] = [
         slug: 'radio-frequency-doors',
         Icon: RadioTowerIcon,
         images: {
-            hero: '/images/Gateway-Radio-Frequency.png',
-            detail: '/images/Radio_Frequency_Doors.png',
+            hero: '/images/radio-frequency-hero.png',
+            detail: '/images/Gateway-Radio-Frequency.png',
             support: '/images/Radio_Frequency_Doors.png',
         },
     },

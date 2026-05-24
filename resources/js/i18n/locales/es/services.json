@@ -26,24 +26,50 @@
   },
   "services": {
     "radioFrequencyDoors": {
-      "metaTitle": "Instalación de Radio Frequency Doors | Gateway Door Systems",
-      "metaDescription": "Instalación de Radio Frequency doors para instalaciones sensibles, aperturas seguras y entornos de acceso controlado.",
-      "title": "Instalación de Radio Frequency Doors",
-      "description": "Instalación de puertas especiales para instalaciones donde el rendimiento de radiofrecuencia, el ajuste, los sellos y el acceso seguro son importantes.",
-      "imageAlt": "Puerta especial segura instalada para rendimiento de radiofrecuencia",
-      "overviewTitle": "Instaladas para espacios sensibles que dependen de rendimiento controlado.",
-      "overviewText": "Las Radio Frequency doors requieren coordinación cuidadosa entre puerta, marco, sellos, herrajes y la apertura existente. Gateway se enfoca en una instalación precisa para que el conjunto respalde el rendimiento esperado del sistema especificado.",
-      "supportText": "Ayudamos a equipos a reemplazar, modernizar o instalar puertas enfocadas en RF en entornos comerciales, gubernamentales e instalaciones sensibles.",
+      "metaTitle": "Instalación de puertas de radiofrecuencia | Gateway Door Systems",
+      "metaDescription": "Instalación profesional de puertas con blindaje de radiofrecuencia para aperturas con control EMI, espacios relacionados con TEMPEST e instalaciones que necesitan rendimiento confiable en la puerta.",
+      "title": "Instalación de puertas de radiofrecuencia",
+      "description": "Instalación de conjuntos de puertas con blindaje RF donde la contención electromagnética, el sellado perimetral y el acceso seguro diario deben funcionar juntos en la apertura.",
+      "imageAlt": "Puerta especial con blindaje de radiofrecuencia instalada en una apertura de instalación segura",
+      "overviewTitle": "El rendimiento del blindaje depende de cómo se construye y ajusta toda la apertura.",
+      "overviewText": "Las puertas de radiofrecuencia están diseñadas para reducir la energía electromagnética que atraviesa el vano de la puerta—desde campos magnéticos en frecuencias bajas hasta rangos de microondas más altos, según el conjunto especificado. Esa intención solo se mantiene cuando la hoja, el marco, las juntas, el umbral y los herrajes quedan alineados y sellados como un solo sistema. Gateway instala estas aperturas especiales con atención a la presión de contacto, las holguras y la coordinación con la construcción RF o blindada circundante.",
+      "supportText": "Apoyamos proyectos de obra nueva y modernización donde los equipos necesitan puertas clasificadas RF para salas seguras, espacios técnicos, entornos de datos y otras áreas de acceso controlado. Nuestro rol es la instalación: ajustamos y ponemos en servicio la apertura alrededor del sistema de puerta RF especificado, sin fabricar productos de blindaje.",
       "capabilities": {
-        "performance": "Alineación de puerta, marco, sellos y umbral para aperturas críticas.",
-        "coordination": "Coordinación con requisitos del proyecto, herrajes de acceso y condiciones de la instalación.",
-        "handoff": "Entrega enfocada en operación confiable y facilidad de mantenimiento."
+        "performance": "Ajuste perimetral y calidad del sellado para que el conjunto instalado respalde el rendimiento de blindaje definido en la especificación del proyecto.",
+        "coordination": "Planificación de perfiles de marco, condiciones de muro, vidrios, operadores de potencia y herrajes que deben funcionar con el conjunto RF.",
+        "handoff": "Verificaciones operativas enfocadas en cierre, pestillo, contacto de sellos, holguras y uso confiable en entornos sensibles."
       },
       "applications": {
-        "secureAreas": "Salas sensibles y áreas de acceso controlado",
-        "retrofits": "Modernización de aperturas con bajo rendimiento",
-        "facilities": "Instalaciones gubernamentales, comerciales y técnicas",
-        "hardware": "Aperturas con herrajes seguros o control de acceso"
+        "secureAreas": "Salas relacionadas con SCIF, laboratorios de prueba y espacios donde se requiere control electromagnético en la puerta",
+        "retrofits": "Reemplazos donde sellos desgastados, marcos desalineados o herrajes defectuosos han reducido el rendimiento de la apertura",
+        "facilities": "Edificios gubernamentales, de apoyo a defensa, centros de datos comerciales y operaciones técnicas",
+        "hardware": "Conjuntos con control de acceso, operadores de potencia, cierrapuertas y herrajes de cierre seguro"
+      },
+      "showcase": {
+        "highlights": {
+          "fullOpening": {
+            "title": "Apertura completa",
+            "description": "Puerta, marco, juntas, umbral y herrajes instalados como un solo sistema."
+          },
+          "installFocus": {
+            "title": "Enfoque en instalación",
+            "description": "Ajustamos y ponemos en servicio el conjunto RF especificado en sitio."
+          }
+        },
+        "tiles": {
+          "shielding": {
+            "title": "Blindaje RF",
+            "description": "Ajuste perimetral y sellos alineados al rendimiento EMI especificado."
+          },
+          "secureOpening": {
+            "title": "Apertura segura",
+            "description": "Marcos, vidrios y herrajes coordinados con el conjunto RF."
+          },
+          "accessControl": {
+            "title": "Control de acceso",
+            "description": "Operadores, cierrapuertas y cierre seguro integrados en la instalación."
+          }
+        }
       }
     },
     "soundTransmission": {

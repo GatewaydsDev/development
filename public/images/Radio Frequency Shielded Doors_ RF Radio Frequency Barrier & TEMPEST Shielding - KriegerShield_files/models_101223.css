@@ -1,0 +1,926 @@
+/* Site Build - Beskar 1.0 - Model Styles - September 2023
+========================================================================================================== */
+
+html {
+  scroll-behavior: smooth;
+}
+
+hr.model-title {
+	border: none;
+	border-bottom: 1px solid #dddddd;
+	margin: 10px 0px 10px 0px;
+}
+
+
+
+/* EXTRA SMALL DEVICES (PHONES, 767PX AND DOWN) 
+---------------------------------------------------------------------------------------------------------- */
+@media only screen and (max-width: 767px) {
+		
+	/* ---- Model Title Styles ---- */	
+	.model-content {width: 100%; margin: auto; padding: 0px 15px 0px 15px;}
+	
+	#title-area {
+		display: none;
+	}
+	
+	.model-content .title-area {
+		width: 100%;
+		text-align: center;
+		padding: 80px 0px 20px 0px;
+		display: block;
+	}
+	
+	.model-content .title-pl {
+		width: 100%;
+		font-size: 16px;
+		font-weight: 600;
+		line-height: 20px;
+	}
+	
+	.model-content .title {
+		width: 100%;
+		font-size: 26px;
+		font-weight: 300;
+		line-height: 32px;
+		letter-spacing: -0.5px;
+		color: #8a1a1c;
+	}
+	
+	
+	/* ---- Model Rating Styles ---- */	
+	.model-content .ratings-area {width: 260px; margin: 0px auto 10px auto;}
+	
+	.model-content .ratings-box {
+		padding: 20px 10px 20px 10px;
+		border: 1px solid #dddddd;
+		border-radius: 10px;
+		background-color: #f8f8f8;
+	}
+	
+	
+		/* ---- Columns ---- */
+		.model-content .two-col-ratings-item-left {
+			width: 100%;
+			text-align: center;
+			padding: 0px 0px 10px 0px;
+			vertical-align: top;
+			display: inline-block;;
+		}
+		
+		.model-content .two-col-ratings-item-right {
+			width: 100%;
+			text-align: center;
+			padding: 0px 0px 10px 0px;
+			vertical-align: top;
+			display: inline-block;;
+		}
+			
+		.model-content .three-col-ratings-item {
+			width: 100%;
+			text-align: center;
+			padding: 0px 0px 10px 0px;
+			vertical-align: top;
+			display: inline-block;
+		}		
+		
+		.model-content .four-col-ratings-item {
+			width: 100%;
+			text-align: center;
+			padding: 0px 0px 10px 0px;
+			vertical-align: top;
+			display: inline-block
+		}
+
+
+		/* ---- Icons ---- */
+		.model-content .ratings-icon-area {width: 100%; height: 50px; display: inline-block;}
+	
+		.model-content .ratings-icon-area-left {
+			height: 50px;
+			vertical-align: top;
+			display: inline-block;
+		}
+	
+		.model-content .ratings-icon-area-right {
+			height: 50px;
+			vertical-align: top;
+			display: inline-block;
+			border-left: 1px solid #dddddd;
+			margin: 0px 0px 0px 10px;
+			padding: 0px 0px 0px 10px;
+		}
+	
+		.model-content .ratings-icon {
+			width: 50px;
+			height: 50px;
+			display: inline-block;
+			vertical-align: top;
+		}
+	
+		.model-content  .ratings-icon-label {
+			width: 100%;
+			height: 16px;
+			font-size: 12px;
+			font-weight: 600;
+			line-height: 12px;
+			color: #777777;
+			vertical-align: top;
+		}
+			
+			
+		/* ---- Gun Icons ---- */
+		.model-content .ratings-icon-44mag {width: 57px; height: 34px; vertical-align: top; margin: auto;}
+		.model-content .ratings-icon-ak47 {width: 110px; height: 34px; vertical-align: top; margin: auto;}
+		
+		.model-content .ratings-icon-shots {width: 33px; height: 34px; vertical-align: top; margin: auto;}
+
+	
+	.model-content .rating-headline {
+		width: 100%;
+		font-size: 26px;
+		font-weight: 300;
+		line-height: 26px;
+		letter-spacing: -0.5px;
+		color: #8a1a1c;
+		padding: 8px 0px 4px 0px;
+		display: block;
+	}
+	
+	.model-content .rating-subheadline {
+		width: 100%;
+		font-size: 16px;
+		font-weight: 600;
+		line-height: 16px;
+		color: #777777;
+		display: block;
+	}
+	
+	
+	
+	/* ---- Model Intro Styles ---- */
+	.model-content .intro-area {width: 100%; padding: 0px 0px 40px 0px;}
+	
+	.model-content .intro-left {
+		width: 100%;
+		display: inline-block;
+		vertical-align: top;
+		margin: 0px 0px 30px 0px;
+	}
+	
+	.model-content .intro-right {
+		width: 100%;
+		vertical-align: top;
+		display: inline-block;
+	}
+	
+	.model-content .intro-text {
+		width: 100%;
+		height: auto;
+		text-align: center;
+		vertical-align: top;
+		padding: 0px 0px 20px 0px;
+		border-bottom: 1px solid #dddddd;
+	}
+	
+	.model-content .intro-model {
+		width: 100%;
+		text-align: center;
+		vertical-align: top;
+		padding: 6px 0px 20px 0px;
+		display: inline-block;
+	}
+	
+	
+	/* ---- Model Feature Styles ---- */
+	.model-content .feature-block {
+		width: 100%;
+		padding: 0px 0px 80px 0px;
+		vertical-align: top;
+	}
+	
+	.model-content .feature-block-left {
+		width: 100%;
+		vertical-align: top;
+		margin: 0px 0px 30px 0px;
+		display: inline-block;
+	}
+	
+	.model-content .feature-block-right {
+		width: 100%;
+		vertical-align: top;
+		display: inline-block;
+	}
+		
+	.model-content .feature-headline {
+		width: 100%;
+		font-size: 20px;
+		font-weight: 600;
+		border-top: 1px solid #000000;
+		padding: 5px 0px 10px 0px;
+	}
+	
+	
+	/* ---- Model Door Handing Styles ---- */	
+	.model-content .handing-item-first {
+		width: 50%;
+		text-align: center;
+		padding: 10px 15px 0px 15px;
+		border-right: 0px solid #dddddd;
+		vertical-align: top;
+		display: inline-block;
+	}
+	
+	.model-content .handing-item-center {
+		width: 50%;
+		text-align: center;
+		padding: 10px 15px 0px 15px;
+		border-right: 0px solid #dddddd;
+		vertical-align: top;
+		display: inline-block;
+	}
+	
+	.model-content .handing-item-last {
+		width: 50%;
+		text-align: center;
+		padding: 10px 15px 0px 15px;
+		vertical-align: top;
+		display: inline-block;
+	}
+	
+	.model-content .handing-img {
+		width: 100%;
+		margin: auto;
+		padding: 0px 0px 0px 0px;
+	}
+	
+	
+	/* ---- Model Download Styles ---- */
+	.model-content .download-item-first {width: 100%; text-align: center; border-bottom: 1px solid #dddddd; padding: 10px 0px 30px 0px;}
+	.model-content .download-item {width: 100%; text-align: center; border-bottom: 1px solid #dddddd; padding: 30px 0px 30px 0px;}
+	.model-content .download-item-last {width: 100%; text-align: center; padding: 30px 0px 0px 0px;}
+	
+	.model-content .download-thumbnail {
+		width: 150px;
+		height: 190px;
+		box-shadow: 0 0px 8px 0 rgba(0, 0, 0, 0.2), 0 0px 8px 0 rgba(0, 0, 0, 0.19);
+		background-color: #ffffff;
+		vertical-align: top;
+		display: block;
+		margin: auto;
+	}
+	
+	.model-content .download-text-area {
+		height: auto;
+		text-align: center;
+		vertical-align: top;
+		display: block;
+		padding: 10px 10px 0px 10px;
+	}
+	
+	
+	/* ---- Model Quote Request Styles ---- */
+	.model-content .quote-area {width: 100%; margin: 40px auto 60px auto;}
+	
+	
+	
+}
+
+
+
+/* SMALL DEVICES (PORTRAIT TABLETS AND LARGE PHONES, 400PX AND UP)  
+
+This has been deprecated as of August 2023. 
+
+---------------------------------------------------------------------------------------------------------- */
+
+
+
+
+
+/* MEDIUM DEVICES (LANDSCAPE TABLETS, 768PX AND UP)
+---------------------------------------------------------------------------------------------------------- */
+@media only screen and (min-width: 768px) {
+	
+	/* ---- Model Title Styles ---- */	
+	.model-content {width: 100%; max-width: 940px; margin: auto; padding: 0px 20px 0px 20px;}
+	
+	#title-area {
+		display: none;
+	}
+	
+	.model-content .title-area {
+		width: 100%;
+		text-align: center;
+		padding: 80px 0px 10px 0px;
+		display: block;
+	}
+	
+	.model-content .title-pl {
+		width: 100%;
+		font-size: 16px;
+		font-weight: 600;
+		line-height: 16px;
+	}
+	
+	.model-content .title {
+		width: 100%;
+		font-size: 32px;
+		font-weight: 300;
+		line-height: 42px;
+		letter-spacing: -0.5px;
+		color: #8a1a1c;
+	}
+	
+	
+	/* ---- Model Rating Styles ---- */	
+	.model-content .ratings-area {width: 100%; margin: 0px auto 0px auto;}
+		
+	.model-content .ratings-box {
+		padding: 20px 10px 20px 10px;
+		border: 1px solid #dddddd;
+		border-radius: 10px;
+		background-color: #f8f8f8;
+	}
+		
+		/* ---- Columns ---- */
+		.model-content .two-col-ratings-item-left {
+			width: 50%;
+			text-align: center;
+			padding: 0px 8px 10px 0px;
+			vertical-align: top;
+			display: inline-block;;
+		}
+		
+		.model-content .two-col-ratings-item-right {
+			width: 50%;
+			text-align: center;
+			padding: 0px 0px 10px 8px;
+			vertical-align: top;
+			display: inline-block;;
+		}
+
+		.model-content .three-col-ratings-item {
+			width: 33%;
+			text-align: center;
+			padding: 10px 5px 10px 5px;
+			vertical-align: top;
+			display: inline-block;
+		}
+		
+		.model-content .four-col-ratings-item {
+			width: 25%;
+			text-align: center;
+			padding: 10px 5px 10px 5px;
+			vertical-align: top;
+			display: inline-block
+		}
+	
+	
+		/* ---- Icons ---- */
+		.model-content .ratings-icon-area {width: 100%; height: 50px; display: inline-block;}
+	
+		.model-content .ratings-icon-area-left {
+			height: 50px;
+			vertical-align: top;
+			display: inline-block;
+		}
+	
+		.model-content .ratings-icon-area-right {
+			height: 50px;
+			vertical-align: top;
+			display: inline-block;
+			border-left: 1px solid #dddddd;
+			margin: 0px 0px 0px 10px;
+			padding: 0px 0px 0px 10px;
+		}
+	
+		.model-content .ratings-icon {
+			width: 50px;
+			height: 50px;
+			display: inline-block;
+			vertical-align: top;
+		}
+	
+		.model-content  .ratings-icon-label {
+			width: 100%;
+			height: 16px;
+			font-size: 12px;
+			font-weight: 600;
+			line-height: 12px;
+			color: #777777;
+			vertical-align: top;
+		}
+
+
+		/* ---- Gun Icons ---- */
+		.model-content .ratings-icon-44mag {width: 52px; height: 34px; vertical-align: top; margin: auto;}
+		.model-content .ratings-icon-ak47 {width: 90px; height: 34px; vertical-align: top; margin: auto;}
+		
+		.model-content .ratings-icon-shots {width: 28px; height: 34px; vertical-align: top; margin: auto;}
+
+			
+	.model-content .rating-headline {
+		width: 100%;
+		font-size: 22px;
+		font-weight: 300;
+		line-height: 22px;
+		letter-spacing: -0.5px;
+		color: #8a1a1c;
+		padding: 8px 0px 4px 0px;
+		display: block;
+	}
+	
+	.model-content .rating-subheadline {
+		width: 100%;
+		font-size: 14px;
+		font-weight: 600;
+		line-height: 14px;
+		color: #777777;
+		display: block;
+	}
+	
+	
+	/* ---- Model Intro Styles ---- */
+	.model-content .intro-area {width: 100%; padding: 30px 0px 40px 0px; text-align: center;}
+	
+	.model-content .intro-left {
+		width: 349px;
+		display: inline-block;
+		vertical-align: top;
+		margin: 0px 20px 0px 0px;
+	}
+	
+	.model-content .intro-right {
+		width: 349px;
+		vertical-align: top;
+		display: inline-block;
+	}
+	
+	.model-content .intro-text {
+		width: 100%;
+		height: 400px;
+		text-align: center;
+		vertical-align: top;
+		border-bottom: 1px solid #dddddd;
+	}
+	
+	.model-content .intro-model {
+		width: 100%;
+		text-align: center;
+		vertical-align: top;
+		padding: 6px 0px 0px 0px;
+		display: inline-block;
+	}
+	
+	
+	/* ---- Model Feature Styles ---- */
+	.model-content .feature-block {
+		width: 100%;
+		padding: 0px 0px 80px 0px;
+		vertical-align: top;
+	}
+	
+	.model-content .feature-block-left {
+		width: 100%;
+		vertical-align: top;
+		margin: 0px 0px 30px 0px;
+		display: inline-block;
+	}
+	
+	.model-content .feature-block-right {
+		width: 100%;
+		vertical-align: top;
+		display: inline-block;
+	}
+		
+	.model-content .feature-headline {
+		width: 100%;
+		font-size: 22px;
+		font-weight: 600;
+		border-top: 1px solid #000000;
+		padding: 8px 0px 10px 0px;
+	}
+	
+	
+	/* ---- Model Door Handing Styles ---- */	
+	.model-content .handing-item-first {
+		width: 24%;
+		text-align: center;
+		padding: 10px 30px 0px 0px;
+		border-right: 1px solid #dddddd;
+		vertical-align: top;
+		display: inline-block;
+	}
+	
+	.model-content .handing-item-center {
+		width: 26%;
+		text-align: center;
+		padding: 10px 30px 0px 30px;
+		border-right: 1px solid #dddddd;
+		vertical-align: top;
+		display: inline-block;
+	}
+	
+	.model-content .handing-item-last {
+		width: 24%;
+		text-align: center;
+		padding: 10px 0px 0px 30px;
+		vertical-align: top;
+		display: inline-block;
+	}
+	
+	.model-content .handing-img {
+		width: 100%;
+		margin: auto;
+		padding: 0px 0px 5px 0px;
+	}
+	
+	
+	/* ---- Model Download Styles ---- */
+	.model-content .download-item-first {width: 100%; text-align: left; border-bottom: 1px solid #dddddd; padding: 10px 20px 30px 20px;}
+	.model-content .download-item {width: 100%; text-align: left; border-bottom: 1px solid #dddddd; padding: 30px 20px 30px 20px;}
+	.model-content .download-item-last {width: 100%; text-align: left; padding: 30px 20px 0px 20px;}
+	
+	.model-content .download-thumbnail {
+		width: 150px;
+		height: 190px;
+		box-shadow: 0 0px 8px 0 rgba(0, 0, 0, 0.2), 0 0px 8px 0 rgba(0, 0, 0, 0.19);
+		background-color: #ffffff;
+		vertical-align: top;
+		display: inline-block;
+		margin: auto;
+	}
+	
+	.model-content .download-text-area {
+		height: 190px;
+		text-align: left;
+		vertical-align: top;
+		display: inline-block;
+		padding: 40px 0px 0px 30px;
+	}
+	
+	
+	/* ---- Model Quote Request Styles ---- */
+	.model-content .quote-area {width: 500px; margin: 60px auto 60px auto;}
+	
+	
+
+} 
+
+
+
+
+/* LARGE DEVICES (LAPTOPS/DESKTOPS, 1200PX AND UP) 
+---------------------------------------------------------------------------------------------------------- */
+@media only screen and (min-width: 1240px) {
+	
+	.model-content {width: 940px; margin: 280px auto 0px auto; padding: 0px 0px 0px 0px;}
+	
+	/* ---- Model Title Styles ---- */	
+	#title-area {
+		width: 100%;
+		text-align: center;
+		position: fixed;
+		top: 70px;
+		transition: 0.2s;
+		-webkit-backdrop-filter: blur(3px);
+  		backdrop-filter: blur(3px);
+		background: rgba(255, 255, 255, 0.9);
+		display: block;
+	}
+	
+	.model-content .title-area {
+		width: 100%;
+		text-align: center;
+		padding: 80px 0px 20px 0px;
+		display: none;
+	}
+	
+	#title-pl {
+		width: 100%;
+		font-size: 16px;
+		font-weight: 600;
+		padding: 20px 0px 0px 0px;
+		transition: 0.2s;
+	}
+	
+	#title {
+		width: 100%;
+		font-size: 32px;
+		font-weight: 300;
+		line-height: 42px;
+		letter-spacing: -0.5px;
+		transition: 0.2s;
+		color: #000000;
+		padding: 0px 0px 20px 0px;
+	}
+	
+
+	/* ---- Model Rating Styles ---- */	
+	.model-content .ratings-area {width: 100%; margin: 0px auto 0px auto;}
+
+	.model-content .ratings-box {
+		padding: 20px 10px 20px 10px;
+		border: 1px solid #dddddd;
+		border-radius: 10px;
+		background-color: #f8f8f8;
+	}
+
+
+		/* ---- Columns ---- */	
+		.model-content .two-col-ratings-item-left {
+			width: 50%;
+			text-align: center;
+			padding: 0px 8px 20px 0px;
+			vertical-align: top;
+			display: inline-block;;
+		}
+		
+		.model-content .two-col-ratings-item-right {
+			width: 50%;
+			text-align: center;
+			padding: 0px 0px 20px 8px;
+			vertical-align: top;
+			display: inline-block;;
+		}
+
+		.model-content .three-col-ratings-item {
+			width: 33%;
+			text-align: center;
+			padding: 10px 10px 10px 10px;
+			vertical-align: top;
+			display: inline-block;
+		}
+	
+		.model-content .four-col-ratings-item {
+			width: 25%;
+			text-align: center;
+			padding: 10px 5px 10px 5px;
+			vertical-align: top;
+			display: inline-block
+		}
+	
+		
+		/* ---- Icons ---- */
+		.model-content .ratings-icon-area {width: 100%; height: 50px; display: inline-block;}
+	
+		.model-content .ratings-icon-area-left {
+			height: 50px;
+			vertical-align: top;
+			display: inline-block;
+		}
+	
+		.model-content .ratings-icon-area-right {
+			height: 50px;
+			vertical-align: top;
+			display: inline-block;
+			border-left: 1px solid #dddddd;
+			margin: 0px 0px 0px 10px;
+			padding: 0px 0px 0px 10px;
+		}
+	
+		.model-content .ratings-icon {
+			width: 50px;
+			height: 50px;
+			display: inline-block;
+			vertical-align: top;
+		}
+	
+		.model-content  .ratings-icon-label {
+			width: 100%;
+			height: 16px;
+			font-size: 12px;
+			font-weight: 600;
+			line-height: 12px;
+			color: #777777;
+			vertical-align: top;
+		}
+
+
+		/* ---- Gun Icons ---- */
+		.model-content .ratings-icon-44mag {width: 57px; height: 34px; vertical-align: top; margin: auto;}
+		.model-content .ratings-icon-ak47 {width: 110px; height: 34px; vertical-align: top; margin: auto;}
+		
+		.model-content .ratings-icon-shots {width: 33px; height: 34px; vertical-align: top; margin: auto;}
+
+			
+	.model-content .rating-headline {
+		width: 100%;
+		font-size: 26px;
+		font-weight: 300;
+		line-height: 26px;
+		letter-spacing: -0.5px;
+		color: #8a1a1c;
+		padding: 8px 0px 4px 0px;
+		display: block;
+	}
+	
+	.model-content .rating-subheadline {
+		width: 100%;
+		font-size: 16px;
+		font-weight: 600;
+		line-height: 16px;
+		color: #777777;
+		display: block;
+	}
+	
+	
+	/* ---- Model Intro Styles ---- */
+	.model-content .intro-area {width: 100%; padding: 30px 0px 80px 0px;}
+	
+	.model-content .intro-left {
+		width: 440px;
+		display: inline-block;
+		vertical-align: top;
+		margin: 0px 60px 0px 0px;
+	}
+	
+	.model-content .intro-right {
+		width: 440px;
+		vertical-align: top;
+		display: inline-block;
+	}
+	
+	.model-content .intro-text {
+		width: 100%;
+		height: 441px;
+		text-align: center;
+		vertical-align: top;
+		border-bottom: 1px solid #dddddd;
+	}
+	
+	.model-content .intro-model {
+		width: 100%;
+		text-align: center;
+		vertical-align: top;
+		padding: 6px 0px 0px 0px;
+		display: inline-block;
+	}
+	
+	
+	
+	/* ---- Model Feature Styles ---- */
+	.model-content .feature-block {
+		width: 100%;
+		padding: 0px 0px 80px 0px;
+		vertical-align: top;
+	}
+	
+	.model-content .feature-block-left {
+		width: 390px;
+		vertical-align: top;
+		margin: 0px 100px 0px 0px;
+		display: inline-block;
+	}
+	
+	.model-content .feature-block-right {
+		width: 390px;
+		vertical-align: top;
+		display: inline-block;
+	}
+		
+	.model-content .feature-headline {
+		width: 100%;
+		font-size: 22px;
+		font-weight: 600;
+		border-top: 1px solid #000000;
+		padding: 8px 0px 10px 0px;
+	}
+	
+	
+	/* ---- Model Door Handing Styles ---- */	
+	.model-content .handing-item-first {
+		width: 220px;
+		text-align: center;
+		padding: 10px 30px 0px 0px;
+		border-right: 1px solid #dddddd;
+		vertical-align: top;
+		display: inline-block;
+	}
+	
+	.model-content .handing-item-center {
+		width: 250px;
+		text-align: center;
+		padding: 10px 30px 0px 30px;
+		border-right: 1px solid #dddddd;
+		vertical-align: top;
+		display: inline-block;
+	}
+	
+	.model-content .handing-item-last {
+		width: 220px;
+		text-align: center;
+		padding: 10px 0px 0px 30px;
+		vertical-align: top;
+		display: inline-block;
+	}
+	
+	.model-content .handing-img {
+		width: 100%;
+		margin: auto;
+		padding: 0px 0px 5px 0px;
+	}
+	
+	
+	/* ---- Model Download Styles ---- */
+	.model-content .download-item-first {width: 100%; text-align: left; border-bottom: 1px solid #dddddd; padding: 10px 20px 30px 20px;}
+	.model-content .download-item {width: 100%; text-align: left; border-bottom: 1px solid #dddddd; padding: 30px 20px 30px 20px;}
+	.model-content .download-item-last {width: 100%; text-align: left; padding: 30px 20px 0px 20px;}
+	
+	.model-content .download-thumbnail {
+		width: 150px;
+		height: 190px;
+		box-shadow: 0 0px 8px 0 rgba(0, 0, 0, 0.2), 0 0px 8px 0 rgba(0, 0, 0, 0.19);
+		background-color: #ffffff;
+		vertical-align: top;
+		display: inline-block;
+		margin: auto;
+	}
+	
+	.model-content .download-text-area {
+		height: 190px;
+		text-align: left;
+		vertical-align: top;
+		display: inline-block;
+		padding: 40px 0px 0px 30px;
+	}
+	
+
+	/* ---- Model Quote Request Styles ---- */
+	.model-content .quote-area {width: 500px; margin: 60px auto 60px auto;}
+	
+
+	/* ---- Model Page Navigation ---- */
+	.page-nav-area {width: 1065px; text-align: center; border-bottom: 1px solid #dddddd; margin: 0px auto 0px auto;}
+		
+	.page-nav-item {
+		width: 160px;
+		height: 29px;
+		text-align: center;
+		font-size: 14px;
+		font-weight: 400;
+		display: inline-block;
+		vertical-align: top;
+		padding: 4px 0px 0px 0px;
+	}
+	
+		.page-nav-item-on {
+			width: 160px;
+			height: 35px;
+			color: #000000;
+			text-align: center;
+			font-size: 14px;
+			font-weight: 400;
+			display: inline-block;
+			vertical-align: top;
+			padding: 4px 0px 0px 0px;
+			border-bottom: 4px solid #dddddd;
+		}
+
+	.page-nav-vline {
+		width: 1px;
+		height: 29px;
+		display: inline-block;
+		vertical-align: top;
+		background: #dddddd;
+		margin: 0px 10px 6px 10px;
+	}
+	
+	 .page-nav-area ul {
+		text-align: center;
+		display: inline-block;
+		margin: 0px;
+		padding: 0px;
+    }
+
+	 .page-nav-area li {
+		text-align: center;
+		display: inline-block;
+		margin: 0px;
+		padding: 0px;
+    }
+    
+    section {height:100%; width:100%;}
+    
+    #overview {padding: 180px 0px 0px 0px; margin: -180px 0px 0px 0px;}
+	#details {padding: 180px 0px 0px 0px; margin: -200px 0px 0px 0px;}
+	#handing {padding: 180px 0px 0px 0px; margin: -200px 0px 0px 0px;}  
+	#add-ons {padding: 180px 0px 0px 0px; margin: -200px 0px 0px 0px;}
+	#specs-cutsheets {padding: 180px 0px 0px 0px; margin: -200px 0px 0px 0px;}
+	#finishes {padding: 180px 0px 0px 0px; margin: -200px 0px 0px 0px;}
+	
+		
+} 
+
+
+
+
+
+
+
+
+
+
+
+

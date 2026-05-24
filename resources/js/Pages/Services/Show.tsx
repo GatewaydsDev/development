@@ -7,10 +7,10 @@ import {
     CardHeader,
     CardTitle,
 } from '@/Components/ui/card';
+import RadioFrequencyImageShowcase from '@/Components/RadioFrequencyImageShowcase';
 import { serviceDefinitionsByKey, type ServiceKey } from '@/data/services';
 import PublicLayout from '@/Layouts/PublicLayout';
 import { openContactForm } from '@/lib/contact';
-import { cn } from '@/lib/utils';
 import { Head } from '@inertiajs/react';
 import {
     CheckCircle2Icon,
@@ -88,17 +88,33 @@ export default function ServiceShow({
         <>
             <Badge
                 variant="outline"
-                className="border-emerald-500/20 bg-background/70 text-emerald-700 dark:text-emerald-300"
+                className={
+                    isRadioFrequencyDoors
+                        ? 'border-emerald-400/30 bg-white/10 text-emerald-100'
+                        : 'border-emerald-500/20 bg-background/70 text-emerald-700 dark:text-emerald-300'
+                }
             >
                 <ServiceIcon className="size-4" />
                 {t('shared.heroBadge')}
             </Badge>
 
-            <h1 className="mt-6 max-w-4xl text-3xl font-semibold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
+            <h1
+                className={
+                    isRadioFrequencyDoors
+                        ? 'mt-6 max-w-4xl text-3xl font-semibold tracking-tight text-white sm:text-5xl lg:text-6xl'
+                        : 'mt-6 max-w-4xl text-3xl font-semibold tracking-tight text-foreground sm:text-5xl lg:text-6xl'
+                }
+            >
                 {t(`${servicePath}.title`)}
             </h1>
 
-            <p className="mt-6 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
+            <p
+                className={
+                    isRadioFrequencyDoors
+                        ? 'mt-6 max-w-2xl text-base leading-7 text-emerald-50/80 sm:text-lg sm:leading-8'
+                        : 'mt-6 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8'
+                }
+            >
                 {t(`${servicePath}.description`)}
             </p>
 
@@ -116,7 +132,11 @@ export default function ServiceShow({
                     asChild
                     variant="outline"
                     size="lg"
-                    className="w-full bg-background/70 sm:w-auto"
+                    className={
+                        isRadioFrequencyDoors
+                            ? 'w-full border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white sm:w-auto'
+                            : 'w-full bg-background/70 sm:w-auto'
+                    }
                 >
                     <a href="/#services">{t('shared.secondaryCta')}</a>
                 </Button>
@@ -145,23 +165,29 @@ export default function ServiceShow({
 
             <section className="relative overflow-hidden border-b border-border bg-background">
                 {isRadioFrequencyDoors ? (
-                    <div className="relative mx-auto grid max-w-7xl lg:grid-cols-[minmax(0,1.22fr)_minmax(0,0.68fr)] lg:items-center lg:gap-10 xl:gap-14">
-                        <div className="relative flex flex-col justify-center px-4 py-12 sm:px-6 sm:py-16 lg:border-r lg:border-border/60 lg:px-10 lg:py-24 xl:px-14">
-                            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(52,211,153,0.14),_transparent_42%),linear-gradient(rgba(0,0,0,0.02)_1px,_transparent_1px),linear-gradient(90deg,_rgba(0,0,0,0.02)_1px,_transparent_1px)] bg-[size:auto_auto,56px_56px,56px_56px] dark:bg-[radial-gradient(circle_at_top_left,_rgba(52,211,153,0.12),_transparent_42%),linear-gradient(rgba(255,255,255,0.025)_1px,_transparent_1px),linear-gradient(90deg,_rgba(255,255,255,0.025)_1px,_transparent_1px)]" />
+                    <>
+                        <div className="pointer-events-none absolute inset-0 bg-zinc-950" />
+                        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,_rgba(52,211,153,0.32),_transparent_42%),radial-gradient(circle_at_82%_78%,_rgba(16,185,129,0.24),_transparent_48%),linear-gradient(155deg,_rgba(6,78,59,0.42),_rgba(2,6,23,0.95)_58%)]" />
+                        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.035)_1px,_transparent_1px),linear-gradient(90deg,_rgba(255,255,255,0.035)_1px,_transparent_1px)] bg-[size:44px_44px] opacity-40" />
 
-                            <div className="relative max-w-xl xl:max-w-2xl">
-                                {heroIntro}
+                        <div className="relative mx-auto grid max-w-7xl lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)] lg:items-center lg:gap-8 xl:gap-12">
+                            <div className="relative flex flex-col justify-center px-4 py-12 sm:px-6 sm:py-16 lg:px-10 lg:py-24 xl:px-14">
+                                <div className="relative max-w-xl xl:max-w-2xl">
+                                    {heroIntro}
+                                </div>
+                            </div>
+
+                            <div className="relative flex min-h-[280px] items-center justify-end px-4 py-10 sm:min-h-[360px] sm:px-6 lg:min-h-[min(88svh,44rem)] lg:px-8 lg:py-16 xl:px-10">
+                                <RadioFrequencyImageShowcase
+                                    src={service.images.hero}
+                                    alt={t(`${servicePath}.imageAlt`)}
+                                    variant="hero"
+                                    embedded
+                                    className="w-full max-w-[min(100%,22rem)] sm:max-w-[28rem] lg:max-w-[32rem] xl:max-w-[36rem]"
+                                />
                             </div>
                         </div>
-
-                        <div className="relative flex min-h-[240px] flex-col items-end justify-center bg-gradient-to-bl from-muted/25 via-transparent to-transparent px-6 py-10 sm:min-h-[320px] lg:min-h-[min(88svh,44rem)] lg:px-8 lg:py-16 xl:px-12">
-                            <img
-                                src={service.images.hero}
-                                alt={t(`${servicePath}.imageAlt`)}
-                                className="h-auto w-full max-w-[min(100%,18rem)] object-contain object-right drop-shadow-[0_28px_56px_-18px_rgba(6,78,59,0.28)] dark:drop-shadow-[0_28px_56px_-14px_rgba(0,0,0,0.45)] sm:max-w-[22rem] lg:max-h-[min(78vh,40rem)] lg:max-w-[26rem] xl:max-w-[30rem]"
-                            />
-                        </div>
-                    </div>
+                    </>
                 ) : (
                     <>
                         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(52,211,153,0.18),_transparent_34%),radial-gradient(circle_at_bottom_right,_rgba(16,185,129,0.12),_transparent_36%)]" />
@@ -269,16 +295,22 @@ export default function ServiceShow({
                         {t(`${servicePath}.title`)}
                     </h2>
 
-                    <img
-                        src={service.images.detail}
-                        alt={t(`${servicePath}.imageAlt`)}
-                        className={cn(
-                            'mt-6 w-full rounded-2xl object-contain transition duration-700 hover:scale-[1.01] sm:mt-8 sm:rounded-3xl',
-                            isRadioFrequencyDoors
-                                ? 'h-[22rem] border-0 bg-transparent p-0 shadow-none ring-0 outline-none sm:h-[30rem] lg:h-[36rem]'
-                                : 'h-72 border border-border bg-muted/50 p-2 shadow-xl shadow-emerald-950/10 sm:h-96 lg:h-[28rem]',
-                        )}
-                    />
+                    {isRadioFrequencyDoors ? (
+                        <RadioFrequencyImageShowcase
+                            src={service.images.detail}
+                            alt={t(`${servicePath}.imageAlt`)}
+                            variant="detail"
+                            className="mt-6 sm:mt-8"
+                        />
+                    ) : (
+                        <div className="relative mt-6 overflow-hidden rounded-2xl bg-muted/20 sm:mt-8 sm:rounded-3xl">
+                            <img
+                                src={service.images.detail}
+                                alt={t(`${servicePath}.imageAlt`)}
+                                className="h-72 w-full rounded-2xl border border-border bg-muted/50 object-contain p-2 shadow-xl shadow-emerald-950/10 transition duration-700 hover:scale-[1.01] sm:h-96 sm:rounded-3xl lg:h-[28rem]"
+                            />
+                        </div>
+                    )}
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">

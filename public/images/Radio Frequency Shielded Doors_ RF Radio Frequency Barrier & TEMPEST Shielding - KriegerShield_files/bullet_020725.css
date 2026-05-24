@@ -1,0 +1,3240 @@
+/* Site Build - Beskar 1.0 - Bullet Styles Only - Feb 2025
+========================================================================================================== */
+
+.bullet-content .ratings-line {
+	width: 80px;
+	height: 1px;
+	background-color: #dddddd;
+	margin: 10px auto 10px auto;
+}
+
+.bullet-content a.model-icon-area:link, a.model-icon-area:visited {
+		width: 70px;
+		height: 70px;
+		vertical-align: top;
+		border: 1px solid #8a1a1c;
+		border-radius: 10px;
+		background-color: #ffffff;
+		display: inline-block;
+		text-decoration: none;	
+	}
+	.bullet-content a.model-icon-area:hover {
+			background-color: #f6f6f6;
+			text-decoration: none;	
+		}
+		
+	.bullet-content .model-icon {
+		width: 36px;
+		height: 55px;
+		margin: 7px auto 0px auto;
+	}	
+			
+	.bullet-content .model-icon-text {
+		height: 70px;
+		vertical-align: top;
+		padding: 10px 0px 0px 8px;
+		display: inline-block;	
+	}
+	
+.bullet-content .assembly-col {
+		width: 33%;
+		vertical-align: top;
+		display: inline-block;
+	}
+	
+.fe-video-player {
+		max-width: 940px;
+		height: auto;
+		margin: auto;
+		padding: 70px 0px 0px 0px;
+	}
+	
+	
+a.bullet-pre-icon-button:link,
+a.bullet-pre-icon-button:visited {
+	width: 100%;
+	color: #8a1a1c;
+	text-decoration: none;
+	padding: 12px 8px 12px 8px;
+	display: block;
+}
+	
+	a.bullet-pre-icon-button:hover {
+		width: 100%;
+		color: #8a1a1c;
+		text-decoration: none;
+		padding: 12px 8px 12px 8px;
+		border-radius: 10px;
+		background-color: #f6f6f6;
+		display: block;
+	}	
+
+
+
+/* EXTRA SMALL DEVICES (PHONES, 767PX AND DOWN) 
+---------------------------------------------------------------------------------------------------------- */
+@media only screen and (max-width: 767px) {
+	
+	.bullet-content {width: 100%; margin: auto; padding: 0px 0px 0px 0px;}
+	
+	.bullet-content .features-area {width: 100%; vertical-align: top; margin: auto; padding: 0px 0px 0px 0px;}
+	
+	.bullet-content .bullet-finishes-area {width: 100%; margin: 60px auto 60px auto; padding: 0px 20px 0px 20px;}
+	.bullet-content .fe-finishes-area {width: 100%; margin: 0px auto 60px auto; padding: 0px 20px 0px 20px;}
+	
+	
+	/* ---- Hero Styles ---- */	
+	.bullet-content .hero {width: 100%; background-color: #8a1a1c;}
+	
+	.bullet-content .hero-area {
+		width: 100%; 
+		vertical-align: top;
+		margin: auto; 
+	}
+	
+	.bullet-content .hero-area-left {
+		width: 100%; 
+		text-align: center; 
+		vertical-align: top;
+		padding: 70px 0px 0px 0px;
+		display: inline-block;
+	}
+	
+	.bullet-content .hero-area-right {
+		width: 100%;
+		text-align: center; 
+		vertical-align: top;
+		padding: 0px 20px 30px 20px;
+		display: inline-block;
+		margin: auto;
+	}
+	
+	.bullet-content .hero-img {
+		max-width: 470px;
+		height: auto; 
+		border: 1px solid #ffffff; 
+		margin: 0px 20px 0px 20px;
+	}
+	
+	.bullet-content .title-pl {
+		width: 100%;
+		font-size: 16px;
+		font-weight: 600;
+		line-height: 16px;
+		color: #ffffff;
+		border-bottom: 1px solid #ad5f61;
+		padding: 20px 0px 10px 0px;
+	}
+	
+	.bullet-content .title {
+		width: 100%;
+		font-size: 30px;
+		font-weight: 300;
+		line-height: 32px;
+		color: #ffffff;
+		letter-spacing: -0.5px;
+		padding: 10px 0px 30px 0px;
+	}
+	
+	.bullet-content .hero-text {
+		width: 100%;
+		font-size: 16px;
+		font-weight: 400;
+		line-height: 24px;
+		color: #ffffff;
+		padding: 0px 10px 0px 10px;
+	}
+	
+	
+	/* ---- Rating Styles ---- */	
+	.bullet-content .ratings {width: 100%; background-color: #f6f6f6;}
+	
+	.bullet-content .ratings-area {
+		width: 100%; 
+		vertical-align: top;
+		margin: auto; 
+		padding: 20px 20px 30px 20px;
+	}
+	
+	.bullet-content .ratings-area-left {
+		width: 100%; 
+		text-align: center; 
+		vertical-align: top;
+		padding: 0px 30px 20px 30px;
+		border-right: 0px;
+		border-bottom: 1px solid #bbbbbb;
+		display: inline-block;
+	}
+	
+	.bullet-content .ratings-area-right {
+		width: 100%; 
+		text-align: center; 
+		vertical-align: top;
+		padding: 20px 30px 20px 30px;
+		display: inline-block;
+	}
+	
+	.bullet-content .ratings-title {
+		width: 100%;
+		font-size: 26px;
+		font-weight: 300;
+		line-height: 32px;
+		color: #8a1a1c;
+		letter-spacing: -0.5px;
+		text-align: center; 
+		padding: 0px 0px 20px 0px;
+	}
+		
+	.bullet-content .ratings-icon {
+		width: 50px;
+		height: 50px;
+		margin: auto;
+		display: block;
+	}
+	
+	.bullet-content .ratings-icon-title {
+		width: 100%;
+		font-size: 20px;
+		font-weight: 600;
+		line-height: 30px;
+		color: #8a1a1c;
+		text-align: center; 
+		border-bottom: 1px solid #dddddd;
+		padding: 0px 0px 10px 0px;
+	}
+	
+	
+	/* ---- Bullet Features Styles ---- */
+	.bullet-content .bullet-features-intro-headline {
+		width: 100%;
+		text-align: center;
+		font-size: 24px;
+		font-weight: 600;
+		line-height: 30px;
+		color: #8a1a1c;
+		padding: 0px 20px 5px 20px;
+	}
+	
+	.bullet-content .bullet-features-intro {
+		width: 100%;
+		text-align: center;
+		font-size: 16px;
+		font-weight: 600;
+		line-height: 22px;
+		color: #000000;
+		padding: 0px 20px 30px 20px;
+	}
+	
+	.bullet-content .bullet-features-area-left {
+		width: 100%; 
+		text-align: left; 
+		vertical-align: top;
+		padding: 0px 20px 60px 20px;
+		border-right: 0px;
+		border-bottom: 0px;
+		display: inline-block;
+	}
+	
+	.bullet-content .bullet-features-area-right {
+		width: 100%; 
+		text-align: left; 
+		vertical-align: top;
+		padding: 0px 20px 0px 20px;
+		display: inline-block;
+	}
+	
+	.bullet-content .bullet-features-subhead-icon {
+		width: 60px;
+		height: 60px;
+		display: inline-block;
+	}
+	
+	.bullet-content .bullet-features-subhead {
+		width: 200px;
+		text-align: left;
+		font-size: 18px;
+		font-weight: 600;
+		line-height: 22px;
+		color: #8a1a1c;
+		vertical-align: top;
+		padding: 10px 0px 0px 10px;
+		display: inline-block;
+	}
+
+
+	/* ---- UL752 Chart Styles ---- */
+	.bullet-content .ul752-chart-level-10 {
+		height: 50px;
+		width: 50px;
+		font-size: 30px;
+		font-weight: 300;
+		line-height: 30px;
+		color: #8a1a1c;
+		letter-spacing: -3px;
+		text-align: center; 
+		border: 1px solid #8a1a1c;
+		border-radius: 50%;
+		padding: 8px 5px 0px 0px;
+		margin: 0px 6px 0px 0px;
+	}
+	
+	.bullet-content .ul752-chart-level {
+		height: 50px;
+		width: 50px;
+		font-size: 30px;
+		font-weight: 300;
+		line-height: 30px;
+		color: #8a1a1c;
+		text-align: center; 
+		border: 1px solid #8a1a1c;
+		border-radius: 50%;
+		padding: 8px 0px 0px 0px;
+		margin: 0px 6px 0px 0px;
+	}
+	
+	.bullet-content .ul752-chart-header-fix { /* ---- This is to fix the margin to align with the numbers ---- */
+		padding: 0px 14px 0px 0px;
+		text-align: center;
+	}
+	
+	.bullet-content .ul752-chart-label {
+		width: 100%;
+		height: 20px;
+		font-size: 12px;
+		font-weight: 600;
+		line-height: 12px;
+		color: #777777;
+		vertical-align: top;
+		display: block;
+		padding: 5px 0px 0px 0px;
+	}
+	
+	.bullet-content .ul752-chart-gun-icon {
+		max-width: 100px;
+		height: 30px;
+		vertical-align: top;
+		display: block;
+	}
+	
+	.bullet-content .ul752-chart-bullet-icon {
+		max-width: 70px;
+		height: 30px;
+		vertical-align: top;
+		display: block;
+	}
+	
+	.bullet-content .ul752-chart-shots-icon {
+		max-width: 33px;
+		height: 34px;
+		vertical-align: top;
+		margin: auto;
+		display: block;
+	}
+	
+	
+	/* ---- NIJ Chart Styles ---- */
+	.bullet-content .nij-chart-a {
+		width: 50%;
+		border-right: 1px solid #dddddd;
+		border-bottom: 1px solid #dddddd;
+		vertical-align: top;
+		display: inline-block;
+		padding: 16px 20px 16px 0px;
+	}
+	
+	.bullet-content .nij-chart-b {
+		width: 50%;
+		border-bottom: 1px solid #dddddd;
+		vertical-align: top;
+		display: inline-block;
+		padding: 16px 0px 16px 20px;
+	}
+	
+	.bullet-content .nij-chart-c {
+		width: 50%;
+		border-right: 1px solid #dddddd;
+		vertical-align: top;
+		display: inline-block;
+		padding: 16px 20px 16px 0px;
+	}
+	
+	.bullet-content .nij-chart-d {
+		width: 50%;
+		vertical-align: top;
+		display: inline-block;
+		padding: 16px 0px 16px 20px;
+	}
+	
+	.bullet-content .nij-chart-level {
+		width: 100%;
+		font-size: 20px;
+		font-weight: 600;
+		line-height: 20px;
+		color: #000000;
+		text-align: left;
+		display: block;
+		padding: 0px 0px 8px 0px;
+	}
+	
+	.bullet-content .nij-chart-col-a {
+		width: 70%;
+		text-align: left;
+		vertical-align: top;
+		display: inline-block;
+	}
+	
+	.bullet-content .nij-chart-col-b {
+		width: 30%;
+		text-align: center;
+		vertical-align: top;
+		display: inline-block;
+	}
+	
+	.bullet-content .nij-chart-label {
+		width: 100%;
+		height: 16px;
+		font-size: 12px;
+		font-weight: 600;
+		line-height: 12px;
+		color: #777777;
+		vertical-align: top;
+		display: block;
+		padding: 0px 0px 12px 0px;
+	}
+	
+	.bullet-content .nij-chart-bullet-icon {
+		max-width: 95px;
+		height: 34px;
+		vertical-align: top;
+		display: block;
+	}
+	
+	.bullet-content .nij-chart-shots-icon {
+		max-width: 33px;
+		height: 34px;
+		vertical-align: top;
+		margin: auto;
+		display: block;
+	}
+	
+	
+	/* ---- Military Styles ---- */
+	.bullet-content .military-headline {
+		width: 100%;
+		height: 155px;
+		font-size: 30px;
+		font-weight: 300;
+		line-height: 34px;
+		letter-spacing: -0.5px;
+		color: #000000;
+		text-align: left;
+		background-image: url("../../images/bullet/military_headline_bg.jpg");
+		background-repeat: no-repeat;
+		background-size: contain;
+		background-position: bottom center;
+		margin: 30px 0px 0px 0px;
+	}
+	
+	.bullet-content .sam-logo {
+		width: 90px;
+		height: 31px;
+		margin: 0px auto 5px auto;
+	}
+	
+	
+	/* ---- Forced Entry Features Styles ---- */
+	.bullet-content .fe-features-intro-headline {
+		width: 100%;
+		text-align: center;
+		font-size: 24px;
+		font-weight: 600;
+		line-height: 30px;
+		color: #8a1a1c;
+		padding: 0px 20px 5px 20px;
+	}
+	
+	.bullet-content .fe-features-intro {
+		width: 100%;
+		text-align: center;
+		font-size: 16px;
+		font-weight: 600;
+		line-height: 22px;
+		color: #000000;
+		padding: 0px 20px 0px 20px;
+	}
+	
+	.bullet-content .fe-video-area {
+		width: 100%;
+		height: 465px;
+		text-align: left;
+		vertical-align: top;
+		padding: 0px 0px 0px 0px;
+	}
+	
+	.bullet-content .fe-video-text-area {
+		width: 100%;
+		text-align: center;
+		padding: 30px 20px 0px 20px;
+	}
+	
+	.bullet-content .fe-video-text-left {
+		width: 50%;
+		vertical-align: top;
+		font-size: 26px;
+		font-weight: 300;
+		line-height: 26px;
+		letter-spacing: -0.5px;
+		color: #8a1a1c;
+		text-align: center;
+		border-right: 1px solid #dddddd;
+		display: inline-block;
+		padding: 5px 0px 5px 0px;
+	}
+	
+	.bullet-content .fe-video-text-right {
+		width: 50%;
+		vertical-align: top;
+		font-size: 26px;
+		font-weight: 300;
+		line-height: 26px;
+		letter-spacing: -0.5px;
+		color: #8a1a1c;
+		text-align: center;
+		display: inline-block;
+		padding: 5px 0px 5px 0px;
+	}
+	
+	.bullet-content .fe-video-text-icon {
+		width: 75px;
+		height: 75px;
+		margin: 0px auto 5px auto;
+	}
+	
+	.bullet-content a.fe-video:link, a.fe-video:visited {
+		width: 100%;
+		height: 250px;
+		border: 2px solid #ffffff;
+		border-radius: 20px;
+		box-shadow: 0 0px 8px 0 rgba(0, 0, 0, 0.2), 0 0px 8px 0 rgba(0, 0, 0, 0.19);
+		background-image: url("../../images/bullet/fe_video_thumbnail_bg.jpg");
+		background-repeat: no-repeat;
+		background-size: cover;
+		background-position: center center;
+		background-color: #000000;
+		vertical-align: top;
+		display: block;
+		margin: 30px auto 0px auto;
+		text-decoration: none;
+		opacity: 1.0;
+	}
+	
+		.bullet-content a.fe-video:hover {
+			width: 100%;
+			height: 250px;
+			border: 2px solid #ffffff;
+			border-radius: 20px;
+			box-shadow: 0 0px 8px 0 rgba(0, 0, 0, 0.2), 0 0px 8px 0 rgba(0, 0, 0, 0.19);
+			background-image: url("../../images/bullet/fe_video_thumbnail_bg.jpg");
+			background-repeat: no-repeat;
+			background-size: cover;
+			background-position: center center;
+			background-color: #000000;
+			vertical-align: top;
+			display: block;
+			margin: 30px auto 0px auto;
+			text-decoration: none;
+			opacity: 0.7;
+		}
+	
+	.bullet-content .fe-video-watch-icon {
+		width: 85px;
+		height: 85px;
+		margin: 80px auto 5px auto;
+	}
+	
+	.bullet-content .fe-video-watch {
+		width: 100%;
+		font-size: 18px;
+		font-weight: 600;
+		line-height: 24px;
+		color: #ffffff;
+		text-align: center;
+		text-decoration: none;
+		padding: 0px 20px 0px 20px;
+	}
+	
+	.bullet-content .fe-four-col {
+		width: 50%;
+		vertical-align: top;
+		display: inline-block;
+	}
+	
+	.bullet-content .fe-sd-text {
+		width: 100%;
+		font-size: 16px;
+		font-weight: 400;
+		line-height: 22px;
+		vertical-align: top;
+		padding: 20px 20px 0px 20px;
+	}
+	
+	
+	/* ---- ASTM Chart Styles ---- */
+	.bullet-content .fe-astm-chart {
+		width: 100%;
+		vertical-align: top;
+		padding: 0px 20px 0px 20px;
+		border-right: 0px;
+	}
+	
+	.bullet-content .fe-astm-chart-logo-area {
+		width: 30%;
+		text-align: left;
+		vertical-align: top;
+		display: inline-block;
+	}
+	
+	.bullet-content .fe-astm-chart-logo {
+		width: 75px;
+		height: 55px;
+		margin: auto;
+	}
+	
+	.bullet-content .fe-astm-chart-grade-area {
+		width: 70%;
+		text-align: left;
+		vertical-align: top;
+		display: inline-block;
+		padding: 0px 0px 0px 10px;
+	}
+	
+	.bullet-content .fe-astm-chart-grade-1 {
+		width: 100%;
+		height: 35px;
+		text-align: right;
+		font-size: 18px;
+		font-weight: 600;
+		line-height: 18px;
+		color: #ffffff;
+		border-right: 0px;
+		border-bottom: 1px solid #ffffff;
+		background-color: #bf8182;
+		vertical-align: top;
+		display: inline-block;
+		padding: 8px 10px 0px 0px; 
+	}
+	
+	.bullet-content .fe-astm-chart-grade-2 {
+		width: 100%;
+		height: 35px;
+		text-align: right;
+		font-size: 18px;
+		font-weight: 600;
+		line-height: 18px;
+		color: #ffffff;
+		border-right: 0px;
+		border-bottom: 1px solid #ffffff;
+		background-color: #ad5e60;
+		vertical-align: top;
+		display: inline-block;
+		padding: 8px 10px 0px 0px; 
+	}
+	
+	.bullet-content .fe-astm-chart-grade-3 {
+		width: 100%;
+		height: 35px;
+		text-align: right;
+		font-size: 18px;
+		font-weight: 600;
+		line-height: 18px;
+		color: #ffffff;
+		border-right: 0px;
+		border-bottom: 1px solid #ffffff;
+		background-color: #9b3c3e;
+		vertical-align: top;
+		display: inline-block;
+		padding: 8px 10px 0px 0px; 
+	}
+	
+	.bullet-content .fe-astm-chart-grade-4 {
+		width: 100%;
+		height: 35px;
+		text-align: right;
+		font-size: 18px;
+		font-weight: 600;
+		line-height: 18px;
+		color: #ffffff;
+		background-color: #8a1a1c;
+		vertical-align: top;
+		display: inline-block;
+		padding: 8px 10px 0px 0px; 
+	}
+	
+	.bullet-content .fe-astm-chart-left {
+		width: 100%;
+		text-align: left;
+		font-size: 16px;
+		font-weight: 400;
+		line-height: 22px;
+		color: #777777;
+		vertical-align: top;
+		display: inline-block;
+		padding: 10px 0px 20px 0px;
+	}
+	
+	.bullet-content .fe-astm-chart-right {
+		width: 100%;
+		text-align: center;
+		font-size: 16px;
+		font-weight: 600;
+		line-height: 22px;
+		border: 1px solid #8a1a1c;
+		color: #8a1a1c;
+		vertical-align: top;
+		display: inline-block;
+		padding: 20px 20px 20px 20px;
+	}
+	
+
+
+	/* BULLET PRE-ENGINEERED STYLES 
+	---------------------------------------------------- */		
+	
+	
+	/* ---- Bullet Pre-Engineered Main Title Styles ---- */	
+	.bullet-pre-title {
+		width: 100%;
+		height: 400px;
+		text-align: center;
+		background-color: #f6f6f6;
+		border-bottom: 1px solid #dddddd;
+		display: block;
+		padding: 44px 16px 0px 16px;
+	}
+	
+		.bullet-pre-title-headline {
+			width: 100%;
+			font-size: 30px;
+			line-height: 36px;
+			font-weight: 300;
+			letter-spacing: -0.5px;
+			color: #8a1a1c;
+			display: block;
+			padding: 34px 0px 0px 0px;
+		}
+		
+		.bullet-pre-title-subhead {
+			width: 100%;
+			font-size: 18px;
+			line-height: 26px;
+			font-weight: 600;
+			color: #000000;
+			display: block;
+			padding: 20px 0px 30px 0px;
+		}
+		
+		.bullet-pre-title-icon {
+			width: 40px;
+			height: 40px;
+			margin: auto;
+		}
+		
+		.bullet-pre-title-text {
+			width: 100%;
+			font-size: 14px;
+			line-height: 20px;
+			font-weight: 400;
+			color: #777777;
+			display: block;
+			padding: 4px 0px 0px 0px;
+		}
+	
+	
+	/* ---- Bullet Pre-Engineered Section Title Styles ---- */
+	.bullet-pre-sec-title {
+		width: 100%;
+		margin: 40px auto 0px auto;
+		padding: 0px 10px 0px 10px;
+		border-bottom: 2px solid #000000;
+		display: block;
+	}
+	
+	.bullet-pre-sec-title-left {
+		width: 100%;
+		text-align: center;
+		vertical-align: bottom;
+		display: block;
+		padding: 0px 0px 0px 0px;
+	}
+	
+	.bullet-pre-sec-title-right {
+		width: 340px;
+		text-align: center;
+		vertical-align: bottom;
+		display: block;
+		margin: 0px auto 0px auto;
+	}
+	
+	.bullet-pre-sec-title-icon {
+		width: 50px;
+		height: 50px;
+		display: block;
+		margin: 0px auto 6px auto;
+	}
+	
+	.bullet-pre-sec-title-headline {
+		width: 100%;
+		font-size: 20px;
+		line-height: 24px;
+		font-weight: 600;
+		color: #8a1a1c;
+		display: block;
+	}
+	
+	.bullet-pre-sec-title-subhead {
+		width: 100%;
+		font-size: 18px;
+		line-height: 24px;
+		font-weight: 600;
+		color: #8a1a1c;
+	}
+	
+	.bullet-pre-sec-title-text-1 {
+		width: 100%;
+		font-size: 16px;
+		line-height: 22px;
+		font-weight: 400;
+		color: #777777;
+	}
+	
+	.bullet-pre-sec-title-text-2 {
+		width: 100%;
+		font-size: 14px;
+		line-height: 20px;
+		font-weight: 400;
+		color: #777777;
+	}
+	
+	.bullet-pre-sec-title-text-3 {
+		width: 100%;
+		font-size: 12px;
+		line-height: 18px;
+		font-weight: 400;
+		color: #777777;
+	}
+	
+		/* ---- Finish Item Styles ---- */		
+		.bullet-pre-sec-fin-a {
+			width: 49%;
+			text-align: center;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 600;
+			color: #8a1a1c;
+			vertical-align: top;
+			border-right: 1px solid #dddddd;
+			border-bottom: 1px solid #dddddd;
+			display: inline-block;
+			padding: 4px 8px 8px 8px;
+		}
+	
+		.bullet-pre-sec-fin-b {
+			width: 50%;
+			text-align: center;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 600;
+			color: #8a1a1c;
+			vertical-align: top;
+			border-right: 0px;
+			border-bottom: 1px solid #dddddd;
+			display: inline-block;
+			padding: 4px 8px 8px 8px;
+		}
+	
+		.bullet-pre-sec-fin-c {
+			width: 49%;
+			text-align: center;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 600;
+			color: #8a1a1c;
+			vertical-align: top;
+			border-right: 1px solid #dddddd;
+			display: inline-block;
+			padding: 8px 8px 4px 8px;
+		}
+	
+		.bullet-pre-sec-fin-d {
+			width: 50%;
+			text-align: center;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 600;
+			color: #8a1a1c;
+			vertical-align: top;
+			display: inline-block;
+			padding: 8px 8px 4px 8px;
+		}
+
+		.bullet-pre-sec-fin-icon {
+			width: 40px;
+			height: 40px;
+			display: block;
+			margin: 0px auto 6px auto;
+		}
+		
+		.bullet-pre-sec-fin-left {
+			width: 100%;
+			text-align: center;
+			font-size: 14px;
+			line-height: 22px;
+			font-weight: 400;
+			color: #777777;
+			vertical-align: top;
+			border-right: 0px;
+			display: block;
+			padding: 0px 0px 0px 0px;
+		}
+		
+		.bullet-pre-sec-fin-right {
+			width: 100%;
+			text-align: center;
+			font-size: 14px;
+			line-height: 22px;
+			font-weight: 400;
+			color: #777777;
+			vertical-align: top;
+			display: block;
+			padding: 0px 0px 0px 0px;
+		}
+
+		
+	.bullet-pre-sec-door-hollow-metal {
+		width: 230px;
+		height: 212px;
+		background-image: url("../../images/bullet/pre-eng_mobile_hollow_metal_door.png");
+		background-repeat: no-repeat;
+		background-size: 120px 212px;
+		background-position: bottom right;
+		vertical-align: bottom;
+		display: inline-block;
+		padding: 0px 125px 0px 0px;
+	}
+	
+	.bullet-pre-sec-door-wood-veneer {
+		width: 230px;
+		height: 212px;
+		background-image: url("../../images/bullet/pre-eng_mobile_wood_veneer_door.png");
+		background-repeat: no-repeat;
+		background-size: 120px 212px;
+		background-position: bottom right;
+		vertical-align: bottom;
+		display: inline-block;
+		padding: 0px 125px 0px 0px;
+	}
+	
+	.bullet-pre-sec-door-right {
+		width: 110px;
+		height: 212px;
+		vertical-align: bottom;
+		display: inline-block;
+		padding: 0px 0px 0px 5px;
+	}
+	
+		/* ---- Door Labels Styles ---- */
+		.bullet-pre-sec-assembly-title {
+			width: 100%;
+			text-align: center;
+			font-size: 16px;
+			line-height: 22px;
+			font-weight: 600;
+			color: #000000;
+			padding: 30px 0px 10px 0px;
+		}
+		
+		.bullet-pre-label-panel {
+			width: 100%;
+			text-align: right;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 16px 0px 0px 0px;
+		}
+		
+		.bullet-pre-label-frame {
+			width: 100%;
+			text-align: right;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 34px 0px 0px 0px;
+		}
+		
+		.bullet-pre-label-hinges {
+			width: 100%;
+			text-align: left;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 16px 0px 0px 0px;
+		}
+		
+		.bullet-pre-label-glass {
+			width: 100%;
+			text-align: left;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 30px 0px 0px 0px;
+		}
+		
+		.bullet-pre-label-glass-icon {
+			width: 40px;
+			height: 46px;
+			display: block;
+		}
+	
+	
+	/* ---- FE Icons ---- */
+	.bullet-pre-fe-icon-area {
+		width: 100%;
+		text-align: center;
+		font-size: 14px;
+		line-height: 14px;
+		font-weight: 400;
+		color: #777777;
+		vertical-align: top;
+		display: block;
+		margin: 0px auto 12px auto;
+	}
+	
+	.bullet-pre-fe-icon-left {
+		width: 100px;
+		text-align: center;
+		vertical-align: top;
+		display: inline-block;
+		border-right: 1px solid #dddddd;
+		padding: 6px 20px 6px 0px; 
+	}
+	
+	.bullet-pre-fe-icon-right {
+		width: 100px;
+		text-align: center;
+		vertical-align: top;
+		display: inline-block;
+		padding: 6px 0px 6px 20px
+	}
+	
+	
+	/* ---- FE Video Styles ---- */
+	a.bullet-pre-fe-video:link, a.bullet-pre-fe-video:visited {
+		width: 90%;
+		height: auto;
+		border: 2px solid #ffffff;
+		border-radius: 20px;
+		box-shadow: 0 0px 8px 0 rgba(0, 0, 0, 0.2), 0 0px 8px 0 rgba(0, 0, 0, 0.19);
+		background-image: url("../../images/bullet/fe_video_thumbnail_bg.jpg");
+		background-repeat: no-repeat;
+		background-size: cover;
+		background-position: center center;
+		background-color: #000000;
+		vertical-align: top;
+		display: block;
+		margin: 30px auto 30px auto;
+		text-decoration: none;
+		opacity: 1.0;
+	}
+	
+		a.bullet-pre-fe-video:hover {
+			width: 90%;
+			height: auto;
+			border: 2px solid #ffffff;
+			border-radius: 20px;
+			box-shadow: 0 0px 8px 0 rgba(0, 0, 0, 0.2), 0 0px 8px 0 rgba(0, 0, 0, 0.19);
+			background-image: url("../../images/bullet/fe_video_thumbnail_bg.jpg");
+			background-repeat: no-repeat;
+			background-size: cover;
+			background-position: center center;
+			background-color: #000000;
+			vertical-align: top;
+			display: block;
+			margin: 30px auto 30px auto;
+			text-decoration: none;
+			opacity: 0.7;
+		}
+		
+	.bullet-pre-fe-video-watch-icon {
+		width: 85px;
+		height: 85px;
+		margin: 30px auto 5px auto;
+	}
+	
+	.bullet-pre-fe-video-watch {
+		width: 100%;
+		font-size: 18px;
+		font-weight: 600;
+		line-height: 24px;
+		color: #ffffff;
+		text-align: center;
+		text-decoration: none;
+		padding: 0px 20px 30px 20px;
+	}
+	
+	
+	/* ---- Models Styles ---- */
+	.bullet-pre-models {
+		width: 100%;
+		display: block;
+		margin: 8px auto 0px auto;
+		padding: 0px 10px 0px 10px;
+	}	
+	
+	
+	
+}
+
+
+
+/* SMALL DEVICES (PORTRAIT TABLETS AND LARGE PHONES, 400PX AND UP)  
+
+This has been deprecated as of August 2023. 
+
+---------------------------------------------------------------------------------------------------------- */
+
+
+
+
+
+/* MEDIUM DEVICES (LANDSCAPE TABLETS, 768PX AND UP)
+---------------------------------------------------------------------------------------------------------- */
+@media only screen and (min-width: 768px) {
+	
+	.bullet-content {width: 100%; margin: auto; padding: 0px 0px 0px 0px;}
+	
+	.bullet-content .features-area {width: 768px; vertical-align: top; margin: auto; padding: 0px 0px 0px 0px;}
+	
+	.bullet-content .bullet-finishes-area {width: 768px; margin: 60px auto 60px auto; padding: 0px 20px 0px 20px;}
+	.bullet-content .fe-finishes-area {width: 768px; margin: 0px auto 60px auto; padding: 0px 20px 0px 20px;}
+	
+	
+	/* ---- Hero Styles ---- */	
+	.bullet-content .hero {width: 100%; background-color: #8a1a1c;}
+	
+	.bullet-content .hero-area {
+		width: 768px; 
+		vertical-align: top;
+		margin: auto; 
+	}
+	
+	.bullet-content .hero-area-left {
+		width: 100%; 
+		text-align: center; 
+		vertical-align: top;
+		padding: 80px 0px 0px 0px;
+		display: block;
+	}
+	
+	.bullet-content .hero-area-right {
+		width: 60%;
+		text-align: center; 
+		vertical-align: top;
+		padding: 0px 0px 40px 0px;
+		display: block;
+		margin: auto;
+	}
+	
+	.bullet-content .hero-img {
+		max-width: 470px;
+		height: auto; 
+		border: 1px solid #ffffff; 
+		margin: auto;
+	}
+	
+	.bullet-content .title-pl {
+		width: 100%;
+		font-size: 18px;
+		font-weight: 600;
+		line-height: 18px;
+		color: #ffffff;
+		border-bottom: 1px solid #ad5f61;
+		padding: 20px 0px 18px 0px;
+	}
+	
+	.bullet-content .title {
+		width: 100%;
+		font-size: 38px;
+		font-weight: 300;
+		line-height: 38px;
+		color: #ffffff;
+		letter-spacing: -0.5px;
+		padding: 16px 0px 24px 0px;
+	}
+	
+	.bullet-content .hero-text {
+		width: 100%;
+		font-size: 16px;
+		font-weight: 400;
+		line-height: 24px;
+		color: #ffffff;
+		padding: 0px 0px 0px 0px;
+	}
+	
+	
+	/* ---- Rating Styles ---- */	
+	.bullet-content .ratings {width: 100%; background-color: #f6f6f6;}
+	
+	.bullet-content .ratings-area {
+		width: 720px; 
+		vertical-align: top;
+		margin: auto; 
+		padding: 20px 0px 30px 0px;
+	}
+	
+	.bullet-content .ratings-area-left {
+		width: 360px; 
+		text-align: center; 
+		vertical-align: top;
+		padding: 20px 30px 20px 0px;
+		border-right: 1px solid #bbbbbb;
+		border-bottom: 0px;
+		display: inline-block;
+	}
+	
+	.bullet-content .ratings-area-right {
+		width: 360px; 
+		text-align: center; 
+		vertical-align: top;
+		padding: 20px 0px 20px 30px;
+		display: inline-block;
+	}
+	
+	.bullet-content .ratings-title {
+		width: 100%;
+		font-size: 30px;
+		font-weight: 300;
+		line-height: 30px;
+		color: #8a1a1c;
+		letter-spacing: -0.5px;
+		text-align: center; 
+		padding: 0px 0px 20px 0px;
+	}
+		
+	.bullet-content .ratings-icon {
+		width: 50px;
+		height: 50px;
+		margin: auto;
+		display: block;
+	}
+	
+	.bullet-content .ratings-icon-title {
+		width: 100%;
+		font-size: 20px;
+		font-weight: 600;
+		line-height: 30px;
+		color: #8a1a1c;
+		text-align: center; 
+		border-bottom: 1px solid #dddddd;
+		padding: 0px 0px 10px 0px;
+	}
+	
+	
+	/* ---- Bullet Features Styles ---- */
+	.bullet-content .bullet-features-intro-headline {
+		width: 100%;
+		text-align: center;
+		font-size: 24px;
+		font-weight: 600;
+		line-height: 30px;
+		color: #8a1a1c;
+		padding: 0px 20px 5px 20px;
+	}
+	
+	.bullet-content .bullet-features-intro {
+		width: 100%;
+		text-align: center;
+		font-size: 16px;
+		font-weight: 600;
+		line-height: 22px;
+		color: #000000;
+		padding: 0px 20px 30px 20px;
+	}
+	
+	.bullet-content .bullet-features-area-left {
+		width: 360px; 
+		text-align: left; 
+		vertical-align: top;
+		padding: 0px 40px 0px 20px;
+		border-right: 1px solid #dddddd;
+		border-bottom: 0px;
+		display: inline-block;
+	}
+	
+	.bullet-content .bullet-features-area-right {
+		width: 360px; 
+		text-align: left; 
+		vertical-align: top;
+		padding: 0px 20px 0px 40px;
+		display: inline-block;
+	}
+	
+	.bullet-content .bullet-features-subhead-icon {
+		width: 60px;
+		height: 60px;
+		display: inline-block;
+	}
+	
+	.bullet-content .bullet-features-subhead {
+		width: 200px;
+		text-align: left;
+		font-size: 18px;
+		font-weight: 600;
+		line-height: 22px;
+		color: #8a1a1c;
+		vertical-align: top;
+		padding: 10px 0px 0px 10px;
+		display: inline-block;
+	}
+	
+	
+	/* ---- UL752 Chart Styles ---- */
+	.bullet-content .ul752-chart-level-10 {
+		height: 50px;
+		width: 50px;
+		font-size: 30px;
+		font-weight: 300;
+		line-height: 30px;
+		color: #8a1a1c;
+		letter-spacing: -3px;
+		text-align: center; 
+		border: 1px solid #8a1a1c;
+		border-radius: 50%;
+		padding: 8px 5px 0px 0px;
+		margin: 0px 6px 0px 0px;
+	}
+	
+	.bullet-content .ul752-chart-level {
+		height: 50px;
+		width: 50px;
+		font-size: 30px;
+		font-weight: 300;
+		line-height: 30px;
+		color: #8a1a1c;
+		text-align: center; 
+		border: 1px solid #8a1a1c;
+		border-radius: 50%;
+		padding: 8px 0px 0px 0px;
+		margin: 0px 6px 0px 0px;
+	}
+	
+	.bullet-content .ul752-chart-header-fix { /* ---- This is to fix the margin to align with the numbers ---- */
+		padding: 0px 8px 0px 0px;
+		text-align: center;
+	}
+	
+	.bullet-content .ul752-chart-label {
+		width: 100%;
+		height: 20px;
+		font-size: 12px;
+		font-weight: 600;
+		line-height: 12px;
+		color: #777777;
+		vertical-align: top;
+		display: block;
+		padding: 5px 0px 0px 0px;
+	}
+	
+	.bullet-content .ul752-chart-gun-icon {
+		max-width: 100px;
+		height: 30px;
+		vertical-align: top;
+		display: block;
+	}
+	
+	.bullet-content .ul752-chart-bullet-icon {
+		max-width: 70px;
+		height: 30px;
+		vertical-align: top;
+		display: block;
+	}
+	
+	.bullet-content .ul752-chart-shots-icon {
+		max-width: 33px;
+		height: 34px;
+		vertical-align: top;
+		margin: auto;
+		display: block;
+	}
+	
+	
+	/* ---- NIJ Chart Styles ---- */
+	.bullet-content .nij-chart-a {
+		width: 50%;
+		border-right: 1px solid #dddddd;
+		border-bottom: 1px solid #dddddd;
+		vertical-align: top;
+		display: inline-block;
+		padding: 16px 20px 16px 0px;
+	}
+	
+	.bullet-content .nij-chart-b {
+		width: 50%;
+		border-bottom: 1px solid #dddddd;
+		vertical-align: top;
+		display: inline-block;
+		padding: 16px 0px 16px 20px;
+	}
+	
+	.bullet-content .nij-chart-c {
+		width: 50%;
+		border-right: 1px solid #dddddd;
+		vertical-align: top;
+		display: inline-block;
+		padding: 16px 20px 16px 0px;
+	}
+	
+	.bullet-content .nij-chart-d {
+		width: 50%;
+		vertical-align: top;
+		display: inline-block;
+		padding: 16px 0px 16px 20px;
+	}
+	
+	.bullet-content .nij-chart-level {
+		width: 100%;
+		font-size: 20px;
+		font-weight: 600;
+		line-height: 20px;
+		color: #000000;
+		text-align: left;
+		display: block;
+		padding: 0px 0px 8px 0px;
+	}
+	
+	.bullet-content .nij-chart-col-a {
+		width: 70%;
+		text-align: left;
+		vertical-align: top;
+		display: inline-block;
+	}
+	
+	.bullet-content .nij-chart-col-b {
+		width: 30%;
+		text-align: center;
+		vertical-align: top;
+		display: inline-block;
+	}
+	
+	.bullet-content .nij-chart-label {
+		width: 100%;
+		height: 16px;
+		font-size: 12px;
+		font-weight: 600;
+		line-height: 12px;
+		color: #777777;
+		vertical-align: top;
+		display: block;
+		padding: 0px 0px 12px 0px;
+	}
+	
+	.bullet-content .nij-chart-bullet-icon {
+		max-width: 95px;
+		height: 34px;
+		vertical-align: top;
+		display: block;
+	}
+	
+	.bullet-content .nij-chart-shots-icon {
+		max-width: 33px;
+		height: 34px;
+		vertical-align: top;
+		margin: auto;
+		display: block;
+	}
+	
+	
+	/* ---- Military Styles ---- */
+	.bullet-content .military-headline {
+		width: 360px;
+		height: 150px;
+		font-size: 30px;
+		font-weight: 300;
+		line-height: 34px;
+		letter-spacing: -0.5px;
+		color: #000000;
+		text-align: left;
+		background-image: url("../../images/bullet/military_headline_bg.jpg");
+		background-repeat: no-repeat;
+		background-size: contain;
+		background-position: bottom center;
+		margin: 30px 0px 0px 0px;
+	}
+	
+	.bullet-content .sam-logo {
+		width: 90px;
+		height: 31px;
+		margin: 0px auto 5px auto;
+	}
+	
+	
+	/* ---- Forced Entry Features Styles ---- */
+	.bullet-content .fe-features-intro-headline {
+		width: 100%;
+		text-align: left;
+		font-size: 24px;
+		font-weight: 600;
+		line-height: 30px;
+		color: #8a1a1c;
+		padding: 0px 20px 5px 20px;
+	}
+	
+	.bullet-content .fe-features-intro {
+		width: 100%;
+		text-align: left;
+		font-size: 16px;
+		font-weight: 600;
+		line-height: 22px;
+		color: #000000;
+		padding: 0px 20px 0px 20px;
+	}
+	
+	.bullet-content .fe-video-area {
+		width: 100%;
+		height: 410px;
+		text-align: left;
+		vertical-align: top;
+		background-image: url("../../images/bullet/fe_video_tablet_bg.jpg");
+		background-repeat: no-repeat;
+		background-size: 550px 380px;
+		background-position: bottom right;
+		padding: 0px 0px 0px 20px;
+	}
+	
+	.bullet-content .fe-video-text-area {
+		width: 340px;
+		text-align: center;
+		padding: 30px 0px 0px 0px;
+	}
+	
+	.bullet-content .fe-video-text-left {
+		width: 50%;
+		vertical-align: top;
+		font-size: 28px;
+		font-weight: 300;
+		line-height: 28px;
+		letter-spacing: -0.5px;
+		color: #8a1a1c;
+		text-align: center;
+		border-right: 1px solid #dddddd;
+		display: inline-block;
+		padding: 5px 0px 5px 0px;
+	}
+	
+	.bullet-content .fe-video-text-right {
+		width: 50%;
+		vertical-align: top;
+		font-size: 28px;
+		font-weight: 300;
+		line-height: 28px;
+		letter-spacing: -0.5px;
+		color: #8a1a1c;
+		text-align: center;
+		display: inline-block;
+		padding: 5px 0px 5px 0px;
+	}
+	
+	.bullet-content .fe-video-text-icon {
+		width: 50px;
+		height: 50px;
+		margin: 0px auto 5px auto;
+	}
+	
+	.bullet-content a.fe-video:link, a.fe-video:visited {
+		width: 340px;
+		height: 230px;
+		border: 2px solid #ffffff;
+		border-radius: 20px;
+		box-shadow: 0 0px 8px 0 rgba(0, 0, 0, 0.2), 0 0px 8px 0 rgba(0, 0, 0, 0.19);
+		background-image: url("../../images/bullet/fe_video_thumbnail_bg.jpg");
+		background-repeat: no-repeat;
+		background-size: cover;
+		background-position: center center;
+		background-color: #000000;
+		vertical-align: top;
+		display: block;
+		margin: 20px auto 0px auto;
+		text-decoration: none;
+		opacity: 1.0;
+	}
+	
+		.bullet-content a.fe-video:hover {
+			width: 340px;
+			height: 230px;
+			border: 2px solid #ffffff;
+			border-radius: 20px;
+			box-shadow: 0 0px 8px 0 rgba(0, 0, 0, 0.2), 0 0px 8px 0 rgba(0, 0, 0, 0.19);
+			background-image: url("../../images/bullet/fe_video_thumbnail_bg.jpg");
+			background-repeat: no-repeat;
+			background-size: cover;
+			background-position: center center;
+			background-color: #000000;
+			vertical-align: top;
+			display: block;
+			margin: 20px auto 0px auto;
+			text-decoration: none;
+			opacity: 0.7;
+		}
+	
+	.bullet-content .fe-video-watch-icon {
+		width: 85px;
+		height: 85px;
+		margin: 80px auto 5px auto;
+	}
+	
+	.bullet-content .fe-video-watch {
+		width: 100%;
+		font-size: 18px;
+		font-weight: 600;
+		line-height: 24px;
+		color: #ffffff;
+		text-align: center;
+		text-decoration: none;
+		padding: 0px 20px 0px 20px;
+	}
+	
+	.bullet-content .fe-four-col {
+		width: 25%;
+		vertical-align: top;
+		display: inline-block;
+	}
+	
+	.bullet-content .fe-sd-text {
+		width: 100%;
+		font-size: 16px;
+		font-weight: 400;
+		line-height: 22px;
+		vertical-align: top;
+		padding: 20px 20px 0px 20px;
+	}
+	
+	
+	/* ---- ASTM Chart Styles ---- */
+	.bullet-content .fe-astm-chart {
+		width: 100%;
+		vertical-align: top;
+		padding: 0px 20px 0px 20px;
+		border-right: 0px;
+	}
+	
+	.bullet-content .fe-astm-chart-logo-area {
+		width: 75px;
+		height: 55px;
+		text-align: left;
+		vertical-align: top;
+		display: inline-block;
+	}
+	
+	.bullet-content .fe-astm-chart-logo {
+		width: 75px;
+		height: 55px;
+		margin: auto;
+	}
+	
+	.bullet-content .fe-astm-chart-grade-area {
+		width: 650px;
+		height: 55px;
+		text-align: left;
+		vertical-align: top;
+		display: inline-block;
+		padding: 12px 0px 0px 22px;
+	}
+	
+	.bullet-content .fe-astm-chart-grade-1 {
+		width: 25%;
+		height: 35px;
+		text-align: right;
+		font-size: 18px;
+		font-weight: 600;
+		line-height: 18px;
+		color: #ffffff;
+		border-right: 1px solid #ffffff;
+		border-bottom: 0px;
+		background-color: #bf8182;
+		vertical-align: top;
+		display: inline-block;
+		padding: 8px 10px 0px 0px; 
+	}
+	
+	.bullet-content .fe-astm-chart-grade-2 {
+		width: 25%;
+		height: 35px;
+		text-align: right;
+		font-size: 18px;
+		font-weight: 600;
+		line-height: 18px;
+		color: #ffffff;
+		border-right: 1px solid #ffffff;
+		border-bottom: 0px;
+		background-color: #ad5e60;
+		vertical-align: top;
+		display: inline-block;
+		padding: 8px 10px 0px 0px; 
+	}
+	
+	.bullet-content .fe-astm-chart-grade-3 {
+		width: 25%;
+		height: 35px;
+		text-align: right;
+		font-size: 18px;
+		font-weight: 600;
+		line-height: 18px;
+		color: #ffffff;
+		border-right: 1px solid #ffffff;
+		border-bottom: 0px;
+		background-color: #9b3c3e;
+		vertical-align: top;
+		display: inline-block;
+		padding: 8px 10px 0px 0px; 
+	}
+	
+	.bullet-content .fe-astm-chart-grade-4 {
+		width: 25%;
+		height: 35px;
+		text-align: right;
+		font-size: 18px;
+		font-weight: 600;
+		line-height: 18px;
+		color: #ffffff;
+		background-color: #8a1a1c;
+		vertical-align: top;
+		display: inline-block;
+		padding: 8px 10px 0px 0px; 
+	}
+	
+	.bullet-content .fe-astm-chart-left {
+		width: 65%;
+		text-align: left;
+		font-size: 14px;
+		font-weight: 400;
+		line-height: 20px;
+		color: #777777;
+		vertical-align: top;
+		display: inline-block;
+		padding: 20px 0px 0px 0px;
+	}
+	
+	.bullet-content .fe-astm-chart-right {
+		width: 35%;
+		text-align: left;
+		font-size: 14px;
+		font-weight: 600;
+		line-height: 20px;
+		border: 0px;
+		color: #8a1a1c;
+		vertical-align: top;
+		display: inline-block;
+		padding: 0px 0px 0px 100px;
+	}
+	
+	
+	
+	/* BULLET PRE-ENGINEERED STYLES 
+	---------------------------------------------------- */	
+	
+	/* ---- Bullet Pre-Engineered Main Title Styles ---- */	
+	.bullet-pre-title {
+		width: 100%;
+		height: 355px;
+		text-align: center;
+		background-image: url("../../images/bullet/pre-eng_title_tablet_bg.jpg");
+		background-repeat: no-repeat;
+		background-size: 1170px 355px;
+		background-position: bottom center;
+		background-color: #eeeeee;
+		border-bottom: 1px solid #dddddd;
+		display: block;
+		padding: 44px 0px 0px 0px;
+	}
+	
+		.bullet-pre-title-headline {
+			width: 100%;
+			font-size: 32px;
+			line-height: 38px;
+			font-weight: 300;
+			letter-spacing: -0.5px;
+			color: #8a1a1c;
+			display: block;
+			padding: 40px 0px 0px 0px;
+		}
+		
+		.bullet-pre-title-subhead {
+			width: 100%;
+			font-size: 18px;
+			line-height: 24px;
+			font-weight: 600;
+			color: #000000;
+			display: block;
+			padding: 24px 0px 30px 0px;
+		}
+		
+		.bullet-pre-title-icon {
+			width: 40px;
+			height: 40px;
+			margin: auto;
+		}
+		
+		.bullet-pre-title-text {
+			width: 100%;
+			font-size: 16px;
+			line-height: 22px;
+			font-weight: 400;
+			color: #777777;
+			display: block;
+			padding: 4px 0px 0px 0px;
+		}
+	
+
+	/* ---- Bullet Pre-Engineered Section Title Styles ---- */
+	.bullet-pre-sec-title {
+		width: 768px;
+		margin: 40px auto 0px auto;
+		padding: 0px 16px 0px 16px;
+		border-bottom: 2px solid #000000;
+		display: block;
+	}
+	
+	.bullet-pre-sec-title-left {
+		width: 100%;
+		text-align: center;
+		vertical-align: bottom;
+		display: block;
+		padding: 0px 0px 0px 0px;
+	}
+	
+	.bullet-pre-sec-title-right {
+		width: 340px;
+		text-align: center;
+		vertical-align: bottom;
+		display: block;
+		margin: 0px auto 0px auto;
+	}
+	
+	.bullet-pre-sec-title-icon {
+		width: 50px;
+		height: 50px;
+		display: block;
+		margin: 0px auto 6px auto;
+	}
+	
+	.bullet-pre-sec-title-headline {
+		width: 100%;
+		font-size: 20px;
+		line-height: 24px;
+		font-weight: 600;
+		color: #8a1a1c;
+		display: block;
+	}
+	
+	.bullet-pre-sec-title-subhead {
+		width: 100%;
+		font-size: 18px;
+		line-height: 24px;
+		font-weight: 600;
+		color: #8a1a1c;
+	}
+	
+	.bullet-pre-sec-title-text-1 {
+		width: 100%;
+		font-size: 16px;
+		line-height: 22px;
+		font-weight: 400;
+		color: #777777;
+	}
+	
+	.bullet-pre-sec-title-text-2 {
+		width: 100%;
+		font-size: 14px;
+		line-height: 20px;
+		font-weight: 400;
+		color: #777777;
+	}
+	
+	.bullet-pre-sec-title-text-3 {
+		width: 100%;
+		font-size: 12px;
+		line-height: 18px;
+		font-weight: 400;
+		color: #777777;
+	}
+
+
+		/* ---- Finish Item Styles ---- */
+		.bullet-pre-sec-fin-a {
+			width: 24%;
+			text-align: center;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 600;
+			color: #8a1a1c;
+			vertical-align: top;
+			border-right: 1px solid #dddddd;
+			border-bottom: 0px;
+			display: inline-block;
+			padding: 4px 8px 4px 8px;
+		}
+	
+		.bullet-pre-sec-fin-b {
+			width: 25%;
+			text-align: center;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 600;
+			color: #8a1a1c;
+			vertical-align: top;
+			border-right: 1px solid #dddddd;
+			border-bottom: 0px;
+			display: inline-block;
+			padding: 4px 8px 4px 8px;
+		}
+	
+		.bullet-pre-sec-fin-c {
+			width: 25%;
+			text-align: center;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 600;
+			color: #8a1a1c;
+			vertical-align: top;
+			border-right: 1px solid #dddddd;
+			display: inline-block;
+			padding: 4px 8px 4px 8px;
+		}
+	
+		.bullet-pre-sec-fin-d {
+			width: 25%;
+			text-align: center;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 600;
+			color: #8a1a1c;
+			vertical-align: top;
+			display: inline-block;
+			padding: 4px 8px 4px 8px;
+		}
+
+		.bullet-pre-sec-fin-icon {
+			width: 40px;
+			height: 40px;
+			display: block;
+			margin: 0px auto 6px auto;
+		}
+		
+		.bullet-pre-sec-fin-left {
+			width: 49%;
+			text-align: center;
+			font-size: 14px;
+			line-height: 22px;
+			font-weight: 400;
+			color: #777777;
+			vertical-align: top;
+			border-right: 1px solid #dddddd;
+			display: inline-block;
+			padding: 0px 16px 0px 16px;
+		}
+		
+		.bullet-pre-sec-fin-right {
+			width: 49%;
+			text-align: center;
+			font-size: 14px;
+			line-height: 22px;
+			font-weight: 400;
+			color: #777777;
+			vertical-align: top;
+			display: inline-block;
+			padding: 0px 16px 0px 16px;
+		}
+
+	
+	.bullet-pre-sec-door-hollow-metal {
+		width: 230px;
+		height: 212px;
+		background-image: url("../../images/bullet/pre-eng_mobile_hollow_metal_door.png");
+		background-repeat: no-repeat;
+		background-size: 120px 212px;
+		background-position: bottom right;
+		vertical-align: bottom;
+		display: inline-block;
+		padding: 0px 125px 0px 0px;
+	}
+	
+	.bullet-pre-sec-door-wood-veneer {
+		width: 230px;
+		height: 212px;
+		background-image: url("../../images/bullet/pre-eng_mobile_wood_veneer_door.png");
+		background-repeat: no-repeat;
+		background-size: 120px 212px;
+		background-position: bottom right;
+		vertical-align: bottom;
+		display: inline-block;
+		padding: 0px 125px 0px 0px;
+	}
+	
+	.bullet-pre-sec-door-right {
+		width: 110px;
+		height: 212px;
+		vertical-align: bottom;
+		display: inline-block;
+		padding: 0px 0px 0px 5px;
+	}
+	
+	
+		/* ---- Door Labels Styles ---- */
+		.bullet-pre-sec-assembly-title {
+			width: 100%;
+			text-align: center;
+			font-size: 16px;
+			line-height: 22px;
+			font-weight: 600;
+			color: #000000;
+			padding: 30px 0px 10px 0px;
+		}
+		
+		.bullet-pre-label-panel {
+			width: 100%;
+			text-align: right;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 16px 0px 0px 0px;
+		}
+		
+		.bullet-pre-label-frame {
+			width: 100%;
+			text-align: right;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 34px 0px 0px 0px;
+		}
+		
+		.bullet-pre-label-hinges {
+			width: 100%;
+			text-align: left;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 16px 0px 0px 0px;
+		}
+		
+		.bullet-pre-label-glass {
+			width: 100%;
+			text-align: left;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 30px 0px 0px 0px;
+		}
+		
+		.bullet-pre-label-glass-icon {
+			width: 40px;
+			height: 46px;
+			display: block;
+		}
+	
+	
+	/* ---- FE Icons ---- */
+	.bullet-pre-fe-icon-area {
+		width: 100%;
+		text-align: center;
+		font-size: 14px;
+		line-height: 14px;
+		font-weight: 400;
+		color: #777777;
+		vertical-align: top;
+		display: block;
+		margin: 0px auto 12px auto;
+	}
+	
+	.bullet-pre-fe-icon-left {
+		width: 100px;
+		text-align: center;
+		vertical-align: top;
+		display: inline-block;
+		border-right: 1px solid #dddddd;
+		padding: 6px 20px 6px 0px; 
+	}
+	
+	.bullet-pre-fe-icon-right {
+		width: 100px;
+		text-align: center;
+		vertical-align: top;
+		display: inline-block;
+		padding: 6px 0px 6px 20px
+	}
+	
+	
+	/* ---- FE Video Styles ---- */
+	a.bullet-pre-fe-video:link, a.bullet-pre-fe-video:visited {
+		width: 390px;
+		height: 250px;
+		border: 2px solid #ffffff;
+		border-radius: 20px;
+		box-shadow: 0 0px 8px 0 rgba(0, 0, 0, 0.2), 0 0px 8px 0 rgba(0, 0, 0, 0.19);
+		background-image: url("../../images/bullet/fe_video_thumbnail_bg.jpg");
+		background-repeat: no-repeat;
+		background-size: cover;
+		background-position: center center;
+		background-color: #000000;
+		vertical-align: top;
+		display: block;
+		margin: 30px auto 30px auto;
+		text-decoration: none;
+		opacity: 1.0;
+	}
+	
+		a.bullet-pre-fe-video:hover {
+			width: 390px;
+			height: 250px;
+			border: 2px solid #ffffff;
+			border-radius: 20px;
+			box-shadow: 0 0px 8px 0 rgba(0, 0, 0, 0.2), 0 0px 8px 0 rgba(0, 0, 0, 0.19);
+			background-image: url("../../images/bullet/fe_video_thumbnail_bg.jpg");
+			background-repeat: no-repeat;
+			background-size: cover;
+			background-position: center center;
+			background-color: #000000;
+			vertical-align: top;
+			display: block;
+			margin: 30px auto 30px auto;
+			text-decoration: none;
+			opacity: 0.7;
+		}
+		
+	.bullet-pre-fe-video-watch-icon {
+		width: 85px;
+		height: 85px;
+		margin: 60px auto 5px auto;
+	}
+	
+	.bullet-pre-fe-video-watch {
+		width: 100%;
+		font-size: 18px;
+		font-weight: 600;
+		line-height: 24px;
+		color: #ffffff;
+		text-align: center;
+		text-decoration: none;
+		padding: 0px 20px 0px 20px;
+	}
+	
+	
+	/* ---- Models Styles ---- */
+	.bullet-pre-models {
+		width: 768px;
+		display: block;
+		margin: 8px auto 0px auto;
+		padding: 0px 16px 0px 16px;
+	}	
+	
+
+} 
+
+
+
+
+/* LARGE DEVICES (LAPTOPS/DESKTOPS, 1200PX AND UP) 
+---------------------------------------------------------------------------------------------------------- */
+@media only screen and (min-width: 1240px) {
+	
+	.bullet-content {width: 100%; margin: auto; padding: 0px 0px 0px 0px;}
+	
+	.bullet-content .features-area {width: 940px; vertical-align: top; margin: auto; padding: 0px 0px 0px 0px;}
+	
+	.bullet-content .bullet-finishes-area {width: 940px; margin: 60px auto 60px auto; padding: 0px 0px 0px 0px;}
+	.bullet-content .fe-finishes-area {width: 940px; margin: 0px auto 80px auto; padding: 0px 0px 0px 0px;}
+	
+	
+	
+	/* ---- Hero Styles ---- */	
+	.bullet-content .hero {width: 100%; background-color: #8a1a1c;}
+	
+	.bullet-content .hero-area {
+		width: 940px; 
+		vertical-align: top;
+		margin: auto; 
+	}
+	
+	.bullet-content .hero-area-left {
+		width: 470px; 
+		text-align: center; 
+		vertical-align: top;
+		padding: 30px 30px 30px 0px;
+		display: inline-block;
+	}
+	
+	.bullet-content .hero-area-right {
+		width: 470px;
+		text-align: center; 
+		vertical-align: top;
+		padding: 30px 0px 30px 30px;
+		display: inline-block;
+		margin: auto;
+	}
+	
+	.bullet-content .hero-img {
+		max-width: 470px;
+		height: auto; 
+		border: 1px solid #ffffff; 
+		margin: auto;
+	}
+	
+	.bullet-content .title-pl {
+		width: 100%;
+		font-size: 18px;
+		font-weight: 600;
+		line-height: 18px;
+		color: #ffffff;
+		border-bottom: 1px solid #ad5f61;
+		padding: 20px 0px 18px 0px;
+	}
+	
+	.bullet-content .title {
+		width: 100%;
+		font-size: 38px;
+		font-weight: 300;
+		line-height: 38px;
+		color: #ffffff;
+		letter-spacing: -0.5px;
+		padding: 16px 0px 20px 0px;
+	}
+	
+	.bullet-content .hero-text {
+		width: 100%;
+		font-size: 16px;
+		font-weight: 400;
+		line-height: 24px;
+		color: #ffffff;
+		padding: 0px 0px 0px 0px;
+	}
+	
+	
+	/* ---- Rating Styles ---- */	
+	.bullet-content .ratings {width: 100%; background-color: #f6f6f6;}
+	
+	.bullet-content .ratings-area {
+		width: 720px; 
+		vertical-align: top;
+		margin: auto; 
+		padding: 20px 0px 30px 0px;
+	}
+	
+	.bullet-content .ratings-area-left {
+		width: 360px; 
+		text-align: center; 
+		vertical-align: top;
+		padding: 20px 30px 20px 0px;
+		border-right: 1px solid #bbbbbb;
+		border-bottom: 0px;
+		display: inline-block;
+	}
+	
+	.bullet-content .ratings-area-right {
+		width: 360px; 
+		text-align: center; 
+		vertical-align: top;
+		padding: 20px 0px 20px 30px;
+		display: inline-block;
+	}
+	
+	.bullet-content .ratings-title {
+		width: 100%;
+		font-size: 30px;
+		font-weight: 300;
+		line-height: 30px;
+		color: #8a1a1c;
+		letter-spacing: -0.5px;
+		text-align: center; 
+		padding: 0px 0px 26px 0px;
+	}
+		
+	.bullet-content .ratings-icon {
+		width: 50px;
+		height: 50px;
+		margin: auto;
+		display: block;
+	}
+	
+	.bullet-content .ratings-icon-title {
+		width: 100%;
+		font-size: 20px;
+		font-weight: 600;
+		line-height: 30px;
+		color: #8a1a1c;
+		text-align: center; 
+		border-bottom: 1px solid #dddddd;
+		padding: 0px 0px 10px 0px;
+	}
+	
+	
+	/* ---- Bullet Features Styles ---- */
+	.bullet-content .bullet-features-intro-headline {
+		width: 100%;
+		text-align: center;
+		font-size: 26px;
+		font-weight: 600;
+		line-height: 38px;
+		color: #8a1a1c;
+		padding: 0px 0px 5px 0px;
+	}
+	
+	.bullet-content .bullet-features-intro {
+		width: 100%;
+		text-align: center;
+		font-size: 18px;
+		font-weight: 600;
+		line-height: 24px;
+		color: #000000;
+		padding: 0px 0px 40px 0px;
+	}
+	
+	.bullet-content .bullet-features-area-left {
+		width: 470px; 
+		text-align: left; 
+		vertical-align: top;
+		padding: 0px 80px 0px 0px;
+		border-right: 1px solid #dddddd;
+		border-bottom: 0px;
+		display: inline-block;
+	}
+	
+	.bullet-content .bullet-features-area-right {
+		width: 470px; 
+		text-align: left; 
+		vertical-align: top;
+		padding: 0px 0px 0px 80px;
+		display: inline-block;
+	}
+	
+	.bullet-content .bullet-features-subhead-icon {
+		width: 60px;
+		height: 60px;
+		display: inline-block;
+	}
+	
+	.bullet-content .bullet-features-subhead {
+		width: 320px;
+		text-align: left;
+		font-size: 20px;
+		font-weight: 600;
+		line-height: 20px;
+		color: #8a1a1c;
+		vertical-align: top;
+		padding: 20px 0px 0px 10px;
+		display: inline-block;
+	}
+	
+
+	/* ---- UL752 Chart Styles ---- */
+	.bullet-content .ul752-chart-level-10 {
+		height: 50px;
+		width: 50px;
+		font-size: 30px;
+		font-weight: 300;
+		line-height: 30px;
+		color: #8a1a1c;
+		letter-spacing: -3px;
+		text-align: center; 
+		border: 1px solid #8a1a1c;
+		border-radius: 50%;
+		padding: 8px 5px 0px 0px;
+		margin: 0px 6px 0px 6px;
+	}
+	
+	.bullet-content .ul752-chart-level {
+		height: 50px;
+		width: 50px;
+		font-size: 30px;
+		font-weight: 300;
+		line-height: 30px;
+		color: #8a1a1c;
+		text-align: center; 
+		border: 1px solid #8a1a1c;
+		border-radius: 50%;
+		padding: 8px 0px 0px 0px;
+		margin: 0px 6px 0px 6px;
+	}
+	
+	.bullet-content .ul752-chart-header-fix { /* ---- This is to fix the margin to align with the numbers ---- */
+		text-align: center;
+		padding: 0px 10px 0px 0px;
+	}
+	
+	.bullet-content .ul752-chart-label {
+		width: 100%;
+		height: 16px;
+		font-size: 12px;
+		font-weight: 600;
+		line-height: 12px;
+		color: #777777;
+		vertical-align: top;
+		display: block;
+		padding: 3px 0px 0px 0px;
+	}
+	
+	.bullet-content .ul752-chart-gun-icon {
+		max-width: 130px;
+		height: 34px;
+		vertical-align: top;
+		display: block;
+	}
+	
+	.bullet-content .ul752-chart-bullet-icon {
+		max-width: 95px;
+		height: 34px;
+		vertical-align: top;
+		display: block;
+	}
+	
+	.bullet-content .ul752-chart-shots-icon {
+		max-width: 33px;
+		height: 34px;
+		vertical-align: top;
+		margin: auto;
+		display: block;
+	}
+	
+	
+	/* ---- NIJ Chart Styles ---- */
+	.bullet-content .nij-chart-a {
+		width: 195px;
+		border-right: 1px solid #dddddd;
+		border-bottom: 1px solid #dddddd;
+		vertical-align: top;
+		display: inline-block;
+		padding: 16px 20px 16px 0px;
+	}
+	
+	.bullet-content .nij-chart-b {
+		width: 195px;
+		border-bottom: 1px solid #dddddd;
+		vertical-align: top;
+		display: inline-block;
+		padding: 16px 0px 16px 20px;
+	}
+	
+	.bullet-content .nij-chart-c {
+		width: 195px;
+		border-right: 1px solid #dddddd;
+		vertical-align: top;
+		display: inline-block;
+		padding: 16px 20px 16px 0px;
+	}
+	
+	.bullet-content .nij-chart-d {
+		width: 195px;
+		vertical-align: top;
+		display: inline-block;
+		padding: 16px 0px 16px 20px;
+	}
+	
+	.bullet-content .nij-chart-level {
+		width: 100%;
+		font-size: 20px;
+		font-weight: 600;
+		line-height: 20px;
+		color: #000000;
+		text-align: left;
+		display: block;
+		padding: 0px 0px 8px 0px;
+	}
+	
+	.bullet-content .nij-chart-col-a {
+		width: 70%;
+		text-align: left;
+		vertical-align: top;
+		display: inline-block;
+	}
+	
+	.bullet-content .nij-chart-col-b {
+		width: 30%;
+		text-align: center;
+		vertical-align: top;
+		display: inline-block;
+	}
+	
+	.bullet-content .nij-chart-label {
+		width: 100%;
+		height: 16px;
+		font-size: 12px;
+		font-weight: 600;
+		line-height: 12px;
+		color: #777777;
+		vertical-align: top;
+		display: block;
+		padding: 0px 0px 12px 0px;
+	}
+	
+	.bullet-content .nij-chart-bullet-icon {
+		max-width: 95px;
+		height: 34px;
+		vertical-align: top;
+		display: block;
+	}
+	
+	.bullet-content .nij-chart-shots-icon {
+		max-width: 33px;
+		height: 34px;
+		vertical-align: top;
+		margin: auto;
+		display: block;
+	}
+	
+	
+	/* ---- Military Styles ---- */
+	.bullet-content .military-headline {
+		width: 390px;
+		height: 155px;
+		font-size: 30px;
+		font-weight: 300;
+		line-height: 34px;
+		letter-spacing: -0.5px;
+		color: #000000;
+		text-align: left;
+		background-image: url("../../images/bullet/military_headline_bg.jpg");
+		background-repeat: no-repeat;
+		background-size: 390px 120px;
+		background-position: bottom center;
+		margin: 30px 0px 0px 0px;
+	}
+	
+	.bullet-content .sam-logo {
+		width: 90px;
+		height: 31px;
+		margin: 0px auto 5px auto;
+	}
+	
+	
+	/* ---- Forced Entry Features Styles ---- */
+	.bullet-content .fe-features-intro-headline {
+		width: 100%;
+		text-align: left;
+		font-size: 26px;
+		font-weight: 600;
+		line-height: 38px;
+		color: #8a1a1c;
+		padding: 0px 0px 5px 0px;
+	}
+	
+	.bullet-content .fe-features-intro {
+		width: 100%;
+		text-align: left;
+		font-size: 18px;
+		font-weight: 600;
+		line-height: 24px;
+		color: #000000;
+		padding: 0px 0px 0px 0px;
+	}
+	
+	.bullet-content .fe-video-area {
+		width: 100%;
+		height: 465px;
+		text-align: left;
+		vertical-align: top;
+		background-image: url("../../images/bullet/fe_video_desktop_bg.jpg");
+		background-repeat: no-repeat;
+		background-size: 705px 465px;
+		background-position: bottom right;
+		padding: 0px 0px 0px 0px;
+	}
+	
+	.bullet-content .fe-video-text-area {
+		width: 390px;
+		text-align: center;
+		padding: 30px 0px 0px 0px;
+	}
+	
+	.bullet-content .fe-video-text-left {
+		width: 50%;
+		vertical-align: top;
+		font-size: 28px;
+		font-weight: 300;
+		line-height: 28px;
+		letter-spacing: -0.5px;
+		color: #8a1a1c;
+		text-align: center;
+		border-right: 1px solid #dddddd;
+		display: inline-block;
+		padding: 5px 0px 5px 0px;
+	}
+	
+	.bullet-content .fe-video-text-right {
+		width: 50%;
+		vertical-align: top;
+		font-size: 28px;
+		font-weight: 300;
+		line-height: 28px;
+		letter-spacing: -0.5px;
+		color: #8a1a1c;
+		text-align: center;
+		display: inline-block;
+		padding: 5px 0px 5px 0px;
+	}
+	
+	.bullet-content .fe-video-text-icon {
+		width: 75px;
+		height: 75px;
+		margin: 0px auto 5px auto;
+	}
+	
+	.bullet-content a.fe-video:link, a.fe-video:visited {
+		width: 390px;
+		height: 250px;
+		border: 2px solid #ffffff;
+		border-radius: 20px;
+		box-shadow: 0 0px 8px 0 rgba(0, 0, 0, 0.2), 0 0px 8px 0 rgba(0, 0, 0, 0.19);
+		background-image: url("../../images/bullet/fe_video_thumbnail_bg.jpg");
+		background-repeat: no-repeat;
+		background-size: cover;
+		background-position: center center;
+		background-color: #000000;
+		vertical-align: top;
+		display: block;
+		margin: 30px auto 0px auto;
+		text-decoration: none;
+		opacity: 1.0;
+	}
+	
+		.bullet-content a.fe-video:hover {
+			width: 390px;
+			height: 250px;
+			border: 2px solid #ffffff;
+			border-radius: 20px;
+			box-shadow: 0 0px 8px 0 rgba(0, 0, 0, 0.2), 0 0px 8px 0 rgba(0, 0, 0, 0.19);
+			background-image: url("../../images/bullet/fe_video_thumbnail_bg.jpg");
+			background-repeat: no-repeat;
+			background-size: cover;
+			background-position: center center;
+			background-color: #000000;
+			vertical-align: top;
+			display: block;
+			margin: 30px auto 0px auto;
+			text-decoration: none;
+			opacity: 0.7;
+		}
+	
+	.bullet-content .fe-video-watch-icon {
+		width: 85px;
+		height: 85px;
+		margin: 60px auto 5px auto;
+	}
+	
+	.bullet-content .fe-video-watch {
+		width: 100%;
+		font-size: 18px;
+		font-weight: 600;
+		line-height: 24px;
+		color: #ffffff;
+		text-align: center;
+		text-decoration: none;
+		padding: 0px 20px 0px 20px;
+	}
+	
+	.bullet-content .fe-four-col {
+		width: 25%;
+		vertical-align: top;
+		display: inline-block;
+	}
+	
+	.bullet-content .fe-sd-text {
+		width: 100%;
+		font-size: 16px;
+		font-weight: 400;
+		line-height: 22px;
+		vertical-align: top;
+		padding: 20px 0px 0px 0px;
+	}
+	
+	
+	/* ---- ASTM Chart Styles ---- */
+	.bullet-content .fe-astm-chart {
+		width: 100%;
+		vertical-align: top;
+		padding: 0px 0px 0px 0px;
+		border-right: 2px solid #8a1a1c;
+	}
+	
+	.bullet-content .fe-astm-chart-logo-area {
+		width: 75px;
+		height: 55px;
+		text-align: left;
+		vertical-align: top;
+		display: inline-block;
+	}
+	
+	.bullet-content .fe-astm-chart-logo {
+		width: 75px;
+		height: 55px;
+		margin: auto;
+	}
+	
+	.bullet-content .fe-astm-chart-grade-area {
+		width: 860px;
+		height: 55px;
+		text-align: left;
+		vertical-align: top;
+		display: inline-block;
+		padding: 12px 0px 0px 22px;
+	}
+	
+	.bullet-content .fe-astm-chart-grade-1 {
+		width: 25%;
+		height: 35px;
+		text-align: right;
+		font-size: 18px;
+		font-weight: 600;
+		line-height: 18px;
+		color: #ffffff;
+		border-right: 1px solid #ffffff;
+		border-bottom: 0px;
+		background-color: #bf8182;
+		vertical-align: top;
+		display: inline-block;
+		padding: 8px 10px 0px 0px; 
+	}
+	
+	.bullet-content .fe-astm-chart-grade-2 {
+		width: 25%;
+		height: 35px;
+		text-align: right;
+		font-size: 18px;
+		font-weight: 600;
+		line-height: 18px;
+		color: #ffffff;
+		border-right: 1px solid #ffffff;
+		border-bottom: 0px;
+		background-color: #ad5e60;
+		vertical-align: top;
+		display: inline-block;
+		padding: 8px 10px 0px 0px; 
+	}
+	
+	.bullet-content .fe-astm-chart-grade-3 {
+		width: 25%;
+		height: 35px;
+		text-align: right;
+		font-size: 18px;
+		font-weight: 600;
+		line-height: 18px;
+		color: #ffffff;
+		border-right: 1px solid #ffffff;
+		border-bottom: 0px;
+		background-color: #9b3c3e;
+		vertical-align: top;
+		display: inline-block;
+		padding: 8px 10px 0px 0px; 
+	}
+	
+	.bullet-content .fe-astm-chart-grade-4 {
+		width: 25%;
+		height: 35px;
+		text-align: right;
+		font-size: 18px;
+		font-weight: 600;
+		line-height: 18px;
+		color: #ffffff;
+		background-color: #8a1a1c;
+		vertical-align: top;
+		display: inline-block;
+		padding: 8px 10px 0px 0px; 
+	}
+	
+	.bullet-content .fe-astm-chart-left {
+		width: 65%;
+		text-align: left;
+		font-size: 16px;
+		font-weight: 400;
+		line-height: 22px;
+		color: #777777;
+		vertical-align: top;
+		display: inline-block;
+		padding: 20px 0px 0px 0px;
+	}
+	
+	.bullet-content .fe-astm-chart-right {
+		width: 35%;
+		text-align: left;
+		font-size: 16px;
+		font-weight: 600;
+		line-height: 22px;
+		border: 0px;
+		color: #8a1a1c;
+		vertical-align: top;
+		display: inline-block;
+		padding: 0px 0px 0px 120px;
+	}
+	
+	
+	
+	
+	/* BULLET PRE-ENGINEERED STYLES 
+	---------------------------------------------------- */	
+	
+	
+	/* ---- Bullet Pre-Engineered Main Title Styles ---- */	
+	.bullet-pre-title {
+		width: 100%;
+		height: 355px;
+		text-align: center;
+		background-image: url("../../images/bullet/pre-eng_title_desktop_bg.jpg");
+		background-repeat: no-repeat;
+		background-size: 1420px 355px;
+		background-position: bottom center;
+		background-color: #eeeeee;
+		border-bottom: 1px solid #dddddd;
+		display: block;
+		padding: 44px 0px 0px 0px;
+	}
+	
+		.bullet-pre-title-headline {
+			width: 100%;
+			font-size: 32px;
+			line-height: 38px;
+			font-weight: 300;
+			letter-spacing: -0.5px;
+			color: #8a1a1c;
+			display: block;
+			padding: 36px 0px 0px 0px;
+		}
+		
+		.bullet-pre-title-subhead {
+			width: 100%;
+			font-size: 20px;
+			line-height: 26px;
+			font-weight: 600;
+			color: #000000;
+			display: block;
+			padding: 24px 0px 30px 0px;
+		}
+		
+		.bullet-pre-title-icon {
+			width: 40px;
+			height: 40px;
+			margin: auto;
+		}
+		
+		.bullet-pre-title-text {
+			width: 100%;
+			font-size: 16px;
+			line-height: 22px;
+			font-weight: 400;
+			color: #777777;
+			display: block;
+			padding: 4px 0px 0px 0px;
+		}
+		
+	
+		
+	/* ---- Bullet Pre-Engineered Section Title Styles ---- */
+	.bullet-pre-sec-title {
+		width: 1120px;
+		margin: 60px auto 0px auto;
+		padding: 0px 0px 0px 0px;
+		border-bottom: 2px solid #000000;
+		display: block;
+	}
+	
+	.bullet-pre-sec-title-left {
+		width: 610px;
+		text-align: center;
+		vertical-align: bottom;
+		display: inline-block;
+		padding: 0px 0px 30px 0px;
+	}
+	
+	.bullet-pre-sec-title-right {
+		width: 510px;
+		text-align: center;
+		vertical-align: bottom;
+		display: inline-block;
+		margin: 0px 0px 0px 0px;
+	}
+		
+	.bullet-pre-sec-title-icon {
+		width: 50px;
+		height: 50px;
+		display: block;
+		margin: 0px auto 6px auto;
+	}
+	
+	.bullet-pre-sec-title-headline {
+		width: 100%;
+		font-size: 24px;
+		line-height: 24px;
+		font-weight: 600;
+		color: #8a1a1c;
+		display: block;
+	}
+	
+	.bullet-pre-sec-title-subhead {
+		width: 100%;
+		font-size: 18px;
+		line-height: 24px;
+		font-weight: 600;
+		color: #8a1a1c;
+	}
+	
+	.bullet-pre-sec-title-text-1 {
+		width: 100%;
+		font-size: 16px;
+		line-height: 22px;
+		font-weight: 400;
+		color: #777777;
+	}
+	
+	.bullet-pre-sec-title-text-2 {
+		width: 100%;
+		font-size: 14px;
+		line-height: 20px;
+		font-weight: 400;
+		color: #777777;
+	}
+	
+	.bullet-pre-sec-title-text-3 {
+		width: 100%;
+		font-size: 12px;
+		line-height: 18px;
+		font-weight: 400;
+		color: #777777;
+	}
+	
+		/* ---- Finish Item Styles ---- */
+		.bullet-pre-sec-fin-a {
+			width: 24%;
+			text-align: center;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 600;
+			color: #8a1a1c;
+			vertical-align: top;
+			border-right: 1px solid #dddddd;
+			border-bottom: 0px;
+			display: inline-block;
+			padding: 4px 8px 4px 8px;
+		}
+	
+		.bullet-pre-sec-fin-b {
+			width: 25%;
+			text-align: center;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 600;
+			color: #8a1a1c;
+			vertical-align: top;
+			border-right: 1px solid #dddddd;
+			border-bottom: 0px;
+			display: inline-block;
+			padding: 4px 8px 4px 8px;
+		}
+	
+		.bullet-pre-sec-fin-c {
+			width: 25%;
+			text-align: center;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 600;
+			color: #8a1a1c;
+			vertical-align: top;
+			border-right: 1px solid #dddddd;
+			display: inline-block;
+			padding: 4px 8px 4px 8px;
+		}
+	
+		.bullet-pre-sec-fin-d {
+			width: 25%;
+			text-align: center;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 600;
+			color: #8a1a1c;
+			vertical-align: top;
+			display: inline-block;
+			padding: 4px 8px 4px 8px;
+		}
+
+		.bullet-pre-sec-fin-icon {
+			width: 40px;
+			height: 40px;
+			display: block;
+			margin: 0px auto 6px auto;
+		}
+		
+		.bullet-pre-sec-fin-left {
+			width: 49%;
+			text-align: center;
+			font-size: 14px;
+			line-height: 22px;
+			font-weight: 400;
+			color: #777777;
+			vertical-align: top;
+			border-right: 1px solid #dddddd;
+			display: inline-block;
+			padding: 0px 8px 0px 8px;
+		}
+		
+		.bullet-pre-sec-fin-right {
+			width: 49%;
+			text-align: center;
+			font-size: 14px;
+			line-height: 22px;
+			font-weight: 400;
+			color: #777777;
+			vertical-align: top;
+			display: inline-block;
+			padding: 0px 8px 0px 8px;
+		}
+	
+		
+	.bullet-pre-sec-door-hollow-metal {
+		width: 304px;
+		height: 350px;
+		background-image: url("../../images/bullet/pre-eng_desktop_hollow_metal_door.png");
+		background-repeat: no-repeat;
+		background-size: 204px 350px;
+		background-position: bottom right;
+		vertical-align: bottom;
+		display: inline-block;
+		padding: 0px 209px 0px 0px;
+	}
+	
+	.bullet-pre-sec-door-wood-veneer {
+		width: 304px;
+		height: 350px;
+		background-image: url("../../images/bullet/pre-eng_desktop_wood_veneer_door.png");
+		background-repeat: no-repeat;
+		background-size: 204px 350px;
+		background-position: bottom right;
+		vertical-align: bottom;
+		display: inline-block;
+		padding: 0px 209px 0px 0px;
+	}
+	
+	.bullet-pre-sec-door-right {
+		width: 206px;
+		height: 350px;
+		vertical-align: bottom;
+		display: inline-block;
+		padding: 0px 0px 0px 5px;
+	}
+	
+
+		/* ---- Door Labels Styles ---- */
+		.bullet-pre-sec-assembly-title {
+			width: 100%;
+			text-align: left;
+			font-size: 16px;
+			line-height: 22px;
+			font-weight: 600;
+			color: #000000;
+			padding: 0px 0px 10px 118px;
+		}
+		
+		.bullet-pre-label-panel {
+			width: 100%;
+			text-align: right;
+			font-size: 16px;
+			line-height: 16px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 30px 0px 0px 0px;
+		}
+		
+		.bullet-pre-label-frame {
+			width: 100%;
+			text-align: right;
+			font-size: 16px;
+			line-height: 16px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 43px 0px 0px 0px;
+		}
+		
+		.bullet-pre-label-hinges {
+			width: 100%;
+			text-align: left;
+			font-size: 16px;
+			line-height: 16px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 30px 0px 0px 0px;
+		}
+		
+		.bullet-pre-label-glass {
+			width: 100%;
+			text-align: left;
+			font-size: 16px;
+			line-height: 16px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 40px 0px 0px 0px;
+		}
+		
+		.bullet-pre-label-glass-icon {
+			width: 40px;
+			height: 46px;
+			display: block;
+		}
+	
+	
+	/* ---- FE Icons ---- */
+	.bullet-pre-fe-icon-area {
+		width: 100%;
+		text-align: center;
+		font-size: 14px;
+		line-height: 14px;
+		font-weight: 400;
+		color: #777777;
+		vertical-align: top;
+		display: block;
+		margin: 0px auto 12px auto;
+	}
+	
+	.bullet-pre-fe-icon-left {
+		width: 100px;
+		text-align: center;
+		vertical-align: top;
+		display: inline-block;
+		border-right: 1px solid #dddddd;
+		padding: 6px 20px 6px 0px; 
+	}
+	
+	.bullet-pre-fe-icon-right {
+		width: 100px;
+		text-align: center;
+		vertical-align: top;
+		display: inline-block;
+		padding: 6px 0px 6px 20px
+	}
+	
+	
+	/* ---- FE Video Styles ---- */
+	a.bullet-pre-fe-video:link, a.bullet-pre-fe-video:visited {
+		width: 390px;
+		height: 250px;
+		border: 2px solid #ffffff;
+		border-radius: 20px;
+		box-shadow: 0 0px 8px 0 rgba(0, 0, 0, 0.2), 0 0px 8px 0 rgba(0, 0, 0, 0.19);
+		background-image: url("../../images/bullet/fe_video_thumbnail_bg.jpg");
+		background-repeat: no-repeat;
+		background-size: cover;
+		background-position: center center;
+		background-color: #000000;
+		vertical-align: top;
+		display: block;
+		margin: 0px 0px 40px 0px;
+		text-decoration: none;
+		opacity: 1.0;
+	}
+	
+		a.bullet-pre-fe-video:hover {
+			width: 390px;
+			height: 250px;
+			border: 2px solid #ffffff;
+			border-radius: 20px;
+			box-shadow: 0 0px 8px 0 rgba(0, 0, 0, 0.2), 0 0px 8px 0 rgba(0, 0, 0, 0.19);
+			background-image: url("../../images/bullet/fe_video_thumbnail_bg.jpg");
+			background-repeat: no-repeat;
+			background-size: cover;
+			background-position: center center;
+			background-color: #000000;
+			vertical-align: top;
+			display: block;
+			margin: 0px 0px 40px 0px;
+			text-decoration: none;
+			opacity: 0.7;
+		}
+		
+	.bullet-pre-fe-video-watch-icon {
+		width: 85px;
+		height: 85px;
+		margin: 60px auto 5px auto;
+	}
+	
+	.bullet-pre-fe-video-watch {
+		width: 100%;
+		font-size: 18px;
+		font-weight: 600;
+		line-height: 24px;
+		color: #ffffff;
+		text-align: center;
+		text-decoration: none;
+		padding: 0px 20px 0px 20px;
+	}
+
+
+	/* ---- Models Styles ---- */
+	.bullet-pre-models {
+		width: 1120px;
+		display: block;
+		margin: 14px auto 0px auto;
+		padding: 0px 0px 0px 0px;
+	}	
+
+		
+} 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

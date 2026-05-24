@@ -1,0 +1,338 @@
+/* Site Build - Beskar 1.0 - Input Styles Only
+========================================================================================================== */
+
+
+.button {
+	min-width: 200px;
+	font-size: 16px;
+	color: #ffffff;
+	text-align: center;
+	border-radius: 10px;
+	text-decoration: none;
+	padding: 8px 20px 8px 20px;
+	background-color: #8a1a1c;
+	display: inline-block;
+	border: none;
+}
+
+
+/* OUTSIDE THE FORM LABLE STYLES 
+---------------------------------------------------------------------------------------------------------- */
+.outside-label {
+	width: 100%;
+	min-height: 34px;
+	font-size: 14px;
+	text-align: left;
+	color: #777777;
+	vertical-align: top;
+	padding: 10px 0px 5px 20px;
+}
+
+
+
+/* FLOATING LABEL STYLES
+---------------------------------------------------------------------------------------------------------- */
+input {
+    -webkit-appearance: none;
+	-moz-appearance: none;
+	appearance: none;
+}
+
+.floating-label {
+    position: absolute;
+    top: 0;
+    left: 0;
+    user-select: none;
+    z-index: 3;
+}
+
+
+/* Hide the browser-specific focus styles */
+.floating-label-field {
+    color: rgba(255, 255, 255, .75); 
+    border-width: 0;
+    z-index: 4;
+}
+
+.floating-label-field:focus {
+    outline: 0;
+    box-shadow: 0;
+    color: #000000;
+}
+
+.floating-label-field::placeholder {
+    color: rgba(255, 255, 255, .5);
+}
+
+
+/* Make the label and field look identical on every browser */
+.floating-label {
+    font-size: 14px;
+    display: block;
+    width: 100%;
+}
+
+.floating-label-field {
+    font-size: 14px;
+    display: block;
+    width: 100%;
+}
+
+.floating-label-field {
+    position: relative;
+}
+
+.floating-label-wrap {
+    position: relative;
+    background-color: #ffffff;
+    border-radius: 10px;
+}
+
+
+.floating-label-field-ksp {
+    padding: 14px 20px 0px 18px; 
+    transition: border-color .25s ease-in-out;
+    color: #777777;
+    border: 1px solid #d9d9d9;
+    border-radius: 10px;
+    background-color: transparent;
+}
+
+.floating-label-field-ksp + .floating-label {
+    position: absolute;
+    top: 8px;
+    left: 10px;
+    display: inline-block;
+    width: auto;
+    margin: 0;
+    padding: 8px 0px 0px 10px;
+    transition: transform .25s, opacity .25s, padding .25s ease-in-out;
+    transform-origin: 0 0;
+    color: rgba(0, 0, 0, .5);
+}
+
+.floating-label-field-ksp:focus, .floating-label-field-ksp:not(:placeholder-shown) {
+    border-color: rgba(0, 0, 0, .1);
+}
+
+.floating-label-field-ksp:focus + .floating-label, .floating-label-field-ksp:not(:placeholder-shown) + .floating-label {
+    z-index: 4;
+    padding: 12px 0px 0px 10px;
+    transform: translate(0, -1em) scale(.9);
+}
+
+.floating-label-field-ksp:not(textarea) {
+    height: 50px;
+    max-height: 50px;
+}
+
+.floating-label-field-ksp::placeholder {
+    color: transparent;
+}
+
+
+
+/* SELECT STYLES
+---------------------------------------------------------------------------------------------------------- */
+.select-css {
+    height: 50px;
+    display: block;
+    font-size: 14px;
+    color: #777777; 
+    padding: 0px 20px 0px 20px;
+    width: 100%;
+    max-width: 100%; 
+    box-sizing: border-box;
+    border: 1px solid #d9d9d9;
+    border-radius: 10px;
+    -moz-appearance: none;
+    -webkit-appearance: none;
+    appearance: none;
+    background-color: #ffffff;
+    background-image: url("../../images/inputs/select_arrow.png");
+	background-repeat: no-repeat;
+	background-size: 25px 27px;
+	background-position: right center;
+}
+
+.select-css::-ms-expand {
+    display: none;
+}
+
+.select-css:focus {
+    color: #000000; 
+    outline: none;
+}
+
+.select-css option {
+    color: #000000;
+    font-weight:normal;
+}
+
+
+
+/* TEXT AREA STYLES
+---------------------------------------------------------------------------------------------------------- */
+.textarea-css {
+	width: 100%;
+	height: 300px;
+	font-size: 14px;
+	color: #000000;
+	padding: 10px 20px 20px 20px;
+	box-sizing: border-box;
+	border: 1px solid #d9d9d9;
+	border-radius: 10px;
+	background-color: #ffffff;
+	overflow: auto !important;
+	resize: both;
+}    
+     
+     
+     
+/* CHECK BOX STYLES
+---------------------------------------------------------------------------------------------------------- */     
+.checkbox-container {
+	display: block;
+	position: relative;
+	padding-left: 25px;
+	margin-bottom: 12px;
+	cursor: pointer;
+	font-size: 14px;
+	-webkit-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
+}
+
+/* Hide the browser's default checkbox */
+.checkbox-container input {
+	position: absolute;
+	opacity: 0;
+	cursor: pointer;
+	height: 0;
+	width: 0;
+}
+
+/* Create a custom checkbox */
+.checkbox-checkmark {
+	position: absolute;
+	top: 0;
+	left: 0;
+	height: 20px;
+	width: 20px;
+	border: 1px solid #cccccc;
+	background-color: #ffffff;
+	
+}
+
+.checkbox-container:hover input ~ .checkbox-checkmark {
+	background-color: #eeeeee;
+}
+
+.checkbox-container input:checked ~ .checkbox-checkmark {
+	background-color: #8a1a1c;
+}
+
+.checkbox-checkmark:after {
+	content: "";
+	position: absolute;
+	display: none;
+}
+
+.checkbox-container input:checked ~ .checkbox-checkmark:after {
+	display: block;
+}
+
+.checkbox-container .checkbox-checkmark:after {
+	left: 5px;
+	top: 1px;
+	width: 5px;
+	height: 10px;
+	border: solid white;
+	border-width: 0 3px 3px 0;
+	-webkit-transform: rotate(45deg);
+	-ms-transform: rotate(45deg);
+	transform: rotate(45deg);
+}     
+     
+
+
+/* CHECK BOX STYLES
+---------------------------------------------------------------------------------------------------------- */   
+.radio-container {
+	display: block;
+	position: relative;
+	padding-left: 25px;
+	margin-bottom: 12px;
+	cursor: pointer;
+	font-size: 14px;
+	-webkit-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
+}
+
+/* Hide the browser's default radio button */
+.radio-container input {
+	position: absolute;
+	opacity: 0;
+	cursor: pointer;
+}
+
+/* Create a custom radio button */
+.radio-checkmark {
+	position: absolute;
+	top: 0;
+	left: 0;
+	height: 20px;
+	width: 20px;
+	border: 1px solid #cccccc;
+	background-color: #ffffff;
+	border-radius: 50%;
+}
+
+.radio-container:hover input ~ .radio-checkmark {
+	background-color: #eeeeee;
+}
+
+.radio-container input:checked ~ .radio-checkmark {
+	background-color: #8a1a1c;
+}
+
+.radio-checkmark:after {
+  content: "";
+  position: absolute;
+  display: none;
+}
+
+.radio-container input:checked ~ .radio-checkmark:after {
+	display: block;
+}
+
+.radio-container .radio-checkmark:after {
+ 	top: 5px;
+	left: 5px;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: white;
+}
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+                                     

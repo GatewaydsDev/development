@@ -1,0 +1,594 @@
+/* Site Build - Beskar 1.0 - 705 Styles - April 2026
+========================================================================================================== */
+
+
+
+/* EXTRA SMALL DEVICES (PHONES, 767PX AND DOWN) 
+---------------------------------------------------------------------------------------------------------- */
+@media only screen and (max-width: 767px) {
+		
+	
+	/* ---- 705 Pre-Engineered Section Title Styles ---- */
+	.scif705-pre-sec-title {
+		width: 100%;
+		margin: 40px auto 0px auto;
+		padding: 0px 10px 0px 10px;
+		border-bottom: 2px solid #000000;
+		display: block;
+	}
+	
+	.scif705-pre-sec-title-left {
+		width: 100%;
+		text-align: center;
+		vertical-align: bottom;
+		display: block;
+		padding: 80px 0px 0px 0px;
+	}
+	
+	.scif705-pre-sec-title-right {
+		width: 340px;
+		text-align: center;
+		vertical-align: bottom;
+		display: block;
+		margin: 30px auto 0px auto;
+	}
+	
+	.scif705-pre-sec-title-icon {
+		width: 50px;
+		height: 50px;
+		display: block;
+		margin: 0px auto 6px auto;
+	}
+	
+	.scif705-pre-sec-title-headline {
+		width: 100%;
+		font-size: 20px;
+		line-height: 24px;
+		font-weight: 600;
+		color: #8a1a1c;
+		display: block;
+	}
+	
+	.scif705-pre-sec-title-subhead {
+		width: 100%;
+		font-size: 18px;
+		line-height: 24px;
+		font-weight: 600;
+		color: #8a1a1c;
+	}
+	
+	.scif705-pre-sec-title-text-1 {
+		width: 100%;
+		font-size: 16px;
+		line-height: 22px;
+		font-weight: 400;
+		color: #777777;
+	}
+	
+	.scif705-pre-sec-title-text-2 {
+		width: 100%;
+		font-size: 14px;
+		line-height: 20px;
+		font-weight: 400;
+		color: #777777;
+	}
+	
+	.scif705-pre-sec-title-text-3 {
+		width: 100%;
+		font-size: 12px;
+		line-height: 18px;
+		font-weight: 400;
+		color: #777777;
+	}
+
+	.scif705-pre-sec-door-hollow-metal-scif {
+		width: 230px;
+		height: 212px;
+		background-image: url("../../images/705/pre-eng_moble_705_hollow_metal_door.png");
+		background-repeat: no-repeat;
+		background-size: 120px 212px;
+		background-position: bottom right;
+		vertical-align: bottom;
+		display: inline-block;
+		padding: 0px 125px 0px 0px;
+	}
+
+	
+	.scif705-pre-sec-door-right {
+		width: 110px;
+		height: 212px;
+		vertical-align: bottom;
+		display: inline-block;
+		padding: 0px 0px 0px 5px;
+	}
+	
+	
+		/* ---- Door Labels Styles ---- */
+		.scif705-pre-sec-assembly-title {
+			width: 100%;
+			text-align: center;
+			font-size: 16px;
+			line-height: 22px;
+			font-weight: 600;
+			color: #000000;
+			padding: 30px 0px 10px 0px;
+		}
+		
+		.scif705-pre-label-panel {
+			width: 100%;
+			text-align: right;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 16px 0px 0px 0px;
+		}
+		
+		.scif705-pre-label-frame {
+			width: 100%;
+			text-align: right;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 34px 0px 0px 0px;
+		}
+		
+		.scif705-pre-label-lock {
+			width: 100%;
+			text-align: right;
+			font-size: 14px;
+			line-height: 18px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 26px 0px 0px 0px;
+		}
+		
+		.scif705-pre-label-threshold {
+			width: 100%;
+			text-align: right;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 45px 0px 0px 0px;
+		}
+		
+		.scif705-pre-label-hinges {
+			width: 100%;
+			text-align: left;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 16px 0px 0px 0px;
+		}
+		
+		.scif705-pre-label-scif-seal {
+			width: 100%;
+			text-align: left;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 92px 0px 0px 0px;
+		}
+
+	
+	/* ---- Models Styles ---- */
+	.scif705-pre-models {
+		width: 100%;
+		display: block;
+		margin: 8px auto 0px auto;
+		padding: 0px 10px 0px 10px;
+	}	
+	
+	
+}
+
+
+
+
+/* MEDIUM DEVICES (LANDSCAPE TABLETS, 768PX AND UP)
+---------------------------------------------------------------------------------------------------------- */
+@media only screen and (min-width: 768px) {
+	
+
+	/* ---- 705 Pre-Engineered Section Title Styles ---- */
+	.scif705-pre-sec-title {
+		width: 768px;
+		margin: 40px auto 0px auto;
+		padding: 0px 16px 0px 16px;
+		border-bottom: 2px solid #000000;
+		display: block;
+	}
+	
+	.scif705-pre-sec-title-left {
+		width: 100%;
+		text-align: center;
+		vertical-align: bottom;
+		display: block;
+		padding: 80px 0px 0px 0px;
+	}
+	
+	.scif705-pre-sec-title-right {
+		width: 340px;
+		text-align: center;
+		vertical-align: bottom;
+		display: block;
+		margin: 0px auto 0px auto;
+	}
+	
+	.scif705-pre-sec-title-icon {
+		width: 50px;
+		height: 50px;
+		display: block;
+		margin: 0px auto 6px auto;
+	}
+	
+	.scif705-pre-sec-title-headline {
+		width: 100%;
+		font-size: 20px;
+		line-height: 24px;
+		font-weight: 600;
+		color: #8a1a1c;
+		display: block;
+	}
+	
+	.scif705-pre-sec-title-subhead {
+		width: 100%;
+		font-size: 18px;
+		line-height: 24px;
+		font-weight: 600;
+		color: #8a1a1c;
+	}
+	
+	.scif705-pre-sec-title-text-1 {
+		width: 100%;
+		font-size: 16px;
+		line-height: 22px;
+		font-weight: 400;
+		color: #777777;
+	}
+	
+	.scif705-pre-sec-title-text-2 {
+		width: 100%;
+		font-size: 14px;
+		line-height: 20px;
+		font-weight: 400;
+		color: #777777;
+	}
+	
+	.scif705-pre-sec-title-text-3 {
+		width: 100%;
+		font-size: 12px;
+		line-height: 18px;
+		font-weight: 400;
+		color: #777777;
+	}
+	
+	.scif705-pre-sec-door-hollow-metal-scif {
+		width: 230px;
+		height: 212px;
+		background-image: url("../../images/705/pre-eng_moble_705_hollow_metal_door.png");
+		background-repeat: no-repeat;
+		background-size: 120px 212px;
+		background-position: bottom right;
+		vertical-align: bottom;
+		display: inline-block;
+		padding: 0px 125px 0px 0px;
+	}
+	
+	.scif705-pre-sec-door-right {
+		width: 110px;
+		height: 212px;
+		vertical-align: bottom;
+		display: inline-block;
+		padding: 0px 0px 0px 5px;
+	}
+	
+	
+		/* ---- Door Labels Styles ---- */
+		.scif705-pre-sec-assembly-title {
+			width: 100%;
+			text-align: center;
+			font-size: 16px;
+			line-height: 22px;
+			font-weight: 600;
+			color: #000000;
+			padding: 30px 0px 10px 0px;
+		}
+		
+		.scif705-pre-label-panel {
+			width: 100%;
+			text-align: right;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 16px 0px 0px 0px;
+		}
+		
+		.scif705-pre-label-frame {
+			width: 100%;
+			text-align: right;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 34px 0px 0px 0px;
+		}
+		
+		.scif705-pre-label-lock {
+			width: 100%;
+			text-align: right;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 26px 0px 0px 0px;
+		}
+		
+		.scif705-pre-label-threshold {
+			width: 100%;
+			text-align: right;
+			font-size: 14px;
+			line-height: 18px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 45px 0px 0px 0px;
+		}
+		
+		.scif705-pre-label-hinges {
+			width: 100%;
+			text-align: left;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 16px 0px 0px 0px;
+		}
+		
+		.scif705-pre-label-scif-seal {
+			width: 100%;
+			text-align: left;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 92px 0px 0px 0px;
+		}
+		
+	
+	/* ---- Models Styles ---- */
+	.scif705-pre-models {
+		width: 768px;
+		display: block;
+		margin: 8px auto 0px auto;
+		padding: 0px 16px 0px 16px;
+	}	
+	
+	
+	
+	
+	
+
+} 
+
+
+
+
+/* LARGE DEVICES (LAPTOPS/DESKTOPS, 1200PX AND UP) 
+---------------------------------------------------------------------------------------------------------- */
+@media only screen and (min-width: 1240px) {
+	
+	
+	/* ---- 705 Pre-Engineered Section Title Styles ---- */
+	.scif705-pre-sec-title {
+		width: 1120px;
+		margin: 60px auto 0px auto;
+		padding: 0px 0px 0px 0px;
+		border-bottom: 2px solid #000000;
+		display: block;
+	}
+	
+	.scif705-pre-sec-title-left {
+		width: 610px;
+		text-align: center;
+		vertical-align: bottom;
+		display: inline-block;
+		padding: 0px 0px 60px 0px;
+	}
+	
+	.scif705-pre-sec-title-right {
+		width: 510px;
+		text-align: center;
+		vertical-align: bottom;
+		display: inline-block;
+		margin: 60px 0px 0px 0px;
+	}
+		
+	.scif705-pre-sec-title-icon {
+		width: 50px;
+		height: 50px;
+		display: block;
+		margin: 0px auto 6px auto;
+	}
+	
+	.scif705-pre-sec-title-headline {
+		width: 100%;
+		font-size: 24px;
+		line-height: 24px;
+		font-weight: 600;
+		color: #8a1a1c;
+		display: block;
+	}
+	
+	.scif705-pre-sec-title-subhead {
+		width: 100%;
+		font-size: 18px;
+		line-height: 24px;
+		font-weight: 600;
+		color: #8a1a1c;
+	}
+	
+	.scif705-pre-sec-title-text-1 {
+		width: 100%;
+		font-size: 16px;
+		line-height: 22px;
+		font-weight: 400;
+		color: #777777;
+	}
+	
+	.scif705-pre-sec-title-text-2 {
+		width: 100%;
+		font-size: 14px;
+		line-height: 20px;
+		font-weight: 400;
+		color: #777777;
+	}
+	
+	.scif705-pre-sec-title-text-3 {
+		width: 100%;
+		font-size: 12px;
+		line-height: 18px;
+		font-weight: 400;
+		color: #777777;
+	}
+
+	.scif705-pre-sec-door-hollow-metal-scif {
+		width: 304px;
+		height: 350px;
+		background-image: url("../../images/705/pre-eng_desktop_705_hollow_metal_door.png");
+		background-repeat: no-repeat;
+		background-size: 204px 350px;
+		background-position: bottom right;
+		vertical-align: bottom;
+		display: inline-block;
+		padding: 0px 209px 0px 0px;
+	}
+	
+	.scif705-pre-sec-door-right {
+		width: 206px;
+		height: 350px;
+		vertical-align: bottom;
+		display: inline-block;
+		padding: 0px 0px 0px 5px;
+	}
+	
+
+		/* ---- Door Labels Styles ---- */
+		.scif705-pre-sec-assembly-title {
+			width: 100%;
+			text-align: left;
+			font-size: 16px;
+			line-height: 22px;
+			font-weight: 600;
+			color: #000000;
+			padding: 0px 0px 10px 66px;
+		}
+		
+		.scif705-pre-label-panel {
+			width: 100%;
+			text-align: right;
+			font-size: 16px;
+			line-height: 16px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 30px 0px 0px 0px;
+		}
+		
+		.scif705-pre-label-frame {
+			width: 100%;
+			text-align: right;
+			font-size: 16px;
+			line-height: 16px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 43px 0px 0px 0px;
+		}
+		
+		.scif705-pre-label-lock {
+			width: 100%;
+			text-align: right;
+			font-size: 16px;
+			line-height: 20px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 70px 0px 0px 0px;
+		}
+		
+		.scif705-pre-label-threshold {
+			width: 100%;
+			text-align: right;
+			font-size: 16px;
+			line-height: 16px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 98px 0px 0px 0px;
+		}
+		
+		.scif705-pre-label-hinges {
+			width: 100%;
+			text-align: left;
+			font-size: 16px;
+			line-height: 16px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 30px 0px 0px 0px;
+		}
+
+		
+		.scif705-pre-label-scif-seal {
+			width: 100%;
+			text-align: left;
+			font-size: 16px;
+			line-height: 16px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 127px 0px 0px 0px;
+		}
+
+
+	/* ---- Models Styles ---- */
+	.scif705-pre-models {
+		width: 1120px;
+		display: block;
+		margin: 14px auto 0px auto;
+		padding: 0px 0px 0px 0px;
+	}	
+			
+	
+	
+		
+} 
+
+
+
+
+
+
+
+
+
+
+
+

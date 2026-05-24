@@ -1,0 +1,1093 @@
+/* Site Build - Beskar 1.0 - KriegerShield Styles - July 2025
+========================================================================================================== */
+
+a.rf-pre-icon-button:link,
+a.rf-pre-icon-button:visited {
+	width: 100%;
+	color: #8a1a1c;
+	text-decoration: none;
+	padding: 12px 8px 12px 8px;
+	display: block;
+}
+	
+	a.rf-pre-icon-button:hover {
+		width: 100%;
+		color: #8a1a1c;
+		text-decoration: none;
+		padding: 12px 8px 12px 8px;
+		border-radius: 10px;
+		background-color: #f6f6f6;
+		display: block;
+	}
+
+
+
+/* EXTRA SMALL DEVICES (PHONES, 767PX AND DOWN) 
+---------------------------------------------------------------------------------------------------------- */
+@media only screen and (max-width: 767px) {
+		
+	/* ---- RF Pre-Engineered Main Title Styles ---- */	
+	.rf-pre-title {
+		width: 100%;
+		height: 400px;
+		text-align: center;
+		background-image: url("../../images/rf/pre-eng_title_mobile_bg.jpg");
+		background-repeat: no-repeat;
+		background-size: 800px 400px;
+		background-position: bottom center;
+		background-color: #000000;
+		border-bottom: 1px solid #000000;
+		border-bottom: 1px solid #000000;
+		display: block;
+		padding: 40px 16px 0px 16px;
+	}
+	
+		.rf-pre-title-headline {
+			width: 100%;
+			font-size: 30px;
+			line-height: 36px;
+			font-weight: 300;
+			letter-spacing: -0.5px;
+			color: #ffffff;
+			display: block;
+			padding: 44px 0px 0px 0px;
+		}
+		
+		.rf-pre-title-subhead {
+			width: 100%;
+			font-size: 16px;
+			line-height: 22px;
+			font-weight: 600;
+			color: #a7a7a7;
+			display: block;
+			padding: 16px 0px 20px 0px;
+		}
+		
+		.rf-pre-title-icon {
+			width: 60px;
+			height: 60px;
+			margin: auto;
+		}
+		
+		.rf-pre-title-text {
+			width: 100%;
+			font-size: 14px;
+			line-height: 20px;
+			font-weight: 400;
+			color: #a7a7a7;
+			display: block;
+			padding: 4px 0px 0px 0px;
+		}
+		
+	
+	/* ---- RF Pre-Engineered Section Title Styles ---- */
+	.rf-pre-sec-title {
+		width: 100%;
+		margin: 40px auto 0px auto;
+		padding: 0px 10px 0px 10px;
+		border-bottom: 2px solid #000000;
+		display: block;
+	}
+	
+	.rf-pre-sec-title-left {
+		width: 100%;
+		text-align: center;
+		vertical-align: bottom;
+		display: block;
+		padding: 0px 0px 0px 0px;
+	}
+	
+	.rf-pre-sec-title-right {
+		width: 340px;
+		text-align: center;
+		vertical-align: bottom;
+		display: block;
+		margin: 0px auto 0px auto;
+	}
+	
+	.rf-pre-sec-title-icon {
+		width: 50px;
+		height: 50px;
+		display: block;
+		margin: 0px auto 6px auto;
+	}
+	
+	.rf-pre-sec-title-headline {
+		width: 100%;
+		font-size: 20px;
+		line-height: 26px;
+		font-weight: 600;
+		color: #8a1a1c;
+		display: block;
+	}
+	
+	.rf-pre-sec-title-subhead {
+		width: 100%;
+		font-size: 18px;
+		line-height: 24px;
+		font-weight: 600;
+		color: #8a1a1c;
+	}
+	
+	.rf-pre-sec-title-text-1 {
+		width: 100%;
+		font-size: 16px;
+		line-height: 22px;
+		font-weight: 400;
+		color: #777777;
+	}
+	
+	.rf-pre-sec-title-text-2 {
+		width: 100%;
+		font-size: 14px;
+		line-height: 20px;
+		font-weight: 400;
+		color: #777777;
+	}
+	
+	.rf-pre-sec-title-text-3 {
+		width: 100%;
+		font-size: 12px;
+		line-height: 18px;
+		font-weight: 400;
+		color: #777777;
+	}
+	
+		/* ---- Finish Item Styles ---- */		
+		.rf-pre-sec-fin-a {
+			width: 49%;
+			text-align: center;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 600;
+			color: #8a1a1c;
+			vertical-align: top;
+			border-right: 1px solid #dddddd;
+			border-bottom: 1px solid #dddddd;
+			display: inline-block;
+			padding: 4px 8px 8px 8px;
+		}
+	
+		.rf-pre-sec-fin-b {
+			width: 50%;
+			text-align: center;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 600;
+			color: #8a1a1c;
+			vertical-align: top;
+			border-right: 0px;
+			border-bottom: 1px solid #dddddd;
+			display: inline-block;
+			padding: 4px 8px 8px 8px;
+		}
+	
+		.rf-pre-sec-fin-c {
+			width: 49%;
+			text-align: center;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 600;
+			color: #8a1a1c;
+			vertical-align: top;
+			border-right: 1px solid #dddddd;
+			display: inline-block;
+			padding: 8px 8px 4px 8px;
+		}
+	
+		.rf-pre-sec-fin-d {
+			width: 50%;
+			text-align: center;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 600;
+			color: #8a1a1c;
+			vertical-align: top;
+			display: inline-block;
+			padding: 8px 8px 4px 8px;
+		}
+
+		.rf-pre-sec-fin-icon {
+			width: 40px;
+			height: 40px;
+			display: block;
+			margin: 0px auto 6px auto;
+		}
+		
+		.rf-pre-sec-fin-left {
+			width: 100%;
+			text-align: center;
+			font-size: 14px;
+			line-height: 22px;
+			font-weight: 400;
+			color: #777777;
+			vertical-align: top;
+			border-right: 0px;
+			display: block;
+			padding: 0px 0px 0px 0px;
+		}
+		
+		.rf-pre-sec-fin-right {
+			width: 100%;
+			text-align: center;
+			font-size: 14px;
+			line-height: 22px;
+			font-weight: 400;
+			color: #777777;
+			vertical-align: top;
+			display: block;
+			padding: 0px 0px 0px 0px;
+		}
+		
+	
+	.rf-pre-sec-door-hollow-metal {
+		width: 230px;
+		height: 212px;
+		background-image: url("../../images/rf/pre-eng_mobile_hm_door.jpg");
+		background-repeat: no-repeat;
+		background-size: 120px 212px;
+		background-position: bottom right;
+		vertical-align: bottom;
+		display: inline-block;
+		padding: 0px 125px 0px 0px;
+	}
+	
+	.rf-pre-sec-door-wood-veneer {
+		width: 230px;
+		height: 212px;
+		background-image: url("../../images/rf/pre-eng_mobile_wv_door.jpg");
+		background-repeat: no-repeat;
+		background-size: 120px 212px;
+		background-position: bottom right;
+		vertical-align: bottom;
+		display: inline-block;
+		padding: 0px 125px 0px 0px;
+	}
+	
+	.rf-pre-sec-door-right {
+		width: 110px;
+		height: 212px;
+		vertical-align: bottom;
+		display: inline-block;
+		padding: 0px 0px 0px 5px;
+	}
+	
+	
+		/* ---- Door Labels Styles ---- */
+		.rf-pre-sec-assembly-title {
+			width: 100%;
+			text-align: center;
+			font-size: 16px;
+			line-height: 22px;
+			font-weight: 600;
+			color: #000000;
+			padding: 30px 0px 10px 0px;
+		}
+		
+		.rf-pre-label-panel {
+			width: 100%;
+			text-align: right;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 16px 0px 0px 0px;
+		}
+		
+		.rf-pre-label-frame {
+			width: 100%;
+			text-align: right;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 34px 0px 0px 0px;
+		}
+		
+		.rf-pre-label-hinges {
+			width: 100%;
+			text-align: left;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 16px 0px 0px 0px;
+		}
+		
+		.rf-pre-label-seal {
+			width: 100%;
+			text-align: left;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 42px 0px 0px 0px;
+		}
+			
+		.rf-pre-label-threshold {
+			width: 100%;
+			text-align: left;
+			font-size: 14px;
+			line-height: 18px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 38px 0px 0px 0px;
+		}
+		
+
+
+
+	/* ---- Models Styles ---- */
+	.rf-pre-models {
+		width: 100%;
+		display: block;
+		margin: 8px auto 0px auto;
+		padding: 0px 10px 0px 10px;
+	}	
+
+
+
+	
+}
+
+
+
+
+/* SMALL DEVICES (PORTRAIT TABLETS AND LARGE PHONES, 400PX AND UP)  
+
+This has been deprecated as of August 2023. 
+
+---------------------------------------------------------------------------------------------------------- */
+
+
+
+
+/* MEDIUM DEVICES (LANDSCAPE TABLETS, 768PX AND UP)
+---------------------------------------------------------------------------------------------------------- */
+@media only screen and (min-width: 768px) {
+	
+	/* ---- RF Pre-Engineered Main Title Styles ---- */	
+	.rf-pre-title {
+		width: 100%;
+		height: 355px;
+		text-align: center;
+		background-image: url("../../images/rf/pre-eng_title_desktop_bg.jpg");
+		background-repeat: no-repeat;
+		background-size: 2000px 355px;
+		background-position: bottom center;
+		background-color: #000000;
+		border-bottom: 1px solid #000000;
+		display: block;
+		padding: 44px 0px 0px 0px;
+	}
+	
+		.rf-pre-title-headline {
+			width: 100%;
+			font-size: 32px;
+			line-height: 38px;
+			font-weight: 300;
+			letter-spacing: -0.5px;
+			color: #ffffff;
+			display: block;
+			padding: 40px 0px 0px 0px;
+		}
+		
+		.rf-pre-title-subhead {
+			width: 100%;
+			font-size: 16px;
+			line-height: 22px;
+			font-weight: 600;
+			color: #a7a7a7;
+			display: block;
+			padding: 16px 0px 20px 0px;
+		}
+		
+		.rf-pre-title-icon {
+			width: 60px;
+			height: 60px;
+			margin: auto;
+		}
+		
+		.rf-pre-title-text {
+			width: 100%;
+			font-size: 14px;
+			line-height: 20px;
+			font-weight: 400;
+			color: #a7a7a7;
+			display: block;
+			padding: 4px 0px 0px 0px;
+		}
+	
+	
+	/* ---- RF Pre-Engineered Section Title Styles ---- */
+	.rf-pre-sec-title {
+		width: 768px;
+		margin: 40px auto 0px auto;
+		padding: 0px 16px 0px 16px;
+		border-bottom: 2px solid #000000;
+		display: block;
+	}
+	
+	.rf-pre-sec-title-left {
+		width: 100%;
+		text-align: center;
+		vertical-align: bottom;
+		display: block;
+		padding: 0px 0px 0px 0px;
+	}
+	
+	.rf-pre-sec-title-right {
+		width: 340px;
+		text-align: center;
+		vertical-align: bottom;
+		display: block;
+		margin: 0px auto 0px auto;
+	}
+	
+	.rf-pre-sec-title-icon {
+		width: 50px;
+		height: 50px;
+		display: block;
+		margin: 0px auto 6px auto;
+	}
+	
+	.rf-pre-sec-title-headline {
+		width: 100%;
+		font-size: 20px;
+		line-height: 24px;
+		font-weight: 600;
+		color: #8a1a1c;
+		display: block;
+	}
+	
+	.rf-pre-sec-title-subhead {
+		width: 100%;
+		font-size: 18px;
+		line-height: 24px;
+		font-weight: 600;
+		color: #8a1a1c;
+	}
+	
+	.rf-pre-sec-title-text-1 {
+		width: 100%;
+		font-size: 16px;
+		line-height: 22px;
+		font-weight: 400;
+		color: #777777;
+	}
+	
+	.rf-pre-sec-title-text-2 {
+		width: 100%;
+		font-size: 14px;
+		line-height: 20px;
+		font-weight: 400;
+		color: #777777;
+	}
+	
+	.rf-pre-sec-title-text-3 {
+		width: 100%;
+		font-size: 12px;
+		line-height: 18px;
+		font-weight: 400;
+		color: #777777;
+	}
+	
+		/* ---- Finish Item Styles ---- */
+		.rf-pre-sec-fin-a {
+			width: 24%;
+			text-align: center;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 600;
+			color: #8a1a1c;
+			vertical-align: top;
+			border-right: 1px solid #dddddd;
+			border-bottom: 0px;
+			display: inline-block;
+			padding: 4px 8px 4px 8px;
+		}
+	
+		.rf-pre-sec-fin-b {
+			width: 25%;
+			text-align: center;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 600;
+			color: #8a1a1c;
+			vertical-align: top;
+			border-right: 1px solid #dddddd;
+			border-bottom: 0px;
+			display: inline-block;
+			padding: 4px 8px 4px 8px;
+		}
+	
+		.rf-pre-sec-fin-c {
+			width: 25%;
+			text-align: center;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 600;
+			color: #8a1a1c;
+			vertical-align: top;
+			border-right: 1px solid #dddddd;
+			display: inline-block;
+			padding: 4px 8px 4px 8px;
+		}
+	
+		.rf-pre-sec-fin-d {
+			width: 25%;
+			text-align: center;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 600;
+			color: #8a1a1c;
+			vertical-align: top;
+			display: inline-block;
+			padding: 4px 8px 4px 8px;
+		}
+
+		.rf-pre-sec-fin-icon {
+			width: 40px;
+			height: 40px;
+			display: block;
+			margin: 0px auto 6px auto;
+		}
+		
+		.rf-pre-sec-fin-left {
+			width: 49%;
+			text-align: center;
+			font-size: 14px;
+			line-height: 22px;
+			font-weight: 400;
+			color: #777777;
+			vertical-align: top;
+			border-right: 1px solid #dddddd;
+			display: inline-block;
+			padding: 0px 16px 0px 16px;
+		}
+		
+		.rf-pre-sec-fin-right {
+			width: 49%;
+			text-align: center;
+			font-size: 14px;
+			line-height: 22px;
+			font-weight: 400;
+			color: #777777;
+			vertical-align: top;
+			display: inline-block;
+			padding: 0px 16px 0px 16px;
+		}
+	
+	
+	.rf-pre-sec-door-hollow-metal {
+		width: 230px;
+		height: 212px;
+		background-image: url("../../images/rf/pre-eng_mobile_hm_door.jpg");
+		background-repeat: no-repeat;
+		background-size: 120px 212px;
+		background-position: bottom right;
+		vertical-align: bottom;
+		display: inline-block;
+		padding: 0px 125px 0px 0px;
+	}
+	
+	.rf-pre-sec-door-wood-veneer {
+		width: 230px;
+		height: 212px;
+		background-image: url("../../images/rf/pre-eng_mobile_wv_door.jpg");
+		background-repeat: no-repeat;
+		background-size: 120px 212px;
+		background-position: bottom right;
+		vertical-align: bottom;
+		display: inline-block;
+		padding: 0px 125px 0px 0px;
+	}
+
+	.rf-pre-sec-door-right {
+		width: 110px;
+		height: 212px;
+		vertical-align: bottom;
+		display: inline-block;
+		padding: 0px 0px 0px 5px;
+	}
+	
+	
+		/* ---- Door Labels Styles ---- */
+		.rf-pre-sec-assembly-title {
+			width: 100%;
+			text-align: center;
+			font-size: 16px;
+			line-height: 22px;
+			font-weight: 600;
+			color: #000000;
+			padding: 30px 0px 10px 0px;
+		}
+		
+		.rf-pre-label-panel {
+			width: 100%;
+			text-align: right;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 16px 0px 0px 0px;
+		}
+		
+		.rf-pre-label-frame {
+			width: 100%;
+			text-align: right;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 34px 0px 0px 0px;
+		}
+		
+		.rf-pre-label-hinges {
+			width: 100%;
+			text-align: left;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 16px 0px 0px 0px;
+		}
+		
+		.rf-pre-label-seal {
+			width: 100%;
+			text-align: left;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 42px 0px 0px 0px;
+		}
+	
+		.rf-pre-label-threshold {
+			width: 100%;
+			text-align: left;
+			font-size: 14px;
+			line-height: 18px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 38px 0px 0px 0px;
+		}
+
+	
+	
+	/* ---- Models Styles ---- */
+	.rf-pre-models {
+		width: 768px;
+		display: block;
+		margin: 8px auto 0px auto;
+		padding: 0px 16px 0px 16px;
+	}	
+	
+
+} 
+
+
+
+
+/* LARGE DEVICES (LAPTOPS/DESKTOPS, 1200PX AND UP) 
+---------------------------------------------------------------------------------------------------------- */
+@media only screen and (min-width: 1240px) {
+	
+	/* ---- RF Pre-Engineered Main Title Styles ---- */	
+	.rf-pre-title {
+		width: 100%;
+		height: 355px;
+		text-align: center;
+		background-image: url("../../images/rf/pre-eng_title_desktop_bg.jpg");
+		background-repeat: no-repeat;
+		background-size: 2000px 355px;
+		background-position: bottom center;
+		background-color: #000000;
+		border-bottom: 1px solid #000000;
+		display: block;
+		padding: 44px 0px 0px 0px;
+	}
+	
+		.rf-pre-title-headline {
+			width: 100%;
+			font-size: 32px;
+			line-height: 38px;
+			font-weight: 300;
+			letter-spacing: -0.5px;
+			color: #ffffff;
+			display: block;
+			padding: 36px 0px 0px 0px;
+		}
+		
+		.rf-pre-title-subhead {
+			width: 100%;
+			font-size: 18px;
+			line-height: 24px;
+			font-weight: 600;
+			color: #a7a7a7;
+			display: block;
+			padding: 20px 0px 16px 0px;
+		}
+		
+		.rf-pre-title-icon {
+			width: 60px;
+			height: 60px;
+			margin: auto;
+		}
+		
+		.rf-pre-title-text {
+			width: 100%;
+			font-size: 16px;
+			line-height: 22px;
+			font-weight: 400;
+			color: #a7a7a7;
+			display: block;
+			padding: 4px 0px 0px 0px;
+		}
+	
+	
+	/* ---- RF Pre-Engineered Section Title Styles ---- */
+	.rf-pre-sec-title {
+		width: 1120px;
+		margin: 60px auto 0px auto;
+		padding: 0px 0px 0px 0px;
+		border-bottom: 2px solid #000000;
+		display: block;
+	}
+	
+	.rf-pre-sec-title-left {
+		width: 610px;
+		text-align: center;
+		vertical-align: bottom;
+		display: inline-block;
+		padding: 0px 0px 30px 0px;
+	}
+	
+	.rf-pre-sec-title-right {
+		width: 510px;
+		text-align: center;
+		vertical-align: bottom;
+		display: inline-block;
+		margin: 0px 0px 0px 0px;
+	}
+		
+	.rf-pre-sec-title-icon {
+		width: 50px;
+		height: 50px;
+		display: block;
+		margin: 0px auto 6px auto;
+	}
+	
+	.rf-pre-sec-title-headline {
+		width: 100%;
+		font-size: 24px;
+		line-height: 24px;
+		font-weight: 600;
+		color: #8a1a1c;
+		display: block;
+	}
+	
+	.rf-pre-sec-title-subhead {
+		width: 100%;
+		font-size: 18px;
+		line-height: 24px;
+		font-weight: 600;
+		color: #8a1a1c;
+	}
+	
+	.rf-pre-sec-title-text-1 {
+		width: 100%;
+		font-size: 16px;
+		line-height: 22px;
+		font-weight: 400;
+		color: #777777;
+	}
+	
+	.rf-pre-sec-title-text-2 {
+		width: 100%;
+		font-size: 14px;
+		line-height: 20px;
+		font-weight: 400;
+		color: #777777;
+	}
+	
+	.rf-pre-sec-title-text-3 {
+		width: 100%;
+		font-size: 12px;
+		line-height: 18px;
+		font-weight: 400;
+		color: #777777;
+	}
+	
+		/* ---- Finish Item Styles ---- */
+		.rf-pre-sec-fin-a {
+			width: 24%;
+			text-align: center;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 600;
+			color: #8a1a1c;
+			vertical-align: top;
+			border-right: 1px solid #dddddd;
+			border-bottom: 0px;
+			display: inline-block;
+			padding: 4px 8px 4px 8px;
+		}
+	
+		.rf-pre-sec-fin-b {
+			width: 25%;
+			text-align: center;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 600;
+			color: #8a1a1c;
+			vertical-align: top;
+			border-right: 1px solid #dddddd;
+			border-bottom: 0px;
+			display: inline-block;
+			padding: 4px 8px 4px 8px;
+		}
+	
+		.rf-pre-sec-fin-c {
+			width: 25%;
+			text-align: center;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 600;
+			color: #8a1a1c;
+			vertical-align: top;
+			border-right: 1px solid #dddddd;
+			display: inline-block;
+			padding: 4px 8px 4px 8px;
+		}
+	
+		.rf-pre-sec-fin-d {
+			width: 25%;
+			text-align: center;
+			font-size: 14px;
+			line-height: 14px;
+			font-weight: 600;
+			color: #8a1a1c;
+			vertical-align: top;
+			display: inline-block;
+			padding: 4px 8px 4px 8px;
+		}
+
+		.rf-pre-sec-fin-icon {
+			width: 40px;
+			height: 40px;
+			display: block;
+			margin: 0px auto 6px auto;
+		}
+		
+		.rf-pre-sec-fin-left {
+			width: 49%;
+			text-align: center;
+			font-size: 14px;
+			line-height: 22px;
+			font-weight: 400;
+			color: #777777;
+			vertical-align: top;
+			border-right: 1px solid #dddddd;
+			display: inline-block;
+			padding: 0px 8px 0px 8px;
+		}
+		
+		.rf-pre-sec-fin-right {
+			width: 49%;
+			text-align: center;
+			font-size: 14px;
+			line-height: 22px;
+			font-weight: 400;
+			color: #777777;
+			vertical-align: top;
+			display: inline-block;
+			padding: 0px 8px 0px 8px;
+		}
+		
+
+	.rf-pre-sec-door-hollow-metal {
+		width: 304px;
+		height: 350px;
+		background-image: url("../../images/rf/pre-eng_desktop_hm_door.jpg");
+		background-repeat: no-repeat;
+		background-size: 204px 350px;
+		background-position: bottom right;
+		vertical-align: bottom;
+		display: inline-block;
+		padding: 0px 209px 0px 0px;
+	}
+	
+	.rf-pre-sec-door-wood-veneer {
+		width: 304px;
+		height: 350px;
+		background-image: url("../../images/rf/pre-eng_desktop_wv_door.jpg");
+		background-repeat: no-repeat;
+		background-size: 204px 350px;
+		background-position: bottom right;
+		vertical-align: bottom;
+		display: inline-block;
+		padding: 0px 209px 0px 0px;
+	}
+	
+	.rf-pre-sec-door-right {
+		width: 206px;
+		height: 350px;
+		vertical-align: bottom;
+		display: inline-block;
+		padding: 0px 0px 0px 5px;
+	}
+	
+
+		/* ---- Door Labels Styles ---- */
+		.rf-pre-sec-assembly-title {
+			width: 100%;
+			text-align: left;
+			font-size: 16px;
+			line-height: 22px;
+			font-weight: 600;
+			color: #000000;
+			padding: 0px 0px 10px 96px;
+		}
+		
+		.rf-pre-label-panel {
+			width: 100%;
+			text-align: right;
+			font-size: 16px;
+			line-height: 16px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 30px 0px 0px 0px;
+		}
+		
+		.rf-pre-label-frame {
+			width: 100%;
+			text-align: right;
+			font-size: 16px;
+			line-height: 16px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 43px 0px 0px 0px;
+		}
+		
+		.rf-pre-label-hinges {
+			width: 100%;
+			text-align: left;
+			font-size: 16px;
+			line-height: 16px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 30px 0px 0px 0px;
+		}
+		
+		.rf-pre-label-seal {
+			width: 100%;
+			text-align: left;
+			font-size: 16px;
+			line-height: 16px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 59px 0px 0px 0px;
+		}
+			
+		.rf-pre-label-threshold {
+			width: 100%;
+			text-align: left;
+			font-size: 16px;
+			line-height: 16px;
+			font-weight: 400;
+			color: #000000;
+			display: block;
+			margin: 46px 0px 0px 0px;
+		}
+		
+
+	/* ---- Window Styles ---- */		
+	.acoustical-pre-win-left {
+		width: 376px;
+		height: 232px;
+		text-align: right;
+		font-size: 16px;
+		line-height: 16px;
+		font-weight: 400;
+		color: #000000;
+		background-image: url("../images/acoustical/pre-eng_desktop_window.png");
+		background-repeat: no-repeat;
+		background-size: 314px 232px;
+		background-position: bottom right;
+		vertical-align: bottom;
+		display: inline-block;
+		padding: 24px 319px 0px 0px;
+	}
+
+	.acoustical-pre-win-image {
+		width: 314px;
+		height: 232px;
+		vertical-align: top;
+		display: inline-block;
+	}
+	
+	.acoustical-pre-win-right {
+		width: 134px;
+		height: 232px;
+		text-align: left;
+		font-size: 16px;
+		line-height: 16px;
+		font-weight: 400;
+		color: #000000;
+		vertical-align: bottom;
+		display: inline-block;
+		padding: 66px 0px 0px 5px;
+	}
+	
+	.acoustical-pre-win-bottom {
+		width: 510px;
+		text-align: left;
+		font-size: 16px;
+		line-height: 16px;
+		font-weight: 400;
+		color: #000000;
+		vertical-align: bottom;
+		display: block;
+		padding: 5px 0px 50px 105px;
+	}
+
+
+	/* ---- Models Styles ---- */
+	.rf-pre-models {
+		width: 1120px;
+		display: block;
+		margin: 14px auto 0px auto;
+		padding: 0px 0px 0px 0px;
+	}	
+			
+	
+	
+		
+} 
+
+
+
+
+
+
+
+
+
+
+
+

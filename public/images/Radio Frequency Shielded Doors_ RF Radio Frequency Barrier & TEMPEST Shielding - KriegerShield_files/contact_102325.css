@@ -1,0 +1,584 @@
+/* Site Build - Beskar 1.0 - Contact Styles - October 2025
+========================================================================================================== */
+
+
+/* ---- For the Links on the Right Side ---- */
+a.contact:link, a.contact:visited {
+	width: 100%;
+	font-size: 14px;
+	font-weight: 400;
+	text-align: left;
+	color: #8a1a1c; 
+	text-decoration: none;
+	border-top: 1px solid #dddddd;
+	padding: 8px 0px 8px 0px;
+	display: block;
+}
+	a.contact:hover {
+		color: #dd0000; 
+	}
+	
+	
+/* ---- Contact HQ and International Styles ---- */	
+.contact-hq-title {
+	width: 100%;
+	font-size: 20px;
+	font-weight: 600;
+	line-height: 20px;
+	color: #000000;
+	text-align: left;
+	border-top: 1px solid #000000;
+	padding: 6px 0px 10px 0px;
+}
+
+.contact-international-title {
+	width: 100%;
+	font-size: 16px;
+	font-weight: 600;
+	line-height: 16px;
+	color: #000000;
+	text-align: left;
+	border-top: 1px solid #000000;
+	padding: 6px 0px 10px 0px;
+}
+
+
+
+
+
+
+
+
+/* EXTRA SMALL DEVICES (PHONES, 767PX AND DOWN) 
+---------------------------------------------------------------------------------------------------------- */
+@media only screen and (max-width: 767px) {
+	
+	.contact-content {width: 100%; margin: auto; padding: 40px 0px 60px 0px;}
+	
+	.contact-title {
+		width: 100%;
+		font-size: 30px;
+		font-weight: 300;
+		line-height: 30px;
+		color: #8a1a1c;
+		text-align: center;
+		letter-spacing: -0.5px;
+		padding: 30px 20px 30px 20px;
+	}
+	
+	.contact-left {
+		width: 100%;
+		text-align: center;
+		vertical-align: top;
+		display: block;
+	}
+	
+	.contact-right-mobile { /* ---- Used to rearrange addresses on mobile ---- */	
+		width: 100%;
+		max-width: 300px;
+		font-size: 14px;
+		line-height: 22px;
+		text-align: left;
+		vertical-align: top;
+		display: inline-block;
+		margin: 0px auto 60px auto;
+		display: block;
+	}
+	.contact-right-tablet {display: none;}
+	.contact-right {display: none;}
+	
+	
+	
+	
+	/* ---- Contact Card Styles ---- */	
+	.contact-card-box {
+		width: 100%;
+		max-width: 300px;
+		border: 1px solid #dddddd;
+		vertical-align: top;
+		display: block;
+		margin: 0px auto 30px auto;
+	}
+	
+	.contact-card-name {
+		width: 100%;
+		font-size: 22px;
+		font-weight: 600;
+		line-height: 22px;
+		color: #000000;
+		text-align: left;
+		padding: 20px 0px 0px 20px;
+	}
+	
+	.contact-card-territory {
+		width: 100%;
+		font-size: 16px;
+		font-weight: 400;
+		line-height: 20px;
+		color: #777777;
+		text-align: left;
+		padding: 4px 0px 3px 20px;
+	}
+	
+	.contact-card-map {
+		width: 100%;
+		height: auto;
+		text-align: center;
+		display: block;
+	}
+	
+	.contact-card-phone-email {
+		width: 100%;
+		font-size: 16px;
+		font-weight: 400;
+		line-height: 24px;
+		color: #000000;
+		text-align: left;
+		padding: 0px 0px 20px 20px;
+	}
+	
+	
+	/* ---- Contact Quote Request ---- */
+	.contact-quote {
+		display: none;
+	} 
+	
+	/* ---- Contact Bottom Banners ---- */
+	.contact-two-col-left {
+		width: 300px;
+		text-align: center;
+		font-size: 14px;
+		line-height: 22px;
+		color: #777777;
+		vertical-align: top;
+		border-right: 0px;
+		border-bottom: 1px solid #dddddd;
+		display: block;
+		padding: 0px 0px 60px 0px;
+		margin: auto;
+	}
+	
+	.contact-two-col-right {
+		width: 300px;
+		text-align: center;
+		font-size: 14px;
+		line-height: 22px;
+		color: #777777;
+		vertical-align: top;
+		display: block;
+		padding: 60px 0px 0px 0px;
+		margin: auto;
+	}
+	
+	.contact-icon {
+		width: 50px;
+		height: 50px;
+		margin: 0px auto 10px auto;
+	}
+	
+	.contact-banner-headline {
+		width: 100%;
+		font-size: 20px;
+		font-weight: 600;
+		line-height: 20px;
+		color: #8a1a1c;
+		text-align: center;
+		margin: 0px auto 10px auto;
+	}
+	
+	hr.contact-banner-line {
+		width: 100px;
+		border: none;
+		border-bottom: 1px solid #dddddd;
+		margin: 30px auto 26px auto;
+	}
+	
+
+}
+
+
+
+
+/* SMALL DEVICES (PORTRAIT TABLETS AND LARGE PHONES, 400PX AND UP)  
+
+This has been deprecated as of August 2023. 
+
+---------------------------------------------------------------------------------------------------------- */
+
+
+
+
+/* MEDIUM DEVICES (LANDSCAPE TABLETS, 768PX AND UP)
+---------------------------------------------------------------------------------------------------------- */
+@media only screen and (min-width: 768px) {
+	
+	.contact-content {width: 768px; margin: auto; padding: 40px 0px 60px 0px;}
+	
+	.contact-title {
+		width: 100%;
+		font-size: 34px;
+		font-weight: 300;
+		line-height: 34px;
+		color: #8a1a1c;
+		text-align: center;
+		letter-spacing: -0.5px;
+		padding: 36px 20px 36px 20px;
+	}
+	
+	.contact-left {
+		width: 100%;
+		text-align: center;
+		vertical-align: top;
+		display: inline-block;
+	}
+	
+	.contact-right {display: none;}
+	
+	.contact-right-mobile {display: none;}
+	.contact-right-tablet { /* ---- Used to rearrange addresses on tablet ---- */	
+		width: 300px;
+		font-size: 14px;
+		line-height: 22px;
+		text-align: left;
+		vertical-align: top;
+		display: inline-block;
+		margin: 0px 15px 60px 15px;
+		display: inline-block;
+	}
+	
+	
+
+	/* ---- Contact Card Styles ---- */	
+	.contact-card-box {
+		width: 300px;
+		max-width: 300px;
+		border: 1px solid #dddddd;
+		vertical-align: top;
+		display: inline-block;
+		margin: 0px 15px 30px 15px;
+	}
+	
+	.contact-card-name {
+		width: 100%;
+		font-size: 22px;
+		font-weight: 600;
+		line-height: 22px;
+		color: #000000;
+		text-align: left;
+		padding: 20px 0px 3px 20px;
+	}
+	
+	.contact-card-territory {
+		width: 100%;
+		font-size: 16px;
+		font-weight: 400;
+		line-height: 20px;
+		color: #777777;
+		text-align: left;
+		padding: 4px 0px 3px 20px;
+	}
+	
+	.contact-card-map {
+		width: 100%;
+		height: auto;
+		text-align: center;
+		display: block;
+	}
+	
+	.contact-card-phone-email {
+		width: 100%;
+		font-size: 16px;
+		font-weight: 400;
+		line-height: 24px;
+		color: #000000;
+		text-align: left;
+		padding: 0px 0px 20px 20px;
+	}
+	
+	
+	/* ---- Contact Quote Request ---- */
+	.contact-quote {
+		width: 300px;
+		height: 325px;
+		vertical-align: top;
+		display: inline-block;
+		margin: 0px 15px 30px 15px;
+	}
+	
+	.contact-quote-icon {
+		width: 50px;
+		height: 50px;
+		margin: 45px auto 10px auto;
+	}
+	
+	.contact-quote-headline {
+		width: 100%;
+		font-size: 20px;
+		font-weight: 600;
+		line-height: 20px;
+		color: #8a1a1c;
+		text-align: center;
+		display: block;
+		margin: 0px auto 10px auto;
+	}
+	
+	.contact-quote-text {
+		width: 100%;
+		text-align: center;
+		font-size: 14px;
+		line-height: 22px;
+		color: #777777;
+		vertical-align: top;
+		border-bottom: 0px;
+		display: block;
+		padding: 0px 0px 20px 0px;
+	
+	}
+
+	
+	/* ---- Contact Bottom Banners ---- */
+	.contact-two-col-left {
+		width: 300px;
+		text-align: center;
+		font-size: 14px;
+		line-height: 22px;
+		color: #777777;
+		vertical-align: top;
+		border-right: 1px solid #dddddd;
+		border-bottom: 0px;
+		display: inline-block;
+		padding: 30px 30px 30px 0px;
+	
+	}
+	
+	.contact-two-col-right {
+		width: 300px;
+		text-align: center;
+		font-size: 14px;
+		line-height: 22px;
+		color: #777777;
+		vertical-align: top;
+		display: inline-block;
+		padding: 30px 0px 30px 30px;
+	}
+	
+	.contact-icon {
+		width: 50px;
+		height: 50px;
+		margin: 0px auto 10px auto;
+	}
+	
+	.contact-banner-headline {
+		width: 100%;
+		font-size: 20px;
+		font-weight: 600;
+		line-height: 20px;
+		color: #8a1a1c;
+		text-align: center;
+		margin: 0px auto 10px auto;
+	}
+	
+	hr.contact-banner-line {
+		width: 160px;
+		border: none;
+		border-bottom: 1px solid #dddddd;
+		margin: 30px auto 26px auto;
+	}
+	
+	
+
+} 
+
+
+
+
+/* LARGE DEVICES (LAPTOPS/DESKTOPS, 1200PX AND UP) 
+---------------------------------------------------------------------------------------------------------- */
+@media only screen and (min-width: 1240px) {
+	
+	.contact-content {width: 1170px; margin: auto; padding: 0px 0px 60px 0px;}
+	
+	.contact-title {
+		width: 100%;
+		font-size: 34px;
+		font-weight: 300;
+		line-height: 34px;
+		color: #8a1a1c;
+		text-align: center;
+		letter-spacing: -0.5px;
+		padding: 36px 20px 36px 20px;
+	}
+	
+	.contact-left {
+		width: 879px;
+		text-align: center;
+		vertical-align: top;
+		display: inline-block;
+	}
+	
+	.contact-right-mobile {display: none;}
+	.contact-right-tablet {display: none;}
+	.contact-right {
+		width: 291px;
+		font-size: 14px;
+		line-height: 22px;
+		text-align: left;
+		vertical-align: top;
+		display: inline-block;
+		padding: 0px 0px 0px 30px;
+	}
+	
+	
+	/* ---- Contact Card Styles ---- */	
+	.contact-card-box {
+		width: 263px;
+		max-width: 263px;
+		border: 1px solid #dddddd;
+		vertical-align: top;
+		display: inline-block;
+		margin: 0px 15px 30px 15px;
+	}
+	
+	.contact-card-name {
+		width: 100%;
+		font-size: 22px;
+		font-weight: 600;
+		line-height: 22px;
+		letter-spacing: -0.2px;
+		color: #000000;
+		text-align: left;
+		padding: 20px 0px 3px 20px;
+	}
+	
+	.contact-card-territory {
+		width: 100%;
+		font-size: 14px;
+		font-weight: 400;
+		line-height: 18px;
+		color: #777777;
+		text-align: left;
+		padding: 4px 0px 3px 20px;
+	}
+	
+	.contact-card-map {
+		width: 100%;
+		height: 175px;
+		text-align: center;
+		display: block;
+	}
+	
+	.contact-card-phone-email {
+		width: 100%;
+		font-size: 14px;
+		font-weight: 400;
+		line-height: 22px;
+		color: #000000;
+		text-align: left;
+		padding: 0px 0px 20px 20px;
+	}
+	
+	
+	/* ---- Contact Quote Request ---- */
+	.contact-quote {
+		width: 263px;
+		height: 325px;
+		vertical-align: top;
+		display: inline-block;
+		margin: 0px 15px 30px 15px;
+	}
+	
+	.contact-quote-icon {
+		width: 50px;
+		height: 50px;
+		margin: 45px auto 10px auto;
+	}
+	
+	.contact-quote-headline {
+		width: 100%;
+		font-size: 20px;
+		font-weight: 600;
+		line-height: 20px;
+		color: #8a1a1c;
+		text-align: center;
+		display: block;
+		margin: 0px auto 10px auto;
+	}
+	
+	.contact-quote-text {
+		width: 100%;
+		text-align: center;
+		font-size: 14px;
+		line-height: 22px;
+		color: #777777;
+		vertical-align: top;
+		border-bottom: 0px;
+		display: block;
+		padding: 0px 30px 20px 30px;
+	
+	}
+
+	
+	/* ---- Contact Bottom Banners ---- */
+	.contact-two-col-left {
+		width: 440px;
+		text-align: center;
+		font-size: 14px;
+		line-height: 22px;
+		color: #777777;
+		vertical-align: top;
+		border-right: 1px solid #dddddd;
+		border-bottom: 0px;
+		display: inline-block;
+		padding: 30px 30px 30px 30px;
+	
+	}
+	
+	.contact-two-col-right {
+		width: 438px;
+		text-align: center;
+		font-size: 14px;
+		line-height: 22px;
+		color: #777777;
+		vertical-align: top;
+		display: inline-block;
+		padding: 30px 30px 30px 30px;
+	}
+	
+	.contact-icon {
+		width: 50px;
+		height: 50px;
+		margin: 0px auto 10px auto;
+	}
+	
+	.contact-banner-headline {
+		width: 100%;
+		font-size: 20px;
+		font-weight: 600;
+		line-height: 20px;
+		color: #8a1a1c;
+		text-align: center;
+		margin: 0px auto 10px auto;
+	}
+	
+	hr.contact-banner-line {
+		width: 260px;
+		border: none;
+		border-bottom: 1px solid #dddddd;
+		margin: 30px auto 26px auto;
+	}
+	
+
+		
+} 
+
+
+
+
+
+
+
+
+
+
+
+
