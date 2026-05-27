@@ -4,7 +4,6 @@ import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PhoneInput from '@/Components/PhoneInput';
 import TextInput from '@/Components/TextInput';
-import { Badge } from '@/Components/ui/badge';
 import {
     Card,
     CardContent,
@@ -13,15 +12,7 @@ import {
     CardTitle,
 } from '@/Components/ui/card';
 import { Head, useForm } from '@inertiajs/react';
-import {
-    Building2Icon,
-    GlobeIcon,
-    ImageIcon,
-    MailIcon,
-    MapPinIcon,
-    PhoneIcon,
-    Trash2Icon,
-} from 'lucide-react';
+import { ImageIcon, Trash2Icon } from 'lucide-react';
 import { ChangeEvent, FormEventHandler, useEffect, useState } from 'react';
 
 const maxLogoSizeBytes = 2 * 1024 * 1024;
@@ -72,25 +63,6 @@ type CompanyFormData = {
     _method: string;
 };
 
-function DetailItem({
-    label,
-    value,
-}: {
-    label: string;
-    value?: string | null;
-}) {
-    return (
-        <div className="rounded-lg border border-border bg-background p-4">
-            <dt className="text-sm font-medium text-muted-foreground">
-                {label}
-            </dt>
-            <dd className="mt-1 text-base font-medium text-foreground">
-                {value || 'Not added yet'}
-            </dd>
-        </div>
-    );
-}
-
 export default function Show({ company }: ShowProps) {
     const [localLogoPreviewUrl, setLocalLogoPreviewUrl] = useState<string | null>(
         null,
@@ -127,19 +99,6 @@ export default function Show({ company }: ShowProps) {
             }
         };
     }, [localLogoPreviewUrl]);
-
-    const fullAddress = company
-        ? [
-              company.address_line_1,
-              company.address_line_2,
-              company.city,
-              company.state,
-              company.postal_code,
-              company.country,
-          ]
-              .filter(Boolean)
-              .join(', ')
-        : null;
 
     const submit: FormEventHandler = (event) => {
         event.preventDefault();
@@ -213,218 +172,7 @@ export default function Show({ company }: ShowProps) {
             <Head title="Company" />
 
             <div className="py-6 sm:py-8">
-                <div className="mx-auto flex max-w-[96rem] flex-col gap-6 px-4 sm:px-6 lg:px-8">
-                    {company ? (
-                        <>
-                            <Card className="shadow-sm">
-                                <CardHeader className="gap-4 sm:grid-cols-[1fr_auto] sm:items-start">
-                                    <div className="flex gap-4">
-                                        {company.logo_url ? (
-                                            <img
-                                                src={company.logo_url}
-                                                alt={`${company.name} logo`}
-                                                className="size-16 rounded-xl border border-border bg-background object-contain p-2"
-                                            />
-                                        ) : (
-                                            <div className="flex size-16 items-center justify-center rounded-xl border border-dashed border-border bg-background text-muted-foreground">
-                                                <ImageIcon className="size-6" />
-                                            </div>
-                                        )}
-                                        <div>
-                                            <CardTitle className="flex items-center gap-2">
-                                                <Building2Icon className="size-5 text-muted-foreground" />
-                                                {company.name}
-                                            </CardTitle>
-                                            <CardDescription>
-                                                {company.legal_name ||
-                                                    'Gateway Door Systems company record'}
-                                            </CardDescription>
-                                        </div>
-                                    </div>
-                                    <div className="flex flex-col items-start gap-2 sm:items-end">
-                                        <Badge
-                                            variant={
-                                                company.is_active
-                                                    ? 'default'
-                                                    : 'outline'
-                                            }
-                                        >
-                                            {company.is_active
-                                                ? 'Active'
-                                                : 'Inactive'}
-                                        </Badge>
-                                        <Badge variant="outline">
-                                            {company.logo_url
-                                                ? 'Logo uploaded'
-                                                : 'No logo'}
-                                        </Badge>
-                                    </div>
-                                </CardHeader>
-                                <CardContent>
-                                    <dl className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                                        <DetailItem
-                                            label="Company name"
-                                            value={company.name}
-                                        />
-                                        <DetailItem
-                                            label="Legal name"
-                                            value={company.legal_name}
-                                        />
-                                        <DetailItem
-                                            label="UUID"
-                                            value={company.uuid}
-                                        />
-                                    </dl>
-                                </CardContent>
-                            </Card>
-
-                            <div className="grid gap-6 lg:grid-cols-[1fr_0.9fr]">
-                                <Card className="shadow-sm">
-                                    <CardHeader>
-                                        <CardTitle className="flex items-center gap-2">
-                                            <MapPinIcon className="size-5 text-muted-foreground" />
-                                            Address
-                                        </CardTitle>
-                                        <CardDescription>
-                                            Primary company location.
-                                        </CardDescription>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <dl className="grid gap-4 md:grid-cols-2">
-                                            <DetailItem
-                                                label="Address line 1"
-                                                value={company.address_line_1}
-                                            />
-                                            <DetailItem
-                                                label="Address line 2"
-                                                value={company.address_line_2}
-                                            />
-                                            <DetailItem
-                                                label="City"
-                                                value={company.city}
-                                            />
-                                            <DetailItem
-                                                label="State"
-                                                value={company.state}
-                                            />
-                                            <DetailItem
-                                                label="Postal code"
-                                                value={company.postal_code}
-                                            />
-                                            <DetailItem
-                                                label="Country"
-                                                value={company.country}
-                                            />
-                                            <div className="md:col-span-2">
-                                                <DetailItem
-                                                    label="Full address"
-                                                    value={fullAddress}
-                                                />
-                                            </div>
-                                        </dl>
-                                    </CardContent>
-                                </Card>
-
-                                <Card className="shadow-sm">
-                                    <CardHeader>
-                                        <CardTitle className="flex items-center gap-2">
-                                            <PhoneIcon className="size-5 text-muted-foreground" />
-                                            Contact
-                                        </CardTitle>
-                                        <CardDescription>
-                                            Phone, email, and public contact
-                                            links.
-                                        </CardDescription>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <dl className="flex flex-col gap-4">
-                                            <DetailItem
-                                                label="Phone number"
-                                                value={company.phone_number}
-                                            />
-                                            <DetailItem
-                                                label="Contact phone number"
-                                                value={
-                                                    company.contact_phone_number
-                                                }
-                                            />
-                                            <DetailItem
-                                                label="Email"
-                                                value={company.email}
-                                            />
-                                            <DetailItem
-                                                label="Website"
-                                                value={company.website_url}
-                                            />
-                                            <DetailItem
-                                                label="Contact URL"
-                                                value={company.contact_url}
-                                            />
-                                        </dl>
-
-                                        <div className="mt-5 flex flex-wrap gap-2">
-                                            {company.contact_phone_number && (
-                                                <a
-                                                    href={`tel:${company.contact_phone_number}`}
-                                                    className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium transition hover:bg-muted"
-                                                >
-                                                    <PhoneIcon className="size-4" />
-                                                    Contact us
-                                                </a>
-                                            )}
-                                            {company.email && (
-                                                <a
-                                                    href={`mailto:${company.email}`}
-                                                    className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium transition hover:bg-muted"
-                                                >
-                                                    <MailIcon className="size-4" />
-                                                    Email
-                                                </a>
-                                            )}
-                                            {company.website_url && (
-                                                <a
-                                                    href={company.website_url}
-                                                    className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium transition hover:bg-muted"
-                                                >
-                                                    <GlobeIcon className="size-4" />
-                                                    Website
-                                                </a>
-                                            )}
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </div>
-
-                            {company.notes && (
-                                <Card className="shadow-sm">
-                                    <CardHeader>
-                                        <CardTitle>Notes</CardTitle>
-                                        <CardDescription>
-                                            Internal company details.
-                                        </CardDescription>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <p className="leading-7 text-muted-foreground">
-                                            {company.notes}
-                                        </p>
-                                    </CardContent>
-                                </Card>
-                            )}
-                        </>
-                    ) : (
-                        <Card className="shadow-sm">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Building2Icon className="size-5 text-muted-foreground" />
-                                    No company record found
-                                </CardTitle>
-                                <CardDescription>
-                                    Add the company data using the form below.
-                                </CardDescription>
-                            </CardHeader>
-                        </Card>
-                    )}
-
+                <div className="mx-auto max-w-[96rem] px-4 sm:px-6 lg:px-8">
                     <Card className="shadow-sm">
                         <CardHeader>
                             <CardTitle>
@@ -514,19 +262,19 @@ export default function Show({ company }: ShowProps) {
                                     </div>
                                 </div>
 
-                                <div className="rounded-xl border border-border bg-background p-4">
-                                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
-                                        <div className="flex size-28 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted/40">
+                                <div className="rounded-xl border border-border bg-background p-4 sm:p-5">
+                                    <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
+                                        <div className="group/logo flex size-64 shrink-0 items-center justify-center self-start overflow-hidden rounded-2xl border border-border bg-muted/40 transition duration-700 ease-out hover:border-emerald-500/30 hover:shadow-lg hover:shadow-emerald-950/10 sm:size-72 lg:size-80">
                                             {logoPreviewUrl ? (
                                                 <img
                                                     src={logoPreviewUrl}
                                                     alt="Company logo preview"
-                                                    className="size-full object-contain p-3"
+                                                    className="size-full object-contain p-5 transition duration-700 ease-out group-hover/logo:scale-110 sm:p-6"
                                                 />
                                             ) : (
-                                                <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                                                    <ImageIcon className="size-8" />
-                                                    <span className="text-xs">
+                                                <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                                                    <ImageIcon className="size-14 sm:size-16" />
+                                                    <span className="text-sm">
                                                         No logo
                                                     </span>
                                                 </div>

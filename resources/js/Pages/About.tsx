@@ -251,8 +251,8 @@ export default function About() {
             </section>
 
             <section className="border-y border-border bg-muted/30">
-                <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[0.95fr_1.05fr] lg:items-center lg:gap-10 lg:px-8 lg:py-24">
-                    <div>
+                <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-24">
+                    <div className="max-w-3xl">
                         <Badge
                             variant="outline"
                             className="border-emerald-500/20 bg-background/70 text-emerald-700 dark:text-emerald-300"
@@ -267,35 +267,41 @@ export default function About() {
                         <p className="mt-5 text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
                             {t('trust.description')}
                         </p>
-
-                        <img
-                            src="/images/high-security-door-row.jpeg"
-                            alt={t('trust.imageAlt')}
-                            className="mt-6 h-[22rem] w-full rounded-2xl object-contain object-left transition duration-700 hover:scale-[1.01] sm:mt-8 sm:h-[30rem] sm:rounded-3xl lg:h-[36rem]"
-                        />
                     </div>
 
-                    <div className="grid gap-4 sm:grid-cols-2">
-                        {trustItems.map(({ key, Icon }) => (
-                            <Card
-                                key={key}
-                                className="border-border bg-background/80 text-card-foreground transition duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-emerald-950/10"
-                            >
-                                <CardHeader>
-                                    <div className="mb-3 flex size-10 items-center justify-center rounded-full bg-emerald-500/10">
-                                        <Icon className="size-5 text-emerald-700 dark:text-emerald-300" />
-                                    </div>
+                    <div className="mt-8 grid gap-8 lg:mt-10 lg:grid-cols-[1.35fr_1fr] lg:items-start lg:gap-10">
+                        <div className="overflow-hidden rounded-2xl border border-border bg-background/80 shadow-xl shadow-emerald-950/10 sm:rounded-3xl">
+                            <img
+                                src="/images/high-security-door-row.jpeg"
+                                alt={t('trust.imageAlt')}
+                                className="h-[20rem] w-full object-cover object-center transition duration-700 hover:scale-[1.02] sm:h-[26rem] lg:h-[min(72vh,34rem)] xl:h-[min(78vh,38rem)]"
+                            />
+                        </div>
 
-                                    <CardTitle className="text-base">
-                                        {t(`trust.items.${key}.title`)}
-                                    </CardTitle>
+                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                            {trustItems.map(({ key, Icon }) => (
+                                <Card
+                                    key={key}
+                                    className="border-border bg-background/80 text-card-foreground transition duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-emerald-950/10"
+                                >
+                                    <CardHeader>
+                                        <div className="mb-3 flex size-10 items-center justify-center rounded-full bg-emerald-500/10">
+                                            <Icon className="size-5 text-emerald-700 dark:text-emerald-300" />
+                                        </div>
 
-                                    <CardDescription className="leading-6">
-                                        {t(`trust.items.${key}.description`)}
-                                    </CardDescription>
-                                </CardHeader>
-                            </Card>
-                        ))}
+                                        <CardTitle className="text-base">
+                                            {t(`trust.items.${key}.title`)}
+                                        </CardTitle>
+
+                                        <CardDescription className="leading-6">
+                                            {t(
+                                                `trust.items.${key}.description`,
+                                            )}
+                                        </CardDescription>
+                                    </CardHeader>
+                                </Card>
+                            ))}
+                        </div>
                     </div>
                 </div>
             </section>
