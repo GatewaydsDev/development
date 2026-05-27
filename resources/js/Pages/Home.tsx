@@ -214,7 +214,7 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
                             <div className="absolute inset-0 translate-y-8 rounded-[2rem] bg-emerald-950/20 blur-2xl transition duration-700 group-hover:translate-y-10 group-hover:scale-105" />
 
                             <img
-                                src="/images/section_1.png"
+                                src="/images/Section_Hero_Home.png"
                                 alt={t('hero.card.title')}
                                 className="relative w-full rounded-[2rem] border border-white/30 object-contain shadow-2xl shadow-emerald-950/20 ring-1 ring-emerald-500/10 transition duration-700 ease-out group-hover:-translate-y-2 group-hover:scale-[1.02] dark:border-white/10 dark:shadow-emerald-950/40"
                             />
