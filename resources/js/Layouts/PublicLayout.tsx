@@ -50,16 +50,27 @@ const footerMarkets = [
 
 export default function PublicLayout({ children }: PropsWithChildren) {
     const { t } = useTranslation('common');
+    const { t: tHome } = useTranslation('home');
     const { auth, companyPhoneNumber } = usePage<
         PageProps<{ companyPhoneNumber?: string | null }>
     >().props;
+    const isHome = route().current('home');
     const quotePhoneNumber = companyPhoneNumber?.replace(/\D/g, '') ?? '';
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
         useState(false);
 
     return (
         <div className="min-h-screen bg-background text-foreground">
-            <nav className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur">
+            <header className="sticky top-0 z-50">
+                {isHome ? (
+                    <div className="border-b border-emerald-500/20 bg-emerald-950/95 text-center text-sm font-medium tracking-wide text-emerald-50 backdrop-blur supports-[backdrop-filter]:bg-emerald-950/90">
+                        <p className="px-4 py-2.5 sm:text-base">
+                            {tHome('serviceArea.banner')}
+                        </p>
+                    </div>
+                ) : null}
+
+                <nav className="border-b border-border bg-background/95 backdrop-blur">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                     <div className="flex min-h-16 items-center justify-between gap-3 sm:min-h-20 lg:min-h-28 lg:gap-8">
                         <div className="flex min-w-0 items-center">
@@ -299,6 +310,7 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                     </div>
                 </div>
             </nav>
+            </header>
 
             <main>{children}</main>
 

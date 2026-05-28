@@ -2,6 +2,9 @@
   "meta": {
     "title": "Home"
   },
+  "serviceArea": {
+    "banner": "Proudly serving the tri-state area: NY · NJ · PA"
+  },
   "hero": {
     "badge": "High-security door installation",
     "title": "Specialty Door Installation You Can Trust",
