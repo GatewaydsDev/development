@@ -179,7 +179,8 @@ export default function Index({ filters, contacts }: IndexProps) {
             .replace('&laquo; Previous', 'Previous')
             .replace('Next &raquo;', 'Next');
 
-    const inputClassName = 'mt-1 block w-full';
+    const inputClassName =
+        'mt-1 block w-full border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring';
 
     return (
         <AuthenticatedLayout
@@ -252,6 +253,7 @@ export default function Index({ filters, contacts }: IndexProps) {
                                         <InputLabel
                                             htmlFor="name"
                                             value="Name"
+                                            className="text-emerald-700 dark:text-emerald-300"
                                         />
                                         <TextInput
                                             id="name"
@@ -268,6 +270,7 @@ export default function Index({ filters, contacts }: IndexProps) {
                                         <InputLabel
                                             htmlFor="email"
                                             value="Email"
+                                            className="text-emerald-700 dark:text-emerald-300"
                                         />
                                         <TextInput
                                             id="email"
@@ -285,6 +288,7 @@ export default function Index({ filters, contacts }: IndexProps) {
                                         <InputLabel
                                             htmlFor="phone_number"
                                             value="Phone (optional)"
+                                            className="text-emerald-700 dark:text-emerald-300"
                                         />
                                         <Controller
                                             name="phone_number"
@@ -316,6 +320,7 @@ export default function Index({ filters, contacts }: IndexProps) {
                                         <InputLabel
                                             htmlFor="company"
                                             value="Company (optional)"
+                                            className="text-emerald-700 dark:text-emerald-300"
                                         />
                                         <TextInput
                                             id="company"
@@ -334,6 +339,7 @@ export default function Index({ filters, contacts }: IndexProps) {
                                         <InputLabel
                                             htmlFor="title"
                                             value="Title (optional)"
+                                            className="text-emerald-700 dark:text-emerald-300"
                                         />
                                         <TextInput
                                             id="title"
@@ -356,18 +362,19 @@ export default function Index({ filters, contacts }: IndexProps) {
                                         <InputLabel
                                             htmlFor="is_active"
                                             value="Active"
-                                            className="!mb-0"
+                                            className="!mb-0 text-emerald-700 dark:text-emerald-300"
                                         />
                                     </div>
                                     <div className="md:col-span-2">
                                         <InputLabel
                                             htmlFor="notes"
                                             value="Notes (optional)"
+                                            className="text-emerald-700 dark:text-emerald-300"
                                         />
                                         <textarea
                                             id="notes"
                                             rows={3}
-                                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                            className="mt-1 block w-full rounded-md border-border bg-background text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
                                             aria-invalid={Boolean(errors.notes)}
                                             {...register('notes')}
                                         />
