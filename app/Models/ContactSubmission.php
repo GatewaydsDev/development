@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 class ContactSubmission extends Model
@@ -52,5 +53,10 @@ class ContactSubmission extends Model
         )
             ->withPivot('emailed_at')
             ->withTimestamps();
+    }
+
+    public function emailLogs(): HasMany
+    {
+        return $this->hasMany(ContactEmailLog::class);
     }
 }

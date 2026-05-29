@@ -44,6 +44,16 @@ export interface Contact {
     created_at?: string | null;
 }
 
+export interface SentEmail {
+    id: number;
+    recipientName?: string | null;
+    recipientEmail: string;
+    subject: string;
+    message?: string | null;
+    sentByName?: string | null;
+    sentAt?: string | null;
+}
+
 export type PageProps<
     T extends Record<string, unknown> = Record<string, unknown>,
 > = T & {

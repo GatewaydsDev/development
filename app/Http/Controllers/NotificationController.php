@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Mail\ContactRequestEmail;
 use App\Models\Company;
 use App\Models\Contact;
+use App\Models\ContactEmailLog;
 use App\Models\ContactSubmission;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -75,6 +76,22 @@ class NotificationController extends Controller
                     ->pluck('contacts.id')
                     ->all()
                 : [],
+            'sentEmails' => $submission
+                ? $submission->emailLogs()
+                    ->with('sentBy:id,name')
+                    ->latest()
+                    ->get()
+                    ->map(fn (ContactEmailLog $log): array => [
+                        'id' => $log->id,
+                        'recipientName' => $log->recipient_name,
+                        'recipientEmail' => $log->recipient_email,
+                        'subject' => $log->subject,
+                        'message' => $log->message,
+                        'sentByName' => $log->sentBy?->name,
+                        'sentAt' => $log->created_at?->toISOString(),
+                    ])
+                    ->values()
+                : [],
         ]);
     }
 
@@ -110,6 +127,8 @@ class NotificationController extends Controller
         $subject = $validated['subject'];
         $body = (string) ($validated['message'] ?? '');
 
+        $senderId = $request->user()?->getKey();
+
         try {
             foreach ($contacts as $contact) {
                 Mail::to($contact->email)->send(
@@ -119,12 +138,30 @@ class NotificationController extends Controller
                 $submission->contacts()->syncWithoutDetaching([
                     $contact->id => ['emailed_at' => now()],
                 ]);
+
+                $submission->emailLogs()->create([
+                    'contact_id' => $contact->id,
+                    'sent_by_id' => $senderId,
+                    'recipient_name' => $contact->name,
+                    'recipient_email' => $contact->email,
+                    'subject' => $subject,
+                    'message' => $body,
+                ]);
             }
 
             if ($includeCompany && $companyEmail) {
                 Mail::to($companyEmail)->send(
                     new ContactRequestEmail($submission, $subject, $body)
                 );
+
+                $submission->emailLogs()->create([
+                    'contact_id' => null,
+                    'sent_by_id' => $senderId,
+                    'recipient_name' => 'Company',
+                    'recipient_email' => $companyEmail,
+                    'subject' => $subject,
+                    'message' => $body,
+                ]);
             }
         } catch (Throwable $exception) {
             report($exception);

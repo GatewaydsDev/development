@@ -11,18 +11,29 @@ import {
     CardHeader,
     CardTitle,
 } from '@/Components/ui/card';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/Components/ui/table';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import {
     getNotificationStatusMeta,
     NOTIFICATION_STATUSES,
 } from '@/lib/notificationStatus';
+import { formatProjectType } from '@/lib/projectType';
 import { cn } from '@/lib/utils';
-import { AppNotification, Contact } from '@/types';
+import { AppNotification, Contact, SentEmail } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
     ArrowLeftIcon,
     CheckCircle2Icon,
+    HistoryIcon,
     MailIcon,
     SendIcon,
     Trash2Icon,
@@ -36,6 +47,7 @@ type ShowProps = {
     companyEmail?: string | null;
     canSendEmail: boolean;
     emailedContactIds: number[];
+    sentEmails: SentEmail[];
 };
 
 function DetailItem({
@@ -71,7 +83,9 @@ export default function Show({
     companyEmail,
     canSendEmail,
     emailedContactIds,
+    sentEmails,
 }: ShowProps) {
+    const { t } = useTranslation('common');
     const emailForm = useForm({
         contact_ids: [] as number[],
         subject: `Contact request from ${notification.name ?? 'website'}`,
@@ -228,7 +242,10 @@ export default function Show({
                                     />
                                     <DetailItem
                                         label="Project type"
-                                        value={notification.projectType}
+                                        value={formatProjectType(
+                                            notification.projectType,
+                                            t,
+                                        )}
                                     />
                                     <DetailItem
                                         label="Contact submission ID"
@@ -428,9 +445,88 @@ export default function Show({
                                 </CardContent>
                             </Card>
                         )}
+
+                        {canSendEmail && (
+                            <Card className="shadow-sm">
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <HistoryIcon className="size-5 text-muted-foreground" />
+                                        Sent emails
+                                    </CardTitle>
+                                    <CardDescription>
+                                        {sentEmails.length > 0
+                                            ? `${sentEmails.length} ${
+                                                  sentEmails.length === 1
+                                                      ? 'email has'
+                                                      : 'emails have'
+                                              } been sent for this request.`
+                                            : 'No emails have been sent for this request yet.'}
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    {sentEmails.length > 0 ? (
+                                        <div className="rounded-lg border border-border">
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead>
+                                                            Recipient
+                                                        </TableHead>
+                                                        <TableHead>
+                                                            Email
+                                                        </TableHead>
+                                                        <TableHead>
+                                                            Subject
+                                                        </TableHead>
+                                                        <TableHead>
+                                                            Sent by
+                                                        </TableHead>
+                                                        <TableHead className="text-right">
+                                                            Sent at
+                                                        </TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {sentEmails.map((email) => (
+                                                        <TableRow key={email.id}>
+                                                            <TableCell className="font-medium text-foreground">
+                                                                {email.recipientName ||
+                                                                    email.recipientEmail}
+                                                            </TableCell>
+                                                            <TableCell className="text-muted-foreground">
+                                                                {
+                                                                    email.recipientEmail
+                                                                }
+                                                            </TableCell>
+                                                            <TableCell className="max-w-[18rem] truncate">
+                                                                {email.subject}
+                                                            </TableCell>
+                                                            <TableCell className="text-muted-foreground">
+                                                                {email.sentByName ||
+                                                                    '—'}
+                                                            </TableCell>
+                                                            <TableCell className="text-right whitespace-nowrap text-muted-foreground">
+                                                                {formatDate(
+                                                                    email.sentAt,
+                                                                )}
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-2 rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
+                                            <MailIcon className="size-4" />
+                                            Emails you send will be listed here.
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        )}
                     </div>
 
-                    <Card className="h-fit shadow-sm">
+                    <Card className="h-fit shadow-sm lg:sticky lg:top-40 lg:self-start">
                         <CardHeader>
                             <CardTitle>Controls</CardTitle>
                             <CardDescription>

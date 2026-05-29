@@ -4,15 +4,25 @@ import {
     Card,
     CardContent,
     CardDescription,
-    CardFooter,
     CardHeader,
     CardTitle,
 } from '@/Components/ui/card';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/Components/ui/table';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { getNotificationStatusMeta } from '@/lib/notificationStatus';
+import { formatProjectType } from '@/lib/projectType';
+import { cn } from '@/lib/utils';
 import { AppNotification } from '@/types';
 import { Head, Link } from '@inertiajs/react';
 import { BellIcon, MailOpenIcon, Trash2Icon } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 type IndexProps = {
     notifications: AppNotification[];
@@ -28,6 +38,8 @@ const formatDate = (value?: string | null) =>
         : 'Unknown date';
 
 export default function Index({ notifications, unreadCount }: IndexProps) {
+    const { t } = useTranslation('common');
+
     return (
         <AuthenticatedLayout
             header={
@@ -51,110 +63,160 @@ export default function Index({ notifications, unreadCount }: IndexProps) {
             <div className="py-6 sm:py-8">
                 <div className="mx-auto flex max-w-[96rem] flex-col gap-4 px-4 sm:px-6 lg:px-8">
                     {notifications.length > 0 ? (
-                        notifications.map((notification) => (
-                            <Card
-                                key={notification.id}
-                                className={
-                                    notification.isRead
-                                        ? 'shadow-sm'
-                                        : 'border-destructive/30 shadow-sm'
-                                }
-                            >
-                                <CardHeader className="gap-4 sm:grid-cols-[1fr_auto] sm:items-start">
-                                    <div className="flex items-start gap-3">
-                                        <div className="mt-1 rounded-lg bg-muted p-2 text-muted-foreground">
-                                            <BellIcon className="size-4" />
-                                        </div>
-                                        <div>
-                                            <CardTitle className="flex flex-wrap items-center gap-2">
-                                                {notification.title}
-                                                {(() => {
-                                                    const statusMeta =
-                                                        getNotificationStatusMeta(
-                                                            notification.status,
-                                                        );
-                                                    const StatusIcon =
-                                                        statusMeta.icon;
+                        <Card className="shadow-sm">
+                            <CardContent className="p-0">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Notification</TableHead>
+                                            <TableHead className="hidden md:table-cell">
+                                                Contact
+                                            </TableHead>
+                                            <TableHead className="hidden lg:table-cell">
+                                                Project type
+                                            </TableHead>
+                                            <TableHead className="text-center">
+                                                Status
+                                            </TableHead>
+                                            <TableHead className="hidden text-center sm:table-cell">
+                                                Received
+                                            </TableHead>
+                                            <TableHead className="text-right">
+                                                Actions
+                                            </TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {notifications.map((notification) => {
+                                            const statusMeta =
+                                                getNotificationStatusMeta(
+                                                    notification.status,
+                                                );
+                                            const StatusIcon = statusMeta.icon;
 
-                                                    return (
+                                            return (
+                                                <TableRow
+                                                    key={notification.id}
+                                                    className={cn(
+                                                        !notification.isRead &&
+                                                            'bg-destructive/5',
+                                                    )}
+                                                >
+                                                    <TableCell className="max-w-[22rem]">
+                                                        <div className="flex items-start gap-3">
+                                                            <div className="mt-0.5 rounded-lg bg-muted p-2 text-muted-foreground">
+                                                                <BellIcon className="size-4" />
+                                                            </div>
+                                                            <div className="min-w-0">
+                                                                <div className="flex flex-wrap items-center gap-2">
+                                                                    <span className="font-medium text-foreground">
+                                                                        {
+                                                                            notification.title
+                                                                        }
+                                                                    </span>
+                                                                    {!notification.isRead && (
+                                                                        <Badge variant="destructive">
+                                                                            New
+                                                                        </Badge>
+                                                                    )}
+                                                                </div>
+                                                                <p className="truncate text-sm text-muted-foreground">
+                                                                    {notification.name ||
+                                                                        notification.email ||
+                                                                        'Contact notification'}
+                                                                </p>
+                                                                <p className="line-clamp-1 text-sm text-muted-foreground/80 md:hidden">
+                                                                    {notification.message ||
+                                                                        'No message preview.'}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell className="hidden md:table-cell">
+                                                        <span className="block truncate text-sm text-muted-foreground">
+                                                            {notification.email ||
+                                                                '—'}
+                                                        </span>
+                                                        {notification.phoneNumber && (
+                                                            <span className="block truncate text-xs text-muted-foreground/80">
+                                                                {
+                                                                    notification.phoneNumber
+                                                                }
+                                                            </span>
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell className="hidden lg:table-cell">
+                                                        {notification.projectType ? (
+                                                            <Badge variant="secondary">
+                                                                {formatProjectType(
+                                                                    notification.projectType,
+                                                                    t,
+                                                                )}
+                                                            </Badge>
+                                                        ) : (
+                                                            <span className="text-sm text-muted-foreground">
+                                                                —
+                                                            </span>
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell className="text-center">
                                                         <Badge
-                                                            className={`gap-1 ${statusMeta.className}`}
+                                                            className={cn(
+                                                                'mx-auto gap-1',
+                                                                statusMeta.className,
+                                                            )}
                                                         >
                                                             <StatusIcon className="size-3.5" />
                                                             {statusMeta.label}
                                                         </Badge>
-                                                    );
-                                                })()}
-                                                {!notification.isRead && (
-                                                    <Badge variant="destructive">
-                                                        New
-                                                    </Badge>
-                                                )}
-                                            </CardTitle>
-                                            <CardDescription>
-                                                {formatDate(
-                                                    notification.createdAt,
-                                                )}
-                                            </CardDescription>
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <Button asChild variant="outline">
-                                            <Link
-                                                href={route(
-                                                    'notifications.show',
-                                                    notification.id,
-                                                )}
-                                            >
-                                                <MailOpenIcon data-icon="inline-start" />
-                                                Open
-                                            </Link>
-                                        </Button>
-                                        <Button
-                                            asChild
-                                            variant="destructive"
-                                            size="icon"
-                                        >
-                                            <Link
-                                                href={route(
-                                                    'notifications.destroy',
-                                                    notification.id,
-                                                )}
-                                                method="delete"
-                                                as="button"
-                                            >
-                                                <Trash2Icon />
-                                            </Link>
-                                        </Button>
-                                    </div>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="flex flex-col gap-2">
-                                        <p className="font-medium text-foreground">
-                                            {notification.name ||
-                                                notification.email ||
-                                                'Contact notification'}
-                                        </p>
-                                        <p className="line-clamp-3 text-sm leading-6 text-muted-foreground">
-                                            {notification.message ||
-                                                'No message preview available.'}
-                                        </p>
-                                    </div>
-                                </CardContent>
-                                <CardFooter className="flex flex-wrap gap-2">
-                                    {notification.email && (
-                                        <Badge variant="outline">
-                                            {notification.email}
-                                        </Badge>
-                                    )}
-                                    {notification.projectType && (
-                                        <Badge variant="secondary">
-                                            {notification.projectType}
-                                        </Badge>
-                                    )}
-                                </CardFooter>
-                            </Card>
-                        ))
+                                                    </TableCell>
+                                                    <TableCell className="hidden whitespace-nowrap text-center text-sm text-muted-foreground sm:table-cell">
+                                                        {formatDate(
+                                                            notification.createdAt,
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        <div className="flex justify-end gap-2">
+                                                            <Button
+                                                                asChild
+                                                                variant="outline"
+                                                                size="sm"
+                                                            >
+                                                                <Link
+                                                                    href={route(
+                                                                        'notifications.show',
+                                                                        notification.id,
+                                                                    )}
+                                                                >
+                                                                    <MailOpenIcon data-icon="inline-start" />
+                                                                    Open
+                                                                </Link>
+                                                            </Button>
+                                                            <Button
+                                                                asChild
+                                                                variant="destructive"
+                                                                size="icon"
+                                                            >
+                                                                <Link
+                                                                    href={route(
+                                                                        'notifications.destroy',
+                                                                        notification.id,
+                                                                    )}
+                                                                    method="delete"
+                                                                    as="button"
+                                                                >
+                                                                    <Trash2Icon />
+                                                                </Link>
+                                                            </Button>
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })}
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
                     ) : (
                         <Card className="shadow-sm">
                             <CardHeader>
