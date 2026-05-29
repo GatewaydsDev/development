@@ -6,9 +6,12 @@ use App\Models\Company;
 use App\Support\CustomerAccess;
 use App\Support\EmployeeAccess;
 use App\Support\ProjectAccess;
+use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Inertia\Inertia;
 use Inertia\Middleware;
+use Symfony\Component\HttpFoundation\Response;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -18,6 +21,20 @@ class HandleInertiaRequests extends Middleware
      * @var string
      */
     protected $rootView = 'app';
+
+    /**
+     * Encrypt the Inertia history so cached pages (e.g. the dashboard) cannot
+     * be restored from the browser's back/forward history after logout, where
+     * the encryption key is rotated via Inertia::clearHistory().
+     */
+    public function handle(Request $request, Closure $next): Response
+    {
+        if ($request->user()) {
+            Inertia::encryptHistory();
+        }
+
+        return parent::handle($request, $next);
+    }
 
     /**
      * Determine the current asset version.
