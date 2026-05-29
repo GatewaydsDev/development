@@ -57,10 +57,35 @@ const heroSlides = [
 
 type HomeProps = {
     companyPhoneNumber?: string | null;
+    canonicalUrl?: string;
 };
 
-export default function Home({ companyPhoneNumber }: HomeProps) {
+export default function Home({ companyPhoneNumber, canonicalUrl }: HomeProps) {
     const { t } = useTranslation('home');
+    const pageUrl =
+        canonicalUrl ??
+        (typeof window !== 'undefined' ? window.location.href : '');
+    const metaTitle = t('meta.title');
+    const metaDescription = t('meta.description');
+    const imageUrl = pageUrl
+        ? new URL('/images/Section_Hero_Home.png', pageUrl).href
+        : '/images/Section_Hero_Home.png';
+    const logoUrl = pageUrl
+        ? new URL('/images/App-Logo.png', pageUrl).href
+        : '/images/App-Logo.png';
+    const structuredData = {
+        '@context': 'https://schema.org',
+        '@type': 'LocalBusiness',
+        name: 'Gateway Door Systems',
+        description: metaDescription,
+        url: pageUrl || undefined,
+        image: imageUrl,
+        logo: logoUrl,
+        areaServed: ['New York', 'New Jersey', 'Pennsylvania'],
+        ...(companyPhoneNumber
+            ? { telephone: companyPhoneNumber }
+            : {}),
+    };
     const [activeSlide, setActiveSlide] = useState(0);
     const [progress, setProgress] = useState(0);
     const [isSecureDoorImageVisible, setIsSecureDoorImageVisible] =
@@ -119,7 +144,26 @@ export default function Home({ companyPhoneNumber }: HomeProps) {
 
     return (
         <PublicLayout>
-            <Head title={t('meta.title')} />
+            <Head title={metaTitle}>
+                <meta name="description" content={metaDescription} />
+                {pageUrl && <link rel="canonical" href={pageUrl} />}
+                <meta property="og:title" content={metaTitle} />
+                <meta
+                    property="og:description"
+                    content={metaDescription}
+                />
+                <meta property="og:type" content="website" />
+                <meta property="og:site_name" content="Gateway Door Systems" />
+                {pageUrl && <meta property="og:url" content={pageUrl} />}
+                <meta property="og:image" content={imageUrl} />
+                <meta name="twitter:card" content="summary_large_image" />
+                <meta name="twitter:title" content={metaTitle} />
+                <meta name="twitter:description" content={metaDescription} />
+                <meta name="twitter:image" content={imageUrl} />
+                <script type="application/ld+json">
+                    {JSON.stringify(structuredData)}
+                </script>
+            </Head>
 
             <section className="relative overflow-hidden border-b border-border">
                 {heroSlides.map((slide, index) => (

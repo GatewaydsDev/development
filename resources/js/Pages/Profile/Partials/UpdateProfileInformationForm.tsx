@@ -72,7 +72,7 @@ export default function UpdateProfileInformation({
                             className="mt-1 block w-full text-sm text-gray-600 file:mr-4 file:rounded-md file:border-0 file:bg-emerald-600 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-emerald-700"
                         />
                         <p className="mt-1 text-xs text-gray-500">
-                            PNG, JPG, or WEBP up to 2MB.
+                            PNG, JPG, or WEBP up to 4MB.
                         </p>
                         <InputError className="mt-2" message={errors.avatar} />
                     </div>

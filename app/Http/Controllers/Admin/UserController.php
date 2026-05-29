@@ -109,7 +109,7 @@ class UserController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
-            'avatar' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'avatar' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
             'date_of_birth' => ['nullable', 'date_format:m/d/Y'],
             'language_id' => ['nullable', 'integer', Rule::exists(Language::class, 'id')],
             'level_id' => ['required', 'integer', Rule::exists(UserLevel::class, 'id')],
@@ -181,7 +181,7 @@ class UserController extends Controller
                 'max:255',
                 Rule::unique(User::class)->ignore($user->id),
             ],
-            'avatar' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'avatar' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
             'date_of_birth' => ['nullable', 'date_format:m/d/Y'],
             'language_id' => ['nullable', 'integer', Rule::exists(Language::class, 'id')],
             'level_id' => ['required', 'integer', Rule::exists(UserLevel::class, 'id')],

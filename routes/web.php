@@ -27,11 +27,14 @@ Route::get('/', function () {
 
     return Inertia::render('Home', [
         'companyPhoneNumber' => $company?->contact_phone_number,
+        'canonicalUrl' => url()->current(),
     ]);
 })->name('home');
 
 Route::get('/about', function () {
-    return Inertia::render('About');
+    return Inertia::render('About', [
+        'canonicalUrl' => url()->current(),
+    ]);
 })->name('about');
 
 Route::get('/services/{service}', function (string $service) {

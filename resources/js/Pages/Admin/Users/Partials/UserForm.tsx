@@ -282,7 +282,7 @@ export default function UserForm({
                                 className="block w-full text-sm text-muted-foreground file:mr-4 file:rounded-md file:border-0 file:bg-emerald-600 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-emerald-700"
                             />
                             <p className="text-xs text-muted-foreground">
-                                PNG, JPG, or WEBP up to 2MB. Leave empty to keep
+                                PNG, JPG, or WEBP up to 4MB. Leave empty to keep
                                 the current image.
                             </p>
                             <InputError message={errors.avatar} />

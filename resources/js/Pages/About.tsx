@@ -105,14 +105,57 @@ function useRevealOnScroll<T extends HTMLElement>() {
     return { ref, isVisible };
 }
 
-export default function About() {
+type AboutProps = {
+    canonicalUrl?: string;
+};
+
+export default function About({ canonicalUrl }: AboutProps) {
     const { t } = useTranslation('about');
     const heroReveal = useRevealOnScroll<HTMLElement>();
     const capabilityReveal = useRevealOnScroll<HTMLElement>();
+    const pageUrl =
+        canonicalUrl ??
+        (typeof window !== 'undefined' ? window.location.href : '');
+    const metaTitle = t('meta.title');
+    const metaDescription = t('meta.description');
+    const imageUrl = pageUrl
+        ? new URL('/images/high-security-door-row.jpeg', pageUrl).href
+        : '/images/high-security-door-row.jpeg';
+    const structuredData = {
+        '@context': 'https://schema.org',
+        '@type': 'AboutPage',
+        name: metaTitle,
+        description: metaDescription,
+        url: pageUrl || undefined,
+        primaryImageOfPage: imageUrl,
+        publisher: {
+            '@type': 'Organization',
+            name: 'Gateway Door Systems',
+        },
+    };
 
     return (
         <PublicLayout>
-            <Head title={t('meta.title')} />
+            <Head title={metaTitle}>
+                <meta name="description" content={metaDescription} />
+                {pageUrl && <link rel="canonical" href={pageUrl} />}
+                <meta property="og:title" content={metaTitle} />
+                <meta
+                    property="og:description"
+                    content={metaDescription}
+                />
+                <meta property="og:type" content="website" />
+                <meta property="og:site_name" content="Gateway Door Systems" />
+                {pageUrl && <meta property="og:url" content={pageUrl} />}
+                <meta property="og:image" content={imageUrl} />
+                <meta name="twitter:card" content="summary_large_image" />
+                <meta name="twitter:title" content={metaTitle} />
+                <meta name="twitter:description" content={metaDescription} />
+                <meta name="twitter:image" content={imageUrl} />
+                <script type="application/ld+json">
+                    {JSON.stringify(structuredData)}
+                </script>
+            </Head>
 
             <section
                 ref={heroReveal.ref}
