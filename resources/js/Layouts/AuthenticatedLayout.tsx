@@ -35,8 +35,57 @@ import {
     UserPlusIcon,
     UserRoundIcon,
     UsersIcon,
+    type LucideIcon,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { PropsWithChildren, ReactNode, useEffect, useRef, useState } from 'react';
+
+function MobileDisclosure({
+    label,
+    icon: Icon,
+    children,
+    defaultOpen = false,
+    variant = 'group',
+    className,
+}: {
+    label: string;
+    icon?: LucideIcon;
+    children: ReactNode;
+    defaultOpen?: boolean;
+    variant?: 'section' | 'group';
+    className?: string;
+}) {
+    const [open, setOpen] = useState(defaultOpen);
+
+    return (
+        <div>
+            <button
+                type="button"
+                onClick={() => setOpen((value) => !value)}
+                aria-expanded={open}
+                className={cn(
+                    'flex w-full items-center justify-between gap-2 rounded-md py-2 text-left transition hover:bg-muted/50',
+                    variant === 'section'
+                        ? 'text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300'
+                        : 'text-sm font-semibold text-foreground',
+                    className ?? 'px-4',
+                )}
+            >
+                <span className="inline-flex items-center gap-2">
+                    {Icon && <Icon className="size-4" />}
+                    {label}
+                </span>
+                <ChevronDownIcon
+                    className={cn(
+                        'size-4 shrink-0 transition-transform',
+                        open && 'rotate-180',
+                    )}
+                />
+            </button>
+            {open && <div className="flex flex-col">{children}</div>}
+        </div>
+    );
+}
 
 const notificationPollInterval = 60_000;
 const idleActivityEvents = [
@@ -746,277 +795,284 @@ export default function Authenticated({
 
                         {canOpenAdministration && (
                             <div className="mt-2 border-t border-border pt-3">
-                                <div className="px-4 pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                    Administration
-                                </div>
-                                {canOpenWorkspace && (
-                                    <>
-                                        <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
-                                            Workspace
-                                        </div>
-                                        {canManageOwnAccount && (
-                                            <ResponsiveNavLink
-                                                href={route(
-                                                    'admin.account.edit',
-                                                )}
-                                                active={route().current(
-                                                    'admin.account.edit',
-                                                )}
-                                                className="ps-8"
-                                            >
-                                                <span className="inline-flex items-center gap-2">
-                                                    <UserCogIcon className="size-4" />
-                                                    Account
-                                                </span>
-                                            </ResponsiveNavLink>
-                                        )}
+                                <MobileDisclosure
+                                    label="Administration"
+                                    variant="section"
+                                    defaultOpen
+                                >
+                                    {canOpenWorkspace && (
+                                        <MobileDisclosure
+                                            label="Workspace"
+                                            icon={Building2Icon}
+                                            className="ps-6 pe-4"
+                                        >
+                                            {canManageOwnAccount && (
+                                                <ResponsiveNavLink
+                                                    href={route(
+                                                        'admin.account.edit',
+                                                    )}
+                                                    active={route().current(
+                                                        'admin.account.edit',
+                                                    )}
+                                                    className="ps-10"
+                                                >
+                                                    <span className="inline-flex items-center gap-2">
+                                                        <UserCogIcon className="size-4" />
+                                                        Account
+                                                    </span>
+                                                </ResponsiveNavLink>
+                                            )}
 
-                                        {canViewCompany && (
-                                            <ResponsiveNavLink
-                                                href={route(
-                                                    'admin.company.show',
-                                                )}
-                                                active={route().current(
-                                                    'admin.company.show',
-                                                )}
-                                                className="ps-8"
-                                            >
-                                                <span className="inline-flex items-center gap-2">
-                                                    <Building2Icon className="size-4" />
-                                                    Company
-                                                </span>
-                                            </ResponsiveNavLink>
-                                        )}
-                                    </>
-                                )}
+                                            {canViewCompany && (
+                                                <ResponsiveNavLink
+                                                    href={route(
+                                                        'admin.company.show',
+                                                    )}
+                                                    active={route().current(
+                                                        'admin.company.show',
+                                                    )}
+                                                    className="ps-10"
+                                                >
+                                                    <span className="inline-flex items-center gap-2">
+                                                        <Building2Icon className="size-4" />
+                                                        Company
+                                                    </span>
+                                                </ResponsiveNavLink>
+                                            )}
+                                        </MobileDisclosure>
+                                    )}
 
-                                {canOpenOperations && (
-                                    <>
-                                        <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
-                                            Operations
-                                        </div>
+                                    {canOpenOperations && (
+                                        <MobileDisclosure
+                                            label="Operations"
+                                            icon={SlidersHorizontalIcon}
+                                            className="ps-6 pe-4"
+                                        >
+                                            {canOpenProjects && (
+                                                <MobileDisclosure
+                                                    label="Projects"
+                                                    icon={BriefcaseIcon}
+                                                    className="ps-10 pe-4"
+                                                >
+                                                    {canViewProjects && (
+                                                        <ResponsiveNavLink
+                                                            href={route(
+                                                                'admin.projects.index',
+                                                            )}
+                                                            active={route().current(
+                                                                'admin.projects.index',
+                                                            )}
+                                                            className="ps-14"
+                                                        >
+                                                            <span className="inline-flex items-center gap-2">
+                                                                <ListIcon className="size-4" />
+                                                                See all
+                                                            </span>
+                                                        </ResponsiveNavLink>
+                                                    )}
+                                                    {canCreateProjects && (
+                                                        <ResponsiveNavLink
+                                                            href={route(
+                                                                'admin.projects.create',
+                                                            )}
+                                                            active={route().current(
+                                                                'admin.projects.create',
+                                                            )}
+                                                            className="ps-14"
+                                                        >
+                                                            <span className="inline-flex items-center gap-2">
+                                                                <PlusCircleIcon className="size-4" />
+                                                                Add new
+                                                            </span>
+                                                        </ResponsiveNavLink>
+                                                    )}
+                                                </MobileDisclosure>
+                                            )}
 
-                                        {canOpenProjects && (
-                                            <>
-                                                <div className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-foreground">
-                                                    <BriefcaseIcon className="size-4" />
-                                                    Projects
-                                                </div>
-                                                {canViewProjects && (
-                                                    <ResponsiveNavLink
-                                                        href={route(
-                                                            'admin.projects.index',
-                                                        )}
-                                                        active={route().current(
-                                                            'admin.projects.index',
-                                                        )}
-                                                        className="ps-8"
-                                                    >
-                                                        <span className="inline-flex items-center gap-2">
-                                                            <ListIcon className="size-4" />
-                                                            See all
-                                                        </span>
-                                                    </ResponsiveNavLink>
-                                                )}
-                                                {canCreateProjects && (
-                                                    <ResponsiveNavLink
-                                                        href={route(
-                                                            'admin.projects.create',
-                                                        )}
-                                                        active={route().current(
-                                                            'admin.projects.create',
-                                                        )}
-                                                        className="ps-8"
-                                                    >
-                                                        <span className="inline-flex items-center gap-2">
-                                                            <PlusCircleIcon className="size-4" />
-                                                            Add new
-                                                        </span>
-                                                    </ResponsiveNavLink>
-                                                )}
-                                            </>
-                                        )}
+                                            {canOpenCustomers && (
+                                                <MobileDisclosure
+                                                    label="Customers"
+                                                    icon={UserRoundIcon}
+                                                    className="ps-10 pe-4"
+                                                >
+                                                    {canViewCustomers && (
+                                                        <ResponsiveNavLink
+                                                            href={route(
+                                                                'admin.customers.index',
+                                                            )}
+                                                            active={route().current(
+                                                                'admin.customers.index',
+                                                            )}
+                                                            className="ps-14"
+                                                        >
+                                                            <span className="inline-flex items-center gap-2">
+                                                                <UsersIcon className="size-4" />
+                                                                See all
+                                                            </span>
+                                                        </ResponsiveNavLink>
+                                                    )}
+                                                    {canCreateCustomers && (
+                                                        <ResponsiveNavLink
+                                                            href={route(
+                                                                'admin.customers.create',
+                                                            )}
+                                                            active={route().current(
+                                                                'admin.customers.create',
+                                                            )}
+                                                            className="ps-14"
+                                                        >
+                                                            <span className="inline-flex items-center gap-2">
+                                                                <UserPlusIcon className="size-4" />
+                                                                Add new
+                                                            </span>
+                                                        </ResponsiveNavLink>
+                                                    )}
+                                                </MobileDisclosure>
+                                            )}
 
-                                {canOpenCustomers && (
-                                    <>
-                                        <div className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-foreground">
-                                            <UserRoundIcon className="size-4" />
-                                            Customers
-                                        </div>
-                                        {canViewCustomers && (
-                                            <ResponsiveNavLink
-                                                href={route(
-                                                    'admin.customers.index',
-                                                )}
-                                                active={route().current(
-                                                    'admin.customers.index',
-                                                )}
-                                                className="ps-8"
-                                            >
-                                                <span className="inline-flex items-center gap-2">
-                                                    <UsersIcon className="size-4" />
-                                                    See all
-                                                </span>
-                                            </ResponsiveNavLink>
-                                        )}
-                                        {canCreateCustomers && (
-                                            <ResponsiveNavLink
-                                                href={route(
-                                                    'admin.customers.create',
-                                                )}
-                                                active={route().current(
-                                                    'admin.customers.create',
-                                                )}
-                                                className="ps-8"
-                                            >
-                                                <span className="inline-flex items-center gap-2">
-                                                    <UserPlusIcon className="size-4" />
-                                                    Add new
-                                                </span>
-                                            </ResponsiveNavLink>
-                                        )}
-                                    </>
-                                )}
+                                            {canOpenEmployees && (
+                                                <MobileDisclosure
+                                                    label="Employees"
+                                                    icon={IdCardIcon}
+                                                    className="ps-10 pe-4"
+                                                >
+                                                    {canViewEmployees && (
+                                                        <ResponsiveNavLink
+                                                            href={route(
+                                                                'admin.employees.index',
+                                                            )}
+                                                            active={route().current(
+                                                                'admin.employees.index',
+                                                            )}
+                                                            className="ps-14"
+                                                        >
+                                                            <span className="inline-flex items-center gap-2">
+                                                                <UsersIcon className="size-4" />
+                                                                See all
+                                                            </span>
+                                                        </ResponsiveNavLink>
+                                                    )}
+                                                    {canCreateEmployees && (
+                                                        <ResponsiveNavLink
+                                                            href={route(
+                                                                'admin.employees.create',
+                                                            )}
+                                                            active={route().current(
+                                                                'admin.employees.create',
+                                                            )}
+                                                            className="ps-14"
+                                                        >
+                                                            <span className="inline-flex items-center gap-2">
+                                                                <UserPlusIcon className="size-4" />
+                                                                Add new
+                                                            </span>
+                                                        </ResponsiveNavLink>
+                                                    )}
+                                                </MobileDisclosure>
+                                            )}
 
-                                {canOpenEmployees && (
-                                    <>
-                                        <div className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-foreground">
-                                            <IdCardIcon className="size-4" />
-                                            Employees
-                                        </div>
-                                        {canViewEmployees && (
-                                            <ResponsiveNavLink
-                                                href={route(
-                                                    'admin.employees.index',
-                                                )}
-                                                active={route().current(
-                                                    'admin.employees.index',
-                                                )}
-                                                className="ps-8"
-                                            >
-                                                <span className="inline-flex items-center gap-2">
-                                                    <UsersIcon className="size-4" />
-                                                    See all
-                                                </span>
-                                            </ResponsiveNavLink>
-                                        )}
-                                        {canCreateEmployees && (
-                                            <ResponsiveNavLink
-                                                href={route(
-                                                    'admin.employees.create',
-                                                )}
-                                                active={route().current(
-                                                    'admin.employees.create',
-                                                )}
-                                                className="ps-8"
-                                            >
-                                                <span className="inline-flex items-center gap-2">
-                                                    <UserPlusIcon className="size-4" />
-                                                    Add new
-                                                </span>
-                                            </ResponsiveNavLink>
-                                        )}
-                                    </>
-                                )}
+                                            {canManageNotifications && (
+                                                <ResponsiveNavLink
+                                                    href={route(
+                                                        'admin.contacts.index',
+                                                    )}
+                                                    active={route().current(
+                                                        'admin.contacts.index',
+                                                    )}
+                                                    className="ps-10"
+                                                >
+                                                    <span className="inline-flex items-center gap-2">
+                                                        <UsersIcon className="size-4" />
+                                                        Contacts
+                                                    </span>
+                                                </ResponsiveNavLink>
+                                            )}
+                                        </MobileDisclosure>
+                                    )}
 
-                                {canManageNotifications && (
-                                    <ResponsiveNavLink
-                                        href={route('admin.contacts.index')}
-                                        active={route().current(
-                                            'admin.contacts.index',
-                                        )}
-                                    >
-                                        <span className="inline-flex items-center gap-2">
-                                            <UsersIcon className="size-4" />
-                                            Contacts
-                                        </span>
-                                    </ResponsiveNavLink>
-                                )}
-                                    </>
-                                )}
+                                    {canOpenSecurity && (
+                                        <MobileDisclosure
+                                            label="Security"
+                                            icon={ShieldIcon}
+                                            className="ps-6 pe-4"
+                                        >
+                                            {canManageUsers && (
+                                                <MobileDisclosure
+                                                    label="Users"
+                                                    icon={UsersIcon}
+                                                    className="ps-10 pe-4"
+                                                >
+                                                    {canViewUsers && (
+                                                        <ResponsiveNavLink
+                                                            href={route(
+                                                                'admin.users.index',
+                                                            )}
+                                                            active={route().current(
+                                                                'admin.users.index',
+                                                            )}
+                                                            className="ps-14"
+                                                        >
+                                                            <span className="inline-flex items-center gap-2">
+                                                                <UsersIcon className="size-4" />
+                                                                See all
+                                                            </span>
+                                                        </ResponsiveNavLink>
+                                                    )}
+                                                    {canCreateUsers && (
+                                                        <ResponsiveNavLink
+                                                            href={route(
+                                                                'admin.users.create',
+                                                            )}
+                                                            active={route().current(
+                                                                'admin.users.create',
+                                                            )}
+                                                            className="ps-14"
+                                                        >
+                                                            <span className="inline-flex items-center gap-2">
+                                                                <UserPlusIcon className="size-4" />
+                                                                Add new
+                                                            </span>
+                                                        </ResponsiveNavLink>
+                                                    )}
+                                                </MobileDisclosure>
+                                            )}
 
-                                {canOpenSecurity && (
-                                    <>
-                                        <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
-                                            Security
-                                        </div>
+                                            {canManageAccess && (
+                                                <ResponsiveNavLink
+                                                    href={route(
+                                                        'admin.access-control.edit',
+                                                    )}
+                                                    active={route().current(
+                                                        'admin.access-control.edit',
+                                                    )}
+                                                    className="ps-10"
+                                                >
+                                                    <span className="inline-flex items-center gap-2">
+                                                        <SlidersHorizontalIcon className="size-4" />
+                                                        Access Control
+                                                    </span>
+                                                </ResponsiveNavLink>
+                                            )}
 
-                                        {canManageUsers && (
-                                            <>
-                                                <div className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-foreground">
-                                                    <UsersIcon className="size-4" />
-                                                    Users
-                                                </div>
-                                                {canViewUsers && (
-                                                    <ResponsiveNavLink
-                                                        href={route(
-                                                            'admin.users.index',
-                                                        )}
-                                                        active={route().current(
-                                                            'admin.users.index',
-                                                        )}
-                                                        className="ps-8"
-                                                    >
-                                                        <span className="inline-flex items-center gap-2">
-                                                            <UsersIcon className="size-4" />
-                                                            See all
-                                                        </span>
-                                                    </ResponsiveNavLink>
-                                                )}
-                                                {canCreateUsers && (
-                                                    <ResponsiveNavLink
-                                                        href={route(
-                                                            'admin.users.create',
-                                                        )}
-                                                        active={route().current(
-                                                            'admin.users.create',
-                                                        )}
-                                                        className="ps-8"
-                                                    >
-                                                        <span className="inline-flex items-center gap-2">
-                                                            <UserPlusIcon className="size-4" />
-                                                            Add new
-                                                        </span>
-                                                    </ResponsiveNavLink>
-                                                )}
-                                            </>
-                                        )}
-
-                                        {canManageAccess && (
-                                            <ResponsiveNavLink
-                                                href={route(
-                                                    'admin.access-control.edit',
-                                                )}
-                                                active={route().current(
-                                                    'admin.access-control.edit',
-                                                )}
-                                                className="ps-8"
-                                            >
-                                                <span className="inline-flex items-center gap-2">
-                                                    <SlidersHorizontalIcon className="size-4" />
-                                                    Access Control
-                                                </span>
-                                            </ResponsiveNavLink>
-                                        )}
-
-                                        {canViewUserActivity && (
-                                            <ResponsiveNavLink
-                                                href={route(
-                                                    'admin.user-activities.index',
-                                                )}
-                                                active={route().current(
-                                                    'admin.user-activities.*',
-                                                )}
-                                                className="ps-8"
-                                            >
-                                                <span className="inline-flex items-center gap-2">
-                                                    <ActivityIcon className="size-4" />
-                                                    User Activity
-                                                </span>
-                                            </ResponsiveNavLink>
-                                        )}
-                                    </>
-                                )}
+                                            {canViewUserActivity && (
+                                                <ResponsiveNavLink
+                                                    href={route(
+                                                        'admin.user-activities.index',
+                                                    )}
+                                                    active={route().current(
+                                                        'admin.user-activities.*',
+                                                    )}
+                                                    className="ps-10"
+                                                >
+                                                    <span className="inline-flex items-center gap-2">
+                                                        <ActivityIcon className="size-4" />
+                                                        User Activity
+                                                    </span>
+                                                </ResponsiveNavLink>
+                                            )}
+                                        </MobileDisclosure>
+                                    )}
+                                </MobileDisclosure>
                             </div>
                         )}
                     </div>
