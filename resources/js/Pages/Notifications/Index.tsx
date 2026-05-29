@@ -9,6 +9,7 @@ import {
     CardTitle,
 } from '@/Components/ui/card';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { getNotificationStatusMeta } from '@/lib/notificationStatus';
 import { AppNotification } from '@/types';
 import { Head, Link } from '@inertiajs/react';
 import { BellIcon, MailOpenIcon, Trash2Icon } from 'lucide-react';
@@ -67,6 +68,23 @@ export default function Index({ notifications, unreadCount }: IndexProps) {
                                         <div>
                                             <CardTitle className="flex flex-wrap items-center gap-2">
                                                 {notification.title}
+                                                {(() => {
+                                                    const statusMeta =
+                                                        getNotificationStatusMeta(
+                                                            notification.status,
+                                                        );
+                                                    const StatusIcon =
+                                                        statusMeta.icon;
+
+                                                    return (
+                                                        <Badge
+                                                            className={`gap-1 ${statusMeta.className}`}
+                                                        >
+                                                            <StatusIcon className="size-3.5" />
+                                                            {statusMeta.label}
+                                                        </Badge>
+                                                    );
+                                                })()}
                                                 {!notification.isRead && (
                                                     <Badge variant="destructive">
                                                         New

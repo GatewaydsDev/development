@@ -2,6 +2,7 @@ import FormActionFab from '@/Components/FormActionFab';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
+import UserAvatar from '@/Components/UserAvatar';
 import {
     Card,
     CardContent,
@@ -11,7 +12,7 @@ import {
 } from '@/Components/ui/card';
 import { useForm } from '@inertiajs/react';
 import { Eye, EyeOff } from 'lucide-react';
-import { FormEventHandler, useEffect, useMemo, useState } from 'react';
+import { ChangeEvent, FormEventHandler, useEffect, useMemo, useState } from 'react';
 
 type Level = {
     id: number;
@@ -27,6 +28,7 @@ type Language = {
 type UserFormData = {
     name: string;
     email: string;
+    avatar: File | null;
     date_of_birth: string;
     language_id: string;
     level_id: string;
@@ -43,7 +45,8 @@ type UserFormProps = {
     description: string;
     action: string;
     method?: 'post' | 'patch';
-    initialValues?: Partial<UserFormData>;
+    initialValues?: Partial<Omit<UserFormData, 'avatar'>>;
+    currentAvatarUrl?: string | null;
     passwordOptional?: boolean;
 };
 
@@ -110,6 +113,7 @@ export default function UserForm({
     action,
     method = 'post',
     initialValues = {},
+    currentAvatarUrl = null,
     passwordOptional = false,
 }: UserFormProps) {
     const [showPassword, setShowPassword] = useState(false);
@@ -117,16 +121,33 @@ export default function UserForm({
         useState(false);
     const [checkingEmail, setCheckingEmail] = useState(false);
     const [emailTaken, setEmailTaken] = useState(false);
-    const { data, setData, errors, processing, post, patch } =
+    const [avatarPreview, setAvatarPreview] = useState<string | null>(
+        currentAvatarUrl,
+    );
+    const { data, setData, errors, processing, post, transform } =
         useForm<UserFormData>({
             name: initialValues.name ?? '',
             email: initialValues.email ?? '',
+            avatar: null,
             date_of_birth: initialValues.date_of_birth ?? '',
             language_id: initialValues.language_id ?? '',
             level_id: initialValues.level_id ?? '',
             password: '',
             password_confirmation: '',
         });
+
+    transform((formData) =>
+        method === 'patch'
+            ? { ...formData, _method: 'PATCH' }
+            : formData,
+    );
+
+    const onAvatarChange = (event: ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0] ?? null;
+
+        setData('avatar', file);
+        setAvatarPreview(file ? URL.createObjectURL(file) : currentAvatarUrl);
+    };
     const dateOfBirthFeedback = useMemo(() => {
         if (!data.date_of_birth) {
             return null;
@@ -221,12 +242,7 @@ export default function UserForm({
             return;
         }
 
-        if (method === 'patch') {
-            patch(action);
-            return;
-        }
-
-        post(action);
+        post(action, { forceFormData: true });
     };
     return (
         <Card className="shadow-sm">
@@ -246,6 +262,33 @@ export default function UserForm({
                             hasDateOfBirthError
                         }
                     />
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                        <UserAvatar
+                            name={data.name}
+                            avatarUrl={avatarPreview}
+                            className="size-16 text-xl"
+                        />
+                        <div className="flex flex-col gap-2">
+                            <InputLabel
+                                htmlFor="avatar"
+                                value="Avatar image"
+                                className="text-emerald-700 dark:text-emerald-300"
+                            />
+                            <input
+                                id="avatar"
+                                type="file"
+                                accept="image/png,image/jpeg,image/jpg,image/webp"
+                                onChange={onAvatarChange}
+                                className="block w-full text-sm text-muted-foreground file:mr-4 file:rounded-md file:border-0 file:bg-emerald-600 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-emerald-700"
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                PNG, JPG, or WEBP up to 2MB. Leave empty to keep
+                                the current image.
+                            </p>
+                            <InputError message={errors.avatar} />
+                        </div>
+                    </div>
+
                     <div className="grid gap-5 md:grid-cols-2">
                         <div className="flex flex-col gap-2">
                             <InputLabel

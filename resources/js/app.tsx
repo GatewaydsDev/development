@@ -2,6 +2,7 @@ import '../css/app.css';
 import './i18n';
 
 import { ThemeProvider } from '@/Components/ThemeProvider';
+import { Toaster } from '@/Components/ui/sonner';
 import { createInertiaApp, router } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot } from 'react-dom/client';
@@ -90,6 +91,7 @@ createInertiaApp({
         root.render(
             <ThemeProvider>
                 <App {...props} />
+                <Toaster />
             </ThemeProvider>,
         );
     },

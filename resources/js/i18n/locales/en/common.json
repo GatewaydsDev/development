@@ -53,9 +53,22 @@
       "email": "Email address",
       "phone": "Phone number",
       "organization": "Organization or facility",
+      "address": "Service location",
+      "addressPlaceholder": "Street address, city, ZIP",
+      "state": "State",
+      "statePlaceholder": "State",
+      "country": "Country",
       "projectType": "Project type",
       "projectTypePlaceholder": "Select a project type",
       "message": "Project details"
+    },
+    "states": {
+      "NJ": "New Jersey",
+      "NY": "New York",
+      "PA": "Pennsylvania"
+    },
+    "countries": {
+      "US": "United States"
     },
     "projectTypes": {
       "secureDoorInstallation": "Secure door installation",
@@ -67,6 +80,8 @@
     "validation": {
       "name": "Enter your name.",
       "email": "Enter a valid email address.",
+      "state": "Select the service state (NJ, NY, or PA).",
+      "country": "Select a country.",
       "message": "Tell us about the project.",
       "messageMax": "Project details must be 5,000 characters or fewer."
     }

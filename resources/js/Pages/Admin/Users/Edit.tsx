@@ -17,6 +17,8 @@ type ManagedUser = {
     id: number;
     name: string;
     email: string;
+    avatar_url: string | null;
+    initials: string;
     date_of_birth: string | null;
     language_id: number | null;
     preferred_language: Language | null;
@@ -70,6 +72,7 @@ export default function Edit({ levels, languages, managedUser }: EditProps) {
                         method="patch"
                         submitLabel="Save changes"
                         passwordOptional
+                        currentAvatarUrl={managedUser.avatar_url}
                         initialValues={{
                             name: managedUser.name,
                             email: managedUser.email,

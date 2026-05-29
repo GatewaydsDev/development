@@ -3,6 +3,9 @@ export interface User {
     name: string;
     email: string;
     email_verified_at?: string;
+    avatar?: string | null;
+    avatar_url?: string | null;
+    initials?: string;
     level?: {
         id: number;
         name: string;
@@ -16,12 +19,29 @@ export interface AppNotification {
     email?: string | null;
     phoneNumber?: string | null;
     organization?: string | null;
+    address?: string | null;
+    state?: string | null;
+    country?: string | null;
     projectType?: string | null;
     message?: string | null;
+    status?: string | null;
     contactSubmissionId?: number | null;
     createdAt?: string | null;
     readAt?: string | null;
     isRead?: boolean;
+}
+
+export interface Contact {
+    id: number;
+    uuid?: string;
+    name: string;
+    email: string;
+    phone_number?: string | null;
+    company?: string | null;
+    title?: string | null;
+    notes?: string | null;
+    is_active?: boolean;
+    created_at?: string | null;
 }
 
 export type PageProps<

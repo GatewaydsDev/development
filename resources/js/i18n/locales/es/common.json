@@ -53,9 +53,22 @@
       "email": "Correo electrónico",
       "phone": "Número de teléfono",
       "organization": "Organización o instalación",
+      "address": "Ubicación del servicio",
+      "addressPlaceholder": "Dirección, ciudad, código postal",
+      "state": "Estado",
+      "statePlaceholder": "Estado",
+      "country": "País",
       "projectType": "Tipo de proyecto",
       "projectTypePlaceholder": "Selecciona un tipo de proyecto",
       "message": "Detalles del proyecto"
+    },
+    "states": {
+      "NJ": "Nueva Jersey",
+      "NY": "Nueva York",
+      "PA": "Pensilvania"
+    },
+    "countries": {
+      "US": "Estados Unidos"
     },
     "projectTypes": {
       "secureDoorInstallation": "Instalación de puerta segura",
@@ -67,6 +80,8 @@
     "validation": {
       "name": "Ingresa tu nombre.",
       "email": "Ingresa un correo electrónico válido.",
+      "state": "Selecciona el estado del servicio (NJ, NY o PA).",
+      "country": "Selecciona un país.",
       "message": "Cuéntanos sobre el proyecto.",
       "messageMax": "Los detalles del proyecto deben tener 5,000 caracteres o menos."
     }

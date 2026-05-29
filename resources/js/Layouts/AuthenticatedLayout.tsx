@@ -3,6 +3,7 @@ import Dropdown from '@/Components/Dropdown';
 import NavLink from '@/Components/NavLink';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
 import ThemeModeToggle from '@/Components/ThemeModeToggle';
+import UserAvatar from '@/Components/UserAvatar';
 import { Badge } from '@/Components/ui/badge';
 import {
     DropdownMenu,
@@ -73,7 +74,10 @@ export default function Authenticated({
     const canOpenEmployees = canViewEmployees || canCreateEmployees;
     const canOpenWorkspace = canManageOwnAccount || canViewCompany;
     const canOpenOperations =
-        canOpenProjects || canOpenCustomers || canOpenEmployees;
+        canOpenProjects ||
+        canOpenCustomers ||
+        canOpenEmployees ||
+        canManageNotifications;
     const canOpenSecurity =
         canManageUsers || canManageAccess || canViewUserActivity;
     const canOpenAdministration =
@@ -420,6 +424,22 @@ export default function Authenticated({
                                                                 </DropdownMenuSubContent>
                                                             </DropdownMenuSub>
                                                         )}
+
+                                                        {canManageNotifications && (
+                                                            <DropdownMenuItem
+                                                                asChild
+                                                            >
+                                                                <Link
+                                                                    href={route(
+                                                                        'admin.contacts.index',
+                                                                    )}
+                                                                    className="flex items-center gap-2"
+                                                                >
+                                                                    <UsersIcon className="size-4" />
+                                                                    Contacts
+                                                                </Link>
+                                                            </DropdownMenuItem>
+                                                        )}
                                                     </DropdownMenuGroup>
                                                 </>
                                             )}
@@ -626,25 +646,18 @@ export default function Authenticated({
                             <div className="relative ms-3">
                                 <Dropdown>
                                     <Dropdown.Trigger>
-                                        <span className="inline-flex rounded-md">
+                                        <span className="inline-flex rounded-full">
                                             <button
                                                 type="button"
-                                                className="inline-flex items-center rounded-md border border-transparent bg-background px-3 py-2 text-sm font-medium leading-4 text-muted-foreground transition duration-150 ease-in-out hover:text-foreground focus:outline-none"
+                                                className="inline-flex items-center gap-1 rounded-full p-0.5 text-muted-foreground transition duration-150 ease-in-out hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+                                                aria-label="Open user menu"
                                             >
-                                                {user.name}
-
-                                                <svg
-                                                    className="-me-0.5 ms-2 h-4 w-4"
-                                                    xmlns="http://www.w3.org/2000/svg"
-                                                    viewBox="0 0 20 20"
-                                                    fill="currentColor"
-                                                >
-                                                    <path
-                                                        fillRule="evenodd"
-                                                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                                                        clipRule="evenodd"
-                                                    />
-                                                </svg>
+                                                <UserAvatar
+                                                    name={user.name}
+                                                    avatarUrl={user.avatar_url}
+                                                    initials={user.initials}
+                                                />
+                                                <ChevronDownIcon className="size-4" />
                                             </button>
                                         </span>
                                     </Dropdown.Trigger>
@@ -905,6 +918,20 @@ export default function Authenticated({
                                         )}
                                     </>
                                 )}
+
+                                {canManageNotifications && (
+                                    <ResponsiveNavLink
+                                        href={route('admin.contacts.index')}
+                                        active={route().current(
+                                            'admin.contacts.index',
+                                        )}
+                                    >
+                                        <span className="inline-flex items-center gap-2">
+                                            <UsersIcon className="size-4" />
+                                            Contacts
+                                        </span>
+                                    </ResponsiveNavLink>
+                                )}
                                     </>
                                 )}
 
@@ -1047,12 +1074,20 @@ export default function Authenticated({
                         </div>
                         )}
 
-                        <div className="px-4">
-                            <div className="text-base font-medium text-foreground">
-                                {user.name}
-                            </div>
-                            <div className="text-sm font-medium text-muted-foreground">
-                                {user.email}
+                        <div className="flex items-center gap-3 px-4">
+                            <UserAvatar
+                                name={user.name}
+                                avatarUrl={user.avatar_url}
+                                initials={user.initials}
+                                className="size-10"
+                            />
+                            <div>
+                                <div className="text-base font-medium text-foreground">
+                                    {user.name}
+                                </div>
+                                <div className="text-sm font-medium text-muted-foreground">
+                                    {user.email}
+                                </div>
                             </div>
                         </div>
 

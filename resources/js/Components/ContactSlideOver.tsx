@@ -25,6 +25,9 @@ type ContactFormData = {
     email: string;
     phone_number: string;
     organization: string;
+    address: string;
+    state: string;
+    country: string;
     project_type: string;
     message: string;
     source_url: string;
@@ -43,6 +46,8 @@ const projectTypes = [
     'retrofitReplacement',
     'generalInquiry',
 ];
+
+const serviceStates = ['NJ', 'NY', 'PA'] as const;
 
 type ContactSlideOverProps = {
     showTrigger?: boolean;
@@ -66,6 +71,23 @@ export default function ContactSlideOver({
                     .email(t('contact.validation.email')),
                 phone_number: z.string().trim().max(50),
                 organization: z.string().trim().max(255),
+                address: z.string().trim().max(255),
+                state: z
+                    .string()
+                    .refine(
+                        (value) =>
+                            (serviceStates as readonly string[]).includes(
+                                value,
+                            ),
+                        {
+                            message: t('contact.validation.state'),
+                        },
+                    ),
+                country: z
+                    .string()
+                    .refine((value) => value === 'US', {
+                        message: t('contact.validation.country'),
+                    }),
                 project_type: z.string().trim().max(255),
                 message: z
                     .string()
@@ -94,6 +116,9 @@ export default function ContactSlideOver({
             email: '',
             phone_number: '',
             organization: '',
+            address: '',
+            state: '',
+            country: 'US',
             project_type: '',
             message: '',
             source_url: '',
@@ -110,6 +135,9 @@ export default function ContactSlideOver({
             email: '',
             phone_number: '',
             organization: '',
+            address: '',
+            state: '',
+            country: 'US',
             project_type: '',
             message: '',
             source_url: window.location.href,
@@ -357,6 +385,71 @@ export default function ContactSlideOver({
                                 />
                                 <InputError
                                     message={errors.organization?.message}
+                                    className="text-destructive"
+                                />
+                            </div>
+
+                            <div className="flex flex-col gap-2">
+                                <InputLabel
+                                    htmlFor="contact-address"
+                                    value={t('contact.fields.address')}
+                                    className={labelClassName}
+                                />
+                                <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
+                                    <TextInput
+                                        id="contact-address"
+                                        className={inputClassName}
+                                        autoComplete="street-address"
+                                        placeholder={t(
+                                            'contact.fields.addressPlaceholder',
+                                        )}
+                                        aria-invalid={Boolean(errors.address)}
+                                        {...register('address')}
+                                    />
+                                    <select
+                                        id="contact-state"
+                                        aria-label={t('contact.fields.state')}
+                                        className="h-11 w-full rounded-md border border-border bg-background px-3 text-foreground shadow-sm focus:border-ring focus:ring-ring dark:bg-input/30 sm:w-32"
+                                        aria-invalid={Boolean(errors.state)}
+                                        {...register('state')}
+                                    >
+                                        <option value="">
+                                            {t('contact.fields.statePlaceholder')}
+                                        </option>
+                                        {serviceStates.map((state) => (
+                                            <option key={state} value={state}>
+                                                {t(`contact.states.${state}`)}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <InputError
+                                    message={
+                                        errors.address?.message ||
+                                        errors.state?.message
+                                    }
+                                    className="text-destructive"
+                                />
+                            </div>
+
+                            <div className="flex flex-col gap-2">
+                                <InputLabel
+                                    htmlFor="contact-country"
+                                    value={t('contact.fields.country')}
+                                    className={labelClassName}
+                                />
+                                <select
+                                    id="contact-country"
+                                    className="h-11 w-full rounded-md border border-border bg-background px-3 text-foreground shadow-sm focus:border-ring focus:ring-ring dark:bg-input/30"
+                                    aria-invalid={Boolean(errors.country)}
+                                    {...register('country')}
+                                >
+                                    <option value="US">
+                                        {t('contact.countries.US')}
+                                    </option>
+                                </select>
+                                <InputError
+                                    message={errors.country?.message}
                                     className="text-destructive"
                                 />
                             </div>

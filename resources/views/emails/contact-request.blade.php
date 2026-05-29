@@ -2,16 +2,22 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>New contact request</title>
+    <title>{{ $subject ?? 'Contact request' }}</title>
 </head>
 <body style="font-family: Arial, sans-serif; color: #111827; line-height: 1.5;">
     <p style="margin: 0 0 16px;">
         <img src="{{ asset('images/App-Logo.png') }}" alt="Gateway Door Systems" width="220" style="display: block; width: 220px; max-width: 100%; height: auto;">
     </p>
 
-    <h1 style="font-size: 22px; margin-bottom: 16px;">New secure door contact request</h1>
+    @if (! empty($recipientName))
+        <p style="margin: 0 0 16px;">Hi {{ $recipientName }},</p>
+    @endif
 
-    <p>A new contact form submission was received from the Gateway Door Systems website.</p>
+    @if (! empty($body))
+        <div style="white-space: pre-line; margin-bottom: 24px;">{{ $body }}</div>
+    @endif
+
+    <h2 style="font-size: 18px; margin: 24px 0 12px;">Contact request details</h2>
 
     <table cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; max-width: 720px;">
         <tr>
@@ -45,10 +51,6 @@
         <tr>
             <th align="left" style="border-bottom: 1px solid #e5e7eb;">Project type</th>
             <td style="border-bottom: 1px solid #e5e7eb;">{{ $submission->project_type ?: 'Not provided' }}</td>
-        </tr>
-        <tr>
-            <th align="left" style="border-bottom: 1px solid #e5e7eb;">Source URL</th>
-            <td style="border-bottom: 1px solid #e5e7eb;">{{ $submission->source_url ?: 'Not provided' }}</td>
         </tr>
     </table>
 

@@ -2,9 +2,10 @@ import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
+import UserAvatar from '@/Components/UserAvatar';
 import { Transition } from '@headlessui/react';
 import { Link, useForm, usePage } from '@inertiajs/react';
-import { FormEventHandler } from 'react';
+import { ChangeEvent, FormEventHandler, useState } from 'react';
 
 export default function UpdateProfileInformation({
     mustVerifyEmail,
@@ -17,16 +18,29 @@ export default function UpdateProfileInformation({
 }) {
     const user = usePage().props.auth.user;
 
-    const { data, setData, patch, errors, processing, recentlySuccessful } =
-        useForm({
+    const { data, setData, post, transform, errors, processing, recentlySuccessful } =
+        useForm<{ name: string; email: string; avatar: File | null }>({
             name: user.name,
             email: user.email,
+            avatar: null,
         });
+    const [avatarPreview, setAvatarPreview] = useState<string | null>(
+        user.avatar_url ?? null,
+    );
+
+    transform((formData) => ({ ...formData, _method: 'PATCH' }));
+
+    const onAvatarChange = (event: ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0] ?? null;
+
+        setData('avatar', file);
+        setAvatarPreview(file ? URL.createObjectURL(file) : user.avatar_url ?? null);
+    };
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
 
-        patch(route('profile.update'));
+        post(route('profile.update'), { forceFormData: true });
     };
 
     return (
@@ -42,6 +56,28 @@ export default function UpdateProfileInformation({
             </header>
 
             <form onSubmit={submit} className="mt-6 space-y-6">
+                <div className="flex items-center gap-4">
+                    <UserAvatar
+                        name={data.name}
+                        avatarUrl={avatarPreview}
+                        className="size-16 text-xl"
+                    />
+                    <div>
+                        <InputLabel htmlFor="avatar" value="Avatar image" />
+                        <input
+                            id="avatar"
+                            type="file"
+                            accept="image/png,image/jpeg,image/jpg,image/webp"
+                            onChange={onAvatarChange}
+                            className="mt-1 block w-full text-sm text-gray-600 file:mr-4 file:rounded-md file:border-0 file:bg-emerald-600 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-emerald-700"
+                        />
+                        <p className="mt-1 text-xs text-gray-500">
+                            PNG, JPG, or WEBP up to 2MB.
+                        </p>
+                        <InputError className="mt-2" message={errors.avatar} />
+                    </div>
+                </div>
+
                 <div>
                     <InputLabel htmlFor="name" value="Name" />
 

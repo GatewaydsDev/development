@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AccessControlController;
 use App\Http\Controllers\Admin\AccountController;
 use App\Http\Controllers\Admin\CompanyController;
+use App\Http\Controllers\Admin\ContactController;
 use App\Http\Controllers\Admin\CustomerContactRoleController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\EmployeeController;
@@ -76,6 +77,18 @@ Route::middleware(['auth', 'prevent-back-history', 'can:manage-notifications'])
         Route::patch('/{notification}', [NotificationController::class, 'update'])->name('update');
         Route::delete('/{notification}', [NotificationController::class, 'destroy'])->name('destroy');
         Route::post('/{notification}/read', [NotificationController::class, 'markAsRead'])->name('read');
+        Route::patch('/{notification}/status', [NotificationController::class, 'updateStatus'])->name('status');
+        Route::post('/{notification}/send-email', [NotificationController::class, 'sendEmail'])->name('send-email');
+    });
+
+Route::middleware(['auth', 'prevent-back-history', 'can:manage-notifications'])
+    ->prefix('administration')
+    ->name('admin.')
+    ->group(function () {
+        Route::get('/contacts', [ContactController::class, 'index'])->name('contacts.index');
+        Route::post('/contacts', [ContactController::class, 'store'])->name('contacts.store');
+        Route::patch('/contacts/{contact}', [ContactController::class, 'update'])->name('contacts.update');
+        Route::delete('/contacts/{contact}', [ContactController::class, 'destroy'])->name('contacts.destroy');
     });
 
 Route::middleware(['auth', 'prevent-back-history'])

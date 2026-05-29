@@ -11,6 +11,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules;
 use Inertia\Inertia;
@@ -42,6 +43,8 @@ class UserController extends Controller
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
+                    'avatar_url' => $user->avatar_url,
+                    'initials' => $user->initials,
                     'date_of_birth' => $user->date_of_birth?->format('m/d/Y'),
                     'preferred_language' => $user->preferredLanguage
                         ? [
@@ -106,6 +109,7 @@ class UserController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
+            'avatar' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'date_of_birth' => ['nullable', 'date_format:m/d/Y'],
             'language_id' => ['nullable', 'integer', Rule::exists(Language::class, 'id')],
             'level_id' => ['required', 'integer', Rule::exists(UserLevel::class, 'id')],
@@ -117,6 +121,9 @@ class UserController extends Controller
         User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
+            'avatar' => $request->hasFile('avatar')
+                ? $request->file('avatar')->store('avatars', 'public')
+                : null,
             'date_of_birth' => $this->dateOfBirth($validated['date_of_birth'] ?? null),
             'language_id' => $validated['language_id'] ?? null,
             'level_id' => $level->id,
@@ -140,6 +147,8 @@ class UserController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
+                'avatar_url' => $user->avatar_url,
+                'initials' => $user->initials,
                 'date_of_birth' => $user->date_of_birth?->format('m/d/Y'),
                 'language_id' => $user->language_id,
                 'preferred_language' => $user->preferredLanguage
@@ -172,6 +181,7 @@ class UserController extends Controller
                 'max:255',
                 Rule::unique(User::class)->ignore($user->id),
             ],
+            'avatar' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'date_of_birth' => ['nullable', 'date_format:m/d/Y'],
             'language_id' => ['nullable', 'integer', Rule::exists(Language::class, 'id')],
             'level_id' => ['required', 'integer', Rule::exists(UserLevel::class, 'id')],
@@ -188,6 +198,14 @@ class UserController extends Controller
             'level_id' => $level->id,
             'role' => str($level->name)->lower()->replace(' ', '_')->toString(),
         ]);
+
+        if ($request->hasFile('avatar')) {
+            if ($user->avatar) {
+                Storage::disk('public')->delete($user->avatar);
+            }
+
+            $user->avatar = $request->file('avatar')->store('avatars', 'public');
+        }
 
         if (! empty($validated['password'])) {
             $user->password = Hash::make($validated['password']);

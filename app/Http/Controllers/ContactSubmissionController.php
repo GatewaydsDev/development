@@ -24,6 +24,9 @@ class ContactSubmissionController extends Controller
             'email' => ['required', 'email', 'max:255'],
             'phone_number' => ['nullable', 'string', 'max:50'],
             'organization' => ['nullable', 'string', 'max:255'],
+            'address' => ['nullable', 'string', 'max:255'],
+            'state' => ['nullable', 'string', 'in:NJ,NY,PA'],
+            'country' => ['nullable', 'string', 'in:US'],
             'project_type' => ['nullable', 'string', 'max:255'],
             'message' => ['required', 'string', 'max:5000'],
             'source_url' => ['nullable', 'url', 'max:2048'],
@@ -126,6 +129,14 @@ class ContactSubmissionController extends Controller
 
         if (is_string($submission->organization) && $submission->organization !== '') {
             $parts[] = "Organization: {$submission->organization}";
+        }
+
+        $location = collect([$submission->address, $submission->state, $submission->country])
+            ->filter(fn ($value): bool => is_string($value) && $value !== '')
+            ->implode(', ');
+
+        if ($location !== '') {
+            $parts[] = "Location: {$location}";
         }
 
         $parts[] = 'Message: '.str($submission->message)->limit(160);
