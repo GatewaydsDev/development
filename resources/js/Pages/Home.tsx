@@ -4,7 +4,8 @@ import {
     Card,
     CardContent,
 } from '@/Components/ui/card';
-import HeroGearDoor from '@/Components/HeroGearDoor';
+import HeroProductCard from '@/Components/HeroProductCard';
+import SecureDoorCard from '@/Components/SecureDoorCard';
 import CertificationCard from '@/Components/CertificationCard';
 import { certifications } from '@/data/certifications';
 import { serviceDefinitions } from '@/data/services';
@@ -254,7 +255,7 @@ export default function Home({ companyPhoneNumber, canonicalUrl }: HomeProps) {
                         </div>
                     </div>
 
-                    <div className="group relative flex min-h-[32rem] items-start justify-center overflow-hidden rounded-[2rem] sm:min-h-[40rem] lg:min-h-[48rem]">
+                    <div className="group relative flex items-start justify-center rounded-[2rem]">
                         <div className="absolute inset-x-4 top-8 h-72 rounded-full bg-emerald-400/20 blur-3xl transition duration-700 group-hover:bg-emerald-400/30 sm:h-96 lg:-inset-x-6 lg:h-[28rem]" />
                         <div className="absolute bottom-10 right-4 size-52 rounded-full bg-primary/10 blur-2xl transition duration-700 group-hover:scale-110 lg:size-60" />
 
@@ -262,12 +263,7 @@ export default function Home({ companyPhoneNumber, canonicalUrl }: HomeProps) {
                             <div className="absolute inset-0 translate-y-8 rounded-[2rem] bg-emerald-950/20 blur-2xl transition duration-700 group-hover:translate-y-10 group-hover:scale-105" />
 
                             <div className="relative overflow-hidden rounded-[2rem] border border-white/30 shadow-2xl shadow-emerald-950/20 ring-1 ring-emerald-500/10 dark:border-white/10 dark:shadow-emerald-950/40">
-                                <img
-                                    src="/images/Section_Hero_Home.png"
-                                    alt={t('hero.card.title')}
-                                    className="relative w-full object-cover object-top"
-                                />
-                                <HeroGearDoor />
+                                <HeroProductCard />
                             </div>
                         </div>
                     </div>
@@ -315,11 +311,9 @@ export default function Home({ companyPhoneNumber, canonicalUrl }: HomeProps) {
                                 }
                             />
 
-                            <img
-                                src="/images/3-images.png"
-                                alt={t('secureDoor.imageAlt')}
-                                className="relative h-64 w-full rounded-3xl border border-border object-cover transition duration-700 group-hover:scale-[1.02] sm:h-80 lg:h-auto"
-                            />
+                            <div className="relative overflow-hidden rounded-3xl border border-border shadow-2xl shadow-emerald-950/20 ring-1 ring-emerald-500/10 transition duration-700 group-hover:scale-[1.01]">
+                                <SecureDoorCard />
+                            </div>
                         </div>
                     </div>
 

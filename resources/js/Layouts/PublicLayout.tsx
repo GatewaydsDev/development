@@ -1,5 +1,6 @@
 import ApplicationLogo from '@/Components/ApplicationLogo';
 import ContactSlideOver from '@/Components/ContactSlideOver';
+import FloatingSiteGear from '@/Components/FloatingSiteGear';
 import HelpCenter from '@/Components/HelpCenter';
 import LanguageSwitcher from '@/Components/LanguageSwitcher';
 import PublicActionFab from '@/Components/PublicActionFab';
@@ -67,6 +68,7 @@ export default function PublicLayout({ children }: PropsWithChildren) {
 
     return (
         <div className="min-h-screen bg-background text-foreground">
+            <FloatingSiteGear delayMs={isHome ? 6200 : 400} />
             <header className="sticky top-0 z-50">
                 {isHome ? (
                     <div className="border-b border-emerald-500/20 bg-emerald-950/95 text-center text-sm font-medium tracking-wide text-emerald-50 backdrop-blur supports-[backdrop-filter]:bg-emerald-950/90">

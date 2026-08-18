@@ -31,7 +31,33 @@
     },
     "card": {
       "title": "Diseñado para accesos seguros",
-      "description": "Gateway se enfoca en la instalación de puertas que respalda el acceso controlado, la operación confiable y el rendimiento durable en instalaciones sensibles."
+      "description": "Gateway se enfoca en la instalación de puertas que respalda el acceso controlado, la operación confiable y el rendimiento durable en instalaciones sensibles.",
+      "tagline": "Seguras. Fuertes. Hechas para durar.",
+      "body": "Diseñadas para durabilidad y rendimiento, nuestras puertas metálicas ofrecen seguridad confiable para cualquier aplicación.",
+      "imageAlt": "Puertas dobles de metal industrial instaladas en un edificio comercial",
+      "features": {
+        "steel": {
+          "title": "Puertas de seguridad de acero",
+          "description": "Construcción de acero de alta resistencia para máxima protección y durabilidad a largo plazo."
+        },
+        "fire": {
+          "title": "Puertas con clasificación contra incendios",
+          "description": "Diseñadas para cumplir normas de seguridad contra incendios y proteger lo que más importa."
+        },
+        "commercial": {
+          "title": "Puertas comerciales",
+          "description": "Puertas confiables y funcionales para el uso diario en entornos comerciales."
+        },
+        "custom": {
+          "title": "Soluciones a medida",
+          "description": "Soluciones de puertas adaptadas a tus necesidades y requisitos de proyecto."
+        }
+      },
+      "footer": {
+        "builtToLast": "Hechas para durar",
+        "quality": "Calidad garantizada",
+        "madeInUsa": "Hecho en EE. UU."
+      }
     }
   },
   "floatingQuote": {
@@ -42,6 +68,31 @@
     "title": "Instalación de puertas seguras para SCIF, comercios y áreas de acceso controlado",
     "description": "Gateway Door Systems ofrece instalación profesional de puertas seguras, marcos reforzados, herrajes comerciales, aperturas preparadas para control de acceso y puertas especiales para áreas sensibles. También construimos salas SCIF e instalamos los sistemas de puertas utilizados en instalaciones seguras, espacios gubernamentales, edificios comerciales y entornos de acceso controlado.",
     "imageAlt": "Instalación de puertas seguras, seguridad reforzada y soluciones preparadas para control de acceso",
+    "card": {
+      "title": "Instalación de puertas seguras",
+      "tagline": "Seguras. Confiables. Profesionales.",
+      "body": "Instalación profesional de puertas comerciales y de seguridad para instalaciones que exigen resistencia, confiabilidad y rendimiento.",
+      "restricted": "Área restringida",
+      "features": {
+        "reinforced": {
+          "title": "Seguridad reforzada",
+          "description": "Instalamos puertas, marcos y herrajes reforzados para entornos de alta seguridad y áreas sensibles."
+        },
+        "accessControl": {
+          "title": "Preparadas para control de acceso",
+          "description": "Puertas preparadas para sistemas de control de acceso, lectores de tarjetas, cerraduras eléctricas, cerraduras magnéticas y herrajes integrados."
+        },
+        "installation": {
+          "title": "Instalación profesional",
+          "description": "Instalación experta que garantiza el funcionamiento correcto, el cumplimiento normativo y un rendimiento duradero."
+        }
+      },
+      "footer": {
+        "builtToLast": "Hechas para durar",
+        "quality": "Calidad garantizada",
+        "madeInUsa": "Hecho en EE. UU."
+      }
+    },
     "features": {
       "scif": {
         "title": "Salas SCIF e instalación de puertas",

@@ -31,7 +31,33 @@
     },
     "card": {
       "title": "Built around secure openings",
-      "description": "Gateway focuses on the door installation work that supports controlled access, reliable operation, and durable performance in sensitive facilities."
+      "description": "Gateway focuses on the door installation work that supports controlled access, reliable operation, and durable performance in sensitive facilities.",
+      "tagline": "Secure. Strong. Built to Last.",
+      "body": "Engineered for durability and performance, our metal doors provide reliable security for any application.",
+      "imageAlt": "Industrial metal double doors installed on a commercial building",
+      "features": {
+        "steel": {
+          "title": "Steel Security Doors",
+          "description": "Heavy-duty steel construction for maximum protection and long-term durability."
+        },
+        "fire": {
+          "title": "Fire Rated Doors",
+          "description": "Designed to meet fire safety standards and help protect what matters most."
+        },
+        "commercial": {
+          "title": "Commercial Doors",
+          "description": "Reliable and functional doors built for everyday use in commercial environments."
+        },
+        "custom": {
+          "title": "Custom Solutions",
+          "description": "Tailored door solutions to meet your specific needs and project requirements."
+        }
+      },
+      "footer": {
+        "builtToLast": "Built to last",
+        "quality": "Quality guaranteed",
+        "madeInUsa": "Made in the USA"
+      }
     }
   },
   "floatingQuote": {
@@ -42,6 +68,31 @@
     "title": "Secure Door Installation for SCIF, Commercial & Controlled-Access Areas",
     "description": "Gateway Door Systems provides professional installation of secure doors, reinforced door frames, commercial hardware, access-control ready openings, and specialty doors for sensitive areas. We also build SCIF rooms and install the door systems used in secure facilities, government spaces, commercial buildings, and controlled-access environments.",
     "imageAlt": "Secure door installation, reinforced security, and access control ready door solutions",
+    "card": {
+      "title": "Secure Door Installation",
+      "tagline": "Secure. Reliable. Professional.",
+      "body": "Professional installation of commercial and security doors for facilities that demand strength, reliability, and performance.",
+      "restricted": "Restricted Area",
+      "features": {
+        "reinforced": {
+          "title": "Reinforced Security",
+          "description": "We install reinforced doors, frames, and hardware built to support high-security and sensitive environments."
+        },
+        "accessControl": {
+          "title": "Access Control Ready",
+          "description": "Doors fitted for access control systems, card readers, electric strikes, maglocks, and integrated security hardware."
+        },
+        "installation": {
+          "title": "Professional Installation",
+          "description": "Expert installation that ensures proper function, code compliance, and long-lasting performance."
+        }
+      },
+      "footer": {
+        "builtToLast": "Built to last",
+        "quality": "Quality guaranteed",
+        "madeInUsa": "Made in the USA"
+      }
+    },
     "features": {
       "scif": {
         "title": "SCIF Rooms & Door Installation",
