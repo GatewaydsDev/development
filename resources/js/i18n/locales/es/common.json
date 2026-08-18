@@ -5,6 +5,7 @@
   "navigation": {
     "home": "Inicio",
     "about": "Nosotros",
+    "certifications": "Certificaciones",
     "services": "Servicios",
     "serviceItems": {
       "radioFrequencyDoors": "Radio Frequency doors",
@@ -144,6 +145,11 @@
         "title": "¿Dónde puedo aprender más sobre la compañía?",
         "answer": "Visita la página Nosotros para conocer las capacidades de Gateway Door Systems, entornos atendidos, coordinación de proyectos y enfoque en puertas seguras.",
         "keywords": "nosotros compania gateway door systems capacidades entornos"
+      },
+      "certifications": {
+        "title": "¿Qué certificaciones tiene Gateway Door Systems?",
+        "answer": "Gateway Door Systems cuenta con credenciales de Lockmasters, RF y construcción de salas SCIF para cerraduras de alta seguridad, puertas apantalladas de radiofrecuencia y salas SCIF. Visita la página de Certificaciones para más información.",
+        "keywords": "certificacion lockmasters rf scif salas certificado capacitacion fabrica credenciales"
       },
       "portal": {
         "title": "¿Cómo accedo al portal de clientes?",

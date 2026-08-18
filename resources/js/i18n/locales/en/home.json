@@ -40,12 +40,12 @@
   "secureDoor": {
     "badge": "Secure Door Installation",
     "title": "Secure Door Installation for SCIF, Commercial & Controlled-Access Areas",
-    "description": "Gateway Door Systems provides professional installation of secure doors, reinforced door frames, commercial hardware, access-control ready openings, and specialty doors for sensitive areas. We do not construct SCIF rooms, but we can install doors and door systems used in secure facilities, government spaces, commercial buildings, and controlled-access environments.",
+    "description": "Gateway Door Systems provides professional installation of secure doors, reinforced door frames, commercial hardware, access-control ready openings, and specialty doors for sensitive areas. We also build SCIF rooms and install the door systems used in secure facilities, government spaces, commercial buildings, and controlled-access environments.",
     "imageAlt": "Secure door installation, reinforced security, and access control ready door solutions",
     "features": {
       "scif": {
-        "title": "SCIF-Related Door Installation",
-        "description": "Installation support for secure-rated doors, frames, seals, hinges, locks, and hardware used in sensitive facility openings."
+        "title": "SCIF Rooms & Door Installation",
+        "description": "Certified SCIF room construction plus installation of secure-rated doors, frames, seals, hinges, locks, and hardware used in sensitive facility openings."
       },
       "commercial": {
         "title": "Commercial Secure Doors",

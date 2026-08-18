@@ -244,11 +244,11 @@ export default function Authenticated({
         <div className="min-h-screen bg-muted/30 text-foreground">
             <nav className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                    <div className="flex min-h-20 items-center justify-between gap-4 sm:min-h-24 lg:min-h-28 lg:gap-8">
+                    <div className="flex items-center justify-between gap-4 overflow-visible py-2 sm:py-2.5 md:py-3 lg:gap-8">
                         <div className="flex">
                             <div className="flex shrink-0 items-center">
-                                <Link href="/">
-                                    <ApplicationLogo className="block h-28 w-auto max-w-none sm:h-32 lg:h-36" />
+                                <Link href="/" className="shrink-0">
+                                    <ApplicationLogo className="block size-14 sm:size-16 md:size-20 lg:size-24" />
                                 </Link>
                             </div>
 

@@ -16,6 +16,7 @@ import { PageProps } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import {
     AnchorIcon,
+    BadgeCheckIcon,
     Building2Icon,
     ChevronDownIcon,
     FactoryIcon,
@@ -36,6 +37,11 @@ import { useTranslation } from 'react-i18next';
 const navigation = [
     { labelKey: 'navigation.home', route: 'home', Icon: HomeIcon },
     { labelKey: 'navigation.about', route: 'about', Icon: InfoIcon },
+    {
+        labelKey: 'navigation.certifications',
+        route: 'certifications',
+        Icon: BadgeCheckIcon,
+    },
 ];
 
 const footerMarkets = [
@@ -72,11 +78,11 @@ export default function PublicLayout({ children }: PropsWithChildren) {
 
                 <nav className="border-b border-border bg-background/95 backdrop-blur">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                    <div className="flex min-h-16 items-center justify-between gap-3 sm:min-h-20 lg:min-h-28 lg:gap-8">
+                    <div className="flex items-center justify-between gap-3 overflow-visible py-2 sm:py-2.5 md:py-3 lg:gap-8">
                         <div className="flex min-w-0 items-center">
                             <div className="flex shrink-0 items-center">
-                                <Link href={route('home')}>
-                                    <ApplicationLogo className="block h-20 w-auto max-w-none sm:h-28 lg:h-36" />
+                                <Link href={route('home')} className="shrink-0">
+                                    <ApplicationLogo className="block size-14 sm:size-16 md:size-20 lg:size-24" />
                                 </Link>
                             </div>
 
@@ -318,7 +324,7 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                 <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
                     <div className="grid gap-12 lg:grid-cols-[1.2fr_2fr]">
                         <div>
-                            <ApplicationLogo className="h-20 w-auto max-w-none sm:h-28" />
+                            <ApplicationLogo className="size-16 sm:size-20 md:size-24" />
                             <p className="mt-6 max-w-md leading-7 text-emerald-50/75">
                                 {t('footer.description')}
                             </p>

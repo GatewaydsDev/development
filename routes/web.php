@@ -37,6 +37,12 @@ Route::get('/about', function () {
     ]);
 })->name('about');
 
+Route::get('/certifications', function () {
+    return Inertia::render('Certifications', [
+        'canonicalUrl' => url()->current(),
+    ]);
+})->name('certifications');
+
 Route::get('/services/{service}', function (string $service) {
     $services = [
         'radio-frequency-doors' => 'radioFrequencyDoors',

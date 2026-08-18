@@ -18,7 +18,7 @@
   "capabilities": {
     "badge": "SCIF-related secure openings",
     "title": "We install the door systems that support secure spaces.",
-    "description": "SCIF and controlled-access environments depend on every opening performing as intended. While Gateway Door Systems does not construct or certify SCIF rooms, we provide careful installation of doors, frames, hardware, seals, and access-control ready components used in secure facility openings.",
+    "description": "SCIF and controlled-access environments depend on every opening performing as intended. Gateway Door Systems builds SCIF rooms and provides careful installation of doors, frames, hardware, seals, and access-control ready components used in secure facility openings.",
     "note": "Project requirements can vary by facility, authority, and specification. Our role is to coordinate clearly, install precisely, and support the secure-door scope assigned to our team.",
     "items": {
       "secureOpenings": {

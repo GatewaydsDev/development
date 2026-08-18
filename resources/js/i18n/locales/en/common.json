@@ -5,6 +5,7 @@
   "navigation": {
     "home": "Home",
     "about": "About us",
+    "certifications": "Certifications",
     "services": "Services",
     "serviceItems": {
       "radioFrequencyDoors": "Radio Frequency doors",
@@ -144,6 +145,11 @@
         "title": "Where can I learn more about the company?",
         "answer": "Visit the About page to learn about Gateway Door Systems capabilities, environments served, project coordination, and secure door approach.",
         "keywords": "about company gateway door systems capabilities environments"
+      },
+      "certifications": {
+        "title": "What certifications does Gateway Door Systems have?",
+        "answer": "Gateway Door Systems holds Lockmasters, RF, and SCIF room construction credentials for high-security locks, radio-frequency shielded doors, and SCIF rooms. Visit the Certifications page to learn more.",
+        "keywords": "certification lockmasters rf scif rooms certified training factory authorized credentials"
       },
       "portal": {
         "title": "How do I access my customer portal?",

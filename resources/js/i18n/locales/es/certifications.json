@@ -1,0 +1,66 @@
+{
+  "meta": {
+    "title": "Certificaciones | Gateway Door Systems",
+    "description": "Gateway Door Systems cuenta con credenciales de Lockmasters, RF y construcción de salas SCIF para puertas de alta seguridad, aperturas apantalladas e instalaciones seguras."
+  },
+  "hero": {
+    "badge": "Credenciales verificadas",
+    "title": "Certificados para puertas de alta seguridad, aperturas RF y salas SCIF.",
+    "description": "Gateway Door Systems mantiene credenciales autorizadas de fábrica y especializadas para herrajes Lockmasters, puertas apantalladas de radiofrecuencia y construcción de salas SCIF."
+  },
+  "preview": {
+    "badge": "Certificaciones",
+    "title": "Certificados en Lockmasters, RF y construcción de salas SCIF.",
+    "description": "Nuestras credenciales respaldan herrajes de alta seguridad, aperturas apantalladas de radiofrecuencia y la construcción de salas SCIF para instalaciones de acceso controlado.",
+    "viewAll": "Ver certificaciones"
+  },
+  "items": {
+    "lockmasters": {
+      "issuer": "Lockmasters",
+      "title": "Certificación de Lockmasters Security Institute",
+      "summary": "Capacitación autorizada de fábrica para cerraduras de alta seguridad, herrajes especializados e instalación de puertas seguras.",
+      "description": "Lockmasters es un proveedor líder de cerraduras de alta seguridad, herramientas y capacitación profesional. Esta certificación documenta instrucción autorizada de fábrica para aperturas especializadas, incluyendo coordinación de herrajes e instalación en entornos de acceso controlado.",
+      "websiteLabel": "Visitar Lockmasters",
+      "logoAlt": "Logotipo de Lockmasters Security Institute",
+      "imageAlt": "Puerta reforzada de alta seguridad y herrajes de cierre",
+      "issuedBy": "Emitida por Lockmasters Security Institute"
+    },
+    "rf": {
+      "issuer": "RF",
+      "title": "Certificación de instalación de puertas RF",
+      "summary": "Instalación certificada de puertas apantalladas de radiofrecuencia para control electromagnético y TEMPEST.",
+      "description": "Esta certificación RF cubre la instalación de ensamblajes de puertas apantalladas de radiofrecuencia donde el control electromagnético, el desempeño TEMPEST y el acceso seguro deben trabajar juntos. Respaldan el ajuste preciso, la continuidad en la apertura y la coordinación de marcos, sellos y herrajes con clasificación RF.",
+      "logoAlt": "Marca de certificación RF",
+      "imageAlt": "Puerta apantallada de radiofrecuencia con control de acceso",
+      "issuedBy": "Aperturas apantalladas de radiofrecuencia"
+    },
+    "scifRooms": {
+      "issuer": "SCIF",
+      "title": "Certificación de construcción de salas SCIF",
+      "summary": "Certificados para construir salas SCIF en instalaciones sensibles de acceso controlado.",
+      "description": "Esta certificación cubre la construcción de salas SCIF (Sensitive Compartmented Information Facility), incluyendo la coordinación de muros seguros, aperturas, penetraciones y sistemas de puertas usados en espacios relacionados con ICD-705. Gateway Door Systems apoya la construcción de salas SCIF que requieren instalación disciplinada y documentación.",
+      "logoAlt": "Marca de certificación de construcción de salas SCIF",
+      "imageAlt": "Puertas seguras en un pasillo de instalación de acceso controlado",
+      "issuedBy": "Construcción de salas SCIF"
+    }
+  },
+  "highlights": {
+    "factory": {
+      "title": "Herrajes autorizados de fábrica",
+      "description": "La capacitación de Lockmasters respalda cerraduras, pestillos y herrajes especializados de alta seguridad."
+    },
+    "rf": {
+      "title": "Aperturas apantalladas RF",
+      "description": "Instalación certificada de puertas RF para control electromagnético y aperturas relacionadas con TEMPEST."
+    },
+    "scifRooms": {
+      "title": "Construcción de salas SCIF",
+      "description": "Capacidad certificada para construir salas SCIF y coordinar las aperturas seguras que requieren."
+    }
+  },
+  "cta": {
+    "eyebrow": "¿Necesitas instalación certificada?",
+    "title": "Trabaja con un equipo certificado en puertas RF, salas SCIF y aperturas de alta seguridad.",
+    "button": "Solicitar revisión de proyecto"
+  }
+}

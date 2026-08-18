@@ -40,12 +40,12 @@
   "secureDoor": {
     "badge": "Instalación de puertas seguras",
     "title": "Instalación de puertas seguras para SCIF, comercios y áreas de acceso controlado",
-    "description": "Gateway Door Systems ofrece instalación profesional de puertas seguras, marcos reforzados, herrajes comerciales, aperturas preparadas para control de acceso y puertas especiales para áreas sensibles. No construimos salas SCIF, pero podemos instalar puertas y sistemas de puertas utilizados en instalaciones seguras, espacios gubernamentales, edificios comerciales y entornos de acceso controlado.",
+    "description": "Gateway Door Systems ofrece instalación profesional de puertas seguras, marcos reforzados, herrajes comerciales, aperturas preparadas para control de acceso y puertas especiales para áreas sensibles. También construimos salas SCIF e instalamos los sistemas de puertas utilizados en instalaciones seguras, espacios gubernamentales, edificios comerciales y entornos de acceso controlado.",
     "imageAlt": "Instalación de puertas seguras, seguridad reforzada y soluciones preparadas para control de acceso",
     "features": {
       "scif": {
-        "title": "Instalación de puertas relacionadas con SCIF",
-        "description": "Soporte de instalación para puertas, marcos, sellos, bisagras, cerraduras y herrajes de seguridad usados en aperturas de instalaciones sensibles."
+        "title": "Salas SCIF e instalación de puertas",
+        "description": "Construcción certificada de salas SCIF e instalación de puertas, marcos, sellos, bisagras, cerraduras y herrajes de seguridad usados en aperturas de instalaciones sensibles."
       },
       "commercial": {
         "title": "Puertas comerciales seguras",

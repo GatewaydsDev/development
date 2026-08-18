@@ -2,6 +2,7 @@ import { openContactForm } from '@/lib/contact';
 import { openHelpCenterEventName } from '@/lib/help';
 import { Link } from '@inertiajs/react';
 import {
+    BadgeCheckIcon,
     Building2Icon,
     ClipboardCheckIcon,
     DoorOpenIcon,
@@ -58,6 +59,11 @@ const helpTopics = [
         key: 'about',
         Icon: DoorOpenIcon,
         action: 'about',
+    },
+    {
+        key: 'certifications',
+        Icon: BadgeCheckIcon,
+        action: 'certifications',
     },
     {
         key: 'portal',
@@ -244,6 +250,19 @@ export default function HelpCenter({ showTrigger = true }: HelpCenterProps) {
                                         <Link
                                             key={topic.key}
                                             href={route('about')}
+                                            onClick={() => setIsOpen(false)}
+                                            className="flex items-start gap-3 rounded-xl border border-border bg-card p-4 text-left transition hover:border-emerald-400/50 hover:bg-emerald-500/5"
+                                        >
+                                            {topicContent}
+                                        </Link>
+                                    );
+                                }
+
+                                if (topic.action === 'certifications') {
+                                    return (
+                                        <Link
+                                            key={topic.key}
+                                            href={route('certifications')}
                                             onClick={() => setIsOpen(false)}
                                             className="flex items-start gap-3 rounded-xl border border-border bg-card p-4 text-left transition hover:border-emerald-400/50 hover:bg-emerald-500/5"
                                         >

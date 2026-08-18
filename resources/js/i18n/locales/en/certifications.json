@@ -1,0 +1,66 @@
+{
+  "meta": {
+    "title": "Certifications | Gateway Door Systems",
+    "description": "Gateway Door Systems holds Lockmasters, RF, and SCIF room construction credentials for high-security doors, shielded openings, and secure facility work."
+  },
+  "hero": {
+    "badge": "Verified credentials",
+    "title": "Certified for high-security doors, RF openings, and SCIF rooms.",
+    "description": "Gateway Door Systems maintains factory-authorized and specialty credentials for Lockmasters hardware, radio-frequency shielded doors, and SCIF room construction."
+  },
+  "preview": {
+    "badge": "Certifications",
+    "title": "Certified for Lockmasters, RF, and SCIF room construction.",
+    "description": "Our credentials support high-security hardware, radio-frequency shielded openings, and the construction of SCIF rooms for controlled-access facilities.",
+    "viewAll": "View certifications"
+  },
+  "items": {
+    "lockmasters": {
+      "issuer": "Lockmasters",
+      "title": "Lockmasters Security Institute Certification",
+      "summary": "Factory-authorized training for high-security locks, specialty hardware, and secure door installation.",
+      "description": "Lockmasters is a leading provider of high-security locks, tools, and professional training. This certification documents factory-authorized instruction used on specialty openings, including secure hardware coordination and installation practices required in controlled-access environments.",
+      "websiteLabel": "Visit Lockmasters",
+      "logoAlt": "Lockmasters Security Institute logo",
+      "imageAlt": "High-security reinforced door and lock hardware",
+      "issuedBy": "Issued by Lockmasters Security Institute"
+    },
+    "rf": {
+      "issuer": "RF",
+      "title": "RF Door Installation Certification",
+      "summary": "Certified installation of radio-frequency shielded doors for TEMPEST and electromagnetic control.",
+      "description": "This RF certification covers the installation of radio-frequency shielded door assemblies used where electromagnetic control, TEMPEST performance, and secure access must work together. It supports precise fitting, continuity at the opening, and coordination of RF-rated frames, seals, and hardware.",
+      "logoAlt": "RF certification mark",
+      "imageAlt": "Radio-frequency shielded door with access control",
+      "issuedBy": "Radio-frequency shielded openings"
+    },
+    "scifRooms": {
+      "issuer": "SCIF",
+      "title": "SCIF Room Construction Certification",
+      "summary": "Certified to build SCIF rooms for sensitive, controlled-access facilities.",
+      "description": "This certification covers the construction of Sensitive Compartmented Information Facility (SCIF) rooms, including the coordination of secure walls, openings, penetrations, and door systems used in ICD-705 related spaces. Gateway Door Systems supports SCIF room build-outs that require disciplined installation and documentation.",
+      "logoAlt": "SCIF room construction certification mark",
+      "imageAlt": "Secure doors along a controlled-access facility corridor",
+      "issuedBy": "SCIF room construction"
+    }
+  },
+  "highlights": {
+    "factory": {
+      "title": "Factory-authorized hardware",
+      "description": "Lockmasters training supports high-security locks, strikes, and specialty door hardware."
+    },
+    "rf": {
+      "title": "RF-shielded openings",
+      "description": "Certified RF door installation for electromagnetic control and TEMPEST-related openings."
+    },
+    "scifRooms": {
+      "title": "SCIF room construction",
+      "description": "Certified capability to build SCIF rooms and coordinate the secure openings they require."
+    }
+  },
+  "cta": {
+    "eyebrow": "Need certified installation?",
+    "title": "Work with a certified team on RF doors, SCIF rooms, and high-security openings.",
+    "button": "Request a project review"
+  }
+}

@@ -4,10 +4,13 @@ import {
     Card,
     CardContent,
 } from '@/Components/ui/card';
+import HeroGearDoor from '@/Components/HeroGearDoor';
+import CertificationCard from '@/Components/CertificationCard';
+import { certifications } from '@/data/certifications';
 import { serviceDefinitions } from '@/data/services';
 import PublicLayout from '@/Layouts/PublicLayout';
 import { openContactForm } from '@/lib/contact';
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import {
     CheckCircle2Icon,
     DoorOpenIcon,
@@ -62,6 +65,7 @@ type HomeProps = {
 
 export default function Home({ companyPhoneNumber, canonicalUrl }: HomeProps) {
     const { t } = useTranslation('home');
+    const { t: tCertifications } = useTranslation('certifications');
     const pageUrl =
         canonicalUrl ??
         (typeof window !== 'undefined' ? window.location.href : '');
@@ -71,8 +75,8 @@ export default function Home({ companyPhoneNumber, canonicalUrl }: HomeProps) {
         ? new URL('/images/Section_Hero_Home.png', pageUrl).href
         : '/images/Section_Hero_Home.png';
     const logoUrl = pageUrl
-        ? new URL('/images/App-Logo.png', pageUrl).href
-        : '/images/App-Logo.png';
+        ? new URL('/images/App-Logo.webp', pageUrl).href
+        : '/images/App-Logo.webp';
     const structuredData = {
         '@context': 'https://schema.org',
         '@type': 'LocalBusiness',
@@ -184,7 +188,7 @@ export default function Home({ companyPhoneNumber, canonicalUrl }: HomeProps) {
                 <div className="absolute inset-0 bg-gradient-to-t from-background via-background/35 to-background/20" />
                 <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.045)_1px,_transparent_1px),linear-gradient(90deg,_rgba(0,0,0,0.045)_1px,_transparent_1px)] bg-[size:56px_56px] dark:bg-[linear-gradient(rgba(255,255,255,0.035)_1px,_transparent_1px),linear-gradient(90deg,_rgba(255,255,255,0.035)_1px,_transparent_1px)]" />
 
-                <div className="relative mx-auto grid min-h-[calc(100svh-4rem)] max-w-7xl gap-8 px-4 py-10 sm:min-h-[calc(100svh-5rem)] sm:px-6 sm:py-16 lg:min-h-[calc(100vh-7rem)] lg:grid-cols-[0.82fr_1.18fr] lg:items-center lg:px-8 lg:py-24">
+                <div className="relative mx-auto grid min-h-[calc(100svh-4rem)] max-w-7xl gap-8 px-4 py-10 sm:min-h-[calc(100svh-5rem)] sm:px-6 sm:py-16 lg:min-h-[calc(100vh-7rem)] lg:grid-cols-[0.72fr_1.28fr] lg:items-start lg:px-8 lg:py-24">
                     <div>
                         <Badge
                             variant="outline"
@@ -250,18 +254,21 @@ export default function Home({ companyPhoneNumber, canonicalUrl }: HomeProps) {
                         </div>
                     </div>
 
-                    <div className="group relative flex min-h-[28rem] items-center justify-center sm:min-h-[36rem] lg:min-h-[44rem]">
+                    <div className="group relative flex min-h-[32rem] items-start justify-center overflow-hidden rounded-[2rem] sm:min-h-[40rem] lg:min-h-[48rem]">
                         <div className="absolute inset-x-4 top-8 h-72 rounded-full bg-emerald-400/20 blur-3xl transition duration-700 group-hover:bg-emerald-400/30 sm:h-96 lg:-inset-x-6 lg:h-[28rem]" />
                         <div className="absolute bottom-10 right-4 size-52 rounded-full bg-primary/10 blur-2xl transition duration-700 group-hover:scale-110 lg:size-60" />
 
-                        <div className="relative w-full max-w-[34rem] animate-in fade-in slide-in-from-bottom-6 duration-700 sm:max-w-[44rem] lg:max-w-[54rem] xl:max-w-[60rem]">
+                        <div className="relative w-full animate-in fade-in slide-in-from-bottom-6 duration-700">
                             <div className="absolute inset-0 translate-y-8 rounded-[2rem] bg-emerald-950/20 blur-2xl transition duration-700 group-hover:translate-y-10 group-hover:scale-105" />
 
-                            <img
-                                src="/images/Section_Hero_Home.png"
-                                alt={t('hero.card.title')}
-                                className="relative w-full rounded-[2rem] border border-white/30 object-contain shadow-2xl shadow-emerald-950/20 ring-1 ring-emerald-500/10 transition duration-700 ease-out group-hover:-translate-y-2 group-hover:scale-[1.02] dark:border-white/10 dark:shadow-emerald-950/40"
-                            />
+                            <div className="relative overflow-hidden rounded-[2rem] border border-white/30 shadow-2xl shadow-emerald-950/20 ring-1 ring-emerald-500/10 dark:border-white/10 dark:shadow-emerald-950/40">
+                                <img
+                                    src="/images/Section_Hero_Home.png"
+                                    alt={t('hero.card.title')}
+                                    className="relative w-full object-cover object-top"
+                                />
+                                <HeroGearDoor />
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -444,6 +451,48 @@ export default function Home({ companyPhoneNumber, canonicalUrl }: HomeProps) {
                                 })}
                             </div>
                         </div>
+                    </div>
+                </div>
+            </section>
+
+            <section
+                id="certifications"
+                className="border-y border-border bg-muted/40"
+            >
+                <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-24">
+                    <div className="max-w-3xl">
+                        <Badge
+                            variant="outline"
+                            className="border-emerald-500/20 bg-background/70 text-emerald-700 dark:text-emerald-300"
+                        >
+                            {tCertifications('preview.badge')}
+                        </Badge>
+
+                        <h2 className="mt-5 text-2xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
+                            {tCertifications('preview.title')}
+                        </h2>
+
+                        <p className="mt-5 text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
+                            {tCertifications('preview.description')}
+                        </p>
+                    </div>
+
+                    <div className="mt-8 grid gap-6 sm:mt-10 lg:grid-cols-3">
+                        {certifications.map((certification) => (
+                            <CertificationCard
+                                key={certification.key}
+                                certificationKey={certification.key}
+                                compact
+                            />
+                        ))}
+                    </div>
+
+                    <div className="mt-6">
+                        <Button asChild variant="outline">
+                            <Link href={route('certifications')}>
+                                {tCertifications('preview.viewAll')}
+                            </Link>
+                        </Button>
                     </div>
                 </div>
             </section>
