@@ -37,6 +37,10 @@
     "en": "Inglés",
     "es": "Español"
   },
+  "vaultIntro": {
+    "label": "Animación de apertura de Gateway Door Systems",
+    "skip": "Omitir"
+  },
   "contact": {
     "tab": "Contáctanos",
     "open": "Abrir formulario de contacto",

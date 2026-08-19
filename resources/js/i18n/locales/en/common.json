@@ -37,6 +37,10 @@
     "en": "English",
     "es": "Spanish"
   },
+  "vaultIntro": {
+    "label": "Gateway Door Systems opening animation",
+    "skip": "Skip"
+  },
   "contact": {
     "tab": "Contact us",
     "open": "Open contact form",

@@ -1,5 +1,4 @@
 import ApplicationLogo from '@/Components/ApplicationLogo';
-import HeroGearDoor from '@/Components/HeroGearDoor';
 import { cn } from '@/lib/utils';
 import {
     CheckCircle2Icon,
@@ -86,14 +85,6 @@ export default function HeroProductCard() {
                 <p className="mt-2 max-w-md text-sm leading-6 text-zinc-600 sm:text-base sm:leading-7">
                     {t('hero.card.body')}
                 </p>
-            </div>
-
-            <div className="relative h-40 overflow-hidden bg-emerald-950 sm:h-48">
-                <div className="absolute inset-0 bg-[linear-gradient(rgba(52,211,153,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(52,211,153,0.08)_1px,transparent_1px)] bg-[size:22px_22px]" />
-                <div className="absolute inset-0 grid place-items-center">
-                    <ApplicationLogo className="size-24 bg-black sm:size-28" />
-                </div>
-                <HeroGearDoor />
             </div>
 
             <div className="grid grid-cols-2 gap-2 bg-emerald-950 p-2 sm:gap-3 sm:p-3">
