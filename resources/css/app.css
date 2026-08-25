@@ -123,7 +123,7 @@
     inset: 0;
     z-index: 200;
     overflow: hidden;
-    background: transparent;
+    background: #020617;
     perspective: 1800px;
   }
 
@@ -164,219 +164,140 @@
     will-change: transform;
   }
 
-  .vault-door__frame {
+  .vault-door__photo {
     position: absolute;
     inset: 0;
-    z-index: 30;
-    pointer-events: none;
-    box-shadow:
-      inset 0 0 0 14px #0f172a,
-      inset 0 0 0 18px #34d399;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: left center;
   }
 
-  .vault-door__leaf {
+  .vault-door__brand {
     position: absolute;
-    top: 0;
-    bottom: 0;
-    width: 50%;
-    z-index: 10;
-    overflow: hidden;
-    will-change: transform;
+    top: 50%;
+    right: 5%;
+    z-index: 15;
+    width: min(30vw, 15rem);
+    height: min(30vw, 15rem);
+    background: #000;
+    translate: 0 -50%;
+    filter: drop-shadow(0 10px 28px rgba(0, 0, 0, 0.45));
   }
 
-  .vault-door__leaf--left {
-    left: 0;
-  }
-
-  .vault-door__leaf--right {
-    right: 0;
-  }
-
-  .vault-door__skin {
+  .vault-door__gears {
     position: absolute;
-    inset: 0;
-    background:
-      linear-gradient(90deg, rgba(255, 255, 255, 0.08), transparent 12%, transparent 88%, rgba(0, 0, 0, 0.25)),
-      linear-gradient(180deg, #334155 0%, #1e293b 38%, #064e3b 72%, #0f172a 100%);
-  }
-
-  .vault-door__panels {
-    position: absolute;
-    inset: 8% 12% 18%;
-    border: 2px solid rgba(148, 163, 184, 0.35);
-    box-shadow:
-      inset 0 0 0 10px rgba(15, 23, 42, 0.28),
-      inset 0 0 30px rgba(0, 0, 0, 0.25);
-  }
-
-  .vault-door__window {
-    position: absolute;
-    top: 18%;
-    width: 18%;
-    height: 28%;
-    border: 3px solid #94a3b8;
-    background: linear-gradient(160deg, rgba(226, 232, 240, 0.35), rgba(15, 23, 42, 0.55));
-    box-shadow: inset 0 0 18px rgba(15, 23, 42, 0.45);
-  }
-
-  .vault-door__leaf--left .vault-door__window {
-    right: 18%;
-  }
-
-  .vault-door__leaf--right .vault-door__window {
-    left: 18%;
-  }
-
-  .vault-door__kick {
-    position: absolute;
-    right: 8%;
-    bottom: 6%;
-    left: 8%;
-    height: 10%;
-    border: 1px solid rgba(148, 163, 184, 0.4);
-    background: linear-gradient(180deg, #64748b, #334155);
-  }
-
-  .vault-door__hinges {
-    position: absolute;
-    top: 12%;
-    bottom: 12%;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-  }
-
-  .vault-door__leaf--left .vault-door__hinges {
-    left: 10px;
-  }
-
-  .vault-door__leaf--right .vault-door__hinges {
-    right: 10px;
-  }
-
-  .vault-door__hinges span {
-    width: 18px;
-    height: 42px;
-    border-radius: 6px;
-    background: linear-gradient(90deg, #cbd5e1, #64748b 55%, #334155);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
-  }
-
-  .vault-door__handle {
-    position: absolute;
-    top: 48%;
-    width: 14px;
-    height: 110px;
-    border-radius: 999px;
-    background: linear-gradient(180deg, #e2e8f0, #64748b 55%, #334155);
-    box-shadow:
-      0 0 0 3px rgba(15, 23, 42, 0.35),
-      0 8px 16px rgba(0, 0, 0, 0.35);
-    transform: translateY(-50%);
-  }
-
-  .vault-door__leaf--left .vault-door__handle {
-    right: 28px;
-  }
-
-  .vault-door__leaf--right .vault-door__handle {
-    left: 28px;
-  }
-
-  .vault-door__leaf-gear {
-    position: absolute;
-    width: min(38%, 11rem);
-    fill: #1e293b;
-    stroke: #34d399;
-    stroke-width: 1.8;
-    filter: drop-shadow(0 0 12px rgba(52, 211, 153, 0.4));
-    transform-origin: center;
-  }
-
-  .vault-door__leaf-gear circle:nth-of-type(1) {
-    fill: #0f172a;
-    stroke: #6ee7b7;
-  }
-
-  .vault-door__leaf-gear circle:nth-of-type(2) {
-    fill: #34d399;
-    stroke: none;
-  }
-
-  .vault-door__leaf-gear--left {
-    right: 18%;
-    bottom: 22%;
-  }
-
-  .vault-door__leaf-gear--right {
-    left: 18%;
-    bottom: 22%;
-  }
-
-  .vault-door__lock {
-    position: absolute;
-    inset: 0;
+    left: 34%;
+    top: 50%;
     z-index: 20;
-    display: grid;
-    place-items: center;
+    width: min(70vw, 36rem);
+    height: min(70vw, 36rem);
     pointer-events: none;
+    opacity: 0;
+    scale: 0.72;
+    translate: -50% -50%;
   }
 
-  .vault-door__logo {
-    position: relative;
-    z-index: 2;
-  }
-
-  .vault-door__lock-gear {
+  .vault-door__gear {
     position: absolute;
     fill: #1e293b;
     stroke: #34d399;
     stroke-width: 1.8;
-    filter: drop-shadow(0 0 14px rgba(52, 211, 153, 0.45));
+    filter: drop-shadow(0 0 12px rgba(52, 211, 153, 0.5));
     transform-origin: center;
   }
 
-  .vault-door__lock-gear circle:nth-of-type(1) {
+  .vault-door__gear circle:nth-of-type(1) {
     fill: #0f172a;
     stroke: #6ee7b7;
   }
 
-  .vault-door__lock-gear circle:nth-of-type(2) {
+  .vault-door__gear circle:nth-of-type(2) {
     fill: #34d399;
     stroke: none;
   }
 
-  .vault-door__lock-gear--lg {
-    width: min(42vw, 22rem);
-    height: min(42vw, 22rem);
+  .vault-door__gear--lg {
+    width: 54%;
+    height: 54%;
+    left: 23%;
+    top: 23%;
   }
 
-  .vault-door__lock-gear--sm {
-    width: min(18vw, 9rem);
-    height: min(18vw, 9rem);
-    translate: 7rem 6rem;
+  .vault-door__gear--md {
+    width: 34%;
+    height: 34%;
+    left: 0;
+    top: 4%;
   }
 
-  .vault-door__stage.is-active .vault-door__leaf-gear--left,
-  .vault-door__stage.is-active .vault-door__lock-gear--lg {
-    animation: vault-door-spin-cw 2.4s linear forwards;
+  .vault-door__gear--sm {
+    width: 28%;
+    height: 28%;
+    right: 2%;
+    bottom: 8%;
   }
 
-  .vault-door__stage.is-active .vault-door__leaf-gear--right,
-  .vault-door__stage.is-active .vault-door__lock-gear--sm {
-    animation: vault-door-spin-ccw 2.4s linear forwards;
+  .vault-door__gear--tl {
+    width: 22%;
+    height: 22%;
+    left: 22%;
+    top: 0;
   }
 
-  .vault-door__stage.is-active .vault-door__lock {
-    animation: vault-door-lock-fade 0.4s 2.45s ease-out forwards;
+  .vault-door__gear--tr {
+    width: 24%;
+    height: 24%;
+    right: 8%;
+    top: 14%;
   }
 
-  .vault-door__stage.is-active .vault-door__frame {
-    animation: vault-door-lock-fade 0.4s 2.6s ease-out forwards;
+  .vault-door__gear--bl {
+    width: 26%;
+    height: 26%;
+    left: 6%;
+    bottom: 6%;
+  }
+
+  .vault-door__gear--br {
+    width: 20%;
+    height: 20%;
+    right: 18%;
+    bottom: 0;
+  }
+
+  .vault-door__stage.is-active .vault-door__gears {
+    animation:
+      vault-gears-appear 0.7s 0.12s cubic-bezier(0.22, 1, 0.36, 1) forwards,
+      vault-door-lock-fade 0.5s 2.55s ease-out forwards;
+  }
+
+  .vault-door__stage.is-active .vault-door__gear--lg,
+  .vault-door__stage.is-active .vault-door__gear--tl,
+  .vault-door__stage.is-active .vault-door__gear--br {
+    animation: vault-door-spin-cw 2.5s 0.12s linear forwards;
+  }
+
+  .vault-door__stage.is-active .vault-door__gear--md,
+  .vault-door__stage.is-active .vault-door__gear--tr,
+  .vault-door__stage.is-active .vault-door__gear--bl,
+  .vault-door__stage.is-active .vault-door__gear--sm {
+    animation: vault-door-spin-ccw 2.5s 0.12s linear forwards;
   }
 
   .vault-door__stage.is-active .vault-door__pair {
-    animation: vault-door-move-then-open 2.45s 2.7s cubic-bezier(0.55, 0, 0.15, 1) forwards;
+    animation: vault-door-move-then-open 2.5s 2.85s cubic-bezier(0.55, 0, 0.15, 1) forwards;
+  }
+
+  @keyframes vault-gears-appear {
+    from {
+      opacity: 0;
+      scale: 0.72;
+    }
+    to {
+      opacity: 1;
+      scale: 1;
+    }
   }
 
   @keyframes vault-door-spin-cw {

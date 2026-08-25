@@ -1,6 +1,6 @@
 let hasPlayedThisLoad = false;
 
-export const SITE_VAULT_INTRO_MS = 5800;
+export const SITE_VAULT_INTRO_MS = 6200;
 
 export function isSiteVaultIntroPending(): boolean {
     if (typeof window === 'undefined') {

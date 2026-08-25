@@ -39,7 +39,8 @@
   },
   "vaultIntro": {
     "label": "Animación de apertura de Gateway Door Systems",
-    "skip": "Omitir"
+    "skip": "Omitir",
+    "imageAlt": "Puerta con blindaje de radiofrecuencia"
   },
   "contact": {
     "tab": "Contáctanos",

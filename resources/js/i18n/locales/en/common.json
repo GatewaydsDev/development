@@ -39,7 +39,8 @@
   },
   "vaultIntro": {
     "label": "Gateway Door Systems opening animation",
-    "skip": "Skip"
+    "skip": "Skip",
+    "imageAlt": "Radio frequency shielded door"
   },
   "contact": {
     "tab": "Contact us",

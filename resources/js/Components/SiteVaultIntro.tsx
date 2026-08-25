@@ -54,27 +54,6 @@ function Gear({
     );
 }
 
-function DoorLeaf({ side }: { side: 'left' | 'right' }) {
-    return (
-        <div className={`vault-door__leaf vault-door__leaf--${side}`}>
-            <div className="vault-door__skin" />
-            <div className="vault-door__panels" />
-            <div className="vault-door__window" />
-            <div className="vault-door__kick" />
-            <div className="vault-door__hinges" aria-hidden="true">
-                <span />
-                <span />
-                <span />
-            </div>
-            <div className="vault-door__handle" />
-            <Gear
-                teeth={side === 'left' ? 12 : 10}
-                className={`vault-door__leaf-gear vault-door__leaf-gear--${side}`}
-            />
-        </div>
-    );
-}
-
 export default function SiteVaultIntro() {
     const { t } = useTranslation('common');
     const [visible, setVisible] = useState(() => isSiteVaultIntroPending());
@@ -134,17 +113,44 @@ export default function SiteVaultIntro() {
             aria-label={t('vaultIntro.label')}
         >
             <div className={'vault-door__stage' + (isActive ? ' is-active' : '')}>
-                <div className="vault-door__frame" />
-
                 <div className="vault-door__pair">
-                    <DoorLeaf side="left" />
-                    <DoorLeaf side="right" />
+                    <img
+                        src="/images/Gateway-Radio-Frequency.png"
+                        alt={t('vaultIntro.imageAlt')}
+                        className="vault-door__photo"
+                    />
+                    <ApplicationLogo className="vault-door__brand" />
+                </div>
 
-                    <div className="vault-door__lock">
-                        <ApplicationLogo className="vault-door__logo size-24 bg-black sm:size-32" />
-                        <Gear teeth={16} className="vault-door__lock-gear vault-door__lock-gear--lg" />
-                        <Gear teeth={10} className="vault-door__lock-gear vault-door__lock-gear--sm" />
-                    </div>
+                <div className="vault-door__gears">
+                    <Gear
+                        teeth={16}
+                        className="vault-door__gear vault-door__gear--lg"
+                    />
+                    <Gear
+                        teeth={12}
+                        className="vault-door__gear vault-door__gear--md"
+                    />
+                    <Gear
+                        teeth={10}
+                        className="vault-door__gear vault-door__gear--sm"
+                    />
+                    <Gear
+                        teeth={11}
+                        className="vault-door__gear vault-door__gear--tl"
+                    />
+                    <Gear
+                        teeth={9}
+                        className="vault-door__gear vault-door__gear--tr"
+                    />
+                    <Gear
+                        teeth={10}
+                        className="vault-door__gear vault-door__gear--bl"
+                    />
+                    <Gear
+                        teeth={8}
+                        className="vault-door__gear vault-door__gear--br"
+                    />
                 </div>
             </div>
 
