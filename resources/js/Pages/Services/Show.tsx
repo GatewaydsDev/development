@@ -67,21 +67,54 @@ export default function ServiceShow({
     const metaTitle = t(`${servicePath}.metaTitle`);
     const metaDescription = t(`${servicePath}.metaDescription`);
     const imageUrl = new URL(service.images.hero, canonicalUrl).href;
+    const origin = new URL(canonicalUrl).origin;
     const structuredData = {
         '@context': 'https://schema.org',
-        '@type': 'Service',
-        name: t(`${servicePath}.title`),
-        description: metaDescription,
-        serviceType: t(`${servicePath}.title`),
-        provider: {
-            '@type': 'LocalBusiness',
-            name: 'Gateway Door Systems',
-        },
-        url: canonicalUrl,
-        image: imageUrl,
-        areaServed: 'United States',
-        mainEntityOfPage: canonicalUrl,
-        identifier: serviceSlug,
+        '@graph': [
+            {
+                '@type': 'Service',
+                name: t(`${servicePath}.title`),
+                description: metaDescription,
+                serviceType: t(`${servicePath}.title`),
+                provider: {
+                    '@type': 'LocalBusiness',
+                    name: 'Gateway Door Systems',
+                    areaServed: [
+                        'New York',
+                        'New Jersey',
+                        'Pennsylvania',
+                    ],
+                },
+                url: canonicalUrl,
+                image: imageUrl,
+                areaServed: ['New York', 'New Jersey', 'Pennsylvania'],
+                mainEntityOfPage: canonicalUrl,
+                identifier: serviceSlug,
+            },
+            {
+                '@type': 'BreadcrumbList',
+                itemListElement: [
+                    {
+                        '@type': 'ListItem',
+                        position: 1,
+                        name: 'Home',
+                        item: origin + '/',
+                    },
+                    {
+                        '@type': 'ListItem',
+                        position: 2,
+                        name: 'Services',
+                        item: origin + '/#services',
+                    },
+                    {
+                        '@type': 'ListItem',
+                        position: 3,
+                        name: t(`${servicePath}.title`),
+                        item: canonicalUrl,
+                    },
+                ],
+            },
+        ],
     };
 
     const heroIntro = (
@@ -152,6 +185,7 @@ export default function ServiceShow({
                 <meta property="og:title" content={metaTitle} />
                 <meta property="og:description" content={metaDescription} />
                 <meta property="og:type" content="website" />
+                <meta property="og:site_name" content="Gateway Door Systems" />
                 <meta property="og:url" content={canonicalUrl} />
                 <meta property="og:image" content={imageUrl} />
                 <meta name="twitter:card" content="summary_large_image" />

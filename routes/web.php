@@ -14,10 +14,14 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\ContactSubmissionController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\SeoController;
 use App\Models\Company;
 use App\Services\TwilioSmsService;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+
+Route::get('/sitemap.xml', [SeoController::class, 'sitemap'])->name('sitemap');
+Route::get('/robots.txt', [SeoController::class, 'robots'])->name('robots');
 
 Route::get('/', function () {
     $company = Company::query()
@@ -44,17 +48,9 @@ Route::get('/certifications', function () {
 })->name('certifications');
 
 Route::get('/services/{service}', function (string $service) {
-    $services = [
-        'radio-frequency-doors' => 'radioFrequencyDoors',
-        'sound-transmission' => 'soundTransmission',
-        'bullet-resistant-doors' => 'bullet',
-        'blast-resistant-doors' => 'blast',
-        'oversized-door-assemblies' => 'oversizedAssemblies',
-        'hurricane-tornado-doors' => 'hurricaneAndTornado',
-        'forced-entry-doors' => 'forcedEntryDoors',
-    ];
+    $services = config('public_services');
 
-    abort_unless(array_key_exists($service, $services), 404);
+    abort_unless(is_array($services) && array_key_exists($service, $services), 404);
 
     return Inertia::render('Services/Show', [
         'serviceKey' => $services[$service],

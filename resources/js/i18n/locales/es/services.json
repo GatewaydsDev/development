@@ -25,6 +25,27 @@
     }
   },
   "services": {
+    "scifRoomsConstruction": {
+      "metaTitle": "Construcción de salas SCIF | Gateway Door Systems",
+      "metaDescription": "Construcción de salas SCIF para instalaciones de información compartimentada sensible. Gateway Door Systems construye salas SCIF e instala las puertas, marcos, sellos y herrajes que esas aperturas requieren en NY, NJ y PA.",
+      "title": "Construcción de salas SCIF",
+      "description": "Construcción certificada de salas SCIF e instalación de los sistemas de puertas seguras usados en instalaciones de información compartimentada sensible y otros espacios de acceso controlado.",
+      "imageAlt": "Construcción de salas SCIF e instalación de puertas de alta seguridad en una instalación de acceso controlado",
+      "overviewTitle": "La construcción de salas SCIF depende de que cada apertura cumpla la especificación.",
+      "overviewText": "Las instalaciones de información compartimentada sensible requieren más que una puerta clasificada. La construcción de salas SCIF cubre el recinto, el control acústico y electromagnético en la puerta, y los herrajes que mantienen el acceso diario confiable. Gateway Door Systems construye salas SCIF e instala las puertas, marcos, sellos, bisagras, cerraduras y componentes preparados para control de acceso que completan esas aperturas.",
+      "supportText": "Apoyamos proyectos de obra nueva y modernización para gobierno, soporte de defensa y otras instalaciones sensibles. Nuestro trabajo certificado de construcción de salas SCIF se coordina con los conjuntos de puertas RF, acústicas y de alta seguridad especificados, en lugar de tratar la apertura como un detalle aparte.",
+      "capabilities": {
+        "performance": "Construcción de la sala y la apertura alineada con las especificaciones del proyecto para seguridad acústica, RF y física en la puerta.",
+        "coordination": "Planificación de muros, marcos, sellos RF o acústicos, vidrios, operadores de potencia y herrajes de control de acceso.",
+        "handoff": "Verificaciones enfocadas en ajuste, contacto de sellos, pestillo y operación confiable en una instalación sensible."
+      },
+      "applications": {
+        "secureAreas": "Salas SCIF y otros espacios compartimentados o de acceso controlado",
+        "retrofits": "Actualizaciones donde las salas o aperturas existentes ya no cumplen los requisitos SCIF o de seguridad actuales",
+        "facilities": "Edificios gubernamentales, de apoyo a la defensa y operaciones comerciales sensibles en NY, NJ y PA",
+        "hardware": "Conjuntos combinados con cerraduras de alta seguridad, puertas clasificadas RF, control de acceso y herrajes de cierre seguro"
+      }
+    },
     "radioFrequencyDoors": {
       "metaTitle": "Instalación de puertas de radiofrecuencia | Gateway Door Systems",
       "metaDescription": "Instalación profesional de puertas con blindaje de radiofrecuencia para aperturas con control EMI, espacios relacionados con TEMPEST e instalaciones que necesitan rendimiento confiable en la puerta.",

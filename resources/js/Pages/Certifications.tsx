@@ -33,17 +33,35 @@ export default function Certifications({ canonicalUrl }: CertificationsProps) {
     const imageUrl = pageUrl
         ? new URL('/images/lockmasters-logo.webp', pageUrl).href
         : '/images/lockmasters-logo.webp';
+    const scifServiceUrl = pageUrl
+        ? new URL('/services/scif-rooms-construction', pageUrl).href
+        : '/services/scif-rooms-construction';
     const structuredData = {
         '@context': 'https://schema.org',
         '@type': 'WebPage',
         name: metaTitle,
         description: metaDescription,
         url: pageUrl || undefined,
-        about: certifications.map((certification) => ({
-            '@type': 'Organization',
-            name: t(`items.${certification.key}.issuer`),
-            ...(certification.website ? { url: certification.website } : {}),
-        })),
+        about: [
+            ...certifications.map((certification) => ({
+                '@type': 'EducationalOccupationalCredential',
+                name: t(`items.${certification.key}.title`),
+                description: t(`items.${certification.key}.summary`),
+                ...(certification.website
+                    ? {
+                          recognizedBy: {
+                              '@type': 'Organization',
+                              url: certification.website,
+                          },
+                      }
+                    : {}),
+            })),
+            {
+                '@type': 'Service',
+                name: 'SCIF Rooms Construction',
+                url: scifServiceUrl,
+            },
+        ],
         publisher: {
             '@type': 'Organization',
             name: 'Gateway Door Systems',

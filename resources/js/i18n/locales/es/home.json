@@ -1,7 +1,7 @@
 {
   "meta": {
-    "title": "Instalaci\u00f3n de Puertas Especiales y de Alta Seguridad",
-    "description": "Gateway Door Systems instala puertas seguras y de alto rendimiento\u2014incluyendo sistemas con certificaci\u00f3n SCIF y listos para control de acceso\u2014construidas para el cumplimiento, la durabilidad y la precisi\u00f3n en NY, NJ y PA."
+    "title": "Construcción de salas SCIF e instalación de puertas de alta seguridad",
+    "description": "Gateway Door Systems ofrece construcción de salas SCIF e instalación de puertas de alta seguridad—incluidos sistemas RF y preparados para control de acceso—en NY, NJ y PA."
   },
   "serviceArea": {
     "banner": "Orgullosamente sirviendo el área tri-estatal: NY · NJ · PA"
@@ -9,12 +9,13 @@
   "hero": {
     "badge": "Instalación de puertas de alta seguridad",
     "title": "Instalación de puertas especiales en la que puedes confiar",
-    "description": "Instalación experta de puertas seguras y de alto rendimiento, incluidos sistemas con clasificación SCIF, diseñadas para cumplimiento, durabilidad y precisión.",
+    "description": "Construcción certificada de salas SCIF e instalación experta de puertas seguras y de alto rendimiento, incluidos sistemas RF y con clasificación SCIF, diseñadas para cumplimiento, durabilidad y precisión.",
     "imageAlt": "Puerta comercial segura que representa instalación de puertas para SCIF e instalaciones seguras",
     "primaryCta": "Obtén una cotización gratis",
     "secondaryCta": "Llamar ahora",
     "progressLabel": "Progreso del carrusel de imágenes del hero",
     "keywords": {
+      "scifRoomsConstruction": "Construcción de salas SCIF",
       "radioFrequencyDoors": "Radio Frequency doors",
       "soundTransmission": "Sound Transmission",
       "bullet": "Bullet",
@@ -95,7 +96,7 @@
     },
     "features": {
       "scif": {
-        "title": "Salas SCIF e instalación de puertas",
+        "title": "Construcción de salas SCIF",
         "description": "Construcción certificada de salas SCIF e instalación de puertas, marcos, sellos, bisagras, cerraduras y herrajes de seguridad usados en aperturas de instalaciones sensibles."
       },
       "commercial": {
@@ -115,10 +116,14 @@
   "services": {
     "badge": "Nuestros servicios",
     "title": "Servicios de instalación de puertas para accesos seguros y confiables.",
-    "description": "Desde aperturas reforzadas hasta herrajes preparados para control de acceso, Gateway ayuda a las instalaciones a mejorar las puertas que protegen personas, equipos y espacios sensibles.",
+    "description": "Desde la construcción de salas SCIF hasta aperturas apantalladas RF y reforzadas, Gateway instala las puertas que protegen personas, equipos y espacios sensibles.",
     "primaryCta": "Solicitar cotización",
     "secondaryCta": "Llamar por servicios",
     "items": {
+      "scifRoomsConstruction": {
+        "title": "Construcción de salas SCIF",
+        "description": "Construcción certificada de salas SCIF e instalación de los sistemas de puertas seguras que esas aperturas requieren."
+      },
       "radioFrequencyDoors": {
         "title": "Radio Frequency doors",
         "description": "Conjuntos de puertas con blindaje RF instalados donde el control electromagnético y el acceso seguro deben funcionar juntos."

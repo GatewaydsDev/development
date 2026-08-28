@@ -22,6 +22,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const heroKeywords = [
+    'scifRoomsConstruction',
     'radioFrequencyDoors',
     'soundTransmission',
     'bullet',
@@ -29,13 +30,6 @@ const heroKeywords = [
     'oversizedAssemblies',
     'hurricaneAndTornado',
     'forcedEntryDoors',
-];
-
-const highSecurityKeywords = [
-    'secureDoorInstallation',
-    'steelDoorInstallation',
-    'reinforcedDoorSystems',
-    'commercialDoorContractor',
 ];
 
 const heroCarouselDuration = 8000;
@@ -67,6 +61,7 @@ type HomeProps = {
 export default function Home({ companyPhoneNumber, canonicalUrl }: HomeProps) {
     const { t } = useTranslation('home');
     const { t: tCertifications } = useTranslation('certifications');
+    const { t: tCommon } = useTranslation('common');
     const pageUrl =
         canonicalUrl ??
         (typeof window !== 'undefined' ? window.location.href : '');
@@ -80,16 +75,64 @@ export default function Home({ companyPhoneNumber, canonicalUrl }: HomeProps) {
         : '/images/App-Logo.webp';
     const structuredData = {
         '@context': 'https://schema.org',
-        '@type': 'LocalBusiness',
-        name: 'Gateway Door Systems',
-        description: metaDescription,
-        url: pageUrl || undefined,
-        image: imageUrl,
-        logo: logoUrl,
-        areaServed: ['New York', 'New Jersey', 'Pennsylvania'],
-        ...(companyPhoneNumber
-            ? { telephone: companyPhoneNumber }
-            : {}),
+        '@graph': [
+            {
+                '@type': 'LocalBusiness',
+                name: 'Gateway Door Systems',
+                description: metaDescription,
+                url: pageUrl || undefined,
+                image: imageUrl,
+                logo: logoUrl,
+                areaServed: ['New York', 'New Jersey', 'Pennsylvania'],
+                knowsAbout: [
+                    ...heroKeywords.map((keyword) =>
+                        t(`hero.keywords.${keyword}`),
+                    ),
+                    tCertifications('items.scifRooms.title'),
+                ],
+                hasOfferCatalog: {
+                    '@type': 'OfferCatalog',
+                    name: t('services.title'),
+                    itemListElement: serviceDefinitions.map((service) => ({
+                        '@type': 'Offer',
+                        itemOffered: {
+                            '@type': 'Service',
+                            name: t(`services.items.${service.key}.title`),
+                            description: t(
+                                `services.items.${service.key}.description`,
+                            ),
+                            url: pageUrl
+                                ? new URL(`/services/${service.slug}`, pageUrl)
+                                      .href
+                                : `/services/${service.slug}`,
+                        },
+                    })),
+                },
+                ...(companyPhoneNumber
+                    ? { telephone: companyPhoneNumber }
+                    : {}),
+            },
+            {
+                '@type': 'WebSite',
+                name: 'Gateway Door Systems',
+                url: pageUrl || undefined,
+            },
+            {
+                '@type': 'FAQPage',
+                mainEntity: ['secureOpenings', 'certifications', 'services'].map(
+                    (topic) => ({
+                        '@type': 'Question',
+                        name: tCommon(`helpCenter.topics.${topic}.title`),
+                        acceptedAnswer: {
+                            '@type': 'Answer',
+                            text: tCommon(
+                                `helpCenter.topics.${topic}.answer`,
+                            ),
+                        },
+                    }),
+                ),
+            },
+        ],
     };
     const [activeSlide, setActiveSlide] = useState(0);
     const [progress, setProgress] = useState(0);
@@ -318,7 +361,13 @@ export default function Home({ companyPhoneNumber, canonicalUrl }: HomeProps) {
                     </div>
 
                     <div className="mt-8 grid gap-4 sm:mt-10 sm:grid-cols-2 lg:grid-cols-4">
-                        <div className="rounded-2xl border border-border bg-background p-5">
+                        <Link
+                            href={route(
+                                'services.show',
+                                'scif-rooms-construction',
+                            )}
+                            className="rounded-2xl border border-border bg-background p-5 transition hover:border-emerald-500/30 hover:shadow-lg hover:shadow-emerald-950/10"
+                        >
                             <ShieldCheckIcon className="mb-4 size-6 text-emerald-700 dark:text-emerald-300" />
                             <h3 className="font-semibold text-foreground">
                                 {t('secureDoor.features.scif.title')}
@@ -326,7 +375,7 @@ export default function Home({ companyPhoneNumber, canonicalUrl }: HomeProps) {
                             <p className="mt-2 text-sm leading-6 text-muted-foreground">
                                 {t('secureDoor.features.scif.description')}
                             </p>
-                        </div>
+                        </Link>
 
                         <div className="rounded-2xl border border-border bg-background p-5">
                             <DoorOpenIcon className="mb-4 size-6 text-emerald-700 dark:text-emerald-300" />

@@ -8,6 +8,7 @@
     "certifications": "Certificaciones",
     "services": "Servicios",
     "serviceItems": {
+      "scifRoomsConstruction": "Construcción de salas SCIF",
       "radioFrequencyDoors": "Radio Frequency doors",
       "soundTransmission": "Sound Transmission",
       "bullet": "Bullet",
@@ -118,8 +119,8 @@
       },
       "services": {
         "title": "¿Cómo puedo revisar sus servicios?",
-        "answer": "Usa el menú Servicios o la sección de servicios en la página de inicio para revisar puertas RF, blast, bullet, huracanes, sobredimensionadas y forced entry.",
-        "keywords": "servicios puerta rf blast bullet huracan sobredimensionadas forced entry transmision sonido"
+        "answer": "Usa el menú Servicios o la sección de servicios en la página de inicio para revisar construcción de salas SCIF y puertas RF, blast, bullet, huracanes, sobredimensionadas y forced entry.",
+        "keywords": "servicios puerta scif salas construccion rf blast bullet huracan sobredimensionadas forced entry transmision sonido"
       },
       "quote": {
         "title": "¿Cómo solicito una cotización?",
@@ -133,7 +134,7 @@
       },
       "secureOpenings": {
         "title": "¿Qué aperturas de puertas seguras trabajan?",
-        "answer": "Gateway Door Systems trabaja aperturas seguras incluyendo puertas RF, transmisión de sonido, bullet, blast, ensamblajes sobredimensionados, huracanes y tornados, y forced entry.",
+        "answer": "Gateway Door Systems trabaja construcción de salas SCIF y aperturas seguras incluyendo puertas RF, transmisión de sonido, bullet, blast, ensamblajes sobredimensionados, huracanes y tornados, y forced entry.",
         "keywords": "aperturas seguras rf transmision sonido bullet blast sobredimensionadas huracan tornado forced entry scif"
       },
       "process": {

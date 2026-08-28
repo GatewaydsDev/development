@@ -1,5 +1,6 @@
 import {
     BombIcon,
+    Building2Icon,
     CloudLightningIcon,
     ExpandIcon,
     LockKeyholeIcon,
@@ -10,6 +11,7 @@ import {
 } from 'lucide-react';
 
 export type ServiceKey =
+    | 'scifRoomsConstruction'
     | 'radioFrequencyDoors'
     | 'soundTransmission'
     | 'bullet'
@@ -30,6 +32,16 @@ type ServiceDefinition = {
 };
 
 export const serviceDefinitions: ServiceDefinition[] = [
+    {
+        key: 'scifRoomsConstruction',
+        slug: 'scif-rooms-construction',
+        Icon: Building2Icon,
+        images: {
+            hero: '/images/certification-scif.webp',
+            detail: '/images/high-security-reinforced-door.jpeg',
+            support: '/images/high-security-door-row.jpeg',
+        },
+    },
     {
         key: 'radioFrequencyDoors',
         slug: 'radio-frequency-doors',

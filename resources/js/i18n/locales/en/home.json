@@ -1,7 +1,7 @@
 {
   "meta": {
-    "title": "Specialty & High-Security Door Installation",
-    "description": "Gateway Door Systems installs secure, high-performance doors\u2014including SCIF-rated and access-control-ready systems\u2014built for compliance, durability, and precision across NY, NJ, and PA."
+    "title": "SCIF Rooms Construction & High-Security Door Installation",
+    "description": "Gateway Door Systems provides SCIF rooms construction and high-security door installation—including RF and access-control-ready systems—across NY, NJ, and PA."
   },
   "serviceArea": {
     "banner": "Proudly serving the tri-state area: NY · NJ · PA"
@@ -9,12 +9,13 @@
   "hero": {
     "badge": "High-security door installation",
     "title": "Specialty Door Installation You Can Trust",
-    "description": "Expert installation of secure, high-performance doors—including SCIF-rated systems—built for compliance, durability, and precision.",
+    "description": "Certified SCIF rooms construction and expert installation of secure, high-performance doors—including RF and SCIF-rated systems—built for compliance, durability, and precision.",
     "imageAlt": "Secure commercial doorway representing SCIF and secure facility door installation",
     "primaryCta": "Get a Free Quote",
     "secondaryCta": "Call now",
     "progressLabel": "Hero image carousel progress",
     "keywords": {
+      "scifRoomsConstruction": "SCIF Rooms Construction",
       "radioFrequencyDoors": "Radio Frequency doors",
       "soundTransmission": "Sound Transmission",
       "bullet": "Bullet",
@@ -95,8 +96,8 @@
     },
     "features": {
       "scif": {
-        "title": "SCIF Rooms & Door Installation",
-        "description": "Certified SCIF room construction plus installation of secure-rated doors, frames, seals, hinges, locks, and hardware used in sensitive facility openings."
+        "title": "SCIF Rooms Construction",
+        "description": "Certified SCIF rooms construction plus installation of doors, frames, seals, hinges, locks, and security hardware used in sensitive facility openings."
       },
       "commercial": {
         "title": "Commercial Secure Doors",
@@ -115,10 +116,14 @@
   "services": {
     "badge": "Our services",
     "title": "Door installation services built for secure, reliable access.",
-    "description": "From reinforced openings to access-control ready hardware, Gateway helps facilities upgrade the doors that protect people, equipment, and sensitive spaces.",
+    "description": "From SCIF rooms construction to RF-shielded and reinforced openings, Gateway installs the doors that protect people, equipment, and sensitive spaces.",
     "primaryCta": "Request a service quote",
     "secondaryCta": "Call about services",
     "items": {
+      "scifRoomsConstruction": {
+        "title": "SCIF Rooms Construction",
+        "description": "Certified construction of SCIF rooms and installation of the secure door systems those openings require."
+      },
       "radioFrequencyDoors": {
         "title": "Radio Frequency doors",
         "description": "RF-shielded door assemblies installed for openings where electromagnetic control and secure access must work together."

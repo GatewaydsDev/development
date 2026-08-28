@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "About Us",
-    "description": "Learn how Gateway Door Systems delivers professional installation of secure doors, reinforced frames, commercial hardware, and access-control-ready openings for commercial, government, and sensitive facilities."
+    "description": "Learn how Gateway Door Systems delivers SCIF rooms construction and professional installation of secure doors, reinforced frames, commercial hardware, and access-control-ready openings for commercial, government, and sensitive facilities."
   },
   "hero": {
     "badge": "About Gateway Door Systems",
@@ -18,7 +18,7 @@
   "capabilities": {
     "badge": "SCIF-related secure openings",
     "title": "We install the door systems that support secure spaces.",
-    "description": "SCIF and controlled-access environments depend on every opening performing as intended. Gateway Door Systems builds SCIF rooms and provides careful installation of doors, frames, hardware, seals, and access-control ready components used in secure facility openings.",
+    "description": "SCIF and controlled-access environments depend on every opening performing as intended. Gateway Door Systems provides SCIF rooms construction and careful installation of doors, frames, hardware, seals, and access-control ready components used in secure facility openings.",
     "note": "Project requirements can vary by facility, authority, and specification. Our role is to coordinate clearly, install precisely, and support the secure-door scope assigned to our team.",
     "items": {
       "secureOpenings": {

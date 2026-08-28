@@ -25,6 +25,27 @@
     }
   },
   "services": {
+    "scifRoomsConstruction": {
+      "metaTitle": "SCIF Rooms Construction | Gateway Door Systems",
+      "metaDescription": "SCIF Rooms Construction for sensitive compartmented information facilities. Gateway Door Systems builds SCIF rooms and installs the secure doors, frames, seals, and hardware those openings require across NY, NJ, and PA.",
+      "title": "SCIF Rooms Construction",
+      "description": "Certified SCIF rooms construction and installation of the secure door systems used in sensitive compartmented information facilities and other controlled-access spaces.",
+      "imageAlt": "SCIF rooms construction and high-security door installation for a controlled-access facility",
+      "overviewTitle": "SCIF rooms construction depends on every opening performing as specified.",
+      "overviewText": "Sensitive compartmented information facilities require more than a rated door. SCIF rooms construction covers the room envelope, acoustic and electromagnetic control at the doorway, and the hardware that keeps daily access reliable. Gateway Door Systems builds SCIF rooms and installs the doors, frames, seals, hinges, locks, and access-control-ready components that complete those openings.",
+      "supportText": "We support new construction and retrofit projects for government, defense-support, and other sensitive facilities. Our certified SCIF rooms construction work is coordinated with the specified RF, acoustic, and high-security door assemblies rather than treating the opening as a separate afterthought.",
+      "capabilities": {
+        "performance": "Room and opening construction aligned to project specifications for acoustic, RF, and physical security at the doorway.",
+        "coordination": "Planning around walls, frames, RF or acoustic seals, vision lites, power operators, and access-control hardware.",
+        "handoff": "Checks focused on fit, seal contact, latching, and dependable operation in a sensitive facility."
+      },
+      "applications": {
+        "secureAreas": "SCIF rooms and other compartmented or controlled-access spaces",
+        "retrofits": "Upgrades where existing rooms or door openings no longer meet current SCIF or security requirements",
+        "facilities": "Government, defense support, and sensitive commercial operations buildings in NY, NJ, and PA",
+        "hardware": "Assemblies paired with high-security locks, RF-rated doors, access control, and secure latching hardware"
+      }
+    },
     "radioFrequencyDoors": {
       "metaTitle": "Radio Frequency Door Installation | Gateway Door Systems",
       "metaDescription": "Professional installation of radio frequency shielded doors for EMI-controlled openings, TEMPEST-related spaces, and facilities that need reliable performance at the doorway.",

@@ -8,6 +8,7 @@
     "certifications": "Certifications",
     "services": "Services",
     "serviceItems": {
+      "scifRoomsConstruction": "SCIF Rooms Construction",
       "radioFrequencyDoors": "Radio Frequency doors",
       "soundTransmission": "Sound Transmission",
       "bullet": "Bullet",
@@ -118,8 +119,8 @@
       },
       "services": {
         "title": "How can I check your services?",
-        "answer": "Use the Services menu or the services section on the home page to review specialty door services like RF, blast, bullet, hurricane, oversized, and forced entry doors.",
-        "keywords": "services door rf blast bullet hurricane oversized forced entry sound transmission"
+        "answer": "Use the Services menu or the services section on the home page to review SCIF rooms construction plus specialty door services like RF, blast, bullet, hurricane, oversized, and forced entry doors.",
+        "keywords": "services door scif rooms construction rf blast bullet hurricane oversized forced entry sound transmission"
       },
       "quote": {
         "title": "How do I request a quote?",
@@ -133,7 +134,7 @@
       },
       "secureOpenings": {
         "title": "What secure door openings do you support?",
-        "answer": "Gateway Door Systems supports secure openings including RF doors, sound transmission, bullet, blast, oversized assemblies, hurricane and tornado, and forced entry doors.",
+        "answer": "Gateway Door Systems supports SCIF rooms construction plus secure openings including RF doors, sound transmission, bullet, blast, oversized assemblies, hurricane and tornado, and forced entry doors.",
         "keywords": "secure openings rf sound transmission bullet blast oversized hurricane tornado forced entry scif"
       },
       "process": {
@@ -153,7 +154,7 @@
       },
       "certifications": {
         "title": "What certifications does Gateway Door Systems have?",
-        "answer": "Gateway Door Systems holds Lockmasters, RF, and SCIF room construction credentials for high-security locks, radio-frequency shielded doors, and SCIF rooms. Visit the Certifications page to learn more.",
+        "answer": "Gateway Door Systems holds Lockmasters, RF, and SCIF Rooms Construction credentials for high-security locks, radio-frequency shielded doors, and SCIF rooms. Visit the Certifications page to learn more.",
         "keywords": "certification lockmasters rf scif rooms certified training factory authorized credentials"
       },
       "portal": {
