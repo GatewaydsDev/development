@@ -419,6 +419,8 @@ test('the product list can be printed and exported as pdf or word', function () 
         ->get(route('admin.products.print', ['search' => 'RF Door']))
         ->assertOk()
         ->assertSee('Product catalog', false)
+        ->assertSee('Gateway Door Systems', false)
+        ->assertDontSee('Gateway operations', false)
         ->assertSee('RF Door Catalog Item', false)
         ->assertDontSee('Hidden Closer', false);
 

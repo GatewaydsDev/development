@@ -305,7 +305,7 @@
                         @else
                             <p class="eyebrow">{{ $companyName }}</p>
                         @endif
-                        <p class="eyebrow" style="margin-top: 10px;">Gateway operations</p>
+                        <p class="eyebrow" style="margin-top: 10px;">Gateway Door Systems</p>
                         <h1>Product catalog</h1>
                         <p class="hero-meta">
                             Generated {{ $generatedAt->format('F j, Y') }}
