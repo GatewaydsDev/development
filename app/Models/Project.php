@@ -4,20 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 class Project extends Model
 {
-    public const STATUSES = [
-        'lead',
-        'quoted',
-        'approved',
-        'scheduled',
-        'in_progress',
-        'completed',
-        'cancelled',
-    ];
-
     public const PRIORITIES = [
         'low',
         'normal',
@@ -44,7 +36,7 @@ class Project extends Model
         'assigned_to',
         'created_by',
         'service_type',
-        'status',
+        'project_status_id',
         'priority',
         'site_address_line_1',
         'site_address_line_2',
@@ -74,12 +66,42 @@ class Project extends Model
     {
         static::creating(function (Project $project): void {
             $project->uuid ??= (string) Str::uuid();
+            $project->project_status_id ??= ProjectStatus::defaultId();
         });
+    }
+
+    public function status(): BelongsTo
+    {
+        return $this->belongsTo(ProjectStatus::class, 'project_status_id');
     }
 
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function contractors(): BelongsToMany
+    {
+        return $this->belongsToMany(Contractor::class, 'project_contractor')
+            ->withTimestamps()
+            ->orderBy('name');
+    }
+
+    public function scopes(): HasMany
+    {
+        return $this->hasMany(ProjectScope::class)->orderBy('scope_type');
+    }
+
+    public function revisions(): HasMany
+    {
+        return $this->hasMany(ProjectRevision::class)
+            ->orderByDesc('revision_date')
+            ->orderByDesc('id');
+    }
+
+    public function bids(): HasMany
+    {
+        return $this->hasMany(Bid::class)->latest();
     }
 
     public function assignee(): BelongsTo

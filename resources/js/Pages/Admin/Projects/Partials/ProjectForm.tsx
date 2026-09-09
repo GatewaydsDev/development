@@ -1,7 +1,10 @@
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
+import ContractorSelect from '@/Components/ContractorSelect';
+import CreatableSelect from '@/Components/CreatableSelect';
 import CustomerSelect from '@/Components/CustomerSelect';
 import FormActionFab from '@/Components/FormActionFab';
+import MaskedDecimalInput from '@/Components/MaskedDecimalInput';
 import TextInput from '@/Components/TextInput';
 import { Button } from '@/Components/ui/button';
 import {
@@ -12,21 +15,31 @@ import {
     CardTitle,
 } from '@/Components/ui/card';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Link, router } from '@inertiajs/react';
-import { FormEventHandler, useMemo, useState } from 'react';
+import { router, usePage } from '@inertiajs/react';
+import { inputToDecimal, parseDecimal } from '@/lib/money';
+import { PlusIcon, Trash2Icon } from 'lucide-react';
+import { FormEventHandler, useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import {
     FieldErrors,
     FieldPath,
     PathValue,
+    useFieldArray,
     useForm,
 } from 'react-hook-form';
 import { z } from 'zod';
+import { type PageProps } from '@/types';
 import {
+    blankContractor,
+    blankRevision,
+    blankScope,
     optionLabel,
     projectToFormData,
     type ProjectFormData,
     type ProjectOptions,
     type ProjectPayload,
+    type ProjectRevisionFormData,
+    type ProjectScopeFormData,
 } from '../types';
 
 type ProjectFormProps = {
@@ -46,36 +59,30 @@ const optionalDateSchema = z
         'Enter a valid date.',
     );
 
-const optionalMoneySchema = z
-    .string()
-    .refine(
-        (value) => value === '' || Number(value) >= 0,
-        'Budget amount must be zero or greater.',
-    );
+const optionalMoneySchema = z.string().refine((value) => {
+    if (value.trim() === '') {
+        return true;
+    }
+
+    const amount = parseDecimal(value);
+
+    return amount !== null && amount >= 0;
+}, 'Budget amount must be zero or greater.');
 
 function projectSchema(options: ProjectOptions, canEditCoreFields: boolean) {
+    const scopeTypes = options.scopeTypes?.length
+        ? options.scopeTypes
+        : options.serviceTypes;
+
     return z
         .object({
             name: canEditCoreFields
                 ? z.string().trim().min(1, 'Enter the project name.').max(255)
                 : z.string(),
             project_number: z.string().trim().max(255),
-            customer_id: canEditCoreFields
-                ? z.string().min(1, 'Select a customer.')
-                : z.string(),
+            customer_id: z.string(),
             assigned_to: z.string(),
-            service_type: z
-                .string()
-                .refine(
-                    (value) => value === '' || options.serviceTypes.includes(value),
-                    'Select a valid service type.',
-                ),
-            status: z
-                .string()
-                .refine(
-                    (value) => options.statuses.includes(value),
-                    'Select a valid status.',
-                ),
+            status_id: z.string().trim().min(1, 'Select a status.'),
             priority: z
                 .string()
                 .refine(
@@ -92,20 +99,131 @@ function projectSchema(options: ProjectOptions, canEditCoreFields: boolean) {
             estimated_end_date: optionalDateSchema,
             completed_at: optionalDateSchema,
             budget_amount: optionalMoneySchema,
-            public_notes: z.string().trim().max(5000, 'Project notes must be 5,000 characters or less.'),
-            internal_notes: z.string().trim().max(5000, 'Internal notes must be 5,000 characters or less.'),
+            public_notes: z
+                .string()
+                .trim()
+                .max(5000, 'Project notes must be 5,000 characters or less.'),
+            internal_notes: z
+                .string()
+                .trim()
+                .max(5000, 'Internal notes must be 5,000 characters or less.'),
+            contractors: z.array(
+                z.object({
+                    contractor_id: z.string(),
+                }),
+            ),
+            scopes: z.array(
+                z.object({
+                    type: z.string(),
+                    notes: z
+                        .string()
+                        .trim()
+                        .max(1000, 'Scope notes must be 1,000 characters or less.'),
+                }),
+            ),
+            revisions: z.array(
+                z.object({
+                    id: z.string(),
+                    number: z.string().trim().max(50),
+                    revision_date: optionalDateSchema,
+                    notes: z
+                        .string()
+                        .trim()
+                        .max(2000, 'Revision notes must be 2,000 characters or less.'),
+                    user_id: z.string(),
+                    user_name: z.string(),
+                }),
+            ),
         })
-        .refine(
-            (values) =>
-                values.estimated_start_date === '' ||
-                values.estimated_end_date === '' ||
-                new Date(values.estimated_end_date) >=
-                    new Date(values.estimated_start_date),
-            {
-                path: ['estimated_end_date'],
-                message: 'Estimated end must be on or after estimated start.',
-            },
-        );
+        .superRefine((values, context) => {
+            if (
+                values.estimated_start_date !== '' &&
+                values.estimated_end_date !== '' &&
+                new Date(values.estimated_end_date) <
+                    new Date(values.estimated_start_date)
+            ) {
+                context.addIssue({
+                    code: 'custom',
+                    path: ['estimated_end_date'],
+                    message: 'Estimated end must be on or after estimated start.',
+                });
+            }
+
+            if (!canEditCoreFields) {
+                return;
+            }
+
+            const seenContractors = new Map<string, number>();
+            values.contractors.forEach((contractor, index) => {
+                const contractorId = contractor.contractor_id.trim();
+
+                if (contractorId === '') {
+                    return;
+                }
+
+                const firstIndex = seenContractors.get(contractorId);
+
+                if (firstIndex !== undefined) {
+                    context.addIssue({
+                        code: 'custom',
+                        path: ['contractors', index, 'contractor_id'],
+                        message: 'This contractor is already added.',
+                    });
+                } else {
+                    seenContractors.set(contractorId, index);
+                }
+            });
+
+            const seenScopes = new Map<string, number>();
+            values.scopes.forEach((scope, index) => {
+                const type = scope.type.trim();
+
+                if (type === '') {
+                    return;
+                }
+
+                if (!scopeTypes.includes(type)) {
+                    context.addIssue({
+                        code: 'custom',
+                        path: ['scopes', index, 'type'],
+                        message: 'Select a valid scope of work.',
+                    });
+                }
+
+                const firstIndex = seenScopes.get(type);
+
+                if (firstIndex !== undefined) {
+                    context.addIssue({
+                        code: 'custom',
+                        path: ['scopes', index, 'type'],
+                        message: 'This scope of work is already added.',
+                    });
+                } else {
+                    seenScopes.set(type, index);
+                }
+            });
+
+            const seenRevisions = new Map<string, number>();
+            values.revisions.forEach((revision, index) => {
+                const number = revision.number.trim().toLowerCase();
+
+                if (number === '') {
+                    return;
+                }
+
+                const firstIndex = seenRevisions.get(number);
+
+                if (firstIndex !== undefined) {
+                    context.addIssue({
+                        code: 'custom',
+                        path: ['revisions', index, 'number'],
+                        message: 'This revision is already added.',
+                    });
+                } else {
+                    seenRevisions.set(number, index);
+                }
+            });
+        });
 }
 
 function errorMessage(
@@ -136,28 +254,156 @@ export default function ProjectForm({
     options,
     project,
 }: ProjectFormProps) {
+    const { auth } = usePage<PageProps>().props;
+    const currentUserId = auth.user?.id ? String(auth.user.id) : '';
     const [processing, setProcessing] = useState(false);
+    const [checkingName, setCheckingName] = useState(false);
+    const [nameTaken, setNameTaken] = useState(false);
+    const nameCheckRequest = useRef(0);
     const canEditCoreFields =
         options.can.create || options.can.viewCustomerContactFields;
     const canViewSensitive = options.can.viewSensitiveFields;
+    const scopeTypes = options.scopeTypes?.length
+        ? options.scopeTypes
+        : options.serviceTypes;
     const validationSchema = useMemo(
         () => projectSchema(options, canEditCoreFields),
         [canEditCoreFields, options],
     );
     const {
+        control,
         handleSubmit,
         setError,
+        clearErrors,
         setValue,
         watch,
         formState: { errors: validationErrors },
     } = useForm<ProjectFormData>({
         resolver: zodResolver(validationSchema),
-        defaultValues: projectToFormData(project),
+        defaultValues: projectToFormData(project, options),
         mode: 'onChange',
+    });
+    const {
+        fields: contractorFields,
+        append: appendContractor,
+        remove: removeContractor,
+    } = useFieldArray({
+        control,
+        name: 'contractors',
+    });
+    const { fields: scopeFields, append: appendScope, remove: removeScope } =
+        useFieldArray({
+            control,
+            name: 'scopes',
+        });
+    const {
+        fields: revisionFields,
+        append: appendRevision,
+        remove: removeRevision,
+    } = useFieldArray({
+        control,
+        name: 'revisions',
     });
     const data = watch();
 
-    const submit = handleSubmit((values) => {
+    const checkProjectNameAvailability = async (name: string) => {
+        const trimmedName = name.trim();
+        const requestId = ++nameCheckRequest.current;
+
+        if (trimmedName === '') {
+            setNameTaken(false);
+            setCheckingName(false);
+            return true;
+        }
+
+        if (
+            project?.name &&
+            trimmedName.toLowerCase() === project.name.trim().toLowerCase()
+        ) {
+            setNameTaken(false);
+            setCheckingName(false);
+            return true;
+        }
+
+        setCheckingName(true);
+
+        const params = new URLSearchParams({ name: trimmedName });
+
+        if (project?.id) {
+            params.set('project_id', String(project.id));
+        }
+
+        try {
+            const response = await fetch(
+                `${route('admin.projects.name-availability')}?${params.toString()}`,
+                {
+                    headers: {
+                        Accept: 'application/json',
+                    },
+                },
+            );
+
+            if (requestId !== nameCheckRequest.current) {
+                return true;
+            }
+
+            if (!response.ok) {
+                return true;
+            }
+
+            const result = (await response.json()) as { available: boolean };
+
+            if (!result.available) {
+                setNameTaken(true);
+                setError('name', {
+                    type: 'server',
+                    message: 'A project with this name already exists.',
+                });
+                return false;
+            }
+
+            setNameTaken(false);
+            return true;
+        } catch {
+            if (requestId !== nameCheckRequest.current) {
+                return true;
+            }
+
+            setNameTaken(false);
+            return true;
+        } finally {
+            if (requestId === nameCheckRequest.current) {
+                setCheckingName(false);
+            }
+        }
+    };
+
+    const submit = handleSubmit(
+        async (values) => {
+        const nameIsAvailable = await checkProjectNameAvailability(values.name);
+
+        if (!nameIsAvailable) {
+            toast.error('A project with this name already exists.');
+            return;
+        }
+
+        const payload = {
+            ...values,
+            customer_id: values.customer_id.trim(),
+            budget_amount: inputToDecimal(values.budget_amount) || null,
+            contractors: (values.contractors ?? []).filter(
+                (contractor) => contractor.contractor_id.trim() !== '',
+            ),
+            scopes: (values.scopes ?? []).filter((scope) => scope.type.trim() !== ''),
+            revisions: (values.revisions ?? [])
+                .filter((revision) => revision.number.trim() !== '')
+                .map((revision) => ({
+                    id: revision.id.trim() || null,
+                    number: revision.number,
+                    revision_date: revision.revision_date,
+                    notes: revision.notes,
+                })),
+        };
         const submitOptions = {
             onBefore: () => setProcessing(true),
             onError: (serverErrors: Record<string, string>) => {
@@ -167,17 +413,27 @@ export default function ProjectForm({
                         message: String(message),
                     });
                 });
+                toast.error(
+                    Object.values(serverErrors)[0] ||
+                        'The project could not be saved. Check the form and try again.',
+                );
             },
             onFinish: () => setProcessing(false),
         };
 
         if (method === 'patch') {
-            router.patch(action, values, submitOptions);
+            router.patch(action, payload, submitOptions);
             return;
         }
 
-        router.post(action, values, submitOptions);
-    }) as FormEventHandler;
+        router.post(action, payload, submitOptions);
+        },
+        () => {
+            toast.error(
+                'The project could not be saved. Check the highlighted fields and try again.',
+            );
+        },
+    ) as FormEventHandler;
 
     const inputClassName =
         'h-11 w-full border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring';
@@ -195,6 +451,38 @@ export default function ProjectForm({
             shouldValidate: true,
         });
     };
+    const setContractorData = (
+        index: number,
+        contractorId: string,
+    ) => {
+        setData(
+            `contractors.${index}.contractor_id` as FieldPath<ProjectFormData>,
+            contractorId as PathValue<
+                ProjectFormData,
+                FieldPath<ProjectFormData>
+            >,
+        );
+    };
+    const setScopeData = (
+        index: number,
+        field: keyof ProjectScopeFormData,
+        value: string,
+    ) => {
+        setData(
+            `scopes.${index}.${field}` as FieldPath<ProjectFormData>,
+            value as PathValue<ProjectFormData, FieldPath<ProjectFormData>>,
+        );
+    };
+    const setRevisionData = (
+        index: number,
+        field: keyof ProjectRevisionFormData,
+        value: string,
+    ) => {
+        setData(
+            `revisions.${index}.${field}` as FieldPath<ProjectFormData>,
+            value as PathValue<ProjectFormData, FieldPath<ProjectFormData>>,
+        );
+    };
 
     return (
         <Card className="shadow-sm">
@@ -209,9 +497,9 @@ export default function ProjectForm({
                         saveLabel={submitLabel}
                         disabled={processing}
                     />
-                    {canEditCoreFields && (
-                        <>
-                            <section className="grid gap-5 md:grid-cols-2">
+                    <section className="flex flex-col gap-5 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
+                        {canEditCoreFields && (
+                            <div className="grid gap-5 md:grid-cols-2">
                                 <div className="flex flex-col gap-2">
                                     <InputLabel
                                         htmlFor="project-name"
@@ -223,11 +511,25 @@ export default function ProjectForm({
                                         value={data.name}
                                         className={inputClassName}
                                         isFocused
-                                        onChange={(event) =>
-                                            setData('name', event.target.value)
-                                        }
+                                        onChange={(event) => {
+                                            nameCheckRequest.current += 1;
+                                            setCheckingName(false);
+                                            setNameTaken(false);
+                                            clearErrors('name');
+                                            setData('name', event.target.value);
+                                        }}
+                                        onBlur={(event) => {
+                                            void checkProjectNameAvailability(
+                                                event.target.value,
+                                            );
+                                        }}
                                     />
                                     <InputError message={errors.name} />
+                                    {checkingName && (
+                                        <p className="text-sm text-muted-foreground">
+                                            Checking project name...
+                                        </p>
+                                    )}
                                 </div>
 
                                 <div className="flex flex-col gap-2">
@@ -247,47 +549,59 @@ export default function ProjectForm({
                                             )
                                         }
                                     />
-                                    <InputError message={errors.project_number} />
+                                    <InputError
+                                        message={errors.project_number}
+                                    />
                                 </div>
-                            </section>
+                            </div>
+                        )}
 
-                            <CustomerSelect
-                                customers={options.customers}
-                                value={data.customer_id}
-                                onChange={(value) =>
-                                    setData('customer_id', value)
+                        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+                            <CreatableSelect
+                                id="project-status"
+                                label="Status"
+                                compact
+                                value={data.status_id}
+                                options={options.statuses}
+                                createRoute={route(
+                                    'admin.project-statuses.store',
+                                )}
+                                catalogKey="statuses"
+                                entityLabel="status"
+                                placeholder="Lead, Quoted, Approved..."
+                                error={errors.status_id}
+                                onChange={(statusId) =>
+                                    setData('status_id', statusId)
                                 }
-                                error={errors.customer_id}
                             />
 
-                            <section className="grid gap-5 border-t border-border pt-6 md:grid-cols-3">
-                                <div className="flex flex-col gap-2">
-                                    <InputLabel
-                                        htmlFor="service-type"
-                                        value="Service type"
-                                        className={labelClassName}
-                                    />
-                                    <select
-                                        id="service-type"
-                                        value={data.service_type}
-                                        onChange={(event) =>
-                                            setData(
-                                                'service_type',
-                                                event.target.value,
-                                            )
-                                        }
-                                        className="h-11 rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
-                                    >
-                                        <option value="">Select a service</option>
-                                        {options.serviceTypes.map((type) => (
-                                            <option key={type} value={type}>
-                                                {optionLabel(type)}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <InputError message={errors.service_type} />
-                                </div>
+                            <div className="flex flex-col gap-2">
+                                <InputLabel
+                                    htmlFor="project-priority"
+                                    value="Priority"
+                                    className={labelClassName}
+                                />
+                                <select
+                                    id="project-priority"
+                                    value={data.priority}
+                                    onChange={(event) =>
+                                        setData('priority', event.target.value)
+                                    }
+                                    className="h-11 rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
+                                >
+                                    {options.priorities.map((priority) => (
+                                        <option
+                                            key={priority}
+                                            value={priority}
+                                        >
+                                            {optionLabel(priority)}
+                                        </option>
+                                    ))}
+                                </select>
+                                <InputError message={errors.priority} />
+                            </div>
 
+                            {canEditCoreFields && (
                                 <div className="flex flex-col gap-2">
                                     <InputLabel
                                         htmlFor="assigned-to"
@@ -317,150 +631,243 @@ export default function ProjectForm({
                                     </select>
                                     <InputError message={errors.assigned_to} />
                                 </div>
-                            </section>
-                        </>
-                    )}
+                            )}
 
-                    <section className="grid gap-5 border-t border-border pt-6 md:grid-cols-3">
-                        <div className="flex flex-col gap-2">
-                            <InputLabel
-                                htmlFor="project-status"
-                                value="Status"
-                                className={labelClassName}
-                            />
-                            <select
-                                id="project-status"
-                                value={data.status}
-                                onChange={(event) =>
-                                    setData('status', event.target.value)
-                                }
-                                className="h-11 rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
-                            >
-                                {options.statuses.map((status) => (
-                                    <option key={status} value={status}>
-                                        {optionLabel(status)}
-                                    </option>
-                                ))}
-                            </select>
-                            <InputError message={errors.status} />
+                            {canViewSensitive && (
+                                <div className="flex flex-col gap-2">
+                                    <InputLabel
+                                        htmlFor="budget-amount"
+                                        value="Budget amount"
+                                        className={labelClassName}
+                                    />
+                                    <MaskedDecimalInput
+                                        id="budget-amount"
+                                        prefix="$"
+                                        value={data.budget_amount ?? ''}
+                                        className={inputClassName}
+                                        placeholder="0.00"
+                                        onChange={(value) =>
+                                            setData('budget_amount', value)
+                                        }
+                                    />
+                                    <InputError
+                                        message={errors.budget_amount}
+                                    />
+                                </div>
+                            )}
                         </div>
 
-                        <div className="flex flex-col gap-2">
-                            <InputLabel
-                                htmlFor="project-priority"
-                                value="Priority"
-                                className={labelClassName}
-                            />
-                            <select
-                                id="project-priority"
-                                value={data.priority}
-                                onChange={(event) =>
-                                    setData('priority', event.target.value)
-                                }
-                                className="h-11 rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
-                            >
-                                {options.priorities.map((priority) => (
-                                    <option key={priority} value={priority}>
-                                        {optionLabel(priority)}
-                                    </option>
-                                ))}
-                            </select>
-                            <InputError message={errors.priority} />
-                        </div>
+                        {canEditCoreFields && (
+                            <div className="flex flex-col gap-4 rounded-lg border border-emerald-200 bg-background p-4 dark:border-emerald-900/70">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <div>
+                                        <h3 className="text-base font-semibold text-foreground">
+                                            Revisions
+                                        </h3>
+                                        <p className="text-sm text-muted-foreground">
+                                            Track drawing or document revisions
+                                            for this project.
+                                        </p>
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() =>
+                                            appendRevision(
+                                                blankRevision(
+                                                    currentUserId,
+                                                    auth.user?.name ?? '',
+                                                ),
+                                            )
+                                        }
+                                        className="w-full sm:w-auto"
+                                    >
+                                        <PlusIcon className="size-4" />
+                                        Add revision
+                                    </Button>
+                                </div>
 
-                        {canViewSensitive && (
-                            <div className="flex flex-col gap-2">
-                                <InputLabel
-                                    htmlFor="budget-amount"
-                                    value="Budget amount"
-                                    className={labelClassName}
-                                />
-                                <TextInput
-                                    id="budget-amount"
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={data.budget_amount}
-                                    className={inputClassName}
-                                    onChange={(event) =>
-                                        setData(
-                                            'budget_amount',
-                                            event.target.value,
-                                        )
-                                    }
-                                />
-                                <InputError message={errors.budget_amount} />
+                                {revisionFields.length === 0 ? (
+                                    <div className="rounded-lg border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
+                                        No revisions added yet.
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col gap-4">
+                                        {revisionFields.map((field, index) => {
+                                            const revision =
+                                                data.revisions[index];
+
+                                            return (
+                                                <div
+                                                    key={field.id}
+                                                    className="grid gap-4 rounded-lg border border-border bg-muted/10 p-4 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,0.9fr)_minmax(0,1.1fr)_minmax(0,1.3fr)_auto]"
+                                                >
+                                                    <div className="flex flex-col gap-2">
+                                                        <InputLabel
+                                                            htmlFor={`project-revision-number-${index}`}
+                                                            value="Revision"
+                                                            className={
+                                                                labelClassName
+                                                            }
+                                                        />
+                                                        <TextInput
+                                                            id={`project-revision-number-${index}`}
+                                                            value={
+                                                                revision?.number ??
+                                                                ''
+                                                            }
+                                                            className={
+                                                                inputClassName
+                                                            }
+                                                            placeholder="A, B, 1"
+                                                            onChange={(
+                                                                event,
+                                                            ) =>
+                                                                setRevisionData(
+                                                                    index,
+                                                                    'number',
+                                                                    event
+                                                                        .target
+                                                                        .value,
+                                                                )
+                                                            }
+                                                        />
+                                                        <InputError
+                                                            message={errorMessage(
+                                                                validationErrors,
+                                                                `revisions.${index}.number`,
+                                                            )}
+                                                        />
+                                                    </div>
+                                                    <div className="flex flex-col gap-2">
+                                                        <InputLabel
+                                                            htmlFor={`project-revision-date-${index}`}
+                                                            value="Date"
+                                                            className={
+                                                                labelClassName
+                                                            }
+                                                        />
+                                                        <TextInput
+                                                            id={`project-revision-date-${index}`}
+                                                            type="date"
+                                                            value={
+                                                                revision?.revision_date ??
+                                                                ''
+                                                            }
+                                                            className={
+                                                                inputClassName
+                                                            }
+                                                            onChange={(
+                                                                event,
+                                                            ) =>
+                                                                setRevisionData(
+                                                                    index,
+                                                                    'revision_date',
+                                                                    event
+                                                                        .target
+                                                                        .value,
+                                                                )
+                                                            }
+                                                        />
+                                                    </div>
+                                                    <div className="flex flex-col gap-2">
+                                                        <InputLabel
+                                                            htmlFor={`project-revision-user-${index}`}
+                                                            value="Updated by"
+                                                            className={
+                                                                labelClassName
+                                                            }
+                                                        />
+                                                        <TextInput
+                                                            id={`project-revision-user-${index}`}
+                                                            value={
+                                                                revision?.user_name ??
+                                                                ''
+                                                            }
+                                                            disabled
+                                                            readOnly
+                                                            className={`${inputClassName} cursor-not-allowed bg-muted`}
+                                                        />
+                                                    </div>
+                                                    <div className="flex flex-col gap-2">
+                                                        <InputLabel
+                                                            htmlFor={`project-revision-notes-${index}`}
+                                                            value="Notes"
+                                                            className={
+                                                                labelClassName
+                                                            }
+                                                        />
+                                                        <TextInput
+                                                            id={`project-revision-notes-${index}`}
+                                                            value={
+                                                                revision?.notes ??
+                                                                ''
+                                                            }
+                                                            className={
+                                                                inputClassName
+                                                            }
+                                                            onChange={(
+                                                                event,
+                                                            ) =>
+                                                                setRevisionData(
+                                                                    index,
+                                                                    'notes',
+                                                                    event
+                                                                        .target
+                                                                        .value,
+                                                                )
+                                                            }
+                                                        />
+                                                    </div>
+                                                    <div className="flex items-start lg:pt-7">
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            onClick={() =>
+                                                                removeRevision(
+                                                                    index,
+                                                                )
+                                                            }
+                                                            aria-label={`Remove revision ${index + 1}`}
+                                                        >
+                                                            <Trash2Icon className="size-4" />
+                                                            Remove
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
                         )}
                     </section>
 
                     {canEditCoreFields && (
-                        <section className="grid gap-5 border-t border-border pt-6 md:grid-cols-2">
-                            <div className="flex flex-col gap-2">
-                                <InputLabel
-                                    htmlFor="site-address-line-1"
-                                    value="Site address line 1"
-                                    className={labelClassName}
-                                />
-                                <TextInput
-                                    id="site-address-line-1"
-                                    value={data.site_address_line_1}
-                                    className={inputClassName}
-                                    onChange={(event) =>
-                                        setData(
-                                            'site_address_line_1',
-                                            event.target.value,
-                                        )
-                                    }
-                                />
-                            </div>
-                            <div className="flex flex-col gap-2">
-                                <InputLabel
-                                    htmlFor="site-address-line-2"
-                                    value="Site address line 2"
-                                    className={labelClassName}
-                                />
-                                <TextInput
-                                    id="site-address-line-2"
-                                    value={data.site_address_line_2}
-                                    className={inputClassName}
-                                    onChange={(event) =>
-                                        setData(
-                                            'site_address_line_2',
-                                            event.target.value,
-                                        )
-                                    }
-                                />
-                            </div>
-                            <div className="flex flex-col gap-2">
-                                <InputLabel
-                                    htmlFor="site-city"
-                                    value="Site city"
-                                    className={labelClassName}
-                                />
-                                <TextInput
-                                    id="site-city"
-                                    value={data.site_city}
-                                    className={inputClassName}
-                                    onChange={(event) =>
-                                        setData('site_city', event.target.value)
-                                    }
-                                />
-                            </div>
-                            <div className="grid gap-5 sm:grid-cols-3">
+                        <>
+                            <section className="grid gap-5 border-t border-border pt-6 md:grid-cols-2">
+                                <div className="flex flex-col gap-2 md:col-span-2">
+                                    <h3 className="text-base font-semibold text-foreground">
+                                        Address
+                                    </h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        Site location where the project work
+                                        will happen.
+                                    </p>
+                                </div>
                                 <div className="flex flex-col gap-2">
                                     <InputLabel
-                                        htmlFor="site-state"
-                                        value="State"
+                                        htmlFor="site-address-line-1"
+                                        value="Address line 1"
                                         className={labelClassName}
                                     />
                                     <TextInput
-                                        id="site-state"
-                                        value={data.site_state}
+                                        id="site-address-line-1"
+                                        value={data.site_address_line_1}
                                         className={inputClassName}
                                         onChange={(event) =>
                                             setData(
-                                                'site_state',
+                                                'site_address_line_1',
                                                 event.target.value,
                                             )
                                         }
@@ -468,17 +875,17 @@ export default function ProjectForm({
                                 </div>
                                 <div className="flex flex-col gap-2">
                                     <InputLabel
-                                        htmlFor="site-postal-code"
-                                        value="Postal code"
+                                        htmlFor="site-address-line-2"
+                                        value="Address line 2"
                                         className={labelClassName}
                                     />
                                     <TextInput
-                                        id="site-postal-code"
-                                        value={data.site_postal_code}
+                                        id="site-address-line-2"
+                                        value={data.site_address_line_2}
                                         className={inputClassName}
                                         onChange={(event) =>
                                             setData(
-                                                'site_postal_code',
+                                                'site_address_line_2',
                                                 event.target.value,
                                             )
                                         }
@@ -486,24 +893,307 @@ export default function ProjectForm({
                                 </div>
                                 <div className="flex flex-col gap-2">
                                     <InputLabel
-                                        htmlFor="site-country"
-                                        value="Country"
+                                        htmlFor="site-city"
+                                        value="City"
                                         className={labelClassName}
                                     />
                                     <TextInput
-                                        id="site-country"
-                                        value={data.site_country}
+                                        id="site-city"
+                                        value={data.site_city}
                                         className={inputClassName}
                                         onChange={(event) =>
-                                            setData(
-                                                'site_country',
-                                                event.target.value,
-                                            )
+                                            setData('site_city', event.target.value)
                                         }
                                     />
                                 </div>
-                            </div>
-                        </section>
+                                <div className="grid gap-5 sm:grid-cols-3">
+                                    <div className="flex flex-col gap-2">
+                                        <InputLabel
+                                            htmlFor="site-state"
+                                            value="State"
+                                            className={labelClassName}
+                                        />
+                                        <TextInput
+                                            id="site-state"
+                                            value={data.site_state}
+                                            className={inputClassName}
+                                            onChange={(event) =>
+                                                setData(
+                                                    'site_state',
+                                                    event.target.value,
+                                                )
+                                            }
+                                        />
+                                    </div>
+                                    <div className="flex flex-col gap-2">
+                                        <InputLabel
+                                            htmlFor="site-postal-code"
+                                            value="Postal code"
+                                            className={labelClassName}
+                                        />
+                                        <TextInput
+                                            id="site-postal-code"
+                                            value={data.site_postal_code}
+                                            className={inputClassName}
+                                            onChange={(event) =>
+                                                setData(
+                                                    'site_postal_code',
+                                                    event.target.value,
+                                                )
+                                            }
+                                        />
+                                    </div>
+                                    <div className="flex flex-col gap-2">
+                                        <InputLabel
+                                            htmlFor="site-country"
+                                            value="Country"
+                                            className={labelClassName}
+                                        />
+                                        <TextInput
+                                            id="site-country"
+                                            value={data.site_country}
+                                            className={inputClassName}
+                                            onChange={(event) =>
+                                                setData(
+                                                    'site_country',
+                                                    event.target.value,
+                                                )
+                                            }
+                                        />
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section className="flex flex-col gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <div>
+                                        <h3 className="text-base font-semibold text-foreground">
+                                            General contractors
+                                        </h3>
+                                        <p className="text-sm text-muted-foreground">
+                                            Type a name to search saved
+                                            contractors, or create a new one if
+                                            it is not in the list.
+                                        </p>
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() =>
+                                            appendContractor(blankContractor())
+                                        }
+                                        className="w-full sm:w-auto"
+                                    >
+                                        <PlusIcon className="size-4" />
+                                        Add contractor
+                                    </Button>
+                                </div>
+
+                                {contractorFields.length === 0 ? (
+                                    <div className="rounded-lg border border-dashed border-border bg-background/60 p-4 text-sm text-muted-foreground">
+                                        No contractors added yet.
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col gap-4">
+                                        {contractorFields.map((field, index) => {
+                                            const contractor =
+                                                data.contractors[index];
+                                            const selectedIds = data.contractors
+                                                .map((item, itemIndex) =>
+                                                    itemIndex === index
+                                                        ? ''
+                                                        : item.contractor_id,
+                                                )
+                                                .filter(Boolean);
+
+                                            return (
+                                                <div
+                                                    key={field.id}
+                                                    className="grid gap-4 overflow-visible rounded-lg border border-emerald-200 bg-background p-4 shadow-sm dark:border-emerald-900/70 lg:grid-cols-[minmax(0,1fr)_auto]"
+                                                >
+                                                    <ContractorSelect
+                                                        id={`project-contractor-${index}`}
+                                                        value={
+                                                            contractor?.contractor_id ??
+                                                            ''
+                                                        }
+                                                        contractors={
+                                                            options.contractors ??
+                                                            []
+                                                        }
+                                                        disabledIds={selectedIds}
+                                                        error={errorMessage(
+                                                            validationErrors,
+                                                            `contractors.${index}.contractor_id`,
+                                                        )}
+                                                        onChange={(
+                                                            contractorId,
+                                                        ) =>
+                                                            setContractorData(
+                                                                index,
+                                                                contractorId,
+                                                            )
+                                                        }
+                                                    />
+                                                    <div className="flex items-start lg:pt-7">
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            onClick={() =>
+                                                                removeContractor(
+                                                                    index,
+                                                                )
+                                                            }
+                                                            aria-label={`Remove contractor ${index + 1}`}
+                                                        >
+                                                            <Trash2Icon className="size-4" />
+                                                            Remove
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </section>
+
+                            <CustomerSelect
+                                customers={options.customers}
+                                value={data.customer_id}
+                                onChange={(value) =>
+                                    setData('customer_id', value)
+                                }
+                                error={errors.customer_id}
+                            />
+
+                            <section className="flex flex-col gap-4 rounded-xl border border-border bg-muted/20 p-5">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <div>
+                                        <h3 className="text-base font-semibold text-foreground">
+                                            Scope of work
+                                        </h3>
+                                        <p className="text-sm text-muted-foreground">
+                                            Add one or more scope types for this
+                                            project.
+                                        </p>
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => appendScope(blankScope())}
+                                        className="w-full sm:w-auto"
+                                    >
+                                        <PlusIcon className="size-4" />
+                                        Add scope
+                                    </Button>
+                                </div>
+
+                                {scopeFields.length === 0 ? (
+                                    <div className="rounded-lg border border-dashed border-border bg-background/60 p-4 text-sm text-muted-foreground">
+                                        No scopes added yet.
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col gap-4">
+                                        {scopeFields.map((field, index) => {
+                                            const scope = data.scopes[index];
+                                            const selectedTypes = data.scopes
+                                                .map((item, itemIndex) =>
+                                                    itemIndex === index
+                                                        ? ''
+                                                        : item.type,
+                                                )
+                                                .filter(Boolean);
+
+                                            return (
+                                                <div
+                                                    key={field.id}
+                                                    className="grid gap-4 rounded-lg border border-border bg-background p-4 shadow-sm lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_auto]"
+                                                >
+                                                    <div className="flex flex-col gap-2">
+                                                        <InputLabel
+                                                            htmlFor={`project-scope-type-${index}`}
+                                                            value="Scope type"
+                                                            className={labelClassName}
+                                                        />
+                                                        <select
+                                                            id={`project-scope-type-${index}`}
+                                                            value={scope?.type ?? ''}
+                                                            onChange={(event) =>
+                                                                setScopeData(
+                                                                    index,
+                                                                    'type',
+                                                                    event.target.value,
+                                                                )
+                                                            }
+                                                            className="h-11 rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
+                                                        >
+                                                            <option value="">
+                                                                Select a scope
+                                                            </option>
+                                                            {scopeTypes.map((type) => (
+                                                                <option
+                                                                    key={type}
+                                                                    value={type}
+                                                                    disabled={selectedTypes.includes(
+                                                                        type,
+                                                                    )}
+                                                                >
+                                                                    {optionLabel(type)}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                        <InputError
+                                                            message={errorMessage(
+                                                                validationErrors,
+                                                                `scopes.${index}.type`,
+                                                            )}
+                                                        />
+                                                    </div>
+                                                    <div className="flex flex-col gap-2">
+                                                        <InputLabel
+                                                            htmlFor={`project-scope-notes-${index}`}
+                                                            value="Notes"
+                                                            className={labelClassName}
+                                                        />
+                                                        <TextInput
+                                                            id={`project-scope-notes-${index}`}
+                                                            value={scope?.notes ?? ''}
+                                                            className={inputClassName}
+                                                            onChange={(event) =>
+                                                                setScopeData(
+                                                                    index,
+                                                                    'notes',
+                                                                    event.target.value,
+                                                                )
+                                                            }
+                                                        />
+                                                        <InputError
+                                                            message={errorMessage(
+                                                                validationErrors,
+                                                                `scopes.${index}.notes`,
+                                                            )}
+                                                        />
+                                                    </div>
+                                                    <div className="flex items-start lg:pt-7">
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            onClick={() =>
+                                                                removeScope(index)
+                                                            }
+                                                            aria-label={`Remove scope ${index + 1}`}
+                                                        >
+                                                            <Trash2Icon className="size-4" />
+                                                            Remove
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </section>
+                        </>
                     )}
 
                     <section className="grid gap-5 border-t border-border pt-6 md:grid-cols-3">
@@ -603,10 +1293,8 @@ export default function ProjectForm({
                             </div>
                         )}
                     </section>
-
                 </form>
             </CardContent>
         </Card>
     );
 }
-

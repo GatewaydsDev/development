@@ -9,6 +9,7 @@ import {
     CardTitle,
 } from '@/Components/ui/card';
 import { Head, Link, router } from '@inertiajs/react';
+import { cn } from '@/lib/utils';
 import {
     BriefcaseIcon,
     EditIcon,
@@ -16,7 +17,7 @@ import {
     PlusIcon,
     SearchIcon,
 } from 'lucide-react';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import {
     optionLabel,
     type ProjectOptions,
@@ -27,12 +28,13 @@ type IndexProps = {
     filters: {
         search?: string;
         status?: string;
+        highlight?: number | null;
     };
     options: ProjectOptions;
     projects: ProjectsPaginator;
 };
 
-const statusBadgeClassName = (status: string) => {
+const statusBadgeClassName = (status?: string | null) => {
     const colors: Record<string, string> = {
         lead: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/70 dark:bg-sky-950/40 dark:text-sky-300',
         quoted: 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-900/70 dark:bg-indigo-950/40 dark:text-indigo-300',
@@ -43,23 +45,26 @@ const statusBadgeClassName = (status: string) => {
         cancelled: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/70 dark:bg-rose-950/40 dark:text-rose-300',
     };
 
-    return colors[status] ?? 'border-border bg-muted text-muted-foreground';
-};
-
-const priorityBadgeClassName = (priority: string) => {
-    const colors: Record<string, string> = {
-        low: 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-300',
-        normal: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/40 dark:text-emerald-300',
-        high: 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900/70 dark:bg-orange-950/40 dark:text-orange-300',
-        urgent: 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/70 dark:bg-red-950/40 dark:text-red-300',
-    };
-
-    return colors[priority] ?? 'border-border bg-muted text-muted-foreground';
+    return (
+        (status && colors[status]) ||
+        'border-border bg-muted text-muted-foreground'
+    );
 };
 
 export default function Index({ filters, options, projects }: IndexProps) {
     const [search, setSearch] = useState(filters.search ?? '');
     const [status, setStatus] = useState(filters.status ?? '');
+    const highlightedProjectId = filters.highlight ?? null;
+
+    useEffect(() => {
+        if (!highlightedProjectId) {
+            return;
+        }
+
+        document
+            .getElementById(`project-row-${highlightedProjectId}`)
+            ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, [highlightedProjectId]);
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
@@ -160,8 +165,8 @@ export default function Index({ filters, options, projects }: IndexProps) {
                                 >
                                     <option value="">All statuses</option>
                                     {options.statuses.map((item) => (
-                                        <option key={item} value={item}>
-                                            {optionLabel(item)}
+                                        <option key={item.id} value={item.id}>
+                                            {item.name}
                                         </option>
                                     ))}
                                 </select>
@@ -173,58 +178,85 @@ export default function Index({ filters, options, projects }: IndexProps) {
 
                         <CardContent>
                             <div className="overflow-hidden rounded-lg border border-border">
-                                <div className="hidden grid-cols-[minmax(14rem,1.4fr)_minmax(11rem,1fr)_8rem_8rem_minmax(10rem,0.9fr)_9.5rem] items-center gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid">
+                                <div className="hidden grid-cols-[minmax(14rem,1.4fr)_minmax(12rem,1fr)_minmax(12rem,1.1fr)_8rem_9.5rem] items-center gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid">
                                     <div>Project</div>
-                                    <div>Customer</div>
+                                    <div>General contractor</div>
+                                    <div>Scope</div>
                                     <div>Status</div>
-                                    <div>Priority</div>
-                                    <div>Assignee</div>
                                     <div className="text-right">Actions</div>
                                 </div>
 
                                 {projects.data.length > 0 ? (
                                     projects.data.map((project) => (
                                         <div
+                                            id={`project-row-${project.id}`}
                                             key={project.id}
-                                            className="grid gap-3 border-b border-border px-4 py-4 last:border-b-0 md:min-h-20 md:grid-cols-[minmax(14rem,1.4fr)_minmax(11rem,1fr)_8rem_8rem_minmax(10rem,0.9fr)_9.5rem] md:items-center md:gap-4"
+                                            className={cn(
+                                                'grid gap-3 border-b border-border px-4 py-4 last:border-b-0 md:min-h-20 md:grid-cols-[minmax(14rem,1.4fr)_minmax(12rem,1fr)_minmax(12rem,1.1fr)_8rem_9.5rem] md:items-center md:gap-4',
+                                                highlightedProjectId ===
+                                                    project.id &&
+                                                    'bg-emerald-50 dark:bg-emerald-950/30',
+                                            )}
                                         >
                                             <div className="min-w-0">
                                                 <p className="truncate font-medium text-foreground">
                                                     {project.name}
                                                 </p>
                                                 <p className="truncate text-sm text-muted-foreground">
-                                                    {project.project_number ||
-                                                        project.uuid}
+                                                    {project.customer?.name ||
+                                                        'No customer'}
                                                 </p>
                                             </div>
                                             <div className="min-w-0 truncate text-sm text-muted-foreground">
-                                                {project.customer.name}
+                                                {project.contractors?.length
+                                                    ? project.contractors
+                                                          .map(
+                                                              (contractor) =>
+                                                                  contractor.name,
+                                                          )
+                                                          .join(', ')
+                                                    : 'Not added yet'}
+                                            </div>
+                                            <div className="flex flex-wrap gap-1">
+                                                {project.scopes?.length > 0 ? (
+                                                    project.scopes
+                                                        .slice(0, 2)
+                                                        .map((scope) => (
+                                                            <Badge
+                                                                key={
+                                                                    scope.id ??
+                                                                    scope.type
+                                                                }
+                                                                variant="outline"
+                                                            >
+                                                                {optionLabel(
+                                                                    scope.type,
+                                                                )}
+                                                            </Badge>
+                                                        ))
+                                                ) : (
+                                                    <span className="text-sm text-muted-foreground">
+                                                        None
+                                                    </span>
+                                                )}
+                                                {project.scopes?.length > 2 && (
+                                                    <Badge variant="outline">
+                                                        +
+                                                        {project.scopes.length -
+                                                            2}
+                                                    </Badge>
+                                                )}
                                             </div>
                                             <div className="flex items-center">
                                                 <Badge
                                                     variant="outline"
                                                     className={statusBadgeClassName(
-                                                        project.status,
+                                                        project.status_slug,
                                                     )}
                                                 >
-                                                    {optionLabel(project.status)}
+                                                    {project.status ||
+                                                        'Not set'}
                                                 </Badge>
-                                            </div>
-                                            <div className="text-sm text-muted-foreground">
-                                                <Badge
-                                                    variant="outline"
-                                                    className={priorityBadgeClassName(
-                                                        project.priority,
-                                                    )}
-                                                >
-                                                    {optionLabel(
-                                                        project.priority,
-                                                    )}
-                                                </Badge>
-                                            </div>
-                                            <div className="min-w-0 truncate text-sm text-muted-foreground">
-                                                {project.assignee?.name ??
-                                                    'Unassigned'}
                                             </div>
                                             <div className="flex flex-wrap gap-2 md:justify-end">
                                                 <Button

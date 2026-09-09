@@ -3,8 +3,10 @@
 namespace App\Http\Middleware;
 
 use App\Models\Company;
+use App\Support\BidAccess;
 use App\Support\CustomerAccess;
 use App\Support\EmployeeAccess;
+use App\Support\ProductAccess;
 use App\Support\ProjectAccess;
 use Closure;
 use Illuminate\Http\Request;
@@ -58,6 +60,10 @@ class HandleInertiaRequests extends Middleware
 
         return [
             ...parent::share($request),
+            'flash' => [
+                'success' => $request->session()->get('success'),
+                'error' => $request->session()->get('error'),
+            ],
             'companyPhoneNumber' => $company?->contact_phone_number,
             'session' => [
                 'idleTimeoutMinutes' => max(0, (int) config('session.idle_timeout_minutes')),
@@ -105,6 +111,30 @@ class HandleInertiaRequests extends Middleware
                         : false,
                     'viewProjectCustomerContactFields' => $request->user()
                         ? ProjectAccess::canViewCustomerContactFields($request->user())
+                        : false,
+                    'viewBids' => $request->user()
+                        ? BidAccess::canView($request->user())
+                        : false,
+                    'createBids' => $request->user()
+                        ? BidAccess::canCreate($request->user())
+                        : false,
+                    'updateBids' => $request->user()
+                        ? BidAccess::canUpdate($request->user())
+                        : false,
+                    'deleteBids' => $request->user()
+                        ? BidAccess::canDelete($request->user())
+                        : false,
+                    'viewProducts' => $request->user()
+                        ? ProductAccess::canView($request->user())
+                        : false,
+                    'createProducts' => $request->user()
+                        ? ProductAccess::canCreate($request->user())
+                        : false,
+                    'updateProducts' => $request->user()
+                        ? ProductAccess::canUpdate($request->user())
+                        : false,
+                    'deleteProducts' => $request->user()
+                        ? ProductAccess::canDelete($request->user())
                         : false,
                     'viewCustomers' => $request->user()
                         ? CustomerAccess::canView($request->user())

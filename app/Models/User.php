@@ -7,7 +7,6 @@ use App\Notifications\ResetPasswordNotification;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
@@ -102,29 +101,9 @@ class User extends Authenticatable
         return $this->belongsTo(Language::class, 'language_id');
     }
 
-    public function language(): BelongsTo
-    {
-        return $this->preferredLanguage();
-    }
-
     public function level(): BelongsTo
     {
         return $this->belongsTo(UserLevel::class);
-    }
-
-    public function assignedProjects(): HasMany
-    {
-        return $this->hasMany(Project::class, 'assigned_to');
-    }
-
-    public function createdProjects(): HasMany
-    {
-        return $this->hasMany(Project::class, 'created_by');
-    }
-
-    public function activities(): HasMany
-    {
-        return $this->hasMany(UserActivity::class);
     }
 
     public function hasUserLevel(string|array $levels): bool

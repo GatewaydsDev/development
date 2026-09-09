@@ -31,7 +31,7 @@ class CustomerController extends Controller
             'customers' => Customer::query()
                 ->with([
                     'contacts' => fn ($query) => $query->orderByDesc('is_primary')->orderBy('name'),
-                    'project:id,customer_id,name,project_number,status',
+                    'project.status',
                 ])
                 ->when($search !== '', function ($query) use ($search): void {
                     $query->where(function ($query) use ($search): void {
@@ -88,7 +88,7 @@ class CustomerController extends Controller
 
         $customer->load([
             'contacts' => fn ($query) => $query->orderByDesc('is_primary')->orderBy('name'),
-            'project:id,customer_id,name,project_number,status',
+            'project.status',
         ]);
 
         return Inertia::render('Admin/Customers/Edit', [
@@ -119,7 +119,7 @@ class CustomerController extends Controller
     {
         abort_unless(CustomerAccess::canDelete($request->user()), 403);
 
-        if ($customer->project()->exists()) {
+        if ($customer->projects()->exists()) {
             return back()->with('error', 'Customers linked to a project cannot be deleted.');
         }
 
@@ -338,7 +338,7 @@ class CustomerController extends Controller
                     'id' => $customer->project->id,
                     'name' => $customer->project->name,
                     'project_number' => $customer->project->project_number,
-                    'status' => $customer->project->status,
+                    'status' => $customer->project->status?->name,
                 ]
                 : null,
             'created_at' => $customer->created_at?->toFormattedDateString(),

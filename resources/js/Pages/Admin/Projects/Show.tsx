@@ -9,9 +9,12 @@ import {
     CardTitle,
 } from '@/Components/ui/card';
 import { Head, Link, router } from '@inertiajs/react';
+import { formatCurrency } from '@/lib/money';
 import {
     BriefcaseIcon,
     EditIcon,
+    HammerIcon,
+    HistoryIcon,
     MapPinIcon,
     TrashIcon,
     UserIcon,
@@ -122,7 +125,7 @@ export default function Show({ project, options }: ShowProps) {
                             </div>
                             <div className="flex flex-wrap gap-2">
                                 <Badge variant="outline">
-                                    {optionLabel(project.status)}
+                                    {project.status || 'Not set'}
                                 </Badge>
                                 <Badge>{optionLabel(project.priority)}</Badge>
                             </div>
@@ -130,13 +133,29 @@ export default function Show({ project, options }: ShowProps) {
                         <CardContent>
                             <dl className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                                 <DetailItem
-                                    label="Service type"
-                                    value={optionLabel(project.service_type)}
+                                    label="Status"
+                                    value={project.status}
+                                />
+                                <DetailItem
+                                    label="Priority"
+                                    value={optionLabel(project.priority)}
                                 />
                                 <DetailItem
                                     label="Assigned to"
                                     value={project.assignee?.name}
                                 />
+                                {options.can.viewSensitiveFields && (
+                                    <DetailItem
+                                        label="Budget amount"
+                                        value={
+                                            project.budget_amount
+                                                ? formatCurrency(
+                                                      project.budget_amount,
+                                                  )
+                                                : null
+                                        }
+                                    />
+                                )}
                                 <DetailItem
                                     label="Estimated start"
                                     value={project.estimated_start_date}
@@ -145,15 +164,158 @@ export default function Show({ project, options }: ShowProps) {
                                     label="Estimated end"
                                     value={project.estimated_end_date}
                                 />
-                                {options.can.viewSensitiveFields && (
-                                    <DetailItem
-                                        label="Budget"
-                                        value={project.budget_amount}
-                                    />
-                                )}
                             </dl>
+
+                            <div className="mt-6 border-t border-border pt-5">
+                                <h3 className="mb-3 flex items-center gap-2 text-base font-semibold text-foreground">
+                                    <HistoryIcon className="size-4 text-muted-foreground" />
+                                    Revisions
+                                </h3>
+                                {project.revisions?.length > 0 ? (
+                                    <div className="flex flex-col gap-3">
+                                        {project.revisions.map((revision) => (
+                                            <div
+                                                key={
+                                                    revision.id ??
+                                                    revision.number
+                                                }
+                                                className="grid gap-3 rounded-lg border border-border bg-muted/30 p-4 sm:grid-cols-[8rem_10rem_minmax(10rem,0.9fr)_minmax(0,1fr)] sm:items-start"
+                                            >
+                                                <div>
+                                                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                                        Revision
+                                                    </p>
+                                                    <p className="mt-1 font-medium text-foreground">
+                                                        {revision.number}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                                        Date
+                                                    </p>
+                                                    <p className="mt-1 text-sm text-foreground">
+                                                        {revision.revision_date ||
+                                                            'Not set'}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                                        Updated by
+                                                    </p>
+                                                    <p className="mt-1 text-sm text-foreground">
+                                                        {revision.user?.name ||
+                                                            'Not set'}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                                        Notes
+                                                    </p>
+                                                    <p className="mt-1 text-sm text-foreground">
+                                                        {revision.notes ||
+                                                            'No notes added.'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">
+                                        No revisions added yet.
+                                    </p>
+                                )}
+                            </div>
                         </CardContent>
                     </Card>
+
+                    <div className="grid gap-6 lg:grid-cols-2">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <HammerIcon className="size-5 text-muted-foreground" />
+                                    General contractors
+                                </CardTitle>
+                                <CardDescription>
+                                    Contractor names are unique and reused
+                                    across projects.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                {project.contractors?.length > 0 ? (
+                                    <div className="flex flex-col gap-3">
+                                        {project.contractors.map(
+                                            (contractor) => (
+                                                <div
+                                                    key={contractor.id}
+                                                    className="rounded-lg border border-border bg-muted/30 p-4"
+                                                >
+                                                    <p className="font-medium text-foreground">
+                                                        {contractor.name}
+                                                    </p>
+                                                    <dl className="mt-3 grid gap-4 md:grid-cols-3">
+                                                        <DetailItem
+                                                            label="Contact name"
+                                                            value={
+                                                                contractor.contact_name
+                                                            }
+                                                        />
+                                                        <DetailItem
+                                                            label="Email"
+                                                            value={
+                                                                contractor.email
+                                                            }
+                                                        />
+                                                        <DetailItem
+                                                            label="Phone"
+                                                            value={
+                                                                contractor.phone_number
+                                                            }
+                                                        />
+                                                    </dl>
+                                                </div>
+                                            ),
+                                        )}
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">
+                                        No contractors added yet.
+                                    </p>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <MapPinIcon className="size-5 text-muted-foreground" />
+                                    Address
+                                </CardTitle>
+                                <CardDescription>
+                                    Where the project work will happen.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <dl className="grid gap-4 md:grid-cols-2">
+                                    <DetailItem
+                                        label="Address line 1"
+                                        value={project.site_address_line_1}
+                                    />
+                                    <DetailItem
+                                        label="Address line 2"
+                                        value={project.site_address_line_2}
+                                    />
+                                    <DetailItem
+                                        label="City"
+                                        value={project.site_city}
+                                    />
+                                    <DetailItem
+                                        label="State"
+                                        value={project.site_state}
+                                    />
+                                </dl>
+                            </CardContent>
+                        </Card>
+                    </div>
 
                     <div className="grid gap-6 lg:grid-cols-2">
                         <Card>
@@ -163,19 +325,18 @@ export default function Show({ project, options }: ShowProps) {
                                     Customer
                                 </CardTitle>
                                 <CardDescription>
-                                    Customer information linked one-to-one with
-                                    this project.
+                                    Customer linked to this project.
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <dl className="grid gap-4 md:grid-cols-2">
                                     <DetailItem
                                         label="Name"
-                                        value={project.customer.name}
+                                        value={project.customer?.name}
                                     />
                                     <DetailItem
                                         label="Company"
-                                        value={project.customer.company_name}
+                                        value={project.customer?.company_name}
                                     />
                                 </dl>
                                 {options.can.viewCustomerContactFields && (
@@ -183,7 +344,7 @@ export default function Show({ project, options }: ShowProps) {
                                         <h3 className="text-sm font-medium text-muted-foreground">
                                             Contacts
                                         </h3>
-                                        {project.customer.contacts &&
+                                        {project.customer?.contacts &&
                                         project.customer.contacts.length > 0 ? (
                                             project.customer.contacts.map(
                                                 (contact) => (
@@ -230,32 +391,37 @@ export default function Show({ project, options }: ShowProps) {
                         <Card>
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
-                                    <MapPinIcon className="size-5 text-muted-foreground" />
-                                    Site location
+                                    <BriefcaseIcon className="size-5 text-muted-foreground" />
+                                    Scope of work
                                 </CardTitle>
                                 <CardDescription>
-                                    Where the project work will happen.
+                                    One or more scope types assigned to this
+                                    project.
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <dl className="grid gap-4 md:grid-cols-2">
-                                    <DetailItem
-                                        label="Address line 1"
-                                        value={project.site_address_line_1}
-                                    />
-                                    <DetailItem
-                                        label="Address line 2"
-                                        value={project.site_address_line_2}
-                                    />
-                                    <DetailItem
-                                        label="City"
-                                        value={project.site_city}
-                                    />
-                                    <DetailItem
-                                        label="State"
-                                        value={project.site_state}
-                                    />
-                                </dl>
+                                {project.scopes?.length > 0 ? (
+                                    <div className="flex flex-col gap-3">
+                                        {project.scopes.map((scope) => (
+                                            <div
+                                                key={scope.id ?? scope.type}
+                                                className="rounded-lg border border-border bg-muted/30 p-4"
+                                            >
+                                                <p className="font-medium text-foreground">
+                                                    {optionLabel(scope.type)}
+                                                </p>
+                                                <p className="mt-1 text-sm text-muted-foreground">
+                                                    {scope.notes ||
+                                                        'No notes added.'}
+                                                </p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">
+                                        No scopes added yet.
+                                    </p>
+                                )}
                             </CardContent>
                         </Card>
                     </div>

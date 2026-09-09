@@ -19,15 +19,18 @@ import {
 } from '@/Components/ui/dropdown-menu';
 import { PageProps } from '@/types';
 import { Link, router, usePage } from '@inertiajs/react';
+import { toast } from 'sonner';
 import {
     ActivityIcon,
     Building2Icon,
     BellIcon,
     BriefcaseIcon,
     ChevronDownIcon,
+    ClipboardListIcon,
     IdCardIcon,
     ListIcon,
     MailOpenIcon,
+    PackageIcon,
     PlusCircleIcon,
     ShieldIcon,
     SlidersHorizontalIcon,
@@ -101,7 +104,7 @@ export default function Authenticated({
     header,
     children,
 }: PropsWithChildren<{ header?: ReactNode }>) {
-    const { auth, session } = usePage<PageProps>().props;
+    const { auth, session, flash } = usePage<PageProps>().props;
     const user = auth.user;
     const idleTimeoutMinutes = Number(session?.idleTimeoutMinutes ?? 0);
     const canManageUsers = Boolean(auth.can?.manageUsers);
@@ -114,16 +117,24 @@ export default function Authenticated({
     const canManageOwnAccount = Boolean(auth.can?.manageOwnAccount);
     const canViewProjects = Boolean(auth.can?.viewProjects);
     const canCreateProjects = Boolean(auth.can?.createProjects);
+    const canViewBids = Boolean(auth.can?.viewBids);
+    const canCreateBids = Boolean(auth.can?.createBids);
+    const canViewProducts = Boolean(auth.can?.viewProducts);
+    const canCreateProducts = Boolean(auth.can?.createProducts);
     const canViewCustomers = Boolean(auth.can?.viewCustomers);
     const canCreateCustomers = Boolean(auth.can?.createCustomers);
     const canViewEmployees = Boolean(auth.can?.viewEmployees);
     const canCreateEmployees = Boolean(auth.can?.createEmployees);
     const canOpenProjects = canViewProjects || canCreateProjects;
+    const canOpenBids = canViewBids || canCreateBids;
+    const canOpenProducts = canViewProducts || canCreateProducts;
     const canOpenCustomers = canViewCustomers || canCreateCustomers;
     const canOpenEmployees = canViewEmployees || canCreateEmployees;
     const canOpenWorkspace = canManageOwnAccount || canViewCompany;
     const canOpenOperations =
         canOpenProjects ||
+        canOpenBids ||
+        canOpenProducts ||
         canOpenCustomers ||
         canOpenEmployees ||
         canManageNotifications;
@@ -142,35 +153,34 @@ export default function Authenticated({
         useState(false);
 
     useEffect(() => {
+        if (flash?.success) {
+            toast.success(flash.success);
+        }
+
+        if (flash?.error) {
+            toast.error(flash.error);
+        }
+    }, [flash?.success, flash?.error]);
+
+    useEffect(() => {
         if (!canManageNotifications) {
             return;
         }
 
-        const refreshNotifications = () => {
-            router.reload({
-                only: ['auth'],
-            });
-        };
-
-        const interval = window.setInterval(
-            refreshNotifications,
+        const { stop } = router.poll(
             notificationPollInterval,
+            {
+                only: ['auth'],
+                async: true,
+                showProgress: false,
+            },
+            {
+                keepAlive: false,
+                autoStart: true,
+            },
         );
-        const handleVisibilityChange = () => {
-            if (document.visibilityState === 'visible') {
-                refreshNotifications();
-            }
-        };
 
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-
-        return () => {
-            window.clearInterval(interval);
-            document.removeEventListener(
-                'visibilitychange',
-                handleVisibilityChange,
-            );
-        };
+        return () => stop();
     }, [canManageNotifications]);
 
     useEffect(() => {
@@ -242,7 +252,7 @@ export default function Authenticated({
 
     return (
         <div className="min-h-screen bg-muted/30 text-foreground">
-            <nav className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur">
+            <nav className="sticky top-0 z-50 border-b border-border bg-background">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between gap-4 overflow-visible py-2 sm:py-2.5 md:py-3 lg:gap-8">
                         <div className="flex">
@@ -375,6 +385,92 @@ export default function Authenticated({
                                                                             <Link
                                                                                 href={route(
                                                                                     'admin.projects.create',
+                                                                                )}
+                                                                                className="flex items-center gap-2"
+                                                                            >
+                                                                                <PlusCircleIcon className="size-4" />
+                                                                                Add
+                                                                                new
+                                                                            </Link>
+                                                                        </DropdownMenuItem>
+                                                                    )}
+                                                                </DropdownMenuSubContent>
+                                                            </DropdownMenuSub>
+                                                        )}
+
+                                                        {canOpenBids && (
+                                                            <DropdownMenuSub>
+                                                                <DropdownMenuSubTrigger>
+                                                                    <ClipboardListIcon className="size-4" />
+                                                                    Bids
+                                                                </DropdownMenuSubTrigger>
+                                                                <DropdownMenuSubContent className="min-w-44">
+                                                                    {canViewBids && (
+                                                                        <DropdownMenuItem
+                                                                            asChild
+                                                                        >
+                                                                            <Link
+                                                                                href={route(
+                                                                                    'admin.bids.index',
+                                                                                )}
+                                                                                className="flex items-center gap-2"
+                                                                            >
+                                                                                <ListIcon className="size-4" />
+                                                                                See
+                                                                                all
+                                                                            </Link>
+                                                                        </DropdownMenuItem>
+                                                                    )}
+                                                                    {canCreateBids && (
+                                                                        <DropdownMenuItem
+                                                                            asChild
+                                                                        >
+                                                                            <Link
+                                                                                href={route(
+                                                                                    'admin.bids.create',
+                                                                                )}
+                                                                                className="flex items-center gap-2"
+                                                                            >
+                                                                                <PlusCircleIcon className="size-4" />
+                                                                                Add
+                                                                                new
+                                                                            </Link>
+                                                                        </DropdownMenuItem>
+                                                                    )}
+                                                                </DropdownMenuSubContent>
+                                                            </DropdownMenuSub>
+                                                        )}
+
+                                                        {canOpenProducts && (
+                                                            <DropdownMenuSub>
+                                                                <DropdownMenuSubTrigger>
+                                                                    <PackageIcon className="size-4" />
+                                                                    Products
+                                                                </DropdownMenuSubTrigger>
+                                                                <DropdownMenuSubContent className="min-w-44">
+                                                                    {canViewProducts && (
+                                                                        <DropdownMenuItem
+                                                                            asChild
+                                                                        >
+                                                                            <Link
+                                                                                href={route(
+                                                                                    'admin.products.index',
+                                                                                )}
+                                                                                className="flex items-center gap-2"
+                                                                            >
+                                                                                <ListIcon className="size-4" />
+                                                                                See
+                                                                                all
+                                                                            </Link>
+                                                                        </DropdownMenuItem>
+                                                                    )}
+                                                                    {canCreateProducts && (
+                                                                        <DropdownMenuItem
+                                                                            asChild
+                                                                        >
+                                                                            <Link
+                                                                                href={route(
+                                                                                    'admin.products.create',
                                                                                 )}
                                                                                 className="flex items-center gap-2"
                                                                             >
@@ -877,6 +973,88 @@ export default function Authenticated({
                                                             )}
                                                             active={route().current(
                                                                 'admin.projects.create',
+                                                            )}
+                                                            className="ps-14"
+                                                        >
+                                                            <span className="inline-flex items-center gap-2">
+                                                                <PlusCircleIcon className="size-4" />
+                                                                Add new
+                                                            </span>
+                                                        </ResponsiveNavLink>
+                                                    )}
+                                                </MobileDisclosure>
+                                            )}
+
+                                            {canOpenBids && (
+                                                <MobileDisclosure
+                                                    label="Bids"
+                                                    icon={ClipboardListIcon}
+                                                    className="ps-10 pe-4"
+                                                >
+                                                    {canViewBids && (
+                                                        <ResponsiveNavLink
+                                                            href={route(
+                                                                'admin.bids.index',
+                                                            )}
+                                                            active={route().current(
+                                                                'admin.bids.index',
+                                                            )}
+                                                            className="ps-14"
+                                                        >
+                                                            <span className="inline-flex items-center gap-2">
+                                                                <ListIcon className="size-4" />
+                                                                See all
+                                                            </span>
+                                                        </ResponsiveNavLink>
+                                                    )}
+                                                    {canCreateBids && (
+                                                        <ResponsiveNavLink
+                                                            href={route(
+                                                                'admin.bids.create',
+                                                            )}
+                                                            active={route().current(
+                                                                'admin.bids.create',
+                                                            )}
+                                                            className="ps-14"
+                                                        >
+                                                            <span className="inline-flex items-center gap-2">
+                                                                <PlusCircleIcon className="size-4" />
+                                                                Add new
+                                                            </span>
+                                                        </ResponsiveNavLink>
+                                                    )}
+                                                </MobileDisclosure>
+                                            )}
+
+                                            {canOpenProducts && (
+                                                <MobileDisclosure
+                                                    label="Products"
+                                                    icon={PackageIcon}
+                                                    className="ps-10 pe-4"
+                                                >
+                                                    {canViewProducts && (
+                                                        <ResponsiveNavLink
+                                                            href={route(
+                                                                'admin.products.index',
+                                                            )}
+                                                            active={route().current(
+                                                                'admin.products.index',
+                                                            )}
+                                                            className="ps-14"
+                                                        >
+                                                            <span className="inline-flex items-center gap-2">
+                                                                <ListIcon className="size-4" />
+                                                                See all
+                                                            </span>
+                                                        </ResponsiveNavLink>
+                                                    )}
+                                                    {canCreateProducts && (
+                                                        <ResponsiveNavLink
+                                                            href={route(
+                                                                'admin.products.create',
+                                                            )}
+                                                            active={route().current(
+                                                                'admin.products.create',
                                                             )}
                                                             className="ps-14"
                                                         >

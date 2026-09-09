@@ -32,7 +32,12 @@ class Customer extends Model
 
     public function project(): HasOne
     {
-        return $this->hasOne(Project::class);
+        return $this->hasOne(Project::class)->latestOfMany();
+    }
+
+    public function projects(): HasMany
+    {
+        return $this->hasMany(Project::class);
     }
 
     public function contacts(): HasMany

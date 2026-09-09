@@ -75,6 +75,14 @@ export type PageProps<
             deleteProjects: boolean;
             viewSensitiveProjectFields: boolean;
             viewProjectCustomerContactFields: boolean;
+            viewBids: boolean;
+            createBids: boolean;
+            updateBids: boolean;
+            deleteBids: boolean;
+            viewProducts: boolean;
+            createProducts: boolean;
+            updateProducts: boolean;
+            deleteProducts: boolean;
             viewCustomers: boolean;
             createCustomers: boolean;
             updateCustomers: boolean;
@@ -91,5 +99,9 @@ export type PageProps<
     };
     session: {
         idleTimeoutMinutes: number;
+    };
+    flash?: {
+        success?: string | null;
+        error?: string | null;
     };
 };

@@ -36,6 +36,8 @@ const checkProtectedSession = () => {
 
     router.reload({
         only: ['auth'],
+        async: true,
+        showProgress: false,
         onError: () => {
             window.location.replace('/login');
         },

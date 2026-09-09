@@ -6,15 +6,31 @@ export type ProjectCapabilities = {
     viewCustomerContactFields: boolean;
 };
 
+export type ContractorOption = {
+    id: number;
+    name: string;
+    contact_name?: string | null;
+    email?: string | null;
+    phone_number?: string | null;
+};
+
+export type ProjectStatusOption = {
+    id: number;
+    name: string;
+    slug: string;
+};
+
 export type ProjectOptions = {
-    statuses: string[];
+    statuses: ProjectStatusOption[];
     priorities: string[];
     serviceTypes: string[];
+    scopeTypes: string[];
     assignees: Array<{
         id: number;
         name: string;
     }>;
     customers: ProjectCustomerOption[];
+    contractors: ContractorOption[];
     can: ProjectCapabilities;
 };
 
@@ -62,13 +78,41 @@ export type ProjectCustomer = {
     country?: string | null;
 };
 
+export type ProjectContractor = {
+    id: number;
+    name: string;
+    contact_name: string | null;
+    email?: string | null;
+    phone_number?: string | null;
+};
+
+export type ProjectScope = {
+    id?: number;
+    type: string;
+    notes?: string | null;
+};
+
+export type ProjectRevision = {
+    id?: number;
+    number: string;
+    revision_date: string | null;
+    notes: string | null;
+    user_id?: number | null;
+    user?: {
+        id: number;
+        name: string;
+    } | null;
+};
+
 export type ProjectPayload = {
     id: number;
     uuid: string;
     project_number: string | null;
     name: string;
     service_type: string | null;
-    status: string;
+    status_id: number | null;
+    status: string | null;
+    status_slug?: string | null;
     priority: string;
     estimated_start_date: string | null;
     estimated_end_date: string | null;
@@ -83,6 +127,9 @@ export type ProjectPayload = {
     budget_amount?: string | null;
     internal_notes?: string | null;
     customer: ProjectCustomer;
+    contractors: ProjectContractor[];
+    scopes: ProjectScope[];
+    revisions: ProjectRevision[];
     assignee: {
         id: number;
         name: string;
@@ -112,13 +159,30 @@ export type ProjectsPaginator = {
     links: PaginationLink[];
 };
 
+export type ProjectContractorFormData = {
+    contractor_id: string;
+};
+
+export type ProjectScopeFormData = {
+    type: string;
+    notes: string;
+};
+
+export type ProjectRevisionFormData = {
+    id: string;
+    number: string;
+    revision_date: string;
+    notes: string;
+    user_id: string;
+    user_name: string;
+};
+
 export type ProjectFormData = {
     name: string;
     project_number: string;
     customer_id: string;
     assigned_to: string;
-    service_type: string;
-    status: string;
+    status_id: string;
     priority: string;
     site_address_line_1: string;
     site_address_line_2: string;
@@ -132,6 +196,9 @@ export type ProjectFormData = {
     budget_amount: string;
     public_notes: string;
     internal_notes: string;
+    contractors: ProjectContractorFormData[];
+    scopes: ProjectScopeFormData[];
+    revisions: ProjectRevisionFormData[];
 };
 
 export function optionLabel(value?: string | null) {
@@ -145,14 +212,59 @@ export function optionLabel(value?: string | null) {
         .join(' ');
 }
 
-export function projectToFormData(project?: ProjectPayload): ProjectFormData {
+export function blankScope(): ProjectScopeFormData {
+    return {
+        type: '',
+        notes: '',
+    };
+}
+
+export function blankRevision(userId = '', userName = ''): ProjectRevisionFormData {
+    return {
+        id: '',
+        number: '',
+        revision_date: '',
+        notes: '',
+        user_id: userId,
+        user_name: userName,
+    };
+}
+
+export function blankContractor(): ProjectContractorFormData {
+    return {
+        contractor_id: '',
+    };
+}
+
+export function defaultStatusId(options?: ProjectOptions): string {
+    const statuses = options?.statuses ?? [];
+    const lead = statuses.find((status) => status.slug === 'lead');
+
+    return String(lead?.id ?? statuses[0]?.id ?? '');
+}
+
+export function projectToFormData(
+    project?: ProjectPayload,
+    options?: ProjectOptions,
+): ProjectFormData {
+    const scopes =
+        project?.scopes && project.scopes.length > 0
+            ? project.scopes.map((scope) => ({
+                  type: scope.type ?? '',
+                  notes: scope.notes ?? '',
+              }))
+            : project?.service_type
+              ? [{ type: project.service_type, notes: '' }]
+              : [blankScope()];
+
     return {
         name: project?.name ?? '',
         project_number: project?.project_number ?? '',
-        customer_id: project?.customer.id ? String(project.customer.id) : '',
+        customer_id: project?.customer?.id ? String(project.customer.id) : '',
         assigned_to: project?.assignee ? String(project.assignee.id) : '',
-        service_type: project?.service_type ?? '',
-        status: project?.status ?? 'lead',
+        status_id: project?.status_id
+            ? String(project.status_id)
+            : defaultStatusId(options),
         priority: project?.priority ?? 'normal',
         site_address_line_1: project?.site_address_line_1 ?? '',
         site_address_line_2: project?.site_address_line_2 ?? '',
@@ -166,6 +278,27 @@ export function projectToFormData(project?: ProjectPayload): ProjectFormData {
         budget_amount: project?.budget_amount ?? '',
         public_notes: project?.public_notes ?? '',
         internal_notes: project?.internal_notes ?? '',
+        contractors:
+            project?.contractors && project.contractors.length > 0
+                ? project.contractors.map((contractor) => ({
+                      contractor_id: String(contractor.id),
+                  }))
+                : [blankContractor()],
+        scopes,
+        revisions:
+            project?.revisions && project.revisions.length > 0
+                ? project.revisions.map((revision) => ({
+                      id: revision.id ? String(revision.id) : '',
+                      number: revision.number ?? '',
+                      revision_date: revision.revision_date ?? '',
+                      notes: revision.notes ?? '',
+                      user_id: revision.user_id
+                          ? String(revision.user_id)
+                          : revision.user
+                            ? String(revision.user.id)
+                            : '',
+                      user_name: revision.user?.name ?? '',
+                  }))
+                : [],
     };
 }
-

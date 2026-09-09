@@ -183,8 +183,8 @@ export default function CustomerSelect({
                 </div>
             ) : (
                 <p className="rounded-lg border border-emerald-200 bg-background p-4 text-sm text-muted-foreground dark:border-emerald-900/70">
-                    Select a customer to review contact information before
-                    saving the project.
+                    Customer is optional. Select one to review contact
+                    information before saving the project.
                 </p>
             )}
         </section>

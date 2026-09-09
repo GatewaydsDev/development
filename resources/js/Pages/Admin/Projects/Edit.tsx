@@ -43,7 +43,7 @@ export default function Edit({ project, options }: EditProps) {
                         method="patch"
                         submitLabel="Save changes"
                         title={project.name}
-                        description="Update the fields allowed for your user level."
+                        description="Update the project name, address, contractors, scopes, status, and revisions."
                         options={options}
                         project={project}
                     />

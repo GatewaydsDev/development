@@ -3,12 +3,19 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Contractor;
 use App\Models\Customer;
 use App\Models\Project;
+use App\Models\ProjectRevision;
+use App\Models\ProjectScope;
+use App\Models\ProjectStatus;
 use App\Models\User;
 use App\Support\ProjectAccess;
+use Closure;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -20,19 +27,25 @@ class ProjectController extends Controller
         $this->authorizeProjectView($request);
 
         $search = (string) $request->query('search', '');
-        $status = (string) $request->query('status', '');
+        $status = (int) $request->query('status', 0);
+        $highlight = (int) $request->query('highlight', 0);
         $user = $request->user();
 
         return Inertia::render('Admin/Projects/Index', [
             'filters' => [
                 'search' => $search,
-                'status' => $status,
+                'status' => $status > 0 ? (string) $status : '',
+                'highlight' => $highlight > 0 ? $highlight : null,
             ],
             'options' => $this->options($user),
             'projects' => Project::query()
                 ->with([
                     'customer.contacts' => fn ($query) => $query->orderByDesc('is_primary')->orderBy('name'),
                     'assignee:id,name',
+                    'contractors',
+                    'scopes',
+                    'revisions',
+                    'status',
                 ])
                 ->when($search !== '', function ($query) use ($search): void {
                     $query->where(function ($query) use ($search): void {
@@ -43,10 +56,18 @@ class ProjectController extends Controller
                                 $query
                                     ->where('name', 'like', "%{$search}%")
                                     ->orWhere('company_name', 'like', "%{$search}%");
+                            })
+                            ->orWhereHas('contractors', function ($query) use ($search): void {
+                                $query
+                                    ->where('name', 'like', "%{$search}%")
+                                    ->orWhere('contact_name', 'like', "%{$search}%");
                             });
                     });
                 })
-                ->when(in_array($status, Project::STATUSES, true), fn ($query) => $query->where('status', $status))
+                ->when($status > 0, fn ($query) => $query->where('project_status_id', $status))
+                ->when($highlight > 0, function ($query) use ($highlight): void {
+                    $query->orderByRaw('CASE WHEN id = ? THEN 0 ELSE 1 END', [$highlight]);
+                })
                 ->latest()
                 ->paginate(10)
                 ->withQueryString()
@@ -64,19 +85,48 @@ class ProjectController extends Controller
         ]);
     }
 
+    public function nameAvailability(Request $request): JsonResponse
+    {
+        abort_unless(
+            ProjectAccess::canCreate($request->user()) || ProjectAccess::canUpdate($request->user()),
+            403,
+        );
+
+        $validated = $request->validate([
+            'name' => ['nullable', 'string', 'max:255'],
+            'project_id' => ['nullable', 'integer', Rule::exists(Project::class, 'id')],
+        ]);
+
+        $name = trim((string) ($validated['name'] ?? ''));
+
+        if ($name === '') {
+            return response()->json(['available' => true]);
+        }
+
+        return response()->json([
+            'available' => ! $this->projectNameExists($name, $validated['project_id'] ?? null),
+        ]);
+    }
+
     public function store(Request $request): RedirectResponse
     {
         abort_unless(ProjectAccess::canCreate($request->user()), 403);
 
         $validated = $this->validatedProject($request);
 
-        Project::create([
-            ...$this->projectAttributes($request, $validated),
-            'created_by' => $request->user()->id,
-        ]);
+        $project = DB::transaction(function () use ($request, $validated): Project {
+            $project = Project::create([
+                ...$this->projectAttributes($request, $validated),
+                'created_by' => $request->user()->id,
+            ]);
+
+            $this->syncProjectRelations($request, $project, $validated);
+
+            return $project;
+        });
 
         return redirect()
-            ->route('admin.projects.index')
+            ->route('admin.projects.index', ['highlight' => $project->id])
             ->with('success', 'Project created successfully.');
     }
 
@@ -88,6 +138,10 @@ class ProjectController extends Controller
             'customer.contacts' => fn ($query) => $query->orderByDesc('is_primary')->orderBy('name'),
             'assignee:id,name',
             'creator:id,name',
+            'contractors',
+            'scopes',
+            'revisions.user:id,name',
+            'status',
         ]);
 
         return Inertia::render('Admin/Projects/Show', [
@@ -104,6 +158,10 @@ class ProjectController extends Controller
         $project->load([
             'customer.contacts' => fn ($query) => $query->orderByDesc('is_primary')->orderBy('name'),
             'assignee:id,name',
+            'contractors',
+            'scopes',
+            'revisions.user:id,name',
+            'status',
         ]);
 
         return Inertia::render('Admin/Projects/Edit', [
@@ -119,11 +177,15 @@ class ProjectController extends Controller
 
         $validated = $this->validatedProject($request, $project);
 
-        $project->fill($this->projectAttributes($request, $validated));
-        $project->save();
+        DB::transaction(function () use ($request, $project, $validated): void {
+            $project->fill($this->projectAttributes($request, $validated));
+            $project->save();
+
+            $this->syncProjectRelations($request, $project, $validated);
+        });
 
         return redirect()
-            ->route('admin.projects.index')
+            ->route('admin.projects.index', ['highlight' => $project->id])
             ->with('success', 'Project updated successfully.');
     }
 
@@ -136,6 +198,31 @@ class ProjectController extends Controller
         return redirect()
             ->route('admin.projects.index')
             ->with('success', 'Project removed successfully.');
+    }
+
+    public function storeStatus(Request $request): RedirectResponse
+    {
+        abort_unless(
+            ProjectAccess::canCreate($request->user()) || ProjectAccess::canUpdate($request->user()),
+            403,
+        );
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+        ]);
+
+        $name = trim($validated['name']);
+        $existing = ProjectStatus::query()
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
+            ->first();
+
+        if ($existing) {
+            return back()->with('success', 'Status already exists.');
+        }
+
+        ProjectStatus::create(['name' => $name]);
+
+        return back()->with('success', 'Status added successfully.');
     }
 
     private function authorizeProjectView(Request $request): void
@@ -152,7 +239,7 @@ class ProjectController extends Controller
         $isProjectManager = $user->hasUserLevel(\App\Models\UserLevel::PROJECT_MANAGER);
 
         $rules = [
-            'status' => ['required', 'string', Rule::in(Project::STATUSES)],
+            'status_id' => ['required', 'integer', Rule::exists(ProjectStatus::class, 'id')],
             'priority' => ['required', 'string', Rule::in(Project::PRIORITIES)],
             'estimated_start_date' => ['nullable', 'date'],
             'estimated_end_date' => ['nullable', 'date', 'after_or_equal:estimated_start_date'],
@@ -163,22 +250,43 @@ class ProjectController extends Controller
         if (! $isProjectManager) {
             $rules = [
                 ...$rules,
-                'name' => ['required', 'string', 'max:255'],
+                'name' => ['required', 'string', 'max:255', $this->uniqueProjectNameRule($project)],
                 'project_number' => ['nullable', 'string', 'max:255', Rule::unique(Project::class)->ignore($project?->id)],
                 'customer_id' => [
-                    'required',
+                    'nullable',
                     'integer',
                     Rule::exists(Customer::class, 'id'),
-                    Rule::unique(Project::class, 'customer_id')->ignore($project?->id),
                 ],
                 'assigned_to' => ['nullable', 'integer', Rule::exists(User::class, 'id')],
-                'service_type' => ['nullable', 'string', Rule::in(Project::SERVICE_TYPES)],
                 'site_address_line_1' => ['nullable', 'string', 'max:255'],
                 'site_address_line_2' => ['nullable', 'string', 'max:255'],
                 'site_city' => ['nullable', 'string', 'max:255'],
                 'site_state' => ['nullable', 'string', 'max:255'],
                 'site_postal_code' => ['nullable', 'string', 'max:50'],
                 'site_country' => ['nullable', 'string', 'max:255'],
+                'contractors' => ['array'],
+                'contractors.*.contractor_id' => [
+                    'required',
+                    'integer',
+                    'distinct',
+                    Rule::exists(Contractor::class, 'id'),
+                ],
+                'scopes' => ['array'],
+                'scopes.*.type' => ['required', 'string', 'distinct', Rule::in(Project::SERVICE_TYPES)],
+                'scopes.*.notes' => ['nullable', 'string', 'max:1000'],
+                'revisions' => ['array'],
+                'revisions.*.id' => [
+                    'nullable',
+                    'integer',
+                    Rule::exists(ProjectRevision::class, 'id')->where(
+                        fn ($query) => $project
+                            ? $query->where('project_id', $project->id)
+                            : $query->whereRaw('0 = 1'),
+                    ),
+                ],
+                'revisions.*.number' => ['required', 'string', 'max:50', 'distinct'],
+                'revisions.*.revision_date' => ['nullable', 'date'],
+                'revisions.*.notes' => ['nullable', 'string', 'max:2000'],
             ];
         }
 
@@ -193,6 +301,32 @@ class ProjectController extends Controller
         return $request->validate($rules);
     }
 
+    private function uniqueProjectNameRule(?Project $project = null): Closure
+    {
+        return function (string $attribute, mixed $value, Closure $fail) use ($project): void {
+            $name = trim((string) $value);
+
+            if ($name === '') {
+                return;
+            }
+
+            if ($this->projectNameExists($name, $project?->id)) {
+                $fail('A project with this name already exists.');
+            }
+        };
+    }
+
+    private function projectNameExists(string $name, ?int $ignoreProjectId = null): bool
+    {
+        return Project::query()
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
+            ->when(
+                $ignoreProjectId,
+                fn ($query, int $projectId) => $query->whereKeyNot($projectId),
+            )
+            ->exists();
+    }
+
     /**
      * @param array<string, mixed> $validated
      * @return array<string, mixed>
@@ -201,7 +335,7 @@ class ProjectController extends Controller
     {
         $user = $request->user();
         $attributes = [
-            'status' => $validated['status'],
+            'project_status_id' => $validated['status_id'],
             'priority' => $validated['priority'],
             'estimated_start_date' => $validated['estimated_start_date'] ?? null,
             'estimated_end_date' => $validated['estimated_end_date'] ?? null,
@@ -210,13 +344,16 @@ class ProjectController extends Controller
         ];
 
         if (! $user->hasUserLevel(\App\Models\UserLevel::PROJECT_MANAGER)) {
+            $primaryScope = collect($validated['scopes'] ?? [])
+                ->first(fn (array $scope): bool => filled($scope['type'] ?? null));
+
             $attributes = [
                 ...$attributes,
                 'name' => $validated['name'],
                 'project_number' => $validated['project_number'] ?? null,
-                'customer_id' => $validated['customer_id'],
+                'customer_id' => $validated['customer_id'] ?? null,
                 'assigned_to' => $validated['assigned_to'] ?? null,
-                'service_type' => $validated['service_type'] ?? null,
+                'service_type' => $primaryScope['type'] ?? null,
                 'site_address_line_1' => $validated['site_address_line_1'] ?? null,
                 'site_address_line_2' => $validated['site_address_line_2'] ?? null,
                 'site_city' => $validated['site_city'] ?? null,
@@ -238,6 +375,109 @@ class ProjectController extends Controller
     }
 
     /**
+     * @param array<string, mixed> $validated
+     */
+    private function syncProjectRelations(Request $request, Project $project, array $validated): void
+    {
+        if ($request->user()->hasUserLevel(\App\Models\UserLevel::PROJECT_MANAGER)) {
+            return;
+        }
+
+        $this->syncContractors($project, $validated['contractors'] ?? []);
+        $this->syncScopes($project, $validated['scopes'] ?? []);
+        $this->syncRevisions($project, $validated['revisions'] ?? [], $request->user());
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $contractors
+     */
+    private function syncContractors(Project $project, array $contractors): void
+    {
+        $contractorIds = collect($contractors)
+            ->map(fn (array $contractor): mixed => $contractor['contractor_id'] ?? null)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $project->contractors()->sync($contractorIds);
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $scopes
+     */
+    private function syncScopes(Project $project, array $scopes): void
+    {
+        $scopes = collect($scopes)
+            ->filter(fn (array $scope): bool => filled($scope['type'] ?? null))
+            ->unique(fn (array $scope): string => (string) $scope['type'])
+            ->values()
+            ->map(fn (array $scope): array => [
+                'scope_type' => $scope['type'],
+                'notes' => $scope['notes'] ?? null,
+            ]);
+
+        $project->scopes()->delete();
+        $project->scopes()->createMany($scopes->all());
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $revisions
+     */
+    private function syncRevisions(Project $project, array $revisions, User $user): void
+    {
+        $revisions = collect($revisions)
+            ->filter(fn (array $revision): bool => filled($revision['number'] ?? null))
+            ->unique(fn (array $revision): string => strtolower(trim((string) $revision['number'])))
+            ->values();
+
+        $keptIds = [];
+
+        foreach ($revisions as $revision) {
+            $revisionId = (int) ($revision['id'] ?? 0);
+            $existing = $revisionId > 0
+                ? $project->revisions()->whereKey($revisionId)->first()
+                : null;
+
+            $attributes = [
+                'number' => trim((string) $revision['number']),
+                'revision_date' => $revision['revision_date'] ?: null,
+                'notes' => $revision['notes'] ?? null,
+            ];
+
+            if ($existing) {
+                $existingDate = $existing->revision_date?->toDateString();
+                $changed = $existing->number !== $attributes['number']
+                    || $existingDate !== $attributes['revision_date']
+                    || trim((string) ($existing->notes ?? '')) !== trim((string) ($attributes['notes'] ?? ''));
+
+                if ($changed) {
+                    $attributes['user_id'] = $user->id;
+                }
+
+                $existing->update($attributes);
+                $keptIds[] = $existing->id;
+
+                continue;
+            }
+
+            $created = $project->revisions()->create([
+                ...$attributes,
+                'user_id' => $user->id,
+            ]);
+            $keptIds[] = $created->id;
+        }
+
+        $project->revisions()
+            ->when(
+                $keptIds !== [],
+                fn ($query) => $query->whereKeyNot($keptIds),
+                fn ($query) => $query,
+            )
+            ->delete();
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function projectPayload(Project $project, User $user, bool $summary = false): array
@@ -248,7 +488,9 @@ class ProjectController extends Controller
             'project_number' => $project->project_number,
             'name' => $project->name,
             'service_type' => $project->service_type,
-            'status' => $project->status,
+            'status_id' => $project->project_status_id,
+            'status' => $project->status?->name,
+            'status_slug' => $project->status?->slug,
             'priority' => $project->priority,
             'estimated_start_date' => $project->estimated_start_date?->toDateString(),
             'estimated_end_date' => $project->estimated_end_date?->toDateString(),
@@ -259,6 +501,42 @@ class ProjectController extends Controller
                 'name' => $project->customer?->name,
                 'company_name' => $project->customer?->company_name,
             ],
+            'contractors' => $project->contractors
+                ->map(fn (Contractor $contractor): array => [
+                    'id' => $contractor->id,
+                    'name' => $contractor->name,
+                    'contact_name' => $contractor->contact_name,
+                    'email' => $summary ? null : $contractor->email,
+                    'phone_number' => $summary ? null : $contractor->phone_number,
+                ])
+                ->values()
+                ->all(),
+            'scopes' => $project->scopes
+                ->map(fn (ProjectScope $scope): array => [
+                    'id' => $scope->id,
+                    'type' => $scope->scope_type,
+                    'notes' => $summary ? null : $scope->notes,
+                ])
+                ->values()
+                ->all(),
+            'revisions' => $summary
+                ? []
+                : $project->revisions
+                    ->map(fn (ProjectRevision $revision): array => [
+                        'id' => $revision->id,
+                        'number' => $revision->number,
+                        'revision_date' => $revision->revision_date?->toDateString(),
+                        'notes' => $revision->notes,
+                        'user_id' => $revision->user_id,
+                        'user' => $revision->user
+                            ? [
+                                'id' => $revision->user->id,
+                                'name' => $revision->user->name,
+                            ]
+                            : null,
+                    ])
+                    ->values()
+                    ->all(),
             'assignee' => $project->assignee
                 ? [
                     'id' => $project->assignee->id,
@@ -336,9 +614,29 @@ class ProjectController extends Controller
     private function options(User $user, ?Project $project = null): array
     {
         return [
-            'statuses' => Project::STATUSES,
+            'statuses' => ProjectStatus::query()
+                ->orderBy('name')
+                ->get(['id', 'name', 'slug'])
+                ->map(fn (ProjectStatus $status): array => [
+                    'id' => $status->id,
+                    'name' => $status->name,
+                    'slug' => $status->slug,
+                ])
+                ->all(),
             'priorities' => Project::PRIORITIES,
             'serviceTypes' => Project::SERVICE_TYPES,
+            'scopeTypes' => Project::SERVICE_TYPES,
+            'contractors' => Contractor::query()
+                ->orderBy('name')
+                ->get(['id', 'name', 'contact_name', 'email', 'phone_number'])
+                ->map(fn (Contractor $contractor): array => [
+                    'id' => $contractor->id,
+                    'name' => $contractor->name,
+                    'contact_name' => $contractor->contact_name,
+                    'email' => $contractor->email,
+                    'phone_number' => $contractor->phone_number,
+                ])
+                ->all(),
             'assignees' => User::query()
                 ->whereHas('level', fn ($query) => $query->whereIn('name', [
                     \App\Models\UserLevel::SUPER_ADMIN,
@@ -355,14 +653,6 @@ class ProjectController extends Controller
                 ->all(),
             'customers' => Customer::query()
                 ->with(['contacts' => fn ($query) => $query->orderByDesc('is_primary')->orderBy('name')])
-                ->where(function ($query) use ($project): void {
-                    $query
-                        ->whereDoesntHave('project')
-                        ->when(
-                            $project?->customer_id,
-                            fn ($query, int $customerId) => $query->orWhere('id', $customerId),
-                        );
-                })
                 ->orderBy('name')
                 ->get()
                 ->map(fn (Customer $customer): array => [
@@ -407,4 +697,3 @@ class ProjectController extends Controller
         ];
     }
 }
-

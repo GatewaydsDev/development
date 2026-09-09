@@ -1,7 +1,8 @@
 import { Button } from '@/Components/ui/button';
 import { cn } from '@/lib/utils';
+import { Link } from '@inertiajs/react';
 import { CheckIcon, MenuIcon, XIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 type FormActionFabProps = {
     cancelHref: string;
@@ -17,25 +18,37 @@ export default function FormActionFab({
     disabled = false,
 }: FormActionFabProps) {
     const [isOpen, setIsOpen] = useState(false);
+    const rootRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!isOpen) {
+            return;
+        }
+
+        const closeIfOutside = (event: Event) => {
+            if (!rootRef.current?.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+
+        document.addEventListener('pointerdown', closeIfOutside);
+
+        return () => {
+            document.removeEventListener('pointerdown', closeIfOutside);
+        };
+    }, [isOpen]);
 
     return (
         <div
+            ref={rootRef}
             className="fixed bottom-6 right-3 z-40 flex flex-col items-center gap-2 sm:bottom-8 sm:right-5"
-            onMouseEnter={() => setIsOpen(true)}
-            onMouseLeave={() => setIsOpen(false)}
-            onFocus={() => setIsOpen(true)}
-            onBlur={(event) => {
-                if (!event.currentTarget.contains(event.relatedTarget)) {
-                    setIsOpen(false);
-                }
-            }}
         >
             <div
                 className={cn(
-                    'flex flex-col items-center gap-2 transition-all duration-300 ease-out',
+                    'absolute bottom-full flex flex-col items-center gap-2 pb-3 transition-all duration-300 ease-out',
                     isOpen
                         ? 'translate-y-0 opacity-100'
-                        : 'pointer-events-none translate-y-4 opacity-0',
+                        : 'pointer-events-none translate-y-2 opacity-0',
                 )}
             >
                 <Button
@@ -55,19 +68,21 @@ export default function FormActionFab({
                 <Button
                     type="button"
                     variant="outline"
+                    asChild
                     className={cn(
                         'size-12 rounded-full border-rose-200 bg-background text-rose-700 shadow-lg transition-all duration-300 ease-out hover:bg-rose-50 dark:border-rose-900/70 dark:text-rose-300 dark:hover:bg-rose-950/30',
                         isOpen
                             ? 'scale-100 opacity-100'
                             : 'scale-90 opacity-0 delay-75',
                     )}
-                    aria-label={cancelLabel}
-                    title={cancelLabel}
-                    onClick={() => {
-                        window.location.href = cancelHref;
-                    }}
                 >
-                    <XIcon className="size-5" />
+                    <Link
+                        href={cancelHref}
+                        aria-label={cancelLabel}
+                        title={cancelLabel}
+                    >
+                        <XIcon className="size-5" />
+                    </Link>
                 </Button>
             </div>
 

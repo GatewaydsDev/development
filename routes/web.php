@@ -1,13 +1,17 @@
 <?php
 
 use App\Http\Controllers\Admin\AccessControlController;
+use App\Http\Controllers\Admin\BidCatalogController;
+use App\Http\Controllers\Admin\BidController;
 use App\Http\Controllers\Admin\AccountController;
 use App\Http\Controllers\Admin\CompanyController;
 use App\Http\Controllers\Admin\ContactController;
+use App\Http\Controllers\Admin\ContractorController;
 use App\Http\Controllers\Admin\CustomerContactRoleController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\EmployeeController;
 use App\Http\Controllers\Admin\ProfessionController;
+use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ProjectController;
 use App\Http\Controllers\Admin\UserActivityController;
 use App\Http\Controllers\Admin\UserController;
@@ -178,6 +182,83 @@ Route::middleware(['auth', 'prevent-back-history'])
             ->name('employees.destroy');
         Route::post('/professions', [ProfessionController::class, 'store'])
             ->name('professions.store');
+        Route::post('/contractors', [ContractorController::class, 'store'])
+            ->name('contractors.store');
+
+        Route::get('/bids', [BidController::class, 'index'])
+            ->middleware('can:view-bids')
+            ->name('bids.index');
+        Route::get('/bids/create', [BidController::class, 'create'])
+            ->middleware('can:create-bids')
+            ->name('bids.create');
+        Route::post('/bids', [BidController::class, 'store'])
+            ->middleware('can:create-bids')
+            ->name('bids.store');
+        Route::get('/bids/{bid}', [BidController::class, 'show'])
+            ->middleware('can:view-bids')
+            ->name('bids.show');
+        Route::get('/bids/{bid}/edit', [BidController::class, 'edit'])
+            ->middleware('can:update-bids')
+            ->name('bids.edit');
+        Route::patch('/bids/{bid}', [BidController::class, 'update'])
+            ->middleware('can:update-bids')
+            ->name('bids.update');
+        Route::delete('/bids/{bid}', [BidController::class, 'destroy'])
+            ->middleware('can:delete-bids')
+            ->name('bids.destroy');
+        Route::post('/bid-stage-types', [BidCatalogController::class, 'storeStageType'])
+            ->name('bid-stage-types.store');
+        Route::post('/bid-scopes', [BidCatalogController::class, 'storeScope'])
+            ->name('bid-scopes.store');
+        Route::post('/bid-pricing-statuses', [BidCatalogController::class, 'storePricingStatus'])
+            ->name('bid-pricing-statuses.store');
+
+        Route::get('/products', [ProductController::class, 'index'])
+            ->middleware('can:view-products')
+            ->name('products.index');
+        Route::get('/products/print', [ProductController::class, 'print'])
+            ->middleware('can:view-products')
+            ->name('products.print');
+        Route::get('/products/export/pdf', [ProductController::class, 'exportPdf'])
+            ->middleware('can:view-products')
+            ->name('products.export.pdf');
+        Route::get('/products/export/word', [ProductController::class, 'exportWord'])
+            ->middleware('can:view-products')
+            ->name('products.export.word');
+        Route::get('/products/create', [ProductController::class, 'create'])
+            ->middleware('can:create-products')
+            ->name('products.create');
+        Route::post('/products/catalog', [ProductController::class, 'storeCatalog'])
+            ->name('products.catalog');
+        Route::post('/manufacturers', [ProductController::class, 'storeManufacturer'])
+            ->name('manufacturers.store');
+        Route::post('/product-models', [ProductController::class, 'storeModel'])
+            ->name('product-models.store');
+        Route::post('/product-types', [ProductController::class, 'storeType'])
+            ->name('product-types.store');
+        Route::post('/door-constructions', [ProductController::class, 'storeConstruction'])
+            ->name('door-constructions.store');
+        Route::post('/door-configurations', [ProductController::class, 'storeConfiguration'])
+            ->name('door-configurations.store');
+        Route::post('/door-handings', [ProductController::class, 'storeHanding'])
+            ->name('door-handings.store');
+        Route::post('/tax-states', [ProductController::class, 'storeTaxState'])
+            ->name('tax-states.store');
+        Route::post('/products', [ProductController::class, 'store'])
+            ->middleware('can:create-products')
+            ->name('products.store');
+        Route::get('/products/{product}', [ProductController::class, 'show'])
+            ->middleware('can:view-products')
+            ->name('products.show');
+        Route::get('/products/{product}/edit', [ProductController::class, 'edit'])
+            ->middleware('can:update-products')
+            ->name('products.edit');
+        Route::patch('/products/{product}', [ProductController::class, 'update'])
+            ->middleware('can:update-products')
+            ->name('products.update');
+        Route::delete('/products/{product}', [ProductController::class, 'destroy'])
+            ->middleware('can:delete-products')
+            ->name('products.destroy');
 
         Route::get('/projects', [ProjectController::class, 'index'])
             ->middleware('can:view-projects')
@@ -185,6 +266,10 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::get('/projects/create', [ProjectController::class, 'create'])
             ->middleware('can:create-projects')
             ->name('projects.create');
+        Route::get('/projects/name-availability', [ProjectController::class, 'nameAvailability'])
+            ->name('projects.name-availability');
+        Route::post('/project-statuses', [ProjectController::class, 'storeStatus'])
+            ->name('project-statuses.store');
         Route::post('/projects', [ProjectController::class, 'store'])
             ->middleware('can:create-projects')
             ->name('projects.store');
