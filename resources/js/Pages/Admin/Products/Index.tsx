@@ -243,18 +243,23 @@ export default function Index({ filters, options, products }: IndexProps) {
                                                         {product.abbreviation}
                                                     </p>
                                                 ) : null}
-                                                {product.configuration
-                                                    ?.name ||
-                                                product.handing?.name ||
-                                                product.constructions
-                                                    ?.length ? (
+                                                {(product.configurations
+                                                    ?.length ||
+                                                    product.handings?.length ||
+                                                    product.constructions
+                                                        ?.length) ? (
                                                     <p className="truncate text-sm text-muted-foreground">
                                                         {[
-                                                            product
-                                                                .configuration
-                                                                ?.name,
-                                                            product.handing
-                                                                ?.name,
+                                                            ...(product.configurations ??
+                                                                []).map(
+                                                                (item) =>
+                                                                    item.name,
+                                                            ),
+                                                            ...(product.handings ??
+                                                                []).map(
+                                                                (item) =>
+                                                                    item.name,
+                                                            ),
                                                             ...(product.constructions ??
                                                                 []).map(
                                                                 (item) =>

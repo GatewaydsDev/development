@@ -37,7 +37,7 @@ import {
     isSiteVaultIntroPending,
     SITE_VAULT_INTRO_MS,
 } from '@/lib/siteVaultIntro';
-import { PropsWithChildren, useState } from 'react';
+import { PropsWithChildren, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const navigation = [
@@ -67,16 +67,34 @@ export default function PublicLayout({ children }: PropsWithChildren) {
         PageProps<{ companyPhoneNumber?: string | null }>
     >().props;
     const isHome = route().current('home');
+    const isAuthPage =
+        route().current('login') || route().current('register');
     const quotePhoneNumber = companyPhoneNumber?.replace(/\D/g, '') ?? '';
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
         useState(false);
 
+    useEffect(() => {
+        if (!isAuthPage) {
+            return;
+        }
+
+        document.documentElement.classList.add('auth-static');
+
+        return () => {
+            document.documentElement.classList.remove('auth-static');
+        };
+    }, [isAuthPage]);
+
     return (
         <div className="min-h-screen bg-background text-foreground">
-            <SiteVaultIntro />
-            <FloatingSiteGear
-                delayMs={isSiteVaultIntroPending() ? SITE_VAULT_INTRO_MS : 400}
-            />
+            {!isAuthPage && <SiteVaultIntro />}
+            {!isAuthPage && (
+                <FloatingSiteGear
+                    delayMs={
+                        isSiteVaultIntroPending() ? SITE_VAULT_INTRO_MS : 400
+                    }
+                />
+            )}
             <header className="sticky top-0 z-50">
                 {isHome ? (
                     <div className="border-b border-emerald-500/20 bg-emerald-950/95 text-center text-sm font-medium tracking-wide text-emerald-50 backdrop-blur supports-[backdrop-filter]:bg-emerald-950/90">

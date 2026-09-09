@@ -255,6 +255,52 @@ export default function Show({ product, options }: ShowProps) {
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="flex flex-col gap-4">
+                                <div className="flex flex-col gap-2">
+                                    <p className="text-sm font-medium text-muted-foreground">
+                                        Configuration
+                                    </p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {(product.configurations ?? []).length >
+                                        0 ? (
+                                            product.configurations?.map(
+                                                (item) => (
+                                                    <Badge
+                                                        key={item.id}
+                                                        variant="outline"
+                                                    >
+                                                        {item.name}
+                                                    </Badge>
+                                                ),
+                                            )
+                                        ) : (
+                                            <p className="text-sm text-muted-foreground">
+                                                No configuration added yet.
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="flex flex-col gap-2">
+                                    <p className="text-sm font-medium text-muted-foreground">
+                                        Door handing
+                                    </p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {(product.handings ?? []).length >
+                                        0 ? (
+                                            product.handings?.map((item) => (
+                                                <Badge
+                                                    key={item.id}
+                                                    variant="outline"
+                                                >
+                                                    {item.name}
+                                                </Badge>
+                                            ))
+                                        ) : (
+                                            <p className="text-sm text-muted-foreground">
+                                                No handing added yet.
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
                                 <div className="flex flex-wrap gap-2">
                                     {(product.constructions ?? []).length >
                                     0 ? (
@@ -273,14 +319,6 @@ export default function Show({ product, options }: ShowProps) {
                                     )}
                                 </div>
                                 <dl className="grid gap-4 md:grid-cols-2">
-                                    <DetailItem
-                                        label="Configuration"
-                                        value={product.configuration?.name}
-                                    />
-                                    <DetailItem
-                                        label="Door handing"
-                                        value={product.handing?.name}
-                                    />
                                     <DetailItem
                                         label="RF shielding"
                                         value={product.rf_shielding}

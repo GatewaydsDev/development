@@ -4,6 +4,7 @@ import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import MaskedDecimalInput from '@/Components/MaskedDecimalInput';
 import TextInput from '@/Components/TextInput';
+import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import {
     Card,
@@ -29,6 +30,7 @@ import {
     PackageIcon,
     PlusIcon,
     Trash2Icon,
+    XIcon,
 } from 'lucide-react';
 import { FormEventHandler, useMemo, useRef } from 'react';
 import {
@@ -44,6 +46,7 @@ import { z } from 'zod';
 import {
     blankConstruction,
     blankPart,
+    existingModel,
     productToFormData,
     type ProductFormData,
     type ProductOptions,
@@ -63,10 +66,8 @@ type ProductFormProps = {
 const schema = z.object({
     product_type_id: z.string().trim().min(1, 'Select a type.'),
     manufacturer_id: z.string().trim().min(1, 'Select a manufacturer.'),
-    product_model_id: z.string().trim().min(1, 'Select a model.'),
+    name: z.string().trim().min(1, 'Enter a model.').max(255),
     abbreviation: z.string().trim().max(255),
-    door_configuration_id: z.string(),
-    door_handing_id: z.string(),
     description: z.string().trim().max(5000),
     notes: z.string().trim().max(5000),
     rf_shielding: z.string().max(255),
@@ -81,6 +82,16 @@ const schema = z.object({
     min_markup_percent: z.string(),
     tax_state_id: z.string(),
     tax_rate: z.string(),
+    configurations: z.array(
+        z.object({
+            configuration_id: z.string(),
+        }),
+    ),
+    handings: z.array(
+        z.object({
+            handing_id: z.string(),
+        }),
+    ),
     constructions: z.array(
         z.object({
             construction_id: z.string(),
@@ -132,6 +143,7 @@ export default function ProductForm({
         handleSubmit,
         setValue,
         setError,
+        clearErrors,
         formState: { errors: validationErrors, isSubmitting },
     } = useForm<ProductFormData>({
         resolver: zodResolver(schema),
@@ -145,6 +157,24 @@ export default function ProductForm({
     } = useFieldArray({
         control,
         name: 'parts',
+    });
+
+    const {
+        fields: configurationFields,
+        append: appendConfiguration,
+        remove: removeConfiguration,
+    } = useFieldArray({
+        control,
+        name: 'configurations',
+    });
+
+    const {
+        fields: handingFields,
+        append: appendHanding,
+        remove: removeHanding,
+    } = useFieldArray({
+        control,
+        name: 'handings',
     });
 
     const {
@@ -191,23 +221,11 @@ export default function ProductForm({
         }
 
         const previousName = previousTypeNameRef.current;
-        const selectedModel = (options.models ?? []).find(
-            (model) => String(model.id) === String(data.product_model_id),
-        );
-        const currentName = (selectedModel?.name ?? '').trim();
+        const currentName = (data.name ?? '').trim();
         const currentDescription = (data.description ?? '').trim();
 
         if (currentName === '' || currentName === previousName) {
-            const matchingModel = (options.models ?? []).find(
-                (model) =>
-                    !model.in_use &&
-                    model.name.toLowerCase() === nextTypeName.toLowerCase(),
-            );
-
-            setData(
-                'product_model_id',
-                matchingModel ? String(matchingModel.id) : '',
-            );
+            setData('name', nextTypeName);
         }
 
         if (currentDescription === '' || currentDescription === previousName) {
@@ -222,21 +240,40 @@ export default function ProductForm({
         applyTypeDefaults(type);
     };
 
+    const currentModelId = product?.product_model_id ?? product?.model?.id ?? null;
+
+    const checkModelName = (typed: string) => {
+        const existing = existingModel(
+            typed,
+            options.models,
+            currentModelId,
+        );
+
+        if (existing) {
+            setError('name', {
+                type: 'manual',
+                message: 'This model already exists.',
+            });
+
+            return false;
+        }
+
+        clearErrors('name');
+
+        return true;
+    };
+
     const submit = handleSubmit(
         (values) => {
+            if (!checkModelName(values.name)) {
+                return;
+            }
+
             const payload = {
                 product_type_id: values.product_type_id,
                 manufacturer_id: values.manufacturer_id,
-                product_model_id: values.product_model_id,
+                name: values.name.trim(),
                 abbreviation: values.abbreviation.trim() || null,
-                door_configuration_id:
-                    isDoor && values.door_configuration_id.trim() !== ''
-                        ? values.door_configuration_id
-                        : null,
-                door_handing_id:
-                    isDoor && values.door_handing_id.trim() !== ''
-                        ? values.door_handing_id
-                        : null,
                 description: isDoor
                     ? values.description
                     : values.description.trim() || typeName,
@@ -253,6 +290,16 @@ export default function ProductForm({
                 constructions: isDoor
                     ? values.constructions.filter(
                           (item) => item.construction_id.trim() !== '',
+                      )
+                    : [],
+                configurations: isDoor
+                    ? values.configurations.filter(
+                          (item) => item.configuration_id.trim() !== '',
+                      )
+                    : [],
+                handings: isDoor
+                    ? values.handings.filter(
+                          (item) => item.handing_id.trim() !== '',
                       )
                     : [],
                 rf_shielding: isDoor ? values.rf_shielding : null,
@@ -430,32 +477,41 @@ export default function ProductForm({
                                     setData('manufacturer_id', manufacturerId)
                                 }
                             />
-                            <CreatableSelect
-                                id="product-model"
-                                label="Model"
-                                value={data.product_model_id ?? ''}
-                                options={options.models ?? []}
-                                disabledIds={(options.models ?? [])
-                                    .filter((model) => model.in_use)
-                                    .map((model) => String(model.id))}
-                                createRoute={route('admin.product-models.store')}
-                                catalogKey="models"
-                                entityLabel="model"
-                                placeholder={
-                                    isDoor
-                                        ? 'KriegerShield 40 dB Hollow Metal Door'
-                                        : selectedType.name ||
-                                          'Hinge, lockset, closer...'
-                                }
-                                hint="Each product has one model. Select an unused model or type a new name to add it."
-                                error={errorMessage(
-                                    validationErrors,
-                                    'product_model_id',
-                                )}
-                                onChange={(modelId) =>
-                                    setData('product_model_id', modelId)
-                                }
-                            />
+                            <div className="flex flex-col gap-2">
+                                <InputLabel
+                                    htmlFor="product-model"
+                                    value="Model"
+                                    className="text-emerald-700 dark:text-emerald-300"
+                                />
+                                <TextInput
+                                    id="product-model"
+                                    value={data.name ?? ''}
+                                    className={inputClassName}
+                                    placeholder={
+                                        isDoor
+                                            ? 'KriegerShield 40 dB Hollow Metal Door'
+                                            : selectedType?.name ||
+                                              'Hinge, lockset, closer...'
+                                    }
+                                    onChange={(event) => {
+                                        setData('name', event.target.value);
+                                        clearErrors('name');
+                                    }}
+                                    onBlur={(event) =>
+                                        checkModelName(event.target.value)
+                                    }
+                                />
+                                <p className="text-sm text-muted-foreground">
+                                    Each product has one model. We check that
+                                    the name is not already used.
+                                </p>
+                                <InputError
+                                    message={errorMessage(
+                                        validationErrors,
+                                        'name',
+                                    )}
+                                />
+                            </div>
                             <div className="flex flex-col gap-2">
                                 <InputLabel
                                     htmlFor="product-abbreviation"
@@ -490,52 +546,209 @@ export default function ProductForm({
 
                             {isDoor ? (
                                 <div className="flex flex-col gap-5 rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/20">
-                                    <CreatableSelect
-                                        id="product-configuration"
-                                        label="Configuration"
-                                        value={data.door_configuration_id ?? ''}
-                                        options={options.configurations ?? []}
-                                        createRoute={route(
-                                            'admin.door-configurations.store',
-                                        )}
-                                        catalogKey="configurations"
-                                        entityLabel="configuration"
-                                        placeholder="Single, Uneven, Double"
-                                        hint="Each door has one configuration."
-                                        error={errorMessage(
-                                            validationErrors,
-                                            'door_configuration_id',
-                                        )}
-                                        onChange={(configurationId) =>
-                                            setData(
-                                                'door_configuration_id',
-                                                configurationId,
-                                            )
-                                        }
-                                    />
-                                    <CreatableSelect
-                                        id="product-handing"
-                                        label="Door handing"
-                                        value={data.door_handing_id ?? ''}
-                                        options={options.handings ?? []}
-                                        createRoute={route(
-                                            'admin.door-handings.store',
-                                        )}
-                                        catalogKey="handings"
-                                        entityLabel="handing"
-                                        placeholder="Left Hand, Right Hand Reverse..."
-                                        hint="Each door has one handing option."
-                                        error={errorMessage(
-                                            validationErrors,
-                                            'door_handing_id',
-                                        )}
-                                        onChange={(handingId) =>
-                                            setData(
-                                                'door_handing_id',
-                                                handingId,
-                                            )
-                                        }
-                                    />
+                                    <div className="flex flex-col gap-3">
+                                        <CreatableSelect
+                                            id="product-configuration"
+                                            label="Configuration"
+                                            value=""
+                                            options={
+                                                options.configurations ?? []
+                                            }
+                                            disabledIds={configurationFields
+                                                .map(
+                                                    (_, index) =>
+                                                        data.configurations?.[
+                                                            index
+                                                        ]?.configuration_id ??
+                                                        '',
+                                                )
+                                                .filter(Boolean)}
+                                            createRoute={route(
+                                                'admin.door-configurations.store',
+                                            )}
+                                            catalogKey="configurations"
+                                            entityLabel="configuration"
+                                            clearOnSelect
+                                            placeholder="Single, Uneven, Double"
+                                            hint="Select a configuration to add it. A door can have more than one."
+                                            error={errorMessage(
+                                                validationErrors,
+                                                'configurations',
+                                            )}
+                                            onChange={(configurationId) => {
+                                                if (
+                                                    !configurationId ||
+                                                    (
+                                                        data.configurations ??
+                                                        []
+                                                    ).some(
+                                                        (item) =>
+                                                            item.configuration_id ===
+                                                            configurationId,
+                                                    )
+                                                ) {
+                                                    return;
+                                                }
+
+                                                appendConfiguration({
+                                                    configuration_id:
+                                                        configurationId,
+                                                });
+                                            }}
+                                        />
+                                        {configurationFields.length > 0 ? (
+                                            <div className="flex flex-wrap gap-2">
+                                                {configurationFields.map(
+                                                    (field, index) => {
+                                                        const selectedId =
+                                                            data
+                                                                .configurations?.[
+                                                                index
+                                                            ]
+                                                                ?.configuration_id ??
+                                                            '';
+                                                        const selected = (
+                                                            options.configurations ??
+                                                            []
+                                                        ).find(
+                                                            (option) =>
+                                                                String(
+                                                                    option.id,
+                                                                ) ===
+                                                                selectedId,
+                                                        );
+
+                                                        if (
+                                                            !selected &&
+                                                            !selectedId
+                                                        ) {
+                                                            return null;
+                                                        }
+
+                                                        return (
+                                                            <Badge
+                                                                key={field.id}
+                                                                variant="outline"
+                                                                className="h-7 gap-1.5 border-emerald-200 bg-background pr-1 text-sm dark:border-emerald-900/70"
+                                                            >
+                                                                {selected?.name ??
+                                                                    'Configuration'}
+                                                                <button
+                                                                    type="button"
+                                                                    className="rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                                                    aria-label={`Remove ${selected?.name ?? 'configuration'}`}
+                                                                    onClick={() =>
+                                                                        removeConfiguration(
+                                                                            index,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <XIcon className="size-3.5" />
+                                                                </button>
+                                                            </Badge>
+                                                        );
+                                                    },
+                                                )}
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                    <div className="flex flex-col gap-3">
+                                        <CreatableSelect
+                                            id="product-handing"
+                                            label="Door handing"
+                                            value=""
+                                            options={options.handings ?? []}
+                                            disabledIds={handingFields
+                                                .map(
+                                                    (_, index) =>
+                                                        data.handings?.[index]
+                                                            ?.handing_id ?? '',
+                                                )
+                                                .filter(Boolean)}
+                                            createRoute={route(
+                                                'admin.door-handings.store',
+                                            )}
+                                            catalogKey="handings"
+                                            entityLabel="handing"
+                                            clearOnSelect
+                                            placeholder="Left Hand, Right Hand Reverse..."
+                                            hint="Select a handing to add it. A door can have more than one."
+                                            error={errorMessage(
+                                                validationErrors,
+                                                'handings',
+                                            )}
+                                            onChange={(handingId) => {
+                                                if (
+                                                    !handingId ||
+                                                    (
+                                                        data.handings ?? []
+                                                    ).some(
+                                                        (item) =>
+                                                            item.handing_id ===
+                                                            handingId,
+                                                    )
+                                                ) {
+                                                    return;
+                                                }
+
+                                                appendHanding({
+                                                    handing_id: handingId,
+                                                });
+                                            }}
+                                        />
+                                        {handingFields.length > 0 ? (
+                                            <div className="flex flex-wrap gap-2">
+                                                {handingFields.map(
+                                                    (field, index) => {
+                                                        const selectedId =
+                                                            data.handings?.[
+                                                                index
+                                                            ]?.handing_id ?? '';
+                                                        const selected = (
+                                                            options.handings ??
+                                                            []
+                                                        ).find(
+                                                            (option) =>
+                                                                String(
+                                                                    option.id,
+                                                                ) ===
+                                                                selectedId,
+                                                        );
+
+                                                        if (
+                                                            !selected &&
+                                                            !selectedId
+                                                        ) {
+                                                            return null;
+                                                        }
+
+                                                        return (
+                                                            <Badge
+                                                                key={field.id}
+                                                                variant="outline"
+                                                                className="h-7 gap-1.5 border-emerald-200 bg-background pr-1 text-sm dark:border-emerald-900/70"
+                                                            >
+                                                                {selected?.name ??
+                                                                    'Handing'}
+                                                                <button
+                                                                    type="button"
+                                                                    className="rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                                                    aria-label={`Remove ${selected?.name ?? 'handing'}`}
+                                                                    onClick={() =>
+                                                                        removeHanding(
+                                                                            index,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <XIcon className="size-3.5" />
+                                                                </button>
+                                                            </Badge>
+                                                        );
+                                                    },
+                                                )}
+                                            </div>
+                                        ) : null}
+                                    </div>
                                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                         <div>
                                             <h3 className="text-sm font-semibold text-foreground">

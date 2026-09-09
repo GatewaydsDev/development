@@ -324,7 +324,7 @@ class ProductController extends Controller
     {
         abort_unless(ProductAccess::canView($request->user()), 403);
 
-        $product->load(['manufacturer', 'productModel', 'productType', 'parts', 'doors', 'constructions', 'configuration', 'handing', 'taxState']);
+        $product->load(['manufacturer', 'productModel', 'productType', 'parts', 'doors', 'constructions', 'configurations', 'handings', 'taxState']);
 
         return Inertia::render('Admin/Products/Show', [
             'product' => $this->productPayload($product),
@@ -336,7 +336,7 @@ class ProductController extends Controller
     {
         abort_unless(ProductAccess::canUpdate($request->user()), 403);
 
-        $product->load(['manufacturer', 'productModel', 'productType', 'parts', 'doors', 'constructions', 'configuration', 'handing', 'taxState']);
+        $product->load(['manufacturer', 'productModel', 'productType', 'parts', 'doors', 'constructions', 'configurations', 'handings', 'taxState']);
 
         return Inertia::render('Admin/Products/Edit', [
             'product' => $this->productPayload($product),
@@ -395,6 +395,25 @@ class ProductController extends Controller
                 'max:255',
                 'required_without:product_model_id',
                 Rule::unique(Product::class, 'name')->ignore($product?->id),
+                function (string $attribute, mixed $value, \Closure $fail) use ($product): void {
+                    if (! filled($value)) {
+                        return;
+                    }
+
+                    $existing = ProductModel::query()
+                        ->whereRaw('LOWER(name) = ?', [mb_strtolower(trim((string) $value))])
+                        ->first();
+
+                    if (! $existing) {
+                        return;
+                    }
+
+                    if ($product && (int) $product->product_model_id === (int) $existing->id) {
+                        return;
+                    }
+
+                    $fail('This model already exists.');
+                },
             ],
             'abbreviation' => [
                 'nullable',
@@ -434,14 +453,18 @@ class ProductController extends Controller
                 Rule::exists(TaxState::class, 'id'),
             ],
             'tax_rate' => ['nullable', 'numeric', 'min:0', 'max:999.999'],
-            'door_configuration_id' => [
-                'nullable',
+            'configurations' => ['array'],
+            'configurations.*.configuration_id' => [
+                'required',
                 'integer',
+                'distinct',
                 Rule::exists(DoorConfiguration::class, 'id'),
             ],
-            'door_handing_id' => [
-                'nullable',
+            'handings' => ['array'],
+            'handings.*.handing_id' => [
+                'required',
                 'integer',
+                'distinct',
                 Rule::exists(DoorHanding::class, 'id'),
             ],
             'constructions' => ['array'],
@@ -480,8 +503,6 @@ class ProductController extends Controller
             'product_model_id' => $productModel?->id,
             'name' => $productModel?->name ?? ($validated['name'] ?? null),
             'abbreviation' => $this->nullableString($validated['abbreviation'] ?? null),
-            'door_configuration_id' => $isDoor ? ($validated['door_configuration_id'] ?? null) : null,
-            'door_handing_id' => $isDoor ? ($validated['door_handing_id'] ?? null) : null,
             'description' => $validated['description'] ?? null,
             'notes' => $validated['notes'] ?? null,
             'price' => $validated['price'] ?? null,
@@ -570,6 +591,8 @@ class ProductController extends Controller
     {
         $this->syncParts($product, $validated['parts'] ?? []);
         $this->syncConstructions($product, $validated['constructions'] ?? []);
+        $this->syncConfigurations($product, $validated['configurations'] ?? []);
+        $this->syncHandings($product, $validated['handings'] ?? []);
     }
 
     /**
@@ -618,6 +641,50 @@ class ProductController extends Controller
     }
 
     /**
+     * @param  array<int, array<string, mixed>>  $configurations
+     */
+    private function syncConfigurations(Product $product, array $configurations): void
+    {
+        if ($product->kind !== Product::KIND_DOOR) {
+            $product->configurations()->sync([]);
+
+            return;
+        }
+
+        $configurationIds = collect($configurations)
+            ->pluck('configuration_id')
+            ->filter()
+            ->map(fn ($id): int => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        $product->configurations()->sync($configurationIds);
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $handings
+     */
+    private function syncHandings(Product $product, array $handings): void
+    {
+        if ($product->kind !== Product::KIND_DOOR) {
+            $product->handings()->sync([]);
+
+            return;
+        }
+
+        $handingIds = collect($handings)
+            ->pluck('handing_id')
+            ->filter()
+            ->map(fn ($id): int => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        $product->handings()->sync($handingIds);
+    }
+
+    /**
      * @return Builder<Product>
      */
     private function productListingQuery(Request $request): Builder
@@ -633,8 +700,8 @@ class ProductController extends Controller
                 'parts:id,name',
                 'doors:id,name',
                 'constructions:id,name',
-                'configuration:id,name',
-                'handing:id,name',
+                'configurations:id,name',
+                'handings:id,name',
                 'taxState:id,name,rate',
             ])
             ->when($search !== '', function ($query) use ($search): void {
@@ -662,10 +729,10 @@ class ProductController extends Controller
                         ->orWhereHas('constructions', function ($query) use ($search): void {
                             $query->where('name', 'like', "%{$search}%");
                         })
-                        ->orWhereHas('configuration', function ($query) use ($search): void {
+                        ->orWhereHas('configurations', function ($query) use ($search): void {
                             $query->where('name', 'like', "%{$search}%");
                         })
-                        ->orWhereHas('handing', function ($query) use ($search): void {
+                        ->orWhereHas('handings', function ($query) use ($search): void {
                             $query->where('name', 'like', "%{$search}%");
                         })
                         ->orWhereHas('taxState', function ($query) use ($search): void {
@@ -723,20 +790,24 @@ class ProductController extends Controller
                 : null,
             'name' => $product->name,
             'abbreviation' => $product->abbreviation,
-            'door_configuration_id' => $product->door_configuration_id,
-            'configuration' => $product->configuration
-                ? [
-                    'id' => $product->configuration->id,
-                    'name' => $product->configuration->name,
-                ]
-                : null,
-            'door_handing_id' => $product->door_handing_id,
-            'handing' => $product->handing
-                ? [
-                    'id' => $product->handing->id,
-                    'name' => $product->handing->name,
-                ]
-                : null,
+            'configurations' => $product->relationLoaded('configurations')
+                ? $product->configurations
+                    ->map(fn (DoorConfiguration $configuration): array => [
+                        'id' => $configuration->id,
+                        'name' => $configuration->name,
+                    ])
+                    ->values()
+                    ->all()
+                : [],
+            'handings' => $product->relationLoaded('handings')
+                ? $product->handings
+                    ->map(fn (DoorHanding $handing): array => [
+                        'id' => $handing->id,
+                        'name' => $handing->name,
+                    ])
+                    ->values()
+                    ->all()
+                : [],
             'kind' => $product->kind,
             'description' => $summary ? null : $product->description,
             'notes' => $summary ? null : $product->notes,

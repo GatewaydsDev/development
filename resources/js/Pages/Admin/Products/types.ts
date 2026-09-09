@@ -75,10 +75,8 @@ export type ProductPayload = {
     model?: ProductModelOption | null;
     name: string;
     abbreviation?: string | null;
-    door_configuration_id?: number | null;
-    configuration?: DoorConfigurationOption | null;
-    door_handing_id?: number | null;
-    handing?: DoorHandingOption | null;
+    configurations?: DoorConfigurationOption[];
+    handings?: DoorHandingOption[];
     kind: ProductKind;
     description?: string | null;
     notes?: string | null;
@@ -109,10 +107,8 @@ export type ProductPayload = {
 export type ProductFormData = {
     product_type_id: string;
     manufacturer_id: string;
-    product_model_id: string;
+    name: string;
     abbreviation: string;
-    door_configuration_id: string;
-    door_handing_id: string;
     description: string;
     notes: string;
     rf_shielding: string;
@@ -127,6 +123,12 @@ export type ProductFormData = {
     min_markup_percent: string;
     tax_state_id: string;
     tax_rate: string;
+    configurations: Array<{
+        configuration_id: string;
+    }>;
+    handings: Array<{
+        handing_id: string;
+    }>;
     constructions: Array<{
         construction_id: string;
     }>;
@@ -160,6 +162,32 @@ export const blankConstruction = () => ({
     construction_id: '',
 });
 
+export const blankConfiguration = () => ({
+    configuration_id: '',
+});
+
+export const blankHanding = () => ({
+    handing_id: '',
+});
+
+export const existingModel = (
+    name: string,
+    models?: ProductModelOption[],
+    currentModelId?: number | null,
+) => {
+    const normalized = name.trim().toLowerCase();
+
+    if (!normalized) {
+        return undefined;
+    }
+
+    return models?.find(
+        (model) =>
+            model.name.toLowerCase() === normalized &&
+            (currentModelId == null || model.id !== currentModelId),
+    );
+};
+
 export const defaultDoorTypeId = (types?: ProductTypeOption[]) => {
     const doorType = types?.find((type) => type.allows_parts);
 
@@ -192,22 +220,8 @@ export const productToFormData = (
         : product?.manufacturer?.id
           ? String(product.manufacturer.id)
           : '',
-    product_model_id: product?.product_model_id
-        ? String(product.product_model_id)
-        : product?.model?.id
-          ? String(product.model.id)
-          : '',
+    name: product?.model?.name ?? product?.name ?? '',
     abbreviation: product?.abbreviation ?? '',
-    door_configuration_id: product?.door_configuration_id
-        ? String(product.door_configuration_id)
-        : product?.configuration?.id
-          ? String(product.configuration.id)
-          : '',
-    door_handing_id: product?.door_handing_id
-        ? String(product.door_handing_id)
-        : product?.handing?.id
-          ? String(product.handing.id)
-          : '',
     description: product?.description ?? '',
     notes: product?.notes ?? '',
     rf_shielding: product?.rf_shielding ?? '',
@@ -241,6 +255,18 @@ export const productToFormData = (
                 ? ''
                 : String(product.tax_state.rate)
             : String(product.tax_rate),
+    configurations:
+        product?.configurations?.length
+            ? product.configurations.map((configuration) => ({
+                  configuration_id: String(configuration.id),
+              }))
+            : [],
+    handings:
+        product?.handings?.length
+            ? product.handings.map((handing) => ({
+                  handing_id: String(handing.id),
+              }))
+            : [],
     constructions:
         product?.constructions?.length
             ? product.constructions.map((construction) => ({

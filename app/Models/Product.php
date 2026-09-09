@@ -26,8 +26,6 @@ class Product extends Model
         'product_model_id',
         'name',
         'abbreviation',
-        'door_configuration_id',
-        'door_handing_id',
         'kind',
         'description',
         'notes',
@@ -99,14 +97,18 @@ class Product extends Model
             ->orderBy('name');
     }
 
-    public function configuration(): BelongsTo
+    public function configurations(): BelongsToMany
     {
-        return $this->belongsTo(DoorConfiguration::class, 'door_configuration_id');
+        return $this->belongsToMany(DoorConfiguration::class, 'product_door_configuration')
+            ->withTimestamps()
+            ->orderBy('name');
     }
 
-    public function handing(): BelongsTo
+    public function handings(): BelongsToMany
     {
-        return $this->belongsTo(DoorHanding::class, 'door_handing_id');
+        return $this->belongsToMany(DoorHanding::class, 'product_door_handing')
+            ->withTimestamps()
+            ->orderBy('name');
     }
 
     public function taxState(): BelongsTo

@@ -371,7 +371,7 @@ export default function Register({
                                                     (current) => !current,
                                                 )
                                             }
-                                            className="absolute inset-y-0 end-0 flex items-center px-3 text-muted-foreground transition hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+                                            className="absolute inset-y-0 end-0 flex items-center px-3 text-muted-foreground hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
                                             aria-label={
                                                 showPassword
                                                     ? 'Hide password'
@@ -422,7 +422,7 @@ export default function Register({
                                                     (current) => !current,
                                                 )
                                             }
-                                            className="absolute inset-y-0 end-0 flex items-center px-3 text-muted-foreground transition hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+                                            className="absolute inset-y-0 end-0 flex items-center px-3 text-muted-foreground hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
                                             aria-label={
                                                 showPasswordConfirmation
                                                     ? 'Hide password confirmation'
@@ -462,7 +462,7 @@ export default function Register({
                                     Already have an account?{' '}
                                     <Link
                                         href={route('login')}
-                                        className="font-medium text-foreground underline-offset-4 transition hover:underline"
+                                        className="font-medium text-foreground underline-offset-4 hover:underline"
                                     >
                                         Sign in
                                     </Link>

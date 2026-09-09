@@ -48,6 +48,7 @@ type CreatableSelectProps = {
     withDescription?: boolean;
     withRate?: boolean;
     compact?: boolean;
+    clearOnSelect?: boolean;
     createExtras?: Record<string, string>;
 };
 
@@ -75,6 +76,7 @@ export default function CreatableSelect({
     withDescription = false,
     withRate = false,
     compact = false,
+    clearOnSelect = false,
     createExtras = {},
 }: CreatableSelectProps) {
     const listboxId = useId();
@@ -120,6 +122,13 @@ export default function CreatableSelect({
 
         return [...options]
             .filter((option) => {
+                if (
+                    clearOnSelect &&
+                    disabledIds.includes(String(option.id))
+                ) {
+                    return false;
+                }
+
                 if (!isFiltering) {
                     return true;
                 }
@@ -129,7 +138,7 @@ export default function CreatableSelect({
                 return haystack.includes(normalizedQuery.toLowerCase());
             })
             .sort((left, right) => left.name.localeCompare(right.name));
-    }, [hasTyped, normalizedQuery, options]);
+    }, [clearOnSelect, disabledIds, hasTyped, normalizedQuery, options]);
 
     const createOptionIndex = canCreate ? filtered.length : -1;
     const optionCount = filtered.length + (canCreate ? 1 : 0);
@@ -230,7 +239,7 @@ export default function CreatableSelect({
         }
 
         onChange(String(option.id), option);
-        setQuery(option.name);
+        setQuery(clearOnSelect ? '' : option.name);
         setHasTyped(false);
         setIsOpen(false);
     };
@@ -362,7 +371,7 @@ export default function CreatableSelect({
 
                             if (created) {
                                 onChange(String(created.id), created);
-                                setQuery(created.name);
+                                setQuery(clearOnSelect ? '' : created.name);
                             }
 
                             setPendingName('');

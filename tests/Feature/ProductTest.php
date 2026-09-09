@@ -248,7 +248,9 @@ test('a door can be created with construction ratings and a specification pdf', 
     $metal = DoorConstruction::query()->where('name', 'Metal')->firstOrFail();
     $wood = DoorConstruction::query()->firstOrCreate(['name' => 'Wood']);
     $single = DoorConfiguration::query()->where('name', 'Single')->firstOrFail();
+    $double = DoorConfiguration::query()->where('name', 'Double')->firstOrFail();
     $leftHand = DoorHanding::query()->where('name', 'Left Hand')->firstOrFail();
+    $rightHand = DoorHanding::query()->where('name', 'Right Hand')->firstOrFail();
     $pdf = UploadedFile::fake()->create('door-spec.pdf', 120, 'application/pdf');
 
     $this->actingAs($admin)
@@ -257,8 +259,14 @@ test('a door can be created with construction ratings and a specification pdf', 
             'manufacturer_id' => $manufacturer->id,
             'name' => 'KriegerShield 40 dB Hollow Metal Door',
             'abbreviation' => 'RF-HM-40dB',
-            'door_configuration_id' => $single->id,
-            'door_handing_id' => $leftHand->id,
+            'configurations' => [
+                ['configuration_id' => $single->id],
+                ['configuration_id' => $double->id],
+            ],
+            'handings' => [
+                ['handing_id' => $leftHand->id],
+                ['handing_id' => $rightHand->id],
+            ],
             'description' => 'Acoustic door',
             'notes' => 'Shop notes',
             'rf_shielding' => '60 dB',
@@ -276,12 +284,12 @@ test('a door can be created with construction ratings and a specification pdf', 
 
     $door = Product::query()
         ->where('name', 'KriegerShield 40 dB Hollow Metal Door')
-        ->with('constructions')
+        ->with(['constructions', 'configurations', 'handings'])
         ->firstOrFail();
 
     expect($door->abbreviation)->toBe('RF-HM-40dB');
-    expect($door->door_configuration_id)->toBe($single->id);
-    expect($door->door_handing_id)->toBe($leftHand->id);
+    expect($door->configurations->pluck('name')->all())->toEqualCanonicalizing(['Single', 'Double']);
+    expect($door->handings->pluck('name')->all())->toEqualCanonicalizing(['Left Hand', 'Right Hand']);
     expect($door->rf_shielding)->toBe('60 dB');
     expect($door->stc_rating)->toBe('52');
     expect((bool) $door->ada)->toBeTrue();
@@ -310,6 +318,42 @@ test('door constructions can be created and reused', function () {
     expect(DoorConstruction::query()->whereRaw('LOWER(name) = ?', ['composite'])->count())->toBe(1);
 });
 
+test('door configurations can be created and reused', function () {
+    $admin = productAdmin();
+
+    $this->actingAs($admin)
+        ->post(route('admin.door-configurations.store'), [
+            'name' => 'Paired',
+        ])
+        ->assertSessionHasNoErrors();
+
+    $this->actingAs($admin)
+        ->post(route('admin.door-configurations.store'), [
+            'name' => 'paired',
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect(DoorConfiguration::query()->whereRaw('LOWER(name) = ?', ['paired'])->count())->toBe(1);
+});
+
+test('door handings can be created and reused', function () {
+    $admin = productAdmin();
+
+    $this->actingAs($admin)
+        ->post(route('admin.door-handings.store'), [
+            'name' => 'Center Pivot',
+        ])
+        ->assertSessionHasNoErrors();
+
+    $this->actingAs($admin)
+        ->post(route('admin.door-handings.store'), [
+            'name' => 'center pivot',
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect(DoorHanding::query()->whereRaw('LOWER(name) = ?', ['center pivot'])->count())->toBe(1);
+});
+
 test('a product model can only belong to one product', function () {
     $admin = productAdmin();
     $manufacturer = Manufacturer::create(['name' => 'Overly']);
@@ -330,6 +374,14 @@ test('a product model can only belong to one product', function () {
             'product_model_id' => $model->id,
         ])
         ->assertSessionHasErrors('product_model_id');
+
+    $this->actingAs($admin)
+        ->post(route('admin.products.store'), [
+            'product_type_id' => $doorType->id,
+            'manufacturer_id' => $manufacturer->id,
+            'name' => $model->name,
+        ])
+        ->assertSessionHasErrors('name');
 });
 
 test('a product can be deleted', function () {
