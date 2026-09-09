@@ -186,9 +186,9 @@ class ProductCatalogDocument
 
             $table = $section->addTable('catalogTable');
             $table->addRow(360);
-            foreach (['#', 'Model', 'Code', 'Manufacturer', 'Price', 'State tax', 'Linked'] as $heading) {
-                $table->addCell($heading === 'Model' ? 4200 : 1800, ['bgColor' => '065F46', 'valign' => 'center'])
-                    ->addText($heading, ['bold' => true, 'color' => 'FFFFFF', 'size' => 9]);
+            foreach (['#', 'Model', 'Code', 'Manufacturer', 'Configuration', 'Door handing', 'Price', 'State tax', 'Linked'] as $heading) {
+                $table->addCell($heading === 'Model' ? 2800 : 1500, ['bgColor' => '065F46', 'valign' => 'center'])
+                    ->addText($heading, ['bold' => true, 'color' => 'FFFFFF', 'size' => 8]);
             }
 
             foreach ($group['rows'] as $row) {
@@ -199,12 +199,14 @@ class ProductCatalogDocument
                     $row['name'],
                     $row['abbreviation'],
                     $row['manufacturer'],
+                    $row['configurations'],
+                    $row['handings'],
                     $row['price'],
                     $row['tax'],
                     $row['linked'],
                 ] as $i => $value) {
-                    $table->addCell($i === 1 ? 4200 : 1800, ['bgColor' => $bg, 'valign' => 'center'])
-                        ->addText((string) $value, ['size' => 9, 'color' => '111827']);
+                    $table->addCell($i === 1 ? 2800 : 1500, ['bgColor' => $bg, 'valign' => 'center'])
+                        ->addText((string) $value, ['size' => 8, 'color' => '111827']);
                 }
                 $index++;
             }
@@ -257,6 +259,8 @@ class ProductCatalogDocument
             'abbreviation' => $product->abbreviation ?: '—',
             'manufacturer' => $product->manufacturer?->name ?: '—',
             'type' => $product->productType?->name ?: ($product->isDoor() ? 'Door' : 'Part'),
+            'configurations' => $product->configurations->pluck('name')->implode(', ') ?: '—',
+            'handings' => $product->handings->pluck('name')->implode(', ') ?: '—',
             'price' => $product->price === null || $product->price === ''
                 ? '—'
                 : '$'.number_format((float) $product->price, 2),

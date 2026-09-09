@@ -421,6 +421,8 @@ test('the product list can be printed and exported as pdf or word', function () 
         ->assertSee('Product catalog', false)
         ->assertSee('Gateway Door Systems', false)
         ->assertDontSee('Gateway operations', false)
+        ->assertSee('Configuration', false)
+        ->assertSee('Door handing', false)
         ->assertSee('RF Door Catalog Item', false)
         ->assertDontSee('Hidden Closer', false);
 

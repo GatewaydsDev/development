@@ -361,11 +361,13 @@
                         <tr>
                             <th style="width: 28px;">#</th>
                             <th>Model</th>
-                            <th style="width: 90px;">Code</th>
-                            <th style="width: 140px;">Manufacturer</th>
-                            <th style="width: 80px;">Price</th>
-                            <th style="width: 130px;">State tax</th>
-                            <th style="width: 70px;">Linked</th>
+                            <th style="width: 80px;">Code</th>
+                            <th style="width: 120px;">Manufacturer</th>
+                            <th style="width: 120px;">Configuration</th>
+                            <th style="width: 120px;">Door handing</th>
+                            <th style="width: 70px;">Price</th>
+                            <th style="width: 110px;">State tax</th>
+                            <th style="width: 60px;">Linked</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -376,6 +378,8 @@
                                 <td class="name">{{ $row['name'] }}</td>
                                 <td>{{ $row['abbreviation'] }}</td>
                                 <td>{{ $row['manufacturer'] }}</td>
+                                <td>{{ $row['configurations'] }}</td>
+                                <td>{{ $row['handings'] }}</td>
                                 <td>{{ $row['price'] }}</td>
                                 <td>{{ $row['tax'] }}</td>
                                 <td>{{ $row['linked'] }}</td>

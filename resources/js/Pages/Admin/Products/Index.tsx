@@ -37,6 +37,36 @@ type IndexProps = {
     products: ProductsPaginator;
 };
 
+const compactBadgeClassName =
+    'h-4 max-w-full truncate rounded-full px-1.5 text-[10px] leading-none';
+
+const productRowGridClassName =
+    'md:grid-cols-[minmax(20rem,2.6fr)_minmax(6rem,0.6fr)_5.25rem_minmax(6.25rem,0.7fr)_minmax(6.25rem,0.7fr)_5rem_4.5rem_11rem]';
+
+function CatalogBadges({
+    items,
+}: {
+    items?: Array<{ id: number; name: string }>;
+}) {
+    if (!items?.length) {
+        return <span className="text-sm text-muted-foreground">—</span>;
+    }
+
+    return (
+        <div className="flex flex-col items-start gap-1">
+            {items.map((item) => (
+                <Badge
+                    key={item.id}
+                    variant="outline"
+                    className={compactBadgeClassName}
+                >
+                    {item.name}
+                </Badge>
+            ))}
+        </div>
+    );
+}
+
 export default function Index({ filters, options, products }: IndexProps) {
     const [search, setSearch] = useState(filters.search ?? '');
     const [type, setType] = useState(
@@ -213,10 +243,12 @@ export default function Index({ filters, options, products }: IndexProps) {
 
                         <CardContent>
                             <div className="overflow-hidden rounded-lg border border-border">
-                                <div className="hidden grid-cols-[minmax(12rem,1.2fr)_minmax(9rem,1fr)_8rem_7rem_minmax(7rem,1fr)_9.5rem] items-center gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid">
+                                <div className={cn('hidden items-center gap-3 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid', productRowGridClassName)}>
                                     <div>Model</div>
                                     <div>Manufacturer</div>
                                     <div>Type</div>
+                                    <div>Configuration</div>
+                                    <div>Door handing</div>
                                     <div>Price</div>
                                     <div>Linked</div>
                                     <div className="text-right">Actions</div>
@@ -228,14 +260,15 @@ export default function Index({ filters, options, products }: IndexProps) {
                                             id={`product-row-${product.id}`}
                                             key={product.id}
                                             className={cn(
-                                                'grid gap-3 border-b border-border px-4 py-4 last:border-b-0 md:min-h-20 md:grid-cols-[minmax(12rem,1.2fr)_minmax(9rem,1fr)_8rem_7rem_minmax(7rem,1fr)_9.5rem] md:items-center md:gap-4',
+                                                'grid gap-3 border-b border-border px-4 py-4 last:border-b-0 md:min-h-20 md:items-center md:gap-3',
+                                                productRowGridClassName,
                                                 highlightedProductId ===
                                                     product.id &&
                                                     'bg-emerald-50 dark:bg-emerald-950/30',
                                             )}
                                         >
                                             <div className="min-w-0">
-                                                <p className="truncate font-medium text-foreground">
+                                                <p className="font-medium text-foreground wrap-break-word">
                                                     {product.name}
                                                 </p>
                                                 {product.abbreviation ? (
@@ -243,32 +276,15 @@ export default function Index({ filters, options, products }: IndexProps) {
                                                         {product.abbreviation}
                                                     </p>
                                                 ) : null}
-                                                {(product.configurations
-                                                    ?.length ||
-                                                    product.handings?.length ||
-                                                    product.constructions
-                                                        ?.length) ? (
-                                                    <p className="truncate text-sm text-muted-foreground">
-                                                        {[
-                                                            ...(product.configurations ??
-                                                                []).map(
-                                                                (item) =>
-                                                                    item.name,
-                                                            ),
-                                                            ...(product.handings ??
-                                                                []).map(
-                                                                (item) =>
-                                                                    item.name,
-                                                            ),
-                                                            ...(product.constructions ??
-                                                                []).map(
-                                                                (item) =>
-                                                                    item.name,
-                                                            ),
-                                                        ]
-                                                            .filter(Boolean)
-                                                            .join(' · ')}
-                                                    </p>
+                                                {product.constructions
+                                                    ?.length ? (
+                                                    <div className="mt-1">
+                                                        <CatalogBadges
+                                                            items={
+                                                                product.constructions
+                                                            }
+                                                        />
+                                                    </div>
                                                 ) : null}
                                             </div>
                                             <div className="min-w-0 text-sm text-muted-foreground">
@@ -276,10 +292,27 @@ export default function Index({ filters, options, products }: IndexProps) {
                                                     'Not added yet'}
                                             </div>
                                             <div>
-                                                <Badge variant="outline">
+                                                <Badge
+                                                    variant="outline"
+                                                    className={
+                                                        compactBadgeClassName
+                                                    }
+                                                >
                                                     {product.type?.name ||
                                                         kindLabel(product.kind)}
                                                 </Badge>
+                                            </div>
+                                            <div className="min-w-0">
+                                                <CatalogBadges
+                                                    items={
+                                                        product.configurations
+                                                    }
+                                                />
+                                            </div>
+                                            <div className="min-w-0">
+                                                <CatalogBadges
+                                                    items={product.handings}
+                                                />
                                             </div>
                                             <div className="text-sm text-muted-foreground">
                                                 {product.price
@@ -294,7 +327,7 @@ export default function Index({ filters, options, products }: IndexProps) {
                                                     ? `${product.part_count ?? 0} parts`
                                                     : `${product.door_count ?? 0} doors`}
                                             </div>
-                                            <div className="flex flex-wrap gap-2 md:justify-end">
+                                            <div className="flex flex-nowrap gap-2 md:justify-end">
                                                 <Button
                                                     variant="outline"
                                                     size="sm"
@@ -337,43 +370,47 @@ export default function Index({ filters, options, products }: IndexProps) {
                                 )}
                             </div>
 
-                            {products.links.length > 3 && (
-                                <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                    <p className="text-sm text-muted-foreground">
-                                        Showing {products.from ?? 0} to{' '}
-                                        {products.to ?? 0} of {products.total}
-                                    </p>
-                                    <div className="flex flex-wrap gap-2">
-                                        {products.links.map((link, index) => (
-                                            <Button
-                                                key={`${link.label}-${index}`}
-                                                variant={
-                                                    link.active
-                                                        ? 'default'
-                                                        : 'outline'
-                                                }
-                                                size="sm"
-                                                disabled={!link.url}
-                                                asChild={Boolean(link.url)}
-                                            >
-                                                {link.url ? (
+                            <div className="mt-5 flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
+                                <p className="text-sm text-muted-foreground">
+                                    Showing {products.from ?? 0} to{' '}
+                                    {products.to ?? 0} of {products.total}{' '}
+                                    products
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                    {products.links.length > 3 &&
+                                        products.links.map((link, index) =>
+                                            link.url ? (
+                                                <Button
+                                                    key={`${link.label}-${index}`}
+                                                    variant={
+                                                        link.active
+                                                            ? 'default'
+                                                            : 'outline'
+                                                    }
+                                                    size="sm"
+                                                    asChild
+                                                >
                                                     <Link href={link.url}>
                                                         {paginationLabel(
                                                             link.label,
                                                         )}
                                                     </Link>
-                                                ) : (
-                                                    <span>
-                                                        {paginationLabel(
-                                                            link.label,
-                                                        )}
-                                                    </span>
-                                                )}
-                                            </Button>
-                                        ))}
-                                    </div>
+                                                </Button>
+                                            ) : (
+                                                <Button
+                                                    key={`${link.label}-${index}`}
+                                                    variant="outline"
+                                                    size="sm"
+                                                    disabled
+                                                >
+                                                    {paginationLabel(
+                                                        link.label,
+                                                    )}
+                                                </Button>
+                                            ),
+                                        )}
                                 </div>
-                            )}
+                            </div>
                         </CardContent>
                     </Card>
                 </div>
