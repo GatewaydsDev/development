@@ -10,6 +10,7 @@ use App\Models\DoorHanding;
 use App\Models\Manufacturer;
 use App\Models\Product;
 use App\Models\ProductModel;
+use App\Models\ProductStatePrice;
 use App\Models\ProductType;
 use App\Models\TaxState;
 use App\Models\User;
@@ -324,7 +325,7 @@ class ProductController extends Controller
     {
         abort_unless(ProductAccess::canView($request->user()), 403);
 
-        $product->load(['manufacturer', 'productModel', 'productType', 'parts', 'doors', 'constructions', 'configurations', 'handings', 'taxState']);
+        $product->load(['manufacturer', 'productModel', 'productType', 'parts', 'doors', 'constructions', 'configurations', 'handings', 'taxState', 'statePrices.taxState']);
 
         return Inertia::render('Admin/Products/Show', [
             'product' => $this->productPayload($product),
@@ -336,7 +337,7 @@ class ProductController extends Controller
     {
         abort_unless(ProductAccess::canUpdate($request->user()), 403);
 
-        $product->load(['manufacturer', 'productModel', 'productType', 'parts', 'doors', 'constructions', 'configurations', 'handings', 'taxState']);
+        $product->load(['manufacturer', 'productModel', 'productType', 'parts', 'doors', 'constructions', 'configurations', 'handings', 'taxState', 'statePrices.taxState']);
 
         return Inertia::render('Admin/Products/Edit', [
             'product' => $this->productPayload($product),
@@ -376,7 +377,7 @@ class ProductController extends Controller
      */
     private function validatedProduct(Request $request, ?Product $product = null): array
     {
-        return $request->validate([
+        $rules = [
             'manufacturer_id' => [
                 'required',
                 'integer',
@@ -453,6 +454,22 @@ class ProductController extends Controller
                 Rule::exists(TaxState::class, 'id'),
             ],
             'tax_rate' => ['nullable', 'numeric', 'min:0', 'max:999.999'],
+            'state_prices' => ['array'],
+            'state_prices.*.tax_state_id' => [
+                'required',
+                'integer',
+                'distinct',
+                Rule::exists(TaxState::class, 'id'),
+            ],
+            'state_prices.*.tax_rate' => ['nullable', 'numeric', 'min:0', 'max:999.999'],
+            'state_prices.*.price' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99'],
+            'state_prices.*.markup_percent' => ['nullable', 'numeric', 'min:0', 'max:999.99'],
+            'state_prices.*.min_markup_percent' => [
+                'nullable',
+                'numeric',
+                'min:0',
+                'max:999.99',
+            ],
             'configurations' => ['array'],
             'configurations.*.configuration_id' => [
                 'required',
@@ -481,7 +498,16 @@ class ProductController extends Controller
                 'distinct',
                 Rule::exists(Product::class, 'id')->where('kind', Product::KIND_PART),
             ],
-        ]);
+        ];
+
+        foreach (array_keys($request->input('state_prices', [])) as $index) {
+            $rules["state_prices.{$index}.min_markup_percent"][] = Rule::when(
+                $request->filled("state_prices.{$index}.markup_percent"),
+                ["lte:state_prices.{$index}.markup_percent"],
+            );
+        }
+
+        return $request->validate($rules);
     }
 
     /**
@@ -505,13 +531,15 @@ class ProductController extends Controller
             'abbreviation' => $this->nullableString($validated['abbreviation'] ?? null),
             'description' => $validated['description'] ?? null,
             'notes' => $validated['notes'] ?? null,
-            'price' => $validated['price'] ?? null,
-            'markup_percent' => $validated['markup_percent'] ?? null,
-            'min_markup_percent' => $validated['min_markup_percent'] ?? null,
-            'tax_state_id' => $this->syncTaxState(
-                isset($validated['tax_state_id']) ? (int) $validated['tax_state_id'] : null,
-                $validated['tax_rate'] ?? null,
-            ),
+            'price' => $isDoor ? null : ($validated['price'] ?? null),
+            'markup_percent' => $isDoor ? null : ($validated['markup_percent'] ?? null),
+            'min_markup_percent' => $isDoor ? null : ($validated['min_markup_percent'] ?? null),
+            'tax_state_id' => $isDoor
+                ? null
+                : $this->syncTaxState(
+                    isset($validated['tax_state_id']) ? (int) $validated['tax_state_id'] : null,
+                    $validated['tax_rate'] ?? null,
+                ),
             'rf_shielding' => $isDoor ? ($this->nullableString($validated['rf_shielding'] ?? null)) : null,
             'stc_rating' => $isDoor ? ($this->nullableString($validated['stc_rating'] ?? null)) : null,
             'ada' => $isDoor ? $this->nullableBoolean($validated['ada'] ?? null) : null,
@@ -593,6 +621,7 @@ class ProductController extends Controller
         $this->syncConstructions($product, $validated['constructions'] ?? []);
         $this->syncConfigurations($product, $validated['configurations'] ?? []);
         $this->syncHandings($product, $validated['handings'] ?? []);
+        $this->syncStatePrices($product, $validated['state_prices'] ?? []);
     }
 
     /**
@@ -685,6 +714,50 @@ class ProductController extends Controller
     }
 
     /**
+     * @param  array<int, array<string, mixed>>  $statePrices
+     */
+    private function syncStatePrices(Product $product, array $statePrices): void
+    {
+        if ($product->kind !== Product::KIND_DOOR) {
+            $product->statePrices()->delete();
+
+            return;
+        }
+
+        $keptStateIds = [];
+
+        foreach ($statePrices as $row) {
+            $taxStateId = $this->syncTaxState(
+                isset($row['tax_state_id']) ? (int) $row['tax_state_id'] : null,
+                $row['tax_rate'] ?? null,
+            );
+
+            if (! $taxStateId || in_array($taxStateId, $keptStateIds, true)) {
+                continue;
+            }
+
+            $product->statePrices()->updateOrCreate(
+                ['tax_state_id' => $taxStateId],
+                [
+                    'price' => $row['price'] ?? null,
+                    'markup_percent' => $row['markup_percent'] ?? null,
+                    'min_markup_percent' => $row['min_markup_percent'] ?? null,
+                ],
+            );
+
+            $keptStateIds[] = $taxStateId;
+        }
+
+        if ($keptStateIds === []) {
+            $product->statePrices()->delete();
+
+            return;
+        }
+
+        $product->statePrices()->whereNotIn('tax_state_id', $keptStateIds)->delete();
+    }
+
+    /**
      * @return Builder<Product>
      */
     private function productListingQuery(Request $request): Builder
@@ -703,6 +776,7 @@ class ProductController extends Controller
                 'configurations:id,name',
                 'handings:id,name',
                 'taxState:id,name,rate',
+                'statePrices.taxState:id,name,rate',
             ])
             ->when($search !== '', function ($query) use ($search): void {
                 $query->where(function ($query) use ($search): void {
@@ -733,6 +807,9 @@ class ProductController extends Controller
                             $query->where('name', 'like', "%{$search}%");
                         })
                         ->orWhereHas('handings', function ($query) use ($search): void {
+                            $query->where('name', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('statePrices.taxState', function ($query) use ($search): void {
                             $query->where('name', 'like', "%{$search}%");
                         })
                         ->orWhereHas('taxState', function ($query) use ($search): void {
@@ -838,6 +915,30 @@ class ProductController extends Controller
             'tax_rate' => $product->taxState?->rate === null
                 ? null
                 : (float) $product->taxState->rate,
+            'state_prices' => $product->relationLoaded('statePrices')
+                ? $product->statePrices
+                    ->map(fn (ProductStatePrice $statePrice): array => [
+                        'id' => $statePrice->id,
+                        'tax_state_id' => $statePrice->tax_state_id,
+                        'tax_state' => $statePrice->taxState
+                            ? [
+                                'id' => $statePrice->taxState->id,
+                                'name' => $statePrice->taxState->name,
+                                'rate' => $statePrice->taxState->rate === null
+                                    ? null
+                                    : (float) $statePrice->taxState->rate,
+                            ]
+                            : null,
+                        'tax_rate' => $statePrice->taxState?->rate === null
+                            ? null
+                            : (float) $statePrice->taxState->rate,
+                        'price' => $statePrice->price,
+                        'markup_percent' => $summary ? null : $statePrice->markup_percent,
+                        'min_markup_percent' => $summary ? null : $statePrice->min_markup_percent,
+                    ])
+                    ->values()
+                    ->all()
+                : [],
             'constructions' => $product->relationLoaded('constructions')
                 ? $product->constructions
                     ->map(fn (DoorConstruction $construction): array => [

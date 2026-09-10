@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 class TaxState extends Model
@@ -43,6 +44,11 @@ class TaxState extends Model
         static::creating(function (TaxState $taxState): void {
             $taxState->uuid ??= (string) Str::uuid();
         });
+    }
+
+    public function statePrices(): HasMany
+    {
+        return $this->hasMany(ProductStatePrice::class);
     }
 
     public static function firstOrCreateByName(string $name, mixed $rate = null): self

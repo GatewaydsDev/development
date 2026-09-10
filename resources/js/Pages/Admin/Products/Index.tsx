@@ -314,12 +314,39 @@ export default function Index({ filters, options, products }: IndexProps) {
                                                     items={product.handings}
                                                 />
                                             </div>
-                                            <div className="text-sm text-muted-foreground">
-                                                {product.price
-                                                    ? formatCurrency(
-                                                          product.price,
-                                                      )
-                                                    : '—'}
+                                            <div className="min-w-0 text-sm text-muted-foreground">
+                                                {(product.state_prices ?? [])
+                                                    .length > 0 ? (
+                                                    <div className="flex flex-col gap-1">
+                                                        {product.state_prices?.map(
+                                                            (statePrice) => (
+                                                                <p
+                                                                    key={
+                                                                        statePrice.id ??
+                                                                        statePrice.tax_state_id
+                                                                    }
+                                                                >
+                                                                    {statePrice
+                                                                        .tax_state
+                                                                        ?.name
+                                                                        ? `${statePrice.tax_state.name} `
+                                                                        : ''}
+                                                                    {statePrice.price
+                                                                        ? formatCurrency(
+                                                                              statePrice.price,
+                                                                          )
+                                                                        : '—'}
+                                                                </p>
+                                                            ),
+                                                        )}
+                                                    </div>
+                                                ) : product.price ? (
+                                                    formatCurrency(
+                                                        product.price,
+                                                    )
+                                                ) : (
+                                                    '—'
+                                                )}
                                             </div>
                                             <div className="text-sm text-muted-foreground">
                                                 {product.type?.allows_parts ||

@@ -81,6 +81,54 @@ test('a door can be created with reusable parts', function () {
     expect($door->parts->first()?->name)->toBe('Heavy duty hinge');
 });
 
+test('a door can be saved with a different price per state', function () {
+    $admin = productAdmin();
+    $manufacturer = Manufacturer::create(['name' => 'Overly']);
+    $doorType = ProductType::firstOrCreateForKind(Product::KIND_DOOR);
+    $newJersey = TaxState::query()->where('name', 'New Jersey')->firstOrFail();
+    $newYork = TaxState::query()->where('name', 'New York')->firstOrFail();
+
+    $this->actingAs($admin)
+        ->post(route('admin.products.store'), [
+            'product_type_id' => $doorType->id,
+            'manufacturer_id' => $manufacturer->id,
+            'name' => 'State Priced Door',
+            'description' => 'Acoustic door',
+            'notes' => '',
+            'state_prices' => [
+                [
+                    'tax_state_id' => $newJersey->id,
+                    'tax_rate' => '6.625',
+                    'price' => '1250.50',
+                    'markup_percent' => '25',
+                    'min_markup_percent' => '15',
+                ],
+                [
+                    'tax_state_id' => $newYork->id,
+                    'tax_rate' => '4',
+                    'price' => '1325.00',
+                    'markup_percent' => '20',
+                    'min_markup_percent' => '12',
+                ],
+            ],
+        ])
+        ->assertSessionHasNoErrors();
+
+    $door = Product::query()
+        ->where('name', 'State Priced Door')
+        ->with('statePrices.taxState')
+        ->firstOrFail();
+
+    expect($door->price)->toBeNull();
+    expect($door->tax_state_id)->toBeNull();
+    expect($door->statePrices)->toHaveCount(2);
+    expect($door->statePrices->pluck('taxState.name')->all())->toEqualCanonicalizing(['New Jersey', 'New York']);
+    expect((float) $door->statePrices->firstWhere('tax_state_id', $newJersey->id)?->price)->toBe(1250.5);
+    expect((float) $door->statePrices->firstWhere('tax_state_id', $newYork->id)?->price)->toBe(1325.0);
+    expect((float) $newJersey->fresh()->rate)->toBe(6.625);
+    expect((float) $newYork->fresh()->rate)->toBe(4.0);
+});
+
 test('a product can be saved with a money price and sell percentages', function () {
     $admin = productAdmin();
     $manufacturer = Manufacturer::create(['name' => 'Curries']);

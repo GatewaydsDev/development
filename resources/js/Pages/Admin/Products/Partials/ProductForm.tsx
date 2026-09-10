@@ -46,6 +46,7 @@ import { z } from 'zod';
 import {
     blankConstruction,
     blankPart,
+    blankStatePrice,
     existingModel,
     productToFormData,
     type ProductFormData,
@@ -82,6 +83,15 @@ const schema = z.object({
     min_markup_percent: z.string(),
     tax_state_id: z.string(),
     tax_rate: z.string(),
+    state_prices: z.array(
+        z.object({
+            tax_state_id: z.string(),
+            tax_rate: z.string(),
+            price: z.string(),
+            markup_percent: z.string(),
+            min_markup_percent: z.string(),
+        }),
+    ),
     configurations: z.array(
         z.object({
             configuration_id: z.string(),
@@ -186,6 +196,15 @@ export default function ProductForm({
         name: 'constructions',
     });
 
+    const {
+        fields: statePriceFields,
+        append: appendStatePrice,
+        remove: removeStatePrice,
+    } = useFieldArray({
+        control,
+        name: 'state_prices',
+    });
+
     const data = useWatch({
         control,
         defaultValue: defaultValues,
@@ -278,12 +297,33 @@ export default function ProductForm({
                     ? values.description
                     : values.description.trim() || typeName,
                 notes: values.notes,
-                price: inputToDecimal(values.price) || null,
-                markup_percent: inputToDecimal(values.markup_percent) || null,
-                min_markup_percent:
-                    inputToDecimal(values.min_markup_percent) || null,
-                tax_state_id: values.tax_state_id.trim() || null,
-                tax_rate: inputToDecimal(values.tax_rate) || null,
+                price: isDoor ? null : inputToDecimal(values.price) || null,
+                markup_percent: isDoor
+                    ? null
+                    : inputToDecimal(values.markup_percent) || null,
+                min_markup_percent: isDoor
+                    ? null
+                    : inputToDecimal(values.min_markup_percent) || null,
+                tax_state_id: isDoor
+                    ? null
+                    : values.tax_state_id.trim() || null,
+                tax_rate: isDoor
+                    ? null
+                    : inputToDecimal(values.tax_rate) || null,
+                state_prices: isDoor
+                    ? values.state_prices
+                          .filter((item) => item.tax_state_id.trim() !== '')
+                          .map((item) => ({
+                              tax_state_id: item.tax_state_id,
+                              tax_rate: inputToDecimal(item.tax_rate) || null,
+                              price: inputToDecimal(item.price) || null,
+                              markup_percent:
+                                  inputToDecimal(item.markup_percent) || null,
+                              min_markup_percent:
+                                  inputToDecimal(item.min_markup_percent) ||
+                                  null,
+                          }))
+                    : [],
                 parts: isDoor
                     ? values.parts.filter((part) => part.part_id.trim() !== '')
                     : [],
@@ -1083,18 +1123,423 @@ export default function ProductForm({
                             ) : null}
 
                             <div className="flex flex-col gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
-                                <div>
-                                    <h3 className="text-base font-semibold text-foreground">
-                                        Pricing
-                                    </h3>
-                                    <p className="text-sm text-muted-foreground">
-                                        Enter the product price, then the markup
-                                        we sell it at and the lowest markup we
-                                        can accept. Choose a state and tax
-                                        percent to add that sales tax to the
-                                        sell prices.
-                                    </p>
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <div>
+                                        <h3 className="text-base font-semibold text-foreground">
+                                            Pricing
+                                        </h3>
+                                        <p className="text-sm text-muted-foreground">
+                                            {isDoor
+                                                ? 'Add a price for each state. You can create new states anytime, and each state can have its own price, markup, and tax percent.'
+                                                : 'Enter the product price, then the markup we sell it at and the lowest markup we can accept. Choose a state and tax percent to add that sales tax to the sell prices.'}
+                                        </p>
+                                    </div>
+                                    {isDoor ? (
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() =>
+                                                appendStatePrice(
+                                                    blankStatePrice(),
+                                                )
+                                            }
+                                        >
+                                            <PlusIcon className="size-4" />
+                                            Add state price
+                                        </Button>
+                                    ) : null}
                                 </div>
+                                {isDoor ? (
+                                    <div className="flex flex-col gap-4">
+                                        {statePriceFields.map(
+                                            (field, index) => {
+                                                const row =
+                                                    data.state_prices?.[
+                                                        index
+                                                    ];
+                                                const selectedIds = (
+                                                    data.state_prices ?? []
+                                                )
+                                                    .map((item, itemIndex) =>
+                                                        itemIndex === index
+                                                            ? ''
+                                                            : item.tax_state_id,
+                                                    )
+                                                    .filter(Boolean);
+                                                const selectedState = (
+                                                    options.taxStates ?? []
+                                                ).find(
+                                                    (state) =>
+                                                        String(state.id) ===
+                                                        String(
+                                                            row?.tax_state_id ??
+                                                                '',
+                                                        ),
+                                                );
+                                                const rowTaxRate =
+                                                    parseDecimal(
+                                                        row?.tax_rate ?? '',
+                                                    ) ??
+                                                    selectedState?.rate ??
+                                                    null;
+                                                const rowSellPrice =
+                                                    applyMarkup(
+                                                        row?.price,
+                                                        row?.markup_percent,
+                                                    );
+                                                const rowMinSellPrice =
+                                                    applyMarkup(
+                                                        row?.price,
+                                                        row?.min_markup_percent,
+                                                    );
+                                                const rowSellTax = applyTax(
+                                                    rowSellPrice,
+                                                    rowTaxRate,
+                                                );
+                                                const rowSellTotal =
+                                                    applyTaxTotal(
+                                                        rowSellPrice,
+                                                        rowTaxRate,
+                                                    );
+                                                const rowMinSellTax = applyTax(
+                                                    rowMinSellPrice,
+                                                    rowTaxRate,
+                                                );
+                                                const rowMinSellTotal =
+                                                    applyTaxTotal(
+                                                        rowMinSellPrice,
+                                                        rowTaxRate,
+                                                    );
+
+                                                return (
+                                                    <div
+                                                        key={field.id}
+                                                        className="flex flex-col gap-4 overflow-visible rounded-lg border border-emerald-200 bg-background p-4 dark:border-emerald-900/70"
+                                                    >
+                                                        <div className="flex items-start justify-between gap-3">
+                                                            <p className="text-sm font-semibold text-foreground">
+                                                                {selectedState?.name ||
+                                                                    `State ${index + 1}`}
+                                                            </p>
+                                                            {statePriceFields.length >
+                                                            1 ? (
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="outline"
+                                                                    aria-label={`Remove state price ${index + 1}`}
+                                                                    onClick={() =>
+                                                                        removeStatePrice(
+                                                                            index,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <Trash2Icon className="size-4" />
+                                                                    Remove
+                                                                </Button>
+                                                            ) : null}
+                                                        </div>
+                                                        <div className="grid grid-cols-[minmax(0,1fr)_7.5rem] items-start gap-3 sm:grid-cols-[minmax(0,1fr)_9rem] sm:gap-4">
+                                                            <CreatableSelect
+                                                                id={`product-state-price-${index}`}
+                                                                label="State"
+                                                                value={
+                                                                    row?.tax_state_id ??
+                                                                    ''
+                                                                }
+                                                                options={
+                                                                    options.taxStates ??
+                                                                    []
+                                                                }
+                                                                disabledIds={
+                                                                    selectedIds
+                                                                }
+                                                                createRoute={route(
+                                                                    'admin.tax-states.store',
+                                                                )}
+                                                                catalogKey="taxStates"
+                                                                entityLabel="state"
+                                                                withRate
+                                                                compact
+                                                                placeholder="New Jersey, New York, Pennsylvania"
+                                                                error={errorMessage(
+                                                                    validationErrors,
+                                                                    `state_prices.${index}.tax_state_id`,
+                                                                )}
+                                                                onChange={(
+                                                                    taxStateId,
+                                                                    option,
+                                                                ) => {
+                                                                    setData(
+                                                                        `state_prices.${index}.tax_state_id`,
+                                                                        taxStateId,
+                                                                    );
+
+                                                                    if (
+                                                                        !taxStateId
+                                                                    ) {
+                                                                        setData(
+                                                                            `state_prices.${index}.tax_rate`,
+                                                                            '',
+                                                                        );
+                                                                        return;
+                                                                    }
+
+                                                                    if (
+                                                                        option?.rate !==
+                                                                            undefined &&
+                                                                        option.rate !==
+                                                                            null &&
+                                                                        option.rate !==
+                                                                            ''
+                                                                    ) {
+                                                                        setData(
+                                                                            `state_prices.${index}.tax_rate`,
+                                                                            String(
+                                                                                option.rate,
+                                                                            ),
+                                                                        );
+                                                                    }
+                                                                }}
+                                                            />
+                                                            <div className="flex flex-col gap-2">
+                                                                <InputLabel
+                                                                    htmlFor={`product-state-tax-rate-${index}`}
+                                                                    value="Tax percent"
+                                                                    className="text-emerald-700 dark:text-emerald-300"
+                                                                />
+                                                                <MaskedDecimalInput
+                                                                    id={`product-state-tax-rate-${index}`}
+                                                                    suffix="%"
+                                                                    withThousands={
+                                                                        false
+                                                                    }
+                                                                    maxDecimals={
+                                                                        3
+                                                                    }
+                                                                    value={
+                                                                        row?.tax_rate ??
+                                                                        ''
+                                                                    }
+                                                                    className={
+                                                                        inputClassName
+                                                                    }
+                                                                    placeholder="6.625"
+                                                                    onChange={(
+                                                                        value,
+                                                                    ) =>
+                                                                        setData(
+                                                                            `state_prices.${index}.tax_rate`,
+                                                                            value,
+                                                                        )
+                                                                    }
+                                                                />
+                                                                <InputError
+                                                                    message={errorMessage(
+                                                                        validationErrors,
+                                                                        `state_prices.${index}.tax_rate`,
+                                                                    )}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                        <div className="grid gap-5 lg:grid-cols-3">
+                                                            <div className="flex flex-col gap-2">
+                                                                <InputLabel
+                                                                    htmlFor={`product-state-price-amount-${index}`}
+                                                                    value="Price"
+                                                                    className="text-emerald-700 dark:text-emerald-300"
+                                                                />
+                                                                <MaskedDecimalInput
+                                                                    id={`product-state-price-amount-${index}`}
+                                                                    prefix="$"
+                                                                    value={
+                                                                        row?.price ??
+                                                                        ''
+                                                                    }
+                                                                    className={
+                                                                        inputClassName
+                                                                    }
+                                                                    placeholder="0.00"
+                                                                    onChange={(
+                                                                        value,
+                                                                    ) =>
+                                                                        setData(
+                                                                            `state_prices.${index}.price`,
+                                                                            value,
+                                                                        )
+                                                                    }
+                                                                />
+                                                                <InputError
+                                                                    message={errorMessage(
+                                                                        validationErrors,
+                                                                        `state_prices.${index}.price`,
+                                                                    )}
+                                                                />
+                                                            </div>
+                                                            <div className="flex flex-col gap-2">
+                                                                <InputLabel
+                                                                    htmlFor={`product-state-markup-${index}`}
+                                                                    value="Sell markup"
+                                                                    className="text-emerald-700 dark:text-emerald-300"
+                                                                />
+                                                                <MaskedDecimalInput
+                                                                    id={`product-state-markup-${index}`}
+                                                                    suffix="%"
+                                                                    withThousands={
+                                                                        false
+                                                                    }
+                                                                    value={
+                                                                        row?.markup_percent ??
+                                                                        ''
+                                                                    }
+                                                                    className={
+                                                                        inputClassName
+                                                                    }
+                                                                    placeholder="25"
+                                                                    onChange={(
+                                                                        value,
+                                                                    ) =>
+                                                                        setData(
+                                                                            `state_prices.${index}.markup_percent`,
+                                                                            value,
+                                                                        )
+                                                                    }
+                                                                />
+                                                                <InputError
+                                                                    message={errorMessage(
+                                                                        validationErrors,
+                                                                        `state_prices.${index}.markup_percent`,
+                                                                    )}
+                                                                />
+                                                            </div>
+                                                            <div className="flex flex-col gap-2">
+                                                                <InputLabel
+                                                                    htmlFor={`product-state-min-markup-${index}`}
+                                                                    value="Minimum markup"
+                                                                    className="text-emerald-700 dark:text-emerald-300"
+                                                                />
+                                                                <MaskedDecimalInput
+                                                                    id={`product-state-min-markup-${index}`}
+                                                                    suffix="%"
+                                                                    withThousands={
+                                                                        false
+                                                                    }
+                                                                    value={
+                                                                        row?.min_markup_percent ??
+                                                                        ''
+                                                                    }
+                                                                    className={
+                                                                        inputClassName
+                                                                    }
+                                                                    placeholder="15"
+                                                                    onChange={(
+                                                                        value,
+                                                                    ) =>
+                                                                        setData(
+                                                                            `state_prices.${index}.min_markup_percent`,
+                                                                            value,
+                                                                        )
+                                                                    }
+                                                                />
+                                                                <InputError
+                                                                    message={errorMessage(
+                                                                        validationErrors,
+                                                                        `state_prices.${index}.min_markup_percent`,
+                                                                    )}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                        <div className="grid gap-4 md:grid-cols-2">
+                                                            <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-900/70 dark:bg-emerald-950/20">
+                                                                <p className="text-sm text-muted-foreground">
+                                                                    Sell price
+                                                                </p>
+                                                                <p className="mt-1 text-lg font-semibold text-emerald-700 dark:text-emerald-300">
+                                                                    {rowSellPrice ===
+                                                                    null
+                                                                        ? 'Add a price and markup'
+                                                                        : formatCurrency(
+                                                                              rowSellPrice,
+                                                                          )}
+                                                                </p>
+                                                                {rowTaxRate !==
+                                                                    null &&
+                                                                rowSellTax !==
+                                                                    null ? (
+                                                                    <div className="mt-3 flex flex-col gap-1 text-sm">
+                                                                        <p className="text-muted-foreground">
+                                                                            {selectedState?.name ||
+                                                                                'State'}{' '}
+                                                                            tax
+                                                                            (
+                                                                            {
+                                                                                rowTaxRate
+                                                                            }
+                                                                            %){' '}
+                                                                            {formatCurrency(
+                                                                                rowSellTax,
+                                                                            )}
+                                                                        </p>
+                                                                        <p className="font-medium text-foreground">
+                                                                            Total
+                                                                            with
+                                                                            tax{' '}
+                                                                            {formatCurrency(
+                                                                                rowSellTotal,
+                                                                            )}
+                                                                        </p>
+                                                                    </div>
+                                                                ) : null}
+                                                            </div>
+                                                            <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-900/70 dark:bg-emerald-950/20">
+                                                                <p className="text-sm text-muted-foreground">
+                                                                    Minimum sell
+                                                                    price
+                                                                </p>
+                                                                <p className="mt-1 text-lg font-semibold text-foreground">
+                                                                    {rowMinSellPrice ===
+                                                                    null
+                                                                        ? 'Add a price and minimum markup'
+                                                                        : formatCurrency(
+                                                                              rowMinSellPrice,
+                                                                          )}
+                                                                </p>
+                                                                {rowTaxRate !==
+                                                                    null &&
+                                                                rowMinSellTax !==
+                                                                    null ? (
+                                                                    <div className="mt-3 flex flex-col gap-1 text-sm">
+                                                                        <p className="text-muted-foreground">
+                                                                            {selectedState?.name ||
+                                                                                'State'}{' '}
+                                                                            tax
+                                                                            (
+                                                                            {
+                                                                                rowTaxRate
+                                                                            }
+                                                                            %){' '}
+                                                                            {formatCurrency(
+                                                                                rowMinSellTax,
+                                                                            )}
+                                                                        </p>
+                                                                        <p className="font-medium text-foreground">
+                                                                            Total
+                                                                            with
+                                                                            tax{' '}
+                                                                            {formatCurrency(
+                                                                                rowMinSellTotal,
+                                                                            )}
+                                                                        </p>
+                                                                    </div>
+                                                                ) : null}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            },
+                                        )}
+                                    </div>
+                                ) : (
+                                <>
                                 <div className="flex flex-col gap-2">
                                     <div className="grid grid-cols-[minmax(0,1fr)_7.5rem] items-start gap-3 sm:grid-cols-[minmax(0,1fr)_9rem] sm:gap-4">
                                         <CreatableSelect
@@ -1321,6 +1766,8 @@ export default function ProductForm({
                                         ) : null}
                                     </div>
                                 </div>
+                                </>
+                                )}
                             </div>
                         </CardContent>
                     </Card>

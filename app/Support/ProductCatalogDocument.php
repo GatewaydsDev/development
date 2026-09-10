@@ -246,12 +246,48 @@ class ProductCatalogDocument
      */
     private function row(Product $product): array
     {
+        $statePrices = $product->relationLoaded('statePrices') ? $product->statePrices : collect();
+
         $tax = '—';
-        if ($product->taxState) {
+        if ($statePrices->isNotEmpty()) {
+            $tax = $statePrices
+                ->map(function ($statePrice): string {
+                    $state = $statePrice->taxState;
+
+                    if (! $state) {
+                        return '—';
+                    }
+
+                    $label = $state->name;
+
+                    if ($state->rate !== null) {
+                        $label .= ' ('.rtrim(rtrim(number_format((float) $state->rate, 3, '.', ''), '0'), '.').'%)';
+                    }
+
+                    return $label;
+                })
+                ->implode(', ');
+        } elseif ($product->taxState) {
             $tax = $product->taxState->name;
             if ($product->taxState->rate !== null) {
                 $tax .= ' ('.rtrim(rtrim(number_format((float) $product->taxState->rate, 3, '.', ''), '0'), '.').'%)';
             }
+        }
+
+        $price = '—';
+        if ($statePrices->isNotEmpty()) {
+            $price = $statePrices
+                ->map(function ($statePrice): string {
+                    $amount = $statePrice->price === null || $statePrice->price === ''
+                        ? '—'
+                        : '$'.number_format((float) $statePrice->price, 2);
+                    $name = $statePrice->taxState?->name;
+
+                    return $name ? $name.' '.$amount : $amount;
+                })
+                ->implode(', ');
+        } elseif ($product->price !== null && $product->price !== '') {
+            $price = '$'.number_format((float) $product->price, 2);
         }
 
         return [
@@ -261,9 +297,7 @@ class ProductCatalogDocument
             'type' => $product->productType?->name ?: ($product->isDoor() ? 'Door' : 'Part'),
             'configurations' => $product->configurations->pluck('name')->implode(', ') ?: '—',
             'handings' => $product->handings->pluck('name')->implode(', ') ?: '—',
-            'price' => $product->price === null || $product->price === ''
-                ? '—'
-                : '$'.number_format((float) $product->price, 2),
+            'price' => $price,
             'tax' => $tax,
             'linked' => $product->isDoor()
                 ? $product->parts->count().' parts'

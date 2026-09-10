@@ -46,6 +46,16 @@ export type TaxStateOption = {
     rate?: number | null;
 };
 
+export type ProductStatePricePayload = {
+    id?: number;
+    tax_state_id?: number | null;
+    tax_state?: TaxStateOption | null;
+    tax_rate?: number | null;
+    price?: string | number | null;
+    markup_percent?: string | number | null;
+    min_markup_percent?: string | number | null;
+};
+
 export type ProductCapabilities = {
     create: boolean;
     update: boolean;
@@ -93,6 +103,7 @@ export type ProductPayload = {
     tax_state_id?: number | null;
     tax_state?: TaxStateOption | null;
     tax_rate?: number | null;
+    state_prices?: ProductStatePricePayload[];
     part_count?: number;
     door_count?: number;
     constructions?: DoorConstructionOption[];
@@ -123,6 +134,13 @@ export type ProductFormData = {
     min_markup_percent: string;
     tax_state_id: string;
     tax_rate: string;
+    state_prices: Array<{
+        tax_state_id: string;
+        tax_rate: string;
+        price: string;
+        markup_percent: string;
+        min_markup_percent: string;
+    }>;
     configurations: Array<{
         configuration_id: string;
     }>;
@@ -169,6 +187,17 @@ export const blankConfiguration = () => ({
 export const blankHanding = () => ({
     handing_id: '',
 });
+
+export const blankStatePrice = () => ({
+    tax_state_id: '',
+    tax_rate: '',
+    price: '',
+    markup_percent: '',
+    min_markup_percent: '',
+});
+
+export const decimalToFormValue = (value?: string | number | null) =>
+    value === null || value === undefined ? '' : String(value);
 
 export const existingModel = (
     name: string,
@@ -255,6 +284,46 @@ export const productToFormData = (
                 ? ''
                 : String(product.tax_state.rate)
             : String(product.tax_rate),
+    state_prices:
+        product?.state_prices?.length
+            ? product.state_prices.map((statePrice) => ({
+                  tax_state_id: statePrice.tax_state_id
+                      ? String(statePrice.tax_state_id)
+                      : statePrice.tax_state?.id
+                        ? String(statePrice.tax_state.id)
+                        : '',
+                  tax_rate: decimalToFormValue(
+                      statePrice.tax_rate ?? statePrice.tax_state?.rate,
+                  ),
+                  price: decimalToFormValue(statePrice.price),
+                  markup_percent: decimalToFormValue(statePrice.markup_percent),
+                  min_markup_percent: decimalToFormValue(
+                      statePrice.min_markup_percent,
+                  ),
+              }))
+            : !product || product.kind === 'door' || product.type?.allows_parts
+              ? product?.price || product?.tax_state_id || product?.tax_state?.id
+                  ? [
+                        {
+                            tax_state_id: product?.tax_state_id
+                                ? String(product.tax_state_id)
+                                : product?.tax_state?.id
+                                  ? String(product.tax_state.id)
+                                  : '',
+                            tax_rate: decimalToFormValue(
+                                product?.tax_rate ?? product?.tax_state?.rate,
+                            ),
+                            price: decimalToFormValue(product?.price),
+                            markup_percent: decimalToFormValue(
+                                product?.markup_percent,
+                            ),
+                            min_markup_percent: decimalToFormValue(
+                                product?.min_markup_percent,
+                            ),
+                        },
+                    ]
+                  : [blankStatePrice()]
+              : [],
     configurations:
         product?.configurations?.length
             ? product.configurations.map((configuration) => ({

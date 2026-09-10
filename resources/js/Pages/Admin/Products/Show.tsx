@@ -154,6 +154,140 @@ export default function Show({ product, options }: ShowProps) {
                                         kindLabel(product.kind)
                                     }
                                 />
+                                {(product.state_prices ?? []).length > 0 ? (
+                                    <div className="md:col-span-2 flex flex-col gap-3">
+                                        <p className="text-sm font-medium text-muted-foreground">
+                                            State prices
+                                        </p>
+                                        <div className="flex flex-col gap-3">
+                                            {product.state_prices?.map(
+                                                (statePrice) => {
+                                                    const sell = applyMarkup(
+                                                        statePrice.price,
+                                                        statePrice.markup_percent,
+                                                    );
+                                                    const minSell =
+                                                        applyMarkup(
+                                                            statePrice.price,
+                                                            statePrice.min_markup_percent,
+                                                        );
+                                                    const rate =
+                                                        statePrice.tax_rate ??
+                                                        statePrice.tax_state
+                                                            ?.rate ??
+                                                        null;
+                                                    const sellTaxAmount =
+                                                        applyTax(sell, rate);
+                                                    const sellTotalAmount =
+                                                        applyTaxTotal(
+                                                            sell,
+                                                            rate,
+                                                        );
+                                                    const minSellTaxAmount =
+                                                        applyTax(minSell, rate);
+                                                    const minSellTotalAmount =
+                                                        applyTaxTotal(
+                                                            minSell,
+                                                            rate,
+                                                        );
+
+                                                    return (
+                                                        <div
+                                                            key={
+                                                                statePrice.id ??
+                                                                statePrice.tax_state_id
+                                                            }
+                                                            className="rounded-lg border border-border bg-background p-4"
+                                                        >
+                                                            <p className="text-sm font-medium text-foreground">
+                                                                {statePrice
+                                                                    .tax_state
+                                                                    ?.name ||
+                                                                    'State'}
+                                                                {rate !== null
+                                                                    ? ` (${rate}%)`
+                                                                    : ''}
+                                                            </p>
+                                                            <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+                                                                <DetailItem
+                                                                    label="Price"
+                                                                    value={
+                                                                        statePrice.price
+                                                                            ? formatCurrency(
+                                                                                  statePrice.price,
+                                                                              )
+                                                                            : null
+                                                                    }
+                                                                />
+                                                                <DetailItem
+                                                                    label="Sell markup"
+                                                                    value={
+                                                                        statePrice.markup_percent
+                                                                            ? `${statePrice.markup_percent}%`
+                                                                            : null
+                                                                    }
+                                                                />
+                                                                <DetailItem
+                                                                    label="Minimum markup"
+                                                                    value={
+                                                                        statePrice.min_markup_percent
+                                                                            ? `${statePrice.min_markup_percent}%`
+                                                                            : null
+                                                                    }
+                                                                />
+                                                                <DetailItem
+                                                                    label="Sell price"
+                                                                    value={
+                                                                        sell ===
+                                                                        null
+                                                                            ? null
+                                                                            : formatCurrency(
+                                                                                  sell,
+                                                                              )
+                                                                    }
+                                                                />
+                                                                <DetailItem
+                                                                    label="Minimum sell price"
+                                                                    value={
+                                                                        minSell ===
+                                                                        null
+                                                                            ? null
+                                                                            : formatCurrency(
+                                                                                  minSell,
+                                                                              )
+                                                                    }
+                                                                />
+                                                                <DetailItem
+                                                                    label="Sell price with tax"
+                                                                    value={
+                                                                        sellTotalAmount ===
+                                                                        null
+                                                                            ? null
+                                                                            : formatCurrency(
+                                                                                  sellTotalAmount,
+                                                                              )
+                                                                    }
+                                                                />
+                                                                <DetailItem
+                                                                    label="Minimum sell price with tax"
+                                                                    value={
+                                                                        minSellTotalAmount ===
+                                                                        null
+                                                                            ? null
+                                                                            : formatCurrency(
+                                                                                  minSellTotalAmount,
+                                                                              )
+                                                                    }
+                                                                />
+                                                            </dl>
+                                                        </div>
+                                                    );
+                                                },
+                                            )}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <>
                                 <DetailItem
                                     label="Price"
                                     value={
@@ -240,6 +374,8 @@ export default function Show({ product, options }: ShowProps) {
                                             : formatCurrency(minSellTotal)
                                     }
                                 />
+                                    </>
+                                )}
                             </dl>
                         </CardContent>
                     </Card>

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -114,6 +115,12 @@ class Product extends Model
     public function taxState(): BelongsTo
     {
         return $this->belongsTo(TaxState::class);
+    }
+
+    public function statePrices(): HasMany
+    {
+        return $this->hasMany(ProductStatePrice::class)
+            ->orderBy('id');
     }
 
     public function constructions(): BelongsToMany
