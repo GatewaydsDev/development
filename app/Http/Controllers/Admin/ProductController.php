@@ -49,7 +49,7 @@ class ProductController extends Controller
                 ->when($highlight > 0, function ($query) use ($highlight): void {
                     $query->orderByRaw('CASE WHEN id = ? THEN 0 ELSE 1 END', [$highlight]);
                 })
-                ->latest()
+                ->orderBy('id')
                 ->paginate(10)
                 ->withQueryString()
                 ->through(fn (Product $product): array => $this->productPayload($product, summary: true)),
@@ -933,7 +933,7 @@ class ProductController extends Controller
                             ? null
                             : (float) $statePrice->taxState->rate,
                         'price' => $statePrice->price,
-                        'markup_percent' => $summary ? null : $statePrice->markup_percent,
+                        'markup_percent' => $statePrice->markup_percent,
                         'min_markup_percent' => $summary ? null : $statePrice->min_markup_percent,
                     ])
                     ->values()

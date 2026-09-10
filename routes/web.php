@@ -1,17 +1,17 @@
 <?php
 
 use App\Http\Controllers\Admin\AccessControlController;
+use App\Http\Controllers\Admin\AccountController;
 use App\Http\Controllers\Admin\BidCatalogController;
 use App\Http\Controllers\Admin\BidController;
-use App\Http\Controllers\Admin\AccountController;
 use App\Http\Controllers\Admin\CompanyController;
 use App\Http\Controllers\Admin\ContactController;
 use App\Http\Controllers\Admin\ContractorController;
 use App\Http\Controllers\Admin\CustomerContactRoleController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\EmployeeController;
-use App\Http\Controllers\Admin\ProfessionController;
 use App\Http\Controllers\Admin\ProductController;
+use App\Http\Controllers\Admin\ProfessionController;
 use App\Http\Controllers\Admin\ProjectController;
 use App\Http\Controllers\Admin\UserActivityController;
 use App\Http\Controllers\Admin\UserController;
@@ -162,6 +162,26 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::post('/customer-contact-roles', [CustomerContactRoleController::class, 'store'])
             ->name('customer-contact-roles.store');
 
+        Route::get('/contractors', [ContractorController::class, 'index'])
+            ->middleware('can:view-contractors')
+            ->name('contractors.index');
+        Route::get('/contractors/create', [ContractorController::class, 'create'])
+            ->middleware('can:create-contractors')
+            ->name('contractors.create');
+        Route::post('/contractors', [ContractorController::class, 'store'])
+            ->name('contractors.store');
+        Route::get('/contractors/{contractor}/edit', [ContractorController::class, 'edit'])
+            ->middleware('can:update-contractors')
+            ->name('contractors.edit');
+        Route::patch('/contractors/{contractor}', [ContractorController::class, 'update'])
+            ->middleware('can:update-contractors')
+            ->name('contractors.update');
+        Route::delete('/contractors/{contractor}', [ContractorController::class, 'destroy'])
+            ->middleware('can:delete-contractors')
+            ->name('contractors.destroy');
+        Route::get('/contractor-contacts/availability', [ContractorController::class, 'contactAvailability'])
+            ->name('contractor-contacts.availability');
+
         Route::get('/employees', [EmployeeController::class, 'index'])
             ->middleware('can:view-employees')
             ->name('employees.index');
@@ -182,8 +202,6 @@ Route::middleware(['auth', 'prevent-back-history'])
             ->name('employees.destroy');
         Route::post('/professions', [ProfessionController::class, 'store'])
             ->name('professions.store');
-        Route::post('/contractors', [ContractorController::class, 'store'])
-            ->name('contractors.store');
 
         Route::get('/bids', [BidController::class, 'index'])
             ->middleware('can:view-bids')

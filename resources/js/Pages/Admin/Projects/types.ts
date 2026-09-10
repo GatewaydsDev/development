@@ -32,6 +32,7 @@ export type ProjectOptions = {
     customers: ProjectCustomerOption[];
     contractors: ContractorOption[];
     can: ProjectCapabilities;
+    nextProjectNumber?: string;
 };
 
 export type ProjectCustomerOption = {
@@ -84,6 +85,15 @@ export type ProjectContractor = {
     contact_name: string | null;
     email?: string | null;
     phone_number?: string | null;
+    contacts?: Array<{
+        id: number;
+        name: string;
+        title?: string | null;
+        email?: string | null;
+        phone_number?: string | null;
+        phone_type?: string | null;
+        is_primary: boolean;
+    }>;
 };
 
 export type ProjectScope = {
@@ -259,7 +269,8 @@ export function projectToFormData(
 
     return {
         name: project?.name ?? '',
-        project_number: project?.project_number ?? '',
+        project_number:
+            project?.project_number ?? options?.nextProjectNumber ?? '',
         customer_id: project?.customer?.id ? String(project.customer.id) : '',
         assigned_to: project?.assignee ? String(project.assignee.id) : '',
         status_id: project?.status_id

@@ -9,7 +9,7 @@ import {
     CardTitle,
 } from '@/Components/ui/card';
 import { Head, Link, router } from '@inertiajs/react';
-import { formatCurrency } from '@/lib/money';
+import { applyMarkup, formatCurrency } from '@/lib/money';
 import { cn } from '@/lib/utils';
 import {
     EditIcon,
@@ -41,7 +41,7 @@ const compactBadgeClassName =
     'h-4 max-w-full truncate rounded-full px-1.5 text-[10px] leading-none';
 
 const productRowGridClassName =
-    'md:grid-cols-[minmax(20rem,2.6fr)_minmax(6rem,0.6fr)_5.25rem_minmax(6.25rem,0.7fr)_minmax(6.25rem,0.7fr)_5rem_4.5rem_11rem]';
+    'md:grid-cols-[minmax(20rem,2.6fr)_minmax(6rem,0.6fr)_5.25rem_minmax(6.25rem,0.7fr)_minmax(6.25rem,0.7fr)_6.5rem_4.5rem_11rem]';
 
 function CatalogBadges({
     items,
@@ -249,7 +249,7 @@ export default function Index({ filters, options, products }: IndexProps) {
                                     <div>Type</div>
                                     <div>Configuration</div>
                                     <div>Door handing</div>
-                                    <div>Price</div>
+                                    <div>Sell price</div>
                                     <div>Linked</div>
                                     <div className="text-right">Actions</div>
                                 </div>
@@ -319,25 +319,34 @@ export default function Index({ filters, options, products }: IndexProps) {
                                                     .length > 0 ? (
                                                     <div className="flex flex-col gap-1">
                                                         {product.state_prices?.map(
-                                                            (statePrice) => (
-                                                                <p
-                                                                    key={
-                                                                        statePrice.id ??
-                                                                        statePrice.tax_state_id
-                                                                    }
-                                                                >
-                                                                    {statePrice
-                                                                        .tax_state
-                                                                        ?.name
-                                                                        ? `${statePrice.tax_state.name} `
-                                                                        : ''}
-                                                                    {statePrice.price
-                                                                        ? formatCurrency(
-                                                                              statePrice.price,
-                                                                          )
-                                                                        : '—'}
-                                                                </p>
-                                                            ),
+                                                            (statePrice) => {
+                                                                const sellPrice =
+                                                                    applyMarkup(
+                                                                        statePrice.price,
+                                                                        statePrice.markup_percent,
+                                                                    );
+
+                                                                return (
+                                                                    <p
+                                                                        key={
+                                                                            statePrice.id ??
+                                                                            statePrice.tax_state_id
+                                                                        }
+                                                                    >
+                                                                        {statePrice
+                                                                            .tax_state
+                                                                            ?.name
+                                                                            ? `${statePrice.tax_state.name} `
+                                                                            : ''}
+                                                                        {sellPrice ===
+                                                                        null
+                                                                            ? '—'
+                                                                            : formatCurrency(
+                                                                                  sellPrice,
+                                                                              )}
+                                                                    </p>
+                                                                );
+                                                            },
                                                         )}
                                                     </div>
                                                 ) : product.price ? (

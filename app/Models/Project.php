@@ -68,6 +68,28 @@ class Project extends Model
             $project->uuid ??= (string) Str::uuid();
             $project->project_status_id ??= ProjectStatus::defaultId();
         });
+
+        static::created(function (Project $project): void {
+            if (filled($project->project_number)) {
+                return;
+            }
+
+            $project->forceFill([
+                'project_number' => static::numberForId((int) $project->id),
+            ])->saveQuietly();
+        });
+    }
+
+    public static function numberForId(int $id): string
+    {
+        return 'P-'.str_pad((string) $id, 4, '0', STR_PAD_LEFT);
+    }
+
+    public static function nextNumber(): string
+    {
+        $nextId = (int) static::query()->max('id') + 1;
+
+        return static::numberForId(max($nextId, 1));
     }
 
     public function status(): BelongsTo
@@ -114,4 +136,3 @@ class Project extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 }
-

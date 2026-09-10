@@ -10,6 +10,7 @@ use App\Models\ProjectRevision;
 use App\Models\ProjectScope;
 use App\Models\ProjectStatus;
 use App\Models\User;
+use App\Models\UserLevel;
 use App\Support\ProjectAccess;
 use Closure;
 use Illuminate\Http\JsonResponse;
@@ -42,7 +43,7 @@ class ProjectController extends Controller
                 ->with([
                     'customer.contacts' => fn ($query) => $query->orderByDesc('is_primary')->orderBy('name'),
                     'assignee:id,name',
-                    'contractors',
+                    'contractors.contacts',
                     'scopes',
                     'revisions',
                     'status',
@@ -60,7 +61,12 @@ class ProjectController extends Controller
                             ->orWhereHas('contractors', function ($query) use ($search): void {
                                 $query
                                     ->where('name', 'like', "%{$search}%")
-                                    ->orWhere('contact_name', 'like', "%{$search}%");
+                                    ->orWhereHas('contacts', function ($query) use ($search): void {
+                                        $query
+                                            ->where('name', 'like', "%{$search}%")
+                                            ->orWhere('email', 'like', "%{$search}%")
+                                            ->orWhere('phone_number', 'like', "%{$search}%");
+                                    });
                             });
                     });
                 })
@@ -138,7 +144,7 @@ class ProjectController extends Controller
             'customer.contacts' => fn ($query) => $query->orderByDesc('is_primary')->orderBy('name'),
             'assignee:id,name',
             'creator:id,name',
-            'contractors',
+            'contractors.contacts',
             'scopes',
             'revisions.user:id,name',
             'status',
@@ -158,7 +164,7 @@ class ProjectController extends Controller
         $project->load([
             'customer.contacts' => fn ($query) => $query->orderByDesc('is_primary')->orderBy('name'),
             'assignee:id,name',
-            'contractors',
+            'contractors.contacts',
             'scopes',
             'revisions.user:id,name',
             'status',
@@ -236,7 +242,7 @@ class ProjectController extends Controller
     private function validatedProject(Request $request, ?Project $project = null): array
     {
         $user = $request->user();
-        $isProjectManager = $user->hasUserLevel(\App\Models\UserLevel::PROJECT_MANAGER);
+        $isProjectManager = $user->hasUserLevel(UserLevel::PROJECT_MANAGER);
 
         $rules = [
             'status_id' => ['required', 'integer', Rule::exists(ProjectStatus::class, 'id')],
@@ -251,7 +257,6 @@ class ProjectController extends Controller
             $rules = [
                 ...$rules,
                 'name' => ['required', 'string', 'max:255', $this->uniqueProjectNameRule($project)],
-                'project_number' => ['nullable', 'string', 'max:255', Rule::unique(Project::class)->ignore($project?->id)],
                 'customer_id' => [
                     'nullable',
                     'integer',
@@ -328,7 +333,7 @@ class ProjectController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $validated
+     * @param  array<string, mixed>  $validated
      * @return array<string, mixed>
      */
     private function projectAttributes(Request $request, array $validated): array
@@ -343,14 +348,13 @@ class ProjectController extends Controller
             'public_notes' => $validated['public_notes'] ?? null,
         ];
 
-        if (! $user->hasUserLevel(\App\Models\UserLevel::PROJECT_MANAGER)) {
+        if (! $user->hasUserLevel(UserLevel::PROJECT_MANAGER)) {
             $primaryScope = collect($validated['scopes'] ?? [])
                 ->first(fn (array $scope): bool => filled($scope['type'] ?? null));
 
             $attributes = [
                 ...$attributes,
                 'name' => $validated['name'],
-                'project_number' => $validated['project_number'] ?? null,
                 'customer_id' => $validated['customer_id'] ?? null,
                 'assigned_to' => $validated['assigned_to'] ?? null,
                 'service_type' => $primaryScope['type'] ?? null,
@@ -375,11 +379,11 @@ class ProjectController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $validated
+     * @param  array<string, mixed>  $validated
      */
     private function syncProjectRelations(Request $request, Project $project, array $validated): void
     {
-        if ($request->user()->hasUserLevel(\App\Models\UserLevel::PROJECT_MANAGER)) {
+        if ($request->user()->hasUserLevel(UserLevel::PROJECT_MANAGER)) {
             return;
         }
 
@@ -389,7 +393,7 @@ class ProjectController extends Controller
     }
 
     /**
-     * @param array<int, array<string, mixed>> $contractors
+     * @param  array<int, array<string, mixed>>  $contractors
      */
     private function syncContractors(Project $project, array $contractors): void
     {
@@ -404,7 +408,7 @@ class ProjectController extends Controller
     }
 
     /**
-     * @param array<int, array<string, mixed>> $scopes
+     * @param  array<int, array<string, mixed>>  $scopes
      */
     private function syncScopes(Project $project, array $scopes): void
     {
@@ -422,7 +426,7 @@ class ProjectController extends Controller
     }
 
     /**
-     * @param array<int, array<string, mixed>> $revisions
+     * @param  array<int, array<string, mixed>>  $revisions
      */
     private function syncRevisions(Project $project, array $revisions, User $user): void
     {
@@ -508,6 +512,20 @@ class ProjectController extends Controller
                     'contact_name' => $contractor->contact_name,
                     'email' => $summary ? null : $contractor->email,
                     'phone_number' => $summary ? null : $contractor->phone_number,
+                    'contacts' => $summary
+                        ? []
+                        : $contractor->contacts
+                            ->map(fn ($contact): array => [
+                                'id' => $contact->id,
+                                'name' => $contact->name,
+                                'title' => $contact->title,
+                                'email' => $contact->email,
+                                'phone_number' => $contact->phone_number,
+                                'phone_type' => $contact->phone_type,
+                                'is_primary' => $contact->is_primary,
+                            ])
+                            ->values()
+                            ->all(),
                 ])
                 ->values()
                 ->all(),
@@ -627,8 +645,11 @@ class ProjectController extends Controller
             'serviceTypes' => Project::SERVICE_TYPES,
             'scopeTypes' => Project::SERVICE_TYPES,
             'contractors' => Contractor::query()
+                ->with([
+                    'contacts' => fn ($query) => $query->orderByDesc('is_primary')->orderBy('name'),
+                ])
                 ->orderBy('name')
-                ->get(['id', 'name', 'contact_name', 'email', 'phone_number'])
+                ->get()
                 ->map(fn (Contractor $contractor): array => [
                     'id' => $contractor->id,
                     'name' => $contractor->name,
@@ -639,10 +660,10 @@ class ProjectController extends Controller
                 ->all(),
             'assignees' => User::query()
                 ->whereHas('level', fn ($query) => $query->whereIn('name', [
-                    \App\Models\UserLevel::SUPER_ADMIN,
-                    \App\Models\UserLevel::ADMINISTRATOR,
-                    \App\Models\UserLevel::ADMIN,
-                    \App\Models\UserLevel::PROJECT_MANAGER,
+                    UserLevel::SUPER_ADMIN,
+                    UserLevel::ADMINISTRATOR,
+                    UserLevel::ADMIN,
+                    UserLevel::PROJECT_MANAGER,
                 ]))
                 ->orderBy('name')
                 ->get(['id', 'name'])
@@ -680,6 +701,7 @@ class ProjectController extends Controller
                 ])
                 ->all(),
             'can' => $this->capabilities($user),
+            'nextProjectNumber' => Project::nextNumber(),
         ];
     }
 

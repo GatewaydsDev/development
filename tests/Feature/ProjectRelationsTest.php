@@ -43,6 +43,7 @@ test('the create project page includes contractor scopes and revisions fields', 
             ->has('options.scopeTypes')
             ->has('options.statuses')
             ->has('options.contractors')
+            ->where('options.nextProjectNumber', Project::nextNumber())
         );
 });
 
@@ -121,6 +122,7 @@ test('a project can be created with a general contractor scopes and revisions', 
     expect($project->revisions->first()?->number)->toBe('A');
     expect($project->revisions->first()?->user_id)->toBe($admin->id);
     expect($project->service_type)->toBe('radio_frequency_doors');
+    expect($project->project_number)->toBe(Project::numberForId($project->id));
 });
 
 test('a project can update its general contractor scopes and revisions', function () {
@@ -209,6 +211,7 @@ test('a project can update its general contractor scopes and revisions', functio
     expect($project->revisions)->toHaveCount(1);
     expect($project->revisions->first()?->number)->toBe('B');
     expect($project->revisions->first()?->user_id)->toBe($admin->id);
+    expect($project->project_number)->toBe(Project::numberForId($project->id));
 });
 
 test('updating a revision records the current user and leaves untouched revisions', function () {

@@ -87,6 +87,10 @@ export type PageProps<
             createCustomers: boolean;
             updateCustomers: boolean;
             deleteCustomers: boolean;
+            viewContractors: boolean;
+            createContractors: boolean;
+            updateContractors: boolean;
+            deleteContractors: boolean;
             viewEmployees: boolean;
             createEmployees: boolean;
             updateEmployees: boolean;

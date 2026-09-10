@@ -64,18 +64,6 @@ export default function CustomerSelect({
     const primaryContact =
         selectedCustomer?.contacts.find((contact) => contact.is_primary) ??
         selectedCustomer?.contacts[0];
-    const address = selectedCustomer
-        ? [
-              selectedCustomer.address_line_1,
-              selectedCustomer.address_line_2,
-              selectedCustomer.city,
-              selectedCustomer.state,
-              selectedCustomer.postal_code,
-              selectedCustomer.country,
-          ]
-              .filter(Boolean)
-              .join(', ')
-        : null;
 
     return (
         <section className="flex flex-col gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/30">
@@ -129,7 +117,6 @@ export default function CustomerSelect({
                                 selectedCustomer.phone_number
                             }
                         />
-                        <DetailItem label="Address" value={address} />
                     </dl>
 
                     <div className="flex flex-col gap-2 border-t border-border pt-3">

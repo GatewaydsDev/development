@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Models\Company;
 use App\Support\BidAccess;
+use App\Support\ContractorAccess;
 use App\Support\CustomerAccess;
 use App\Support\EmployeeAccess;
 use App\Support\ProductAccess;
@@ -147,6 +148,18 @@ class HandleInertiaRequests extends Middleware
                         : false,
                     'deleteCustomers' => $request->user()
                         ? CustomerAccess::canDelete($request->user())
+                        : false,
+                    'viewContractors' => $request->user()
+                        ? ContractorAccess::canView($request->user())
+                        : false,
+                    'createContractors' => $request->user()
+                        ? ContractorAccess::canCreate($request->user())
+                        : false,
+                    'updateContractors' => $request->user()
+                        ? ContractorAccess::canUpdate($request->user())
+                        : false,
+                    'deleteContractors' => $request->user()
+                        ? ContractorAccess::canDelete($request->user())
                         : false,
                     'viewEmployees' => $request->user()
                         ? EmployeeAccess::canView($request->user())

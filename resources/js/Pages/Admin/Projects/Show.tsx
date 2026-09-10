@@ -252,26 +252,77 @@ export default function Show({ project, options }: ShowProps) {
                                                     <p className="font-medium text-foreground">
                                                         {contractor.name}
                                                     </p>
-                                                    <dl className="mt-3 grid gap-4 md:grid-cols-3">
-                                                        <DetailItem
-                                                            label="Contact name"
-                                                            value={
-                                                                contractor.contact_name
-                                                            }
-                                                        />
-                                                        <DetailItem
-                                                            label="Email"
-                                                            value={
-                                                                contractor.email
-                                                            }
-                                                        />
-                                                        <DetailItem
-                                                            label="Phone"
-                                                            value={
-                                                                contractor.phone_number
-                                                            }
-                                                        />
-                                                    </dl>
+                                                    {contractor.contacts &&
+                                                    contractor.contacts.length >
+                                                        0 ? (
+                                                        <div className="mt-3 flex flex-col gap-3">
+                                                            {contractor.contacts.map(
+                                                                (contact) => (
+                                                                    <dl
+                                                                        key={
+                                                                            contact.id
+                                                                        }
+                                                                        className="grid gap-4 rounded-md border border-border bg-background/70 p-3 md:grid-cols-4"
+                                                                    >
+                                                                        <DetailItem
+                                                                            label="Contact"
+                                                                            value={
+                                                                                contact.name
+                                                                            }
+                                                                        />
+                                                                        <DetailItem
+                                                                            label="Email"
+                                                                            value={
+                                                                                contact.email
+                                                                            }
+                                                                        />
+                                                                        <DetailItem
+                                                                            label="Phone"
+                                                                            value={
+                                                                                contact.phone_number
+                                                                            }
+                                                                        />
+                                                                        <DetailItem
+                                                                            label="Phone type"
+                                                                            value={
+                                                                                contact.phone_type
+                                                                                    ? contact.phone_type
+                                                                                          .charAt(
+                                                                                              0,
+                                                                                          )
+                                                                                          .toUpperCase() +
+                                                                                      contact.phone_type.slice(
+                                                                                          1,
+                                                                                      )
+                                                                                    : null
+                                                                            }
+                                                                        />
+                                                                    </dl>
+                                                                ),
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <dl className="mt-3 grid gap-4 md:grid-cols-3">
+                                                            <DetailItem
+                                                                label="Contact name"
+                                                                value={
+                                                                    contractor.contact_name
+                                                                }
+                                                            />
+                                                            <DetailItem
+                                                                label="Email"
+                                                                value={
+                                                                    contractor.email
+                                                                }
+                                                            />
+                                                            <DetailItem
+                                                                label="Phone"
+                                                                value={
+                                                                    contractor.phone_number
+                                                                }
+                                                            />
+                                                        </dl>
+                                                    )}
                                                 </div>
                                             ),
                                         )}

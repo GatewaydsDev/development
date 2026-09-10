@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Models\Company;
+use App\Models\Contractor;
+use App\Models\ContractorContact;
 use App\Models\Customer;
 use App\Models\CustomerContact;
 use App\Models\CustomerContactRole;
@@ -79,6 +81,8 @@ class AppServiceProvider extends ServiceProvider
 
         foreach ([
             Company::class,
+            Contractor::class,
+            ContractorContact::class,
             Customer::class,
             CustomerContact::class,
             CustomerContactRole::class,

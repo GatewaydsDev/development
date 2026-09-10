@@ -27,6 +27,7 @@ import {
     BriefcaseIcon,
     ChevronDownIcon,
     ClipboardListIcon,
+    HardHatIcon,
     IdCardIcon,
     ListIcon,
     MailOpenIcon,
@@ -90,6 +91,113 @@ function MobileDisclosure({
     );
 }
 
+type AdminResourceLinks = {
+    label: string;
+    icon: LucideIcon;
+    canView?: boolean;
+    canCreate?: boolean;
+    viewHref?: string;
+    createHref?: string;
+    viewActive?: boolean;
+    createActive?: boolean;
+    viewIcon?: LucideIcon;
+    createIcon?: LucideIcon;
+};
+
+function AdminResourceSubmenu({
+    label,
+    icon: Icon,
+    canView = false,
+    canCreate = false,
+    viewHref,
+    createHref,
+    viewIcon: ViewIcon = ListIcon,
+    createIcon: CreateIcon = PlusCircleIcon,
+}: AdminResourceLinks) {
+    if (!canView && !canCreate) {
+        return null;
+    }
+
+    return (
+        <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+                <Icon className="size-4" />
+                {label}
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="min-w-44">
+                {canView && viewHref ? (
+                    <DropdownMenuItem asChild>
+                        <Link
+                            href={viewHref}
+                            className="flex items-center gap-2"
+                        >
+                            <ViewIcon className="size-4" />
+                            See all
+                        </Link>
+                    </DropdownMenuItem>
+                ) : null}
+                {canCreate && createHref ? (
+                    <DropdownMenuItem asChild>
+                        <Link
+                            href={createHref}
+                            className="flex items-center gap-2"
+                        >
+                            <CreateIcon className="size-4" />
+                            Add new
+                        </Link>
+                    </DropdownMenuItem>
+                ) : null}
+            </DropdownMenuSubContent>
+        </DropdownMenuSub>
+    );
+}
+
+function MobileAdminResource({
+    label,
+    icon: Icon,
+    canView = false,
+    canCreate = false,
+    viewHref,
+    createHref,
+    viewActive = false,
+    createActive = false,
+    viewIcon: ViewIcon = ListIcon,
+    createIcon: CreateIcon = PlusCircleIcon,
+}: AdminResourceLinks) {
+    if (!canView && !canCreate) {
+        return null;
+    }
+
+    return (
+        <MobileDisclosure label={label} icon={Icon} className="ps-10 pe-4">
+            {canView && viewHref ? (
+                <ResponsiveNavLink
+                    href={viewHref}
+                    active={viewActive}
+                    className="ps-14"
+                >
+                    <span className="inline-flex items-center gap-2">
+                        <ViewIcon className="size-4" />
+                        See all
+                    </span>
+                </ResponsiveNavLink>
+            ) : null}
+            {canCreate && createHref ? (
+                <ResponsiveNavLink
+                    href={createHref}
+                    active={createActive}
+                    className="ps-14"
+                >
+                    <span className="inline-flex items-center gap-2">
+                        <CreateIcon className="size-4" />
+                        Add new
+                    </span>
+                </ResponsiveNavLink>
+            ) : null}
+        </MobileDisclosure>
+    );
+}
+
 const notificationPollInterval = 60_000;
 const idleActivityEvents = [
     'mousedown',
@@ -123,25 +231,28 @@ export default function Authenticated({
     const canCreateProducts = Boolean(auth.can?.createProducts);
     const canViewCustomers = Boolean(auth.can?.viewCustomers);
     const canCreateCustomers = Boolean(auth.can?.createCustomers);
+    const canViewContractors = Boolean(auth.can?.viewContractors);
+    const canCreateContractors = Boolean(auth.can?.createContractors);
     const canViewEmployees = Boolean(auth.can?.viewEmployees);
     const canCreateEmployees = Boolean(auth.can?.createEmployees);
     const canOpenProjects = canViewProjects || canCreateProjects;
     const canOpenBids = canViewBids || canCreateBids;
     const canOpenProducts = canViewProducts || canCreateProducts;
     const canOpenCustomers = canViewCustomers || canCreateCustomers;
+    const canOpenContractors = canViewContractors || canCreateContractors;
     const canOpenEmployees = canViewEmployees || canCreateEmployees;
-    const canOpenWorkspace = canManageOwnAccount || canViewCompany;
-    const canOpenOperations =
-        canOpenProjects ||
-        canOpenBids ||
-        canOpenProducts ||
+    const canOpenWork =
+        canOpenProjects || canOpenBids || canOpenProducts;
+    const canOpenPeople =
         canOpenCustomers ||
+        canOpenContractors ||
         canOpenEmployees ||
         canManageNotifications;
+    const canOpenWorkspace = canManageOwnAccount || canViewCompany;
     const canOpenSecurity =
         canManageUsers || canManageAccess || canViewUserActivity;
     const canOpenAdministration =
-        canOpenWorkspace || canOpenOperations || canOpenSecurity;
+        canOpenWork || canOpenPeople || canOpenWorkspace || canOpenSecurity;
     const notifications = auth.notifications;
     const hasUnreadNotifications = notifications.unreadCount > 0;
     const previousUnreadCount = useRef(notifications.unreadCount);
@@ -300,12 +411,136 @@ export default function Authenticated({
                                         <DropdownMenuContent
                                             align="start"
                                             sideOffset={2}
-                                            className="w-56"
+                                            className="w-60"
                                         >
+                                            {canOpenWork && (
+                                                <>
+                                                    <DropdownMenuLabel>
+                                                        Operations
+                                                    </DropdownMenuLabel>
+                                                    <DropdownMenuGroup>
+                                                        <AdminResourceSubmenu
+                                                            label="Projects"
+                                                            icon={BriefcaseIcon}
+                                                            canView={canViewProjects}
+                                                            canCreate={canCreateProjects}
+                                                            viewHref={route(
+                                                                'admin.projects.index',
+                                                            )}
+                                                            createHref={route(
+                                                                'admin.projects.create',
+                                                            )}
+                                                        />
+                                                        <AdminResourceSubmenu
+                                                            label="Bids"
+                                                            icon={ClipboardListIcon}
+                                                            canView={canViewBids}
+                                                            canCreate={canCreateBids}
+                                                            viewHref={route(
+                                                                'admin.bids.index',
+                                                            )}
+                                                            createHref={route(
+                                                                'admin.bids.create',
+                                                            )}
+                                                        />
+                                                        <AdminResourceSubmenu
+                                                            label="Products"
+                                                            icon={PackageIcon}
+                                                            canView={canViewProducts}
+                                                            canCreate={canCreateProducts}
+                                                            viewHref={route(
+                                                                'admin.products.index',
+                                                            )}
+                                                            createHref={route(
+                                                                'admin.products.create',
+                                                            )}
+                                                        />
+                                                    </DropdownMenuGroup>
+                                                </>
+                                            )}
+
+                                            {canOpenWork &&
+                                                (canOpenPeople ||
+                                                    canOpenWorkspace ||
+                                                    canOpenSecurity) && (
+                                                    <DropdownMenuSeparator />
+                                                )}
+
+                                            {canOpenPeople && (
+                                                <>
+                                                    <DropdownMenuLabel>
+                                                        People
+                                                    </DropdownMenuLabel>
+                                                    <DropdownMenuGroup>
+                                                        <AdminResourceSubmenu
+                                                            label="Customers"
+                                                            icon={UserRoundIcon}
+                                                            canView={canViewCustomers}
+                                                            canCreate={canCreateCustomers}
+                                                            viewHref={route(
+                                                                'admin.customers.index',
+                                                            )}
+                                                            createHref={route(
+                                                                'admin.customers.create',
+                                                            )}
+                                                            viewIcon={UsersIcon}
+                                                            createIcon={UserPlusIcon}
+                                                        />
+                                                        <AdminResourceSubmenu
+                                                            label="Contractors"
+                                                            icon={HardHatIcon}
+                                                            canView={canViewContractors}
+                                                            canCreate={canCreateContractors}
+                                                            viewHref={route(
+                                                                'admin.contractors.index',
+                                                            )}
+                                                            createHref={route(
+                                                                'admin.contractors.create',
+                                                            )}
+                                                        />
+                                                        {canManageNotifications && (
+                                                            <DropdownMenuItem
+                                                                asChild
+                                                            >
+                                                                <Link
+                                                                    href={route(
+                                                                        'admin.contacts.index',
+                                                                    )}
+                                                                    className="flex items-center gap-2"
+                                                                >
+                                                                    <MailOpenIcon className="size-4" />
+                                                                    Contacts
+                                                                </Link>
+                                                            </DropdownMenuItem>
+                                                        )}
+                                                        <AdminResourceSubmenu
+                                                            label="Employees"
+                                                            icon={IdCardIcon}
+                                                            canView={canViewEmployees}
+                                                            canCreate={canCreateEmployees}
+                                                            viewHref={route(
+                                                                'admin.employees.index',
+                                                            )}
+                                                            createHref={route(
+                                                                'admin.employees.create',
+                                                            )}
+                                                            viewIcon={UsersIcon}
+                                                            createIcon={UserPlusIcon}
+                                                        />
+                                                    </DropdownMenuGroup>
+                                                </>
+                                            )}
+
+                                            {canOpenPeople &&
+                                                (canOpenWorkspace ||
+                                                    canOpenSecurity) && (
+                                                    <DropdownMenuSeparator />
+                                                )}
+
                                             {canOpenWorkspace && (
                                                 <>
                                                     <DropdownMenuLabel>
-                                                        Workspace
+                                                        Company
                                                     </DropdownMenuLabel>
                                                     <DropdownMenuGroup>
                                                         {canManageOwnAccount && (
@@ -323,7 +558,6 @@ export default function Authenticated({
                                                                 </Link>
                                                             </DropdownMenuItem>
                                                         )}
-
                                                         {canViewCompany && (
                                                             <DropdownMenuItem
                                                                 asChild
@@ -344,252 +578,6 @@ export default function Authenticated({
                                             )}
 
                                             {canOpenWorkspace &&
-                                                (canOpenOperations ||
-                                                    canOpenSecurity) && (
-                                                    <DropdownMenuSeparator />
-                                                )}
-
-                                            {canOpenOperations && (
-                                                <>
-                                                    <DropdownMenuLabel>
-                                                        Operations
-                                                    </DropdownMenuLabel>
-                                                    <DropdownMenuGroup>
-                                                        {canOpenProjects && (
-                                                            <DropdownMenuSub>
-                                                                <DropdownMenuSubTrigger>
-                                                                    <BriefcaseIcon className="size-4" />
-                                                                    Projects
-                                                                </DropdownMenuSubTrigger>
-                                                                <DropdownMenuSubContent className="min-w-44">
-                                                                    {canViewProjects && (
-                                                                        <DropdownMenuItem
-                                                                            asChild
-                                                                        >
-                                                                            <Link
-                                                                                href={route(
-                                                                                    'admin.projects.index',
-                                                                                )}
-                                                                                className="flex items-center gap-2"
-                                                                            >
-                                                                                <ListIcon className="size-4" />
-                                                                                See
-                                                                                all
-                                                                            </Link>
-                                                                        </DropdownMenuItem>
-                                                                    )}
-                                                                    {canCreateProjects && (
-                                                                        <DropdownMenuItem
-                                                                            asChild
-                                                                        >
-                                                                            <Link
-                                                                                href={route(
-                                                                                    'admin.projects.create',
-                                                                                )}
-                                                                                className="flex items-center gap-2"
-                                                                            >
-                                                                                <PlusCircleIcon className="size-4" />
-                                                                                Add
-                                                                                new
-                                                                            </Link>
-                                                                        </DropdownMenuItem>
-                                                                    )}
-                                                                </DropdownMenuSubContent>
-                                                            </DropdownMenuSub>
-                                                        )}
-
-                                                        {canOpenBids && (
-                                                            <DropdownMenuSub>
-                                                                <DropdownMenuSubTrigger>
-                                                                    <ClipboardListIcon className="size-4" />
-                                                                    Bids
-                                                                </DropdownMenuSubTrigger>
-                                                                <DropdownMenuSubContent className="min-w-44">
-                                                                    {canViewBids && (
-                                                                        <DropdownMenuItem
-                                                                            asChild
-                                                                        >
-                                                                            <Link
-                                                                                href={route(
-                                                                                    'admin.bids.index',
-                                                                                )}
-                                                                                className="flex items-center gap-2"
-                                                                            >
-                                                                                <ListIcon className="size-4" />
-                                                                                See
-                                                                                all
-                                                                            </Link>
-                                                                        </DropdownMenuItem>
-                                                                    )}
-                                                                    {canCreateBids && (
-                                                                        <DropdownMenuItem
-                                                                            asChild
-                                                                        >
-                                                                            <Link
-                                                                                href={route(
-                                                                                    'admin.bids.create',
-                                                                                )}
-                                                                                className="flex items-center gap-2"
-                                                                            >
-                                                                                <PlusCircleIcon className="size-4" />
-                                                                                Add
-                                                                                new
-                                                                            </Link>
-                                                                        </DropdownMenuItem>
-                                                                    )}
-                                                                </DropdownMenuSubContent>
-                                                            </DropdownMenuSub>
-                                                        )}
-
-                                                        {canOpenProducts && (
-                                                            <DropdownMenuSub>
-                                                                <DropdownMenuSubTrigger>
-                                                                    <PackageIcon className="size-4" />
-                                                                    Products
-                                                                </DropdownMenuSubTrigger>
-                                                                <DropdownMenuSubContent className="min-w-44">
-                                                                    {canViewProducts && (
-                                                                        <DropdownMenuItem
-                                                                            asChild
-                                                                        >
-                                                                            <Link
-                                                                                href={route(
-                                                                                    'admin.products.index',
-                                                                                )}
-                                                                                className="flex items-center gap-2"
-                                                                            >
-                                                                                <ListIcon className="size-4" />
-                                                                                See
-                                                                                all
-                                                                            </Link>
-                                                                        </DropdownMenuItem>
-                                                                    )}
-                                                                    {canCreateProducts && (
-                                                                        <DropdownMenuItem
-                                                                            asChild
-                                                                        >
-                                                                            <Link
-                                                                                href={route(
-                                                                                    'admin.products.create',
-                                                                                )}
-                                                                                className="flex items-center gap-2"
-                                                                            >
-                                                                                <PlusCircleIcon className="size-4" />
-                                                                                Add
-                                                                                new
-                                                                            </Link>
-                                                                        </DropdownMenuItem>
-                                                                    )}
-                                                                </DropdownMenuSubContent>
-                                                            </DropdownMenuSub>
-                                                        )}
-
-                                                        {canOpenCustomers && (
-                                                            <DropdownMenuSub>
-                                                                <DropdownMenuSubTrigger>
-                                                                    <UserRoundIcon className="size-4" />
-                                                                    Customers
-                                                                </DropdownMenuSubTrigger>
-                                                                <DropdownMenuSubContent className="min-w-44">
-                                                                    {canViewCustomers && (
-                                                                        <DropdownMenuItem
-                                                                            asChild
-                                                                        >
-                                                                            <Link
-                                                                                href={route(
-                                                                                    'admin.customers.index',
-                                                                                )}
-                                                                                className="flex items-center gap-2"
-                                                                            >
-                                                                                <UsersIcon className="size-4" />
-                                                                                See
-                                                                                all
-                                                                            </Link>
-                                                                        </DropdownMenuItem>
-                                                                    )}
-                                                                    {canCreateCustomers && (
-                                                                        <DropdownMenuItem
-                                                                            asChild
-                                                                        >
-                                                                            <Link
-                                                                                href={route(
-                                                                                    'admin.customers.create',
-                                                                                )}
-                                                                                className="flex items-center gap-2"
-                                                                            >
-                                                                                <UserPlusIcon className="size-4" />
-                                                                                Add
-                                                                                new
-                                                                            </Link>
-                                                                        </DropdownMenuItem>
-                                                                    )}
-                                                                </DropdownMenuSubContent>
-                                                            </DropdownMenuSub>
-                                                        )}
-
-                                                        {canOpenEmployees && (
-                                                            <DropdownMenuSub>
-                                                                <DropdownMenuSubTrigger>
-                                                                    <IdCardIcon className="size-4" />
-                                                                    Employees
-                                                                </DropdownMenuSubTrigger>
-                                                                <DropdownMenuSubContent className="min-w-44">
-                                                                    {canViewEmployees && (
-                                                                        <DropdownMenuItem
-                                                                            asChild
-                                                                        >
-                                                                            <Link
-                                                                                href={route(
-                                                                                    'admin.employees.index',
-                                                                                )}
-                                                                                className="flex items-center gap-2"
-                                                                            >
-                                                                                <UsersIcon className="size-4" />
-                                                                                See
-                                                                                all
-                                                                            </Link>
-                                                                        </DropdownMenuItem>
-                                                                    )}
-                                                                    {canCreateEmployees && (
-                                                                        <DropdownMenuItem
-                                                                            asChild
-                                                                        >
-                                                                            <Link
-                                                                                href={route(
-                                                                                    'admin.employees.create',
-                                                                                )}
-                                                                                className="flex items-center gap-2"
-                                                                            >
-                                                                                <UserPlusIcon className="size-4" />
-                                                                                Add
-                                                                                new
-                                                                            </Link>
-                                                                        </DropdownMenuItem>
-                                                                    )}
-                                                                </DropdownMenuSubContent>
-                                                            </DropdownMenuSub>
-                                                        )}
-
-                                                        {canManageNotifications && (
-                                                            <DropdownMenuItem
-                                                                asChild
-                                                            >
-                                                                <Link
-                                                                    href={route(
-                                                                        'admin.contacts.index',
-                                                                    )}
-                                                                    className="flex items-center gap-2"
-                                                                >
-                                                                    <UsersIcon className="size-4" />
-                                                                    Contacts
-                                                                </Link>
-                                                            </DropdownMenuItem>
-                                                        )}
-                                                    </DropdownMenuGroup>
-                                                </>
-                                            )}
-
-                                            {canOpenOperations &&
                                                 canOpenSecurity && (
                                                     <DropdownMenuSeparator />
                                                 )}
@@ -600,49 +588,20 @@ export default function Authenticated({
                                                         Security
                                                     </DropdownMenuLabel>
                                                     <DropdownMenuGroup>
-                                                        {canManageUsers && (
-                                                            <DropdownMenuSub>
-                                                                <DropdownMenuSubTrigger>
-                                                                    <UsersIcon className="size-4" />
-                                                                    Users
-                                                                </DropdownMenuSubTrigger>
-                                                                <DropdownMenuSubContent className="min-w-44">
-                                                                    {canViewUsers && (
-                                                                        <DropdownMenuItem
-                                                                            asChild
-                                                                        >
-                                                                            <Link
-                                                                                href={route(
-                                                                                    'admin.users.index',
-                                                                                )}
-                                                                                className="flex items-center gap-2"
-                                                                            >
-                                                                                <UsersIcon className="size-4" />
-                                                                                See
-                                                                                all
-                                                                            </Link>
-                                                                        </DropdownMenuItem>
-                                                                    )}
-                                                                    {canCreateUsers && (
-                                                                        <DropdownMenuItem
-                                                                            asChild
-                                                                        >
-                                                                            <Link
-                                                                                href={route(
-                                                                                    'admin.users.create',
-                                                                                )}
-                                                                                className="flex items-center gap-2"
-                                                                            >
-                                                                                <UserPlusIcon className="size-4" />
-                                                                                Add
-                                                                                new
-                                                                            </Link>
-                                                                        </DropdownMenuItem>
-                                                                    )}
-                                                                </DropdownMenuSubContent>
-                                                            </DropdownMenuSub>
-                                                        )}
-
+                                                        <AdminResourceSubmenu
+                                                            label="Users"
+                                                            icon={UsersIcon}
+                                                            canView={canViewUsers}
+                                                            canCreate={canCreateUsers}
+                                                            viewHref={route(
+                                                                'admin.users.index',
+                                                            )}
+                                                            createHref={route(
+                                                                'admin.users.create',
+                                                            )}
+                                                            viewIcon={UsersIcon}
+                                                            createIcon={UserPlusIcon}
+                                                        />
                                                         {canManageAccess && (
                                                             <DropdownMenuItem
                                                                 asChild
@@ -655,11 +614,10 @@ export default function Authenticated({
                                                                 >
                                                                     <SlidersHorizontalIcon className="size-4" />
                                                                     Access
-                                                                    Control
+                                                                    control
                                                                 </Link>
                                                             </DropdownMenuItem>
                                                         )}
-
                                                         {canViewUserActivity && (
                                                             <DropdownMenuItem
                                                                 asChild
@@ -672,7 +630,7 @@ export default function Authenticated({
                                                                 >
                                                                     <ActivityIcon className="size-4" />
                                                                     User
-                                                                    Activity
+                                                                    activity
                                                                 </Link>
                                                             </DropdownMenuItem>
                                                         )}
@@ -896,9 +854,155 @@ export default function Authenticated({
                                     variant="section"
                                     defaultOpen
                                 >
+                                    {canOpenWork && (
+                                        <MobileDisclosure
+                                            label="Operations"
+                                            icon={BriefcaseIcon}
+                                            className="ps-6 pe-4"
+                                        >
+                                            <MobileAdminResource
+                                                label="Projects"
+                                                icon={BriefcaseIcon}
+                                                canView={canViewProjects}
+                                                canCreate={canCreateProjects}
+                                                viewHref={route(
+                                                    'admin.projects.index',
+                                                )}
+                                                createHref={route(
+                                                    'admin.projects.create',
+                                                )}
+                                                viewActive={route().current(
+                                                    'admin.projects.index',
+                                                )}
+                                                createActive={route().current(
+                                                    'admin.projects.create',
+                                                )}
+                                            />
+                                            <MobileAdminResource
+                                                label="Bids"
+                                                icon={ClipboardListIcon}
+                                                canView={canViewBids}
+                                                canCreate={canCreateBids}
+                                                viewHref={route(
+                                                    'admin.bids.index',
+                                                )}
+                                                createHref={route(
+                                                    'admin.bids.create',
+                                                )}
+                                                viewActive={route().current(
+                                                    'admin.bids.index',
+                                                )}
+                                                createActive={route().current(
+                                                    'admin.bids.create',
+                                                )}
+                                            />
+                                            <MobileAdminResource
+                                                label="Products"
+                                                icon={PackageIcon}
+                                                canView={canViewProducts}
+                                                canCreate={canCreateProducts}
+                                                viewHref={route(
+                                                    'admin.products.index',
+                                                )}
+                                                createHref={route(
+                                                    'admin.products.create',
+                                                )}
+                                                viewActive={route().current(
+                                                    'admin.products.index',
+                                                )}
+                                                createActive={route().current(
+                                                    'admin.products.create',
+                                                )}
+                                            />
+                                        </MobileDisclosure>
+                                    )}
+
+                                    {canOpenPeople && (
+                                        <MobileDisclosure
+                                            label="People"
+                                            icon={UsersIcon}
+                                            className="ps-6 pe-4"
+                                        >
+                                            <MobileAdminResource
+                                                label="Customers"
+                                                icon={UserRoundIcon}
+                                                canView={canViewCustomers}
+                                                canCreate={canCreateCustomers}
+                                                viewHref={route(
+                                                    'admin.customers.index',
+                                                )}
+                                                createHref={route(
+                                                    'admin.customers.create',
+                                                )}
+                                                viewActive={route().current(
+                                                    'admin.customers.index',
+                                                )}
+                                                createActive={route().current(
+                                                    'admin.customers.create',
+                                                )}
+                                                viewIcon={UsersIcon}
+                                                createIcon={UserPlusIcon}
+                                            />
+                                            <MobileAdminResource
+                                                label="Contractors"
+                                                icon={HardHatIcon}
+                                                canView={canViewContractors}
+                                                canCreate={canCreateContractors}
+                                                viewHref={route(
+                                                    'admin.contractors.index',
+                                                )}
+                                                createHref={route(
+                                                    'admin.contractors.create',
+                                                )}
+                                                viewActive={route().current(
+                                                    'admin.contractors.index',
+                                                )}
+                                                createActive={route().current(
+                                                    'admin.contractors.create',
+                                                )}
+                                            />
+                                            {canManageNotifications && (
+                                                <ResponsiveNavLink
+                                                    href={route(
+                                                        'admin.contacts.index',
+                                                    )}
+                                                    active={route().current(
+                                                        'admin.contacts.index',
+                                                    )}
+                                                    className="ps-10"
+                                                >
+                                                    <span className="inline-flex items-center gap-2">
+                                                        <MailOpenIcon className="size-4" />
+                                                        Contacts
+                                                    </span>
+                                                </ResponsiveNavLink>
+                                            )}
+                                            <MobileAdminResource
+                                                label="Employees"
+                                                icon={IdCardIcon}
+                                                canView={canViewEmployees}
+                                                canCreate={canCreateEmployees}
+                                                viewHref={route(
+                                                    'admin.employees.index',
+                                                )}
+                                                createHref={route(
+                                                    'admin.employees.create',
+                                                )}
+                                                viewActive={route().current(
+                                                    'admin.employees.index',
+                                                )}
+                                                createActive={route().current(
+                                                    'admin.employees.create',
+                                                )}
+                                                viewIcon={UsersIcon}
+                                                createIcon={UserPlusIcon}
+                                            />
+                                        </MobileDisclosure>
+                                    )}
+
                                     {canOpenWorkspace && (
                                         <MobileDisclosure
-                                            label="Workspace"
+                                            label="Company"
                                             icon={Building2Icon}
                                             className="ps-6 pe-4"
                                         >
@@ -918,7 +1022,6 @@ export default function Authenticated({
                                                     </span>
                                                 </ResponsiveNavLink>
                                             )}
-
                                             {canViewCompany && (
                                                 <ResponsiveNavLink
                                                     href={route(
@@ -938,283 +1041,32 @@ export default function Authenticated({
                                         </MobileDisclosure>
                                     )}
 
-                                    {canOpenOperations && (
-                                        <MobileDisclosure
-                                            label="Operations"
-                                            icon={SlidersHorizontalIcon}
-                                            className="ps-6 pe-4"
-                                        >
-                                            {canOpenProjects && (
-                                                <MobileDisclosure
-                                                    label="Projects"
-                                                    icon={BriefcaseIcon}
-                                                    className="ps-10 pe-4"
-                                                >
-                                                    {canViewProjects && (
-                                                        <ResponsiveNavLink
-                                                            href={route(
-                                                                'admin.projects.index',
-                                                            )}
-                                                            active={route().current(
-                                                                'admin.projects.index',
-                                                            )}
-                                                            className="ps-14"
-                                                        >
-                                                            <span className="inline-flex items-center gap-2">
-                                                                <ListIcon className="size-4" />
-                                                                See all
-                                                            </span>
-                                                        </ResponsiveNavLink>
-                                                    )}
-                                                    {canCreateProjects && (
-                                                        <ResponsiveNavLink
-                                                            href={route(
-                                                                'admin.projects.create',
-                                                            )}
-                                                            active={route().current(
-                                                                'admin.projects.create',
-                                                            )}
-                                                            className="ps-14"
-                                                        >
-                                                            <span className="inline-flex items-center gap-2">
-                                                                <PlusCircleIcon className="size-4" />
-                                                                Add new
-                                                            </span>
-                                                        </ResponsiveNavLink>
-                                                    )}
-                                                </MobileDisclosure>
-                                            )}
-
-                                            {canOpenBids && (
-                                                <MobileDisclosure
-                                                    label="Bids"
-                                                    icon={ClipboardListIcon}
-                                                    className="ps-10 pe-4"
-                                                >
-                                                    {canViewBids && (
-                                                        <ResponsiveNavLink
-                                                            href={route(
-                                                                'admin.bids.index',
-                                                            )}
-                                                            active={route().current(
-                                                                'admin.bids.index',
-                                                            )}
-                                                            className="ps-14"
-                                                        >
-                                                            <span className="inline-flex items-center gap-2">
-                                                                <ListIcon className="size-4" />
-                                                                See all
-                                                            </span>
-                                                        </ResponsiveNavLink>
-                                                    )}
-                                                    {canCreateBids && (
-                                                        <ResponsiveNavLink
-                                                            href={route(
-                                                                'admin.bids.create',
-                                                            )}
-                                                            active={route().current(
-                                                                'admin.bids.create',
-                                                            )}
-                                                            className="ps-14"
-                                                        >
-                                                            <span className="inline-flex items-center gap-2">
-                                                                <PlusCircleIcon className="size-4" />
-                                                                Add new
-                                                            </span>
-                                                        </ResponsiveNavLink>
-                                                    )}
-                                                </MobileDisclosure>
-                                            )}
-
-                                            {canOpenProducts && (
-                                                <MobileDisclosure
-                                                    label="Products"
-                                                    icon={PackageIcon}
-                                                    className="ps-10 pe-4"
-                                                >
-                                                    {canViewProducts && (
-                                                        <ResponsiveNavLink
-                                                            href={route(
-                                                                'admin.products.index',
-                                                            )}
-                                                            active={route().current(
-                                                                'admin.products.index',
-                                                            )}
-                                                            className="ps-14"
-                                                        >
-                                                            <span className="inline-flex items-center gap-2">
-                                                                <ListIcon className="size-4" />
-                                                                See all
-                                                            </span>
-                                                        </ResponsiveNavLink>
-                                                    )}
-                                                    {canCreateProducts && (
-                                                        <ResponsiveNavLink
-                                                            href={route(
-                                                                'admin.products.create',
-                                                            )}
-                                                            active={route().current(
-                                                                'admin.products.create',
-                                                            )}
-                                                            className="ps-14"
-                                                        >
-                                                            <span className="inline-flex items-center gap-2">
-                                                                <PlusCircleIcon className="size-4" />
-                                                                Add new
-                                                            </span>
-                                                        </ResponsiveNavLink>
-                                                    )}
-                                                </MobileDisclosure>
-                                            )}
-
-                                            {canOpenCustomers && (
-                                                <MobileDisclosure
-                                                    label="Customers"
-                                                    icon={UserRoundIcon}
-                                                    className="ps-10 pe-4"
-                                                >
-                                                    {canViewCustomers && (
-                                                        <ResponsiveNavLink
-                                                            href={route(
-                                                                'admin.customers.index',
-                                                            )}
-                                                            active={route().current(
-                                                                'admin.customers.index',
-                                                            )}
-                                                            className="ps-14"
-                                                        >
-                                                            <span className="inline-flex items-center gap-2">
-                                                                <UsersIcon className="size-4" />
-                                                                See all
-                                                            </span>
-                                                        </ResponsiveNavLink>
-                                                    )}
-                                                    {canCreateCustomers && (
-                                                        <ResponsiveNavLink
-                                                            href={route(
-                                                                'admin.customers.create',
-                                                            )}
-                                                            active={route().current(
-                                                                'admin.customers.create',
-                                                            )}
-                                                            className="ps-14"
-                                                        >
-                                                            <span className="inline-flex items-center gap-2">
-                                                                <UserPlusIcon className="size-4" />
-                                                                Add new
-                                                            </span>
-                                                        </ResponsiveNavLink>
-                                                    )}
-                                                </MobileDisclosure>
-                                            )}
-
-                                            {canOpenEmployees && (
-                                                <MobileDisclosure
-                                                    label="Employees"
-                                                    icon={IdCardIcon}
-                                                    className="ps-10 pe-4"
-                                                >
-                                                    {canViewEmployees && (
-                                                        <ResponsiveNavLink
-                                                            href={route(
-                                                                'admin.employees.index',
-                                                            )}
-                                                            active={route().current(
-                                                                'admin.employees.index',
-                                                            )}
-                                                            className="ps-14"
-                                                        >
-                                                            <span className="inline-flex items-center gap-2">
-                                                                <UsersIcon className="size-4" />
-                                                                See all
-                                                            </span>
-                                                        </ResponsiveNavLink>
-                                                    )}
-                                                    {canCreateEmployees && (
-                                                        <ResponsiveNavLink
-                                                            href={route(
-                                                                'admin.employees.create',
-                                                            )}
-                                                            active={route().current(
-                                                                'admin.employees.create',
-                                                            )}
-                                                            className="ps-14"
-                                                        >
-                                                            <span className="inline-flex items-center gap-2">
-                                                                <UserPlusIcon className="size-4" />
-                                                                Add new
-                                                            </span>
-                                                        </ResponsiveNavLink>
-                                                    )}
-                                                </MobileDisclosure>
-                                            )}
-
-                                            {canManageNotifications && (
-                                                <ResponsiveNavLink
-                                                    href={route(
-                                                        'admin.contacts.index',
-                                                    )}
-                                                    active={route().current(
-                                                        'admin.contacts.index',
-                                                    )}
-                                                    className="ps-10"
-                                                >
-                                                    <span className="inline-flex items-center gap-2">
-                                                        <UsersIcon className="size-4" />
-                                                        Contacts
-                                                    </span>
-                                                </ResponsiveNavLink>
-                                            )}
-                                        </MobileDisclosure>
-                                    )}
-
                                     {canOpenSecurity && (
                                         <MobileDisclosure
                                             label="Security"
                                             icon={ShieldIcon}
                                             className="ps-6 pe-4"
                                         >
-                                            {canManageUsers && (
-                                                <MobileDisclosure
-                                                    label="Users"
-                                                    icon={UsersIcon}
-                                                    className="ps-10 pe-4"
-                                                >
-                                                    {canViewUsers && (
-                                                        <ResponsiveNavLink
-                                                            href={route(
-                                                                'admin.users.index',
-                                                            )}
-                                                            active={route().current(
-                                                                'admin.users.index',
-                                                            )}
-                                                            className="ps-14"
-                                                        >
-                                                            <span className="inline-flex items-center gap-2">
-                                                                <UsersIcon className="size-4" />
-                                                                See all
-                                                            </span>
-                                                        </ResponsiveNavLink>
-                                                    )}
-                                                    {canCreateUsers && (
-                                                        <ResponsiveNavLink
-                                                            href={route(
-                                                                'admin.users.create',
-                                                            )}
-                                                            active={route().current(
-                                                                'admin.users.create',
-                                                            )}
-                                                            className="ps-14"
-                                                        >
-                                                            <span className="inline-flex items-center gap-2">
-                                                                <UserPlusIcon className="size-4" />
-                                                                Add new
-                                                            </span>
-                                                        </ResponsiveNavLink>
-                                                    )}
-                                                </MobileDisclosure>
-                                            )}
-
+                                            <MobileAdminResource
+                                                label="Users"
+                                                icon={UsersIcon}
+                                                canView={canViewUsers}
+                                                canCreate={canCreateUsers}
+                                                viewHref={route(
+                                                    'admin.users.index',
+                                                )}
+                                                createHref={route(
+                                                    'admin.users.create',
+                                                )}
+                                                viewActive={route().current(
+                                                    'admin.users.index',
+                                                )}
+                                                createActive={route().current(
+                                                    'admin.users.create',
+                                                )}
+                                                viewIcon={UsersIcon}
+                                                createIcon={UserPlusIcon}
+                                            />
                                             {canManageAccess && (
                                                 <ResponsiveNavLink
                                                     href={route(
@@ -1227,11 +1079,10 @@ export default function Authenticated({
                                                 >
                                                     <span className="inline-flex items-center gap-2">
                                                         <SlidersHorizontalIcon className="size-4" />
-                                                        Access Control
+                                                        Access control
                                                     </span>
                                                 </ResponsiveNavLink>
                                             )}
-
                                             {canViewUserActivity && (
                                                 <ResponsiveNavLink
                                                     href={route(
@@ -1244,7 +1095,7 @@ export default function Authenticated({
                                                 >
                                                     <span className="inline-flex items-center gap-2">
                                                         <ActivityIcon className="size-4" />
-                                                        User Activity
+                                                        User activity
                                                     </span>
                                                 </ResponsiveNavLink>
                                             )}
