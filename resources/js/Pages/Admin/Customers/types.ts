@@ -54,7 +54,6 @@ export type CustomersPaginator = {
 };
 
 export type CustomerFormData = {
-    name: string;
     company_name: string;
     email: string;
     phone_number: string;
@@ -96,8 +95,7 @@ export function blankContact(isPrimary = false): CustomerContactFormData {
 
 export function customerToFormData(customer?: CustomerPayload): CustomerFormData {
     return {
-        name: customer?.name ?? '',
-        company_name: customer?.company_name ?? '',
+        company_name: customer?.company_name || customer?.name || '',
         email: customer?.email ?? '',
         phone_number: customer?.phone_number ?? '',
         contacts:

@@ -35,6 +35,7 @@ class ProductCatalogDocument
     {
         $groups = $this->groupedRows();
         $doorCount = $this->products->where('kind', Product::KIND_DOOR)->count();
+        $windowCount = $this->products->where('kind', Product::KIND_WINDOW)->count();
         $partCount = $this->products->where('kind', Product::KIND_PART)->count();
 
         return [
@@ -47,13 +48,14 @@ class ProductCatalogDocument
             'companyAddress' => $this->companyAddress(),
             'companyPhone' => $this->company?->contact_phone_number ?: $this->company?->phone_number,
             'companyEmail' => $this->company?->email,
-            'logoPath' => $this->logoPath(),
+            'logoPath' => DocumentLogo::src($mode),
             'search' => $this->search,
             'typeName' => $this->typeName,
             'products' => $this->products,
             'groups' => $groups,
             'totalCount' => $this->products->count(),
             'doorCount' => $doorCount,
+            'windowCount' => $windowCount,
             'partCount' => $partCount,
             'printUrl' => route('admin.products.print', $this->query()),
             'pdfUrl' => route('admin.products.export.pdf', $this->query()),
@@ -86,7 +88,7 @@ class ProductCatalogDocument
 
     private function writeWordDocument(): string
     {
-        $phpWord = new PhpWord();
+        $phpWord = new PhpWord;
         $phpWord->getCompatibility()->setOoxmlVersion(16);
         $phpWord->getSettings()->setThemeFontLang(new Language(Language::EN_US));
         $phpWord->getSettings()->setUpdateFields(true);
@@ -123,7 +125,11 @@ class ProductCatalogDocument
         $header = $section->addHeader();
         $headerTable = $header->addTable(['borderSize' => 0, 'cellMargin' => 0]);
         $headerTable->addRow();
-        $headerTable->addCell(11000)->addText(
+        $logoPath = DocumentLogo::wordPath();
+        if ($logoPath) {
+            DocumentLogo::addWordImage($headerTable->addCell(1600, ['valign' => 'center']), $logoPath, 36);
+        }
+        $headerTable->addCell($logoPath ? 9400 : 11000)->addText(
             $this->companyName(),
             ['bold' => true, 'size' => 11, 'color' => '065F46'],
         );
@@ -139,6 +145,11 @@ class ProductCatalogDocument
             ['size' => 8, 'color' => '6B7280'],
             ['alignment' => Jc::CENTER],
         );
+
+        if ($logoPath) {
+            DocumentLogo::addWordImage($section, $logoPath, 64);
+            $section->addTextBreak(1);
+        }
 
         $section->addText(
             now()->year.' Product Catalog',
@@ -164,9 +175,10 @@ class ProductCatalogDocument
         foreach ([
             [$this->products->count(), 'Products'],
             [$this->products->where('kind', Product::KIND_DOOR)->count(), 'Doors'],
+            [$this->products->where('kind', Product::KIND_WINDOW)->count(), 'Windows'],
             [$this->products->where('kind', Product::KIND_PART)->count(), 'Parts'],
         ] as [$count, $label]) {
-            $cell = $stats->addCell(3200, ['bgColor' => 'ECFDF5', 'borderSize' => 6, 'borderColor' => 'A7F3D0']);
+            $cell = $stats->addCell(2880, ['bgColor' => 'ECFDF5', 'borderSize' => 6, 'borderColor' => 'A7F3D0']);
             $cell->addText((string) $count, ['bold' => true, 'size' => 18, 'color' => '065F46']);
             $cell->addText($label, ['size' => 9, 'color' => '047857']);
         }
@@ -217,6 +229,10 @@ class ProductCatalogDocument
         $path = tempnam(sys_get_temp_dir(), 'product-catalog-').'.docx';
         IOFactory::createWriter($phpWord, 'Word2007')->save($path);
 
+        if ($logoPath) {
+            @unlink($logoPath);
+        }
+
         return $path;
     }
 
@@ -227,7 +243,7 @@ class ProductCatalogDocument
     {
         return $this->products
             ->groupBy(fn (Product $product): string => $product->productType?->name
-                ?: ($product->isDoor() ? 'Door' : 'Part'))
+                ?: ($product->isDoor() ? 'Door' : ($product->isWindow() ? 'Window' : 'Part')))
             ->sortKeys()
             ->map(fn (Collection $items, string $label): array => [
                 'label' => $label,
@@ -294,12 +310,12 @@ class ProductCatalogDocument
             'name' => $product->name,
             'abbreviation' => $product->abbreviation ?: '—',
             'manufacturer' => $product->manufacturer?->name ?: '—',
-            'type' => $product->productType?->name ?: ($product->isDoor() ? 'Door' : 'Part'),
+            'type' => $product->productType?->name ?: ($product->isDoor() ? 'Door' : ($product->isWindow() ? 'Window' : 'Part')),
             'configurations' => $product->configurations->pluck('name')->implode(', ') ?: '—',
             'handings' => $product->handings->pluck('name')->implode(', ') ?: '—',
             'price' => $price,
             'tax' => $tax,
-            'linked' => $product->isDoor()
+            'linked' => $product->isAssembly()
                 ? $product->parts->count().' parts'
                 : $product->doors->count().' doors',
         ];
@@ -357,21 +373,6 @@ class ProductCatalogDocument
         ]);
 
         return $parts === [] ? null : implode(' · ', $parts);
-    }
-
-    private function logoPath(): ?string
-    {
-        if ($this->company?->logo_path) {
-            $stored = storage_path('app/public/'.$this->company->logo_path);
-
-            if (is_file($stored)) {
-                return $stored;
-            }
-        }
-
-        $fallback = public_path('images/App-Logo.png');
-
-        return is_file($fallback) ? $fallback : null;
     }
 
     private function generatedAtLabel(): string

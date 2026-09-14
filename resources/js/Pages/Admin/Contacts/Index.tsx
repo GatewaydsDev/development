@@ -419,8 +419,8 @@ export default function Index({ filters, contacts }: IndexProps) {
                         </CardHeader>
 
                         <CardContent>
-                            <div className="overflow-hidden rounded-lg border border-border">
-                                <div className="hidden grid-cols-[1.4fr_1fr_1fr_auto] gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid">
+                            <div className="overflow-x-auto rounded-lg border border-border">
+                                <div className="hidden grid-cols-[1.4fr_1fr_1fr_auto] gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:grid">
                                     <div>Contact</div>
                                     <div>Email</div>
                                     <div>Phone</div>
@@ -431,7 +431,7 @@ export default function Index({ filters, contacts }: IndexProps) {
                                     contacts.data.map((contact) => (
                                         <div
                                             key={contact.id}
-                                            className="grid gap-3 border-b border-border px-4 py-4 last:border-b-0 md:grid-cols-[1.4fr_1fr_1fr_auto] md:items-center md:gap-4"
+                                            className="grid gap-3 border-b border-border px-4 py-4 last:border-b-0 lg:grid-cols-[1.4fr_1fr_1fr_auto] lg:items-center lg:gap-4"
                                         >
                                             <div>
                                                 <p className="flex items-center gap-2 font-medium text-foreground">

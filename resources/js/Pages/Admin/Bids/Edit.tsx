@@ -1,5 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link } from '@inertiajs/react';
+import { useState } from 'react';
 import BidForm from './Partials/BidForm';
 import type { BidOptions, BidPayload } from './types';
 
@@ -9,8 +10,11 @@ type EditProps = {
 };
 
 export default function Edit({ bid, options }: EditProps) {
+    const [projectName, setProjectName] = useState(bid.project?.name ?? '');
+
     return (
         <AuthenticatedLayout
+            stickyTitle={projectName ? `Edit bid — ${projectName}` : 'Edit bid'}
             header={
                 <div>
                     <nav
@@ -41,10 +45,11 @@ export default function Edit({ bid, options }: EditProps) {
                     <BidForm
                         action={route('admin.bids.update', bid.id)}
                         method="patch"
-                        title={bid.project?.name ?? 'Bid'}
+                        title={projectName || 'Bid'}
                         description="Update stages, scopes of work, and preliminary pricing revisions."
                         options={options}
                         bid={bid}
+                        onSelectedProjectNameChange={setProjectName}
                     />
                 </div>
             </div>

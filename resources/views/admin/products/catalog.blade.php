@@ -45,9 +45,12 @@
         }
 
         .logo {
-            max-height: 46px;
-            max-width: 180px;
+            max-height: 64px;
+            max-width: 64px;
             display: block;
+            background: #ffffff;
+            padding: 2px;
+            border-radius: 999px;
         }
 
         .eyebrow {
@@ -107,7 +110,7 @@
         }
 
         .stats td {
-            width: 33.33%;
+            width: 20%;
             padding: 10px 12px;
             background: #ecfdf5;
             border: 1px solid #a7f3d0;
@@ -333,6 +336,10 @@
                     <td>
                         <span class="stat-value">{{ $doorCount }}</span>
                         <span class="stat-label">Doors</span>
+                    </td>
+                    <td>
+                        <span class="stat-value">{{ $windowCount }}</span>
+                        <span class="stat-label">Windows</span>
                     </td>
                     <td>
                         <span class="stat-value">{{ $partCount }}</span>

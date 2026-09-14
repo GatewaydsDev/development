@@ -16,6 +16,7 @@ type MaskedDecimalInputProps = {
     suffix?: string;
     maxDecimals?: number;
     withThousands?: boolean;
+    disabled?: boolean;
 };
 
 export default function MaskedDecimalInput({
@@ -28,6 +29,7 @@ export default function MaskedDecimalInput({
     suffix,
     maxDecimals = 2,
     withThousands = true,
+    disabled = false,
 }: MaskedDecimalInputProps) {
     const displayValue = withThousands
         ? formatMoneyMask(value)
@@ -46,7 +48,9 @@ export default function MaskedDecimalInput({
                 autoComplete="off"
                 value={displayValue}
                 placeholder={placeholder}
-                className={`${className ?? ''} ${prefix ? 'pl-7' : ''} ${suffix ? 'pr-8' : ''}`}
+                disabled={disabled}
+                readOnly={disabled}
+                className={`${className ?? ''} ${prefix ? 'pl-7' : ''} ${suffix ? 'pr-8' : ''} ${disabled ? 'cursor-not-allowed bg-muted' : ''}`}
                 onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => {
                     if (!isMaskedNumericKey(event)) {
                         event.preventDefault();

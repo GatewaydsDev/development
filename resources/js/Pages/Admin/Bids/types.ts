@@ -1,7 +1,50 @@
+import { applyMarkup, parseDecimal } from '@/lib/money';
+
+export type BidProjectScopeOption = {
+    type: string;
+    name: string;
+    notes?: string | null;
+    product_id?: number | null;
+    service_id?: number | null;
+};
+
 export type BidProjectOption = {
     id: number;
     name: string;
     project_number?: string | null;
+    customer_name?: string | null;
+    customer_company?: string | null;
+    site_address?: string | null;
+    estimated_start_date?: string | null;
+    estimated_end_date?: string | null;
+    site_state?: string | null;
+    scopes?: BidProjectScopeOption[];
+};
+
+export type BidTextTemplateOption = {
+    id: number;
+    name: string;
+    body: string;
+};
+
+export type BidCompanyOption = {
+    name: string;
+    legal_name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    address?: string | null;
+};
+
+export type BidCatalogStatePrice = {
+    tax_state_id: number;
+    tax_state?: {
+        id: number;
+        name: string;
+        rate?: number | null;
+    } | null;
+    price?: string | number | null;
+    markup_percent?: string | number | null;
+    sell_price?: string | number | null;
 };
 
 export type BidCatalogOption = {
@@ -10,6 +53,10 @@ export type BidCatalogOption = {
     abbreviation?: string | null;
     description?: string | null;
     kind?: string | null;
+    price?: string | number | null;
+    markup_percent?: string | number | null;
+    sell_price?: string | number | null;
+    state_prices?: BidCatalogStatePrice[];
 };
 
 export type BidCapabilities = {
@@ -23,7 +70,12 @@ export type BidOptions = {
     stageTypes: BidCatalogOption[];
     scopeTitles: BidCatalogOption[];
     products: BidCatalogOption[];
+    services: BidCatalogOption[];
     pricingStatuses: BidCatalogOption[];
+    textTemplates: BidTextTemplateOption[];
+    scopeTextTemplates: BidTextTemplateOption[];
+    shippingTextTemplates: BidTextTemplateOption[];
+    company?: BidCompanyOption;
     can: BidCapabilities;
 };
 
@@ -41,7 +93,12 @@ export type BidScopeProductPayload = {
     name?: string | null;
     abbreviation?: string | null;
     kind?: string | null;
+    service_id?: number | null;
+    service_name?: string | null;
     description?: string | null;
+    quantity?: string | number | null;
+    unit_bid?: string | number | null;
+    extended?: string | number | null;
 };
 
 export type BidScopePayload = {
@@ -49,6 +106,9 @@ export type BidScopePayload = {
     title_id: number;
     name?: string | null;
     notations?: string | null;
+    quantity?: string | number | null;
+    unit_bid?: string | number | null;
+    extended?: string | number | null;
     products: BidScopeProductPayload[];
 };
 
@@ -74,12 +134,18 @@ export type BidPayload = {
     id: number;
     uuid: string;
     notes?: string | null;
+    bid_shipping_text_template_id?: number | null;
+    bid_text_template_id?: number | null;
+    application_text?: string | null;
+    bid_scope_text_template_id?: number | null;
+    scope_of_work_text?: string | null;
     created_at?: string | null;
     updated_at?: string | null;
     project: {
         id?: number | null;
         name?: string | null;
         project_number?: string | null;
+        site_address?: string | null;
     };
     creator?: {
         id?: number | null;
@@ -100,10 +166,16 @@ export type BidStageFormData = {
 
 export type BidScopeProductFormData = {
     product_id: string;
+    service_id: string;
+    quantity: string;
+    unit_bid: string;
+    extended: string;
 };
 
 export type BidScopeFormData = {
     title_id: string;
+    scope_type: string;
+    title_name: string;
     notations: string;
     products: BidScopeProductFormData[];
 };
@@ -125,6 +197,11 @@ export type BidPricingFormData = {
 export type BidFormData = {
     project_id: string;
     notes: string;
+    bid_shipping_text_template_id: string;
+    bid_text_template_id: string;
+    application_text: string;
+    bid_scope_text_template_id: string;
+    scope_of_work_text: string;
     stages: BidStageFormData[];
     scopes: BidScopeFormData[];
     pricings: BidPricingFormData[];
@@ -161,13 +238,253 @@ export const blankStage = (): BidStageFormData => ({
 
 export const blankScopeProduct = (): BidScopeProductFormData => ({
     product_id: '',
+    service_id: '',
+    quantity: '',
+    unit_bid: '',
+    extended: '',
 });
 
 export const blankScope = (): BidScopeFormData => ({
     title_id: '',
+    scope_type: '',
+    title_name: '',
     notations: '',
     products: [blankScopeProduct()],
 });
+
+export const scopeExtendedAmount = (quantity: string, unitBid: string) => {
+    const qty = Number(quantity);
+    const unit = Number(unitBid);
+
+    if (!Number.isFinite(qty) || !Number.isFinite(unit) || quantity === '' || unitBid === '') {
+        return '';
+    }
+
+    return (Math.round(qty * unit * 100) / 100).toFixed(2);
+};
+
+export const scopesTotalAmount = (scopes: BidScopeFormData[] = []) =>
+    scopes.reduce((sum, scope) => {
+        return (
+            sum +
+            (scope.products ?? []).reduce((lineSum, line) => {
+                if (line.product_id.trim() === '' && line.service_id.trim() === '') {
+                    return lineSum;
+                }
+
+                const extended = Number(
+                    scopeExtendedAmount(line.quantity, line.unit_bid) ||
+                        line.extended ||
+                        0,
+                );
+
+                return lineSum + (Number.isFinite(extended) ? extended : 0);
+            }, 0)
+        );
+    }, 0);
+
+const moneyAmount = (value: number) => (Math.round(value * 100) / 100).toFixed(2);
+
+const decimalString = (value?: string | number | null) =>
+    value === null || value === undefined ? '' : String(value);
+
+const STATE_NAMES: Record<string, string> = {
+    nj: 'new jersey',
+    ny: 'new york',
+    pa: 'pennsylvania',
+    'new jersey': 'new jersey',
+    'new york': 'new york',
+    pennsylvania: 'pennsylvania',
+};
+
+const taxStateAbbreviation = (name: string) =>
+    name
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .map((part) => part.charAt(0))
+        .join('');
+
+const normalizedStateName = (value?: string | null) => {
+    const trimmed = (value ?? '').trim().toLowerCase();
+
+    if (trimmed === '') {
+        return '';
+    }
+
+    return STATE_NAMES[trimmed] ?? trimmed;
+};
+
+export const taxStateMatches = (
+    taxStateName: string,
+    projectState?: string | null,
+) => {
+    const project = normalizedStateName(projectState);
+    const tax = normalizedStateName(taxStateName);
+
+    if (!project || !tax) {
+        return false;
+    }
+
+    if (tax === project) {
+        return true;
+    }
+
+    return (
+        taxStateAbbreviation(taxStateName).toLowerCase() ===
+        (projectState ?? '').trim().toLowerCase()
+    );
+};
+
+const rowSellPrice = (row?: {
+    price?: string | number | null;
+    markup_percent?: string | number | null;
+    sell_price?: string | number | null;
+} | null): number | null => {
+    if (!row) {
+        return null;
+    }
+
+    const precomputed = parseDecimal(String(row.sell_price ?? ''));
+
+    if (precomputed !== null) {
+        return precomputed;
+    }
+
+    return (
+        applyMarkup(row.price, row.markup_percent) ??
+        parseDecimal(String(row.price ?? ''))
+    );
+};
+
+export const catalogSellPrice = (
+    product?: BidCatalogOption,
+    projectState?: string | null,
+): number | null => {
+    if (!product) {
+        return null;
+    }
+
+    const rows = product.state_prices ?? [];
+    const matched = rows.find((row) =>
+        taxStateMatches(row.tax_state?.name ?? '', projectState),
+    );
+    const fromMatched = rowSellPrice(matched);
+
+    if (fromMatched !== null) {
+        return fromMatched;
+    }
+
+    const fromDefault =
+        applyMarkup(product.price, product.markup_percent) ??
+        parseDecimal(String(product.price ?? ''));
+
+    if (fromDefault !== null) {
+        return fromDefault;
+    }
+
+    const fromFallbackSell = parseDecimal(String(product.sell_price ?? ''));
+
+    if (fromFallbackSell !== null) {
+        return fromFallbackSell;
+    }
+
+    for (const row of rows) {
+        const price = rowSellPrice(row);
+
+        if (price !== null) {
+            return price;
+        }
+    }
+
+    return null;
+};
+
+export const lineAmountsForProduct = (
+    productId: string,
+    products: BidCatalogOption[] = [],
+    projectState?: string | null,
+    current?: Partial<BidScopeProductFormData>,
+): Pick<BidScopeProductFormData, 'quantity' | 'unit_bid' | 'extended'> => {
+    if (productId.trim() === '') {
+        return {
+            quantity: '',
+            unit_bid: '',
+            extended: '',
+        };
+    }
+
+    const price = catalogSellPrice(
+        products.find((item) => String(item.id) === productId),
+        projectState,
+    );
+    const quantity =
+        (current?.quantity ?? '').trim() !== '' ? (current?.quantity ?? '') : '1';
+    const unitBid =
+        price === null ? (current?.unit_bid ?? '') : moneyAmount(price);
+
+    return {
+        quantity,
+        unit_bid: unitBid,
+        extended: scopeExtendedAmount(quantity, unitBid),
+    };
+};
+
+export const scopeTypeLabel = (value?: string | null) => {
+    if (!value) {
+        return '';
+    }
+
+    return value
+        .split('_')
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
+};
+
+export const scopesFromProject = (
+    project?: BidProjectOption,
+    titles: BidCatalogOption[] = [],
+    products: BidCatalogOption[] = [],
+): BidScopeFormData[] => {
+    const projectScopes = project?.scopes ?? [];
+
+    if (projectScopes.length === 0) {
+        return [];
+    }
+
+    return projectScopes.map((scope) => {
+        const titleName = scope.name || scopeTypeLabel(scope.type);
+        const matchedTitle = titles.find(
+            (title) => title.name.toLowerCase() === titleName.toLowerCase(),
+        );
+        const lines =
+            scope.product_id || scope.service_id
+                ? [
+                      {
+                          product_id: scope.product_id
+                              ? String(scope.product_id)
+                              : '',
+                          service_id: scope.service_id
+                              ? String(scope.service_id)
+                              : '',
+                          ...lineAmountsForProduct(
+                              scope.product_id ? String(scope.product_id) : '',
+                              products,
+                              project?.site_state,
+                          ),
+                      },
+                  ]
+                : [blankScopeProduct()];
+
+        return {
+            title_id: matchedTitle ? String(matchedTitle.id) : '',
+            scope_type: scope.type,
+            title_name: titleName,
+            notations: scope.notes ?? '',
+            products: lines,
+        };
+    });
+};
 
 export const blankPricingItem = (): BidPricingItemFormData => ({
     description: '',
@@ -186,6 +503,17 @@ export const blankPricing = (name = 'Preliminary pricing'): BidPricingFormData =
 export const bidToFormData = (bid?: BidPayload): BidFormData => ({
     project_id: bid?.project?.id ? String(bid.project.id) : '',
     notes: bid?.notes ?? '',
+    bid_shipping_text_template_id: bid?.bid_shipping_text_template_id
+        ? String(bid.bid_shipping_text_template_id)
+        : '',
+    bid_text_template_id: bid?.bid_text_template_id
+        ? String(bid.bid_text_template_id)
+        : '',
+    application_text: bid?.application_text ?? '',
+    bid_scope_text_template_id: bid?.bid_scope_text_template_id
+        ? String(bid.bid_scope_text_template_id)
+        : '',
+    scope_of_work_text: bid?.scope_of_work_text ?? '',
     stages:
         bid?.stages?.length
             ? bid.stages.map((stage) => ({
@@ -200,17 +528,52 @@ export const bidToFormData = (bid?: BidPayload): BidFormData => ({
         bid?.scopes?.length
             ? bid.scopes.map((scope) => ({
                   title_id: scope.title_id ? String(scope.title_id) : '',
+                  scope_type: '',
+                  title_name: scope.name ?? '',
                   notations: scope.notations ?? '',
                   products:
                       scope.products?.length
-                          ? scope.products.map((product) => ({
-                                product_id: product.product_id
-                                    ? String(product.product_id)
-                                    : '',
-                            }))
+                          ? scope.products.map((product) => {
+                                const fallback =
+                                    (scope.products?.length ?? 0) === 1
+                                        ? {
+                                              quantity: decimalString(
+                                                  scope.quantity,
+                                              ),
+                                              unit_bid: decimalString(
+                                                  scope.unit_bid,
+                                              ),
+                                              extended: decimalString(
+                                                  scope.extended,
+                                              ),
+                                          }
+                                        : {
+                                              quantity: '',
+                                              unit_bid: '',
+                                              extended: '',
+                                          };
+
+                                return {
+                                    product_id: product.product_id
+                                        ? String(product.product_id)
+                                        : '',
+                                    service_id: product.service_id
+                                        ? String(product.service_id)
+                                        : '',
+                                    quantity:
+                                        decimalString(product.quantity) ||
+                                        fallback.quantity,
+                                    unit_bid:
+                                        decimalString(product.unit_bid) ||
+                                        fallback.unit_bid,
+                                    extended:
+                                        decimalString(product.extended) ||
+                                        fallback.extended,
+                                };
+                            })
                           : [blankScopeProduct()],
               }))
-            : [blankScope()],
+            : [],
     pricings:
         bid?.pricings?.length
             ? bid.pricings.map((pricing) => ({

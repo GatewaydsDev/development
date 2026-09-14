@@ -39,10 +39,17 @@ import {
     UserPlusIcon,
     UserRoundIcon,
     UsersIcon,
+    WrenchIcon,
     type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { PropsWithChildren, ReactNode, useEffect, useRef, useState } from 'react';
+import {
+    PropsWithChildren,
+    ReactNode,
+    useEffect,
+    useRef,
+    useState,
+} from 'react';
 
 function MobileDisclosure({
     label,
@@ -210,9 +217,11 @@ const idleActivityEvents = [
 
 export default function Authenticated({
     header,
+    stickyTitle,
     children,
-}: PropsWithChildren<{ header?: ReactNode }>) {
-    const { auth, session, flash } = usePage<PageProps>().props;
+}: PropsWithChildren<{ header?: ReactNode; stickyTitle?: string }>) {
+    const page = usePage<PageProps>();
+    const { auth, session, flash } = page.props;
     const user = auth.user;
     const idleTimeoutMinutes = Number(session?.idleTimeoutMinutes ?? 0);
     const canManageUsers = Boolean(auth.can?.manageUsers);
@@ -229,6 +238,8 @@ export default function Authenticated({
     const canCreateBids = Boolean(auth.can?.createBids);
     const canViewProducts = Boolean(auth.can?.viewProducts);
     const canCreateProducts = Boolean(auth.can?.createProducts);
+    const canViewServices = Boolean(auth.can?.viewServices);
+    const canCreateServices = Boolean(auth.can?.createServices);
     const canViewCustomers = Boolean(auth.can?.viewCustomers);
     const canCreateCustomers = Boolean(auth.can?.createCustomers);
     const canViewContractors = Boolean(auth.can?.viewContractors);
@@ -238,11 +249,12 @@ export default function Authenticated({
     const canOpenProjects = canViewProjects || canCreateProjects;
     const canOpenBids = canViewBids || canCreateBids;
     const canOpenProducts = canViewProducts || canCreateProducts;
+    const canOpenServices = canViewServices || canCreateServices;
     const canOpenCustomers = canViewCustomers || canCreateCustomers;
     const canOpenContractors = canViewContractors || canCreateContractors;
     const canOpenEmployees = canViewEmployees || canCreateEmployees;
     const canOpenWork =
-        canOpenProjects || canOpenBids || canOpenProducts;
+        canOpenProjects || canOpenBids || canOpenProducts || canOpenServices;
     const canOpenPeople =
         canOpenCustomers ||
         canOpenContractors ||
@@ -262,6 +274,72 @@ export default function Authenticated({
 
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
         useState(false);
+    const navRef = useRef<HTMLElement>(null);
+    const headerRef = useRef<HTMLElement>(null);
+    const [navHeight, setNavHeight] = useState(0);
+    const [pageTitleVisible, setPageTitleVisible] = useState(true);
+    const [headerHeading, setHeaderHeading] = useState('');
+    const compactTitle = (stickyTitle ?? headerHeading).trim();
+    const showCompactTitle = Boolean(header && compactTitle && !pageTitleVisible);
+
+    useEffect(() => {
+        const nav = navRef.current;
+
+        if (!nav) {
+            return;
+        }
+
+        const updateNavHeight = () => {
+            setNavHeight(nav.getBoundingClientRect().height);
+        };
+
+        updateNavHeight();
+
+        if (typeof ResizeObserver === 'undefined') {
+            window.addEventListener('resize', updateNavHeight);
+
+            return () => window.removeEventListener('resize', updateNavHeight);
+        }
+
+        const observer = new ResizeObserver(updateNavHeight);
+        observer.observe(nav);
+
+        return () => observer.disconnect();
+    }, [showingNavigationDropdown]);
+
+    useEffect(() => {
+        const headerElement = headerRef.current;
+
+        if (!headerElement) {
+            setHeaderHeading('');
+            setPageTitleVisible(true);
+            return;
+        }
+
+        const titleElement =
+            headerElement.querySelector('h2') ?? headerElement;
+
+        setHeaderHeading(titleElement.textContent?.trim() ?? '');
+
+        const updateTitleVisibility = () => {
+            const navBottom =
+                navRef.current?.getBoundingClientRect().bottom ?? 0;
+            const titleBottom = titleElement.getBoundingClientRect().bottom;
+
+            setPageTitleVisible(titleBottom > navBottom + 8);
+        };
+
+        updateTitleVisibility();
+        window.addEventListener('scroll', updateTitleVisibility, {
+            passive: true,
+        });
+        window.addEventListener('resize', updateTitleVisibility);
+
+        return () => {
+            window.removeEventListener('scroll', updateTitleVisibility);
+            window.removeEventListener('resize', updateTitleVisibility);
+        };
+    }, [page.url, stickyTitle]);
 
     useEffect(() => {
         if (flash?.success) {
@@ -363,9 +441,12 @@ export default function Authenticated({
 
     return (
         <div className="min-h-screen bg-muted/30 text-foreground">
-            <nav className="sticky top-0 z-50 border-b border-border bg-background">
+            <nav
+                ref={navRef}
+                className="sticky top-0 z-50 border-b border-border bg-background"
+            >
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                    <div className="flex items-center justify-between gap-4 overflow-visible py-2 sm:py-2.5 md:py-3 lg:gap-8">
+                    <div className="flex min-w-0 items-center justify-between gap-3 overflow-visible py-2 sm:py-2.5 md:py-3 lg:gap-8">
                         <div className="flex">
                             <div className="flex shrink-0 items-center">
                                 <Link href="/" className="shrink-0">
@@ -373,7 +454,7 @@ export default function Authenticated({
                                 </Link>
                             </div>
 
-                            <div className="hidden gap-8 sm:-my-px sm:ms-10 sm:flex sm:items-center">
+                            <div className="hidden gap-8 lg:-my-px lg:ms-10 lg:flex lg:items-center">
                                 <NavLink
                                     href={route('home')}
                                     active={route().current('home')}
@@ -453,6 +534,18 @@ export default function Authenticated({
                                                             )}
                                                             createHref={route(
                                                                 'admin.products.create',
+                                                            )}
+                                                        />
+                                                        <AdminResourceSubmenu
+                                                            label="Services"
+                                                            icon={WrenchIcon}
+                                                            canView={canViewServices}
+                                                            canCreate={canCreateServices}
+                                                            viewHref={route(
+                                                                'admin.services.index',
+                                                            )}
+                                                            createHref={route(
+                                                                'admin.services.create',
                                                             )}
                                                         />
                                                     </DropdownMenuGroup>
@@ -643,7 +736,7 @@ export default function Authenticated({
                             </div>
                         </div>
 
-                        <div className="hidden gap-2 sm:ms-4 sm:flex sm:items-center lg:gap-4 lg:ms-6">
+                        <div className="hidden gap-2 lg:ms-6 lg:flex lg:items-center lg:gap-4">
                             <ThemeModeToggle />
 
                             {canManageNotifications && (
@@ -672,7 +765,7 @@ export default function Authenticated({
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent
                                     align="end"
-                                    className="w-80"
+                                    className="w-[min(20rem,calc(100vw-2rem))]"
                                 >
                                     <DropdownMenuLabel className="flex items-center justify-between gap-3">
                                         Notifications
@@ -783,7 +876,7 @@ export default function Authenticated({
                             </div>
                         </div>
 
-                        <div className="-me-2 flex items-center sm:hidden">
+                        <div className="-me-2 flex items-center lg:hidden">
                             <button
                                 onClick={() =>
                                     setShowingNavigationDropdown(
@@ -829,7 +922,7 @@ export default function Authenticated({
                 <div
                     className={
                         (showingNavigationDropdown ? 'block' : 'hidden') +
-                        ' sm:hidden'
+                        ' lg:hidden'
                     }
                 >
                     <div className="flex flex-col gap-1 pb-3 pt-2">
@@ -912,6 +1005,24 @@ export default function Authenticated({
                                                 )}
                                                 createActive={route().current(
                                                     'admin.products.create',
+                                                )}
+                                            />
+                                            <MobileAdminResource
+                                                label="Services"
+                                                icon={WrenchIcon}
+                                                canView={canViewServices}
+                                                canCreate={canCreateServices}
+                                                viewHref={route(
+                                                    'admin.services.index',
+                                                )}
+                                                createHref={route(
+                                                    'admin.services.create',
+                                                )}
+                                                viewActive={route().current(
+                                                    'admin.services.index',
+                                                )}
+                                                createActive={route().current(
+                                                    'admin.services.create',
                                                 )}
                                             />
                                         </MobileDisclosure>
@@ -1193,14 +1304,31 @@ export default function Authenticated({
             </nav>
 
             {header && (
-                <header className="border-b border-border bg-card shadow-sm">
-                    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+                <header
+                    ref={headerRef}
+                    className="border-b border-border bg-card shadow-sm"
+                >
+                    <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
                         {header}
                     </div>
                 </header>
             )}
 
-            <main>{children}</main>
+            {showCompactTitle && (
+                <div
+                    className="fixed left-0 right-0 z-40 border-b border-border bg-card/95 shadow-sm backdrop-blur"
+                    style={{ top: navHeight }}
+                    aria-hidden="true"
+                >
+                    <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
+                        <p className="truncate text-lg font-semibold leading-tight text-emerald-700 dark:text-emerald-300">
+                            {compactTitle}
+                        </p>
+                    </div>
+                </div>
+            )}
+
+            <main className="min-w-0">{children}</main>
         </div>
     );
 }

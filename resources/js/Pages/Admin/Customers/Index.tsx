@@ -48,8 +48,8 @@ export default function Index({ filters, customers }: IndexProps) {
         );
     };
 
-    const destroyCustomer = (customerId: number, customerName: string) => {
-        if (!window.confirm(`Delete customer record for ${customerName}?`)) {
+    const destroyCustomer = (customerId: number, companyName: string) => {
+        if (!window.confirm(`Delete customer record for ${companyName}?`)) {
             return;
         }
 
@@ -143,11 +143,11 @@ export default function Index({ filters, customers }: IndexProps) {
                         </CardHeader>
 
                         <CardContent>
-                            <div className="overflow-hidden rounded-lg border border-border">
-                                <div className="hidden grid-cols-[1.2fr_1fr_1fr_1fr_auto] gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid">
-                                    <div>Customer</div>
-                                    <div>Email</div>
-                                    <div>Phone</div>
+                            <div className="overflow-x-auto rounded-lg border border-border">
+                                <div className="hidden grid-cols-[1.2fr_1fr_1fr_1fr_auto] gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:grid">
+                                    <div>Company name</div>
+                                    <div>Email address</div>
+                                    <div>Phone number</div>
                                     <div>Project</div>
                                     <div className="text-right">Actions</div>
                                 </div>
@@ -163,23 +163,22 @@ export default function Index({ filters, customers }: IndexProps) {
                                         return (
                                             <div
                                                 key={customer.id}
-                                                className="grid gap-3 border-b border-border px-4 py-4 last:border-b-0 md:grid-cols-[1.2fr_1fr_1fr_1fr_auto] md:items-center md:gap-4"
+                                                className="grid gap-3 border-b border-border px-4 py-4 last:border-b-0 lg:grid-cols-[1.2fr_1fr_1fr_1fr_auto] lg:items-center lg:gap-4"
                                             >
                                             <div>
                                                 <p className="font-medium text-foreground">
-                                                    {customer.name}
-                                                </p>
-                                                <p className="text-sm text-muted-foreground">
                                                     {customer.company_name ||
-                                                        customer.uuid}
+                                                        customer.name}
                                                 </p>
                                             </div>
                                             <div className="text-sm text-muted-foreground">
-                                                {primaryContact?.email ||
+                                                {customer.email ||
+                                                    primaryContact?.email ||
                                                     'Not added'}
                                             </div>
                                             <div className="text-sm text-muted-foreground">
-                                                {primaryContact?.phone_number ||
+                                                {customer.phone_number ||
+                                                    primaryContact?.phone_number ||
                                                     'Not added'}
                                             </div>
                                             <div>
@@ -222,7 +221,8 @@ export default function Index({ filters, customers }: IndexProps) {
                                                             onClick={() =>
                                                                 destroyCustomer(
                                                                     customer.id,
-                                                                    customer.name,
+                                                                    customer.company_name ||
+                                                                        customer.name,
                                                                 )
                                                             }
                                                         >

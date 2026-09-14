@@ -1,5 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link } from '@inertiajs/react';
+import { useState } from 'react';
 import BidForm from './Partials/BidForm';
 import type { BidOptions } from './types';
 
@@ -8,8 +9,11 @@ type CreateProps = {
 };
 
 export default function Create({ options }: CreateProps) {
+    const [projectName, setProjectName] = useState('');
+
     return (
         <AuthenticatedLayout
+            stickyTitle={projectName ? `Add bid — ${projectName}` : 'Add bid'}
             header={
                 <div>
                     <nav
@@ -42,6 +46,7 @@ export default function Create({ options }: CreateProps) {
                         title="Bid information"
                         description="Create a bid with stages, reusable scopes of work, and revising preliminary pricing."
                         options={options}
+                        onSelectedProjectNameChange={setProjectName}
                     />
                 </div>
             </div>

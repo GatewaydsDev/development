@@ -12,6 +12,8 @@ class ProjectScope extends Model
         'uuid',
         'project_id',
         'scope_type',
+        'product_id',
+        'service_id',
         'notes',
     ];
 
@@ -25,5 +27,15 @@ class ProjectScope extends Model
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
+    }
+
+    public function product(): BelongsTo
+    {
+        return $this->belongsTo(Product::class);
+    }
+
+    public function service(): BelongsTo
+    {
+        return $this->belongsTo(Service::class);
     }
 }

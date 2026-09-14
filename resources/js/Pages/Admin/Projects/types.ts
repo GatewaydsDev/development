@@ -20,11 +20,26 @@ export type ProjectStatusOption = {
     slug: string;
 };
 
+export type ProjectScopeTypeOption = {
+    id: number;
+    name: string;
+    slug: string;
+};
+
+export type ProjectCatalogOption = {
+    id: number;
+    name: string;
+    abbreviation?: string | null;
+    kind?: string | null;
+};
+
 export type ProjectOptions = {
     statuses: ProjectStatusOption[];
     priorities: string[];
     serviceTypes: string[];
-    scopeTypes: string[];
+    scopeTypes: ProjectScopeTypeOption[];
+    products: ProjectCatalogOption[];
+    services: ProjectCatalogOption[];
     assignees: Array<{
         id: number;
         name: string;
@@ -99,6 +114,11 @@ export type ProjectContractor = {
 export type ProjectScope = {
     id?: number;
     type: string;
+    product_id?: number | null;
+    product_name?: string | null;
+    product_abbreviation?: string | null;
+    service_id?: number | null;
+    service_name?: string | null;
     notes?: string | null;
 };
 
@@ -150,6 +170,12 @@ export type ProjectPayload = {
     } | null;
     created_at: string | null;
     updated_at: string | null;
+    bids_count?: number;
+    latest_bid_id?: number | null;
+    bid_scopes?: Array<{
+        id: number;
+        name: string;
+    }>;
 };
 
 export type PaginationLink = {
@@ -171,6 +197,10 @@ export type ProjectsPaginator = {
 
 export type ProjectContractorFormData = {
     contractor_id: string;
+    company_name: string;
+    contact_name: string;
+    email: string;
+    phone_number: string;
 };
 
 export type ProjectScopeFormData = {
@@ -191,6 +221,9 @@ export type ProjectFormData = {
     name: string;
     project_number: string;
     customer_id: string;
+    customer_company_name: string;
+    customer_email: string;
+    customer_phone_number: string;
     assigned_to: string;
     status_id: string;
     priority: string;
@@ -210,6 +243,20 @@ export type ProjectFormData = {
     scopes: ProjectScopeFormData[];
     revisions: ProjectRevisionFormData[];
 };
+
+export function scopeTypeLabel(
+    type?: string | null,
+    scopeTypes?: ProjectScopeTypeOption[],
+) {
+    if (!type) {
+        return 'Not set';
+    }
+
+    return (
+        scopeTypes?.find((item) => item.slug === type)?.name ??
+        optionLabel(type)
+    );
+}
 
 export function optionLabel(value?: string | null) {
     if (!value) {
@@ -243,6 +290,10 @@ export function blankRevision(userId = '', userName = ''): ProjectRevisionFormDa
 export function blankContractor(): ProjectContractorFormData {
     return {
         contractor_id: '',
+        company_name: '',
+        contact_name: '',
+        email: '',
+        phone_number: '',
     };
 }
 
@@ -264,7 +315,12 @@ export function projectToFormData(
                   notes: scope.notes ?? '',
               }))
             : project?.service_type
-              ? [{ type: project.service_type, notes: '' }]
+              ? [
+                    {
+                        type: project.service_type,
+                        notes: '',
+                    },
+                ]
               : [blankScope()];
 
     return {
@@ -272,6 +328,10 @@ export function projectToFormData(
         project_number:
             project?.project_number ?? options?.nextProjectNumber ?? '',
         customer_id: project?.customer?.id ? String(project.customer.id) : '',
+        customer_company_name:
+            project?.customer?.company_name ?? project?.customer?.name ?? '',
+        customer_email: project?.customer?.email ?? '',
+        customer_phone_number: project?.customer?.phone_number ?? '',
         assigned_to: project?.assignee ? String(project.assignee.id) : '',
         status_id: project?.status_id
             ? String(project.status_id)
@@ -293,6 +353,10 @@ export function projectToFormData(
             project?.contractors && project.contractors.length > 0
                 ? project.contractors.map((contractor) => ({
                       contractor_id: String(contractor.id),
+                      company_name: contractor.name ?? '',
+                      contact_name: contractor.contact_name ?? '',
+                      email: contractor.email ?? '',
+                      phone_number: contractor.phone_number ?? '',
                   }))
                 : [blankContractor()],
         scopes,

@@ -9,7 +9,13 @@ import {
     CardTitle,
 } from '@/Components/ui/card';
 import { Head, Link, router } from '@inertiajs/react';
-import { ClipboardListIcon, EditIcon, TrashIcon } from 'lucide-react';
+import {
+    ClipboardListIcon,
+    EditIcon,
+    FileTextIcon,
+    PrinterIcon,
+    TrashIcon,
+} from 'lucide-react';
 import { formatMoney, type BidOptions, type BidPayload } from './types';
 
 type ShowProps = {
@@ -47,6 +53,11 @@ export default function Show({ bid, options }: ShowProps) {
 
     return (
         <AuthenticatedLayout
+            stickyTitle={
+                bid.project?.name
+                    ? `Bid details — ${bid.project.name}`
+                    : 'Bid details'
+            }
             header={
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
@@ -72,6 +83,28 @@ export default function Show({ bid, options }: ShowProps) {
                         </h2>
                     </div>
                     <div className="flex flex-wrap gap-2">
+                        <Button variant="outline" asChild>
+                            <a
+                                href={route('admin.bids.print', bid.id)}
+                                target="_blank"
+                                rel="noreferrer"
+                            >
+                                <PrinterIcon className="size-4" />
+                                Print
+                            </a>
+                        </Button>
+                        <Button variant="outline" asChild>
+                            <a href={route('admin.bids.export.pdf', bid.id)}>
+                                <FileTextIcon className="size-4" />
+                                PDF
+                            </a>
+                        </Button>
+                        <Button variant="outline" asChild>
+                            <a href={route('admin.bids.export.word', bid.id)}>
+                                <FileTextIcon className="size-4" />
+                                Word 2026
+                            </a>
+                        </Button>
                         {options.can.update && (
                             <Button asChild>
                                 <Link href={route('admin.bids.edit', bid.id)}>
@@ -115,18 +148,56 @@ export default function Show({ bid, options }: ShowProps) {
                                     value={bid.project?.project_number}
                                 />
                                 <DetailItem
+                                    label="Project address"
+                                    value={bid.project?.site_address}
+                                />
+                                <DetailItem
                                     label="Current stage"
                                     value={bid.current_stage}
                                 />
                                 <DetailItem
-                                    label="Latest pricing"
+                                    label="Latest total"
                                     value={formatMoney(bid.latest_total)}
                                 />
-                                <DetailItem
-                                    label="Notes"
-                                    value={bid.notes}
-                                />
                             </dl>
+                                <p className="mt-4 text-sm font-medium text-foreground">
+                                    Shipping and handling exclusions/adjustments
+                                </p>
+                            {bid.notes ? (
+                                <div
+                                    className="rich-text-content mt-2 rounded-lg border border-border bg-background p-4"
+                                    dangerouslySetInnerHTML={{
+                                        __html: bid.notes,
+                                    }}
+                                />
+                            ) : (
+                                <p className="mt-2 text-sm text-muted-foreground">
+                                    No shipping and handling text yet.
+                                </p>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Bid application text</CardTitle>
+                            <CardDescription>
+                                The proposal language for this bid.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {bid.application_text ? (
+                                <div
+                                    className="rich-text-content rounded-lg border border-border bg-background p-4"
+                                    dangerouslySetInnerHTML={{
+                                        __html: bid.application_text,
+                                    }}
+                                />
+                            ) : (
+                                <p className="text-sm text-muted-foreground">
+                                    No bid application text yet.
+                                </p>
+                            )}
                         </CardContent>
                     </Card>
 
@@ -170,11 +241,19 @@ export default function Show({ bid, options }: ShowProps) {
                         <CardHeader>
                             <CardTitle>Scope of work</CardTitle>
                             <CardDescription>
-                                Reusable titles, products, and notations for
-                                this bid.
+                                Start with predefined scope wording, then add
+                                or remove service and product lines.
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="flex flex-col gap-3">
+                            {bid.scope_of_work_text ? (
+                                <div
+                                    className="rich-text-content text-sm text-foreground"
+                                    dangerouslySetInnerHTML={{
+                                        __html: bid.scope_of_work_text,
+                                    }}
+                                />
+                            ) : null}
                             {bid.scopes.length > 0 ? (
                                 bid.scopes.map((scope) => (
                                     <div
@@ -184,33 +263,120 @@ export default function Show({ bid, options }: ShowProps) {
                                         <p className="font-medium text-foreground">
                                             {scope.name}
                                         </p>
-                                        {scope.products?.length > 0 ? (
-                                            <ul className="flex flex-col gap-1 text-sm text-foreground">
-                                                {scope.products.map(
-                                                    (product, productIndex) => (
-                                                        <li
-                                                            key={
-                                                                product.id ??
-                                                                productIndex
-                                                            }
-                                                        >
-                                                            {product.abbreviation
-                                                                ? `${product.abbreviation} — ${product.name || product.description}`
-                                                                : product.name ||
-                                                                  product.description}
-                                                        </li>
-                                                    ),
-                                                )}
-                                            </ul>
+                                        {scope.notations ? (
+                                            <div
+                                                className="rich-text-content text-sm text-foreground"
+                                                dangerouslySetInnerHTML={{
+                                                    __html: scope.notations,
+                                                }}
+                                            />
                                         ) : (
                                             <p className="text-sm text-muted-foreground">
-                                                No product descriptions
+                                                No information added
                                             </p>
                                         )}
-                                        <p className="text-sm text-muted-foreground">
-                                            {scope.notations ||
-                                                'No notations'}
-                                        </p>
+                                        {scope.products?.length > 0 ? (
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full text-sm">
+                                                    <thead>
+                                                        <tr className="border-b border-border text-left text-muted-foreground">
+                                                            <th className="py-2 pr-3 font-medium">
+                                                                Service
+                                                            </th>
+                                                            <th className="py-2 pr-3 font-medium">
+                                                                Product
+                                                            </th>
+                                                            <th className="py-2 pr-3 text-right font-medium">
+                                                                Qty
+                                                            </th>
+                                                            <th className="py-2 pr-3 text-right font-medium">
+                                                                Unit value
+                                                            </th>
+                                                            <th className="py-2 text-right font-medium">
+                                                                Extended
+                                                            </th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {scope.products.map(
+                                                            (
+                                                                product,
+                                                                productIndex,
+                                                            ) => (
+                                                                <tr
+                                                                    key={
+                                                                        product.id ??
+                                                                        productIndex
+                                                                    }
+                                                                    className="border-b border-border last:border-0"
+                                                                >
+                                                                    <td className="py-2 pr-3">
+                                                                        {product.service_name ||
+                                                                            '—'}
+                                                                    </td>
+                                                                    <td className="py-2 pr-3">
+                                                                        {product.abbreviation
+                                                                            ? `${product.abbreviation} — ${product.name || product.description}`
+                                                                            : product.name ||
+                                                                              product.description ||
+                                                                              '—'}
+                                                                    </td>
+                                                                    <td className="py-2 pr-3 text-right tabular-nums">
+                                                                        {product.quantity ??
+                                                                            '—'}
+                                                                    </td>
+                                                                    <td className="py-2 pr-3 text-right tabular-nums">
+                                                                        {product.unit_bid
+                                                                            ? formatMoney(
+                                                                                  product.unit_bid,
+                                                                              )
+                                                                            : '—'}
+                                                                    </td>
+                                                                    <td className="py-2 text-right tabular-nums">
+                                                                        {product.extended
+                                                                            ? formatMoney(
+                                                                                  product.extended,
+                                                                              )
+                                                                            : '—'}
+                                                                    </td>
+                                                                </tr>
+                                                            ),
+                                                        )}
+                                                    </tbody>
+                                                    <tfoot>
+                                                        <tr>
+                                                            <td
+                                                                colSpan={4}
+                                                                className="pt-3 text-right font-medium text-foreground"
+                                                            >
+                                                                Scope total
+                                                            </td>
+                                                            <td className="pt-3 text-right font-medium tabular-nums text-foreground">
+                                                                {formatMoney(
+                                                                    scope.products.reduce(
+                                                                        (
+                                                                            sum,
+                                                                            product,
+                                                                        ) =>
+                                                                            sum +
+                                                                            Number(
+                                                                                product.extended ??
+                                                                                    0,
+                                                                            ),
+                                                                        0,
+                                                                    ) ||
+                                                                        scope.extended,
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                    </tfoot>
+                                                </table>
+                                            </div>
+                                        ) : (
+                                            <p className="text-sm text-muted-foreground">
+                                                No service and product
+                                            </p>
+                                        )}
                                     </div>
                                 ))
                             ) : (
@@ -220,74 +386,6 @@ export default function Show({ bid, options }: ShowProps) {
                             )}
                         </CardContent>
                     </Card>
-
-                    {bid.pricings.map((pricing) => (
-                        <Card key={pricing.id ?? pricing.name}>
-                            <CardHeader>
-                                <CardTitle>{pricing.name}</CardTitle>
-                                <CardDescription>
-                                    {pricing.revision_date || 'No date'}
-                                    {pricing.notes
-                                        ? ` · ${pricing.notes}`
-                                        : ''}
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="flex flex-col gap-3">
-                                {pricing.items.length > 0 ? (
-                                    pricing.items.map((item, index) => (
-                                        <div
-                                            key={item.id ?? index}
-                                            className="grid gap-3 rounded-lg border border-border p-4 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_8rem_7rem]"
-                                        >
-                                            <div>
-                                                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                                    Line item
-                                                </p>
-                                                <p className="font-medium text-foreground">
-                                                    {item.description}
-                                                </p>
-                                            </div>
-                                            <div>
-                                                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                                    Pricing basis
-                                                </p>
-                                                <p className="text-sm text-foreground">
-                                                    {item.pricing_basis ||
-                                                        'Not added yet'}
-                                                </p>
-                                            </div>
-                                            <div>
-                                                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                                    Status
-                                                </p>
-                                                <Badge variant="outline">
-                                                    {item.status_name ||
-                                                        'None'}
-                                                </Badge>
-                                            </div>
-                                            <div>
-                                                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                                    Amount
-                                                </p>
-                                                <p className="font-medium text-foreground">
-                                                    {formatMoney(item.amount)}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <p className="text-sm text-muted-foreground">
-                                        No line items in this revision.
-                                    </p>
-                                )}
-                                <div className="flex justify-end border-t border-border pt-3">
-                                    <p className="text-lg font-semibold text-emerald-700 dark:text-emerald-300">
-                                        {formatMoney(pricing.total)}
-                                    </p>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    ))}
                 </div>
             </div>
         </AuthenticatedLayout>

@@ -14,7 +14,10 @@ import {
     ClipboardListIcon,
     EditIcon,
     EyeIcon,
+    FileTextIcon,
+    FileTypeIcon,
     PlusIcon,
+    PrinterIcon,
     SearchIcon,
 } from 'lucide-react';
 import { FormEvent, useEffect, useState } from 'react';
@@ -64,6 +67,13 @@ export default function Index({ filters, options, bids }: IndexProps) {
         label
             .replace('&laquo; Previous', 'Previous')
             .replace('Next &raquo;', 'Next');
+
+    const exportQuery = {
+        search: search || undefined,
+    };
+
+    const bidRowGridClassName =
+        'lg:grid-cols-[minmax(12rem,1.2fr)_minmax(8rem,0.8fr)_minmax(10rem,1fr)_7rem_auto]';
 
     return (
         <AuthenticatedLayout
@@ -122,30 +132,69 @@ export default function Index({ filters, options, bids }: IndexProps) {
                                     Search by project, stage, or scope of work.
                                 </CardDescription>
                             </div>
-                            <form
-                                onSubmit={submit}
-                                className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row"
-                            >
-                                <div className="relative">
-                                    <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                                    <input
-                                        value={search}
-                                        onChange={(event) =>
-                                            setSearch(event.target.value)
-                                        }
-                                        placeholder="Search bids"
-                                        className="h-11 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm text-foreground sm:w-72"
-                                    />
+                            <div className="flex w-full flex-col gap-2 sm:w-auto">
+                                <form
+                                    onSubmit={submit}
+                                    className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row"
+                                >
+                                    <div className="relative">
+                                        <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                                        <input
+                                            value={search}
+                                            onChange={(event) =>
+                                                setSearch(event.target.value)
+                                            }
+                                            placeholder="Search bids"
+                                            className="h-11 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm text-foreground sm:w-72"
+                                        />
+                                    </div>
+                                    <Button type="submit" variant="outline">
+                                        Search
+                                    </Button>
+                                </form>
+                                <div className="flex flex-wrap gap-2 sm:justify-end">
+                                    <Button variant="outline" asChild>
+                                        <a
+                                            href={route(
+                                                'admin.bids.list.print',
+                                                exportQuery,
+                                            )}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                        >
+                                            <PrinterIcon className="size-4" />
+                                            Print
+                                        </a>
+                                    </Button>
+                                    <Button variant="outline" asChild>
+                                        <a
+                                            href={route(
+                                                'admin.bids.list.export.pdf',
+                                                exportQuery,
+                                            )}
+                                        >
+                                            <FileTextIcon className="size-4" />
+                                            PDF
+                                        </a>
+                                    </Button>
+                                    <Button variant="outline" asChild>
+                                        <a
+                                            href={route(
+                                                'admin.bids.list.export.word',
+                                                exportQuery,
+                                            )}
+                                        >
+                                            <FileTextIcon className="size-4" />
+                                            Word 2026
+                                        </a>
+                                    </Button>
                                 </div>
-                                <Button type="submit" variant="outline">
-                                    Search
-                                </Button>
-                            </form>
+                            </div>
                         </CardHeader>
 
                         <CardContent>
-                            <div className="overflow-hidden rounded-lg border border-border">
-                                <div className="hidden grid-cols-[minmax(14rem,1.4fr)_minmax(10rem,1fr)_minmax(12rem,1.1fr)_8rem_9.5rem] items-center gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid">
+                            <div className="overflow-x-auto rounded-lg border border-border">
+                                <div className={cn('hidden items-center gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:grid', bidRowGridClassName)}>
                                     <div>Project</div>
                                     <div>Stage</div>
                                     <div>Scope</div>
@@ -159,7 +208,8 @@ export default function Index({ filters, options, bids }: IndexProps) {
                                             id={`bid-row-${bid.id}`}
                                             key={bid.id}
                                             className={cn(
-                                                'grid gap-3 border-b border-border px-4 py-4 last:border-b-0 md:min-h-20 md:grid-cols-[minmax(14rem,1.4fr)_minmax(10rem,1fr)_minmax(12rem,1.1fr)_8rem_9.5rem] md:items-center md:gap-4',
+                                                'grid gap-3 border-b border-border px-4 py-4 last:border-b-0 lg:min-h-20 lg:items-center lg:gap-4',
+                                                bidRowGridClassName,
                                                 highlightedBidId === bid.id &&
                                                     'bg-emerald-50 dark:bg-emerald-950/30',
                                             )}
@@ -212,10 +262,60 @@ export default function Index({ filters, options, bids }: IndexProps) {
                                             <div className="font-medium text-foreground">
                                                 {formatMoney(bid.latest_total)}
                                             </div>
-                                            <div className="flex flex-wrap gap-2 md:justify-end">
+                                            <div className="flex flex-nowrap items-center gap-1 md:justify-end">
                                                 <Button
                                                     variant="outline"
-                                                    size="sm"
+                                                    size="icon-sm"
+                                                    asChild
+                                                >
+                                                    <a
+                                                        href={route(
+                                                            'admin.bids.print',
+                                                            bid.id,
+                                                        )}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        title="Print"
+                                                        aria-label="Print"
+                                                    >
+                                                        <PrinterIcon className="size-4" />
+                                                    </a>
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="icon-sm"
+                                                    asChild
+                                                >
+                                                    <a
+                                                        href={route(
+                                                            'admin.bids.export.pdf',
+                                                            bid.id,
+                                                        )}
+                                                        title="PDF"
+                                                        aria-label="PDF"
+                                                    >
+                                                        <FileTextIcon className="size-4" />
+                                                    </a>
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="icon-sm"
+                                                    asChild
+                                                >
+                                                    <a
+                                                        href={route(
+                                                            'admin.bids.export.word',
+                                                            bid.id,
+                                                        )}
+                                                        title="Word 2026"
+                                                        aria-label="Word 2026"
+                                                    >
+                                                        <FileTypeIcon className="size-4" />
+                                                    </a>
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="icon-sm"
                                                     asChild
                                                 >
                                                     <Link
@@ -223,15 +323,16 @@ export default function Index({ filters, options, bids }: IndexProps) {
                                                             'admin.bids.show',
                                                             bid.id,
                                                         )}
+                                                        title="View"
+                                                        aria-label="View"
                                                     >
                                                         <EyeIcon className="size-4" />
-                                                        View
                                                     </Link>
                                                 </Button>
                                                 {options.can.update && (
                                                     <Button
                                                         variant="outline"
-                                                        size="sm"
+                                                        size="icon-sm"
                                                         asChild
                                                     >
                                                         <Link
@@ -239,9 +340,10 @@ export default function Index({ filters, options, bids }: IndexProps) {
                                                                 'admin.bids.edit',
                                                                 bid.id,
                                                             )}
+                                                            title="Edit"
+                                                            aria-label="Edit"
                                                         >
                                                             <EditIcon className="size-4" />
-                                                            Edit
                                                         </Link>
                                                     </Button>
                                                 )}

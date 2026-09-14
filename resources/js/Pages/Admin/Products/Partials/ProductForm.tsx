@@ -25,6 +25,7 @@ import {
 import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from '@inertiajs/react';
 import {
+    AppWindowIcon,
     DoorOpenIcon,
     FileTextIcon,
     PackageIcon,
@@ -66,8 +67,8 @@ type ProductFormProps = {
 
 const schema = z.object({
     product_type_id: z.string().trim().min(1, 'Select a type.'),
-    manufacturer_id: z.string().trim().min(1, 'Select a manufacturer.'),
-    name: z.string().trim().min(1, 'Enter a model.').max(255),
+    manufacturer_id: z.string(),
+    name: z.string().trim().min(1, 'Enter a name.').max(255),
     abbreviation: z.string().trim().max(255),
     description: z.string().trim().max(5000),
     notes: z.string().trim().max(5000),
@@ -76,6 +77,11 @@ const schema = z.object({
     ada: z.string(),
     fire_label: z.string().max(255),
     thickness: z.string().max(255),
+    area_tested: z.string().max(255),
+    weight: z.string().max(255),
+    window_glass_type_id: z.string(),
+    window_glazing_type_id: z.string(),
+    window_seal_id: z.string(),
     spec_pdf: z.union([z.instanceof(File), z.null()]),
     remove_spec_pdf: z.boolean(),
     price: z.string(),
@@ -212,7 +218,12 @@ export default function ProductForm({
     const selectedType = (options.types ?? []).find(
         (type) => String(type.id) === String(data.product_type_id),
     );
-    const isDoor = Boolean(selectedType?.allows_parts);
+    const selectedKind =
+        selectedType?.kind ??
+        (selectedType?.allows_parts ? 'door' : 'part');
+    const isWindow = selectedKind === 'window';
+    const isDoor = selectedKind === 'door';
+    const isAssembly = isDoor || isWindow;
     const typeName = selectedType?.name ?? 'product';
     const previousTypeNameRef = useRef(selectedType?.name ?? '');
     const hasExistingPdf =
@@ -230,11 +241,15 @@ export default function ProductForm({
 
     const applyTypeDefaults = (nextType?: {
         name?: string | null;
+        kind?: string | null;
         allows_parts?: boolean | null;
     }) => {
         const nextTypeName = nextType?.name ?? '';
 
-        if (!nextTypeName || nextType?.allows_parts) {
+        if (
+            !nextTypeName ||
+            nextType?.allows_parts
+        ) {
             previousTypeNameRef.current = nextTypeName;
             return;
         }
@@ -288,29 +303,38 @@ export default function ProductForm({
                 return;
             }
 
+            if (!values.manufacturer_id.trim()) {
+                setError('manufacturer_id', {
+                    type: 'manual',
+                    message: 'Select a manufacturer.',
+                });
+
+                return;
+            }
+
             const payload = {
                 product_type_id: values.product_type_id,
                 manufacturer_id: values.manufacturer_id,
                 name: values.name.trim(),
                 abbreviation: values.abbreviation.trim() || null,
-                description: isDoor
+                description: isAssembly
                     ? values.description
                     : values.description.trim() || typeName,
                 notes: values.notes,
-                price: isDoor ? null : inputToDecimal(values.price) || null,
-                markup_percent: isDoor
+                price: isAssembly ? null : inputToDecimal(values.price) || null,
+                markup_percent: isAssembly
                     ? null
                     : inputToDecimal(values.markup_percent) || null,
-                min_markup_percent: isDoor
+                min_markup_percent: isAssembly
                     ? null
                     : inputToDecimal(values.min_markup_percent) || null,
-                tax_state_id: isDoor
+                tax_state_id: isAssembly
                     ? null
                     : values.tax_state_id.trim() || null,
-                tax_rate: isDoor
+                tax_rate: isAssembly
                     ? null
                     : inputToDecimal(values.tax_rate) || null,
-                state_prices: isDoor
+                state_prices: isAssembly
                     ? values.state_prices
                           .filter((item) => item.tax_state_id.trim() !== '')
                           .map((item) => ({
@@ -324,7 +348,7 @@ export default function ProductForm({
                                   null,
                           }))
                     : [],
-                parts: isDoor
+                parts: isAssembly
                     ? values.parts.filter((part) => part.part_id.trim() !== '')
                     : [],
                 constructions: isDoor
@@ -343,15 +367,28 @@ export default function ProductForm({
                       )
                     : [],
                 rf_shielding: isDoor ? values.rf_shielding : null,
-                stc_rating: isDoor ? values.stc_rating : null,
+                stc_rating: isAssembly
+                    ? values.stc_rating.trim() || null
+                    : null,
                 ada: isDoor && values.ada !== '' ? values.ada === '1' : null,
                 fire_label: isDoor ? values.fire_label : null,
-                thickness: isDoor ? values.thickness : null,
+                thickness: isAssembly ? values.thickness : null,
+                area_tested: isWindow ? values.area_tested : null,
+                weight: isWindow ? values.weight.trim() || null : null,
+                window_glass_type_id: isWindow
+                    ? values.window_glass_type_id.trim() || null
+                    : null,
+                window_glazing_type_id: isWindow
+                    ? values.window_glazing_type_id.trim() || null
+                    : null,
+                window_seal_id: isWindow
+                    ? values.window_seal_id.trim() || null
+                    : null,
                 spec_pdf:
-                    isDoor && values.spec_pdf instanceof File
+                    isAssembly && values.spec_pdf instanceof File
                         ? values.spec_pdf
                         : undefined,
-                remove_spec_pdf: isDoor ? values.remove_spec_pdf : false,
+                remove_spec_pdf: isAssembly ? values.remove_spec_pdf : false,
                 ...(method === 'patch' ? { _method: 'patch' } : {}),
             };
 
@@ -396,13 +433,13 @@ export default function ProductForm({
             : product?.spec_pdf_name;
 
     return (
-        <form onSubmit={submit} className="flex flex-col gap-6 pr-14 sm:pr-16">
+        <form onSubmit={submit} className="flex min-w-0 flex-col gap-6 pr-16 sm:pr-20">
             <Card className="overflow-visible shadow-sm">
                 <CardHeader>
                     <CardTitle>Product type</CardTitle>
                     <CardDescription>
-                        {description} Choose door or part first and the rest of
-                        the form will adjust automatically.
+                        {description} Choose door, window, or part first and
+                        the rest of the form will adjust automatically.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-5">
@@ -411,7 +448,11 @@ export default function ProductForm({
                             const selected =
                                 String(type.id) ===
                                 String(data.product_type_id);
-                            const doorType = Boolean(type.allows_parts);
+                            const typeKind =
+                                type.kind ??
+                                (type.allows_parts ? 'door' : 'part');
+                            const assemblyType =
+                                typeKind === 'door' || typeKind === 'window';
 
                             return (
                                 <button
@@ -433,7 +474,10 @@ export default function ProductForm({
                                                 : 'bg-muted text-muted-foreground',
                                         )}
                                     >
-                                        {doorType ? (
+                                        {typeKind === 'window' ? (
+                                            <AppWindowIcon className="size-5" />
+                                        ) : typeKind === 'door' ||
+                                          type.allows_parts ? (
                                             <DoorOpenIcon className="size-5" />
                                         ) : (
                                             <PackageIcon className="size-5" />
@@ -444,38 +488,22 @@ export default function ProductForm({
                                             {type.name}
                                         </span>
                                         <span className="mt-1 block text-sm text-muted-foreground">
-                                            {doorType
-                                                ? 'Model, construction, ratings, PDF, parts, and pricing.'
-                                                : 'Model, pricing, and part details.'}
+                                            {typeKind === 'window'
+                                                ? 'Typed STC, glass, glazing, seal, parts, and pricing.'
+                                                : assemblyType
+                                                    ? 'Model, construction, ratings, PDF, parts, and pricing.'
+                                                    : 'Model, pricing, and part details.'}
                                         </span>
                                     </span>
                                 </button>
                             );
                         })}
                     </div>
-                    <CreatableSelect
-                        id="product-type"
-                        label="Or add another type"
-                        value={data.product_type_id ?? ''}
-                        options={options.types ?? []}
-                        createRoute={route('admin.product-types.store')}
-                        catalogKey="types"
-                        entityLabel="type"
-                        placeholder="Frame, Hardware..."
-                        hint="Use this if the product is not a door or a part."
-                        error={errorMessage(
+                    <InputError
+                        message={errorMessage(
                             validationErrors,
                             'product_type_id',
                         )}
-                        onChange={(typeId, option) => {
-                            setData('product_type_id', typeId);
-                            applyTypeDefaults(
-                                option ??
-                                    (options.types ?? []).find(
-                                        (type) => String(type.id) === typeId,
-                                    ),
-                            );
-                        }}
                     />
                 </CardContent>
             </Card>
@@ -485,14 +513,11 @@ export default function ProductForm({
                     <Card className="overflow-visible shadow-sm">
                         <CardHeader>
                             <CardTitle>
-                                {title ||
-                                    (isDoor
-                                        ? 'Door information'
-                                        : `${typeName} information`)}
+                                {title || `${typeName} information`}
                             </CardTitle>
                             <CardDescription>
-                                {isDoor
-                                    ? 'Enter the door model and specification details, then pricing.'
+                                {isAssembly
+                                    ? `Enter the ${typeName.toLowerCase()} model and specification details, then pricing.`
                                     : `Enter the ${typeName.toLowerCase()} model, then pricing.`}
                             </CardDescription>
                         </CardHeader>
@@ -528,10 +553,12 @@ export default function ProductForm({
                                     value={data.name ?? ''}
                                     className={inputClassName}
                                     placeholder={
-                                        isDoor
-                                            ? 'KriegerShield 40 dB Hollow Metal Door'
-                                            : selectedType?.name ||
-                                              'Hinge, lockset, closer...'
+                                        isWindow
+                                            ? 'KriegerShield 46 dB Window'
+                                            : isDoor
+                                              ? 'KriegerShield 40 dB Hollow Metal Door'
+                                              : selectedType?.name ||
+                                                'Hinge, lockset, closer...'
                                     }
                                     onChange={(event) => {
                                         setData('name', event.target.value);
@@ -563,7 +590,11 @@ export default function ProductForm({
                                     value={data.abbreviation ?? ''}
                                     className={inputClassName}
                                     placeholder={
-                                        isDoor ? 'RF-HM-40dB' : 'HD-Hinge'
+                                        isWindow
+                                            ? 'RF-W-46'
+                                            : isDoor
+                                              ? 'RF-HM-40dB'
+                                              : 'HD-Hinge'
                                     }
                                     onChange={(event) =>
                                         setData(
@@ -583,6 +614,365 @@ export default function ProductForm({
                                     )}
                                 />
                             </div>
+
+                            {isWindow ? (
+                                <div className="flex flex-col gap-5 rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/20">
+                                    <div>
+                                        <h3 className="text-sm font-semibold text-foreground">
+                                            Window specifications
+                                        </h3>
+                                        <p className="text-sm text-muted-foreground">
+                                            Enter ratings, glass details, an
+                                            optional specification PDF, and the
+                                            parts used on this window.
+                                        </p>
+                                    </div>
+                                    <div className="grid gap-5 lg:grid-cols-2">
+                                        <div className="flex flex-col gap-2">
+                                            <InputLabel
+                                                htmlFor="product-stc-rating"
+                                                value="STC Rating"
+                                                className="text-emerald-700 dark:text-emerald-300"
+                                            />
+                                            <MaskedDecimalInput
+                                                id="product-stc-rating"
+                                                value={data.stc_rating ?? ''}
+                                                className={inputClassName}
+                                                placeholder="46"
+                                                maxDecimals={0}
+                                                withThousands={false}
+                                                onChange={(value) =>
+                                                    setData('stc_rating', value)
+                                                }
+                                            />
+                                            <InputError
+                                                message={errorMessage(
+                                                    validationErrors,
+                                                    'stc_rating',
+                                                )}
+                                            />
+                                        </div>
+                                        <div className="flex flex-col gap-2">
+                                            <InputLabel
+                                                htmlFor="product-weight"
+                                                value="Weight"
+                                                className="text-emerald-700 dark:text-emerald-300"
+                                            />
+                                            <MaskedDecimalInput
+                                                id="product-weight"
+                                                value={data.weight ?? ''}
+                                                className={inputClassName}
+                                                placeholder="30.1"
+                                                maxDecimals={2}
+                                                withThousands={false}
+                                                onChange={(value) =>
+                                                    setData('weight', value)
+                                                }
+                                            />
+                                            <InputError
+                                                message={errorMessage(
+                                                    validationErrors,
+                                                    'weight',
+                                                )}
+                                            />
+                                        </div>
+                                        <div className="flex flex-col gap-2">
+                                            <InputLabel
+                                                htmlFor="product-thickness"
+                                                value="Thickness"
+                                                className="text-emerald-700 dark:text-emerald-300"
+                                            />
+                                            <TextInput
+                                                id="product-thickness"
+                                                value={data.thickness ?? ''}
+                                                className={inputClassName}
+                                                placeholder='14"'
+                                                onChange={(event) =>
+                                                    setData(
+                                                        'thickness',
+                                                        event.target.value,
+                                                    )
+                                                }
+                                            />
+                                            <InputError
+                                                message={errorMessage(
+                                                    validationErrors,
+                                                    'thickness',
+                                                )}
+                                            />
+                                        </div>
+                                        <CreatableSelect
+                                            id="product-glass-type"
+                                            label="Glass Type"
+                                            value={
+                                                data.window_glass_type_id ?? ''
+                                            }
+                                            options={options.glassTypes ?? []}
+                                            createRoute={route(
+                                                'admin.window-glass-types.store',
+                                            )}
+                                            catalogKey="glassTypes"
+                                            entityLabel="glass type"
+                                            placeholder='1/2" LAM x 1/4" LAM'
+                                            error={errorMessage(
+                                                validationErrors,
+                                                'window_glass_type_id',
+                                            )}
+                                            onChange={(glassTypeId) =>
+                                                setData(
+                                                    'window_glass_type_id',
+                                                    glassTypeId,
+                                                )
+                                            }
+                                        />
+                                        <div className="flex flex-col gap-2">
+                                            <InputLabel
+                                                htmlFor="product-area-tested"
+                                                value="Area Tested"
+                                                className="text-emerald-700 dark:text-emerald-300"
+                                            />
+                                            <TextInput
+                                                id="product-area-tested"
+                                                value={data.area_tested ?? ''}
+                                                className={inputClassName}
+                                                placeholder="18 SQ. FT."
+                                                onChange={(event) =>
+                                                    setData(
+                                                        'area_tested',
+                                                        event.target.value,
+                                                    )
+                                                }
+                                            />
+                                            <InputError
+                                                message={errorMessage(
+                                                    validationErrors,
+                                                    'area_tested',
+                                                )}
+                                            />
+                                        </div>
+                                        <CreatableSelect
+                                            id="product-seal"
+                                            label="Seal"
+                                            value={data.window_seal_id ?? ''}
+                                            options={options.seals ?? []}
+                                            createRoute={route(
+                                                'admin.window-seals.store',
+                                            )}
+                                            catalogKey="seals"
+                                            entityLabel="seal"
+                                            placeholder="NC3"
+                                            error={errorMessage(
+                                                validationErrors,
+                                                'window_seal_id',
+                                            )}
+                                            onChange={(sealId) =>
+                                                setData(
+                                                    'window_seal_id',
+                                                    sealId,
+                                                )
+                                            }
+                                        />
+                                        <CreatableSelect
+                                            id="product-glazing-type"
+                                            label="Glazing Type"
+                                            value={
+                                                data.window_glazing_type_id ??
+                                                ''
+                                            }
+                                            options={
+                                                options.glazingTypes ?? []
+                                            }
+                                            createRoute={route(
+                                                'admin.window-glazing-types.store',
+                                            )}
+                                            catalogKey="glazingTypes"
+                                            entityLabel="glazing type"
+                                            placeholder="Neoprene"
+                                            error={errorMessage(
+                                                validationErrors,
+                                                'window_glazing_type_id',
+                                            )}
+                                            onChange={(glazingTypeId) =>
+                                                setData(
+                                                    'window_glazing_type_id',
+                                                    glazingTypeId,
+                                                )
+                                            }
+                                        />
+                                    </div>
+                                    <div className="flex flex-col gap-2">
+                                        <InputLabel
+                                            htmlFor="product-spec-pdf"
+                                            value="Specification PDF (optional)"
+                                            className="text-emerald-700 dark:text-emerald-300"
+                                        />
+                                        <input
+                                            ref={specPdfInputRef}
+                                            id="product-spec-pdf"
+                                            type="file"
+                                            accept="application/pdf"
+                                            className="block w-full text-sm text-muted-foreground file:mr-4 file:rounded-md file:border-0 file:bg-emerald-600 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-emerald-700"
+                                            onChange={(event) => {
+                                                const file =
+                                                    event.target.files?.[0] ??
+                                                    null;
+
+                                                setData('spec_pdf', file);
+                                                setData(
+                                                    'remove_spec_pdf',
+                                                    false,
+                                                );
+                                            }}
+                                        />
+                                        <p className="text-sm text-muted-foreground">
+                                            Optional manufacturer PDF. Window
+                                            ratings above are typed in, not
+                                            taken from this file.
+                                        </p>
+                                        {(hasExistingPdf ||
+                                            data.spec_pdf instanceof File) && (
+                                            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-emerald-200 bg-background px-3 py-2 dark:border-emerald-900/70">
+                                                <FileTextIcon className="size-4 text-emerald-700 dark:text-emerald-300" />
+                                                {hasExistingPdf &&
+                                                product?.spec_pdf_url ? (
+                                                    <a
+                                                        href={
+                                                            product.spec_pdf_url
+                                                        }
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="text-sm font-medium text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-300"
+                                                    >
+                                                        {specPdfName ||
+                                                            'Current PDF'}
+                                                    </a>
+                                                ) : (
+                                                    <span className="text-sm font-medium text-foreground">
+                                                        {specPdfName}
+                                                    </span>
+                                                )}
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => {
+                                                        setData(
+                                                            'spec_pdf',
+                                                            null,
+                                                        );
+                                                        setData(
+                                                            'remove_spec_pdf',
+                                                            true,
+                                                        );
+
+                                                        if (
+                                                            specPdfInputRef.current
+                                                        ) {
+                                                            specPdfInputRef.current.value =
+                                                                '';
+                                                        }
+                                                    }}
+                                                >
+                                                    Remove PDF
+                                                </Button>
+                                            </div>
+                                        )}
+                                        <InputError
+                                            message={errorMessage(
+                                                validationErrors,
+                                                'spec_pdf',
+                                            )}
+                                        />
+                                    </div>
+                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                        <div>
+                                            <h3 className="text-sm font-semibold text-foreground">
+                                                Window parts
+                                            </h3>
+                                            <p className="text-sm text-muted-foreground">
+                                                Attach reusable parts, or type a
+                                                new part name to create it.
+                                            </p>
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() =>
+                                                appendPart(blankPart())
+                                            }
+                                        >
+                                            <PlusIcon className="size-4" />
+                                            Add part
+                                        </Button>
+                                    </div>
+                                    <div className="flex flex-col gap-4">
+                                        {partFields.map((field, index) => {
+                                            const selectedIds = (
+                                                data.parts ?? []
+                                            )
+                                                .map((item, itemIndex) =>
+                                                    itemIndex === index
+                                                        ? ''
+                                                        : item.part_id,
+                                                )
+                                                .filter(Boolean);
+
+                                            return (
+                                                <div
+                                                    key={field.id}
+                                                    className="grid gap-4 overflow-visible rounded-lg border border-emerald-200 bg-background p-4 dark:border-emerald-900/70 lg:grid-cols-[minmax(0,1fr)_auto]"
+                                                >
+                                                    <CreatableSelect
+                                                        id={`product-window-part-${index}`}
+                                                        label="Part"
+                                                        value={
+                                                            data.parts?.[index]
+                                                                ?.part_id ?? ''
+                                                        }
+                                                        options={options.parts}
+                                                        disabledIds={
+                                                            selectedIds
+                                                        }
+                                                        createRoute={route(
+                                                            'admin.products.catalog',
+                                                        )}
+                                                        catalogKey="parts"
+                                                        entityLabel="part"
+                                                        createExtras={{
+                                                            kind: 'part',
+                                                        }}
+                                                        placeholder="Hinge, lockset, closer..."
+                                                        error={errorMessage(
+                                                            validationErrors,
+                                                            `parts.${index}.part_id`,
+                                                        )}
+                                                        onChange={(partId) =>
+                                                            setData(
+                                                                `parts.${index}.part_id`,
+                                                                partId,
+                                                            )
+                                                        }
+                                                    />
+                                                    <div className="flex items-start lg:pt-7">
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            aria-label={`Remove part ${index + 1}`}
+                                                            onClick={() =>
+                                                                removePart(
+                                                                    index,
+                                                                )
+                                                            }
+                                                        >
+                                                            <Trash2Icon className="size-4" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ) : null}
 
                             {isDoor ? (
                                 <div className="flex flex-col gap-5 rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/20">
@@ -1039,7 +1429,7 @@ export default function ProductForm({
                                     <div className="flex flex-col gap-2">
                                         <InputLabel
                                             htmlFor="product-spec-pdf"
-                                            value="Door information PDF"
+                                            value={`${typeName} information PDF`}
                                             className="text-emerald-700 dark:text-emerald-300"
                                         />
                                         <input
@@ -1129,12 +1519,12 @@ export default function ProductForm({
                                             Pricing
                                         </h3>
                                         <p className="text-sm text-muted-foreground">
-                                            {isDoor
+                                            {isAssembly
                                                 ? 'Add a price for each state. You can create new states anytime, and each state can have its own price, markup, and tax percent.'
                                                 : 'Enter the product price, then the markup we sell it at and the lowest markup we can accept. Choose a state and tax percent to add that sales tax to the sell prices.'}
                                         </p>
                                     </div>
-                                    {isDoor ? (
+                                    {isAssembly ? (
                                         <Button
                                             type="button"
                                             variant="outline"
@@ -1149,7 +1539,7 @@ export default function ProductForm({
                                         </Button>
                                     ) : null}
                                 </div>
-                                {isDoor ? (
+                                {isAssembly ? (
                                     <div className="flex flex-col gap-4">
                                         {statePriceFields.map(
                                             (field, index) => {
@@ -1777,7 +2167,7 @@ export default function ProductForm({
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div>
                                     <h3 className="text-base font-semibold text-foreground">
-                                        Door parts
+                                        {typeName} parts
                                     </h3>
                                     <p className="text-sm text-muted-foreground">
                                         Attach reusable parts, or type a new
@@ -1855,7 +2245,7 @@ export default function ProductForm({
                                 })}
                             </div>
                         </section>
-                    ) : (
+                    ) : !isWindow ? (
                         <section className="flex flex-col gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
                             <div>
                                 <h3 className="text-base font-semibold text-foreground">
@@ -1878,7 +2268,7 @@ export default function ProductForm({
                                 }
                             />
                         </section>
-                    )}
+                    ) : null}
 
                     <section className="flex flex-col gap-5 rounded-xl border border-border bg-background p-5">
                         <div>
@@ -1887,12 +2277,12 @@ export default function ProductForm({
                             </h3>
                             <p className="text-sm text-muted-foreground">
                                 Optional notes
-                                {isDoor ? ' and description' : ''} kept separate
-                                from the {isDoor ? 'door' : typeName.toLowerCase()}{' '}
+                                {isAssembly ? ' and description' : ''} kept separate
+                                from the {typeName.toLowerCase()}{' '}
                                 details above.
                             </p>
                         </div>
-                        {isDoor ? (
+                        {isAssembly ? (
                             <div className="flex flex-col gap-2">
                                 <InputLabel
                                     htmlFor="product-description"
@@ -1904,7 +2294,7 @@ export default function ProductForm({
                                     value={data.description ?? ''}
                                     rows={3}
                                     className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
-                                    placeholder="What this door includes"
+                                    placeholder={`What this ${typeName.toLowerCase()} includes`}
                                     onChange={(event) =>
                                         setData(
                                             'description',

@@ -201,8 +201,8 @@ export default function Index({ filters, users }: IndexProps) {
                         </CardHeader>
 
                         <CardContent>
-                            <div className="overflow-hidden rounded-lg border border-border">
-                                <div className="hidden grid-cols-[1.1fr_1.2fr_1fr_0.9fr_1fr_minmax(220px,auto)] gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid">
+                            <div className="overflow-x-auto rounded-lg border border-border">
+                                <div className="hidden grid-cols-[1.1fr_1.2fr_1fr_0.9fr_1fr_minmax(220px,auto)] gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground xl:grid">
                                     <div>Name</div>
                                     <div>Email</div>
                                     <div>Profile</div>
@@ -215,7 +215,7 @@ export default function Index({ filters, users }: IndexProps) {
                                     users.data.map((user) => (
                                         <div
                                             key={user.id}
-                                            className="grid gap-3 border-b border-border px-4 py-4 last:border-b-0 md:grid-cols-[1.1fr_1.2fr_1fr_0.9fr_1fr_minmax(220px,auto)] md:items-center md:gap-4"
+                                            className="grid gap-3 border-b border-border px-4 py-4 last:border-b-0 xl:grid-cols-[1.1fr_1.2fr_1fr_0.9fr_1fr_minmax(220px,auto)] xl:items-center xl:gap-4"
                                         >
                                             <div>
                                                 <p className="font-medium text-foreground">

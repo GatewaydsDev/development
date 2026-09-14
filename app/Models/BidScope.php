@@ -12,8 +12,20 @@ class BidScope extends Model
         'bid_id',
         'bid_scope_title_id',
         'notations',
+        'quantity',
+        'unit_bid',
+        'extended',
         'sort_order',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'quantity' => 'decimal:2',
+            'unit_bid' => 'decimal:2',
+            'extended' => 'decimal:2',
+        ];
+    }
 
     public function bid(): BelongsTo
     {

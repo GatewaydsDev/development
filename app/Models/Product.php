@@ -13,10 +13,13 @@ class Product extends Model
 {
     public const KIND_DOOR = 'door';
 
+    public const KIND_WINDOW = 'window';
+
     public const KIND_PART = 'part';
 
     public const KINDS = [
         self::KIND_DOOR,
+        self::KIND_WINDOW,
         self::KIND_PART,
     ];
 
@@ -35,6 +38,11 @@ class Product extends Model
         'ada',
         'fire_label',
         'thickness',
+        'area_tested',
+        'weight',
+        'window_glass_type_id',
+        'window_glazing_type_id',
+        'window_seal_id',
         'spec_pdf_path',
         'price',
         'markup_percent',
@@ -48,6 +56,7 @@ class Product extends Model
             'price' => 'decimal:2',
             'markup_percent' => 'decimal:2',
             'min_markup_percent' => 'decimal:2',
+            'weight' => 'decimal:2',
         ];
     }
 
@@ -130,6 +139,21 @@ class Product extends Model
             ->orderBy('name');
     }
 
+    public function glassType(): BelongsTo
+    {
+        return $this->belongsTo(WindowGlassType::class, 'window_glass_type_id');
+    }
+
+    public function glazingType(): BelongsTo
+    {
+        return $this->belongsTo(WindowGlazingType::class, 'window_glazing_type_id');
+    }
+
+    public function seal(): BelongsTo
+    {
+        return $this->belongsTo(WindowSeal::class, 'window_seal_id');
+    }
+
     public function deleteSpecPdf(): void
     {
         if (! $this->spec_pdf_path) {
@@ -185,8 +209,63 @@ class Product extends Model
         return $this->kind === self::KIND_DOOR;
     }
 
+    public function isWindow(): bool
+    {
+        return $this->kind === self::KIND_WINDOW;
+    }
+
+    public function isAssembly(): bool
+    {
+        return $this->isDoor() || $this->isWindow();
+    }
+
     public function isPart(): bool
     {
         return $this->kind === self::KIND_PART;
+    }
+
+    public function sellPriceForState(?string $projectState): ?float
+    {
+        $this->loadMissing(['statePrices.taxState']);
+
+        $taxState = TaxState::findForProjectState($projectState);
+        $matched = $taxState
+            ? $this->statePrices->firstWhere('tax_state_id', $taxState->id)
+            : null;
+
+        if ($matched?->price !== null) {
+            return $this->pricedAmount(
+                $matched->price,
+                $matched->markup_percent ?? $this->markup_percent,
+            );
+        }
+
+        if ($this->price !== null) {
+            return $this->pricedAmount($this->price, $this->markup_percent);
+        }
+
+        $fallback = $this->statePrices->first(
+            fn (ProductStatePrice $row): bool => $row->price !== null,
+        );
+
+        if ($fallback) {
+            return $this->pricedAmount(
+                $fallback->price,
+                $fallback->markup_percent ?? $this->markup_percent,
+            );
+        }
+
+        return null;
+    }
+
+    private function pricedAmount(mixed $base, mixed $markup): float
+    {
+        $amount = (float) $base;
+
+        if ($markup === null || $markup === '') {
+            return round($amount, 2);
+        }
+
+        return round($amount * (1 + ((float) $markup / 100)), 2);
     }
 }

@@ -26,6 +26,15 @@ class TaxState extends Model
         ],
     ];
 
+    /**
+     * @var array<string, string>
+     */
+    public const ABBREVIATIONS = [
+        'NJ' => 'New Jersey',
+        'NY' => 'New York',
+        'PA' => 'Pennsylvania',
+    ];
+
     protected $fillable = [
         'uuid',
         'name',
@@ -49,6 +58,46 @@ class TaxState extends Model
     public function statePrices(): HasMany
     {
         return $this->hasMany(ProductStatePrice::class);
+    }
+
+    public static function findForProjectState(?string $state): ?self
+    {
+        $state = trim((string) $state);
+
+        if ($state === '') {
+            return null;
+        }
+
+        $match = static::query()
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($state)])
+            ->first();
+
+        if ($match) {
+            return $match;
+        }
+
+        $mappedName = static::ABBREVIATIONS[strtoupper($state)] ?? null;
+
+        if ($mappedName) {
+            $match = static::query()
+                ->whereRaw('LOWER(name) = ?', [mb_strtolower($mappedName)])
+                ->first();
+
+            if ($match) {
+                return $match;
+            }
+        }
+
+        return static::query()
+            ->get()
+            ->first(function (self $taxState) use ($state): bool {
+                $abbreviation = collect(preg_split('/\s+/', $taxState->name) ?: [])
+                    ->filter()
+                    ->map(fn (string $part): string => mb_substr($part, 0, 1))
+                    ->implode('');
+
+                return strcasecmp($abbreviation, $state) === 0;
+            });
     }
 
     public static function firstOrCreateByName(string $name, mixed $rate = null): self

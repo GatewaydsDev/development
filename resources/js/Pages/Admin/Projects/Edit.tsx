@@ -11,6 +11,7 @@ type EditProps = {
 export default function Edit({ project, options }: EditProps) {
     return (
         <AuthenticatedLayout
+            stickyTitle={`Edit project — ${project.name}`}
             header={
                 <div>
                     <nav
@@ -43,7 +44,7 @@ export default function Edit({ project, options }: EditProps) {
                         method="patch"
                         submitLabel="Save changes"
                         title={project.name}
-                        description="Update the project name, address, contractors, scopes, status, and revisions."
+                        description="Update the project name, address, contractors, scopes, text, status, and revisions."
                         options={options}
                         project={project}
                     />

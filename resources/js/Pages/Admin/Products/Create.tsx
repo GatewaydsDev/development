@@ -40,7 +40,7 @@ export default function Create({ options }: CreateProps) {
                     <ProductForm
                         action={route('admin.products.store')}
                         title="Product information"
-                        description="Add a reusable door or part."
+                        description="Add a reusable door, window, or part."
                         options={options}
                     />
                 </div>

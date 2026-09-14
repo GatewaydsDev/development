@@ -22,6 +22,8 @@ import {
 } from 'lucide-react';
 import { FormEvent, useEffect, useState } from 'react';
 import {
+    isAssemblyProduct,
+    isWindowProduct,
     kindLabel,
     type ProductOptions,
     type ProductsPaginator,
@@ -41,7 +43,7 @@ const compactBadgeClassName =
     'h-4 max-w-full truncate rounded-full px-1.5 text-[10px] leading-none';
 
 const productRowGridClassName =
-    'md:grid-cols-[minmax(20rem,2.6fr)_minmax(6rem,0.6fr)_5.25rem_minmax(6.25rem,0.7fr)_minmax(6.25rem,0.7fr)_6.5rem_4.5rem_11rem]';
+    'xl:grid-cols-[minmax(14rem,2.2fr)_minmax(6rem,0.7fr)_5.25rem_minmax(6rem,0.8fr)_minmax(6rem,0.8fr)_6.5rem_4.5rem_11rem]';
 
 function CatalogBadges({
     items,
@@ -145,7 +147,8 @@ export default function Index({ filters, options, products }: IndexProps) {
                                     Total products
                                 </CardTitle>
                                 <CardDescription>
-                                    Reusable doors and parts.
+                                    Reusable doors, windows, parts, and
+                                    services.
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
@@ -161,7 +164,7 @@ export default function Index({ filters, options, products }: IndexProps) {
                             <div>
                                 <CardTitle>Product directory</CardTitle>
                                 <CardDescription>
-                                    Search doors and reusable door parts.
+                                    Search doors, windows, parts, and services.
                                 </CardDescription>
                             </div>
                             <div className="flex w-full flex-col gap-2 sm:w-auto">
@@ -185,7 +188,7 @@ export default function Index({ filters, options, products }: IndexProps) {
                                         onChange={(event) =>
                                             setType(event.target.value)
                                         }
-                                        className="h-11 rounded-md border border-border bg-background px-3 text-sm text-foreground"
+                                        className="h-11 min-w-[8.5rem] rounded-md border border-border bg-background px-4 text-sm text-foreground"
                                     >
                                         <option value="">All types</option>
                                         {(options.types ?? []).map((item) => (
@@ -197,7 +200,10 @@ export default function Index({ filters, options, products }: IndexProps) {
                                             </option>
                                         ))}
                                     </select>
-                                    <Button type="submit" variant="outline">
+                                    <Button
+                                        type="submit"
+                                        className="h-11 min-w-[8.5rem] bg-emerald-600 px-4 text-white hover:bg-emerald-700"
+                                    >
                                         Search
                                     </Button>
                                 </form>
@@ -242,8 +248,8 @@ export default function Index({ filters, options, products }: IndexProps) {
                         </CardHeader>
 
                         <CardContent>
-                            <div className="overflow-hidden rounded-lg border border-border">
-                                <div className={cn('hidden items-center gap-3 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid', productRowGridClassName)}>
+                            <div className="overflow-x-auto rounded-lg border border-border">
+                                <div className={cn('hidden items-center gap-3 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground xl:grid', productRowGridClassName)}>
                                     <div>Model</div>
                                     <div>Manufacturer</div>
                                     <div>Type</div>
@@ -260,7 +266,7 @@ export default function Index({ filters, options, products }: IndexProps) {
                                             id={`product-row-${product.id}`}
                                             key={product.id}
                                             className={cn(
-                                                'grid gap-3 border-b border-border px-4 py-4 last:border-b-0 md:min-h-20 md:items-center md:gap-3',
+                                                'grid gap-3 border-b border-border px-4 py-4 last:border-b-0 xl:min-h-20 xl:items-center xl:gap-3',
                                                 productRowGridClassName,
                                                 highlightedProductId ===
                                                     product.id &&
@@ -277,7 +283,8 @@ export default function Index({ filters, options, products }: IndexProps) {
                                                     </p>
                                                 ) : null}
                                                 {product.constructions
-                                                    ?.length ? (
+                                                    ?.length &&
+                                                !isWindowProduct(product) ? (
                                                     <div className="mt-1">
                                                         <CatalogBadges
                                                             items={
@@ -303,16 +310,30 @@ export default function Index({ filters, options, products }: IndexProps) {
                                                 </Badge>
                                             </div>
                                             <div className="min-w-0">
-                                                <CatalogBadges
-                                                    items={
-                                                        product.configurations
-                                                    }
-                                                />
+                                                {isWindowProduct(product) ? (
+                                                    <p className="truncate text-sm text-muted-foreground">
+                                                        {product.glass_type
+                                                            ?.name || '—'}
+                                                    </p>
+                                                ) : (
+                                                    <CatalogBadges
+                                                        items={
+                                                            product.configurations
+                                                        }
+                                                    />
+                                                )}
                                             </div>
                                             <div className="min-w-0">
-                                                <CatalogBadges
-                                                    items={product.handings}
-                                                />
+                                                {isWindowProduct(product) ? (
+                                                    <p className="truncate text-sm text-muted-foreground">
+                                                        {product.glazing_type
+                                                            ?.name || '—'}
+                                                    </p>
+                                                ) : (
+                                                    <CatalogBadges
+                                                        items={product.handings}
+                                                    />
+                                                )}
                                             </div>
                                             <div className="min-w-0 text-sm text-muted-foreground">
                                                 {(product.state_prices ?? [])
@@ -358,8 +379,7 @@ export default function Index({ filters, options, products }: IndexProps) {
                                                 )}
                                             </div>
                                             <div className="text-sm text-muted-foreground">
-                                                {product.type?.allows_parts ||
-                                                product.kind === 'door'
+                                                {isAssemblyProduct(product)
                                                     ? `${product.part_count ?? 0} parts`
                                                     : `${product.door_count ?? 0} doors`}
                                             </div>

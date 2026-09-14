@@ -9,6 +9,7 @@ use App\Support\CustomerAccess;
 use App\Support\EmployeeAccess;
 use App\Support\ProductAccess;
 use App\Support\ProjectAccess;
+use App\Support\ServiceAccess;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -64,6 +65,12 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'success' => $request->session()->get('success'),
                 'error' => $request->session()->get('error'),
+                'importedBidText' => $request->session()->get('imported_bid_text'),
+                'importedBidTextTemplateId' => $request->session()->get('imported_bid_text_template_id'),
+                'importedScopeText' => $request->session()->get('imported_scope_text'),
+                'importedScopeTextTemplateId' => $request->session()->get('imported_scope_text_template_id'),
+                'importedShippingText' => $request->session()->get('imported_shipping_text'),
+                'importedShippingTextTemplateId' => $request->session()->get('imported_shipping_text_template_id'),
             ],
             'companyPhoneNumber' => $company?->contact_phone_number,
             'session' => [
@@ -136,6 +143,18 @@ class HandleInertiaRequests extends Middleware
                         : false,
                     'deleteProducts' => $request->user()
                         ? ProductAccess::canDelete($request->user())
+                        : false,
+                    'viewServices' => $request->user()
+                        ? ServiceAccess::canView($request->user())
+                        : false,
+                    'createServices' => $request->user()
+                        ? ServiceAccess::canCreate($request->user())
+                        : false,
+                    'updateServices' => $request->user()
+                        ? ServiceAccess::canUpdate($request->user())
+                        : false,
+                    'deleteServices' => $request->user()
+                        ? ServiceAccess::canDelete($request->user())
                         : false,
                     'viewCustomers' => $request->user()
                         ? CustomerAccess::canView($request->user())

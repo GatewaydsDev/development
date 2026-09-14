@@ -418,7 +418,7 @@ export default function ContractorForm({
             <CardContent>
                 <form
                     onSubmit={submit}
-                    className="flex flex-col gap-6 pr-14 sm:pr-16"
+                    className="flex min-w-0 flex-col gap-6 pr-16 sm:pr-20"
                 >
                     <FormActionFab
                         cancelHref={route('admin.contractors.index')}

@@ -201,8 +201,8 @@ export default function Index({ filters, employees }: IndexProps) {
                         </CardHeader>
 
                         <CardContent>
-                            <div className="overflow-hidden rounded-lg border border-border">
-                                <div className="hidden grid-cols-[1.2fr_1fr_1fr_0.8fr_auto] gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid">
+                            <div className="overflow-x-auto rounded-lg border border-border">
+                                <div className="hidden grid-cols-[1.2fr_1fr_1fr_0.8fr_auto] gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:grid">
                                     <div>Employee</div>
                                     <div>Contact</div>
                                     <div>Department</div>
@@ -214,7 +214,7 @@ export default function Index({ filters, employees }: IndexProps) {
                                     employees.data.map((employee) => (
                                         <div
                                             key={employee.id}
-                                            className="grid gap-3 border-b border-border px-4 py-4 last:border-b-0 md:grid-cols-[1.2fr_1fr_1fr_0.8fr_auto] md:items-center md:gap-4"
+                                            className="grid gap-3 border-b border-border px-4 py-4 last:border-b-0 lg:grid-cols-[1.2fr_1fr_1fr_0.8fr_auto] lg:items-center lg:gap-4"
                                         >
                                             <div className="min-w-0">
                                                 <p className="font-medium text-foreground">
@@ -395,8 +395,8 @@ export default function Index({ filters, employees }: IndexProps) {
                     </AlertDialogHeader>
 
                     {selectedRatesEmployee?.pay_rates.length ? (
-                        <div className="overflow-hidden rounded-lg border border-border">
-                            <div className="hidden grid-cols-[1.2fr_1fr_0.8fr] gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid">
+                        <div className="overflow-x-auto rounded-lg border border-border">
+                            <div className="hidden grid-cols-[1.2fr_1fr_0.8fr] gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:grid">
                                 <div>Profession</div>
                                 <div>Rate type</div>
                                 <div>Amount</div>
@@ -404,7 +404,7 @@ export default function Index({ filters, employees }: IndexProps) {
                             {selectedRatesEmployee.pay_rates.map((rate) => (
                                 <div
                                     key={rate.id}
-                                    className="grid gap-2 border-b border-border px-4 py-4 last:border-b-0 md:grid-cols-[1.2fr_1fr_0.8fr] md:gap-4"
+                                    className="grid gap-2 border-b border-border px-4 py-4 last:border-b-0 lg:grid-cols-[1.2fr_1fr_0.8fr] lg:gap-4"
                                 >
                                     <div>
                                         <p className="font-medium text-foreground">

@@ -2,9 +2,10 @@ import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import ContractorSelect from '@/Components/ContractorSelect';
 import CreatableSelect from '@/Components/CreatableSelect';
-import CustomerSelect from '@/Components/CustomerSelect';
+import PhoneInput from '@/Components/PhoneInput';
 import FormActionFab from '@/Components/FormActionFab';
 import MaskedDecimalInput from '@/Components/MaskedDecimalInput';
+import RichTextEditor from '@/Components/RichTextEditor';
 import TextInput from '@/Components/TextInput';
 import { Button } from '@/Components/ui/button';
 import {
@@ -69,10 +70,17 @@ const optionalMoneySchema = z.string().refine((value) => {
     return amount !== null && amount >= 0;
 }, 'Budget amount must be zero or greater.');
 
+const optionalEmailSchema = z
+    .string()
+    .trim()
+    .max(255, 'Email must be 255 characters or less.')
+    .refine(
+        (value) => value === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
+        'Enter a valid email address.',
+    );
+
 function projectSchema(options: ProjectOptions, canEditCoreFields: boolean) {
-    const scopeTypes = options.scopeTypes?.length
-        ? options.scopeTypes
-        : options.serviceTypes;
+    const scopeTypeSlugs = (options.scopeTypes ?? []).map((type) => type.slug);
 
     return z
         .object({
@@ -81,6 +89,15 @@ function projectSchema(options: ProjectOptions, canEditCoreFields: boolean) {
                 : z.string(),
             project_number: z.string().trim().max(255),
             customer_id: z.string(),
+            customer_company_name: z
+                .string()
+                .trim()
+                .max(255, 'Company name must be 255 characters or less.'),
+            customer_email: optionalEmailSchema,
+            customer_phone_number: z
+                .string()
+                .trim()
+                .max(50, 'Phone number must be 50 characters or less.'),
             assigned_to: z.string(),
             status_id: z.string().trim().min(1, 'Select a status.'),
             priority: z
@@ -110,6 +127,19 @@ function projectSchema(options: ProjectOptions, canEditCoreFields: boolean) {
             contractors: z.array(
                 z.object({
                     contractor_id: z.string(),
+                    company_name: z
+                        .string()
+                        .trim()
+                        .max(255, 'Company name must be 255 characters or less.'),
+                    contact_name: z
+                        .string()
+                        .trim()
+                        .max(255, 'Contact name must be 255 characters or less.'),
+                    email: optionalEmailSchema,
+                    phone_number: z
+                        .string()
+                        .trim()
+                        .max(50, 'Phone number must be 50 characters or less.'),
                 }),
             ),
             scopes: z.array(
@@ -117,8 +147,7 @@ function projectSchema(options: ProjectOptions, canEditCoreFields: boolean) {
                     type: z.string(),
                     notes: z
                         .string()
-                        .trim()
-                        .max(1000, 'Scope notes must be 1,000 characters or less.'),
+                        .max(250000, 'Scope text must be 250,000 characters or less.'),
                 }),
             ),
             revisions: z.array(
@@ -182,7 +211,7 @@ function projectSchema(options: ProjectOptions, canEditCoreFields: boolean) {
                     return;
                 }
 
-                if (!scopeTypes.includes(type)) {
+                if (!scopeTypeSlugs.includes(type)) {
                     context.addIssue({
                         code: 'custom',
                         path: ['scopes', index, 'type'],
@@ -263,9 +292,7 @@ export default function ProjectForm({
     const canEditCoreFields =
         options.can.create || options.can.viewCustomerContactFields;
     const canViewSensitive = options.can.viewSensitiveFields;
-    const scopeTypes = options.scopeTypes?.length
-        ? options.scopeTypes
-        : options.serviceTypes;
+    const scopeTypes = options.scopeTypes ?? [];
     const validationSchema = useMemo(
         () => projectSchema(options, canEditCoreFields),
         [canEditCoreFields, options],
@@ -390,11 +417,21 @@ export default function ProjectForm({
         const payload = {
             ...values,
             customer_id: values.customer_id.trim(),
+            customer_company_name: values.customer_company_name.trim(),
+            customer_email: values.customer_email.trim(),
+            customer_phone_number: values.customer_phone_number.trim(),
             budget_amount: inputToDecimal(values.budget_amount) || null,
             contractors: (values.contractors ?? []).filter(
-                (contractor) => contractor.contractor_id.trim() !== '',
+                (contractor) =>
+                    contractor.contractor_id.trim() !== '' ||
+                    contractor.company_name.trim() !== '',
             ),
-            scopes: (values.scopes ?? []).filter((scope) => scope.type.trim() !== ''),
+            scopes: (values.scopes ?? [])
+                .filter((scope) => scope.type.trim() !== '')
+                .map((scope) => ({
+                    type: scope.type,
+                    notes: scope.notes,
+                })),
             revisions: (values.revisions ?? [])
                 .filter((revision) => revision.number.trim() !== '')
                 .map((revision) => ({
@@ -451,17 +488,16 @@ export default function ProjectForm({
             shouldValidate: true,
         });
     };
-    const setContractorData = (
+    const setContractorRow = (
         index: number,
-        contractorId: string,
+        fields: Partial<ProjectFormData['contractors'][number]>,
     ) => {
-        setData(
-            `contractors.${index}.contractor_id` as FieldPath<ProjectFormData>,
-            contractorId as PathValue<
-                ProjectFormData,
-                FieldPath<ProjectFormData>
-            >,
-        );
+        const contractors = [...data.contractors];
+        contractors[index] = {
+            ...contractors[index],
+            ...fields,
+        };
+        setData('contractors', contractors);
     };
     const setScopeData = (
         index: number,
@@ -491,7 +527,7 @@ export default function ProjectForm({
                 <CardDescription>{description}</CardDescription>
             </CardHeader>
             <CardContent>
-                <form onSubmit={submit} className="flex flex-col gap-6 pr-14 sm:pr-16">
+                <form onSubmit={submit} className="flex min-w-0 flex-col gap-6 pr-16 sm:pr-20">
                     <FormActionFab
                         cancelHref={route('admin.projects.index')}
                         saveLabel={submitLabel}
@@ -546,7 +582,8 @@ export default function ProjectForm({
                                         className={`${inputClassName} cursor-not-allowed bg-muted`}
                                     />
                                     <p className="text-sm text-muted-foreground">
-                                        Assigned automatically.
+                                        Assigned automatically as GDS, year, and
+                                        sequence — for example GDS-2026-0001.
                                     </p>
                                     <InputError
                                         message={errors.project_number}
@@ -778,6 +815,282 @@ export default function ProjectForm({
                         )}
 
                         {canEditCoreFields && (
+                            <section className="flex flex-col gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <div>
+                                        <h3 className="text-base font-semibold text-foreground">
+                                            General contractors/Customer
+                                        </h3>
+                                        <p className="text-sm text-muted-foreground">
+                                            Add each general contractor with a
+                                            company name, phone number, and
+                                            email address.
+                                        </p>
+                                    </div>
+                                    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                                        {Boolean(
+                                            auth.can?.viewContractors ||
+                                                auth.can?.createContractors,
+                                        ) && (
+                                            <Button
+                                                asChild
+                                                variant="outline"
+                                                className="w-full sm:w-auto"
+                                            >
+                                                <Link
+                                                    href={route(
+                                                        'admin.contractors.index',
+                                                    )}
+                                                >
+                                                    Manage contractors
+                                                </Link>
+                                            </Button>
+                                        )}
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() =>
+                                                appendContractor(
+                                                    blankContractor(),
+                                                )
+                                            }
+                                            className="w-full sm:w-auto"
+                                        >
+                                            <PlusIcon className="size-4" />
+                                            Add contractor
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                {contractorFields.length === 0 ? (
+                                    <div className="rounded-lg border border-dashed border-border bg-background/60 p-4 text-sm text-muted-foreground">
+                                        No contractors added yet.
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col gap-4">
+                                        {contractorFields.map((field, index) => {
+                                            const contractor =
+                                                data.contractors[index];
+                                            const selectedIds = data.contractors
+                                                .map((item, itemIndex) =>
+                                                    itemIndex === index
+                                                        ? ''
+                                                        : item.contractor_id,
+                                                )
+                                                .filter(Boolean);
+
+                                            return (
+                                                <div
+                                                    key={field.id}
+                                                    className="grid gap-4 overflow-visible rounded-lg border border-emerald-200 bg-background p-4 shadow-sm dark:border-emerald-900/70 lg:grid-cols-[minmax(0,1fr)_auto]"
+                                                >
+                                                    <div className="flex flex-col gap-4">
+                                                    <ContractorSelect
+                                                        id={`project-contractor-${index}`}
+                                                        value={
+                                                            contractor?.contractor_id ??
+                                                            ''
+                                                        }
+                                                        companyName={
+                                                            contractor?.company_name ??
+                                                            ''
+                                                        }
+                                                        contractors={
+                                                            options.contractors ??
+                                                            []
+                                                        }
+                                                        disabledIds={selectedIds}
+                                                        error={errorMessage(
+                                                            validationErrors,
+                                                            `contractors.${index}.contractor_id`,
+                                                        )}
+                                                        contactEmail={
+                                                            contractor?.email ??
+                                                            ''
+                                                        }
+                                                        contactPhone={
+                                                            contractor?.phone_number ??
+                                                            ''
+                                                        }
+                                                        onChange={(
+                                                            contractorId,
+                                                            contractorName,
+                                                            contact,
+                                                        ) =>
+                                                            setContractorRow(
+                                                                index,
+                                                                {
+                                                                    contractor_id:
+                                                                        contractorId,
+                                                                    company_name:
+                                                                        contractorName,
+                                                                    ...(contact
+                                                                        ? {
+                                                                              contact_name:
+                                                                                  contact.contact_name ??
+                                                                                  '',
+                                                                              email:
+                                                                                  contact.email ??
+                                                                                  '',
+                                                                              phone_number:
+                                                                                  contact.phone_number ??
+                                                                                  '',
+                                                                          }
+                                                                        : contractorId ===
+                                                                                '' &&
+                                                                            contractorName ===
+                                                                                ''
+                                                                          ? {
+                                                                                contact_name:
+                                                                                    '',
+                                                                                email: '',
+                                                                                phone_number:
+                                                                                    '',
+                                                                            }
+                                                                          : {}),
+                                                                },
+                                                            )
+                                                        }
+                                                    />
+                                                    <div className="grid gap-4 md:grid-cols-3">
+                                                        <div className="flex flex-col gap-2">
+                                                            <InputLabel
+                                                                htmlFor={`project-contractor-contact-${index}`}
+                                                                value="Contact name"
+                                                                className={
+                                                                    labelClassName
+                                                                }
+                                                            />
+                                                            <TextInput
+                                                                id={`project-contractor-contact-${index}`}
+                                                                value={
+                                                                    contractor?.contact_name ??
+                                                                    ''
+                                                                }
+                                                                className={
+                                                                    inputClassName
+                                                                }
+                                                                onChange={(
+                                                                    event,
+                                                                ) =>
+                                                                    setContractorRow(
+                                                                        index,
+                                                                        {
+                                                                            contact_name:
+                                                                                event
+                                                                                    .target
+                                                                                    .value,
+                                                                        },
+                                                                    )
+                                                                }
+                                                            />
+                                                            <InputError
+                                                                message={errorMessage(
+                                                                    validationErrors,
+                                                                    `contractors.${index}.contact_name`,
+                                                                )}
+                                                            />
+                                                        </div>
+                                                        <div className="flex flex-col gap-2">
+                                                            <InputLabel
+                                                                htmlFor={`project-contractor-phone-${index}`}
+                                                                value="Phone number"
+                                                                className={
+                                                                    labelClassName
+                                                                }
+                                                            />
+                                                            <PhoneInput
+                                                                id={`project-contractor-phone-${index}`}
+                                                                value={
+                                                                    contractor?.phone_number ??
+                                                                    ''
+                                                                }
+                                                                className={
+                                                                    inputClassName
+                                                                }
+                                                                onValueChange={(
+                                                                    phoneNumber,
+                                                                ) =>
+                                                                    setContractorRow(
+                                                                        index,
+                                                                        {
+                                                                            phone_number:
+                                                                                phoneNumber,
+                                                                        },
+                                                                    )
+                                                                }
+                                                            />
+                                                            <InputError
+                                                                message={errorMessage(
+                                                                    validationErrors,
+                                                                    `contractors.${index}.phone_number`,
+                                                                )}
+                                                            />
+                                                        </div>
+                                                        <div className="flex flex-col gap-2">
+                                                            <InputLabel
+                                                                htmlFor={`project-contractor-email-${index}`}
+                                                                value="Email address"
+                                                                className={
+                                                                    labelClassName
+                                                                }
+                                                            />
+                                                            <TextInput
+                                                                id={`project-contractor-email-${index}`}
+                                                                type="email"
+                                                                value={
+                                                                    contractor?.email ??
+                                                                    ''
+                                                                }
+                                                                className={
+                                                                    inputClassName
+                                                                }
+                                                                onChange={(
+                                                                    event,
+                                                                ) =>
+                                                                    setContractorRow(
+                                                                        index,
+                                                                        {
+                                                                            email: event
+                                                                                .target
+                                                                                .value,
+                                                                        },
+                                                                    )
+                                                                }
+                                                            />
+                                                            <InputError
+                                                                message={errorMessage(
+                                                                    validationErrors,
+                                                                    `contractors.${index}.email`,
+                                                                )}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    </div>
+                                                    <div className="flex items-start lg:pt-7">
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            onClick={() =>
+                                                                removeContractor(
+                                                                    index,
+                                                                )
+                                                            }
+                                                            aria-label={`Remove contractor ${index + 1}`}
+                                                        >
+                                                            <Trash2Icon className="size-4" />
+                                                            Remove
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </section>
+                        )}
+
+                        {canEditCoreFields && (
                             <div className="flex flex-col gap-4 rounded-lg border border-emerald-200 bg-background p-4 dark:border-emerald-900/70">
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                     <div>
@@ -785,8 +1098,8 @@ export default function ProjectForm({
                                             Scope of work
                                         </h3>
                                         <p className="text-sm text-muted-foreground">
-                                            Add one or more scope types for this
-                                            project.
+                                            Add a scope type and any necessary
+                                            text.
                                         </p>
                                     </div>
                                     <Button
@@ -808,6 +1121,12 @@ export default function ProjectForm({
                                     <div className="flex flex-col gap-4">
                                         {scopeFields.map((field, index) => {
                                             const scope = data.scopes[index];
+                                            const selectedScopeType =
+                                                scopeTypes.find(
+                                                    (type) =>
+                                                        type.slug ===
+                                                        scope?.type,
+                                                );
                                             const selectedTypes = data.scopes
                                                 .map((item, itemIndex) =>
                                                     itemIndex === index
@@ -819,79 +1138,101 @@ export default function ProjectForm({
                                             return (
                                                 <div
                                                     key={field.id}
-                                                    className="grid gap-4 rounded-lg border border-border bg-muted/10 p-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_auto]"
+                                                    className="grid gap-4 overflow-visible rounded-lg border border-border bg-muted/10 p-4 lg:grid-cols-[minmax(0,1fr)_auto]"
                                                 >
-                                                    <div className="flex flex-col gap-2">
-                                                        <InputLabel
-                                                            htmlFor={`project-scope-type-${index}`}
-                                                            value="Scope type"
-                                                            className={labelClassName}
-                                                        />
-                                                        <select
+                                                    <div className="flex min-w-0 flex-col gap-4">
+                                                        <CreatableSelect
                                                             id={`project-scope-type-${index}`}
-                                                            value={scope?.type ?? ''}
-                                                            onChange={(event) =>
-                                                                setScopeData(
-                                                                    index,
-                                                                    'type',
-                                                                    event.target.value,
-                                                                )
+                                                            label="Scope type"
+                                                            compact
+                                                            value={
+                                                                selectedScopeType
+                                                                    ? String(
+                                                                          selectedScopeType.id,
+                                                                      )
+                                                                    : ''
                                                             }
-                                                            className="h-11 rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
-                                                        >
-                                                            <option value="">
-                                                                Select a scope
-                                                            </option>
-                                                            {scopeTypes.map((type) => (
-                                                                <option
-                                                                    key={type}
-                                                                    value={type}
-                                                                    disabled={selectedTypes.includes(
-                                                                        type,
-                                                                    )}
-                                                                >
-                                                                    {optionLabel(type)}
-                                                                </option>
-                                                            ))}
-                                                        </select>
-                                                        <InputError
-                                                            message={errorMessage(
+                                                            options={scopeTypes}
+                                                            disabledIds={scopeTypes
+                                                                .filter((type) =>
+                                                                    selectedTypes.includes(
+                                                                        type.slug,
+                                                                    ),
+                                                                )
+                                                                .map((type) =>
+                                                                    String(
+                                                                        type.id,
+                                                                    ),
+                                                                )}
+                                                            createRoute={route(
+                                                                'admin.project-scope-types.store',
+                                                            )}
+                                                            catalogKey="scopeTypes"
+                                                            entityLabel="scope type"
+                                                            placeholder="Select a scope"
+                                                            error={errorMessage(
                                                                 validationErrors,
                                                                 `scopes.${index}.type`,
                                                             )}
-                                                        />
-                                                    </div>
-                                                    <div className="flex flex-col gap-2">
-                                                        <InputLabel
-                                                            htmlFor={`project-scope-notes-${index}`}
-                                                            value="Notes"
-                                                            className={labelClassName}
-                                                        />
-                                                        <TextInput
-                                                            id={`project-scope-notes-${index}`}
-                                                            value={scope?.notes ?? ''}
-                                                            className={inputClassName}
-                                                            onChange={(event) =>
+                                                            onChange={(
+                                                                _id,
+                                                                option,
+                                                            ) =>
                                                                 setScopeData(
                                                                     index,
-                                                                    'notes',
-                                                                    event.target.value,
+                                                                    'type',
+                                                                    option?.slug ??
+                                                                        '',
                                                                 )
                                                             }
                                                         />
-                                                        <InputError
-                                                            message={errorMessage(
-                                                                validationErrors,
-                                                                `scopes.${index}.notes`,
-                                                            )}
-                                                        />
+                                                        <div className="flex flex-col gap-2">
+                                                            <InputLabel
+                                                                htmlFor={`project-scope-notes-${index}`}
+                                                                value="Text"
+                                                                className={
+                                                                    labelClassName
+                                                                }
+                                                            />
+                                                            <RichTextEditor
+                                                                id={`project-scope-notes-${index}`}
+                                                                compact
+                                                                showPlaceholders={
+                                                                    false
+                                                                }
+                                                                value={
+                                                                    scope?.notes ??
+                                                                    ''
+                                                                }
+                                                                placeholder="Add any necessary details for this scope."
+                                                                error={errorMessage(
+                                                                    validationErrors,
+                                                                    `scopes.${index}.notes`,
+                                                                )}
+                                                                onChange={(html) =>
+                                                                    setScopeData(
+                                                                        index,
+                                                                        'notes',
+                                                                        html,
+                                                                    )
+                                                                }
+                                                            />
+                                                            <InputError
+                                                                message={errorMessage(
+                                                                    validationErrors,
+                                                                    `scopes.${index}.notes`,
+                                                                )}
+                                                            />
+                                                        </div>
                                                     </div>
                                                     <div className="flex items-start lg:pt-7">
                                                         <Button
                                                             type="button"
                                                             variant="outline"
                                                             onClick={() =>
-                                                                removeScope(index)
+                                                                removeScope(
+                                                                    index,
+                                                                )
                                                             }
                                                             aria-label={`Remove scope ${index + 1}`}
                                                         >
@@ -1149,134 +1490,6 @@ export default function ProjectForm({
                             </div>
                         )}
                     </section>
-
-                    {canEditCoreFields && (
-                        <>
-                            <section className="flex flex-col gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
-                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                    <div>
-                                        <h3 className="text-base font-semibold text-foreground">
-                                            General contractors
-                                        </h3>
-                                        <p className="text-sm text-muted-foreground">
-                                            Type a name to search saved
-                                            contractors, or create a new one if
-                                            it is not in the list.
-                                        </p>
-                                    </div>
-                                    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-                                        {Boolean(
-                                            auth.can?.viewContractors ||
-                                                auth.can?.createContractors,
-                                        ) && (
-                                            <Button
-                                                asChild
-                                                variant="outline"
-                                                className="w-full sm:w-auto"
-                                            >
-                                                <Link
-                                                    href={route(
-                                                        'admin.contractors.index',
-                                                    )}
-                                                >
-                                                    Manage contractors
-                                                </Link>
-                                            </Button>
-                                        )}
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            onClick={() =>
-                                                appendContractor(
-                                                    blankContractor(),
-                                                )
-                                            }
-                                            className="w-full sm:w-auto"
-                                        >
-                                            <PlusIcon className="size-4" />
-                                            Add contractor
-                                        </Button>
-                                    </div>
-                                </div>
-
-                                {contractorFields.length === 0 ? (
-                                    <div className="rounded-lg border border-dashed border-border bg-background/60 p-4 text-sm text-muted-foreground">
-                                        No contractors added yet.
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col gap-4">
-                                        {contractorFields.map((field, index) => {
-                                            const contractor =
-                                                data.contractors[index];
-                                            const selectedIds = data.contractors
-                                                .map((item, itemIndex) =>
-                                                    itemIndex === index
-                                                        ? ''
-                                                        : item.contractor_id,
-                                                )
-                                                .filter(Boolean);
-
-                                            return (
-                                                <div
-                                                    key={field.id}
-                                                    className="grid gap-4 overflow-visible rounded-lg border border-emerald-200 bg-background p-4 shadow-sm dark:border-emerald-900/70 lg:grid-cols-[minmax(0,1fr)_auto]"
-                                                >
-                                                    <ContractorSelect
-                                                        id={`project-contractor-${index}`}
-                                                        value={
-                                                            contractor?.contractor_id ??
-                                                            ''
-                                                        }
-                                                        contractors={
-                                                            options.contractors ??
-                                                            []
-                                                        }
-                                                        disabledIds={selectedIds}
-                                                        error={errorMessage(
-                                                            validationErrors,
-                                                            `contractors.${index}.contractor_id`,
-                                                        )}
-                                                        onChange={(
-                                                            contractorId,
-                                                        ) =>
-                                                            setContractorData(
-                                                                index,
-                                                                contractorId,
-                                                            )
-                                                        }
-                                                    />
-                                                    <div className="flex items-start lg:pt-7">
-                                                        <Button
-                                                            type="button"
-                                                            variant="outline"
-                                                            onClick={() =>
-                                                                removeContractor(
-                                                                    index,
-                                                                )
-                                                            }
-                                                            aria-label={`Remove contractor ${index + 1}`}
-                                                        >
-                                                            <Trash2Icon className="size-4" />
-                                                            Remove
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            </section>
-
-                            <CustomerSelect
-                                customers={options.customers}
-                                value={data.customer_id}
-                                onChange={(value) =>
-                                    setData('customer_id', value)
-                                }
-                                error={errors.customer_id}
-                            />
-                        </>
-                    )}
 
                     <section className="grid gap-5 border-t border-border pt-6 md:grid-cols-2">
                         <div className="flex flex-col gap-2">

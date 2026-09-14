@@ -243,7 +243,7 @@ export default function Index({ filters, stats, activities }: IndexProps) {
                         </CardHeader>
 
                         <CardContent>
-                            <div className="overflow-hidden rounded-lg border border-border">
+                            <div className="overflow-x-auto rounded-lg border border-border">
                                 <div className="hidden grid-cols-[1.1fr_1.3fr_1.2fr_1.3fr_1fr] gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:grid">
                                     <div>User</div>
                                     <div>Activity</div>

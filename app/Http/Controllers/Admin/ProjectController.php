@@ -3,23 +3,35 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Bid;
+use App\Models\Company;
 use App\Models\Contractor;
 use App\Models\Customer;
+use App\Models\Product;
 use App\Models\Project;
 use App\Models\ProjectRevision;
 use App\Models\ProjectScope;
+use App\Models\ProjectScopeType;
 use App\Models\ProjectStatus;
+use App\Models\Service;
 use App\Models\User;
 use App\Models\UserLevel;
+use App\Support\BidAccess;
+use App\Support\BidApplicationText;
 use App\Support\ProjectAccess;
+use App\Support\ProjectListDocument;
 use Closure;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\View\View;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class ProjectController extends Controller
 {
@@ -39,38 +51,7 @@ class ProjectController extends Controller
                 'highlight' => $highlight > 0 ? $highlight : null,
             ],
             'options' => $this->options($user),
-            'projects' => Project::query()
-                ->with([
-                    'customer.contacts' => fn ($query) => $query->orderByDesc('is_primary')->orderBy('name'),
-                    'assignee:id,name',
-                    'contractors.contacts',
-                    'scopes',
-                    'revisions',
-                    'status',
-                ])
-                ->when($search !== '', function ($query) use ($search): void {
-                    $query->where(function ($query) use ($search): void {
-                        $query
-                            ->where('name', 'like', "%{$search}%")
-                            ->orWhere('project_number', 'like', "%{$search}%")
-                            ->orWhereHas('customer', function ($query) use ($search): void {
-                                $query
-                                    ->where('name', 'like', "%{$search}%")
-                                    ->orWhere('company_name', 'like', "%{$search}%");
-                            })
-                            ->orWhereHas('contractors', function ($query) use ($search): void {
-                                $query
-                                    ->where('name', 'like', "%{$search}%")
-                                    ->orWhereHas('contacts', function ($query) use ($search): void {
-                                        $query
-                                            ->where('name', 'like', "%{$search}%")
-                                            ->orWhere('email', 'like', "%{$search}%")
-                                            ->orWhere('phone_number', 'like', "%{$search}%");
-                                    });
-                            });
-                    });
-                })
-                ->when($status > 0, fn ($query) => $query->where('project_status_id', $status))
+            'projects' => $this->projectListingQuery($request)
                 ->when($highlight > 0, function ($query) use ($highlight): void {
                     $query->orderByRaw('CASE WHEN id = ? THEN 0 ELSE 1 END', [$highlight]);
                 })
@@ -79,6 +60,27 @@ class ProjectController extends Controller
                 ->withQueryString()
                 ->through(fn (Project $project): array => $this->projectPayload($project, $user, summary: true)),
         ]);
+    }
+
+    public function print(Request $request): View
+    {
+        $this->authorizeProjectView($request);
+
+        return view('admin.projects.list', $this->listDocument($request)->viewData(mode: 'print'));
+    }
+
+    public function exportPdf(Request $request): HttpResponse
+    {
+        $this->authorizeProjectView($request);
+
+        return $this->listDocument($request)->pdfResponse();
+    }
+
+    public function exportWord(Request $request): BinaryFileResponse
+    {
+        $this->authorizeProjectView($request);
+
+        return $this->listDocument($request)->wordResponse();
     }
 
     public function create(Request $request): Response
@@ -145,7 +147,8 @@ class ProjectController extends Controller
             'assignee:id,name',
             'creator:id,name',
             'contractors.contacts',
-            'scopes',
+            'scopes.product',
+            'scopes.service',
             'revisions.user:id,name',
             'status',
         ]);
@@ -165,7 +168,8 @@ class ProjectController extends Controller
             'customer.contacts' => fn ($query) => $query->orderByDesc('is_primary')->orderBy('name'),
             'assignee:id,name',
             'contractors.contacts',
-            'scopes',
+            'scopes.product',
+            'scopes.service',
             'revisions.user:id,name',
             'status',
         ]);
@@ -231,9 +235,106 @@ class ProjectController extends Controller
         return back()->with('success', 'Status added successfully.');
     }
 
+    public function storeScopeType(Request $request): RedirectResponse
+    {
+        abort_unless(
+            ProjectAccess::canCreate($request->user())
+                || ProjectAccess::canUpdate($request->user())
+                || BidAccess::canCreate($request->user())
+                || BidAccess::canUpdate($request->user()),
+            403,
+        );
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+        ]);
+
+        $name = trim($validated['name']);
+        $existing = ProjectScopeType::query()
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
+            ->first();
+
+        if ($existing) {
+            return back()->with('success', 'Scope type already exists.');
+        }
+
+        ProjectScopeType::create(['name' => $name]);
+
+        return back()->with('success', 'Scope type added successfully.');
+    }
+
     private function authorizeProjectView(Request $request): void
     {
         abort_unless(ProjectAccess::canView($request->user()), 403);
+    }
+
+    private function projectListingQuery(Request $request): Builder
+    {
+        $search = (string) $request->query('search', '');
+        $status = (int) $request->query('status', 0);
+
+        return Project::query()
+            ->with([
+                'customer.contacts' => fn ($query) => $query->orderByDesc('is_primary')->orderBy('name'),
+                'assignee:id,name',
+                'contractors.contacts',
+                'scopes.product',
+                'scopes.service',
+                'revisions',
+                'status',
+                'bids' => fn ($query) => $query
+                    ->latest('id')
+                    ->with(['scopes.title']),
+            ])
+            ->select('projects.*')
+            ->withCount('bids')
+            ->addSelect([
+                'latest_bid_id' => Bid::query()
+                    ->select('id')
+                    ->whereColumn('project_id', 'projects.id')
+                    ->latest('id')
+                    ->limit(1),
+            ])
+            ->when($search !== '', function ($query) use ($search): void {
+                $query->where(function ($query) use ($search): void {
+                    $query
+                        ->where('name', 'like', "%{$search}%")
+                        ->orWhere('project_number', 'like', "%{$search}%")
+                        ->orWhereHas('customer', function ($query) use ($search): void {
+                            $query
+                                ->where('name', 'like', "%{$search}%")
+                                ->orWhere('company_name', 'like', "%{$search}%")
+                                ->orWhere('email', 'like', "%{$search}%")
+                                ->orWhere('phone_number', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('contractors', function ($query) use ($search): void {
+                            $query
+                                ->where('name', 'like', "%{$search}%")
+                                ->orWhereHas('contacts', function ($query) use ($search): void {
+                                    $query
+                                        ->where('name', 'like', "%{$search}%")
+                                        ->orWhere('email', 'like', "%{$search}%")
+                                        ->orWhere('phone_number', 'like', "%{$search}%");
+                                });
+                        });
+                });
+            })
+            ->when($status > 0, fn ($query) => $query->where('project_status_id', $status));
+    }
+
+    private function listDocument(Request $request): ProjectListDocument
+    {
+        $statusId = (int) $request->query('status', 0);
+        $status = $statusId > 0 ? ProjectStatus::query()->find($statusId) : null;
+
+        return new ProjectListDocument(
+            projects: $this->projectListingQuery($request)->latest()->get(),
+            company: Company::query()->where('is_active', true)->latest()->first(),
+            user: $request->user(),
+            search: (string) $request->query('search', ''),
+            statusId: $statusId > 0 ? $statusId : null,
+            statusName: $status?->name,
+        );
     }
 
     /**
@@ -262,6 +363,9 @@ class ProjectController extends Controller
                     'integer',
                     Rule::exists(Customer::class, 'id'),
                 ],
+                'customer_company_name' => ['nullable', 'string', 'max:255'],
+                'customer_email' => ['nullable', 'email', 'max:255'],
+                'customer_phone_number' => ['nullable', 'string', 'max:50'],
                 'assigned_to' => ['nullable', 'integer', Rule::exists(User::class, 'id')],
                 'site_address_line_1' => ['nullable', 'string', 'max:255'],
                 'site_address_line_2' => ['nullable', 'string', 'max:255'],
@@ -271,14 +375,33 @@ class ProjectController extends Controller
                 'site_country' => ['nullable', 'string', 'max:255'],
                 'contractors' => ['array'],
                 'contractors.*.contractor_id' => [
-                    'required',
+                    'nullable',
                     'integer',
                     'distinct',
                     Rule::exists(Contractor::class, 'id'),
                 ],
+                'contractors.*.company_name' => ['nullable', 'string', 'max:255'],
+                'contractors.*.contact_name' => ['nullable', 'string', 'max:255'],
+                'contractors.*.email' => ['nullable', 'email', 'max:255'],
+                'contractors.*.phone_number' => ['nullable', 'string', 'max:50'],
                 'scopes' => ['array'],
-                'scopes.*.type' => ['required', 'string', 'distinct', Rule::in(Project::SERVICE_TYPES)],
-                'scopes.*.notes' => ['nullable', 'string', 'max:1000'],
+                'scopes.*.type' => [
+                    'required',
+                    'string',
+                    'distinct',
+                    Rule::exists(ProjectScopeType::class, 'slug'),
+                ],
+                'scopes.*.product_id' => [
+                    'nullable',
+                    'integer',
+                    Rule::exists(Product::class, 'id'),
+                ],
+                'scopes.*.service_id' => [
+                    'nullable',
+                    'integer',
+                    Rule::exists(Service::class, 'id'),
+                ],
+                'scopes.*.notes' => ['nullable', 'string', 'max:250000'],
                 'revisions' => ['array'],
                 'revisions.*.id' => [
                     'nullable',
@@ -355,7 +478,7 @@ class ProjectController extends Controller
             $attributes = [
                 ...$attributes,
                 'name' => $validated['name'],
-                'customer_id' => $validated['customer_id'] ?? null,
+                'customer_id' => $this->resolveCustomerId($validated),
                 'assigned_to' => $validated['assigned_to'] ?? null,
                 'service_type' => $primaryScope['type'] ?? null,
                 'site_address_line_1' => $validated['site_address_line_1'] ?? null,
@@ -381,6 +504,54 @@ class ProjectController extends Controller
     /**
      * @param  array<string, mixed>  $validated
      */
+    private function resolveCustomerId(array $validated): ?int
+    {
+        $customerId = $validated['customer_id'] ?? null;
+        $companyName = trim((string) ($validated['customer_company_name'] ?? ''));
+        $email = trim((string) ($validated['customer_email'] ?? ''));
+        $phoneNumber = trim((string) ($validated['customer_phone_number'] ?? ''));
+
+        if ($companyName === '' && $email === '' && $phoneNumber === '') {
+            return $customerId ? (int) $customerId : null;
+        }
+
+        $displayName = $companyName !== ''
+            ? $companyName
+            : ($email !== '' ? $email : $phoneNumber);
+
+        $attributes = [
+            'name' => $displayName,
+            'company_name' => $companyName !== '' ? $companyName : null,
+            'email' => $email !== '' ? $email : null,
+            'phone_number' => $phoneNumber !== '' ? $phoneNumber : null,
+        ];
+
+        $customer = $customerId
+            ? Customer::query()->find($customerId)
+            : null;
+
+        if (! $customer && $companyName !== '') {
+            $customer = Customer::query()
+                ->where(function ($query) use ($companyName): void {
+                    $query
+                        ->whereRaw('LOWER(company_name) = ?', [mb_strtolower($companyName)])
+                        ->orWhereRaw('LOWER(name) = ?', [mb_strtolower($companyName)]);
+                })
+                ->first();
+        }
+
+        if ($customer) {
+            $customer->update($attributes);
+
+            return $customer->id;
+        }
+
+        return Customer::create($attributes)->id;
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
     private function syncProjectRelations(Request $request, Project $project, array $validated): void
     {
         if ($request->user()->hasUserLevel(UserLevel::PROJECT_MANAGER)) {
@@ -398,13 +569,113 @@ class ProjectController extends Controller
     private function syncContractors(Project $project, array $contractors): void
     {
         $contractorIds = collect($contractors)
-            ->map(fn (array $contractor): mixed => $contractor['contractor_id'] ?? null)
+            ->map(fn (array $contractor): ?int => $this->resolveContractor($contractor))
             ->filter()
             ->unique()
             ->values()
             ->all();
 
         $project->contractors()->sync($contractorIds);
+    }
+
+    /**
+     * @param  array<string, mixed>  $contractor
+     */
+    private function resolveContractor(array $contractor): ?int
+    {
+        $contractorId = $contractor['contractor_id'] ?? null;
+        $companyName = trim((string) ($contractor['company_name'] ?? ''));
+        $contactName = trim((string) ($contractor['contact_name'] ?? ''));
+        $email = trim((string) ($contractor['email'] ?? ''));
+        $phoneNumber = trim((string) ($contractor['phone_number'] ?? ''));
+        $hasContactFields = array_key_exists('contact_name', $contractor)
+            || array_key_exists('email', $contractor)
+            || array_key_exists('phone_number', $contractor);
+
+        if (! $contractorId && $companyName === '') {
+            return null;
+        }
+
+        $record = $contractorId
+            ? Contractor::query()->with('contacts')->find($contractorId)
+            : null;
+
+        if (! $record && $companyName !== '') {
+            $record = Contractor::query()
+                ->with('contacts')
+                ->whereRaw('LOWER(name) = ?', [mb_strtolower($companyName)])
+                ->first();
+        }
+
+        if (! $record && $companyName !== '') {
+            $record = Contractor::create([
+                'name' => $companyName,
+            ]);
+            $record->setRelation('contacts', collect());
+        }
+
+        if (! $record) {
+            return null;
+        }
+
+        if ($companyName !== '' && strcasecmp($record->name, $companyName) !== 0) {
+            $nameTaken = Contractor::query()
+                ->whereRaw('LOWER(name) = ?', [mb_strtolower($companyName)])
+                ->whereKeyNot($record->id)
+                ->exists();
+
+            if (! $nameTaken) {
+                $record->update(['name' => $companyName]);
+            }
+        }
+
+        if ($hasContactFields) {
+            $this->syncContractorPrimaryContact(
+                $record,
+                $contactName,
+                $email,
+                $phoneNumber,
+                $companyName,
+            );
+        }
+
+        return $record->id;
+    }
+
+    private function syncContractorPrimaryContact(
+        Contractor $contractor,
+        string $contactName,
+        string $email,
+        string $phoneNumber,
+        string $companyName,
+    ): void {
+        $contractor->loadMissing('contacts');
+
+        $contact = $contractor->contacts->firstWhere('is_primary', true)
+            ?? $contractor->contacts->first();
+
+        if ($contactName === '' && $email === '' && $phoneNumber === '' && ! $contact) {
+            return;
+        }
+
+        $attributes = [
+            'name' => $contactName !== ''
+                ? $contactName
+                : ($contact?->name ?: ($companyName !== '' ? $companyName : $contractor->name)),
+            'email' => $email !== '' ? $email : null,
+            'phone_number' => $phoneNumber !== '' ? $phoneNumber : null,
+        ];
+
+        if ($contact) {
+            $contact->update($attributes);
+
+            return;
+        }
+
+        $contractor->contacts()->create([
+            ...$attributes,
+            'is_primary' => true,
+        ]);
     }
 
     /**
@@ -418,7 +689,9 @@ class ProjectController extends Controller
             ->values()
             ->map(fn (array $scope): array => [
                 'scope_type' => $scope['type'],
-                'notes' => $scope['notes'] ?? null,
+                'product_id' => $scope['product_id'] ?? null,
+                'service_id' => $scope['service_id'] ?? null,
+                'notes' => BidApplicationText::sanitize($scope['notes'] ?? null),
             ]);
 
         $project->scopes()->delete();
@@ -504,14 +777,16 @@ class ProjectController extends Controller
                 'id' => $project->customer?->id,
                 'name' => $project->customer?->name,
                 'company_name' => $project->customer?->company_name,
+                'email' => $project->customer?->email,
+                'phone_number' => $project->customer?->phone_number,
             ],
             'contractors' => $project->contractors
                 ->map(fn (Contractor $contractor): array => [
                     'id' => $contractor->id,
                     'name' => $contractor->name,
                     'contact_name' => $contractor->contact_name,
-                    'email' => $summary ? null : $contractor->email,
-                    'phone_number' => $summary ? null : $contractor->phone_number,
+                    'email' => $contractor->email,
+                    'phone_number' => $contractor->phone_number,
                     'contacts' => $summary
                         ? []
                         : $contractor->contacts
@@ -533,6 +808,11 @@ class ProjectController extends Controller
                 ->map(fn (ProjectScope $scope): array => [
                     'id' => $scope->id,
                     'type' => $scope->scope_type,
+                    'product_id' => $scope->product_id,
+                    'product_name' => $scope->product?->name,
+                    'product_abbreviation' => $scope->product?->abbreviation,
+                    'service_id' => $scope->service_id,
+                    'service_name' => $scope->service?->name,
                     'notes' => $summary ? null : $scope->notes,
                 ])
                 ->values()
@@ -563,6 +843,13 @@ class ProjectController extends Controller
                 : null,
             'created_at' => $project->created_at?->toFormattedDateString(),
             'updated_at' => $project->updated_at?->toFormattedDateString(),
+            'bids_count' => (int) ($project->bids_count ?? $project->bids()->count()),
+            'latest_bid_id' => $project->latest_bid_id
+                ? (int) $project->latest_bid_id
+                : ($project->relationLoaded('bids')
+                    ? $project->bids->sortByDesc('id')->first()?->id
+                    : null),
+            'bid_scopes' => $this->bidScopePayload($project),
         ];
 
         if (! $summary) {
@@ -627,6 +914,33 @@ class ProjectController extends Controller
     }
 
     /**
+     * @return array<int, array{id: int, name: string}>
+     */
+    private function bidScopePayload(Project $project): array
+    {
+        $latestBid = $project->relationLoaded('bids')
+            ? $project->bids->sortByDesc('id')->first()
+            : $project->bids()->with('scopes.title')->latest('id')->first();
+
+        if (! $latestBid) {
+            return [];
+        }
+
+        $latestBid->loadMissing('scopes.title');
+
+        return $latestBid->scopes
+            ->map(fn ($scope): ?array => filled($scope->title?->name)
+                ? [
+                    'id' => $scope->id,
+                    'name' => (string) $scope->title->name,
+                ]
+                : null)
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function options(User $user, ?Project $project = null): array
@@ -643,7 +957,35 @@ class ProjectController extends Controller
                 ->all(),
             'priorities' => Project::PRIORITIES,
             'serviceTypes' => Project::SERVICE_TYPES,
-            'scopeTypes' => Project::SERVICE_TYPES,
+            'scopeTypes' => ProjectScopeType::query()
+                ->orderBy('name')
+                ->get(['id', 'name', 'slug'])
+                ->map(fn (ProjectScopeType $type): array => [
+                    'id' => $type->id,
+                    'name' => $type->name,
+                    'slug' => $type->slug,
+                ])
+                ->all(),
+            'products' => Product::query()
+                ->whereIn('kind', Product::KINDS)
+                ->orderBy('kind')
+                ->orderBy('name')
+                ->get(['id', 'name', 'abbreviation', 'kind'])
+                ->map(fn (Product $product): array => [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'abbreviation' => $product->abbreviation,
+                    'kind' => $product->kind,
+                ])
+                ->all(),
+            'services' => Service::query()
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->map(fn (Service $service): array => [
+                    'id' => $service->id,
+                    'name' => $service->name,
+                ])
+                ->all(),
             'contractors' => Contractor::query()
                 ->with([
                     'contacts' => fn ($query) => $query->orderByDesc('is_primary')->orderBy('name'),
@@ -674,7 +1016,7 @@ class ProjectController extends Controller
                 ->all(),
             'customers' => Customer::query()
                 ->with(['contacts' => fn ($query) => $query->orderByDesc('is_primary')->orderBy('name')])
-                ->orderBy('name')
+                ->orderByRaw('LOWER(COALESCE(NULLIF(company_name, ""), name))')
                 ->get()
                 ->map(fn (Customer $customer): array => [
                     'id' => $customer->id,

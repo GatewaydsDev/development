@@ -16,7 +16,13 @@ import {
     applyTaxTotal,
     formatCurrency,
 } from '@/lib/money';
-import { kindLabel, type ProductOptions, type ProductPayload } from './types';
+import {
+    isAssemblyProduct,
+    isWindowProduct,
+    kindLabel,
+    type ProductOptions,
+    type ProductPayload,
+} from './types';
 
 type ShowProps = {
     product: ProductPayload;
@@ -380,14 +386,101 @@ export default function Show({ product, options }: ShowProps) {
                         </CardContent>
                     </Card>
 
-                    {product.type?.allows_parts || product.kind === 'door' ? (
+                    {isWindowProduct(product) ? (
                         <Card>
                             <CardHeader>
-                                <CardTitle>Door information</CardTitle>
+                                <CardTitle>Window information</CardTitle>
+                                <CardDescription>
+                                    Ratings, glass details, specification file,
+                                    and parts for this window.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="flex flex-col gap-4">
+                                <dl className="grid gap-4 md:grid-cols-2">
+                                    <DetailItem
+                                        label="STC Rating"
+                                        value={product.stc_rating}
+                                    />
+                                    <DetailItem
+                                        label="Weight"
+                                        value={product.weight}
+                                    />
+                                    <DetailItem
+                                        label="Thickness"
+                                        value={product.thickness}
+                                    />
+                                    <DetailItem
+                                        label="Glass Type"
+                                        value={product.glass_type?.name}
+                                    />
+                                    <DetailItem
+                                        label="Area Tested"
+                                        value={product.area_tested}
+                                    />
+                                    <DetailItem
+                                        label="Seal"
+                                        value={product.seal?.name}
+                                    />
+                                    <DetailItem
+                                        label="Glazing Type"
+                                        value={product.glazing_type?.name}
+                                    />
+                                </dl>
+                                {product.spec_pdf_url ? (
+                                    <a
+                                        href={product.spec_pdf_url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="inline-flex items-center gap-2 text-sm font-medium text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-300"
+                                    >
+                                        <FileTextIcon className="size-4" />
+                                        {product.spec_pdf_name ||
+                                            'Specification PDF'}
+                                    </a>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">
+                                        No specification PDF uploaded.
+                                    </p>
+                                )}
+                                <div className="flex flex-col gap-2">
+                                    <p className="text-sm font-medium text-muted-foreground">
+                                        Parts
+                                    </p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {product.parts.length > 0 ? (
+                                            product.parts.map((part) => (
+                                                <Badge
+                                                    key={part.id}
+                                                    variant="outline"
+                                                >
+                                                    {part.name}
+                                                </Badge>
+                                            ))
+                                        ) : (
+                                            <p className="text-sm text-muted-foreground">
+                                                No parts attached yet.
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ) : isAssemblyProduct(product) ? (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>
+                                    {product.type?.name ||
+                                        kindLabel(product.kind)}{' '}
+                                    information
+                                </CardTitle>
                                 <CardDescription>
                                     Configuration, handing, construction,
-                                    ratings, and specification file for this
-                                    door.
+                                    ratings, and specification file for this{' '}
+                                    {(
+                                        product.type?.name ||
+                                        kindLabel(product.kind)
+                                    ).toLowerCase()}
+                                    .
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="flex flex-col gap-4">
@@ -491,7 +584,7 @@ export default function Show({ product, options }: ShowProps) {
                                     >
                                         <FileTextIcon className="size-4" />
                                         {product.spec_pdf_name ||
-                                            'Door information PDF'}
+                                            `${product.type?.name || kindLabel(product.kind)} information PDF`}
                                     </a>
                                 ) : (
                                     <p className="text-sm text-muted-foreground">
@@ -502,12 +595,18 @@ export default function Show({ product, options }: ShowProps) {
                         </Card>
                     ) : null}
 
-                    {product.type?.allows_parts || product.kind === 'door' ? (
+                    {isAssemblyProduct(product) &&
+                    !isWindowProduct(product) ? (
                         <Card>
                             <CardHeader>
                                 <CardTitle>Parts</CardTitle>
                                 <CardDescription>
-                                    Reusable parts attached to this door.
+                                    Reusable parts attached to this{' '}
+                                    {(
+                                        product.type?.name ||
+                                        kindLabel(product.kind)
+                                    ).toLowerCase()}
+                                    .
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="flex flex-wrap gap-2">
@@ -524,7 +623,7 @@ export default function Show({ product, options }: ShowProps) {
                                 )}
                             </CardContent>
                         </Card>
-                    ) : (
+                    ) : !isAssemblyProduct(product) ? (
                         <Card>
                             <CardHeader>
                                 <CardTitle>
@@ -561,7 +660,7 @@ export default function Show({ product, options }: ShowProps) {
                                 ) : null}
                             </CardContent>
                         </Card>
-                    )}
+                    ) : null}
 
                     <Card>
                         <CardHeader>
@@ -569,8 +668,7 @@ export default function Show({ product, options }: ShowProps) {
                         </CardHeader>
                         <CardContent>
                             <dl className="grid gap-4 md:grid-cols-2">
-                                {(product.type?.allows_parts ||
-                                    product.kind === 'door') && (
+                                {isAssemblyProduct(product) && (
                                     <DetailItem
                                         label="Description"
                                         value={product.description}

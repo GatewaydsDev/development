@@ -84,6 +84,23 @@
   }
   html {
     @apply font-sans;
+    overflow-x: clip;
+  }
+
+  img,
+  video,
+  canvas,
+  iframe {
+    max-width: 100%;
+    height: auto;
+  }
+
+  header [aria-label='Breadcrumb'] {
+    flex-wrap: wrap;
+  }
+
+  header h2 {
+    overflow-wrap: anywhere;
   }
 
   html.auth-static *,
@@ -487,5 +504,135 @@
     .floating-site-gear {
       display: none;
     }
+  }
+}
+
+@layer components {
+  .rich-text-content {
+    overflow-x: auto;
+    font-size: 0.9375rem;
+    line-height: 1.65;
+    color: var(--foreground);
+  }
+
+  .rich-text-content :where(p, ul, ol, blockquote, pre, h1, h2, h3, h4) {
+    margin-bottom: 0.75rem;
+  }
+
+  .rich-text-content :where(p:last-child, ul:last-child, ol:last-child, blockquote:last-child, pre:last-child, h1:last-child, h2:last-child, h3:last-child, h4:last-child) {
+    margin-bottom: 0;
+  }
+
+  .rich-text-content h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.3;
+  }
+
+  .rich-text-content h2 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    line-height: 1.35;
+  }
+
+  .rich-text-content h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  .rich-text-content h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.45;
+  }
+
+  .rich-text-content ul {
+    list-style: disc;
+    padding-left: 1.25rem;
+  }
+
+  .rich-text-content ol {
+    list-style: decimal;
+    padding-left: 1.25rem;
+  }
+
+  .rich-text-content blockquote {
+    border-left: 3px solid var(--border);
+    padding-left: 0.75rem;
+    color: var(--muted-foreground);
+  }
+
+  .rich-text-content a {
+    color: var(--foreground);
+    text-decoration: underline;
+  }
+
+  .rich-text-content hr {
+    margin: 1rem 0;
+    border: none;
+    border-top: 2px solid var(--border);
+    height: 0;
+    background: none;
+  }
+
+  .rich-text-content pre,
+  .rich-text-content code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.85em;
+  }
+
+  .rich-text-content pre {
+    overflow-x: auto;
+    border-radius: 0.5rem;
+    background: var(--muted);
+    padding: 0.75rem 1rem;
+  }
+
+  .rich-text-content mark {
+    border-radius: 0.125rem;
+    background: #fef08a;
+    color: inherit;
+  }
+
+  .rich-text-content table,
+  .rich-text-content .rich-text-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.75rem 0;
+    table-layout: auto;
+  }
+
+  .rich-text-content th,
+  .rich-text-content td {
+    position: relative;
+    min-width: 4rem;
+    border: 1px solid var(--border);
+    padding: 0.45rem 0.6rem;
+    vertical-align: top;
+  }
+
+  .rich-text-content th {
+    font-weight: 650;
+  }
+
+  .rich-text-content .selectedCell::after {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: color-mix(in srgb, var(--primary) 14%, transparent);
+    content: "";
+  }
+
+  .rich-text-content .ProseMirror-focused {
+    outline: none;
+  }
+
+  .rich-text-content p.is-editor-empty:first-child::before {
+    float: left;
+    height: 0;
+    color: var(--muted-foreground);
+    content: attr(data-placeholder);
+    pointer-events: none;
   }
 }

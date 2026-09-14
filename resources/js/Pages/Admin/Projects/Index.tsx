@@ -8,18 +8,20 @@ import {
     CardHeader,
     CardTitle,
 } from '@/Components/ui/card';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { cn } from '@/lib/utils';
+import { PageProps } from '@/types';
 import {
     BriefcaseIcon,
     EditIcon,
     EyeIcon,
+    FileTextIcon,
     PlusIcon,
+    PrinterIcon,
     SearchIcon,
 } from 'lucide-react';
 import { FormEvent, useEffect, useState } from 'react';
 import {
-    optionLabel,
     type ProjectOptions,
     type ProjectsPaginator,
 } from './types';
@@ -52,6 +54,8 @@ const statusBadgeClassName = (status?: string | null) => {
 };
 
 export default function Index({ filters, options, projects }: IndexProps) {
+    const { auth } = usePage<PageProps>().props;
+    const canViewBids = Boolean(auth.can?.viewBids);
     const [search, setSearch] = useState(filters.search ?? '');
     const [status, setStatus] = useState(filters.status ?? '');
     const highlightedProjectId = filters.highlight ?? null;
@@ -83,6 +87,11 @@ export default function Index({ filters, options, projects }: IndexProps) {
         label
             .replace('&laquo; Previous', 'Previous')
             .replace('Next &raquo;', 'Next');
+
+    const exportQuery = {
+        search: search || undefined,
+        status: status || undefined,
+    };
 
     return (
         <AuthenticatedLayout
@@ -141,47 +150,90 @@ export default function Index({ filters, options, projects }: IndexProps) {
                                     Search, review, and update project records.
                                 </CardDescription>
                             </div>
-                            <form
-                                onSubmit={submit}
-                                className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row"
-                            >
-                                <div className="relative">
-                                    <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                                    <input
-                                        value={search}
-                                        onChange={(event) =>
-                                            setSearch(event.target.value)
-                                        }
-                                        placeholder="Search projects"
-                                        className="h-10 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring sm:w-72"
-                                    />
-                                </div>
-                                <select
-                                    value={status}
-                                    onChange={(event) =>
-                                        setStatus(event.target.value)
-                                    }
-                                    className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-sm"
+                            <div className="flex w-full flex-col gap-2 sm:w-auto">
+                                <form
+                                    onSubmit={submit}
+                                    className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row"
                                 >
-                                    <option value="">All statuses</option>
-                                    {options.statuses.map((item) => (
-                                        <option key={item.id} value={item.id}>
-                                            {item.name}
-                                        </option>
-                                    ))}
-                                </select>
-                                <Button type="submit" variant="outline">
-                                    Search
-                                </Button>
-                            </form>
+                                    <div className="relative">
+                                        <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                                        <input
+                                            value={search}
+                                            onChange={(event) =>
+                                                setSearch(event.target.value)
+                                            }
+                                            placeholder="Search projects"
+                                            className="h-10 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring sm:w-72"
+                                        />
+                                    </div>
+                                    <select
+                                        value={status}
+                                        onChange={(event) =>
+                                            setStatus(event.target.value)
+                                        }
+                                        className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-sm"
+                                    >
+                                        <option value="">All statuses</option>
+                                        {options.statuses.map((item) => (
+                                            <option
+                                                key={item.id}
+                                                value={item.id}
+                                            >
+                                                {item.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <Button type="submit" variant="outline">
+                                        Search
+                                    </Button>
+                                </form>
+                                <div className="flex flex-wrap gap-2 sm:justify-end">
+                                    <Button variant="outline" asChild>
+                                        <a
+                                            href={route(
+                                                'admin.projects.print',
+                                                exportQuery,
+                                            )}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                        >
+                                            <PrinterIcon className="size-4" />
+                                            Print
+                                        </a>
+                                    </Button>
+                                    <Button variant="outline" asChild>
+                                        <a
+                                            href={route(
+                                                'admin.projects.export.pdf',
+                                                exportQuery,
+                                            )}
+                                        >
+                                            <FileTextIcon className="size-4" />
+                                            PDF
+                                        </a>
+                                    </Button>
+                                    <Button variant="outline" asChild>
+                                        <a
+                                            href={route(
+                                                'admin.projects.export.word',
+                                                exportQuery,
+                                            )}
+                                        >
+                                            <FileTextIcon className="size-4" />
+                                            Word 2026
+                                        </a>
+                                    </Button>
+                                </div>
+                            </div>
                         </CardHeader>
 
                         <CardContent>
-                            <div className="overflow-hidden rounded-lg border border-border">
-                                <div className="hidden grid-cols-[minmax(14rem,1.4fr)_minmax(12rem,1fr)_minmax(12rem,1.1fr)_8rem_9.5rem] items-center gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid">
+                            <div className="overflow-x-auto rounded-lg border border-border">
+                                <div className="hidden grid-cols-[minmax(12rem,1.1fr)_minmax(14rem,1.3fr)_8.5rem_minmax(10rem,1fr)_7.5rem_9.5rem] items-center gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground xl:grid">
                                     <div>Project</div>
-                                    <div>General contractor</div>
-                                    <div>Scope</div>
+                                    <div>General contractors/Customer</div>
+                                    <div>Bid/Estimate</div>
+                                    <div>Bid scope</div>
                                     <div>Status</div>
                                     <div className="text-right">Actions</div>
                                 </div>
@@ -192,7 +244,7 @@ export default function Index({ filters, options, projects }: IndexProps) {
                                             id={`project-row-${project.id}`}
                                             key={project.id}
                                             className={cn(
-                                                'grid gap-3 border-b border-border px-4 py-4 last:border-b-0 md:min-h-20 md:grid-cols-[minmax(14rem,1.4fr)_minmax(12rem,1fr)_minmax(12rem,1.1fr)_8rem_9.5rem] md:items-center md:gap-4',
+                                                'grid gap-3 border-b border-border px-4 py-4 last:border-b-0 xl:min-h-20 xl:grid-cols-[minmax(12rem,1.1fr)_minmax(14rem,1.3fr)_8.5rem_minmax(10rem,1fr)_7.5rem_9.5rem] xl:items-center xl:gap-4',
                                                 highlightedProjectId ===
                                                     project.id &&
                                                     'bg-emerald-50 dark:bg-emerald-950/30',
@@ -203,48 +255,112 @@ export default function Index({ filters, options, projects }: IndexProps) {
                                                     {project.name}
                                                 </p>
                                                 <p className="truncate text-sm text-muted-foreground">
-                                                    {project.customer?.name ||
-                                                        'No customer'}
+                                                    {project.project_number ||
+                                                        'No project number'}
                                                 </p>
                                             </div>
-                                            <div className="min-w-0 truncate text-sm text-muted-foreground">
-                                                {project.contractors?.length
-                                                    ? project.contractors
-                                                          .map(
-                                                              (contractor) =>
-                                                                  contractor.name,
-                                                          )
-                                                          .join(', ')
-                                                    : 'Not added yet'}
+                                            <div className="min-w-0 text-sm text-muted-foreground">
+                                                {project.contractors?.length ? (
+                                                    <div className="flex flex-col gap-2">
+                                                        {project.contractors.map(
+                                                            (contractor) => (
+                                                                <div
+                                                                    key={
+                                                                        contractor.id
+                                                                    }
+                                                                >
+                                                                    <p className="truncate font-medium text-foreground">
+                                                                        {contractor.name}
+                                                                    </p>
+                                                                    <p className="truncate">
+                                                                        {contractor.phone_number ||
+                                                                            'No phone'}
+                                                                    </p>
+                                                                    <p className="truncate">
+                                                                        {contractor.email ||
+                                                                            'No email'}
+                                                                    </p>
+                                                                </div>
+                                                            ),
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <p>No contractor</p>
+                                                )}
                                             </div>
-                                            <div className="flex flex-wrap gap-1">
-                                                {project.scopes?.length > 0 ? (
-                                                    project.scopes
-                                                        .slice(0, 2)
-                                                        .map((scope) => (
+                                            <div className="min-w-0">
+                                                {project.bids_count ? (
+                                                    canViewBids &&
+                                                    project.latest_bid_id ? (
+                                                        <Link
+                                                            href={route(
+                                                                'admin.bids.show',
+                                                                project.latest_bid_id,
+                                                            )}
+                                                            className="inline-flex"
+                                                        >
                                                             <Badge
-                                                                key={
-                                                                    scope.id ??
-                                                                    scope.type
-                                                                }
                                                                 variant="outline"
+                                                                className="border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/40 dark:text-emerald-300"
                                                             >
-                                                                {optionLabel(
-                                                                    scope.type,
-                                                                )}
+                                                                {project.bids_count ===
+                                                                1
+                                                                    ? 'Linked'
+                                                                    : `${project.bids_count} linked`}
                                                             </Badge>
-                                                        ))
+                                                        </Link>
+                                                    ) : (
+                                                        <Badge
+                                                            variant="outline"
+                                                            className="border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/40 dark:text-emerald-300"
+                                                        >
+                                                            {project.bids_count ===
+                                                            1
+                                                                ? 'Linked'
+                                                                : `${project.bids_count} linked`}
+                                                        </Badge>
+                                                    )
                                                 ) : (
                                                     <span className="text-sm text-muted-foreground">
-                                                        None
+                                                        Not linked
                                                     </span>
                                                 )}
-                                                {project.scopes?.length > 2 && (
-                                                    <Badge variant="outline">
-                                                        +
-                                                        {project.scopes.length -
-                                                            2}
-                                                    </Badge>
+                                            </div>
+                                            <div className="flex flex-wrap gap-1">
+                                                {project.bids_count &&
+                                                project.bid_scopes &&
+                                                project.bid_scopes.length >
+                                                    0 ? (
+                                                    <>
+                                                        {project.bid_scopes
+                                                            .slice(0, 2)
+                                                            .map((scope) => (
+                                                                <Badge
+                                                                    key={
+                                                                        scope.id
+                                                                    }
+                                                                    variant="outline"
+                                                                >
+                                                                    {scope.name}
+                                                                </Badge>
+                                                            ))}
+                                                        {project.bid_scopes
+                                                            .length > 2 && (
+                                                            <Badge variant="outline">
+                                                                +
+                                                                {project
+                                                                    .bid_scopes
+                                                                    .length -
+                                                                    2}
+                                                            </Badge>
+                                                        )}
+                                                    </>
+                                                ) : (
+                                                    <span className="text-sm text-muted-foreground">
+                                                        {project.bids_count
+                                                            ? 'No bid scope'
+                                                            : '—'}
+                                                    </span>
                                                 )}
                                             </div>
                                             <div className="flex items-center">

@@ -17,9 +17,14 @@ import {
     HistoryIcon,
     MapPinIcon,
     TrashIcon,
-    UserIcon,
 } from 'lucide-react';
-import { optionLabel, type ProjectOptions, type ProjectPayload } from './types';
+import { isEmptyHtml } from '@/Pages/Admin/Bids/bidText';
+import {
+    optionLabel,
+    scopeTypeLabel,
+    type ProjectOptions,
+    type ProjectPayload,
+} from './types';
 
 type ShowProps = {
     project: ProjectPayload;
@@ -56,6 +61,7 @@ export default function Show({ project, options }: ShowProps) {
 
     return (
         <AuthenticatedLayout
+            stickyTitle={`Project details — ${project.name}`}
             header={
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
@@ -228,225 +234,102 @@ export default function Show({ project, options }: ShowProps) {
                         </CardContent>
                     </Card>
 
-                    <div className="grid gap-6 lg:grid-cols-2">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <HammerIcon className="size-5 text-muted-foreground" />
-                                    General contractors
-                                </CardTitle>
-                                <CardDescription>
-                                    Contractor names are unique and reused
-                                    across projects.
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                {project.contractors?.length > 0 ? (
-                                    <div className="flex flex-col gap-3">
-                                        {project.contractors.map(
-                                            (contractor) => (
-                                                <div
-                                                    key={contractor.id}
-                                                    className="rounded-lg border border-border bg-muted/30 p-4"
-                                                >
-                                                    <p className="font-medium text-foreground">
-                                                        {contractor.name}
-                                                    </p>
-                                                    {contractor.contacts &&
-                                                    contractor.contacts.length >
-                                                        0 ? (
-                                                        <div className="mt-3 flex flex-col gap-3">
-                                                            {contractor.contacts.map(
-                                                                (contact) => (
-                                                                    <dl
-                                                                        key={
-                                                                            contact.id
-                                                                        }
-                                                                        className="grid gap-4 rounded-md border border-border bg-background/70 p-3 md:grid-cols-4"
-                                                                    >
-                                                                        <DetailItem
-                                                                            label="Contact"
-                                                                            value={
-                                                                                contact.name
-                                                                            }
-                                                                        />
-                                                                        <DetailItem
-                                                                            label="Email"
-                                                                            value={
-                                                                                contact.email
-                                                                            }
-                                                                        />
-                                                                        <DetailItem
-                                                                            label="Phone"
-                                                                            value={
-                                                                                contact.phone_number
-                                                                            }
-                                                                        />
-                                                                        <DetailItem
-                                                                            label="Phone type"
-                                                                            value={
-                                                                                contact.phone_type
-                                                                                    ? contact.phone_type
-                                                                                          .charAt(
-                                                                                              0,
-                                                                                          )
-                                                                                          .toUpperCase() +
-                                                                                      contact.phone_type.slice(
-                                                                                          1,
-                                                                                      )
-                                                                                    : null
-                                                                            }
-                                                                        />
-                                                                    </dl>
-                                                                ),
-                                                            )}
-                                                        </div>
-                                                    ) : (
-                                                        <dl className="mt-3 grid gap-4 md:grid-cols-3">
-                                                            <DetailItem
-                                                                label="Contact name"
-                                                                value={
-                                                                    contractor.contact_name
-                                                                }
-                                                            />
-                                                            <DetailItem
-                                                                label="Email"
-                                                                value={
-                                                                    contractor.email
-                                                                }
-                                                            />
-                                                            <DetailItem
-                                                                label="Phone"
-                                                                value={
-                                                                    contractor.phone_number
-                                                                }
-                                                            />
-                                                        </dl>
-                                                    )}
-                                                </div>
-                                            ),
-                                        )}
-                                    </div>
-                                ) : (
-                                    <p className="text-sm text-muted-foreground">
-                                        No contractors added yet.
-                                    </p>
-                                )}
-                            </CardContent>
-                        </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <MapPinIcon className="size-5 text-muted-foreground" />
+                                Address
+                            </CardTitle>
+                            <CardDescription>
+                                Where the project work will happen.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <dl className="grid gap-4 md:grid-cols-2">
+                                <DetailItem
+                                    label="Address line 1"
+                                    value={project.site_address_line_1}
+                                />
+                                <DetailItem
+                                    label="Address line 2"
+                                    value={project.site_address_line_2}
+                                />
+                                <DetailItem
+                                    label="City"
+                                    value={project.site_city}
+                                />
+                                <DetailItem
+                                    label="State"
+                                    value={project.site_state}
+                                />
+                            </dl>
+                        </CardContent>
+                    </Card>
 
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <MapPinIcon className="size-5 text-muted-foreground" />
-                                    Address
-                                </CardTitle>
-                                <CardDescription>
-                                    Where the project work will happen.
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <dl className="grid gap-4 md:grid-cols-2">
-                                    <DetailItem
-                                        label="Address line 1"
-                                        value={project.site_address_line_1}
-                                    />
-                                    <DetailItem
-                                        label="Address line 2"
-                                        value={project.site_address_line_2}
-                                    />
-                                    <DetailItem
-                                        label="City"
-                                        value={project.site_city}
-                                    />
-                                    <DetailItem
-                                        label="State"
-                                        value={project.site_state}
-                                    />
-                                </dl>
-                            </CardContent>
-                        </Card>
-                    </div>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <HammerIcon className="size-5 text-muted-foreground" />
+                                General contractors/Customer
+                            </CardTitle>
+                            <CardDescription>
+                                Each contractor has a company name, phone
+                                number, and email address.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex flex-col gap-6">
+                            {project.contractors?.length > 0 ? (
+                                <div className="flex flex-col gap-3">
+                                    {project.contractors.map(
+                                        (contractor) => (
+                                            <div
+                                                key={contractor.id}
+                                                className="rounded-lg border border-border bg-muted/30 p-4"
+                                            >
+                                                <dl className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                                                    <DetailItem
+                                                        label="Company name"
+                                                        value={contractor.name}
+                                                    />
+                                                    <DetailItem
+                                                        label="Contact name"
+                                                        value={
+                                                            contractor.contact_name
+                                                        }
+                                                    />
+                                                    <DetailItem
+                                                        label="Phone number"
+                                                        value={
+                                                            contractor.phone_number
+                                                        }
+                                                    />
+                                                    <DetailItem
+                                                        label="Email address"
+                                                        value={
+                                                            contractor.email
+                                                        }
+                                                    />
+                                                </dl>
+                                            </div>
+                                        ),
+                                    )}
+                                </div>
+                            ) : (
+                                <p className="text-sm text-muted-foreground">
+                                    No contractors added yet.
+                                </p>
+                            )}
+                        </CardContent>
+                    </Card>
 
-                    <div className="grid gap-6 lg:grid-cols-2">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <UserIcon className="size-5 text-muted-foreground" />
-                                    Customer
-                                </CardTitle>
-                                <CardDescription>
-                                    Customer linked to this project.
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <dl className="grid gap-4 md:grid-cols-2">
-                                    <DetailItem
-                                        label="Name"
-                                        value={project.customer?.name}
-                                    />
-                                    <DetailItem
-                                        label="Company"
-                                        value={project.customer?.company_name}
-                                    />
-                                </dl>
-                                {options.can.viewCustomerContactFields && (
-                                    <div className="mt-5 flex flex-col gap-3 border-t border-border pt-5">
-                                        <h3 className="text-sm font-medium text-muted-foreground">
-                                            Contacts
-                                        </h3>
-                                        {project.customer?.contacts &&
-                                        project.customer.contacts.length > 0 ? (
-                                            project.customer.contacts.map(
-                                                (contact) => (
-                                                    <div
-                                                        key={contact.id}
-                                                        className="rounded-lg border border-border bg-muted/30 p-4"
-                                                    >
-                                                        <div className="flex flex-wrap items-center gap-2">
-                                                            <p className="font-medium text-foreground">
-                                                                {contact.name}
-                                                            </p>
-                                                            {contact.is_primary && (
-                                                                <Badge variant="outline">
-                                                                    Primary
-                                                                </Badge>
-                                                            )}
-                                                        </div>
-                                                        {contact.title && (
-                                                            <p className="mt-1 text-sm text-muted-foreground">
-                                                                {contact.title}
-                                                            </p>
-                                                        )}
-                                                        <p className="mt-2 text-sm text-muted-foreground">
-                                                            {contact.email ||
-                                                                'No email'}
-                                                        </p>
-                                                        <p className="text-sm text-muted-foreground">
-                                                            {contact.phone_number ||
-                                                                'No phone'}
-                                                        </p>
-                                                    </div>
-                                                ),
-                                            )
-                                        ) : (
-                                            <p className="text-sm text-muted-foreground">
-                                                No contacts added yet.
-                                            </p>
-                                        )}
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-
-                        <Card>
+                    <Card>
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
                                     <BriefcaseIcon className="size-5 text-muted-foreground" />
                                     Scope of work
                                 </CardTitle>
                                 <CardDescription>
-                                    One or more scope types assigned to this
+                                    Scope type and any necessary text for this
                                     project.
                                 </CardDescription>
                             </CardHeader>
@@ -459,12 +342,23 @@ export default function Show({ project, options }: ShowProps) {
                                                 className="rounded-lg border border-border bg-muted/30 p-4"
                                             >
                                                 <p className="font-medium text-foreground">
-                                                    {optionLabel(scope.type)}
+                                                    {scopeTypeLabel(
+                                                        scope.type,
+                                                        options.scopeTypes,
+                                                    )}
                                                 </p>
-                                                <p className="mt-1 text-sm text-muted-foreground">
-                                                    {scope.notes ||
-                                                        'No notes added.'}
-                                                </p>
+                                                {isEmptyHtml(scope.notes) ? (
+                                                    <p className="mt-1 text-sm text-muted-foreground">
+                                                        No text added.
+                                                    </p>
+                                                ) : (
+                                                    <div
+                                                        className="rich-text-content mt-2 text-sm text-foreground"
+                                                        dangerouslySetInnerHTML={{
+                                                            __html: scope.notes ?? '',
+                                                        }}
+                                                    />
+                                                )}
                                             </div>
                                         ))}
                                     </div>
@@ -475,7 +369,6 @@ export default function Show({ project, options }: ShowProps) {
                                 )}
                             </CardContent>
                         </Card>
-                    </div>
 
                     <Card>
                         <CardHeader>

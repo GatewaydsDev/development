@@ -75,21 +75,45 @@ class Project extends Model
             }
 
             $project->forceFill([
-                'project_number' => static::numberForId((int) $project->id),
+                'project_number' => static::nextNumber(),
             ])->saveQuietly();
         });
     }
 
-    public static function numberForId(int $id): string
+    public static function numberPrefix(?int $year = null): string
     {
-        return 'P-'.str_pad((string) $id, 4, '0', STR_PAD_LEFT);
+        return 'GDS-'.($year ?? (int) now()->year).'-';
     }
 
-    public static function nextNumber(): string
+    public static function nextNumber(?int $year = null): string
     {
-        $nextId = (int) static::query()->max('id') + 1;
+        $year ??= (int) now()->year;
+        $prefix = static::numberPrefix($year);
+        $latest = static::query()
+            ->where('project_number', 'like', $prefix.'%')
+            ->pluck('project_number')
+            ->map(function (mixed $number) use ($prefix): int {
+                $suffix = substr((string) $number, strlen($prefix));
 
-        return static::numberForId(max($nextId, 1));
+                return ctype_digit($suffix) ? (int) $suffix : 0;
+            })
+            ->max();
+
+        return $prefix.str_pad((string) (($latest ?: 0) + 1), 4, '0', STR_PAD_LEFT);
+    }
+
+    public static function serviceTypeLabel(string $type): string
+    {
+        $name = ProjectScopeType::query()->where('slug', $type)->value('name');
+
+        if (filled($name)) {
+            return (string) $name;
+        }
+
+        return collect(explode('_', $type))
+            ->filter()
+            ->map(fn (string $part): string => ucfirst($part))
+            ->implode(' ');
     }
 
     public function status(): BelongsTo

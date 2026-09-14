@@ -32,13 +32,34 @@ export type ContractorOption = {
     phone_number?: string | null;
 };
 
+type ContractorContactFields = {
+    contact_name?: string | null;
+    email?: string | null;
+    phone_number?: string | null;
+};
+
+function contractorContact(contractor: ContractorOption): ContractorContactFields {
+    return {
+        contact_name: contractor.contact_name ?? '',
+        email: contractor.email ?? '',
+        phone_number: contractor.phone_number ?? '',
+    };
+}
+
 type ContractorSelectProps = {
     id: string;
     value: string;
+    companyName?: string;
     contractors: ContractorOption[];
     disabledIds?: string[];
-    onChange: (contractorId: string, contractorName: string) => void;
+    onChange: (
+        contractorId: string,
+        contractorName: string,
+        contact?: ContractorContactFields,
+    ) => void;
     error?: string;
+    contactEmail?: string;
+    contactPhone?: string;
 };
 
 const newContractorSchema = z
@@ -50,10 +71,13 @@ const newContractorSchema = z
 export default function ContractorSelect({
     id,
     value,
+    companyName = '',
     contractors,
     disabledIds = [],
     onChange,
     error,
+    contactEmail = '',
+    contactPhone = '',
 }: ContractorSelectProps) {
     const listboxId = useId();
     const containerRef = useRef<HTMLDivElement>(null);
@@ -62,15 +86,19 @@ export default function ContractorSelect({
     const selectedContractor = contractors.find(
         (contractor) => String(contractor.id) === value,
     );
-    const [query, setQuery] = useState(selectedContractor?.name ?? '');
+    const [query, setQuery] = useState(
+        selectedContractor?.name ?? companyName,
+    );
     const [isOpen, setIsOpen] = useState(false);
     const [highlightedIndex, setHighlightedIndex] = useState(0);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [pendingCreateName, setPendingCreateName] = useState('');
+    const [pendingCreateEmail, setPendingCreateEmail] = useState('');
+    const [pendingCreatePhone, setPendingCreatePhone] = useState('');
 
     const normalizedQuery = query.trim();
-    const selectedName = selectedContractor?.name ?? '';
+    const selectedName = selectedContractor?.name ?? companyName;
     const queryValidation = newContractorSchema.safeParse(query);
     const exactMatch = contractors.find(
         (contractor) =>
@@ -108,8 +136,8 @@ export default function ContractorSelect({
         filteredContractors.length + (canCreate ? 1 : 0);
 
     useEffect(() => {
-        setQuery(selectedContractor?.name ?? '');
-    }, [selectedContractor?.name, value]);
+        setQuery(selectedContractor?.name ?? companyName);
+    }, [selectedContractor?.name, companyName, value]);
 
     useEffect(() => {
         setHighlightedIndex(0);
@@ -123,7 +151,11 @@ export default function ContractorSelect({
             return;
         }
 
-        onChange(String(contractor.id), contractor.name);
+        onChange(
+            String(contractor.id),
+            contractor.name,
+            contractorContact(contractor),
+        );
         setQuery(contractor.name);
         setIsOpen(false);
     };
@@ -146,13 +178,15 @@ export default function ContractorSelect({
         }
 
         setPendingCreateName(parsed.data);
+        setPendingCreateEmail(contactEmail);
+        setPendingCreatePhone(contactPhone);
         setIsDialogOpen(true);
         setIsOpen(false);
     };
 
     const commitQuery = (allowCreate = false) => {
         if (normalizedQuery === '') {
-            if (value !== '') {
+            if (value !== '' || companyName !== '') {
                 onChange('', '');
             }
 
@@ -229,7 +263,11 @@ export default function ContractorSelect({
         setIsSaving(true);
         router.post(
             route('admin.contractors.store'),
-            { name: contractorName },
+            {
+                name: contractorName,
+                email: pendingCreateEmail.trim(),
+                phone_number: pendingCreatePhone.trim(),
+            },
             {
                 preserveScroll: true,
                 onSuccess: () => {
@@ -251,6 +289,17 @@ export default function ContractorSelect({
                                 onChange(
                                     String(createdContractor.id),
                                     createdContractor.name,
+                                    {
+                                        contact_name:
+                                            createdContractor.contact_name ??
+                                            '',
+                                        email:
+                                            createdContractor.email ??
+                                            pendingCreateEmail,
+                                        phone_number:
+                                            createdContractor.phone_number ??
+                                            pendingCreatePhone,
+                                    },
                                 );
                                 setQuery(createdContractor.name);
                             }
@@ -293,7 +342,7 @@ export default function ContractorSelect({
         <div ref={containerRef} className="flex flex-col gap-2">
             <InputLabel
                 htmlFor={id}
-                value="Contractor name"
+                value="Company name"
                 className="text-emerald-700 dark:text-emerald-300"
             />
             <div className="relative">
@@ -320,12 +369,33 @@ export default function ContractorSelect({
                         });
                     }}
                     onChange={(event) => {
-                        setQuery(event.target.value);
+                        const nextValue = event.target.value;
+                        setQuery(nextValue);
                         setIsOpen(true);
 
-                        if (event.target.value.trim() === '') {
+                        if (nextValue.trim() === '') {
                             onChange('', '');
+                            return;
                         }
+
+                        const match = contractors.find(
+                            (contractor) =>
+                                contractor.name.toLowerCase() ===
+                                    nextValue.trim().toLowerCase() &&
+                                (!disabledIds.includes(String(contractor.id)) ||
+                                    String(contractor.id) === value),
+                        );
+
+                        if (match) {
+                            onChange(
+                                String(match.id),
+                                match.name,
+                                contractorContact(match),
+                            );
+                            return;
+                        }
+
+                        onChange('', nextValue);
                     }}
                     onKeyDown={(event) => {
                         if (event.key === 'ArrowDown') {
@@ -496,6 +566,8 @@ export default function ContractorSelect({
 
                     if (!open && !isSaving) {
                         setPendingCreateName('');
+                        setPendingCreateEmail('');
+                        setPendingCreatePhone('');
                         setQuery(selectedName);
                     }
                 }}

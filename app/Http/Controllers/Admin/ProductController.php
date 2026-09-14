@@ -14,15 +14,20 @@ use App\Models\ProductStatePrice;
 use App\Models\ProductType;
 use App\Models\TaxState;
 use App\Models\User;
+use App\Models\WindowGlassType;
+use App\Models\WindowGlazingType;
+use App\Models\WindowSeal;
 use App\Support\ProductAccess;
 use App\Support\ProductCatalogDocument;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -197,8 +202,17 @@ class ProductController extends Controller
         ]);
 
         $name = trim($validated['name']);
+        $canonical = collect(ProductType::canonicalNames())
+            ->first(fn (string $canonicalName): bool => strcasecmp($canonicalName, $name) === 0);
+
+        if ($canonical === null) {
+            throw ValidationException::withMessages([
+                'name' => 'Product type must be Door, Window, or Part.',
+            ]);
+        }
+
         $existing = ProductType::query()
-            ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($canonical)])
             ->first();
 
         if ($existing) {
@@ -206,8 +220,9 @@ class ProductController extends Controller
         }
 
         ProductType::create([
-            'name' => $name,
-            'allows_parts' => ProductType::allowsPartsFromName($name),
+            'name' => $canonical,
+            'allows_parts' => ProductType::allowsPartsFromName($canonical),
+            'sort_order' => ProductType::sortOrderForName($canonical),
         ]);
 
         return back()->with('success', 'Type added successfully.');
@@ -288,6 +303,21 @@ class ProductController extends Controller
         return back()->with('success', 'Handing added successfully.');
     }
 
+    public function storeGlassType(Request $request): RedirectResponse
+    {
+        return $this->storeReusableCatalog($request, WindowGlassType::class, 'Glass type');
+    }
+
+    public function storeGlazingType(Request $request): RedirectResponse
+    {
+        return $this->storeReusableCatalog($request, WindowGlazingType::class, 'Glazing type');
+    }
+
+    public function storeSeal(Request $request): RedirectResponse
+    {
+        return $this->storeReusableCatalog($request, WindowSeal::class, 'Seal');
+    }
+
     public function storeTaxState(Request $request): RedirectResponse
     {
         abort_unless(
@@ -325,7 +355,7 @@ class ProductController extends Controller
     {
         abort_unless(ProductAccess::canView($request->user()), 403);
 
-        $product->load(['manufacturer', 'productModel', 'productType', 'parts', 'doors', 'constructions', 'configurations', 'handings', 'taxState', 'statePrices.taxState']);
+        $product->load(['manufacturer', 'productModel', 'productType', 'parts', 'doors', 'constructions', 'configurations', 'handings', 'glassType', 'glazingType', 'seal', 'taxState', 'statePrices.taxState']);
 
         return Inertia::render('Admin/Products/Show', [
             'product' => $this->productPayload($product),
@@ -337,7 +367,7 @@ class ProductController extends Controller
     {
         abort_unless(ProductAccess::canUpdate($request->user()), 403);
 
-        $product->load(['manufacturer', 'productModel', 'productType', 'parts', 'doors', 'constructions', 'configurations', 'handings', 'taxState', 'statePrices.taxState']);
+        $product->load(['manufacturer', 'productModel', 'productType', 'parts', 'doors', 'constructions', 'configurations', 'handings', 'glassType', 'glazingType', 'seal', 'taxState', 'statePrices.taxState']);
 
         return Inertia::render('Admin/Products/Edit', [
             'product' => $this->productPayload($product),
@@ -377,6 +407,8 @@ class ProductController extends Controller
      */
     private function validatedProduct(Request $request, ?Product $product = null): array
     {
+        $isWindowRequest = ProductType::query()->find((int) $request->input('product_type_id'))?->kind() === Product::KIND_WINDOW;
+
         $rules = [
             'manufacturer_id' => [
                 'required',
@@ -430,10 +462,34 @@ class ProductController extends Controller
             'description' => ['nullable', 'string', 'max:5000'],
             'notes' => ['nullable', 'string', 'max:5000'],
             'rf_shielding' => ['nullable', 'string', 'max:255'],
-            'stc_rating' => ['nullable', 'string', 'max:255'],
+            'stc_rating' => [
+                'nullable',
+                Rule::when(
+                    $isWindowRequest && $request->filled('stc_rating'),
+                    ['integer', 'min:0', 'max:999'],
+                ),
+                Rule::when(! $isWindowRequest, ['string', 'max:255']),
+            ],
             'ada' => ['nullable', 'boolean'],
             'fire_label' => ['nullable', 'string', 'max:255'],
             'thickness' => ['nullable', 'string', 'max:255'],
+            'area_tested' => ['nullable', 'string', 'max:255'],
+            'weight' => ['nullable', 'numeric', 'min:0', 'max:99999.99'],
+            'window_glass_type_id' => [
+                'nullable',
+                'integer',
+                Rule::exists(WindowGlassType::class, 'id'),
+            ],
+            'window_glazing_type_id' => [
+                'nullable',
+                'integer',
+                Rule::exists(WindowGlazingType::class, 'id'),
+            ],
+            'window_seal_id' => [
+                'nullable',
+                'integer',
+                Rule::exists(WindowSeal::class, 'id'),
+            ],
             'spec_pdf' => ['nullable', 'file', 'mimes:pdf', 'max:10240'],
             'remove_spec_pdf' => ['boolean'],
             'price' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99'],
@@ -517,7 +573,10 @@ class ProductController extends Controller
     private function productAttributes(Request $request, array $validated, ?Product $product = null): array
     {
         $type = ProductType::query()->find($validated['product_type_id']);
-        $isDoor = (bool) $type?->allows_parts;
+        $kind = $type?->kind() ?? Product::KIND_PART;
+        $isDoor = $kind === Product::KIND_DOOR;
+        $isWindow = $kind === Product::KIND_WINDOW;
+        $isAssembly = $isDoor || $isWindow;
 
         $productModel = isset($validated['product_model_id'])
             ? ProductModel::query()->find($validated['product_model_id'])
@@ -531,23 +590,30 @@ class ProductController extends Controller
             'abbreviation' => $this->nullableString($validated['abbreviation'] ?? null),
             'description' => $validated['description'] ?? null,
             'notes' => $validated['notes'] ?? null,
-            'price' => $isDoor ? null : ($validated['price'] ?? null),
-            'markup_percent' => $isDoor ? null : ($validated['markup_percent'] ?? null),
-            'min_markup_percent' => $isDoor ? null : ($validated['min_markup_percent'] ?? null),
-            'tax_state_id' => $isDoor
+            'price' => $isAssembly ? null : ($validated['price'] ?? null),
+            'markup_percent' => $isAssembly ? null : ($validated['markup_percent'] ?? null),
+            'min_markup_percent' => $isAssembly ? null : ($validated['min_markup_percent'] ?? null),
+            'tax_state_id' => $isAssembly
                 ? null
                 : $this->syncTaxState(
                     isset($validated['tax_state_id']) ? (int) $validated['tax_state_id'] : null,
                     $validated['tax_rate'] ?? null,
                 ),
             'rf_shielding' => $isDoor ? ($this->nullableString($validated['rf_shielding'] ?? null)) : null,
-            'stc_rating' => $isDoor ? ($this->nullableString($validated['stc_rating'] ?? null)) : null,
+            'stc_rating' => $isWindow && isset($validated['stc_rating']) && $validated['stc_rating'] !== '' && $validated['stc_rating'] !== null
+                ? (string) (int) $validated['stc_rating']
+                : ($isDoor ? ($this->nullableString($validated['stc_rating'] ?? null)) : null),
             'ada' => $isDoor ? $this->nullableBoolean($validated['ada'] ?? null) : null,
             'fire_label' => $isDoor ? ($this->nullableString($validated['fire_label'] ?? null)) : null,
-            'thickness' => $isDoor ? ($this->nullableString($validated['thickness'] ?? null)) : null,
+            'thickness' => $isAssembly ? ($this->nullableString($validated['thickness'] ?? null)) : null,
+            'area_tested' => $isWindow ? ($this->nullableString($validated['area_tested'] ?? null)) : null,
+            'weight' => $isWindow ? ($validated['weight'] ?? null) : null,
+            'window_glass_type_id' => $isWindow ? $this->nullableId($validated['window_glass_type_id'] ?? null) : null,
+            'window_glazing_type_id' => $isWindow ? $this->nullableId($validated['window_glazing_type_id'] ?? null) : null,
+            'window_seal_id' => $isWindow ? $this->nullableId($validated['window_seal_id'] ?? null) : null,
         ];
 
-        if (! $isDoor) {
+        if (! $isAssembly) {
             if ($product?->spec_pdf_path) {
                 $product->deleteSpecPdf();
             }
@@ -593,6 +659,74 @@ class ProductController extends Controller
         return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? (bool) $value;
     }
 
+    private function nullableId(mixed $value): ?int
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return (int) $value;
+    }
+
+    /**
+     * @param  class-string<Model>  $modelClass
+     */
+    private function storeReusableCatalog(Request $request, string $modelClass, string $label): RedirectResponse
+    {
+        abort_unless(
+            ProductAccess::canCreate($request->user()) || ProductAccess::canUpdate($request->user()),
+            403,
+        );
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+        ]);
+
+        $name = trim($validated['name']);
+        $existing = $modelClass::query()
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
+            ->first();
+
+        if ($existing) {
+            return back()->with('success', "{$label} already exists.");
+        }
+
+        $modelClass::create(['name' => $name]);
+
+        return back()->with('success', "{$label} added successfully.");
+    }
+
+    /**
+     * @return array{id: int, name: string}|null
+     */
+    private function namedCatalogOption(?Model $item): ?array
+    {
+        if (! $item) {
+            return null;
+        }
+
+        return [
+            'id' => (int) $item->getKey(),
+            'name' => (string) $item->getAttribute('name'),
+        ];
+    }
+
+    /**
+     * @param  class-string<Model>  $modelClass
+     * @return array<int, array{id: int, name: string}>
+     */
+    private function namedCatalogOptions(string $modelClass): array
+    {
+        return $modelClass::query()
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (Model $item): array => [
+                'id' => (int) $item->getKey(),
+                'name' => (string) $item->getAttribute('name'),
+            ])
+            ->all();
+    }
+
     private function syncTaxState(?int $taxStateId, mixed $rate): ?int
     {
         if (! $taxStateId) {
@@ -629,7 +763,7 @@ class ProductController extends Controller
      */
     private function syncParts(Product $product, array $parts): void
     {
-        if ($product->kind !== Product::KIND_DOOR) {
+        if (! $product->isAssembly()) {
             $product->parts()->sync([]);
 
             return;
@@ -652,7 +786,7 @@ class ProductController extends Controller
      */
     private function syncConstructions(Product $product, array $constructions): void
     {
-        if ($product->kind !== Product::KIND_DOOR) {
+        if (! $product->isDoor()) {
             $product->constructions()->sync([]);
 
             return;
@@ -674,7 +808,7 @@ class ProductController extends Controller
      */
     private function syncConfigurations(Product $product, array $configurations): void
     {
-        if ($product->kind !== Product::KIND_DOOR) {
+        if (! $product->isDoor()) {
             $product->configurations()->sync([]);
 
             return;
@@ -696,7 +830,7 @@ class ProductController extends Controller
      */
     private function syncHandings(Product $product, array $handings): void
     {
-        if ($product->kind !== Product::KIND_DOOR) {
+        if (! $product->isDoor()) {
             $product->handings()->sync([]);
 
             return;
@@ -718,7 +852,7 @@ class ProductController extends Controller
      */
     private function syncStatePrices(Product $product, array $statePrices): void
     {
-        if ($product->kind !== Product::KIND_DOOR) {
+        if (! $product->isAssembly()) {
             $product->statePrices()->delete();
 
             return;
@@ -775,6 +909,9 @@ class ProductController extends Controller
                 'constructions:id,name',
                 'configurations:id,name',
                 'handings:id,name',
+                'glassType:id,name',
+                'glazingType:id,name',
+                'seal:id,name',
                 'taxState:id,name,rate',
                 'statePrices.taxState:id,name,rate',
             ])
@@ -788,6 +925,8 @@ class ProductController extends Controller
                         ->orWhere('rf_shielding', 'like', "%{$search}%")
                         ->orWhere('stc_rating', 'like', "%{$search}%")
                         ->orWhere('fire_label', 'like', "%{$search}%")
+                        ->orWhere('area_tested', 'like', "%{$search}%")
+                        ->orWhere('weight', 'like', "%{$search}%")
                         ->orWhereHas('productModel', function ($query) use ($search): void {
                             $query->where('name', 'like', "%{$search}%");
                         })
@@ -807,6 +946,15 @@ class ProductController extends Controller
                             $query->where('name', 'like', "%{$search}%");
                         })
                         ->orWhereHas('handings', function ($query) use ($search): void {
+                            $query->where('name', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('glassType', function ($query) use ($search): void {
+                            $query->where('name', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('glazingType', function ($query) use ($search): void {
+                            $query->where('name', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('seal', function ($query) use ($search): void {
                             $query->where('name', 'like', "%{$search}%");
                         })
                         ->orWhereHas('statePrices.taxState', function ($query) use ($search): void {
@@ -856,6 +1004,7 @@ class ProductController extends Controller
                     'id' => $product->productType->id,
                     'name' => $product->productType->name,
                     'allows_parts' => $product->productType->allows_parts,
+                    'kind' => $product->productType->kind(),
                 ]
                 : null,
             'product_model_id' => $product->product_model_id,
@@ -892,7 +1041,15 @@ class ProductController extends Controller
             'stc_rating' => $summary ? null : $product->stc_rating,
             'ada' => $product->ada === null ? null : (bool) $product->ada,
             'fire_label' => $summary ? null : $product->fire_label,
-            'thickness' => $summary ? null : $product->thickness,
+            'thickness' => $product->thickness,
+            'area_tested' => $product->area_tested,
+            'weight' => $product->weight,
+            'window_glass_type_id' => $product->window_glass_type_id,
+            'window_glazing_type_id' => $product->window_glazing_type_id,
+            'window_seal_id' => $product->window_seal_id,
+            'glass_type' => $this->namedCatalogOption($product->glassType),
+            'glazing_type' => $this->namedCatalogOption($product->glazingType),
+            'seal' => $this->namedCatalogOption($product->seal),
             'spec_pdf_url' => $product->spec_pdf_path
                 ? asset('storage/'.$product->spec_pdf_path)
                 : null,
@@ -977,14 +1134,19 @@ class ProductController extends Controller
      */
     private function options(?User $user, ?Product $product = null): array
     {
+        ProductType::ensureCanonical();
+
         return [
             'types' => ProductType::query()
+                ->whereIn('name', ProductType::canonicalNames())
+                ->orderBy('sort_order')
                 ->orderBy('name')
-                ->get(['id', 'name', 'allows_parts'])
+                ->get(['id', 'name', 'allows_parts', 'sort_order'])
                 ->map(fn (ProductType $type): array => [
                     'id' => $type->id,
                     'name' => $type->name,
                     'allows_parts' => $type->allows_parts,
+                    'kind' => $type->kind(),
                 ])
                 ->all(),
             'models' => ProductModel::query()
@@ -1014,22 +1176,11 @@ class ProductController extends Controller
                     'name' => $configuration->name,
                 ])
                 ->all(),
-            'handings' => DoorHanding::query()
-                ->orderBy('name')
-                ->get(['id', 'name'])
-                ->map(fn (DoorHanding $handing): array => [
-                    'id' => $handing->id,
-                    'name' => $handing->name,
-                ])
-                ->all(),
-            'constructions' => DoorConstruction::query()
-                ->orderBy('name')
-                ->get(['id', 'name'])
-                ->map(fn (DoorConstruction $construction): array => [
-                    'id' => $construction->id,
-                    'name' => $construction->name,
-                ])
-                ->all(),
+            'handings' => $this->namedCatalogOptions(DoorHanding::class),
+            'constructions' => $this->namedCatalogOptions(DoorConstruction::class),
+            'glassTypes' => $this->namedCatalogOptions(WindowGlassType::class),
+            'glazingTypes' => $this->namedCatalogOptions(WindowGlazingType::class),
+            'seals' => $this->namedCatalogOptions(WindowSeal::class),
             'parts' => Product::query()
                 ->where('kind', Product::KIND_PART)
                 ->when($product, fn ($query) => $query->where('id', '!=', $product->id))

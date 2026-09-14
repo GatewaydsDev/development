@@ -156,8 +156,8 @@ export default function Index({ filters, contractors }: IndexProps) {
                         </CardHeader>
 
                         <CardContent>
-                            <div className="overflow-hidden rounded-lg border border-border">
-                                <div className="hidden grid-cols-[1.3fr_1fr_1fr_1fr_auto] gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid">
+                            <div className="overflow-x-auto rounded-lg border border-border">
+                                <div className="hidden grid-cols-[1.3fr_1fr_1fr_1fr_auto] gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:grid">
                                     <div>Contractor</div>
                                     <div>Primary contact</div>
                                     <div>Phone</div>
@@ -177,7 +177,7 @@ export default function Index({ filters, contractors }: IndexProps) {
                                                 id={`contractor-row-${contractor.id}`}
                                                 key={contractor.id}
                                                 className={cn(
-                                                    'grid gap-3 border-b border-border px-4 py-4 last:border-b-0 md:grid-cols-[1.3fr_1fr_1fr_1fr_auto] md:items-center md:gap-4',
+                                                    'grid gap-3 border-b border-border px-4 py-4 last:border-b-0 lg:grid-cols-[1.3fr_1fr_1fr_1fr_auto] lg:items-center lg:gap-4',
                                                     highlightedContractorId ===
                                                         contractor.id &&
                                                         'bg-emerald-50 dark:bg-emerald-950/30',

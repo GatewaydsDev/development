@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\EmployeeController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ProfessionController;
 use App\Http\Controllers\Admin\ProjectController;
+use App\Http\Controllers\Admin\ServiceController;
 use App\Http\Controllers\Admin\UserActivityController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\ContactSubmissionController;
@@ -212,9 +213,27 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::post('/bids', [BidController::class, 'store'])
             ->middleware('can:create-bids')
             ->name('bids.store');
+        Route::get('/bids/print', [BidController::class, 'printList'])
+            ->middleware('can:view-bids')
+            ->name('bids.list.print');
+        Route::get('/bids/export/pdf', [BidController::class, 'exportListPdf'])
+            ->middleware('can:view-bids')
+            ->name('bids.list.export.pdf');
+        Route::get('/bids/export/word', [BidController::class, 'exportListWord'])
+            ->middleware('can:view-bids')
+            ->name('bids.list.export.word');
         Route::get('/bids/{bid}', [BidController::class, 'show'])
             ->middleware('can:view-bids')
             ->name('bids.show');
+        Route::get('/bids/{bid}/print', [BidController::class, 'print'])
+            ->middleware('can:view-bids')
+            ->name('bids.print');
+        Route::get('/bids/{bid}/export/pdf', [BidController::class, 'exportPdf'])
+            ->middleware('can:view-bids')
+            ->name('bids.export.pdf');
+        Route::get('/bids/{bid}/export/word', [BidController::class, 'exportWord'])
+            ->middleware('can:view-bids')
+            ->name('bids.export.word');
         Route::get('/bids/{bid}/edit', [BidController::class, 'edit'])
             ->middleware('can:update-bids')
             ->name('bids.edit');
@@ -230,6 +249,12 @@ Route::middleware(['auth', 'prevent-back-history'])
             ->name('bid-scopes.store');
         Route::post('/bid-pricing-statuses', [BidCatalogController::class, 'storePricingStatus'])
             ->name('bid-pricing-statuses.store');
+        Route::post('/bid-text-templates', [BidCatalogController::class, 'storeTextTemplate'])
+            ->name('bid-text-templates.store');
+        Route::post('/bid-text-templates/import', [BidCatalogController::class, 'importTextTemplate'])
+            ->name('bid-text-templates.import');
+        Route::patch('/bid-text-templates/{bidTextTemplate}', [BidCatalogController::class, 'updateTextTemplate'])
+            ->name('bid-text-templates.update');
 
         Route::get('/products', [ProductController::class, 'index'])
             ->middleware('can:view-products')
@@ -260,6 +285,12 @@ Route::middleware(['auth', 'prevent-back-history'])
             ->name('door-configurations.store');
         Route::post('/door-handings', [ProductController::class, 'storeHanding'])
             ->name('door-handings.store');
+        Route::post('/window-glass-types', [ProductController::class, 'storeGlassType'])
+            ->name('window-glass-types.store');
+        Route::post('/window-glazing-types', [ProductController::class, 'storeGlazingType'])
+            ->name('window-glazing-types.store');
+        Route::post('/window-seals', [ProductController::class, 'storeSeal'])
+            ->name('window-seals.store');
         Route::post('/tax-states', [ProductController::class, 'storeTaxState'])
             ->name('tax-states.store');
         Route::post('/products', [ProductController::class, 'store'])
@@ -278,9 +309,36 @@ Route::middleware(['auth', 'prevent-back-history'])
             ->middleware('can:delete-products')
             ->name('products.destroy');
 
+        Route::get('/services', [ServiceController::class, 'index'])
+            ->middleware('can:view-services')
+            ->name('services.index');
+        Route::get('/services/create', [ServiceController::class, 'create'])
+            ->middleware('can:create-services')
+            ->name('services.create');
+        Route::post('/services', [ServiceController::class, 'store'])
+            ->name('services.store');
+        Route::get('/services/{service}/edit', [ServiceController::class, 'edit'])
+            ->middleware('can:update-services')
+            ->name('services.edit');
+        Route::patch('/services/{service}', [ServiceController::class, 'update'])
+            ->middleware('can:update-services')
+            ->name('services.update');
+        Route::delete('/services/{service}', [ServiceController::class, 'destroy'])
+            ->middleware('can:delete-services')
+            ->name('services.destroy');
+
         Route::get('/projects', [ProjectController::class, 'index'])
             ->middleware('can:view-projects')
             ->name('projects.index');
+        Route::get('/projects/print', [ProjectController::class, 'print'])
+            ->middleware('can:view-projects')
+            ->name('projects.print');
+        Route::get('/projects/export/pdf', [ProjectController::class, 'exportPdf'])
+            ->middleware('can:view-projects')
+            ->name('projects.export.pdf');
+        Route::get('/projects/export/word', [ProjectController::class, 'exportWord'])
+            ->middleware('can:view-projects')
+            ->name('projects.export.word');
         Route::get('/projects/create', [ProjectController::class, 'create'])
             ->middleware('can:create-projects')
             ->name('projects.create');
@@ -288,6 +346,8 @@ Route::middleware(['auth', 'prevent-back-history'])
             ->name('projects.name-availability');
         Route::post('/project-statuses', [ProjectController::class, 'storeStatus'])
             ->name('project-statuses.store');
+        Route::post('/project-scope-types', [ProjectController::class, 'storeScopeType'])
+            ->name('project-scope-types.store');
         Route::post('/projects', [ProjectController::class, 'store'])
             ->middleware('can:create-projects')
             ->name('projects.store');

@@ -205,3 +205,26 @@ test('the project form can still create a contractor by name only', function () 
 
     expect(Contractor::query()->where('name', 'Quick Add GC')->exists())->toBeTrue();
 });
+
+test('the project form can create a contractor with phone and email', function () {
+    $admin = contractorAdmin();
+
+    $this->actingAs($admin)
+        ->from(route('admin.projects.create'))
+        ->post(route('admin.contractors.store'), [
+            'name' => 'Quick Add GC Contacts',
+            'email' => 'gc@quick.example',
+            'phone_number' => '(973) 555-0188',
+        ])
+        ->assertSessionHasNoErrors();
+
+    $contractor = Contractor::query()
+        ->where('name', 'Quick Add GC Contacts')
+        ->with('contacts')
+        ->firstOrFail();
+
+    expect($contractor->email)->toBe('gc@quick.example');
+    expect($contractor->phone_number)->toBe('(973) 555-0188');
+    expect($contractor->contacts)->toHaveCount(1);
+    expect($contractor->contacts->first()?->is_primary)->toBeTrue();
+});

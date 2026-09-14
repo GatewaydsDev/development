@@ -22,12 +22,14 @@ import { z } from 'zod';
 export type CreatableOption = {
     id: number;
     name: string;
+    slug?: string | null;
     abbreviation?: string | null;
     description?: string | null;
     project_number?: string | null;
     kind?: string | null;
     allows_parts?: boolean | null;
     rate?: number | string | null;
+    body?: string | null;
 };
 
 type CreatableSelectProps = {
@@ -122,10 +124,9 @@ export default function CreatableSelect({
 
         return [...options]
             .filter((option) => {
-                if (
-                    clearOnSelect &&
-                    disabledIds.includes(String(option.id))
-                ) {
+                const optionId = String(option.id);
+
+                if (disabledIds.includes(optionId) && optionId !== value) {
                     return false;
                 }
 
@@ -138,7 +139,7 @@ export default function CreatableSelect({
                 return haystack.includes(normalizedQuery.toLowerCase());
             })
             .sort((left, right) => left.name.localeCompare(right.name));
-    }, [clearOnSelect, disabledIds, hasTyped, normalizedQuery, options]);
+    }, [disabledIds, hasTyped, normalizedQuery, options, value]);
 
     const createOptionIndex = canCreate ? filtered.length : -1;
     const optionCount = filtered.length + (canCreate ? 1 : 0);
@@ -343,6 +344,7 @@ export default function CreatableSelect({
             },
             {
                 preserveScroll: true,
+                preserveState: true,
                 onSuccess: () => {
                     setIsDialogOpen(false);
                     router.reload({
@@ -359,6 +361,9 @@ export default function CreatableSelect({
                                   : [
                                         ...(catalog?.stageTypes ?? []),
                                         ...(catalog?.scopeTitles ?? []),
+                                        ...(catalog?.scopeTextTemplates ?? []),
+                                        ...(catalog?.shippingTextTemplates ?? []),
+                                        ...(catalog?.textTemplates ?? []),
                                         ...(catalog?.pricingStatuses ?? []),
                                         ...(catalog?.products ?? []),
                                         ...(catalog?.parts ?? []),

@@ -2,6 +2,8 @@ import CreatableSelect from '@/Components/CreatableSelect';
 import FormActionFab from '@/Components/FormActionFab';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
+import MaskedDecimalInput from '@/Components/MaskedDecimalInput';
+import RichTextEditor from '@/Components/RichTextEditor';
 import TextInput from '@/Components/TextInput';
 import { Button } from '@/Components/ui/button';
 import {
@@ -13,26 +15,32 @@ import {
 } from '@/Components/ui/card';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from '@inertiajs/react';
-import { CopyIcon, PlusIcon, Trash2Icon } from 'lucide-react';
-import { FormEventHandler, useMemo } from 'react';
+import { PlusIcon, Trash2Icon } from 'lucide-react';
+import { FormEventHandler, useEffect, useMemo } from 'react';
 import {
+    Control,
     FieldErrors,
     FieldPath,
     PathValue,
+    UseFormSetValue,
     useFieldArray,
     useForm,
     useWatch,
 } from 'react-hook-form';
+import { inputToDecimal } from '@/lib/money';
 import { toast } from 'sonner';
 import { z } from 'zod';
+import BidApplicationTextSection from './BidApplicationTextSection';
 import {
     bidToFormData,
-    blankPricing,
-    blankPricingItem,
     blankScope,
     blankScopeProduct,
     blankStage,
     formatMoney,
+    lineAmountsForProduct,
+    scopeExtendedAmount,
+    scopesFromProject,
+    scopesTotalAmount,
     type BidFormData,
     type BidOptions,
     type BidPayload,
@@ -45,6 +53,7 @@ type BidFormProps = {
     description: string;
     options: BidOptions;
     bid?: BidPayload;
+    onSelectedProjectNameChange?: (name: string) => void;
 };
 
 const optionalDateSchema = z
@@ -63,7 +72,18 @@ const optionalMoneySchema = z
 
 const schema = z.object({
     project_id: z.string().trim().min(1, 'Select a project.'),
-    notes: z.string().trim().max(5000, 'Notes must be 5,000 characters or less.'),
+    notes: z
+        .string()
+        .max(250000, 'Shipping and handling exclusions/adjustments must be 250,000 characters or less.'),
+    bid_shipping_text_template_id: z.string(),
+    bid_text_template_id: z.string(),
+    application_text: z
+        .string()
+        .max(250000, 'Bid text must be 250,000 characters or less.'),
+    bid_scope_text_template_id: z.string(),
+    scope_of_work_text: z
+        .string()
+        .max(250000, 'Scope of work text must be 250,000 characters or less.'),
     stages: z.array(
         z.object({
             stage_type_id: z.string(),
@@ -74,19 +94,27 @@ const schema = z.object({
     scopes: z.array(
         z.object({
             title_id: z.string(),
-            notations: z.string().trim().max(5000),
+            scope_type: z.string(),
+            title_name: z.string(),
+            notations: z
+                .string()
+                .max(250000, 'Scope information must be 250,000 characters or less.'),
             products: z.array(
                 z.object({
                     product_id: z.string(),
+                    service_id: z.string(),
+                    quantity: optionalMoneySchema,
+                    unit_bid: optionalMoneySchema,
+                    extended: optionalMoneySchema,
                 }),
             ),
         }),
     ),
     pricings: z.array(
         z.object({
-            name: z.string().trim().min(1, 'Enter the pricing revision name.'),
+            name: z.string(),
             revision_date: optionalDateSchema,
-            notes: z.string().trim().max(2000),
+            notes: z.string().max(2000),
             items: z.array(
                 z.object({
                     description: z.string(),
@@ -97,6 +125,45 @@ const schema = z.object({
             ),
         }),
     ),
+}).superRefine((values, context) => {
+    values.scopes.forEach((scope, scopeIndex) => {
+        scope.products.forEach((product, productIndex) => {
+            const productId = product.product_id.trim();
+            const serviceId = product.service_id.trim();
+
+            if (productId === '' && serviceId === '') {
+                return;
+            }
+
+            if (productId === '') {
+                context.addIssue({
+                    code: 'custom',
+                    path: [
+                        'scopes',
+                        scopeIndex,
+                        'products',
+                        productIndex,
+                        'product_id',
+                    ],
+                    message: 'Select a product.',
+                });
+            }
+
+            if (serviceId === '') {
+                context.addIssue({
+                    code: 'custom',
+                    path: [
+                        'scopes',
+                        scopeIndex,
+                        'products',
+                        productIndex,
+                        'service_id',
+                    ],
+                    message: 'Select a service.',
+                });
+            }
+        });
+    });
 });
 
 function errorMessage(
@@ -119,29 +186,6 @@ function errorMessage(
         : undefined;
 }
 
-function PricingTotal({
-    control,
-    index,
-}: {
-    control: ReturnType<typeof useForm<BidFormData>>['control'];
-    index: number;
-}) {
-    const items = useWatch({
-        control,
-        name: `pricings.${index}.items`,
-    });
-    const total = (items ?? []).reduce(
-        (sum, item) => sum + (Number(item.amount) || 0),
-        0,
-    );
-
-    return (
-        <p className="text-lg font-semibold text-emerald-700 dark:text-emerald-300">
-            {formatMoney(total)}
-        </p>
-    );
-}
-
 export default function BidForm({
     action,
     method = 'post',
@@ -149,6 +193,7 @@ export default function BidForm({
     description,
     options,
     bid,
+    onSelectedProjectNameChange,
 }: BidFormProps) {
     const defaultValues = useMemo(() => {
         const values = bidToFormData(bid);
@@ -185,17 +230,20 @@ export default function BidForm({
         fields: scopeFields,
         append: appendScope,
         remove: removeScope,
+        replace: replaceScopes,
     } = useFieldArray({ control, name: 'scopes' });
-    const {
-        fields: pricingFields,
-        append: appendPricing,
-        remove: removePricing,
-    } = useFieldArray({ control, name: 'pricings' });
 
     const data = useWatch({
         control,
         defaultValue: defaultValues,
     }) as BidFormData;
+    const selectedProject = options.projects.find(
+        (project) => String(project.id) === (data.project_id ?? ''),
+    );
+
+    useEffect(() => {
+        onSelectedProjectNameChange?.(selectedProject?.name ?? '');
+    }, [onSelectedProjectNameChange, selectedProject?.name]);
 
     const setData = <Field extends FieldPath<BidFormData>>(
         field: Field,
@@ -211,34 +259,41 @@ export default function BidForm({
         (values) => {
             const payload = {
                 ...values,
+                bid_shipping_text_template_id:
+                    values.bid_shipping_text_template_id.trim() || null,
+                bid_text_template_id: values.bid_text_template_id.trim() || null,
+                application_text: values.application_text,
+                bid_scope_text_template_id:
+                    values.bid_scope_text_template_id.trim() || null,
+                scope_of_work_text: values.scope_of_work_text,
                 stages: values.stages.filter(
                     (stage) => stage.stage_type_id.trim() !== '',
                 ),
                 scopes: values.scopes
-                    .filter((scope) => scope.title_id.trim() !== '')
+                    .filter(
+                        (scope) =>
+                            scope.title_id.trim() !== '' ||
+                            scope.scope_type.trim() !== '',
+                    )
                     .map((scope) => ({
                         ...scope,
-                        products: scope.products.filter(
-                            (product) => product.product_id.trim() !== '',
-                        ),
-                    })),
-                pricings: values.pricings
-                    .filter((pricing) => pricing.name.trim() !== '')
-                    .map((pricing) => ({
-                        ...pricing,
-                        items: pricing.items
+                        products: scope.products
                             .filter(
-                                (item) =>
-                                    item.description.trim() !== '' ||
-                                    item.amount.trim() !== '',
+                                (product) =>
+                                    product.product_id.trim() !== '' ||
+                                    product.service_id.trim() !== '',
                             )
-                            .map((item) => ({
-                                ...item,
-                                status_id: item.status_id.trim() || null,
-                                amount:
-                                    item.amount.trim() === ''
-                                        ? null
-                                        : item.amount,
+                            .map((product) => ({
+                                ...product,
+                                quantity: inputToDecimal(product.quantity) || null,
+                                unit_bid: inputToDecimal(product.unit_bid) || null,
+                                extended:
+                                    inputToDecimal(
+                                        scopeExtendedAmount(
+                                            product.quantity,
+                                            product.unit_bid,
+                                        ),
+                                    ) || null,
                             })),
                     })),
             };
@@ -274,59 +329,62 @@ export default function BidForm({
 
     const inputClassName =
         'h-11 w-full border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring';
-    const latestTotal = (data.pricings ?? []).reduce((latest, pricing) => {
-        const total = (pricing.items ?? []).reduce(
-            (sum, item) => sum + (Number(item.amount) || 0),
-            0,
-        );
-
-        return total;
-    }, 0);
-    const lastPricing = data.pricings?.[data.pricings.length - 1];
-    const lastPricingTotal = (lastPricing?.items ?? []).reduce(
-        (sum, item) => sum + (Number(item.amount) || 0),
-        0,
-    );
+    const latestTotal = scopesTotalAmount(data.scopes ?? []);
+    const selectedProjectScopes = selectedProject?.scopes ?? [];
 
     return (
-        <form onSubmit={submit} className="flex flex-col gap-6 pr-14 sm:pr-16">
+        <form onSubmit={submit} className="flex min-w-0 flex-col gap-6 pr-16 sm:pr-20">
             <Card className="overflow-visible shadow-sm">
                 <CardHeader>
                     <CardTitle>{title}</CardTitle>
                     <CardDescription>{description}</CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-6">
-                    <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-                        <CreatableSelect
-                            id="bid-project"
-                            label="Project name"
-                            value={data.project_id ?? ''}
-                            options={options.projects}
-                            allowCreate={false}
-                            placeholder="Type to find a project"
-                            error={errorMessage(validationErrors, 'project_id')}
-                            onChange={(projectId) =>
-                                setData('project_id', projectId)
-                            }
-                        />
+                    <div className="flex flex-col gap-5">
+                        <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+                            <CreatableSelect
+                                id="bid-project"
+                                label="Project name"
+                                value={data.project_id ?? ''}
+                                options={options.projects}
+                                allowCreate={false}
+                                placeholder="Type to find a project"
+                                error={errorMessage(validationErrors, 'project_id')}
+                                onChange={(projectId) => {
+                                    const previousProjectId = data.project_id;
+                                    setData('project_id', projectId);
+
+                                    if (projectId === previousProjectId) {
+                                        return;
+                                    }
+
+                                    const project = options.projects.find(
+                                        (item) => String(item.id) === projectId,
+                                    );
+
+                                    replaceScopes(
+                                        scopesFromProject(
+                                            project,
+                                            options.scopeTitles,
+                                            options.products,
+                                        ),
+                                    );
+                                }}
+                            />
+                        </div>
                         <div className="flex flex-col gap-2">
                             <InputLabel
-                                htmlFor="bid-notes"
-                                value="Bid notes"
+                                htmlFor="bid-project-address"
+                                value="Project address"
                                 className="text-emerald-700 dark:text-emerald-300"
                             />
-                            <textarea
-                                id="bid-notes"
-                                value={data.notes ?? ''}
-                                rows={3}
-                                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
-                                placeholder="Optional notes for this bid"
-                                onChange={(event) =>
-                                    setData('notes', event.target.value)
-                                }
-                            />
-                            <InputError
-                                message={errorMessage(validationErrors, 'notes')}
+                            <TextInput
+                                id="bid-project-address"
+                                value={selectedProject?.site_address ?? ''}
+                                disabled
+                                readOnly
+                                className="h-11 w-full cursor-not-allowed border-border bg-muted text-foreground"
+                                placeholder="Select a project to see the address"
                             />
                         </div>
                     </div>
@@ -454,103 +512,104 @@ export default function BidForm({
                             Scope of work
                         </h3>
                         <p className="text-sm text-muted-foreground">
-                            Choose or add a title, list the products in that
-                            scope, and capture notations.
+                            {selectedProjectScopes.length > 0
+                                ? 'Start with predefined scope wording, then add or remove service and product lines from the selected project.'
+                                : 'Start with predefined scope wording. Select a project to load its scopes, then add or remove service and product lines.'}
                         </p>
                     </div>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => appendScope(blankScope())}
-                    >
-                        <PlusIcon className="size-4" />
-                        Add scope
-                    </Button>
+                    {selectedProjectScopes.length === 0 && (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => appendScope(blankScope())}
+                        >
+                            <PlusIcon className="size-4" />
+                            Add scope
+                        </Button>
+                    )}
                 </div>
 
-                <div className="flex flex-col gap-4">
-                    {scopeFields.map((field, index) => (
-                        <ScopeWorkCard
-                            key={field.id}
-                            control={control}
-                            data={data}
-                            index={index}
-                            options={options}
-                            validationErrors={validationErrors}
-                            onChange={setData}
-                            onRemove={() => removeScope(index)}
-                        />
-                    ))}
-                </div>
-            </section>
+                <BidApplicationTextSection
+                    embedded
+                    purpose="scope"
+                    options={options}
+                    project={selectedProject}
+                    scopes={data.scopes ?? []}
+                    value={data.scope_of_work_text ?? ''}
+                    templateId={data.bid_scope_text_template_id ?? ''}
+                    error={errorMessage(validationErrors, 'scope_of_work_text')}
+                    onChange={(html) => setData('scope_of_work_text', html)}
+                    onTemplateIdChange={(id) =>
+                        setData('bid_scope_text_template_id', id)
+                    }
+                />
 
-            <section className="flex flex-col gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <h3 className="text-base font-semibold text-foreground">
-                            Preliminary pricing
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                            Add revisions as pricing changes. Each line has a
-                            product, basis, status, and amount.
-                        </p>
+                {scopeFields.length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-border bg-background/60 p-4 text-sm text-muted-foreground">
+                        {data.project_id
+                            ? 'This project does not have a scope of work yet.'
+                            : 'Select a project to load its scope of work.'}
                     </div>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() =>
-                            appendPricing(
-                                blankPricing(
-                                    `Revision ${pricingFields.length}`,
-                                ),
-                            )
-                        }
-                    >
-                        <PlusIcon className="size-4" />
-                        Add pricing revision
-                    </Button>
-                </div>
-
-                <div className="flex flex-col gap-5">
-                    {pricingFields.map((field, pricingIndex) => (
-                        <PricingRevisionCard
-                            key={field.id}
-                            control={control}
-                            data={data}
-                            index={pricingIndex}
-                            options={options}
-                            validationErrors={validationErrors}
-                            inputClassName={inputClassName}
-                            canRemove={pricingFields.length > 1}
-                            onChange={setData}
-                            onRemove={() => removePricing(pricingIndex)}
-                            onDuplicate={() =>
-                                appendPricing({
-                                    ...blankPricing(
-                                        `${data.pricings?.[pricingIndex]?.name || 'Pricing'} copy`,
-                                    ),
-                                    items: (
-                                        data.pricings?.[pricingIndex]?.items ??
-                                        []
-                                    ).map((item) => ({ ...item })),
-                                })
-                            }
-                        />
-                    ))}
-                </div>
+                ) : (
+                    <div className="flex flex-col gap-4">
+                        {scopeFields.map((field, index) => (
+                            <ScopeWorkCard
+                                key={field.id}
+                                control={control}
+                                data={data}
+                                index={index}
+                                options={options}
+                                projectState={selectedProject?.site_state}
+                                validationErrors={validationErrors}
+                                inputClassName={inputClassName}
+                                locked={selectedProjectScopes.length > 0}
+                                onChange={setData}
+                                setValue={setValue}
+                                onRemove={() => removeScope(index)}
+                            />
+                        ))}
+                    </div>
+                )}
             </section>
 
-            <div className="sticky bottom-4 z-10 flex items-center justify-between rounded-xl border border-emerald-200 bg-background/95 px-4 py-3 shadow-lg backdrop-blur dark:border-emerald-900/70">
+            <BidApplicationTextSection
+                purpose="shipping"
+                options={options}
+                project={selectedProject}
+                scopes={data.scopes ?? []}
+                value={data.notes ?? ''}
+                templateId={data.bid_shipping_text_template_id ?? ''}
+                error={errorMessage(validationErrors, 'notes')}
+                onChange={(html) => setData('notes', html)}
+                onTemplateIdChange={(id) =>
+                    setData('bid_shipping_text_template_id', id)
+                }
+            />
+
+            <BidApplicationTextSection
+                options={options}
+                project={selectedProject}
+                scopes={data.scopes ?? []}
+                value={data.application_text ?? ''}
+                templateId={data.bid_text_template_id ?? ''}
+                error={errorMessage(validationErrors, 'application_text')}
+                onChange={(html) => setData('application_text', html)}
+                onTemplateIdChange={(id) =>
+                    setData('bid_text_template_id', id)
+                }
+            />
+
+            <div className="sticky bottom-4 z-10 mr-16 flex flex-col gap-1 rounded-xl border border-emerald-200 bg-background/95 px-4 py-3 shadow-lg backdrop-blur sm:mr-20 sm:flex-row sm:items-center sm:justify-between dark:border-emerald-900/70">
                 <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                         Latest revision total
                     </p>
                     <p className="text-xl font-semibold text-emerald-700 dark:text-emerald-300">
-                        {formatMoney(lastPricingTotal || latestTotal)}
+                        {formatMoney(latestTotal)}
                     </p>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                    {lastPricing?.name || 'No pricing yet'}
+                    From line quantities
                 </p>
             </div>
 
@@ -568,19 +627,27 @@ function ScopeWorkCard({
     data,
     index,
     options,
+    projectState,
     validationErrors,
+    inputClassName,
+    locked,
     onChange,
+    setValue,
     onRemove,
 }: {
-    control: ReturnType<typeof useForm<BidFormData>>['control'];
+    control: Control<BidFormData>;
     data: BidFormData;
     index: number;
     options: BidOptions;
+    projectState?: string | null;
     validationErrors: FieldErrors<BidFormData>;
+    inputClassName: string;
+    locked: boolean;
     onChange: <Field extends FieldPath<BidFormData>>(
         field: Field,
         value: PathValue<BidFormData, Field>,
     ) => void;
+    setValue: UseFormSetValue<BidFormData>;
     onRemove: () => void;
 }) {
     const { fields, append, remove } = useFieldArray({
@@ -588,92 +655,259 @@ function ScopeWorkCard({
         name: `scopes.${index}.products`,
     });
     const scope = data.scopes?.[index];
+    const titleName =
+        scope?.title_name ||
+        options.scopeTitles.find(
+            (title) => String(title.id) === (scope?.title_id ?? ''),
+        )?.name ||
+        '';
+    const hasEmptyLine = (scope?.products ?? []).some(
+        (item) =>
+            item.product_id.trim() === '' && item.service_id.trim() === '',
+    );
+    const canAddProduct = !hasEmptyLine;
+    const setLineAmount = (
+        productIndex: number,
+        field: 'quantity' | 'unit_bid',
+        value: string,
+    ) => {
+        const line = scope?.products?.[productIndex];
+        const quantity = field === 'quantity' ? value : (line?.quantity ?? '');
+        const unitBid = field === 'unit_bid' ? value : (line?.unit_bid ?? '');
+
+        onChange(`scopes.${index}.products.${productIndex}.${field}`, value);
+        onChange(
+            `scopes.${index}.products.${productIndex}.extended`,
+            scopeExtendedAmount(quantity, unitBid),
+        );
+    };
 
     return (
         <div className="flex flex-col gap-4 overflow-visible rounded-lg border border-emerald-200 bg-background p-4 dark:border-emerald-900/70">
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto]">
-                <CreatableSelect
-                    id={`bid-scope-title-${index}`}
-                    label="Title"
-                    value={scope?.title_id ?? ''}
-                    options={options.scopeTitles}
-                    createRoute={route('admin.bid-scopes.store')}
-                    catalogKey="scopeTitles"
-                    entityLabel="scope title"
-                    placeholder="RF doors, hardware, frames..."
+                {locked || scope?.scope_type ? (
+                    <div className="flex flex-col gap-2">
+                        <InputLabel
+                            htmlFor={`bid-scope-title-${index}`}
+                            value="Scope"
+                            className="text-emerald-700 dark:text-emerald-300"
+                        />
+                        <TextInput
+                            id={`bid-scope-title-${index}`}
+                            value={titleName}
+                            disabled
+                            readOnly
+                            className="h-11 w-full cursor-not-allowed border-border bg-muted text-foreground"
+                        />
+                    </div>
+                ) : (
+                    <CreatableSelect
+                        id={`bid-scope-title-${index}`}
+                        label="Scope type"
+                        value={scope?.title_id ?? ''}
+                        options={options.scopeTitles}
+                        createRoute={route('admin.project-scope-types.store')}
+                        catalogKey="scopeTitles"
+                        entityLabel="scope type"
+                        placeholder="Select a scope"
+                        error={errorMessage(
+                            validationErrors,
+                            `scopes.${index}.title_id`,
+                        )}
+                        onChange={(titleId) =>
+                            onChange(`scopes.${index}.title_id`, titleId)
+                        }
+                    />
+                )}
+                {!locked && (
+                    <div className="flex items-start lg:pt-7">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            aria-label={`Remove scope ${index + 1}`}
+                            onClick={onRemove}
+                        >
+                            <Trash2Icon className="size-4" />
+                        </Button>
+                    </div>
+                )}
+            </div>
+
+            <div className="flex flex-col gap-2">
+                <InputLabel
+                    htmlFor={`bid-scope-notations-${index}`}
+                    value="Information"
+                    className="text-emerald-700 dark:text-emerald-300"
+                />
+                <RichTextEditor
+                    id={`bid-scope-notations-${index}`}
+                    compact
+                    showPlaceholders={false}
+                    value={scope?.notations ?? ''}
+                    placeholder="Add details for this scope of work…"
                     error={errorMessage(
                         validationErrors,
-                        `scopes.${index}.title_id`,
+                        `scopes.${index}.notations`,
                     )}
-                    onChange={(titleId) =>
-                        onChange(`scopes.${index}.title_id`, titleId)
+                    onChange={(html) =>
+                        onChange(`scopes.${index}.notations`, html)
                     }
                 />
-                <div className="flex items-start lg:pt-7">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        aria-label={`Remove scope ${index + 1}`}
-                        onClick={onRemove}
-                    >
-                        <Trash2Icon className="size-4" />
-                    </Button>
-                </div>
+                <InputError
+                    message={errorMessage(
+                        validationErrors,
+                        `scopes.${index}.notations`,
+                    )}
+                />
             </div>
 
             <div className="flex flex-col gap-3">
-                <div className="flex items-center justify-between gap-3">
-                    <InputLabel
-                        value="Product"
-                        className="text-emerald-700 dark:text-emerald-300"
-                    />
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => append(blankScopeProduct())}
-                    >
-                        <PlusIcon className="size-4" />
-                        Add product
-                    </Button>
-                </div>
+                <InputLabel
+                    value="Service and product"
+                    className="text-emerald-700 dark:text-emerald-300"
+                />
                 {fields.map((productField, productIndex) => {
-                    const selectedIds = (scope?.products ?? [])
-                        .map((item, itemIndex) =>
-                            itemIndex === productIndex ? '' : item.product_id,
-                        )
-                        .filter(Boolean);
+                    const line = scope?.products?.[productIndex];
+                    const currentProductId = line?.product_id ?? '';
 
                     return (
                     <div
                         key={productField.id}
-                        className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]"
+                        className="grid gap-3 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.3fr)_minmax(5.5rem,0.45fr)_minmax(7rem,0.55fr)_minmax(7rem,0.55fr)_auto] lg:items-end"
                     >
                         <CreatableSelect
-                            id={`bid-scope-product-${index}-${productIndex}`}
-                            label=""
+                            id={`bid-scope-service-${index}-${productIndex}`}
+                            label="Service"
                             compact
-                            value={
-                                scope?.products?.[productIndex]?.product_id ??
-                                ''
+                            value={line?.service_id ?? ''}
+                            options={options.services ?? []}
+                            createRoute={route('admin.services.store')}
+                            catalogKey="services"
+                            entityLabel="service"
+                            placeholder="Assembly w/ vision glazing"
+                            error={errorMessage(
+                                validationErrors,
+                                `scopes.${index}.products.${productIndex}.service_id`,
+                            )}
+                            onChange={(serviceId) =>
+                                onChange(
+                                    `scopes.${index}.products.${productIndex}.service_id`,
+                                    serviceId,
+                                )
                             }
+                        />
+                        <CreatableSelect
+                            id={`bid-scope-product-${index}-${productIndex}`}
+                            label="Product"
+                            compact
+                            value={currentProductId}
                             options={options.products}
-                            disabledIds={selectedIds}
                             createRoute={route('admin.products.catalog')}
                             catalogKey="products"
                             entityLabel="product"
                             createExtras={{ kind: 'door' }}
-                            placeholder="Select or add a door or part"
-                            onChange={(productId) =>
-                                onChange(
-                                    `scopes.${index}.products.${productIndex}.product_id`,
+                            placeholder="8x8 blast door"
+                            error={errorMessage(
+                                validationErrors,
+                                `scopes.${index}.products.${productIndex}.product_id`,
+                            )}
+                            onChange={(productId) => {
+                                const amounts = lineAmountsForProduct(
                                     productId,
-                                )
-                            }
+                                    options.products,
+                                    projectState,
+                                    line,
+                                );
+
+                                setValue(
+                                    `scopes.${index}.products.${productIndex}`,
+                                    {
+                                        product_id: productId,
+                                        service_id: line?.service_id ?? '',
+                                        quantity: amounts.quantity,
+                                        unit_bid: amounts.unit_bid,
+                                        extended: amounts.extended,
+                                    },
+                                    {
+                                        shouldDirty: true,
+                                        shouldValidate: true,
+                                    },
+                                );
+                            }}
                         />
+                        <div className="flex flex-col gap-2">
+                            <InputLabel
+                                htmlFor={`bid-scope-quantity-${index}-${productIndex}`}
+                                value="Qty"
+                                className="text-emerald-700 dark:text-emerald-300"
+                            />
+                            <MaskedDecimalInput
+                                id={`bid-scope-quantity-${index}-${productIndex}`}
+                                value={line?.quantity ?? ''}
+                                className={inputClassName}
+                                placeholder="0"
+                                withThousands={false}
+                                onChange={(value) =>
+                                    setLineAmount(productIndex, 'quantity', value)
+                                }
+                            />
+                            <InputError
+                                message={errorMessage(
+                                    validationErrors,
+                                    `scopes.${index}.products.${productIndex}.quantity`,
+                                )}
+                            />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <InputLabel
+                                htmlFor={`bid-scope-unit-${index}-${productIndex}`}
+                                value="Unit value"
+                                className="text-emerald-700 dark:text-emerald-300"
+                            />
+                            <MaskedDecimalInput
+                                id={`bid-scope-unit-${index}-${productIndex}`}
+                                prefix="$"
+                                value={line?.unit_bid ?? ''}
+                                className={inputClassName}
+                                placeholder="0.00"
+                                onChange={(value) =>
+                                    setLineAmount(productIndex, 'unit_bid', value)
+                                }
+                            />
+                            <InputError
+                                message={errorMessage(
+                                    validationErrors,
+                                    `scopes.${index}.products.${productIndex}.unit_bid`,
+                                )}
+                            />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <InputLabel
+                                htmlFor={`bid-scope-extended-${index}-${productIndex}`}
+                                value="Extended"
+                                className="text-emerald-700 dark:text-emerald-300"
+                            />
+                            <MaskedDecimalInput
+                                id={`bid-scope-extended-${index}-${productIndex}`}
+                                prefix="$"
+                                disabled
+                                value={
+                                    scopeExtendedAmount(
+                                        line?.quantity ?? '',
+                                        line?.unit_bid ?? '',
+                                    ) ||
+                                    line?.extended ||
+                                    ''
+                                }
+                                className={inputClassName}
+                                placeholder="0.00"
+                                onChange={() => undefined}
+                            />
+                        </div>
                         <Button
                             type="button"
                             variant="outline"
-                            aria-label={`Remove product ${productIndex + 1}`}
+                            aria-label={`Remove line ${productIndex + 1}`}
                             onClick={() => remove(productIndex)}
                         >
                             <Trash2Icon className="size-4" />
@@ -681,257 +915,17 @@ function ScopeWorkCard({
                     </div>
                     );
                 })}
-            </div>
-
-            <div className="flex flex-col gap-2">
-                <InputLabel
-                    htmlFor={`bid-scope-notations-${index}`}
-                    value="Descriptions or notations"
-                    className="text-emerald-700 dark:text-emerald-300"
-                />
-                <textarea
-                    id={`bid-scope-notations-${index}`}
-                    value={scope?.notations ?? ''}
-                    rows={3}
-                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
-                    placeholder="Notes for this scope of work"
-                    onChange={(event) =>
-                        onChange(
-                            `scopes.${index}.notations`,
-                            event.target.value,
-                        )
-                    }
-                />
-            </div>
-        </div>
-    );
-}
-
-function PricingRevisionCard({
-    control,
-    data,
-    index,
-    options,
-    validationErrors,
-    inputClassName,
-    canRemove,
-    onChange,
-    onRemove,
-    onDuplicate,
-}: {
-    control: ReturnType<typeof useForm<BidFormData>>['control'];
-    data: BidFormData;
-    index: number;
-    options: BidOptions;
-    validationErrors: FieldErrors<BidFormData>;
-    inputClassName: string;
-    canRemove: boolean;
-    onChange: <Field extends FieldPath<BidFormData>>(
-        field: Field,
-        value: PathValue<BidFormData, Field>,
-    ) => void;
-    onRemove: () => void;
-    onDuplicate: () => void;
-}) {
-    const { fields, append, remove } = useFieldArray({
-        control,
-        name: `pricings.${index}.items`,
-    });
-    const pricing = data.pricings?.[index];
-
-    return (
-        <div className="flex flex-col gap-4 rounded-lg border border-emerald-200 bg-background p-4 dark:border-emerald-900/70">
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_10rem_minmax(0,1fr)_auto]">
-                <div className="flex flex-col gap-2">
-                    <InputLabel
-                        htmlFor={`pricing-name-${index}`}
-                        value="Revision name"
-                        className="text-emerald-700 dark:text-emerald-300"
-                    />
-                    <TextInput
-                        id={`pricing-name-${index}`}
-                        value={pricing?.name ?? ''}
-                        className={inputClassName}
-                        onChange={(event) =>
-                            onChange(
-                                `pricings.${index}.name`,
-                                event.target.value,
-                            )
-                        }
-                    />
-                    <InputError
-                        message={errorMessage(
-                            validationErrors,
-                            `pricings.${index}.name`,
-                        )}
-                    />
-                </div>
-                <div className="flex flex-col gap-2">
-                    <InputLabel
-                        htmlFor={`pricing-date-${index}`}
-                        value="Date"
-                        className="text-emerald-700 dark:text-emerald-300"
-                    />
-                    <TextInput
-                        id={`pricing-date-${index}`}
-                        type="date"
-                        value={pricing?.revision_date ?? ''}
-                        className={inputClassName}
-                        onChange={(event) =>
-                            onChange(
-                                `pricings.${index}.revision_date`,
-                                event.target.value,
-                            )
-                        }
-                    />
-                </div>
-                <div className="flex flex-col gap-2">
-                    <InputLabel
-                        htmlFor={`pricing-notes-${index}`}
-                        value="Notes"
-                        className="text-emerald-700 dark:text-emerald-300"
-                    />
-                    <TextInput
-                        id={`pricing-notes-${index}`}
-                        value={pricing?.notes ?? ''}
-                        className={inputClassName}
-                        placeholder="What changed"
-                        onChange={(event) =>
-                            onChange(
-                                `pricings.${index}.notes`,
-                                event.target.value,
-                            )
-                        }
-                    />
-                </div>
-                <div className="flex items-start gap-2 lg:pt-7">
+                <div className="flex justify-end">
                     <Button
                         type="button"
-                        variant="outline"
-                        aria-label="Duplicate revision"
-                        onClick={onDuplicate}
+                        size="sm"
+                        disabled={!canAddProduct}
+                        onClick={() => append(blankScopeProduct())}
+                        className="border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 hover:text-white"
                     >
-                        <CopyIcon className="size-4" />
+                        <PlusIcon className="size-3.5" />
+                        Add line
                     </Button>
-                    {canRemove ? (
-                        <Button
-                            type="button"
-                            variant="outline"
-                            aria-label="Remove revision"
-                            onClick={onRemove}
-                        >
-                            <Trash2Icon className="size-4" />
-                        </Button>
-                    ) : null}
-                </div>
-            </div>
-
-            <div className="overflow-x-auto">
-                <div className="hidden min-w-[52rem] grid-cols-[minmax(14rem,1.4fr)_minmax(12rem,1.1fr)_minmax(12rem,1fr)_8rem_auto] gap-3 border-b border-border px-1 pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid">
-                    <div>Line item</div>
-                    <div>Pricing basis</div>
-                    <div>Status</div>
-                    <div>Amount</div>
-                    <div />
-                </div>
-                <div className="flex min-w-[52rem] flex-col gap-3 pt-3">
-                    {fields.map((itemField, itemIndex) => (
-                        <div
-                            key={itemField.id}
-                            className="grid gap-3 md:grid-cols-[minmax(14rem,1.4fr)_minmax(12rem,1.1fr)_minmax(12rem,1fr)_8rem_auto] md:items-start"
-                        >
-                            <TextInput
-                                value={
-                                    pricing?.items?.[itemIndex]?.description ??
-                                    ''
-                                }
-                                className={inputClassName}
-                                placeholder="Product to be priced"
-                                onChange={(event) =>
-                                    onChange(
-                                        `pricings.${index}.items.${itemIndex}.description`,
-                                        event.target.value,
-                                    )
-                                }
-                            />
-                            <TextInput
-                                value={
-                                    pricing?.items?.[itemIndex]
-                                        ?.pricing_basis ?? ''
-                                }
-                                className={inputClassName}
-                                placeholder="Per opening, lump sum..."
-                                onChange={(event) =>
-                                    onChange(
-                                        `pricings.${index}.items.${itemIndex}.pricing_basis`,
-                                        event.target.value,
-                                    )
-                                }
-                            />
-                            <CreatableSelect
-                                id={`pricing-status-${index}-${itemIndex}`}
-                                label=""
-                                compact
-                                value={
-                                    pricing?.items?.[itemIndex]?.status_id ?? ''
-                                }
-                                options={options.pricingStatuses}
-                                createRoute={route(
-                                    'admin.bid-pricing-statuses.store',
-                                )}
-                                catalogKey="pricingStatuses"
-                                entityLabel="pricing status"
-                                placeholder="Budget allowance"
-                                onChange={(statusId) =>
-                                    onChange(
-                                        `pricings.${index}.items.${itemIndex}.status_id`,
-                                        statusId,
-                                    )
-                                }
-                            />
-                            <TextInput
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={
-                                    pricing?.items?.[itemIndex]?.amount ?? ''
-                                }
-                                className={inputClassName}
-                                placeholder="0.00"
-                                onChange={(event) =>
-                                    onChange(
-                                        `pricings.${index}.items.${itemIndex}.amount`,
-                                        event.target.value,
-                                    )
-                                }
-                            />
-                            <Button
-                                type="button"
-                                variant="outline"
-                                aria-label="Remove line item"
-                                onClick={() => remove(itemIndex)}
-                            >
-                                <Trash2Icon className="size-4" />
-                            </Button>
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => append(blankPricingItem())}
-                >
-                    <PlusIcon className="size-4" />
-                    Add line item
-                </Button>
-                <div className="text-right">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        Revision total
-                    </p>
-                    <PricingTotal control={control} index={index} />
                 </div>
             </div>
         </div>

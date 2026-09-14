@@ -1,4 +1,4 @@
-export type ProductKind = 'door' | 'part';
+export type ProductKind = 'door' | 'window' | 'part';
 
 export type ManufacturerOption = {
     id: number;
@@ -15,6 +15,7 @@ export type ProductTypeOption = {
     id: number;
     name: string;
     allows_parts?: boolean;
+    kind?: ProductKind;
 };
 
 export type DoorConstructionOption = {
@@ -28,6 +29,11 @@ export type DoorConfigurationOption = {
 };
 
 export type DoorHandingOption = {
+    id: number;
+    name: string;
+};
+
+export type WindowCatalogOption = {
     id: number;
     name: string;
 };
@@ -69,6 +75,9 @@ export type ProductOptions = {
     constructions?: DoorConstructionOption[];
     configurations?: DoorConfigurationOption[];
     handings?: DoorHandingOption[];
+    glassTypes?: WindowCatalogOption[];
+    glazingTypes?: WindowCatalogOption[];
+    seals?: WindowCatalogOption[];
     parts: ProductPartOption[];
     taxStates?: TaxStateOption[];
     can: ProductCapabilities;
@@ -95,6 +104,14 @@ export type ProductPayload = {
     ada?: boolean | null;
     fire_label?: string | null;
     thickness?: string | null;
+    area_tested?: string | null;
+    weight?: string | null;
+    window_glass_type_id?: number | null;
+    window_glazing_type_id?: number | null;
+    window_seal_id?: number | null;
+    glass_type?: WindowCatalogOption | null;
+    glazing_type?: WindowCatalogOption | null;
+    seal?: WindowCatalogOption | null;
     spec_pdf_url?: string | null;
     spec_pdf_name?: string | null;
     price?: string | number | null;
@@ -127,6 +144,11 @@ export type ProductFormData = {
     ada: string;
     fire_label: string;
     thickness: string;
+    area_tested: string;
+    weight: string;
+    window_glass_type_id: string;
+    window_glazing_type_id: string;
+    window_seal_id: string;
     spec_pdf: File | null;
     remove_spec_pdf: boolean;
     price: string;
@@ -170,7 +192,24 @@ export type ProductsPaginator = {
 };
 
 export const kindLabel = (kind: string) =>
-    kind === 'door' ? 'Door' : kind === 'part' ? 'Part' : kind;
+    kind === 'door'
+        ? 'Door'
+        : kind === 'window'
+          ? 'Window'
+          : kind === 'part'
+            ? 'Part'
+            : kind;
+
+export const isWindowProduct = (
+    product?: Pick<ProductPayload, 'kind' | 'type'> | null,
+) => product?.kind === 'window' || product?.type?.kind === 'window';
+
+export const isAssemblyProduct = (
+    product?: Pick<ProductPayload, 'kind' | 'type'> | null,
+) =>
+    Boolean(product?.type?.allows_parts) ||
+    product?.kind === 'door' ||
+    product?.kind === 'window';
 
 export const blankPart = () => ({
     part_id: '',
@@ -218,7 +257,9 @@ export const existingModel = (
 };
 
 export const defaultDoorTypeId = (types?: ProductTypeOption[]) => {
-    const doorType = types?.find((type) => type.allows_parts);
+    const doorType =
+        types?.find((type) => type.kind === 'door') ??
+        types?.find((type) => type.allows_parts);
 
     return doorType ? String(doorType.id) : '';
 };
@@ -258,6 +299,23 @@ export const productToFormData = (
     ada: adaToFormValue(product?.ada),
     fire_label: product?.fire_label ?? '',
     thickness: product?.thickness ?? '',
+    area_tested: product?.area_tested ?? '',
+    weight: product?.weight ?? '',
+    window_glass_type_id: product?.window_glass_type_id
+        ? String(product.window_glass_type_id)
+        : product?.glass_type?.id
+          ? String(product.glass_type.id)
+          : '',
+    window_glazing_type_id: product?.window_glazing_type_id
+        ? String(product.window_glazing_type_id)
+        : product?.glazing_type?.id
+          ? String(product.glazing_type.id)
+          : '',
+    window_seal_id: product?.window_seal_id
+        ? String(product.window_seal_id)
+        : product?.seal?.id
+          ? String(product.seal.id)
+          : '',
     spec_pdf: null,
     remove_spec_pdf: false,
     price: product?.price === null || product?.price === undefined
@@ -301,7 +359,7 @@ export const productToFormData = (
                       statePrice.min_markup_percent,
                   ),
               }))
-            : !product || product.kind === 'door' || product.type?.allows_parts
+            : !product || isAssemblyProduct(product)
               ? product?.price || product?.tax_state_id || product?.tax_state?.id
                   ? [
                         {

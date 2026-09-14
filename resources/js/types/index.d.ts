@@ -83,6 +83,10 @@ export type PageProps<
             createProducts: boolean;
             updateProducts: boolean;
             deleteProducts: boolean;
+            viewServices: boolean;
+            createServices: boolean;
+            updateServices: boolean;
+            deleteServices: boolean;
             viewCustomers: boolean;
             createCustomers: boolean;
             updateCustomers: boolean;
@@ -107,5 +111,11 @@ export type PageProps<
     flash?: {
         success?: string | null;
         error?: string | null;
+        importedBidText?: string | null;
+        importedBidTextTemplateId?: number | null;
+        importedScopeText?: string | null;
+        importedScopeTextTemplateId?: number | null;
+        importedShippingText?: string | null;
+        importedShippingTextTemplateId?: number | null;
     };
 };

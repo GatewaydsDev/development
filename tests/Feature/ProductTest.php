@@ -10,6 +10,9 @@ use App\Models\ProductType;
 use App\Models\TaxState;
 use App\Models\User;
 use App\Models\UserLevel;
+use App\Models\WindowGlassType;
+use App\Models\WindowGlazingType;
+use App\Models\WindowSeal;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -34,11 +37,17 @@ test('the create product page includes reusable part options', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->component('Admin/Products/Create')
             ->has('options.types')
+            ->where('options.types.0.name', 'Door')
+            ->where('options.types.1.name', 'Window')
+            ->where('options.types.2.name', 'Part')
             ->has('options.manufacturers')
             ->has('options.models')
             ->has('options.constructions')
             ->has('options.configurations')
             ->has('options.handings')
+            ->has('options.glassTypes')
+            ->has('options.glazingTypes')
+            ->has('options.seals')
             ->has('options.taxStates')
             ->has('options.parts')
         );
@@ -79,6 +88,63 @@ test('a door can be created with reusable parts', function () {
     expect($door->manufacturer_id)->toBe($manufacturer->id);
     expect($door->parts)->toHaveCount(1);
     expect($door->parts->first()?->name)->toBe('Heavy duty hinge');
+});
+
+test('a window can be created after the door type with reusable parts', function () {
+    $admin = productAdmin();
+    $manufacturer = Manufacturer::create(['name' => 'Gateway Door Systems']);
+    $windowType = ProductType::firstOrCreateForKind(Product::KIND_WINDOW);
+    $glassType = WindowGlassType::query()->where('name', '1/2" LAM x 1/4" LAM')->firstOrFail();
+    $glazingType = WindowGlazingType::query()->where('name', 'Neoprene')->firstOrFail();
+    $seal = WindowSeal::query()->where('name', 'NC3')->firstOrFail();
+    $glazing = Product::create([
+        'name' => 'RF glazing',
+        'kind' => Product::KIND_PART,
+        'manufacturer_id' => $manufacturer->id,
+    ]);
+
+    $response = $this
+        ->actingAs($admin)
+        ->post(route('admin.products.store'), [
+            'product_type_id' => $windowType->id,
+            'manufacturer_id' => $manufacturer->id,
+            'name' => 'RF Window',
+            'description' => 'Radio frequency window assembly',
+            'notes' => '',
+            'stc_rating' => '46',
+            'thickness' => '14"',
+            'area_tested' => '18 SQ. FT.',
+            'window_glazing_type_id' => $glazingType->id,
+            'weight' => '30.1',
+            'window_glass_type_id' => $glassType->id,
+            'window_seal_id' => $seal->id,
+            'parts' => [
+                ['part_id' => $glazing->id],
+            ],
+        ]);
+
+    $window = Product::query()->where('name', 'RF Window')->with('parts', 'productType', 'configurations', 'handings', 'glassType', 'glazingType', 'seal')->firstOrFail();
+
+    $response
+        ->assertSessionHasNoErrors()
+        ->assertSessionHas('success', 'Product created successfully.')
+        ->assertRedirect(route('admin.products.index', ['highlight' => $window->id]));
+
+    expect($windowType->kind())->toBe(Product::KIND_WINDOW);
+    expect($windowType->allows_parts)->toBeTrue();
+    expect($window->kind)->toBe(Product::KIND_WINDOW);
+    expect($window->product_type_id)->toBe($windowType->id);
+    expect($window->parts)->toHaveCount(1);
+    expect($window->parts->first()?->name)->toBe('RF glazing');
+    expect($window->stc_rating)->toBe('46');
+    expect($window->thickness)->toBe('14"');
+    expect($window->area_tested)->toBe('18 SQ. FT.');
+    expect($window->glazingType?->name)->toBe('Neoprene');
+    expect((float) $window->weight)->toBe(30.1);
+    expect($window->glassType?->name)->toBe('1/2" LAM x 1/4" LAM');
+    expect($window->seal?->name)->toBe('NC3');
+    expect($window->configurations)->toHaveCount(0);
+    expect($window->handings)->toHaveCount(0);
 });
 
 test('a door can be saved with a different price per state', function () {
@@ -127,6 +193,49 @@ test('a door can be saved with a different price per state', function () {
     expect((float) $door->statePrices->firstWhere('tax_state_id', $newYork->id)?->price)->toBe(1325.0);
     expect((float) $newJersey->fresh()->rate)->toBe(6.625);
     expect((float) $newYork->fresh()->rate)->toBe(4.0);
+});
+
+test('a product sell price uses the matching project state', function () {
+    $newJersey = TaxState::query()->where('name', 'New Jersey')->firstOrFail();
+    $newYork = TaxState::query()->where('name', 'New York')->firstOrFail();
+    $door = Product::create([
+        'name' => 'State priced door',
+        'kind' => Product::KIND_DOOR,
+        'price' => 900,
+        'markup_percent' => 10,
+    ]);
+    $door->statePrices()->create([
+        'tax_state_id' => $newJersey->id,
+        'price' => 1000,
+        'markup_percent' => 25,
+    ]);
+    $door->statePrices()->create([
+        'tax_state_id' => $newYork->id,
+        'price' => 2000,
+        'markup_percent' => 10,
+    ]);
+
+    expect($door->sellPriceForState('NJ'))->toBe(1250.0);
+    expect($door->sellPriceForState('New Jersey'))->toBe(1250.0);
+    expect($door->sellPriceForState('NY'))->toBe(2200.0);
+    expect($door->sellPriceForState('PA'))->toBe(990.0);
+});
+
+test('a door sell price falls back to a catalog state price', function () {
+    $newJersey = TaxState::query()->where('name', 'New Jersey')->firstOrFail();
+    $door = Product::create([
+        'name' => 'State only door',
+        'kind' => Product::KIND_DOOR,
+    ]);
+    $door->statePrices()->create([
+        'tax_state_id' => $newJersey->id,
+        'price' => 26980.90,
+        'markup_percent' => 20,
+    ]);
+
+    expect($door->sellPriceForState(null))->toBe(32377.08);
+    expect($door->sellPriceForState('PA'))->toBe(32377.08);
+    expect($door->sellPriceForState('NJ'))->toBe(32377.08);
 });
 
 test('a product can be saved with a money price and sell percentages', function () {
@@ -200,25 +309,26 @@ test('state taxes can be created and their percent can be changed', function () 
     expect((float) $connecticut->fresh()->rate)->toBe(6.99);
 });
 
-test('product types can be created and reused', function () {
+test('product types are limited to door window and part', function () {
     $admin = productAdmin();
 
     $this->actingAs($admin)
+        ->from(route('admin.products.create'))
         ->post(route('admin.product-types.store'), [
             'name' => 'Blast Door',
         ])
-        ->assertSessionHasNoErrors();
+        ->assertSessionHasErrors('name');
+
+    expect(ProductType::query()->whereRaw('LOWER(name) = ?', ['blast door'])->exists())->toBeFalse();
 
     $this->actingAs($admin)
         ->post(route('admin.product-types.store'), [
-            'name' => 'blast door',
+            'name' => 'window',
         ])
-        ->assertSessionHasNoErrors();
+        ->assertSessionHasNoErrors()
+        ->assertSessionHas('success', 'Type already exists.');
 
-    $type = ProductType::query()->whereRaw('LOWER(name) = ?', ['blast door'])->first();
-
-    expect(ProductType::query()->whereRaw('LOWER(name) = ?', ['blast door'])->count())->toBe(1);
-    expect($type?->allows_parts)->toBeTrue();
+    expect(ProductType::query()->whereIn('name', ProductType::canonicalNames())->count())->toBe(3);
 });
 
 test('manufacturers can be created and reused on products', function () {
@@ -402,6 +512,60 @@ test('door handings can be created and reused', function () {
     expect(DoorHanding::query()->whereRaw('LOWER(name) = ?', ['center pivot'])->count())->toBe(1);
 });
 
+test('window glass types can be created and reused', function () {
+    $admin = productAdmin();
+
+    $this->actingAs($admin)
+        ->post(route('admin.window-glass-types.store'), [
+            'name' => '1" Insulated',
+        ])
+        ->assertSessionHasNoErrors();
+
+    $this->actingAs($admin)
+        ->post(route('admin.window-glass-types.store'), [
+            'name' => '1" insulated',
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect(WindowGlassType::query()->whereRaw('LOWER(name) = ?', ['1" insulated'])->count())->toBe(1);
+});
+
+test('window glazing types can be created and reused', function () {
+    $admin = productAdmin();
+
+    $this->actingAs($admin)
+        ->post(route('admin.window-glazing-types.store'), [
+            'name' => 'Silicone',
+        ])
+        ->assertSessionHasNoErrors();
+
+    $this->actingAs($admin)
+        ->post(route('admin.window-glazing-types.store'), [
+            'name' => 'silicone',
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect(WindowGlazingType::query()->whereRaw('LOWER(name) = ?', ['silicone'])->count())->toBe(1);
+});
+
+test('window seals can be created and reused', function () {
+    $admin = productAdmin();
+
+    $this->actingAs($admin)
+        ->post(route('admin.window-seals.store'), [
+            'name' => 'EPDM',
+        ])
+        ->assertSessionHasNoErrors();
+
+    $this->actingAs($admin)
+        ->post(route('admin.window-seals.store'), [
+            'name' => 'epdm',
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect(WindowSeal::query()->whereRaw('LOWER(name) = ?', ['epdm'])->count())->toBe(1);
+});
+
 test('a product model can only belong to one product', function () {
     $admin = productAdmin();
     $manufacturer = Manufacturer::create(['name' => 'Overly']);
@@ -471,6 +635,7 @@ test('the product list can be printed and exported as pdf or word', function () 
         ->assertDontSee('Gateway operations', false)
         ->assertSee('Configuration', false)
         ->assertSee('Door handing', false)
+        ->assertSee('Windows', false)
         ->assertSee('RF Door Catalog Item', false)
         ->assertDontSee('Hidden Closer', false);
 

@@ -188,9 +188,13 @@ class ContractorController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'phone_number' => ['nullable', 'string', 'max:50'],
         ]);
 
         $name = trim($validated['name']);
+        $email = trim((string) ($validated['email'] ?? ''));
+        $phoneNumber = trim((string) ($validated['phone_number'] ?? ''));
         $existing = Contractor::query()
             ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
             ->first();
@@ -199,9 +203,20 @@ class ContractorController extends Controller
             return back()->with('success', 'Contractor already exists.');
         }
 
-        Contractor::create([
-            'name' => $name,
-        ]);
+        DB::transaction(function () use ($name, $email, $phoneNumber): void {
+            $contractor = Contractor::create([
+                'name' => $name,
+            ]);
+
+            if ($email !== '' || $phoneNumber !== '') {
+                $contractor->contacts()->create([
+                    'name' => $name,
+                    'email' => $email !== '' ? $email : null,
+                    'phone_number' => $phoneNumber !== '' ? $phoneNumber : null,
+                    'is_primary' => true,
+                ]);
+            }
+        });
 
         return back()->with('success', 'Contractor added successfully.');
     }

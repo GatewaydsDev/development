@@ -11,8 +11,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -171,8 +171,9 @@ class CustomerController extends Controller
     private function validatedCustomer(Request $request): array
     {
         return $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'company_name' => ['nullable', 'string', 'max:255'],
+            'company_name' => ['required', 'string', 'max:255'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'phone_number' => ['nullable', 'string', 'max:50'],
             'address_line_1' => ['nullable', 'string', 'max:255'],
             'address_line_2' => ['nullable', 'string', 'max:255'],
             'city' => ['nullable', 'string', 'max:255'],
@@ -191,7 +192,7 @@ class CustomerController extends Controller
     }
 
     /**
-     * @param array<int, array<string, mixed>> $contacts
+     * @param  array<int, array<string, mixed>>  $contacts
      *
      * @throws ValidationException
      */
@@ -247,7 +248,7 @@ class CustomerController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $validated
+     * @param  array<string, mixed>  $validated
      * @return array<string, mixed>
      */
     private function customerAttributes(array $validated): array
@@ -256,11 +257,13 @@ class CustomerController extends Controller
             ->first(fn (array $contact): bool => (bool) ($contact['is_primary'] ?? false))
             ?? collect($validated['contacts'] ?? [])->first();
 
+        $companyName = trim((string) ($validated['company_name'] ?? ''));
+
         return [
-            'name' => $validated['name'],
-            'company_name' => $validated['company_name'] ?? null,
-            'email' => $primaryContact['email'] ?? null,
-            'phone_number' => $primaryContact['phone_number'] ?? null,
+            'name' => $companyName,
+            'company_name' => $companyName !== '' ? $companyName : null,
+            'email' => $validated['email'] ?? $primaryContact['email'] ?? null,
+            'phone_number' => $validated['phone_number'] ?? $primaryContact['phone_number'] ?? null,
             'address_line_1' => $validated['address_line_1'] ?? null,
             'address_line_2' => $validated['address_line_2'] ?? null,
             'city' => $validated['city'] ?? null,
@@ -271,7 +274,7 @@ class CustomerController extends Controller
     }
 
     /**
-     * @param array<int, array<string, mixed>> $contacts
+     * @param  array<int, array<string, mixed>>  $contacts
      */
     private function syncContacts(Customer $customer, array $contacts): void
     {
@@ -362,4 +365,3 @@ class CustomerController extends Controller
             ->all();
     }
 }
-

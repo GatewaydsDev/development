@@ -12,16 +12,28 @@ use App\Models\BidScopeProduct;
 use App\Models\BidScopeTitle;
 use App\Models\BidStage;
 use App\Models\BidStageType;
+use App\Models\BidTextTemplate;
+use App\Models\Company;
 use App\Models\Product;
 use App\Models\Project;
+use App\Models\ProjectScopeType;
+use App\Models\Service;
 use App\Models\User;
 use App\Support\BidAccess;
+use App\Support\BidApplicationText;
+use App\Support\BidDocument;
+use App\Support\BidListDocument;
+use App\Support\DocumentLogo;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\View\View;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class BidController extends Controller
 {
@@ -38,37 +50,7 @@ class BidController extends Controller
                 'highlight' => $highlight > 0 ? $highlight : null,
             ],
             'options' => $this->options($request->user()),
-            'bids' => Bid::query()
-                ->with([
-                    'project:id,name,project_number',
-                    'stages.type',
-                    'scopes.title',
-                    'scopes.products.product',
-                    'pricings.items',
-                ])
-                ->when($search !== '', function ($query) use ($search): void {
-                    $query->where(function ($query) use ($search): void {
-                        $query
-                            ->where('notes', 'like', "%{$search}%")
-                            ->orWhereHas('project', function ($query) use ($search): void {
-                                $query
-                                    ->where('name', 'like', "%{$search}%")
-                                    ->orWhere('project_number', 'like', "%{$search}%");
-                            })
-                            ->orWhereHas('stages.type', function ($query) use ($search): void {
-                                $query->where('name', 'like', "%{$search}%");
-                            })
-                            ->orWhereHas('scopes.title', function ($query) use ($search): void {
-                                $query->where('name', 'like', "%{$search}%");
-                            })
-                            ->orWhereHas('scopes.products.product', function ($query) use ($search): void {
-                                $query->where('name', 'like', "%{$search}%");
-                            })
-                            ->orWhereHas('scopes', function ($query) use ($search): void {
-                                $query->where('notations', 'like', "%{$search}%");
-                            });
-                    });
-                })
+            'bids' => $this->bidListingQuery($request)
                 ->when($highlight > 0, function ($query) use ($highlight): void {
                     $query->orderByRaw('CASE WHEN id = ? THEN 0 ELSE 1 END', [$highlight]);
                 })
@@ -77,6 +59,27 @@ class BidController extends Controller
                 ->withQueryString()
                 ->through(fn (Bid $bid): array => $this->bidPayload($bid, summary: true)),
         ]);
+    }
+
+    public function printList(Request $request): View
+    {
+        abort_unless(BidAccess::canView($request->user()), 403);
+
+        return view('admin.bids.list', $this->listDocument($request)->viewData(mode: 'print'));
+    }
+
+    public function exportListPdf(Request $request): HttpResponse
+    {
+        abort_unless(BidAccess::canView($request->user()), 403);
+
+        return $this->listDocument($request)->pdfResponse();
+    }
+
+    public function exportListWord(Request $request): BinaryFileResponse
+    {
+        abort_unless(BidAccess::canView($request->user()), 403);
+
+        return $this->listDocument($request)->wordResponse();
     }
 
     public function create(Request $request): Response
@@ -97,7 +100,12 @@ class BidController extends Controller
         $bid = DB::transaction(function () use ($request, $validated): Bid {
             $bid = Bid::create([
                 'project_id' => $validated['project_id'],
-                'notes' => $validated['notes'] ?? null,
+                'notes' => $this->shippingText($validated),
+                'bid_shipping_text_template_id' => $validated['bid_shipping_text_template_id'] ?? null,
+                'bid_text_template_id' => $validated['bid_text_template_id'] ?? null,
+                'application_text' => $this->applicationText($validated),
+                'bid_scope_text_template_id' => $validated['bid_scope_text_template_id'] ?? null,
+                'scope_of_work_text' => $this->scopeOfWorkText($validated),
                 'created_by' => $request->user()->id,
             ]);
 
@@ -116,11 +124,12 @@ class BidController extends Controller
         abort_unless(BidAccess::canView($request->user()), 403);
 
         $bid->load([
-            'project:id,name,project_number',
+            'project:id,name,project_number,site_address_line_1,site_address_line_2,site_city,site_state,site_postal_code,site_country',
             'creator:id,name',
             'stages.type',
             'scopes.title',
             'scopes.products.product',
+            'scopes.products.service',
             'pricings.items.status',
         ]);
 
@@ -130,15 +139,37 @@ class BidController extends Controller
         ]);
     }
 
+    public function print(Request $request, Bid $bid): View
+    {
+        abort_unless(BidAccess::canView($request->user()), 403);
+
+        return view('admin.bids.document', BidDocument::for($bid, $request->user())->viewData(mode: 'print'));
+    }
+
+    public function exportPdf(Request $request, Bid $bid): HttpResponse
+    {
+        abort_unless(BidAccess::canView($request->user()), 403);
+
+        return BidDocument::for($bid, $request->user())->pdfResponse();
+    }
+
+    public function exportWord(Request $request, Bid $bid): BinaryFileResponse
+    {
+        abort_unless(BidAccess::canView($request->user()), 403);
+
+        return BidDocument::for($bid, $request->user())->wordResponse();
+    }
+
     public function edit(Request $request, Bid $bid): Response
     {
         abort_unless(BidAccess::canUpdate($request->user()), 403);
 
         $bid->load([
-            'project:id,name,project_number',
+            'project:id,name,project_number,site_address_line_1,site_address_line_2,site_city,site_state,site_postal_code,site_country',
             'stages.type',
             'scopes.title',
             'scopes.products.product',
+            'scopes.products.service',
             'pricings.items.status',
         ]);
 
@@ -157,7 +188,12 @@ class BidController extends Controller
         DB::transaction(function () use ($bid, $validated): void {
             $bid->fill([
                 'project_id' => $validated['project_id'],
-                'notes' => $validated['notes'] ?? null,
+                'notes' => $this->shippingText($validated),
+                'bid_shipping_text_template_id' => $validated['bid_shipping_text_template_id'] ?? null,
+                'bid_text_template_id' => $validated['bid_text_template_id'] ?? null,
+                'application_text' => $this->applicationText($validated),
+                'bid_scope_text_template_id' => $validated['bid_scope_text_template_id'] ?? null,
+                'scope_of_work_text' => $this->scopeOfWorkText($validated),
             ])->save();
 
             $this->syncBidRelations($bid, $validated);
@@ -184,9 +220,35 @@ class BidController extends Controller
      */
     private function validatedBid(Request $request): array
     {
-        return $request->validate([
+        $validated = $request->validate([
             'project_id' => ['required', 'integer', Rule::exists(Project::class, 'id')],
-            'notes' => ['nullable', 'string', 'max:5000'],
+            'notes' => ['nullable', 'string', 'max:250000'],
+            'bid_shipping_text_template_id' => [
+                'nullable',
+                'integer',
+                Rule::exists(BidTextTemplate::class, 'id')->where(
+                    'kind',
+                    BidTextTemplate::KIND_SHIPPING,
+                ),
+            ],
+            'bid_text_template_id' => [
+                'nullable',
+                'integer',
+                Rule::exists(BidTextTemplate::class, 'id')->where(
+                    'kind',
+                    BidTextTemplate::KIND_APPLICATION,
+                ),
+            ],
+            'application_text' => ['nullable', 'string', 'max:250000'],
+            'bid_scope_text_template_id' => [
+                'nullable',
+                'integer',
+                Rule::exists(BidTextTemplate::class, 'id')->where(
+                    'kind',
+                    BidTextTemplate::KIND_SCOPE,
+                ),
+            ],
+            'scope_of_work_text' => ['nullable', 'string', 'max:250000'],
             'stages' => ['array'],
             'stages.*.stage_type_id' => [
                 'required',
@@ -198,17 +260,33 @@ class BidController extends Controller
             'stages.*.notes' => ['nullable', 'string', 'max:2000'],
             'scopes' => ['array'],
             'scopes.*.title_id' => [
-                'required',
+                'nullable',
                 'integer',
-                Rule::exists(BidScopeTitle::class, 'id'),
+                Rule::exists(ProjectScopeType::class, 'id'),
             ],
-            'scopes.*.notations' => ['nullable', 'string', 'max:5000'],
+            'scopes.*.scope_type' => [
+                'nullable',
+                'string',
+                Rule::exists(ProjectScopeType::class, 'slug'),
+            ],
+            'scopes.*.notations' => ['nullable', 'string', 'max:250000'],
+            'scopes.*.quantity' => ['nullable', 'numeric', 'min:0'],
+            'scopes.*.unit_bid' => ['nullable', 'numeric', 'min:0'],
+            'scopes.*.extended' => ['nullable', 'numeric', 'min:0'],
             'scopes.*.products' => ['array'],
             'scopes.*.products.*.product_id' => [
                 'required',
                 'integer',
                 Rule::exists(Product::class, 'id'),
             ],
+            'scopes.*.products.*.service_id' => [
+                'required',
+                'integer',
+                Rule::exists(Service::class, 'id'),
+            ],
+            'scopes.*.products.*.quantity' => ['nullable', 'numeric', 'min:0'],
+            'scopes.*.products.*.unit_bid' => ['nullable', 'numeric', 'min:0'],
+            'scopes.*.products.*.extended' => ['nullable', 'numeric', 'min:0'],
             'pricings' => ['array'],
             'pricings.*.name' => ['required', 'string', 'max:255'],
             'pricings.*.revision_date' => ['nullable', 'date'],
@@ -223,6 +301,8 @@ class BidController extends Controller
             ],
             'pricings.*.items.*.amount' => ['nullable', 'numeric', 'min:0'],
         ]);
+
+        return $validated;
     }
 
     /**
@@ -251,20 +331,39 @@ class BidController extends Controller
         $scopeIds = [];
 
         foreach (array_values($validated['scopes'] ?? []) as $index => $scope) {
+            $titleId = $this->resolvedScopeTitleId($scope);
+
+            if (! $titleId) {
+                continue;
+            }
+
+            $lines = $this->scopeProductLines($scope);
+
             $record = BidScope::query()->create([
                 'bid_id' => $bid->id,
-                'bid_scope_title_id' => $scope['title_id'],
-                'notations' => $scope['notations'] ?? null,
+                'bid_scope_title_id' => $titleId,
+                'notations' => $this->sanitizedScopeNotations($scope['notations'] ?? null),
+                ...$this->rolledScopeAmounts($lines),
                 'sort_order' => $index,
             ]);
 
-            foreach (array_values($scope['products'] ?? []) as $productIndex => $item) {
+            foreach ($lines as $productIndex => $item) {
                 $catalogProduct = Product::query()->find($item['product_id']);
+                $service = Service::query()->find($item['service_id']);
+                $quantity = $this->nullableDecimal($item['quantity'] ?? null);
+                $unitBid = $this->nullableDecimal($item['unit_bid'] ?? null);
 
                 BidScopeProduct::query()->create([
                     'bid_scope_id' => $record->id,
                     'product_id' => $item['product_id'],
-                    'description' => $catalogProduct?->name,
+                    'service_id' => $item['service_id'],
+                    'description' => $this->scopeLineDescription($catalogProduct, $service),
+                    'quantity' => $quantity,
+                    'unit_bid' => $unitBid,
+                    'extended' => $this->scopeExtendedAmount(
+                        $item['quantity'] ?? null,
+                        $item['unit_bid'] ?? null,
+                    ),
                     'sort_order' => $productIndex,
                 ]);
             }
@@ -276,6 +375,10 @@ class BidController extends Controller
             ->where('bid_id', $bid->id)
             ->whereNotIn('id', $scopeIds)
             ->delete();
+
+        if (! array_key_exists('pricings', $validated)) {
+            return;
+        }
 
         $pricingIds = [];
 
@@ -311,33 +414,207 @@ class BidController extends Controller
     }
 
     /**
+     * @param  array<string, mixed>  $scope
+     */
+    private function resolvedScopeTitleId(array $scope): ?int
+    {
+        $titleId = isset($scope['title_id']) ? (int) $scope['title_id'] : 0;
+
+        if ($titleId > 0) {
+            $type = ProjectScopeType::query()->find($titleId);
+
+            if ($type) {
+                return $this->bidScopeTitleIdForName($type->name);
+            }
+        }
+
+        $type = trim((string) ($scope['scope_type'] ?? ''));
+
+        if ($type === '') {
+            return null;
+        }
+
+        return $this->bidScopeTitleIdForName(Project::serviceTypeLabel($type));
+    }
+
+    private function bidScopeTitleIdForName(string $name): int
+    {
+        $existing = BidScopeTitle::query()
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
+            ->first();
+
+        if ($existing) {
+            return $existing->id;
+        }
+
+        return BidScopeTitle::query()->create(['name' => $name])->id;
+    }
+
+    private function scopeTypeIdForTitle(?BidScopeTitle $title): ?int
+    {
+        if ($title === null || trim($title->name) === '') {
+            return null;
+        }
+
+        return ProjectScopeType::query()
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($title->name)])
+            ->value('id');
+    }
+
+    private function sanitizedScopeNotations(mixed $notations): ?string
+    {
+        if (! is_string($notations) || trim($notations) === '') {
+            return null;
+        }
+
+        if (strip_tags($notations) === $notations) {
+            return trim($notations);
+        }
+
+        return BidApplicationText::sanitize($notations);
+    }
+
+    /**
+     * @param  array<string, mixed>  $scope
+     * @return list<array<string, mixed>>
+     */
+    private function scopeProductLines(array $scope): array
+    {
+        $lines = array_values($scope['products'] ?? []);
+
+        if (count($lines) === 1) {
+            if (($lines[0]['quantity'] ?? null) === null || ($lines[0]['quantity'] ?? '') === '') {
+                $lines[0]['quantity'] = $scope['quantity'] ?? $lines[0]['quantity'] ?? null;
+            }
+
+            if (($lines[0]['unit_bid'] ?? null) === null || ($lines[0]['unit_bid'] ?? '') === '') {
+                $lines[0]['unit_bid'] = $scope['unit_bid'] ?? $lines[0]['unit_bid'] ?? null;
+            }
+        }
+
+        return $lines;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $lines
+     * @return array{quantity: ?string, unit_bid: ?string, extended: ?string}
+     */
+    private function rolledScopeAmounts(array $lines): array
+    {
+        $quantitySum = 0.0;
+        $extendedSum = 0.0;
+        $hasQuantity = false;
+        $hasExtended = false;
+        $units = [];
+
+        foreach ($lines as $item) {
+            $quantity = $this->nullableDecimal($item['quantity'] ?? null);
+            $unitBid = $this->nullableDecimal($item['unit_bid'] ?? null);
+            $extended = $this->scopeExtendedAmount(
+                $item['quantity'] ?? null,
+                $item['unit_bid'] ?? null,
+            );
+
+            if ($quantity !== null) {
+                $quantitySum += (float) $quantity;
+                $hasQuantity = true;
+            }
+
+            if ($unitBid !== null) {
+                $units[] = $unitBid;
+            }
+
+            if ($extended !== null) {
+                $extendedSum += (float) $extended;
+                $hasExtended = true;
+            }
+        }
+
+        $uniqueUnits = array_values(array_unique($units));
+
+        return [
+            'quantity' => $hasQuantity ? number_format($quantitySum, 2, '.', '') : null,
+            'unit_bid' => count($uniqueUnits) === 1 ? $uniqueUnits[0] : null,
+            'extended' => $hasExtended ? number_format($extendedSum, 2, '.', '') : null,
+        ];
+    }
+
+    private function nullableDecimal(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return number_format((float) $value, 2, '.', '');
+    }
+
+    private function scopeExtendedAmount(mixed $quantity, mixed $unitBid): ?string
+    {
+        if ($quantity === null || $quantity === '' || $unitBid === null || $unitBid === '') {
+            return null;
+        }
+
+        return number_format((float) $quantity * (float) $unitBid, 2, '.', '');
+    }
+
+    private function plainScopeNotations(mixed $notations): string
+    {
+        if (! is_string($notations)) {
+            return '';
+        }
+
+        return trim(html_entity_decode(strip_tags($notations), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    }
+
+    private function scopeLineDescription(?Product $product, ?Service $service): ?string
+    {
+        $parts = array_values(array_filter([
+            $product?->name,
+            $service?->name,
+        ], fn (?string $value): bool => filled($value)));
+
+        return $parts === [] ? null : implode(' — ', $parts);
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function bidPayload(Bid $bid, bool $summary = false): array
     {
-        $latestPricing = $bid->pricings->last();
-        $latestTotal = $latestPricing
-            ? $latestPricing->items->sum(fn (BidPricingItem $item): float => (float) ($item->amount ?? 0))
-            : 0;
         $currentStage = $bid->stages->last();
 
         return [
             'id' => $bid->id,
             'uuid' => $bid->uuid,
-            'notes' => $summary ? null : $bid->notes,
+            'notes' => $summary ? null : BidApplicationText::sanitize($bid->notes),
+            'bid_shipping_text_template_id' => $summary ? null : $bid->bid_shipping_text_template_id,
+            'bid_text_template_id' => $summary ? null : $bid->bid_text_template_id,
+            'application_text' => $summary ? null : BidApplicationText::sanitize($bid->application_text),
+            'bid_scope_text_template_id' => $summary ? null : $bid->bid_scope_text_template_id,
+            'scope_of_work_text' => $summary ? null : BidApplicationText::sanitize($bid->scope_of_work_text),
             'created_at' => $bid->created_at?->toDateString(),
             'updated_at' => $bid->updated_at?->toDateString(),
             'project' => [
                 'id' => $bid->project?->id,
                 'name' => $bid->project?->name,
                 'project_number' => $bid->project?->project_number,
+                'site_address' => $bid->project
+                    ? BidApplicationText::formatAddress(
+                        $bid->project->site_address_line_1,
+                        $bid->project->site_address_line_2,
+                        $bid->project->site_city,
+                        $bid->project->site_state,
+                        $bid->project->site_postal_code,
+                        $bid->project->site_country,
+                    )
+                    : null,
             ],
             'creator' => $summary ? null : [
                 'id' => $bid->creator?->id,
                 'name' => $bid->creator?->name,
             ],
             'current_stage' => $currentStage?->type?->name,
-            'latest_total' => number_format((float) $latestTotal, 2, '.', ''),
+            'latest_total' => number_format($bid->latestTotal(), 2, '.', ''),
             'stages' => $bid->stages
                 ->map(fn (BidStage $stage): array => [
                     'id' => $stage->id,
@@ -351,9 +628,12 @@ class BidController extends Controller
             'scopes' => $bid->scopes
                 ->map(fn (BidScope $scope): array => [
                     'id' => $scope->id,
-                    'title_id' => $scope->bid_scope_title_id,
+                    'title_id' => $this->scopeTypeIdForTitle($scope->title),
                     'name' => $scope->title?->name,
                     'notations' => $summary ? null : $scope->notations,
+                    'quantity' => $scope->quantity,
+                    'unit_bid' => $scope->unit_bid,
+                    'extended' => $scope->extended,
                     'products' => $scope->products
                         ->map(fn (BidScopeProduct $product): array => [
                             'id' => $product->id,
@@ -361,7 +641,12 @@ class BidController extends Controller
                             'name' => $product->product?->name ?? $product->description,
                             'abbreviation' => $product->product?->abbreviation,
                             'kind' => $product->product?->kind,
+                            'service_id' => $product->service_id,
+                            'service_name' => $product->service?->name,
                             'description' => $product->description,
+                            'quantity' => $product->quantity,
+                            'unit_bid' => $product->unit_bid,
+                            'extended' => $product->extended,
                         ])
                         ->values()
                         ->all(),
@@ -401,18 +686,109 @@ class BidController extends Controller
     }
 
     /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function applicationText(array $validated): ?string
+    {
+        return $this->filledBidHtml($validated, 'application_text');
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function shippingText(array $validated): ?string
+    {
+        return $this->filledBidHtml($validated, 'notes');
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function scopeOfWorkText(array $validated): ?string
+    {
+        return $this->filledBidHtml($validated, 'scope_of_work_text');
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function filledBidHtml(array $validated, string $field): ?string
+    {
+        $project = Project::query()
+            ->with(['customer', 'scopes'])
+            ->findOrFail($validated['project_id']);
+        $company = Company::query()->where('is_active', true)->latest()->first();
+        $scopeLines = collect($validated['scopes'] ?? [])
+            ->map(function (array $scope): ?string {
+                $title = isset($scope['title_id'])
+                    ? ProjectScopeType::query()->find($scope['title_id'])?->name
+                    : null;
+                $name = $title
+                    ?: (filled($scope['scope_type'] ?? null)
+                        ? Project::serviceTypeLabel((string) $scope['scope_type'])
+                        : null);
+
+                if (! $name) {
+                    return null;
+                }
+
+                $notes = $this->plainScopeNotations($scope['notations'] ?? null);
+
+                return $notes !== '' ? $name.': '.$notes : $name;
+            })
+            ->filter()
+            ->values()
+            ->all();
+
+        return BidApplicationText::fill(
+            BidApplicationText::sanitize($validated[$field] ?? null),
+            BidApplicationText::valuesFor(
+                $project,
+                $company,
+                $scopeLines !== [] ? $scopeLines : null,
+            ),
+        );
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function options(?User $user): array
     {
+        $company = Company::query()->where('is_active', true)->latest()->first();
+
         return [
             'projects' => Project::query()
+                ->with(['scopes.product', 'scopes.service', 'customer'])
                 ->orderBy('name')
-                ->get(['id', 'name', 'project_number'])
+                ->get()
                 ->map(fn (Project $project): array => [
                     'id' => $project->id,
                     'name' => $project->name,
                     'project_number' => $project->project_number,
+                    'customer_name' => $project->customer?->name,
+                    'customer_company' => $project->customer?->company_name,
+                    'site_address' => BidApplicationText::formatAddress(
+                        $project->site_address_line_1,
+                        $project->site_address_line_2,
+                        $project->site_city,
+                        $project->site_state,
+                        $project->site_postal_code,
+                        $project->site_country,
+                    ),
+                    'estimated_start_date' => $project->estimated_start_date?->format('F j, Y'),
+                    'estimated_end_date' => $project->estimated_end_date?->format('F j, Y'),
+                    'site_state' => $project->site_state,
+                    'scopes' => $project->scopes
+                        ->map(fn ($scope): array => [
+                            'type' => $scope->scope_type,
+                            'name' => Project::serviceTypeLabel((string) $scope->scope_type),
+                            'notes' => $scope->notes,
+                            'product_id' => $scope->product_id,
+                            'service_id' => $scope->service_id,
+                        ])
+                        ->values()
+                        ->all(),
                 ])
                 ->all(),
             'stageTypes' => BidStageType::query()
@@ -423,24 +799,57 @@ class BidController extends Controller
                     'name' => $type->name,
                 ])
                 ->all(),
-            'scopeTitles' => BidScopeTitle::query()
+            'scopeTitles' => ProjectScopeType::query()
                 ->orderBy('name')
                 ->get(['id', 'name'])
-                ->map(fn (BidScopeTitle $title): array => [
-                    'id' => $title->id,
-                    'name' => $title->name,
+                ->map(fn (ProjectScopeType $type): array => [
+                    'id' => $type->id,
+                    'name' => $type->name,
                 ])
                 ->all(),
             'products' => Product::query()
+                ->whereIn('kind', Product::KINDS)
+                ->with(['statePrices.taxState'])
                 ->orderBy('kind')
                 ->orderBy('name')
-                ->get(['id', 'name', 'abbreviation', 'kind', 'description'])
+                ->get()
                 ->map(fn (Product $product): array => [
                     'id' => $product->id,
                     'name' => $product->name,
                     'abbreviation' => $product->abbreviation,
                     'kind' => $product->kind,
                     'description' => $product->description,
+                    'price' => $product->price,
+                    'markup_percent' => $product->markup_percent,
+                    'sell_price' => $product->sellPriceForState(null),
+                    'state_prices' => $product->statePrices
+                        ->map(fn ($statePrice): array => [
+                            'tax_state_id' => $statePrice->tax_state_id,
+                            'tax_state' => $statePrice->taxState
+                                ? [
+                                    'id' => $statePrice->taxState->id,
+                                    'name' => $statePrice->taxState->name,
+                                    'rate' => $statePrice->taxState->rate === null
+                                        ? null
+                                        : (float) $statePrice->taxState->rate,
+                                ]
+                                : null,
+                            'price' => $statePrice->price,
+                            'markup_percent' => $statePrice->markup_percent,
+                            'sell_price' => $product->sellPriceForState(
+                                $statePrice->taxState?->name,
+                            ),
+                        ])
+                        ->values()
+                        ->all(),
+                ])
+                ->all(),
+            'services' => Service::query()
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->map(fn (Service $service): array => [
+                    'id' => $service->id,
+                    'name' => $service->name,
                 ])
                 ->all(),
             'pricingStatuses' => BidPricingStatus::query()
@@ -451,11 +860,112 @@ class BidController extends Controller
                     'name' => $status->name,
                 ])
                 ->all(),
+            'textTemplates' => BidTextTemplate::query()
+                ->where('kind', BidTextTemplate::KIND_APPLICATION)
+                ->orderBy('name')
+                ->get(['id', 'name', 'body'])
+                ->map(fn (BidTextTemplate $template): array => [
+                    'id' => $template->id,
+                    'name' => $template->name,
+                    'body' => $template->body,
+                ])
+                ->all(),
+            'scopeTextTemplates' => BidTextTemplate::query()
+                ->where('kind', BidTextTemplate::KIND_SCOPE)
+                ->orderBy('name')
+                ->get(['id', 'name', 'body'])
+                ->map(fn (BidTextTemplate $template): array => [
+                    'id' => $template->id,
+                    'name' => $template->name,
+                    'body' => $template->body,
+                ])
+                ->all(),
+            'shippingTextTemplates' => BidTextTemplate::query()
+                ->where('kind', BidTextTemplate::KIND_SHIPPING)
+                ->orderBy('name')
+                ->get(['id', 'name', 'body'])
+                ->map(fn (BidTextTemplate $template): array => [
+                    'id' => $template->id,
+                    'name' => $template->name,
+                    'body' => $template->body,
+                ])
+                ->all(),
+            'company' => [
+                'name' => $company?->name ?: 'Gateway Door Systems',
+                'legal_name' => $company?->legal_name,
+                'email' => $company?->email,
+                'phone' => $company?->contact_phone_number ?: $company?->phone_number,
+                'address' => $company
+                    ? BidApplicationText::formatAddress(
+                        $company->address_line_1,
+                        $company->address_line_2,
+                        $company->city,
+                        $company->state,
+                        $company->postal_code,
+                        $company->country,
+                    )
+                    : '',
+            ],
             'can' => [
                 'create' => $user ? BidAccess::canCreate($user) : false,
                 'update' => $user ? BidAccess::canUpdate($user) : false,
                 'delete' => $user ? BidAccess::canDelete($user) : false,
             ],
         ];
+    }
+
+    private function listDocument(Request $request): BidListDocument
+    {
+        return new BidListDocument(
+            bids: $this->bidListingQuery($request)->latest()->get(),
+            company: DocumentLogo::company(),
+            user: $request->user(),
+            search: (string) $request->query('search', ''),
+        );
+    }
+
+    private function bidListingQuery(Request $request): Builder
+    {
+        $search = (string) $request->query('search', '');
+
+        return Bid::query()
+            ->with([
+                'project:id,name,project_number,customer_id',
+                'project.customer',
+                'project.contractors.contacts',
+                'stages.type',
+                'scopes.title',
+                'scopes.products.product',
+                'scopes.products.service',
+                'pricings.items',
+            ])
+            ->when($search !== '', function ($query) use ($search): void {
+                $query->where(function ($query) use ($search): void {
+                    $query
+                        ->where('notes', 'like', "%{$search}%")
+                        ->orWhere('application_text', 'like', "%{$search}%")
+                        ->orWhere('scope_of_work_text', 'like', "%{$search}%")
+                        ->orWhereHas('project', function ($query) use ($search): void {
+                            $query
+                                ->where('name', 'like', "%{$search}%")
+                                ->orWhere('project_number', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('stages.type', function ($query) use ($search): void {
+                            $query->where('name', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('scopes.title', function ($query) use ($search): void {
+                            $query->where('name', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('scopes.products.product', function ($query) use ($search): void {
+                            $query->where('name', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('scopes.products.service', function ($query) use ($search): void {
+                            $query->where('name', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('scopes', function ($query) use ($search): void {
+                            $query->where('notations', 'like', "%{$search}%");
+                        });
+                });
+            });
     }
 }

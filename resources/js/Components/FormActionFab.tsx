@@ -41,7 +41,7 @@ export default function FormActionFab({
     return (
         <div
             ref={rootRef}
-            className="fixed bottom-6 right-3 z-40 flex flex-col items-center gap-2 sm:bottom-8 sm:right-5"
+            className="fixed bottom-[max(1.5rem,env(safe-area-inset-bottom))] right-[max(0.75rem,env(safe-area-inset-right))] z-40 flex flex-col items-center gap-2 sm:bottom-8 sm:right-5"
         >
             <div
                 className={cn(

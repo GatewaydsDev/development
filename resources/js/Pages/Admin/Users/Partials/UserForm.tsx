@@ -251,7 +251,7 @@ export default function UserForm({
                 <CardDescription>{description}</CardDescription>
             </CardHeader>
             <CardContent>
-                <form onSubmit={submit} className="flex flex-col gap-6 pr-14 sm:pr-16">
+                <form onSubmit={submit} className="flex min-w-0 flex-col gap-6 pr-16 sm:pr-20">
                     <FormActionFab
                         cancelHref={route('admin.users.index')}
                         saveLabel={submitLabel}

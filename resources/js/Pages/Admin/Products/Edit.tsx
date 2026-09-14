@@ -42,7 +42,7 @@ export default function Edit({ product, options }: EditProps) {
                         action={route('admin.products.update', product.id)}
                         method="patch"
                         title={`${product.type?.name || 'Product'} information`}
-                        description="Update this reusable door or part."
+                        description="Update this reusable door, window, or part."
                         options={options}
                         product={product}
                     />

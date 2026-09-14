@@ -34,7 +34,7 @@ export default function Edit({ customer, contactRoles }: EditProps) {
                 </div>
             }
         >
-            <Head title={`Edit ${customer.name}`} />
+            <Head title={`Edit ${customer.company_name || customer.name}`} />
 
             <div className="py-6 sm:py-8">
                 <div className="mx-auto max-w-[96rem] px-4 sm:px-6 lg:px-8">
@@ -42,7 +42,7 @@ export default function Edit({ customer, contactRoles }: EditProps) {
                         action={route('admin.customers.update', customer.id)}
                         method="patch"
                         submitLabel="Save changes"
-                        title={customer.name}
+                        title={customer.company_name || customer.name}
                         description={
                             customer.project
                                 ? `Linked project: ${customer.project.name}`
