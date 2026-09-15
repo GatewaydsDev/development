@@ -29,7 +29,7 @@ class AccessControlController extends Controller
             ->map(fn (UserLevel $level): array => [
                 'id' => $level->id,
                 'name' => $level->name,
-                'locked' => $level->name === UserLevel::SUPER_ADMIN,
+                'locked' => $level->isSuperAdminLevel(),
                 'permissions' => collect(config('access.permissions', []))
                     ->keys()
                     ->mapWithKeys(fn (string $permission): array => [
@@ -58,7 +58,7 @@ class AccessControlController extends Controller
         UserLevel::query()
             ->get()
             ->each(function (UserLevel $level) use ($validated, $permissionKeys): void {
-                if ($level->name === UserLevel::SUPER_ADMIN) {
+                if ($level->isSuperAdminLevel()) {
                     $level->forceFill([
                         'permissions' => $level->defaultPermissions(),
                     ])->save();

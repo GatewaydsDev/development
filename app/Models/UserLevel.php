@@ -10,6 +10,11 @@ class UserLevel extends Model
 {
     public const SUPER_ADMIN = 'Super Admin';
 
+    public const SUPER_ADMIN_ALIASES = [
+        self::SUPER_ADMIN,
+        'Super Administrator',
+    ];
+
     public const ADMINISTRATOR = 'Administrator';
 
     public const ADMIN = 'Admin';
@@ -45,9 +50,19 @@ class UserLevel extends Model
         return $this->hasMany(User::class, 'level_id');
     }
 
+    public static function isSuperAdminName(?string $name): bool
+    {
+        return in_array($name, self::SUPER_ADMIN_ALIASES, true);
+    }
+
+    public function isSuperAdminLevel(): bool
+    {
+        return self::isSuperAdminName($this->name);
+    }
+
     public function hasPermission(string $permission): bool
     {
-        if ($this->name === self::SUPER_ADMIN) {
+        if ($this->isSuperAdminLevel()) {
             return true;
         }
 

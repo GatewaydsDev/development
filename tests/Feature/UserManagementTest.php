@@ -82,6 +82,30 @@ test('super admins can update users', function () {
     ]);
 });
 
+test('super administrator level name can view the users list', function () {
+    $level = UserLevel::firstOrCreate(['name' => 'Super Administrator']);
+    $user = User::factory()->create([
+        'level_id' => $level->id,
+        'role' => 'administrator',
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('admin.users.index'))
+        ->assertOk();
+});
+
+test('super_admin role can view the users list', function () {
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::ADMINISTRATOR]);
+    $user = User::factory()->create([
+        'level_id' => $level->id,
+        'role' => 'super_admin',
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('admin.users.index'))
+        ->assertOk();
+});
+
 test('custom user permissions cannot grant user crud access without super admin level', function () {
     $level = UserLevel::firstOrCreate(['name' => 'List Only']);
     $level->forceFill([

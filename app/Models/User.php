@@ -122,7 +122,11 @@ class User extends Authenticatable
 
     public function isSuperAdmin(): bool
     {
-        return $this->hasUserLevel(UserLevel::SUPER_ADMIN);
+        if (strtolower((string) $this->role) === 'super_admin') {
+            return true;
+        }
+
+        return $this->hasUserLevel(UserLevel::SUPER_ADMIN_ALIASES);
     }
 
     public function canManageOwnAccount(): bool

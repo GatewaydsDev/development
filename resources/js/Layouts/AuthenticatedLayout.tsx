@@ -492,7 +492,7 @@ export default function Authenticated({
                                         <DropdownMenuContent
                                             align="start"
                                             sideOffset={2}
-                                            className="w-60"
+                                            className="w-60 max-h-[min(80vh,var(--radix-dropdown-menu-content-available-height,80vh))]"
                                         >
                                             {canOpenWork && (
                                                 <>
@@ -681,20 +681,36 @@ export default function Authenticated({
                                                         Security
                                                     </DropdownMenuLabel>
                                                     <DropdownMenuGroup>
-                                                        <AdminResourceSubmenu
-                                                            label="Users"
-                                                            icon={UsersIcon}
-                                                            canView={canViewUsers}
-                                                            canCreate={canCreateUsers}
-                                                            viewHref={route(
-                                                                'admin.users.index',
-                                                            )}
-                                                            createHref={route(
-                                                                'admin.users.create',
-                                                            )}
-                                                            viewIcon={UsersIcon}
-                                                            createIcon={UserPlusIcon}
-                                                        />
+                                                        {canViewUsers && (
+                                                            <DropdownMenuItem
+                                                                asChild
+                                                            >
+                                                                <Link
+                                                                    href={route(
+                                                                        'admin.users.index',
+                                                                    )}
+                                                                    className="flex items-center gap-2"
+                                                                >
+                                                                    <UsersIcon className="size-4" />
+                                                                    Users
+                                                                </Link>
+                                                            </DropdownMenuItem>
+                                                        )}
+                                                        {canCreateUsers && (
+                                                            <DropdownMenuItem
+                                                                asChild
+                                                            >
+                                                                <Link
+                                                                    href={route(
+                                                                        'admin.users.create',
+                                                                    )}
+                                                                    className="flex items-center gap-2"
+                                                                >
+                                                                    <UserPlusIcon className="size-4" />
+                                                                    Add user
+                                                                </Link>
+                                                            </DropdownMenuItem>
+                                                        )}
                                                         {canManageAccess && (
                                                             <DropdownMenuItem
                                                                 asChild
@@ -1158,26 +1174,38 @@ export default function Authenticated({
                                             icon={ShieldIcon}
                                             className="ps-6 pe-4"
                                         >
-                                            <MobileAdminResource
-                                                label="Users"
-                                                icon={UsersIcon}
-                                                canView={canViewUsers}
-                                                canCreate={canCreateUsers}
-                                                viewHref={route(
-                                                    'admin.users.index',
-                                                )}
-                                                createHref={route(
-                                                    'admin.users.create',
-                                                )}
-                                                viewActive={route().current(
-                                                    'admin.users.index',
-                                                )}
-                                                createActive={route().current(
-                                                    'admin.users.create',
-                                                )}
-                                                viewIcon={UsersIcon}
-                                                createIcon={UserPlusIcon}
-                                            />
+                                            {canViewUsers && (
+                                                <ResponsiveNavLink
+                                                    href={route(
+                                                        'admin.users.index',
+                                                    )}
+                                                    active={route().current(
+                                                        'admin.users.index',
+                                                    )}
+                                                    className="ps-10"
+                                                >
+                                                    <span className="inline-flex items-center gap-2">
+                                                        <UsersIcon className="size-4" />
+                                                        Users
+                                                    </span>
+                                                </ResponsiveNavLink>
+                                            )}
+                                            {canCreateUsers && (
+                                                <ResponsiveNavLink
+                                                    href={route(
+                                                        'admin.users.create',
+                                                    )}
+                                                    active={route().current(
+                                                        'admin.users.create',
+                                                    )}
+                                                    className="ps-10"
+                                                >
+                                                    <span className="inline-flex items-center gap-2">
+                                                        <UserPlusIcon className="size-4" />
+                                                        Add user
+                                                    </span>
+                                                </ResponsiveNavLink>
+                                            )}
                                             {canManageAccess && (
                                                 <ResponsiveNavLink
                                                     href={route(
