@@ -1,4 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import ActionHint from '@/Components/ActionHint';
 import PaginationNav from '@/Components/PaginationNav';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
@@ -17,6 +18,7 @@ import {
     EditIcon,
     EyeIcon,
     FileTextIcon,
+    FileTypeIcon,
     PlusIcon,
     PrinterIcon,
     SearchIcon,
@@ -90,7 +92,7 @@ export default function Index({ filters, options, projects }: IndexProps) {
     };
 
     const projectRowGridClassName =
-        'w-full xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1.4fr)_7.5rem_minmax(0,1.1fr)_7.5rem_minmax(32rem,auto)]';
+        'w-full xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1.4fr)_7.5rem_minmax(0,1.1fr)_7.5rem_10.5rem]';
 
     return (
         <AuthenticatedLayout
@@ -231,7 +233,7 @@ export default function Index({ filters, options, projects }: IndexProps) {
 
                         <CardContent>
                             <div className="overflow-x-auto rounded-lg border border-border">
-                                <div className="xl:min-w-[92rem]">
+                                <div className="xl:min-w-[76rem]">
                                 <div
                                     className={cn(
                                         'hidden items-center gap-6 border-b border-border bg-muted/50 px-5 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground xl:grid',
@@ -383,85 +385,95 @@ export default function Index({ filters, options, projects }: IndexProps) {
                                                         'Not set'}
                                                 </Badge>
                                             </div>
-                                            <div className="flex flex-nowrap gap-2 md:justify-end">
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    asChild
-                                                >
-                                                    <a
-                                                        href={route(
-                                                            'admin.projects.document.print',
-                                                            project.id,
-                                                        )}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                    >
-                                                        <PrinterIcon className="size-4" />
-                                                        Print
-                                                    </a>
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    asChild
-                                                >
-                                                    <a
-                                                        href={route(
-                                                            'admin.projects.document.export.pdf',
-                                                            project.id,
-                                                        )}
-                                                    >
-                                                        <FileTextIcon className="size-4" />
-                                                        PDF
-                                                    </a>
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    asChild
-                                                >
-                                                    <a
-                                                        href={route(
-                                                            'admin.projects.document.export.word',
-                                                            project.id,
-                                                        )}
-                                                    >
-                                                        <FileTextIcon className="size-4" />
-                                                        Word 2026
-                                                    </a>
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    asChild
-                                                >
-                                                    <Link
-                                                        href={route(
-                                                            'admin.projects.show',
-                                                            project.id,
-                                                        )}
-                                                    >
-                                                        <EyeIcon className="size-4" />
-                                                        View
-                                                    </Link>
-                                                </Button>
-                                                {options.can.update && (
+                                            <div className="flex flex-nowrap gap-1 md:justify-end">
+                                                <ActionHint hint="Print this project">
                                                     <Button
                                                         variant="outline"
-                                                        size="sm"
+                                                        size="icon-xs"
+                                                        asChild
+                                                    >
+                                                        <a
+                                                            href={route(
+                                                                'admin.projects.document.print',
+                                                                project.id,
+                                                            )}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            aria-label="Print this project"
+                                                        >
+                                                            <PrinterIcon className="size-3.5" />
+                                                        </a>
+                                                    </Button>
+                                                </ActionHint>
+                                                <ActionHint hint="Download as PDF">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="icon-xs"
+                                                        asChild
+                                                    >
+                                                        <a
+                                                            href={route(
+                                                                'admin.projects.document.export.pdf',
+                                                                project.id,
+                                                            )}
+                                                            aria-label="Download as PDF"
+                                                        >
+                                                            <FileTextIcon className="size-3.5" />
+                                                        </a>
+                                                    </Button>
+                                                </ActionHint>
+                                                <ActionHint hint="Download as Word">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="icon-xs"
+                                                        asChild
+                                                    >
+                                                        <a
+                                                            href={route(
+                                                                'admin.projects.document.export.word',
+                                                                project.id,
+                                                            )}
+                                                            aria-label="Download as Word"
+                                                        >
+                                                            <FileTypeIcon className="size-3.5" />
+                                                        </a>
+                                                    </Button>
+                                                </ActionHint>
+                                                <ActionHint hint="View project details">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="icon-xs"
                                                         asChild
                                                     >
                                                         <Link
                                                             href={route(
-                                                                'admin.projects.edit',
+                                                                'admin.projects.show',
                                                                 project.id,
                                                             )}
+                                                            aria-label="View project details"
                                                         >
-                                                            <EditIcon className="size-4" />
-                                                            Edit
+                                                            <EyeIcon className="size-3.5" />
                                                         </Link>
                                                     </Button>
+                                                </ActionHint>
+                                                {options.can.update && (
+                                                    <ActionHint hint="Edit this project">
+                                                        <Button
+                                                            variant="outline"
+                                                            size="icon-xs"
+                                                            asChild
+                                                        >
+                                                            <Link
+                                                                href={route(
+                                                                    'admin.projects.edit',
+                                                                    project.id,
+                                                                )}
+                                                                aria-label="Edit this project"
+                                                            >
+                                                                <EditIcon className="size-3.5" />
+                                                            </Link>
+                                                        </Button>
+                                                    </ActionHint>
                                                 )}
                                             </div>
                                         </div>
