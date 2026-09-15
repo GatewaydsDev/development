@@ -19,6 +19,7 @@ use App\Models\UserLevel;
 use App\Support\BidAccess;
 use App\Support\BidApplicationText;
 use App\Support\ProjectAccess;
+use App\Support\ProjectDocument;
 use App\Support\ProjectListDocument;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
@@ -81,6 +82,27 @@ class ProjectController extends Controller
         $this->authorizeProjectView($request);
 
         return $this->listDocument($request)->wordResponse();
+    }
+
+    public function printProject(Request $request, Project $project): View
+    {
+        $this->authorizeProjectView($request);
+
+        return view('admin.projects.document', ProjectDocument::for($project, $request->user())->viewData(mode: 'print'));
+    }
+
+    public function exportProjectPdf(Request $request, Project $project): HttpResponse
+    {
+        $this->authorizeProjectView($request);
+
+        return ProjectDocument::for($project, $request->user())->pdfResponse();
+    }
+
+    public function exportProjectWord(Request $request, Project $project): BinaryFileResponse
+    {
+        $this->authorizeProjectView($request);
+
+        return ProjectDocument::for($project, $request->user())->wordResponse();
     }
 
     public function create(Request $request): Response

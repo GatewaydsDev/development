@@ -356,6 +356,15 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::get('/projects/{project}', [ProjectController::class, 'show'])
             ->middleware('can:view-projects')
             ->name('projects.show');
+        Route::get('/projects/{project}/print', [ProjectController::class, 'printProject'])
+            ->middleware('can:view-projects')
+            ->name('projects.document.print');
+        Route::get('/projects/{project}/export/pdf', [ProjectController::class, 'exportProjectPdf'])
+            ->middleware('can:view-projects')
+            ->name('projects.document.export.pdf');
+        Route::get('/projects/{project}/export/word', [ProjectController::class, 'exportProjectWord'])
+            ->middleware('can:view-projects')
+            ->name('projects.document.export.word');
         Route::get('/projects/{project}/edit', [ProjectController::class, 'edit'])
             ->middleware('can:update-projects')
             ->name('projects.edit');

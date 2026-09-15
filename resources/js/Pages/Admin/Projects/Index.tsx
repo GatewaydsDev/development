@@ -1,4 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import ActionHint from '@/Components/ActionHint';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import {
@@ -16,6 +17,7 @@ import {
     EditIcon,
     EyeIcon,
     FileTextIcon,
+    FileTypeIcon,
     PlusIcon,
     PrinterIcon,
     SearchIcon,
@@ -92,6 +94,9 @@ export default function Index({ filters, options, projects }: IndexProps) {
         search: search || undefined,
         status: status || undefined,
     };
+
+    const projectRowGridClassName =
+        'w-full xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1.4fr)_7.5rem_minmax(0,1.1fr)_7.5rem_10.5rem]';
 
     return (
         <AuthenticatedLayout
@@ -188,48 +193,63 @@ export default function Index({ filters, options, projects }: IndexProps) {
                                     </Button>
                                 </form>
                                 <div className="flex flex-wrap gap-2 sm:justify-end">
-                                    <Button variant="outline" asChild>
-                                        <a
-                                            href={route(
-                                                'admin.projects.print',
-                                                exportQuery,
-                                            )}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                        >
-                                            <PrinterIcon className="size-4" />
-                                            Print
-                                        </a>
-                                    </Button>
-                                    <Button variant="outline" asChild>
-                                        <a
-                                            href={route(
-                                                'admin.projects.export.pdf',
-                                                exportQuery,
-                                            )}
-                                        >
-                                            <FileTextIcon className="size-4" />
-                                            PDF
-                                        </a>
-                                    </Button>
-                                    <Button variant="outline" asChild>
-                                        <a
-                                            href={route(
-                                                'admin.projects.export.word',
-                                                exportQuery,
-                                            )}
-                                        >
-                                            <FileTextIcon className="size-4" />
-                                            Word 2026
-                                        </a>
-                                    </Button>
+                                    <ActionHint hint="Print the project directory">
+                                        <Button variant="outline" asChild>
+                                            <a
+                                                href={route(
+                                                    'admin.projects.print',
+                                                    exportQuery,
+                                                )}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                aria-label="Print the project directory"
+                                            >
+                                                <PrinterIcon className="size-4" />
+                                                Print
+                                            </a>
+                                        </Button>
+                                    </ActionHint>
+                                    <ActionHint hint="Download the project directory as PDF">
+                                        <Button variant="outline" asChild>
+                                            <a
+                                                href={route(
+                                                    'admin.projects.export.pdf',
+                                                    exportQuery,
+                                                )}
+                                                aria-label="Download the project directory as PDF"
+                                            >
+                                                <FileTextIcon className="size-4" />
+                                                PDF
+                                            </a>
+                                        </Button>
+                                    </ActionHint>
+                                    <ActionHint hint="Download the project directory as Word">
+                                        <Button variant="outline" asChild>
+                                            <a
+                                                href={route(
+                                                    'admin.projects.export.word',
+                                                    exportQuery,
+                                                )}
+                                                aria-label="Download the project directory as Word"
+                                            >
+                                                <FileTextIcon className="size-4" />
+                                                Word 2026
+                                            </a>
+                                        </Button>
+                                    </ActionHint>
                                 </div>
                             </div>
                         </CardHeader>
 
                         <CardContent>
                             <div className="overflow-x-auto rounded-lg border border-border">
-                                <div className="hidden grid-cols-[minmax(12rem,1.1fr)_minmax(14rem,1.3fr)_8.5rem_minmax(10rem,1fr)_7.5rem_9.5rem] items-center gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground xl:grid">
+                                <div className="xl:min-w-[76rem]">
+                                <div
+                                    className={cn(
+                                        'hidden items-center gap-6 border-b border-border bg-muted/50 px-5 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground xl:grid',
+                                        projectRowGridClassName,
+                                    )}
+                                >
                                     <div>Project</div>
                                     <div>General contractors/Customer</div>
                                     <div>Bid/Estimate</div>
@@ -244,13 +264,14 @@ export default function Index({ filters, options, projects }: IndexProps) {
                                             id={`project-row-${project.id}`}
                                             key={project.id}
                                             className={cn(
-                                                'grid gap-3 border-b border-border px-4 py-4 last:border-b-0 xl:min-h-20 xl:grid-cols-[minmax(12rem,1.1fr)_minmax(14rem,1.3fr)_8.5rem_minmax(10rem,1fr)_7.5rem_9.5rem] xl:items-center xl:gap-4',
+                                                'grid gap-4 border-b border-border px-5 py-6 last:border-b-0 xl:min-h-24 xl:items-start xl:gap-6',
+                                                projectRowGridClassName,
                                                 highlightedProjectId ===
                                                     project.id &&
                                                     'bg-emerald-50 dark:bg-emerald-950/30',
                                             )}
                                         >
-                                            <div className="min-w-0">
+                                            <div className="flex min-w-0 flex-col gap-1">
                                                 <p className="truncate font-medium text-foreground">
                                                     {project.name}
                                                 </p>
@@ -261,7 +282,7 @@ export default function Index({ filters, options, projects }: IndexProps) {
                                             </div>
                                             <div className="min-w-0 text-sm text-muted-foreground">
                                                 {project.contractors?.length ? (
-                                                    <div className="flex flex-col gap-2">
+                                                    <div className="flex flex-col gap-3">
                                                         {project.contractors.map(
                                                             (contractor) => (
                                                                 <div
@@ -326,12 +347,12 @@ export default function Index({ filters, options, projects }: IndexProps) {
                                                     </span>
                                                 )}
                                             </div>
-                                            <div className="flex flex-wrap gap-1">
+                                            <div className="min-w-0">
                                                 {project.bids_count &&
                                                 project.bid_scopes &&
                                                 project.bid_scopes.length >
                                                     0 ? (
-                                                    <>
+                                                    <div className="flex flex-wrap gap-1">
                                                         {project.bid_scopes
                                                             .slice(0, 2)
                                                             .map((scope) => (
@@ -354,7 +375,7 @@ export default function Index({ filters, options, projects }: IndexProps) {
                                                                     2}
                                                             </Badge>
                                                         )}
-                                                    </>
+                                                    </div>
                                                 ) : (
                                                     <span className="text-sm text-muted-foreground">
                                                         {project.bids_count
@@ -363,7 +384,7 @@ export default function Index({ filters, options, projects }: IndexProps) {
                                                     </span>
                                                 )}
                                             </div>
-                                            <div className="flex items-center">
+                                            <div className="min-w-0">
                                                 <Badge
                                                     variant="outline"
                                                     className={statusBadgeClassName(
@@ -374,44 +395,101 @@ export default function Index({ filters, options, projects }: IndexProps) {
                                                         'Not set'}
                                                 </Badge>
                                             </div>
-                                            <div className="flex flex-wrap gap-2 md:justify-end">
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    asChild
-                                                >
-                                                    <Link
-                                                        href={route(
-                                                            'admin.projects.show',
-                                                            project.id,
-                                                        )}
-                                                    >
-                                                        <EyeIcon className="size-4" />
-                                                        View
-                                                    </Link>
-                                                </Button>
-                                                {options.can.update && (
+                                            <div className="flex w-full flex-nowrap items-center justify-end gap-1">
+                                                <ActionHint hint="Print this project">
                                                     <Button
                                                         variant="outline"
-                                                        size="sm"
+                                                        size="icon-sm"
+                                                        asChild
+                                                    >
+                                                        <a
+                                                            href={route(
+                                                                'admin.projects.document.print',
+                                                                project.id,
+                                                            )}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            aria-label="Print this project"
+                                                        >
+                                                            <PrinterIcon className="size-4" />
+                                                        </a>
+                                                    </Button>
+                                                </ActionHint>
+                                                <ActionHint hint="Download as PDF">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="icon-sm"
+                                                        asChild
+                                                    >
+                                                        <a
+                                                            href={route(
+                                                                'admin.projects.document.export.pdf',
+                                                                project.id,
+                                                            )}
+                                                            aria-label="Download as PDF"
+                                                        >
+                                                            <FileTextIcon className="size-4" />
+                                                        </a>
+                                                    </Button>
+                                                </ActionHint>
+                                                <ActionHint hint="Download as Word">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="icon-sm"
+                                                        asChild
+                                                    >
+                                                        <a
+                                                            href={route(
+                                                                'admin.projects.document.export.word',
+                                                                project.id,
+                                                            )}
+                                                            aria-label="Download as Word"
+                                                        >
+                                                            <FileTypeIcon className="size-4" />
+                                                        </a>
+                                                    </Button>
+                                                </ActionHint>
+                                                <ActionHint hint="View project details">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="icon-sm"
                                                         asChild
                                                     >
                                                         <Link
                                                             href={route(
-                                                                'admin.projects.edit',
+                                                                'admin.projects.show',
                                                                 project.id,
                                                             )}
+                                                            aria-label="View project details"
                                                         >
-                                                            <EditIcon className="size-4" />
-                                                            Edit
+                                                            <EyeIcon className="size-4" />
                                                         </Link>
                                                     </Button>
+                                                </ActionHint>
+                                                {options.can.update && (
+                                                    <ActionHint hint="Edit this project">
+                                                        <Button
+                                                            variant="outline"
+                                                            size="icon-sm"
+                                                            asChild
+                                                        >
+                                                            <Link
+                                                                href={route(
+                                                                    'admin.projects.edit',
+                                                                    project.id,
+                                                                )}
+                                                                aria-label="Edit this project"
+                                                            >
+                                                                <EditIcon className="size-4" />
+                                                            </Link>
+                                                        </Button>
+                                                    </ActionHint>
                                                 )}
                                             </div>
                                         </div>
                                     ))
                                 ) : (
-                                    <div className="px-4 py-12 text-center">
+                                    <div className="px-5 py-12 text-center">
                                         <BriefcaseIcon className="mx-auto size-10 text-muted-foreground" />
                                         <p className="mt-3 font-medium">
                                             No projects found
@@ -422,6 +500,7 @@ export default function Index({ filters, options, projects }: IndexProps) {
                                         </p>
                                     </div>
                                 )}
+                                </div>
                             </div>
 
                             <div className="mt-5 flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">

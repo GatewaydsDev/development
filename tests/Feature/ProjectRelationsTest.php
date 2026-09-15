@@ -894,3 +894,73 @@ test('the project list can be printed and exported as pdf or word', function () 
     expect((string) $word->headers->get('content-type'))->toContain('wordprocessingml.document');
     expect((string) $word->headers->get('content-disposition'))->toContain('project-directory-'.now()->year.'.docx');
 });
+
+test('a project can be printed and exported as pdf or word', function () {
+    $admin = projectAdmin();
+    $turner = Contractor::create([
+        'name' => 'Turner Construction',
+        'contact_name' => 'Alex Rivera',
+        'email' => 'alex@turner.example',
+        'phone_number' => '(973) 555-0100',
+    ]);
+    $customer = projectCustomer();
+    $project = Project::create([
+        'name' => 'Harbor Print Package',
+        'project_number' => 'GDS-2026-PRINT',
+        'project_status_id' => projectStatusId(),
+        'priority' => 'high',
+        'customer_id' => $customer->id,
+        'assigned_to' => $admin->id,
+        'site_address_line_1' => '12 Dock Road',
+        'site_city' => 'Newark',
+        'site_state' => 'NJ',
+        'public_notes' => 'Owner review draft',
+        'created_by' => $admin->id,
+    ]);
+    $project->contractors()->attach($turner->id);
+    $project->scopes()->create([
+        'scope_type' => 'radio_frequency_doors',
+        'notes' => '<p>Furnish and install RF doors for Harbor Print Package.</p>',
+    ]);
+    $project->revisions()->create([
+        'number' => '1',
+        'revision_date' => '2026-09-01',
+        'notes' => 'Issued for review',
+        'user_id' => $admin->id,
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.projects.document.print', $project))
+        ->assertOk()
+        ->assertSee('Project', false)
+        ->assertSee('Gateway Door Systems', false)
+        ->assertSee('Harbor Print Package', false)
+        ->assertSee('Project information', false)
+        ->assertSee('GDS-2026-PRINT', false)
+        ->assertSee('12 Dock Road', false)
+        ->assertSee('Turner Construction', false)
+        ->assertSee('Gateway Facilities', false)
+        ->assertSee('Gateway Customer', false)
+        ->assertSee('Radio frequency doors', false)
+        ->assertSee('Furnish and install RF doors for Harbor Print Package.', false)
+        ->assertSee('Issued for review', false)
+        ->assertSee('Owner review draft', false)
+        ->assertSee('Print project', false)
+        ->assertSee('Word 2026', false);
+
+    $pdf = $this->actingAs($admin)
+        ->get(route('admin.projects.document.export.pdf', $project));
+
+    $pdf->assertOk();
+    $pdf->assertHeader('content-disposition');
+    expect((string) $pdf->headers->get('content-type'))->toStartWith('application/pdf');
+    expect($pdf->getContent())->toStartWith('%PDF');
+    expect((string) $pdf->headers->get('content-disposition'))->toContain('project-gds-2026-print-'.$project->id.'.pdf');
+
+    $word = $this->actingAs($admin)
+        ->get(route('admin.projects.document.export.word', $project));
+
+    $word->assertOk();
+    expect((string) $word->headers->get('content-type'))->toContain('wordprocessingml.document');
+    expect((string) $word->headers->get('content-disposition'))->toContain('project-gds-2026-print-'.$project->id.'.docx');
+});

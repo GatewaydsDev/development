@@ -1,4 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import ActionHint from '@/Components/ActionHint';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import {
@@ -13,9 +14,11 @@ import { formatCurrency } from '@/lib/money';
 import {
     BriefcaseIcon,
     EditIcon,
+    FileTextIcon,
     HammerIcon,
     HistoryIcon,
     MapPinIcon,
+    PrinterIcon,
     TrashIcon,
 } from 'lucide-react';
 import { isEmptyHtml } from '@/Pages/Admin/Bids/bidText';
@@ -87,28 +90,78 @@ export default function Show({ project, options }: ShowProps) {
                         </h2>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                        {options.can.update && (
+                        <ActionHint hint="Print this project">
                             <Button variant="outline" asChild>
-                                <Link
+                                <a
                                     href={route(
-                                        'admin.projects.edit',
+                                        'admin.projects.document.print',
                                         project.id,
                                     )}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    aria-label="Print this project"
                                 >
-                                    <EditIcon className="size-4" />
-                                    Edit
-                                </Link>
+                                    <PrinterIcon className="size-4" />
+                                    Print
+                                </a>
                             </Button>
+                        </ActionHint>
+                        <ActionHint hint="Download as PDF">
+                            <Button variant="outline" asChild>
+                                <a
+                                    href={route(
+                                        'admin.projects.document.export.pdf',
+                                        project.id,
+                                    )}
+                                    aria-label="Download as PDF"
+                                >
+                                    <FileTextIcon className="size-4" />
+                                    PDF
+                                </a>
+                            </Button>
+                        </ActionHint>
+                        <ActionHint hint="Download as Word">
+                            <Button variant="outline" asChild>
+                                <a
+                                    href={route(
+                                        'admin.projects.document.export.word',
+                                        project.id,
+                                    )}
+                                    aria-label="Download as Word"
+                                >
+                                    <FileTextIcon className="size-4" />
+                                    Word 2026
+                                </a>
+                            </Button>
+                        </ActionHint>
+                        {options.can.update && (
+                            <ActionHint hint="Edit this project">
+                                <Button variant="outline" asChild>
+                                    <Link
+                                        href={route(
+                                            'admin.projects.edit',
+                                            project.id,
+                                        )}
+                                        aria-label="Edit this project"
+                                    >
+                                        <EditIcon className="size-4" />
+                                        Edit
+                                    </Link>
+                                </Button>
+                            </ActionHint>
                         )}
                         {options.can.delete && (
-                            <Button
-                                type="button"
-                                variant="destructive"
-                                onClick={removeProject}
-                            >
-                                <TrashIcon className="size-4" />
-                                Remove
-                            </Button>
+                            <ActionHint hint="Remove this project">
+                                <Button
+                                    type="button"
+                                    variant="destructive"
+                                    onClick={removeProject}
+                                    aria-label="Remove this project"
+                                >
+                                    <TrashIcon className="size-4" />
+                                    Remove
+                                </Button>
+                            </ActionHint>
                         )}
                     </div>
                 </div>
