@@ -9,6 +9,7 @@ type FormActionFabProps = {
     saveLabel?: string;
     cancelLabel?: string;
     disabled?: boolean;
+    form?: string;
 };
 
 export default function FormActionFab({
@@ -16,6 +17,7 @@ export default function FormActionFab({
     saveLabel = 'Save',
     cancelLabel = 'Cancel',
     disabled = false,
+    form,
 }: FormActionFabProps) {
     const [isOpen, setIsOpen] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
@@ -53,6 +55,7 @@ export default function FormActionFab({
             >
                 <Button
                     type="submit"
+                    form={form}
                     disabled={disabled}
                     className={cn(
                         'size-12 rounded-full bg-emerald-600 text-white shadow-lg shadow-emerald-950/20 transition-all duration-300 ease-out hover:bg-emerald-700',

@@ -136,8 +136,7 @@ test('administrators can replace and remove a company logo', function () {
     $oldLogoPath = $company->logo_path;
 
     $this->actingAs($user)
-        ->post(route('admin.company.update', $company), [
-            '_method' => 'patch',
+        ->post(route('admin.company.store'), [
             'name' => 'Gateway Door Systems',
             'is_active' => true,
             'logo' => UploadedFile::fake()->image('new-logo.webp', 400, 200),
@@ -153,7 +152,6 @@ test('administrators can replace and remove a company logo', function () {
 
     $this->actingAs($user)
         ->post(route('admin.company.update', $company), [
-            '_method' => 'patch',
             'name' => 'Gateway Door Systems',
             'is_active' => true,
             'remove_logo' => true,

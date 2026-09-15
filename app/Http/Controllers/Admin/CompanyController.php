@@ -96,7 +96,7 @@ class CompanyController extends Controller
             'contact_url' => ['nullable', 'url', 'max:255'],
             'notes' => ['nullable', 'string', 'max:5000'],
             'is_active' => ['boolean'],
-            'logo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp,svg', 'max:2048'],
+            'logo' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,svg', 'max:2048'],
             'remove_logo' => ['boolean'],
         ]);
     }

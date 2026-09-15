@@ -60,7 +60,6 @@ type CompanyFormData = {
     is_active: boolean;
     logo: File | null;
     remove_logo: boolean;
-    _method: string;
 };
 
 export default function Show({ company }: ShowProps) {
@@ -87,7 +86,6 @@ export default function Show({ company }: ShowProps) {
             is_active: company?.is_active ?? true,
             logo: null,
             remove_logo: false,
-            _method: company ? 'patch' : '',
         });
     const logoPreviewUrl =
         localLogoPreviewUrl || (!data.remove_logo ? company?.logo_url : null);
@@ -103,14 +101,10 @@ export default function Show({ company }: ShowProps) {
     const submit: FormEventHandler = (event) => {
         event.preventDefault();
 
-        post(
-            company
-                ? route('admin.company.update', company.id)
-                : route('admin.company.store'),
-            {
-                forceFormData: true,
-            },
-        );
+        post(route('admin.company.store'), {
+            forceFormData: true,
+            preserveScroll: true,
+        });
     };
 
     const selectLogo = (event: ChangeEvent<HTMLInputElement>) => {
@@ -186,8 +180,13 @@ export default function Show({ company }: ShowProps) {
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <form onSubmit={submit} className="flex flex-col gap-6 pr-14 sm:pr-16">
+                            <form
+                                id="company-profile-form"
+                                onSubmit={submit}
+                                className="flex flex-col gap-6 pr-14 sm:pr-16"
+                            >
                                 <FormActionFab
+                                    form="company-profile-form"
                                     cancelHref={route('dashboard')}
                                     saveLabel={
                                         company

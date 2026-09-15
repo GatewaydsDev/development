@@ -111,7 +111,7 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::post('/company', [CompanyController::class, 'store'])
             ->middleware('can:view-company')
             ->name('company.store');
-        Route::patch('/company/{company}', [CompanyController::class, 'update'])
+        Route::match(['post', 'patch'], '/company/{company}', [CompanyController::class, 'update'])
             ->middleware('can:view-company')
             ->name('company.update');
 
