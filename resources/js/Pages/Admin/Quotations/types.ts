@@ -5,7 +5,7 @@ export type QuotationLineItemFormData = {
 };
 
 export type QuotationFormData = {
-    customer_id: string;
+    contractor_id: string;
     project_id: string;
     title: string;
     status: string;
@@ -15,7 +15,7 @@ export type QuotationFormData = {
     line_items: QuotationLineItemFormData[];
 };
 
-export type QuotationCustomerOption = {
+export type QuotationContractorOption = {
     id: number;
     name: string;
 };
@@ -24,7 +24,7 @@ export type QuotationProjectOption = {
     id: number;
     name: string;
     project_number: string | null;
-    customer_id: number | null;
+    contractor_ids?: number[];
     label: string;
 };
 
@@ -41,7 +41,7 @@ export type QuotationOptions = {
         convert_to_bid: boolean;
     };
     statuses: QuotationStatusOption[];
-    customers: QuotationCustomerOption[];
+    contractors: QuotationContractorOption[];
     projects: QuotationProjectOption[];
 };
 
@@ -64,16 +64,14 @@ export type QuotationPayload = {
     valid_until: string | null;
     notes: string | null;
     total: number;
-    customer_id?: number;
+    contractor_id?: number;
     project_id?: number | null;
-    customer: {
+    contractor: {
         id: number;
         name: string | null;
-        company_name: string | null;
         contact_name?: string | null;
         email: string | null;
         phone_number: string | null;
-        address: string | null;
     } | null;
     project: {
         id: number;
@@ -120,7 +118,11 @@ export const emptyLineItem = (): QuotationLineItemFormData => ({
 export const quotationToFormData = (
     quotation?: QuotationPayload,
 ): QuotationFormData => ({
-    customer_id: quotation?.customer_id ? String(quotation.customer_id) : '',
+    contractor_id: quotation?.contractor_id
+        ? String(quotation.contractor_id)
+        : quotation?.contractor?.id
+          ? String(quotation.contractor.id)
+          : '',
     project_id: quotation?.project_id ? String(quotation.project_id) : '',
     title: quotation?.title ?? '',
     status: quotation?.status ?? 'draft',

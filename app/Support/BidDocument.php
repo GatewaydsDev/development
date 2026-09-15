@@ -30,7 +30,6 @@ class BidDocument
     public static function for(Bid $bid, ?User $user = null): self
     {
         $bid->load([
-            'project.customer.contacts',
             'project.contractors.contacts',
             'creator',
             'stages.type',
@@ -79,7 +78,6 @@ class BidDocument
             'projectName' => $project?->name,
             'projectNumber' => $project?->project_number,
             'projectAddress' => $projectAddress !== '' ? $projectAddress : null,
-            'customer' => $this->customerPayload(),
             'contractors' => $this->contractorRows(),
             'latestTotal' => $this->money($latestTotal),
             'notes' => $this->displayHtml($this->bid->notes),
@@ -218,25 +216,12 @@ class BidDocument
 
         $section->addTextBreak(1);
 
-        $section->addText('Customer / owner', ['bold' => true, 'size' => 13, 'color' => '065F46']);
         $contractors = $this->contractorRows();
-        $customer = $this->customerPayload();
 
-        if ($this->hasCustomer($customer)) {
-            $this->addMetaTable($section, [
-                ['Customer', $customer['company'] ?: $customer['name'] ?: '—'],
-                ['Contact name', $customer['name'] ?: '—'],
-                ['Phone number', $customer['phone'] ?: '—'],
-                ['Email address', $customer['email'] ?: '—'],
-            ]);
-        } else {
-            $section->addText('No customer added yet.', ['italic' => true, 'size' => 10, 'color' => '6B7280']);
-        }
-
-        $section->addText('General contractors', ['bold' => true, 'size' => 13, 'color' => '065F46']);
+        $section->addText('Contractors', ['bold' => true, 'size' => 13, 'color' => '065F46']);
 
         if ($contractors === []) {
-            $section->addText('No general contractors added yet.', ['italic' => true, 'size' => 10, 'color' => '6B7280']);
+            $section->addText('No contractors added yet.', ['italic' => true, 'size' => 10, 'color' => '6B7280']);
         }
 
         foreach ($contractors as $contractor) {
@@ -532,41 +517,6 @@ class BidDocument
         $formatted = rtrim(rtrim($formatted, '0'), '.');
 
         return $formatted === '' ? '0' : $formatted;
-    }
-
-    /**
-     * @return array{name: ?string, company: ?string, email: ?string, phone: ?string, address: ?string}
-     */
-    private function customerPayload(): array
-    {
-        $customer = $this->bid->project?->customer;
-        $contact = $customer?->contacts?->firstWhere('is_primary', true)
-            ?? $customer?->contacts?->first();
-
-        return [
-            'name' => $customer?->displayContactName(),
-            'company' => $customer?->displayCompanyName(),
-            'email' => $contact?->email ?: $customer?->email,
-            'phone' => $contact?->phone_number ?: $customer?->phone_number,
-            'address' => $customer
-                ? BidApplicationText::formatAddress(
-                    $customer->address_line_1,
-                    $customer->address_line_2,
-                    $customer->city,
-                    $customer->state,
-                    $customer->postal_code,
-                    $customer->country,
-                ) ?: null
-                : null,
-        ];
-    }
-
-    /**
-     * @param  array{name: ?string, company: ?string, email: ?string, phone: ?string, address: ?string}  $customer
-     */
-    private function hasCustomer(array $customer): bool
-    {
-        return filled($customer['company']) || filled($customer['name']);
     }
 
     /**

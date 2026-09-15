@@ -5,7 +5,6 @@ use App\Models\BidPricingStatus;
 use App\Models\BidStageType;
 use App\Models\BidTextTemplate;
 use App\Models\Contractor;
-use App\Models\Customer;
 use App\Models\Product;
 use App\Models\Project;
 use App\Models\ProjectScopeType;
@@ -34,18 +33,20 @@ function bidAdmin(): User
 
 function bidProject(User $admin, string $name = 'Secure Entry Package'): Project
 {
-    $customer = Customer::create([
-        'name' => 'Gateway Customer',
-        'company_name' => 'Gateway Facilities',
+    $contractor = Contractor::query()->firstOrCreate([
+        'name' => 'Gateway Facilities',
     ]);
 
-    return Project::create([
+    $project = Project::create([
         'name' => $name,
-        'customer_id' => $customer->id,
         'project_status_id' => ProjectStatus::idFor('quoted'),
         'priority' => 'normal',
         'created_by' => $admin->id,
     ]);
+
+    $project->contractors()->syncWithoutDetaching([$contractor->id]);
+
+    return $project;
 }
 
 function bidService(string $name = 'Assembly w/ vision glazing'): Service
@@ -1350,7 +1351,6 @@ test('a bid can be printed and exported as pdf or word', function () {
         ->assertSee('Word 2026', false)
         ->assertSee('data:image', false)
         ->assertSee('Gateway Facilities', false)
-        ->assertSee('Gateway Customer', false)
         ->assertSee('Turner Construction', false);
 
     $pdf = $this->actingAs($admin)

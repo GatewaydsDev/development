@@ -478,9 +478,8 @@ export default function BidForm({
                         </div>
                         {selectedProject ? (
                             <p className="text-sm text-muted-foreground">
-                                Customer / owner:{' '}
-                                {selectedProject.customer_company ||
-                                    selectedProject.customer_name ||
+                                Contractor:{' '}
+                                {selectedProject.contractor_name ||
                                     'Not assigned on this project'}
                             </p>
                         ) : null}
@@ -493,7 +492,7 @@ export default function BidForm({
                                     options={quotations}
                                     allowCreate={false}
                                     placeholder="Type to find a saved quotation"
-                                    hint="The quotation stays in Quotations. Import copies customer project and line items onto this bid."
+                                    hint="The quotation stays in Quotations. Import copies the project and line items onto this bid."
                                     onChange={(quotationId) =>
                                         setImportQuotationValue(quotationId)
                                     }

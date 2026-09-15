@@ -11,7 +11,6 @@ class ContractorContact extends Model
     protected $fillable = [
         'uuid',
         'contractor_id',
-        'customer_contact_id',
         'name',
         'title',
         'email',
@@ -38,10 +37,5 @@ class ContractorContact extends Model
     public function contractor(): BelongsTo
     {
         return $this->belongsTo(Contractor::class);
-    }
-
-    public function customerContact(): BelongsTo
-    {
-        return $this->belongsTo(CustomerContact::class);
     }
 }

@@ -240,35 +240,28 @@ export default function Show({ quotation, options }: ShowProps) {
 
                     <Card>
                         <CardHeader>
-                            <CardTitle>Customer information</CardTitle>
+                            <CardTitle>Contractor</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <dl className="grid gap-4 md:grid-cols-2">
                                 <DetailItem
-                                    label="Customer / owner"
-                                    value={
-                                        quotation.customer?.company_name ||
-                                        quotation.customer?.name
-                                    }
+                                    label="Contractor"
+                                    value={quotation.contractor?.name}
                                 />
                                 <DetailItem
                                     label="Contact name"
                                     value={
-                                        quotation.customer?.contact_name ||
+                                        quotation.contractor?.contact_name ||
                                         null
                                     }
                                 />
                                 <DetailItem
                                     label="Email"
-                                    value={quotation.customer?.email}
+                                    value={quotation.contractor?.email}
                                 />
                                 <DetailItem
                                     label="Phone"
-                                    value={quotation.customer?.phone_number}
-                                />
-                                <DetailItem
-                                    label="Address"
-                                    value={quotation.customer?.address}
+                                    value={quotation.contractor?.phone_number}
                                 />
                             </dl>
                         </CardContent>

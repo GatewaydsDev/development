@@ -83,12 +83,6 @@ const permissionGroupStyles: Record<
         title: 'text-indigo-50',
         badge: 'border-indigo-600/30 bg-indigo-500/10 text-indigo-800 dark:border-indigo-300/30 dark:bg-indigo-400/10 dark:text-indigo-200',
     },
-    Customers: {
-        panel: 'border-emerald-300/60 dark:border-emerald-800/70',
-        header: 'border-emerald-900/20 bg-emerald-950 dark:border-emerald-400/20',
-        title: 'text-emerald-50',
-        badge: 'border-emerald-600/30 bg-emerald-500/10 text-emerald-800 dark:border-emerald-300/30 dark:bg-emerald-400/10 dark:text-emerald-200',
-    },
     Employees: {
         panel: 'border-orange-300/60 dark:border-orange-800/70',
         header: 'border-orange-900/20 bg-orange-950 dark:border-orange-400/20',

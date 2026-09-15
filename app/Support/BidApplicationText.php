@@ -17,8 +17,8 @@ class BidApplicationText
     public const PLACEHOLDERS = [
         'project_name' => 'Project name',
         'project_number' => 'Project number',
-        'customer_name' => 'Customer name',
-        'customer_company' => 'Customer company',
+        'customer_name' => 'Contractor contact',
+        'customer_company' => 'Contractor company',
         'project_address' => 'Project address',
         'site_address' => 'Site address',
         'scope_of_work' => 'Scope of work',
@@ -94,7 +94,7 @@ class BidApplicationText
      */
     public static function valuesFor(Project $project, ?Company $company, ?array $scopeLines = null): array
     {
-        $project->loadMissing(['customer', 'scopes.product', 'scopes.service']);
+        $project->loadMissing(['contractors.contacts', 'scopes.product', 'scopes.service']);
 
         $scopes = $scopeLines ?? $project->scopes
             ->map(function ($scope): string {
@@ -126,11 +126,14 @@ class BidApplicationText
             $project->site_country,
         );
 
+        $contractor = $project->contractors->first();
+        $contact = $contractor?->primaryContact();
+
         return [
             'project_name' => (string) $project->name,
             'project_number' => (string) ($project->project_number ?? ''),
-            'customer_name' => (string) ($project->customer?->name ?? ''),
-            'customer_company' => (string) ($project->customer?->company_name ?? ''),
+            'customer_name' => (string) ($contact?->name ?? ''),
+            'customer_company' => (string) ($contractor?->name ?? ''),
             'project_address' => $projectAddress,
             'site_address' => $projectAddress,
             'scope_of_work' => implode("\n", array_filter($scopes)),

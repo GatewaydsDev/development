@@ -7,8 +7,6 @@ use App\Http\Controllers\Admin\BidController;
 use App\Http\Controllers\Admin\CompanyController;
 use App\Http\Controllers\Admin\ContactController;
 use App\Http\Controllers\Admin\ContractorController;
-use App\Http\Controllers\Admin\CustomerContactRoleController;
-use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\EmployeeController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ProfessionController;
@@ -140,31 +138,6 @@ Route::middleware(['auth', 'prevent-back-history'])
             ->name('account.edit');
         Route::patch('/account', [AccountController::class, 'update'])
             ->name('account.update');
-
-        Route::get('/customers', [CustomerController::class, 'index'])
-            ->middleware('can:view-customers')
-            ->name('customers.index');
-        Route::get('/customers/create', [CustomerController::class, 'create'])
-            ->middleware('can:create-customers')
-            ->name('customers.create');
-        Route::post('/customers', [CustomerController::class, 'store'])
-            ->middleware('can:create-customers')
-            ->name('customers.store');
-        Route::get('/customers/{customer}/edit', [CustomerController::class, 'edit'])
-            ->middleware('can:update-customers')
-            ->name('customers.edit');
-        Route::patch('/customers/{customer}', [CustomerController::class, 'update'])
-            ->middleware('can:update-customers')
-            ->name('customers.update');
-        Route::delete('/customers/{customer}', [CustomerController::class, 'destroy'])
-            ->middleware('can:delete-customers')
-            ->name('customers.destroy');
-        Route::get('/customer-contacts/availability', [CustomerController::class, 'contactAvailability'])
-            ->name('customer-contacts.availability');
-        Route::post('/customer-contacts', [CustomerController::class, 'storeContact'])
-            ->name('customer-contacts.store');
-        Route::post('/customer-contact-roles', [CustomerContactRoleController::class, 'store'])
-            ->name('customer-contact-roles.store');
 
         Route::get('/contractors', [ContractorController::class, 'index'])
             ->middleware('can:view-contractors')

@@ -40,7 +40,7 @@ export default function Create({ options }: CreateProps) {
                     <QuotationForm
                         action={route('admin.quotations.store')}
                         title="Quotation information"
-                        description="Save a customer quotation with project details and priced line items."
+                        description="Save a contractor quotation with project details and priced line items."
                         options={options}
                     />
                 </div>

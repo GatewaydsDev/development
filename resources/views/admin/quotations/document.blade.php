@@ -70,7 +70,7 @@
             <div class="toolbar-inner">
                 <p>
                     <strong>{{ $title }} quotation</strong>
-                    Print-ready quotation for this customer.
+                    Print-ready quotation for this contractor.
                 </p>
                 <div class="actions">
                     <a href="{{ $showUrl }}">Back to quotation</a>
@@ -130,32 +130,32 @@
 
             <h1 class="document-title">{{ $title }}</h1>
 
-            <h2 class="section-title">Customer information</h2>
+            <h2 class="section-title">Contractor</h2>
             <table class="meta">
                 <tr>
                     <td>
-                        <span class="meta-label">Customer</span>
-                        <span class="meta-value">{{ $customer['company'] ?: $customer['name'] ?: 'Not added yet' }}</span>
+                        <span class="meta-label">Contractor</span>
+                        <span class="meta-value">{{ $contractor['company'] ?: $contractor['name'] ?: 'Not added yet' }}</span>
                     </td>
                     <td>
-                        <span className="meta-label">Contact name</span>
-                        <span class="meta-value">{{ $customer['name'] ?: 'Not added yet' }}</span>
+                        <span class="meta-label">Contact name</span>
+                        <span class="meta-value">{{ $contractor['name'] ?: 'Not added yet' }}</span>
                     </td>
                 </tr>
                 <tr>
                     <td>
                         <span class="meta-label">Email</span>
-                        <span class="meta-value">{{ $customer['email'] ?: 'Not added yet' }}</span>
+                        <span class="meta-value">{{ $contractor['email'] ?: 'Not added yet' }}</span>
                     </td>
                     <td>
                         <span class="meta-label">Phone</span>
-                        <span class="meta-value">{{ $customer['phone'] ?: 'Not added yet' }}</span>
+                        <span class="meta-value">{{ $contractor['phone'] ?: 'Not added yet' }}</span>
                     </td>
                 </tr>
                 <tr>
                     <td colspan="2">
                         <span class="meta-label">Address</span>
-                        <span class="meta-value">{{ $customer['address'] ?: 'Not added yet' }}</span>
+                        <span class="meta-value">{{ $contractor['address'] ?: 'Not added yet' }}</span>
                     </td>
                 </tr>
             </table>

@@ -74,7 +74,6 @@ export type PageProps<
             updateProjects: boolean;
             deleteProjects: boolean;
             viewSensitiveProjectFields: boolean;
-            viewProjectCustomerContactFields: boolean;
             viewBids: boolean;
             createBids: boolean;
             updateBids: boolean;
@@ -91,10 +90,6 @@ export type PageProps<
             createServices: boolean;
             updateServices: boolean;
             deleteServices: boolean;
-            viewCustomers: boolean;
-            createCustomers: boolean;
-            updateCustomers: boolean;
-            deleteCustomers: boolean;
             viewContractors: boolean;
             createContractors: boolean;
             updateContractors: boolean;

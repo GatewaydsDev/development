@@ -3,7 +3,6 @@ export type ProjectCapabilities = {
     update: boolean;
     delete: boolean;
     viewSensitiveFields: boolean;
-    viewCustomerContactFields: boolean;
 };
 
 export type ContractorOption = {
@@ -44,55 +43,9 @@ export type ProjectOptions = {
         id: number;
         name: string;
     }>;
-    customers: ProjectCustomerOption[];
     contractors: ContractorOption[];
     can: ProjectCapabilities;
     nextProjectNumber?: string;
-};
-
-export type ProjectCustomerOption = {
-    id: number;
-    name: string;
-    company_name: string | null;
-    email: string | null;
-    phone_number: string | null;
-    address_line_1: string | null;
-    address_line_2: string | null;
-    city: string | null;
-    state: string | null;
-    postal_code: string | null;
-    country: string | null;
-    contacts: Array<{
-        id: number;
-        name: string;
-        title: string | null;
-        email: string | null;
-        phone_number: string | null;
-        is_primary: boolean;
-    }>;
-};
-
-export type ProjectCustomer = {
-    id?: number | null;
-    name: string | null;
-    company_name: string | null;
-    contact_name?: string | null;
-    email?: string | null;
-    phone_number?: string | null;
-    contacts?: Array<{
-        id: number;
-        name: string;
-        title: string | null;
-        email: string | null;
-        phone_number: string | null;
-        is_primary: boolean;
-    }>;
-    address_line_1?: string | null;
-    address_line_2?: string | null;
-    city?: string | null;
-    state?: string | null;
-    postal_code?: string | null;
-    country?: string | null;
 };
 
 export type ProjectContractor = {
@@ -157,7 +110,6 @@ export type ProjectPayload = {
     site_country?: string | null;
     budget_amount?: string | null;
     internal_notes?: string | null;
-    customer: ProjectCustomer;
     contractors: ProjectContractor[];
     scopes: ProjectScope[];
     revisions: ProjectRevision[];
@@ -221,10 +173,6 @@ export type ProjectRevisionFormData = {
 export type ProjectFormData = {
     name: string;
     project_number: string;
-    customer_id: string;
-    customer_company_name: string;
-    customer_email: string;
-    customer_phone_number: string;
     assigned_to: string;
     status_id: string;
     priority: string;
@@ -244,18 +192,6 @@ export type ProjectFormData = {
     scopes: ProjectScopeFormData[];
     revisions: ProjectRevisionFormData[];
 };
-
-export function projectCustomerLabel(customer?: ProjectCustomer | null) {
-    return (
-        customer?.company_name?.trim() ||
-        customer?.name?.trim() ||
-        ''
-    );
-}
-
-export function projectCustomerContactLabel(customer?: ProjectCustomer | null) {
-    return customer?.contact_name?.trim() || '';
-}
 
 export function scopeTypeLabel(
     type?: string | null,
@@ -340,11 +276,6 @@ export function projectToFormData(
         name: project?.name ?? '',
         project_number:
             project?.project_number ?? options?.nextProjectNumber ?? '',
-        customer_id: project?.customer?.id ? String(project.customer.id) : '',
-        customer_company_name:
-            project?.customer?.company_name ?? project?.customer?.name ?? '',
-        customer_email: project?.customer?.email ?? '',
-        customer_phone_number: project?.customer?.phone_number ?? '',
         assigned_to: project?.assignee ? String(project.assignee.id) : '',
         status_id: project?.status_id
             ? String(project.status_id)

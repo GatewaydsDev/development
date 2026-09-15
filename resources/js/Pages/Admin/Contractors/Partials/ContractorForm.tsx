@@ -74,8 +74,6 @@ function contractorSchema(phoneTypes: string[]) {
                 .trim()
                 .max(1000, 'Notes must be 1,000 characters or less.'),
             is_primary: z.boolean(),
-            customer_id: z.string(),
-            customer_contact_id: z.string(),
         })
         .superRefine((contact, context) => {
             const phoneDigits = contact.phone_number.replace(/\D/g, '');
@@ -118,11 +116,6 @@ function contractorSchema(phoneTypes: string[]) {
                 .string()
                 .trim()
                 .max(5000, 'Notes must be 5,000 characters or less.'),
-            customer_id: z.string(),
-            customer_company_name: z
-                .string()
-                .trim()
-                .max(255, 'Customer name must be 255 characters or less.'),
             contacts: z.array(contactSchema),
         })
         .superRefine((values, context) => {
@@ -233,14 +226,7 @@ export default function ContractorForm({
             onFinish: () => setProcessing(false),
         };
 
-        const primary =
-            values.contacts.find((contact) => contact.is_primary) ??
-            values.contacts[0];
-        const payload = {
-            ...values,
-            customer_id: primary?.customer_id ?? '',
-            customer_company_name: primary?.name ?? '',
-        };
+        const payload = values;
 
         if (method === 'patch') {
             router.patch(action, payload, submitOptions);
@@ -486,9 +472,8 @@ export default function ContractorForm({
                                     Contact information
                                 </h3>
                                 <p className="text-sm text-muted-foreground">
-                                    People at this general contractor. These
-                                    contacts stay on the contractor and do not
-                                    create a customer.
+                                    People at this contractor. You can save
+                                    multiple contacts.
                                 </p>
                             </div>
                             <Button
@@ -551,7 +536,6 @@ export default function ContractorForm({
                                             onChange={(event) =>
                                                 updateContactFields(index, {
                                                     name: event.target.value,
-                                                    customer_contact_id: '',
                                                 })
                                             }
                                         />

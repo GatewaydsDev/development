@@ -40,7 +40,7 @@ type QuotationFormProps = {
 };
 
 const schema = z.object({
-    customer_id: z.string().trim().min(1, 'Select a customer.'),
+    contractor_id: z.string().trim().min(1, 'Select a contractor.'),
     project_id: z.string(),
     title: z.string().trim().min(1, 'Enter a quotation title.').max(255),
     status: z.string().trim().min(1, 'Select a status.'),
@@ -114,12 +114,6 @@ export default function QuotationForm({
         defaultValue: defaultValues,
     }) as QuotationFormData;
 
-    const projectsForCustomer = options.projects.filter(
-        (project) =>
-            !data.customer_id ||
-            String(project.customer_id ?? '') === data.customer_id,
-    );
-
     const lineTotal = (data.line_items ?? []).reduce((sum, item) => {
         const quantity = Number(item.quantity);
         const unitPrice = Number(item.unit_price);
@@ -160,41 +154,35 @@ export default function QuotationForm({
                 <CardContent className="grid gap-5 md:grid-cols-2">
                     <div className="flex flex-col gap-2">
                         <InputLabel
-                            htmlFor="customer_id"
-                            value="Customer / owner"
+                            htmlFor="contractor_id"
+                            value="Contractor"
                             className="text-emerald-700 dark:text-emerald-300"
                         />
                         <select
-                            id="customer_id"
-                            value={data.customer_id}
+                            id="contractor_id"
+                            value={data.contractor_id}
                             onChange={(event) => {
-                                const customerId = event.target.value;
-                                setValue('customer_id', customerId, {
+                                setValue('contractor_id', event.target.value, {
                                     shouldValidate: true,
                                 });
-                                const selectedProject = options.projects.find(
-                                    (project) =>
-                                        String(project.id) === data.project_id,
-                                );
-                                if (
-                                    selectedProject &&
-                                    String(selectedProject.customer_id ?? '') !==
-                                        customerId
-                                ) {
-                                    setValue('project_id', '');
-                                }
                             }}
                             className={inputClassName}
                         >
-                            <option value="">Select a customer / owner</option>
-                            {options.customers.map((customer) => (
-                                <option key={customer.id} value={customer.id}>
-                                    {customer.name}
+                            <option value="">Select a contractor</option>
+                            {(options.contractors ?? []).map((contractor) => (
+                                <option
+                                    key={contractor.id}
+                                    value={contractor.id}
+                                >
+                                    {contractor.name}
                                 </option>
                             ))}
                         </select>
                         <InputError
-                            message={errorMessage(validationErrors, 'customer_id')}
+                            message={errorMessage(
+                                validationErrors,
+                                'contractor_id',
+                            )}
                         />
                     </div>
 
@@ -213,10 +201,10 @@ export default function QuotationForm({
                                 const project = options.projects.find(
                                     (item) => String(item.id) === projectId,
                                 );
-                                if (project?.customer_id) {
+                                if (project?.contractor_ids?.length) {
                                     setValue(
-                                        'customer_id',
-                                        String(project.customer_id),
+                                        'contractor_id',
+                                        String(project.contractor_ids[0]),
                                         { shouldValidate: true },
                                     );
                                 }
@@ -224,7 +212,7 @@ export default function QuotationForm({
                             className={inputClassName}
                         >
                             <option value="">No project</option>
-                            {projectsForCustomer.map((project) => (
+                            {options.projects.map((project) => (
                                 <option key={project.id} value={project.id}>
                                     {project.label}
                                 </option>
@@ -352,7 +340,7 @@ export default function QuotationForm({
                     <div>
                         <CardTitle>Quoted items</CardTitle>
                         <CardDescription>
-                            Add each line the customer is being quoted.
+                            Add each line the contractor is being quoted.
                         </CardDescription>
                     </div>
                     <Button

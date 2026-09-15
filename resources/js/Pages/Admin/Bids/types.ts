@@ -12,8 +12,8 @@ export type BidProjectOption = {
     id: number;
     name: string;
     project_number?: string | null;
-    customer_name?: string | null;
-    customer_company?: string | null;
+    contractor_name?: string | null;
+    contractor_contact_name?: string | null;
     site_address?: string | null;
     estimated_start_date?: string | null;
     estimated_end_date?: string | null;
@@ -164,14 +164,6 @@ export type BidPayload = {
         name?: string | null;
         project_number?: string | null;
         site_address?: string | null;
-        customer?: {
-            id?: number | null;
-            name?: string | null;
-            company_name?: string | null;
-            contact_name?: string | null;
-            email?: string | null;
-            phone_number?: string | null;
-        } | null;
         contractors?: Array<{
             id: number;
             name: string;

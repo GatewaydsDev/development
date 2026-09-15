@@ -1,7 +1,6 @@
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import ContractorSelect from '@/Components/ContractorSelect';
-import CustomerSelect from '@/Components/CustomerSelect';
 import CreatableSelect from '@/Components/CreatableSelect';
 import PhoneInput from '@/Components/PhoneInput';
 import FormActionFab from '@/Components/FormActionFab';
@@ -89,16 +88,6 @@ function projectSchema(options: ProjectOptions, canEditCoreFields: boolean) {
                 ? z.string().trim().min(1, 'Enter the project name.').max(255)
                 : z.string(),
             project_number: z.string().trim().max(255),
-            customer_id: z.string(),
-            customer_company_name: z
-                .string()
-                .trim()
-                .max(255, 'Company name must be 255 characters or less.'),
-            customer_email: optionalEmailSchema,
-            customer_phone_number: z
-                .string()
-                .trim()
-                .max(50, 'Phone number must be 50 characters or less.'),
             assigned_to: z.string(),
             status_id: z.string().trim().min(1, 'Select a status.'),
             priority: z
@@ -290,8 +279,7 @@ export default function ProjectForm({
     const [checkingName, setCheckingName] = useState(false);
     const [nameTaken, setNameTaken] = useState(false);
     const nameCheckRequest = useRef(0);
-    const canEditCoreFields =
-        options.can.create || options.can.viewCustomerContactFields;
+    const canEditCoreFields = options.can.create || options.can.update;
     const canViewSensitive = options.can.viewSensitiveFields;
     const scopeTypes = options.scopeTypes ?? [];
     const validationSchema = useMemo(
@@ -417,10 +405,6 @@ export default function ProjectForm({
 
         const payload = {
             ...values,
-            customer_id: values.customer_id.trim(),
-            customer_company_name: values.customer_company_name.trim(),
-            customer_email: values.customer_email.trim(),
-            customer_phone_number: values.customer_phone_number.trim(),
             budget_amount: inputToDecimal(values.budget_amount) || null,
             contractors: (values.contractors ?? []).filter(
                 (contractor) =>
@@ -820,98 +804,11 @@ export default function ProjectForm({
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                     <div>
                                         <h3 className="text-base font-semibold text-foreground">
-                                            Customer / owner
+                                            Contractors
                                         </h3>
                                         <p className="text-sm text-muted-foreground">
-                                            The client this project is for.
-                                            This is separate from any general
-                                            contractor on the job.
-                                        </p>
-                                    </div>
-                                    {Boolean(
-                                        auth.can?.viewCustomers ||
-                                            auth.can?.createCustomers,
-                                    ) && (
-                                        <Button
-                                            asChild
-                                            variant="outline"
-                                            className="w-full sm:w-auto"
-                                        >
-                                            <Link
-                                                href={route(
-                                                    'admin.customers.index',
-                                                )}
-                                            >
-                                                Manage customers
-                                            </Link>
-                                        </Button>
-                                    )}
-                                </div>
-                                <CustomerSelect
-                                    customers={options.customers ?? []}
-                                    value={{
-                                        customer_id: data.customer_id,
-                                        company_name:
-                                            data.customer_company_name,
-                                        email: data.customer_email,
-                                        phone_number:
-                                            data.customer_phone_number,
-                                    }}
-                                    onChange={(value) => {
-                                        setData(
-                                            'customer_id',
-                                            value.customer_id,
-                                        );
-                                        setData(
-                                            'customer_company_name',
-                                            value.company_name,
-                                        );
-                                        setData(
-                                            'customer_email',
-                                            value.email,
-                                        );
-                                        setData(
-                                            'customer_phone_number',
-                                            value.phone_number,
-                                        );
-                                    }}
-                                    errors={{
-                                        customer_id: errorMessage(
-                                            validationErrors,
-                                            'customer_id',
-                                        ),
-                                        company_name: errorMessage(
-                                            validationErrors,
-                                            'customer_company_name',
-                                        ),
-                                        email: errorMessage(
-                                            validationErrors,
-                                            'customer_email',
-                                        ),
-                                        phone_number: errorMessage(
-                                            validationErrors,
-                                            'customer_phone_number',
-                                        ),
-                                    }}
-                                    showContactFields={
-                                        options.can.viewCustomerContactFields
-                                    }
-                                    companyLabel="Customer / owner"
-                                    idPrefix="project-customer"
-                                />
-                            </section>
-                        )}
-
-                        {canEditCoreFields && (
-                            <section className="flex flex-col gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
-                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                    <div>
-                                        <h3 className="text-base font-semibold text-foreground">
-                                            General contractors
-                                        </h3>
-                                        <p className="text-sm text-muted-foreground">
-                                            Add each general contractor on this
-                                            job. This is not the customer.
+                                            Add contractors and their contacts
+                                            for this job.
                                         </p>
                                     </div>
                                     <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">

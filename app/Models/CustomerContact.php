@@ -4,29 +4,14 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
+/**
+ * @deprecated Removed from the application. Kept so historical migrations can refresh the test database.
+ */
 class CustomerContact extends Model
 {
-    protected $fillable = [
-        'uuid',
-        'customer_id',
-        'customer_contact_role_id',
-        'name',
-        'title',
-        'email',
-        'phone_number',
-        'notes',
-        'is_primary',
-    ];
-
-    protected function casts(): array
-    {
-        return [
-            'is_primary' => 'boolean',
-        ];
-    }
+    protected $guarded = [];
 
     protected static function booted(): void
     {
@@ -43,10 +28,5 @@ class CustomerContact extends Model
     public function role(): BelongsTo
     {
         return $this->belongsTo(CustomerContactRole::class, 'customer_contact_role_id');
-    }
-
-    public function contractorContacts(): HasMany
-    {
-        return $this->hasMany(ContractorContact::class);
     }
 }

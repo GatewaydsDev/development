@@ -224,22 +224,10 @@ export default function Index({ filters, options, bids }: IndexProps) {
                                                         ?.project_number ||
                                                         'No project number'}
                                                 </p>
-                                                {(bid.project?.customer
-                                                    ?.company_name ||
-                                                    bid.project?.customer
-                                                        ?.name) && (
-                                                    <p className="truncate text-sm text-muted-foreground">
-                                                        Customer / owner:{' '}
-                                                        {bid.project.customer
-                                                            .company_name ||
-                                                            bid.project.customer
-                                                                .name}
-                                                    </p>
-                                                )}
                                                 {(bid.project?.contractors
                                                     ?.length ?? 0) > 0 && (
                                                     <p className="truncate text-sm text-muted-foreground">
-                                                        General contractor
+                                                        Contractor
                                                         {(bid.project
                                                             ?.contractors
                                                             ?.length ?? 0) > 1

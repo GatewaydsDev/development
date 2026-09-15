@@ -196,12 +196,11 @@ class BidListDocument
             $table->addRow(360);
             $headings = [
                 ['#', 700],
-                ['Project', 3000],
-                ['Customer / owner', 2400],
-                ['General contractor', 2400],
-                ['Stage', 2000],
-                ['Scope', 2800],
-                ['Pricing', 1900],
+                ['Project', 3600],
+                ['Contractors', 3600],
+                ['Stage', 2200],
+                ['Scope', 3000],
+                ['Pricing', 2100],
             ];
 
             foreach ($headings as [$heading, $width]) {
@@ -216,19 +215,17 @@ class BidListDocument
                 $table->addCell(700, ['bgColor' => $bg, 'valign' => 'center'])
                     ->addText((string) $index, ['size' => 9, 'color' => '111827']);
 
-                $projectCell = $table->addCell(3000, ['bgColor' => $bg, 'valign' => 'center']);
+                $projectCell = $table->addCell(3600, ['bgColor' => $bg, 'valign' => 'center']);
                 $projectCell->addText($row['name'], ['size' => 10, 'color' => '064E3B', 'bold' => true]);
                 $projectCell->addText($row['project_number'], ['size' => 8, 'color' => '6B7280']);
 
-                $table->addCell(2400, ['bgColor' => $bg, 'valign' => 'center'])
-                    ->addText($row['customer'], ['size' => 9, 'color' => '111827']);
-                $table->addCell(2400, ['bgColor' => $bg, 'valign' => 'center'])
+                $table->addCell(3600, ['bgColor' => $bg, 'valign' => 'center'])
                     ->addText($row['contractors'], ['size' => 9, 'color' => '111827']);
-                $table->addCell(2000, ['bgColor' => $bg, 'valign' => 'center'])
+                $table->addCell(2200, ['bgColor' => $bg, 'valign' => 'center'])
                     ->addText($row['stage'], ['size' => 9, 'color' => '111827']);
-                $table->addCell(2800, ['bgColor' => $bg, 'valign' => 'center'])
+                $table->addCell(3000, ['bgColor' => $bg, 'valign' => 'center'])
                     ->addText($row['scope'], ['size' => 9, 'color' => '111827']);
-                $table->addCell(1900, ['bgColor' => $bg, 'valign' => 'center'])
+                $table->addCell(2100, ['bgColor' => $bg, 'valign' => 'center'])
                     ->addText($row['pricing'], ['size' => 9, 'color' => '111827']);
 
                 $index++;
@@ -280,19 +277,11 @@ class BidListDocument
         return [
             'name' => $bid->project?->name ?: 'Untitled project',
             'project_number' => $bid->project?->project_number ?: 'No project number',
-            'customer' => $this->customerLabel($bid),
             'contractors' => $this->contractorLabel($bid),
             'stage' => $bid->stages->last()?->type?->name ?: 'No stage',
             'scope' => $scopes->isEmpty() ? 'None' : $scopes->implode(', '),
             'pricing' => '$'.number_format($bid->latestTotal(), 2),
         ];
-    }
-
-    private function customerLabel(Bid $bid): string
-    {
-        $customer = $bid->project?->customer;
-
-        return $customer?->displayCompanyName() ?: '—';
     }
 
     private function contractorLabel(Bid $bid): string

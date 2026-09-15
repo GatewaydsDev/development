@@ -25,7 +25,7 @@ class QuotationDocument
 
     public static function for(Quotation $quotation, ?User $user = null): self
     {
-        $quotation->load(['customer.contacts', 'project', 'lineItems', 'creator']);
+        $quotation->load(['contractor.contacts', 'project', 'lineItems', 'creator']);
 
         return new self($quotation, DocumentLogo::company(), $user);
     }
@@ -35,7 +35,7 @@ class QuotationDocument
      */
     public function viewData(string $mode = 'print'): array
     {
-        $customer = $this->customerPayload();
+        $contractor = $this->contractorPayload();
         $project = $this->quotation->project;
 
         return [
@@ -58,7 +58,7 @@ class QuotationDocument
             'quotedAt' => $this->quotation->quoted_at?->format('F j, Y'),
             'validUntil' => $this->quotation->valid_until?->format('F j, Y'),
             'notes' => $this->quotation->notes,
-            'customer' => $customer,
+            'contractor' => $contractor,
             'projectName' => $project?->name,
             'projectNumber' => $project?->project_number,
             'projectAddress' => $project
@@ -111,7 +111,7 @@ class QuotationDocument
             ->setCreator($this->user?->name ?: $this->companyName())
             ->setCompany($this->companyName())
             ->setTitle($this->quotation->title.' Quotation')
-            ->setSubject('Customer quotation')
+            ->setSubject('Contractor quotation')
             ->setDescription('Quotation exported from Gateway Door Systems.')
             ->setCategory('Quotation');
 
@@ -164,14 +164,14 @@ class QuotationDocument
         );
 
         $section->addTextBreak(1);
-        $section->addText('Customer information', ['bold' => true, 'size' => 13, 'color' => '065F46']);
-        $customer = $this->customerPayload();
+        $section->addText('Contractor', ['bold' => true, 'size' => 13, 'color' => '065F46']);
+        $contractor = $this->contractorPayload();
         $this->addMetaTable($section, [
-            ['Customer', $customer['company'] ?: $customer['name'] ?: '—'],
-            ['Contact name', $customer['name'] ?: '—'],
-            ['Email', $customer['email'] ?: '—'],
-            ['Phone', $customer['phone'] ?: '—'],
-            ['Address', $customer['address'] ?: '—'],
+            ['Contractor', $contractor['company'] ?: $contractor['name'] ?: '—'],
+            ['Contact name', $contractor['name'] ?: '—'],
+            ['Email', $contractor['email'] ?: '—'],
+            ['Phone', $contractor['phone'] ?: '—'],
+            ['Address', $contractor['address'] ?: '—'],
         ]);
 
         $section->addText('Project information', ['bold' => true, 'size' => 13, 'color' => '065F46']);
@@ -281,25 +281,24 @@ class QuotationDocument
     /**
      * @return array{name: ?string, company: ?string, email: ?string, phone: ?string, address: ?string}
      */
-    private function customerPayload(): array
+    private function contractorPayload(): array
     {
-        $customer = $this->quotation->customer;
-        $contact = $customer?->contacts?->firstWhere('is_primary', true)
-            ?? $customer?->contacts?->first();
+        $contractor = $this->quotation->contractor;
+        $contact = $contractor?->primaryContact();
 
         return [
-            'name' => $customer?->displayContactName(),
-            'company' => $customer?->displayCompanyName(),
-            'email' => $contact?->email ?: $customer?->email,
-            'phone' => $contact?->phone_number ?: $customer?->phone_number,
-            'address' => $customer
+            'name' => $contact?->name ?: $contractor?->contact_name,
+            'company' => $contractor?->name,
+            'email' => $contact?->email ?: $contractor?->email,
+            'phone' => $contact?->phone_number ?: $contractor?->phone_number,
+            'address' => $contractor
                 ? (BidApplicationText::formatAddress(
-                    $customer->address_line_1,
-                    $customer->address_line_2,
-                    $customer->city,
-                    $customer->state,
-                    $customer->postal_code,
-                    $customer->country,
+                    $contractor->address_line_1,
+                    $contractor->address_line_2,
+                    $contractor->city,
+                    $contractor->state,
+                    $contractor->postal_code,
+                    $contractor->country,
                 ) ?: null)
                 : null,
         ];

@@ -46,14 +46,5 @@ class ProjectAccess
             UserLevel::ADMINISTRATOR,
         ]);
     }
-
-    public static function canViewCustomerContactFields(User $user): bool
-    {
-        return $user->hasUserLevel([
-            UserLevel::SUPER_ADMIN,
-            UserLevel::ADMINISTRATOR,
-            UserLevel::ADMIN,
-        ]);
-    }
 }
 

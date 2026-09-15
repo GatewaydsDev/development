@@ -38,7 +38,6 @@ import {
     SlidersHorizontalIcon,
     UserCogIcon,
     UserPlusIcon,
-    UserRoundIcon,
     UsersIcon,
     WrenchIcon,
     type LucideIcon,
@@ -243,8 +242,6 @@ export default function Authenticated({
     const canCreateProducts = Boolean(auth.can?.createProducts);
     const canViewServices = Boolean(auth.can?.viewServices);
     const canCreateServices = Boolean(auth.can?.createServices);
-    const canViewCustomers = Boolean(auth.can?.viewCustomers);
-    const canCreateCustomers = Boolean(auth.can?.createCustomers);
     const canViewContractors = Boolean(auth.can?.viewContractors);
     const canCreateContractors = Boolean(auth.can?.createContractors);
     const canViewEmployees = Boolean(auth.can?.viewEmployees);
@@ -254,7 +251,6 @@ export default function Authenticated({
     const canOpenQuotations = canViewQuotations || canCreateQuotations;
     const canOpenProducts = canViewProducts || canCreateProducts;
     const canOpenServices = canViewServices || canCreateServices;
-    const canOpenCustomers = canViewCustomers || canCreateCustomers;
     const canOpenContractors = canViewContractors || canCreateContractors;
     const canOpenEmployees = canViewEmployees || canCreateEmployees;
     const canOpenWork =
@@ -264,7 +260,6 @@ export default function Authenticated({
         canOpenProducts ||
         canOpenServices;
     const canOpenPeople =
-        canOpenCustomers ||
         canOpenContractors ||
         canOpenEmployees ||
         canManageNotifications;
@@ -585,20 +580,6 @@ export default function Authenticated({
                                                         People
                                                     </DropdownMenuLabel>
                                                     <DropdownMenuGroup>
-                                                        <AdminResourceSubmenu
-                                                            label="Customers"
-                                                            icon={UserRoundIcon}
-                                                            canView={canViewCustomers}
-                                                            canCreate={canCreateCustomers}
-                                                            viewHref={route(
-                                                                'admin.customers.index',
-                                                            )}
-                                                            createHref={route(
-                                                                'admin.customers.create',
-                                                            )}
-                                                            viewIcon={UsersIcon}
-                                                            createIcon={UserPlusIcon}
-                                                        />
                                                         <AdminResourceSubmenu
                                                             label="Contractors"
                                                             icon={HardHatIcon}
@@ -1088,26 +1069,6 @@ export default function Authenticated({
                                             icon={UsersIcon}
                                             className="ps-6 pe-4"
                                         >
-                                            <MobileAdminResource
-                                                label="Customers"
-                                                icon={UserRoundIcon}
-                                                canView={canViewCustomers}
-                                                canCreate={canCreateCustomers}
-                                                viewHref={route(
-                                                    'admin.customers.index',
-                                                )}
-                                                createHref={route(
-                                                    'admin.customers.create',
-                                                )}
-                                                viewActive={route().current(
-                                                    'admin.customers.index',
-                                                )}
-                                                createActive={route().current(
-                                                    'admin.customers.create',
-                                                )}
-                                                viewIcon={UsersIcon}
-                                                createIcon={UserPlusIcon}
-                                            />
                                             <MobileAdminResource
                                                 label="Contractors"
                                                 icon={HardHatIcon}

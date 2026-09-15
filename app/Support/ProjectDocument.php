@@ -25,7 +25,6 @@ class ProjectDocument
         private readonly ?Company $company,
         private readonly ?User $user,
         private readonly bool $showSensitiveFields,
-        private readonly bool $showCustomerContacts,
     ) {}
 
     public static function for(Project $project, ?User $user = null): self
@@ -34,7 +33,6 @@ class ProjectDocument
             'status',
             'assignee:id,name',
             'creator:id,name',
-            'customer.contacts',
             'contractors.contacts',
             'scopes.product',
             'scopes.service',
@@ -46,7 +44,6 @@ class ProjectDocument
             DocumentLogo::company(),
             $user,
             $user ? ProjectAccess::canViewSensitiveFields($user) : false,
-            $user ? ProjectAccess::canViewCustomerContactFields($user) : false,
         );
     }
 
@@ -84,7 +81,6 @@ class ProjectDocument
             'budgetAmount' => $this->showSensitiveFields && $this->project->budget_amount !== null
                 ? $this->money($this->project->budget_amount)
                 : null,
-            'customer' => $this->customerPayload(),
             'contractors' => $this->contractorRows(),
             'scopes' => $this->scopeRows(),
             'revisions' => $this->revisionRows(),
@@ -256,25 +252,12 @@ class ProjectDocument
         }
 
         $section->addTextBreak(1);
-        $section->addText('Customer / owner', ['bold' => true, 'size' => 13, 'color' => '065F46']);
         $contractors = $this->contractorRows();
-        $customer = $this->customerPayload();
 
-        if ($this->hasCustomer($customer)) {
-            $this->addMetaTable($section, [
-                ['Customer', $customer['company'] ?: $customer['name'] ?: '—'],
-                ['Contact name', $customer['name'] ?: '—'],
-                ['Phone number', $customer['phone'] ?: '—'],
-                ['Email address', $customer['email'] ?: '—'],
-            ]);
-        } else {
-            $section->addText('No customer added yet.', ['italic' => true, 'size' => 10, 'color' => '6B7280']);
-        }
-
-        $section->addText('General contractors', ['bold' => true, 'size' => 13, 'color' => '065F46']);
+        $section->addText('Contractors', ['bold' => true, 'size' => 13, 'color' => '065F46']);
 
         if ($contractors === []) {
-            $section->addText('No general contractors added yet.', ['italic' => true, 'size' => 10, 'color' => '6B7280']);
+            $section->addText('No contractors added yet.', ['italic' => true, 'size' => 10, 'color' => '6B7280']);
         }
 
         foreach ($contractors as $contractor) {
@@ -452,42 +435,6 @@ class ProjectDocument
             $this->project->site_postal_code,
             $this->project->site_country,
         );
-    }
-
-    /**
-     * @return array{name: ?string, company: ?string, email: ?string, phone: ?string, address: ?string}
-     */
-    private function customerPayload(): array
-    {
-        $customer = $this->project->customer;
-        $contact = $this->showCustomerContacts
-            ? ($customer?->contacts?->firstWhere('is_primary', true) ?? $customer?->contacts?->first())
-            : null;
-
-        return [
-            'name' => $this->showCustomerContacts ? $customer?->displayContactName() : null,
-            'company' => $customer?->displayCompanyName(),
-            'email' => $this->showCustomerContacts ? ($contact?->email ?: $customer?->email) : null,
-            'phone' => $this->showCustomerContacts ? ($contact?->phone_number ?: $customer?->phone_number) : null,
-            'address' => $customer
-                ? BidApplicationText::formatAddress(
-                    $customer->address_line_1,
-                    $customer->address_line_2,
-                    $customer->city,
-                    $customer->state,
-                    $customer->postal_code,
-                    $customer->country,
-                ) ?: null
-                : null,
-        ];
-    }
-
-    /**
-     * @param  array{name: ?string, company: ?string, email: ?string, phone: ?string, address: ?string}  $customer
-     */
-    private function hasCustomer(array $customer): bool
-    {
-        return filled($customer['company']) || filled($customer['name']);
     }
 
     /**

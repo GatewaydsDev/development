@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Customer;
+use App\Models\Contractor;
 use App\Models\Project;
 use App\Models\Quotation;
 use App\Models\QuotationLineItem;
@@ -64,7 +64,7 @@ class QuotationController extends Controller
 
         $quotation = DB::transaction(function () use ($validated, $request): Quotation {
             $quotation = Quotation::create([
-                'customer_id' => $validated['customer_id'],
+                'contractor_id' => $validated['contractor_id'],
                 'project_id' => $validated['project_id'] ?: null,
                 'title' => $validated['title'],
                 'status' => $validated['status'],
@@ -88,7 +88,7 @@ class QuotationController extends Controller
     {
         abort_unless(QuotationAccess::canView($request->user()), 403);
 
-        $quotation->load(['customer.contacts', 'project', 'lineItems', 'convertedBid']);
+        $quotation->load(['contractor.contacts', 'project', 'lineItems', 'convertedBid']);
 
         return Inertia::render('Admin/Quotations/Show', [
             'quotation' => $this->quotationPayload($quotation),
@@ -144,7 +144,7 @@ class QuotationController extends Controller
     {
         abort_unless(QuotationAccess::canUpdate($request->user()), 403);
 
-        $quotation->load(['customer.contacts', 'project', 'lineItems', 'convertedBid']);
+        $quotation->load(['contractor.contacts', 'project', 'lineItems', 'convertedBid']);
 
         return Inertia::render('Admin/Quotations/Edit', [
             'quotation' => $this->quotationPayload($quotation),
@@ -160,7 +160,7 @@ class QuotationController extends Controller
 
         DB::transaction(function () use ($quotation, $validated): void {
             $quotation->update([
-                'customer_id' => $validated['customer_id'],
+                'contractor_id' => $validated['contractor_id'],
                 'project_id' => $validated['project_id'] ?: null,
                 'title' => $validated['title'],
                 'status' => $validated['status'],
@@ -194,13 +194,11 @@ class QuotationController extends Controller
     private function validatedQuotation(Request $request): array
     {
         $validated = $request->validate([
-            'customer_id' => ['required', 'integer', 'exists:customers,id'],
+            'contractor_id' => ['required', 'integer', 'exists:contractors,id'],
             'project_id' => [
                 'nullable',
                 'integer',
-                Rule::exists('projects', 'id')->where(
-                    fn ($query) => $query->where('customer_id', $request->integer('customer_id')),
-                ),
+                Rule::exists('projects', 'id'),
             ],
             'title' => ['required', 'string', 'max:255'],
             'status' => ['required', 'string', Rule::in(Quotation::STATUSES)],
@@ -250,17 +248,15 @@ class QuotationController extends Controller
     private function listingQuery(string $search)
     {
         return Quotation::query()
-            ->with(['customer', 'project', 'lineItems', 'convertedBid'])
+            ->with(['contractor', 'project', 'lineItems', 'convertedBid'])
             ->when($search !== '', function ($query) use ($search): void {
                 $query->where(function ($query) use ($search): void {
                     $query
                         ->where('title', 'like', "%{$search}%")
                         ->orWhere('quotation_number', 'like', "%{$search}%")
                         ->orWhere('status', 'like', "%{$search}%")
-                        ->orWhereHas('customer', function ($query) use ($search): void {
-                            $query
-                                ->where('name', 'like', "%{$search}%")
-                                ->orWhere('company_name', 'like', "%{$search}%");
+                        ->orWhereHas('contractor', function ($query) use ($search): void {
+                            $query->where('name', 'like', "%{$search}%");
                         })
                         ->orWhereHas('project', function ($query) use ($search): void {
                             $query
@@ -277,11 +273,10 @@ class QuotationController extends Controller
      */
     private function quotationPayload(Quotation $quotation, bool $summary = false): array
     {
-        $quotation->loadMissing(['customer.contacts', 'project', 'lineItems', 'convertedBid']);
+        $quotation->loadMissing(['contractor.contacts', 'project', 'lineItems', 'convertedBid']);
 
-        $customer = $quotation->customer;
-        $contact = $customer?->contacts?->firstWhere('is_primary', true)
-            ?? $customer?->contacts?->first();
+        $contractor = $quotation->contractor;
+        $contact = $contractor?->primaryContact();
         $project = $quotation->project;
 
         $payload = [
@@ -295,19 +290,12 @@ class QuotationController extends Controller
             'valid_until' => $quotation->valid_until?->toDateString(),
             'notes' => $quotation->notes,
             'total' => $quotation->total(),
-            'customer' => $customer ? [
-                'id' => $customer->id,
-                'name' => $customer->name,
-                'company_name' => $customer->company_name,
-                'contact_name' => $customer->displayContactName(),
-                'email' => $contact?->email ?: $customer->email,
-                'phone_number' => $contact?->phone_number ?: $customer->phone_number,
-                'address' => collect([
-                    $customer->address_line_1,
-                    $customer->address_line_2,
-                    collect([$customer->city, $customer->state, $customer->postal_code])->filter()->implode(', '),
-                    $customer->country,
-                ])->filter()->implode(', ') ?: null,
+            'contractor' => $contractor ? [
+                'id' => $contractor->id,
+                'name' => $contractor->name,
+                'contact_name' => $contact?->name,
+                'email' => $contact?->email,
+                'phone_number' => $contact?->phone_number,
             ] : null,
             'project' => $project ? [
                 'id' => $project->id,
@@ -331,7 +319,7 @@ class QuotationController extends Controller
             return $payload;
         }
 
-        $payload['customer_id'] = $quotation->customer_id;
+        $payload['contractor_id'] = $quotation->contractor_id;
         $payload['project_id'] = $quotation->project_id;
         $payload['line_items'] = $quotation->lineItems->map(fn (QuotationLineItem $item): array => [
             'id' => $item->id,
@@ -363,25 +351,24 @@ class QuotationController extends Controller
                 ])
                 ->values()
                 ->all(),
-            'customers' => Customer::query()
-                ->orderBy('company_name')
+            'contractors' => Contractor::query()
                 ->orderBy('name')
-                ->get(['id', 'name', 'company_name'])
-                ->map(fn (Customer $customer): array => [
-                    'id' => $customer->id,
-                    'name' => $customer->company_name ?: $customer->name,
+                ->get(['id', 'name'])
+                ->map(fn (Contractor $contractor): array => [
+                    'id' => $contractor->id,
+                    'name' => $contractor->name,
                 ])
                 ->values()
                 ->all(),
             'projects' => Project::query()
-                ->with('customer:id,name,company_name')
+                ->with('contractors:id')
                 ->orderByDesc('id')
-                ->get(['id', 'name', 'project_number', 'customer_id'])
+                ->get(['id', 'name', 'project_number'])
                 ->map(fn (Project $project): array => [
                     'id' => $project->id,
                     'name' => $project->name,
                     'project_number' => $project->project_number,
-                    'customer_id' => $project->customer_id,
+                    'contractor_ids' => $project->contractors->pluck('id')->all(),
                     'label' => trim(($project->project_number ? $project->project_number.' · ' : '').$project->name),
                 ])
                 ->values()

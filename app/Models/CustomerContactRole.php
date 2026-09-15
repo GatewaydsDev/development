@@ -6,20 +6,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
+/**
+ * @deprecated Removed from the application. Kept so historical migrations can refresh the test database.
+ */
 class CustomerContactRole extends Model
 {
-    protected $fillable = [
-        'uuid',
-        'name',
-        'is_active',
-    ];
-
-    protected function casts(): array
-    {
-        return [
-            'is_active' => 'boolean',
-        ];
-    }
+    protected $guarded = [];
 
     protected static function booted(): void
     {

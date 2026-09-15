@@ -84,7 +84,7 @@ export default function Index({ filters, contractors }: IndexProps) {
                             <span className="text-foreground">Contractors</span>
                         </nav>
                         <h2 className="text-xl font-semibold leading-tight text-emerald-700 dark:text-emerald-300">
-                            General contractors
+                            Contractors
                         </h2>
                     </div>
 
@@ -188,11 +188,7 @@ export default function Index({ filters, contractors }: IndexProps) {
                                                         {contractor.name}
                                                     </p>
                                                     <p className="text-sm text-muted-foreground">
-                                                        {contractor.customer
-                                                            ?.name ||
-                                                            contractor.customer
-                                                                ?.company_name ||
-                                                            primaryContact?.email ||
+                                                        {primaryContact?.email ||
                                                             contractor.website ||
                                                             contractor.uuid}
                                                     </p>

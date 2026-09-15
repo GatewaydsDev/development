@@ -201,10 +201,9 @@ class ProjectListDocument
             $table->addRow(360);
             $headings = [
                 ['#', 700],
-                ['Project', 4000],
-                ['Customer / owner', 3200],
-                ['General contractor', 3600],
-                ['Bid scope', 3300],
+                ['Project', 5200],
+                ['Contractors', 4800],
+                ['Bid scope', 4300],
             ];
 
             foreach ($headings as [$heading, $width]) {
@@ -219,15 +218,13 @@ class ProjectListDocument
                 $table->addCell(700, ['bgColor' => $bg, 'valign' => 'center'])
                     ->addText((string) $index, ['size' => 9, 'color' => '111827']);
 
-                $projectCell = $table->addCell(4000, ['bgColor' => $bg, 'valign' => 'center']);
+                $projectCell = $table->addCell(5200, ['bgColor' => $bg, 'valign' => 'center']);
                 $projectCell->addText($row['name'], ['size' => 10, 'color' => '064E3B', 'bold' => true]);
                 $projectCell->addText($row['project_number'], ['size' => 8, 'color' => '6B7280']);
 
-                $table->addCell(3200, ['bgColor' => $bg, 'valign' => 'center'])
-                    ->addText($row['customer'], ['size' => 9, 'color' => '111827']);
-                $table->addCell(3600, ['bgColor' => $bg, 'valign' => 'center'])
+                $table->addCell(4800, ['bgColor' => $bg, 'valign' => 'center'])
                     ->addText($row['contractors'], ['size' => 9, 'color' => '111827']);
-                $table->addCell(3300, ['bgColor' => $bg, 'valign' => 'center'])
+                $table->addCell(4300, ['bgColor' => $bg, 'valign' => 'center'])
                     ->addText($row['bid_scope'], ['size' => 9, 'color' => '111827']);
 
                 $index++;
@@ -274,7 +271,6 @@ class ProjectListDocument
         return [
             'name' => $project->name,
             'project_number' => $project->project_number ?: 'No project number',
-            'customer' => $project->customer?->displayCompanyName() ?: '—',
             'contractors' => $project->contractors
                 ->pluck('name')
                 ->filter()

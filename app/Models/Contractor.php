@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
@@ -29,7 +28,6 @@ class Contractor extends Model
         'postal_code',
         'country',
         'notes',
-        'customer_id',
     ];
 
     protected static function booted(): void
@@ -44,11 +42,6 @@ class Contractor extends Model
         return $this->hasMany(ContractorContact::class)
             ->orderByDesc('is_primary')
             ->orderBy('name');
-    }
-
-    public function customer(): BelongsTo
-    {
-        return $this->belongsTo(Customer::class);
     }
 
     public function projects(): BelongsToMany

@@ -34,15 +34,9 @@ class QuotationToBid
         return DB::transaction(function () use ($quotation, $user): Bid {
             $project = $quotation->project;
 
-            if (! $project->customer_id && $quotation->customer_id) {
-                $project->forceFill([
-                    'customer_id' => $quotation->customer_id,
-                ])->save();
-            }
-
-            if (! $project->customer_id) {
-                throw ValidationException::withMessages([
-                    'customer_id' => 'Assign a customer to this quotation’s project before converting it to a bid.',
+            if ($quotation->contractor_id) {
+                $project->contractors()->syncWithoutDetaching([
+                    $quotation->contractor_id,
                 ]);
             }
 
@@ -116,15 +110,14 @@ class QuotationToBid
      */
     public static function optionPayload(Quotation $quotation): array
     {
-        $quotation->loadMissing(['customer', 'project', 'lineItems']);
+        $quotation->loadMissing(['contractor', 'project', 'lineItems']);
 
-        $customerName = $quotation->customer?->company_name
-            ?: $quotation->customer?->name
-            ?: 'Customer';
+        $contractorName = $quotation->contractor?->name
+            ?: 'Contractor';
 
         return [
             'id' => $quotation->id,
-            'name' => trim($quotation->quotation_number.' · '.$quotation->title.' · '.$customerName),
+            'name' => trim($quotation->quotation_number.' · '.$quotation->title.' · '.$contractorName),
             'quotation_number' => $quotation->quotation_number,
             'title' => $quotation->title,
             'project_id' => $quotation->project_id,

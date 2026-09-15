@@ -5,9 +5,6 @@ namespace App\Providers;
 use App\Models\Company;
 use App\Models\Contractor;
 use App\Models\ContractorContact;
-use App\Models\Customer;
-use App\Models\CustomerContact;
-use App\Models\CustomerContactRole;
 use App\Models\Employee;
 use App\Models\EmployeePayRate;
 use App\Models\Profession;
@@ -83,9 +80,6 @@ class AppServiceProvider extends ServiceProvider
             Company::class,
             Contractor::class,
             ContractorContact::class,
-            Customer::class,
-            CustomerContact::class,
-            CustomerContactRole::class,
             Employee::class,
             EmployeePayRate::class,
             Profession::class,

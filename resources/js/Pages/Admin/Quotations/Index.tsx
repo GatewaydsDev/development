@@ -139,7 +139,7 @@ export default function Index({ filters, options, quotations }: IndexProps) {
                                     Saved quotations
                                 </CardTitle>
                                 <CardDescription>
-                                    Every customer quote stays in this list.
+                                    Every contractor quote stays in this list.
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
@@ -155,7 +155,7 @@ export default function Index({ filters, options, quotations }: IndexProps) {
                             <div>
                                 <CardTitle>Quotation directory</CardTitle>
                                 <CardDescription>
-                                    Search by customer, project, or quotation
+                                    Search by contractor, project, or quotation
                                     number.
                                 </CardDescription>
                             </div>
@@ -192,7 +192,7 @@ export default function Index({ filters, options, quotations }: IndexProps) {
                                     )}
                                 >
                                     <div>Number</div>
-                                    <div>Customer</div>
+                                    <div>Contractor</div>
                                     <div>Project</div>
                                     <div>Status</div>
                                     <div>Total</div>
@@ -220,9 +220,7 @@ export default function Index({ filters, options, quotations }: IndexProps) {
                                                 </p>
                                             </div>
                                             <div className="min-w-0 text-sm text-muted-foreground">
-                                                {quotation.customer
-                                                    ?.company_name ||
-                                                    quotation.customer?.name ||
+                                                {quotation.contractor?.name ||
                                                     '—'}
                                             </div>
                                             <div className="min-w-0 text-sm text-muted-foreground">

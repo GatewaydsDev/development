@@ -20,7 +20,7 @@ class Quotation extends Model
     protected $fillable = [
         'uuid',
         'quotation_number',
-        'customer_id',
+        'contractor_id',
         'project_id',
         'converted_bid_id',
         'title',
@@ -86,9 +86,9 @@ class Quotation extends Model
         };
     }
 
-    public function customer(): BelongsTo
+    public function contractor(): BelongsTo
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(Contractor::class);
     }
 
     public function project(): BelongsTo

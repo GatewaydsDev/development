@@ -1,7 +1,7 @@
 <?php
 
 use App\Models\Bid;
-use App\Models\Customer;
+use App\Models\Contractor;
 use App\Models\Project;
 use App\Models\ProjectStatus;
 use App\Models\Quotation;
@@ -22,29 +22,29 @@ function quotationAdmin(): User
 
 function quotationProject(User $admin, string $name = 'Quoted Entry Package'): Project
 {
-    $customer = Customer::create([
-        'name' => 'Pat Contact',
-        'company_name' => 'Harbor Facilities',
+    $contractor = Contractor::query()->firstOrCreate([
+        'name' => 'Harbor Facilities',
     ]);
 
-    return Project::create([
+    $project = Project::create([
         'name' => $name,
-        'customer_id' => $customer->id,
         'project_status_id' => ProjectStatus::idFor('quoted'),
         'priority' => 'normal',
         'created_by' => $admin->id,
     ]);
+
+    $project->contractors()->syncWithoutDetaching([$contractor->id]);
+
+    return $project;
 }
 
 function makeQuotation(User $admin, ?Project $project = null, array $overrides = []): Quotation
 {
-    $customerId = $project?->customer_id ?? Customer::create([
-        'name' => 'Pat Contact',
-        'company_name' => 'Harbor Facilities',
-    ])->id;
+    $contractorId = $project?->contractors()->first()?->id
+        ?? Contractor::query()->firstOrCreate(['name' => 'Harbor Facilities'])->id;
 
     $quotation = Quotation::create(array_merge([
-        'customer_id' => $customerId,
+        'contractor_id' => $contractorId,
         'project_id' => $project?->id,
         'title' => 'RF door quotation',
         'status' => 'draft',
@@ -61,16 +61,17 @@ function makeQuotation(User $admin, ?Project $project = null, array $overrides =
         'sort_order' => 0,
     ]);
 
-    return $quotation->fresh(['lineItems', 'project', 'customer']);
+    return $quotation->fresh(['lineItems', 'project', 'contractor']);
 }
 
-test('an admin can save a quotation for a customer', function () {
+test('an admin can save a quotation for a contractor', function () {
     $admin = quotationAdmin();
     $project = quotationProject($admin);
+    $contractorId = $project->contractors()->first()?->id;
 
     $this->actingAs($admin)
         ->post(route('admin.quotations.store'), [
-            'customer_id' => $project->customer_id,
+            'contractor_id' => $contractorId,
             'project_id' => $project->id,
             'title' => 'Harbor RF quote',
             'status' => 'sent',
@@ -90,7 +91,7 @@ test('an admin can save a quotation for a customer', function () {
 
     $quotation = Quotation::query()->where('title', 'Harbor RF quote')->firstOrFail();
 
-    expect($quotation->customer_id)->toBe($project->customer_id)
+    expect($quotation->contractor_id)->toBe($contractorId)
         ->and($quotation->project_id)->toBe($project->id)
         ->and($quotation->status)->toBe('sent')
         ->and($quotation->quotation_number)->toStartWith('GDS-Q-')
@@ -98,7 +99,7 @@ test('an admin can save a quotation for a customer', function () {
         ->and((float) $quotation->lineItems->first()->extended)->toBe(2500.0);
 });
 
-test('converting a quotation copies the customer onto a project that has none', function () {
+test('converting a quotation attaches the contractor to a project that has none', function () {
     $admin = quotationAdmin();
     $project = Project::create([
         'name' => 'Unassigned job',
@@ -108,15 +109,16 @@ test('converting a quotation copies the customer onto a project that has none', 
     ]);
     $quotation = makeQuotation($admin, $project);
 
-    expect($project->fresh()->customer_id)->toBeNull()
-        ->and($quotation->customer_id)->not->toBeNull();
+    expect($project->fresh('contractors')->contractors)->toHaveCount(0)
+        ->and($quotation->contractor_id)->not->toBeNull();
 
     $this->actingAs($admin)
         ->post(route('admin.quotations.convert-to-bid', $quotation))
         ->assertSessionHasNoErrors()
         ->assertRedirect();
 
-    expect($project->fresh()->customer_id)->toBe($quotation->customer_id);
+    expect($project->fresh('contractors')->contractors->pluck('id')->all())
+        ->toContain($quotation->contractor_id);
 });
 
 test('converting a quotation without a project is rejected', function () {

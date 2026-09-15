@@ -172,8 +172,8 @@ function placeholderValues(
     return {
         project_name: project?.name ?? '',
         project_number: project?.project_number ?? '',
-        customer_name: project?.customer_name ?? '',
-        customer_company: project?.customer_company ?? '',
+        customer_name: project?.contractor_contact_name ?? '',
+        customer_company: project?.contractor_name ?? '',
         project_address: project?.site_address ?? '',
         site_address: project?.site_address ?? '',
         scope_of_work: scopeLines.join('\n'),

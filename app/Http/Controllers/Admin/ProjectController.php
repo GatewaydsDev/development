@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Bid;
 use App\Models\Company;
 use App\Models\Contractor;
-use App\Models\Customer;
 use App\Models\Product;
 use App\Models\Project;
 use App\Models\ProjectRevision;
@@ -165,7 +164,6 @@ class ProjectController extends Controller
         $this->authorizeProjectView($request);
 
         $project->load([
-            'customer.contacts' => fn ($query) => $query->orderByDesc('is_primary')->orderBy('name'),
             'assignee:id,name',
             'creator:id,name',
             'contractors.contacts',
@@ -187,7 +185,6 @@ class ProjectController extends Controller
         abort_unless(ProjectAccess::canUpdate($request->user()), 403);
 
         $project->load([
-            'customer.contacts' => fn ($query) => $query->orderByDesc('is_primary')->orderBy('name'),
             'assignee:id,name',
             'contractors.contacts',
             'scopes.product',
@@ -297,7 +294,6 @@ class ProjectController extends Controller
 
         return Project::query()
             ->with([
-                'customer.contacts' => fn ($query) => $query->orderByDesc('is_primary')->orderBy('name'),
                 'assignee:id,name',
                 'contractors.contacts',
                 'scopes.product',
@@ -322,13 +318,6 @@ class ProjectController extends Controller
                     $query
                         ->where('name', 'like', "%{$search}%")
                         ->orWhere('project_number', 'like', "%{$search}%")
-                        ->orWhereHas('customer', function ($query) use ($search): void {
-                            $query
-                                ->where('name', 'like', "%{$search}%")
-                                ->orWhere('company_name', 'like', "%{$search}%")
-                                ->orWhere('email', 'like', "%{$search}%")
-                                ->orWhere('phone_number', 'like', "%{$search}%");
-                        })
                         ->orWhereHas('contractors', function ($query) use ($search): void {
                             $query
                                 ->where('name', 'like', "%{$search}%")
@@ -380,14 +369,6 @@ class ProjectController extends Controller
             $rules = [
                 ...$rules,
                 'name' => ['required', 'string', 'max:255', $this->uniqueProjectNameRule($project)],
-                'customer_id' => [
-                    'nullable',
-                    'integer',
-                    Rule::exists(Customer::class, 'id'),
-                ],
-                'customer_company_name' => ['nullable', 'string', 'max:255'],
-                'customer_email' => ['nullable', 'email', 'max:255'],
-                'customer_phone_number' => ['nullable', 'string', 'max:50'],
                 'assigned_to' => ['nullable', 'integer', Rule::exists(User::class, 'id')],
                 'site_address_line_1' => ['nullable', 'string', 'max:255'],
                 'site_address_line_2' => ['nullable', 'string', 'max:255'],
@@ -500,7 +481,6 @@ class ProjectController extends Controller
             $attributes = [
                 ...$attributes,
                 'name' => $validated['name'],
-                'customer_id' => $this->resolveCustomerId($validated),
                 'assigned_to' => $validated['assigned_to'] ?? null,
                 'service_type' => $primaryScope['type'] ?? null,
                 'site_address_line_1' => $validated['site_address_line_1'] ?? null,
@@ -521,54 +501,6 @@ class ProjectController extends Controller
         }
 
         return $attributes;
-    }
-
-    /**
-     * @param  array<string, mixed>  $validated
-     */
-    private function resolveCustomerId(array $validated): ?int
-    {
-        $customerId = $validated['customer_id'] ?? null;
-        $companyName = trim((string) ($validated['customer_company_name'] ?? ''));
-        $email = trim((string) ($validated['customer_email'] ?? ''));
-        $phoneNumber = trim((string) ($validated['customer_phone_number'] ?? ''));
-
-        if ($companyName === '' && $email === '' && $phoneNumber === '') {
-            return $customerId ? (int) $customerId : null;
-        }
-
-        $displayName = $companyName !== ''
-            ? $companyName
-            : ($email !== '' ? $email : $phoneNumber);
-
-        $attributes = [
-            'name' => $displayName,
-            'company_name' => $companyName !== '' ? $companyName : null,
-            'email' => $email !== '' ? $email : null,
-            'phone_number' => $phoneNumber !== '' ? $phoneNumber : null,
-        ];
-
-        $customer = $customerId
-            ? Customer::query()->find($customerId)
-            : null;
-
-        if (! $customer && $companyName !== '') {
-            $customer = Customer::query()
-                ->where(function ($query) use ($companyName): void {
-                    $query
-                        ->whereRaw('LOWER(company_name) = ?', [mb_strtolower($companyName)])
-                        ->orWhereRaw('LOWER(name) = ?', [mb_strtolower($companyName)]);
-                })
-                ->first();
-        }
-
-        if ($customer) {
-            $customer->update($attributes);
-
-            return $customer->id;
-        }
-
-        return Customer::create($attributes)->id;
     }
 
     /**
@@ -795,14 +727,6 @@ class ProjectController extends Controller
             'estimated_end_date' => $project->estimated_end_date?->toDateString(),
             'completed_at' => $project->completed_at?->toDateString(),
             'public_notes' => $summary ? null : $project->public_notes,
-            'customer' => [
-                'id' => $project->customer?->id,
-                'name' => $project->customer?->name,
-                'company_name' => $project->customer?->company_name,
-                'contact_name' => $project->customer?->displayContactName(),
-                'email' => $project->customer?->email,
-                'phone_number' => $project->customer?->phone_number,
-            ],
             'contractors' => $project->contractors
                 ->map(fn (Contractor $contractor): array => [
                     'id' => $contractor->id,
@@ -884,44 +808,12 @@ class ProjectController extends Controller
                 'site_state' => $project->site_state,
                 'site_postal_code' => $project->site_postal_code,
                 'site_country' => $project->site_country,
-                'customer' => [
-                    ...$payload['customer'],
-                    'address_line_1' => $project->customer?->address_line_1,
-                    'address_line_2' => $project->customer?->address_line_2,
-                    'city' => $project->customer?->city,
-                    'state' => $project->customer?->state,
-                    'postal_code' => $project->customer?->postal_code,
-                    'country' => $project->customer?->country,
-                ],
                 'creator' => $project->creator
                     ? [
                         'id' => $project->creator->id,
                         'name' => $project->creator->name,
                     ]
                     : null,
-            ];
-        }
-
-        if (ProjectAccess::canViewCustomerContactFields($user)) {
-            $primaryContact = $project->customer?->contacts?->firstWhere('is_primary', true)
-                ?? $project->customer?->contacts?->first();
-
-            $payload['customer'] = [
-                ...$payload['customer'],
-                'email' => $primaryContact?->email ?? $project->customer?->email,
-                'phone_number' => $primaryContact?->phone_number ?? $project->customer?->phone_number,
-                'contacts' => $project->customer?->contacts
-                    ? $project->customer->contacts
-                        ->map(fn ($contact): array => [
-                            'id' => $contact->id,
-                            'name' => $contact->name,
-                            'title' => $contact->title,
-                            'email' => $contact->email,
-                            'phone_number' => $contact->phone_number,
-                            'is_primary' => $contact->is_primary,
-                        ])
-                        ->values()
-                    : [],
             ];
         }
 
@@ -1037,34 +929,6 @@ class ProjectController extends Controller
                     'name' => $assignee->name,
                 ])
                 ->all(),
-            'customers' => Customer::query()
-                ->with(['contacts' => fn ($query) => $query->orderByDesc('is_primary')->orderBy('name')])
-                ->orderByRaw('LOWER(COALESCE(NULLIF(company_name, ""), name))')
-                ->get()
-                ->map(fn (Customer $customer): array => [
-                    'id' => $customer->id,
-                    'name' => $customer->name,
-                    'company_name' => $customer->company_name,
-                    'email' => $customer->email,
-                    'phone_number' => $customer->phone_number,
-                    'address_line_1' => $customer->address_line_1,
-                    'address_line_2' => $customer->address_line_2,
-                    'city' => $customer->city,
-                    'state' => $customer->state,
-                    'postal_code' => $customer->postal_code,
-                    'country' => $customer->country,
-                    'contacts' => $customer->contacts
-                        ->map(fn ($contact): array => [
-                            'id' => $contact->id,
-                            'name' => $contact->name,
-                            'title' => $contact->title,
-                            'email' => $contact->email,
-                            'phone_number' => $contact->phone_number,
-                            'is_primary' => $contact->is_primary,
-                        ])
-                        ->values(),
-                ])
-                ->all(),
             'can' => $this->capabilities($user),
             'nextProjectNumber' => Project::nextNumber(),
         ];
@@ -1080,7 +944,6 @@ class ProjectController extends Controller
             'update' => ProjectAccess::canUpdate($user),
             'delete' => ProjectAccess::canDelete($user),
             'viewSensitiveFields' => ProjectAccess::canViewSensitiveFields($user),
-            'viewCustomerContactFields' => ProjectAccess::canViewCustomerContactFields($user),
         ];
     }
 }

@@ -130,8 +130,7 @@ class BidController extends Controller
         abort_unless(BidAccess::canView($request->user()), 403);
 
         $bid->load([
-            'project:id,name,project_number,customer_id,site_address_line_1,site_address_line_2,site_city,site_state,site_postal_code,site_country',
-            'project.customer',
+            'project:id,name,project_number,site_address_line_1,site_address_line_2,site_city,site_state,site_postal_code,site_country',
             'project.contractors.contacts',
             'quotation:id,quotation_number,title',
             'creator:id,name',
@@ -174,8 +173,7 @@ class BidController extends Controller
         abort_unless(BidAccess::canUpdate($request->user()), 403);
 
         $bid->load([
-            'project:id,name,project_number,customer_id,site_address_line_1,site_address_line_2,site_city,site_state,site_postal_code,site_country',
-            'project.customer',
+            'project:id,name,project_number,site_address_line_1,site_address_line_2,site_city,site_state,site_postal_code,site_country',
             'project.contractors.contacts',
             'quotation:id,quotation_number,title',
             'stages.type',
@@ -635,14 +633,6 @@ class BidController extends Controller
                         $bid->project->site_country,
                     )
                     : null,
-                'customer' => $bid->project?->customer ? [
-                    'id' => $bid->project->customer->id,
-                    'name' => $bid->project->customer->displayCompanyName(),
-                    'company_name' => $bid->project->customer->displayCompanyName(),
-                    'contact_name' => $bid->project->customer->displayContactName(),
-                    'email' => $bid->project->customer->email,
-                    'phone_number' => $bid->project->customer->phone_number,
-                ] : null,
                 'contractors' => $bid->project?->contractors
                     ? $bid->project->contractors
                         ->map(fn ($contractor): array => [
@@ -767,7 +757,7 @@ class BidController extends Controller
     private function filledBidHtml(array $validated, string $field): ?string
     {
         $project = Project::query()
-            ->with(['customer', 'scopes'])
+            ->with(['contractors.contacts', 'scopes'])
             ->findOrFail($validated['project_id']);
         $company = Company::query()->where('is_active', true)->latest()->first();
         $scopeLines = collect($validated['scopes'] ?? [])
@@ -811,15 +801,16 @@ class BidController extends Controller
 
         return [
             'projects' => Project::query()
-                ->with(['scopes.product', 'scopes.service', 'customer'])
+                ->with(['scopes.product', 'scopes.service', 'contractors.contacts'])
                 ->orderBy('name')
                 ->get()
                 ->map(fn (Project $project): array => [
                     'id' => $project->id,
                     'name' => $project->name,
                     'project_number' => $project->project_number,
-                    'customer_name' => $project->customer?->displayContactName(),
-                    'customer_company' => $project->customer?->displayCompanyName(),
+                    'customer_name' => $project->contractors->first()?->contact_name,
+                    'customer_company' => $project->contractors->first()?->name,
+                    'contractor_name' => $project->contractors->first()?->name,
                     'site_address' => BidApplicationText::formatAddress(
                         $project->site_address_line_1,
                         $project->site_address_line_2,
@@ -960,7 +951,7 @@ class BidController extends Controller
             ],
             'quotations' => $user && QuotationAccess::canView($user)
                 ? Quotation::query()
-                    ->with(['customer:id,name,company_name', 'lineItems'])
+                    ->with(['contractor:id,name', 'lineItems'])
                     ->latest()
                     ->limit(200)
                     ->get()
@@ -992,8 +983,7 @@ class BidController extends Controller
 
         return Bid::query()
             ->with([
-                'project:id,name,project_number,customer_id',
-                'project.customer',
+                'project:id,name,project_number',
                 'project.contractors.contacts',
                 'stages.type',
                 'scopes.title',

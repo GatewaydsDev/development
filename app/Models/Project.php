@@ -32,7 +32,6 @@ class Project extends Model
         'uuid',
         'project_number',
         'name',
-        'customer_id',
         'assigned_to',
         'created_by',
         'service_type',
@@ -119,11 +118,6 @@ class Project extends Model
     public function status(): BelongsTo
     {
         return $this->belongsTo(ProjectStatus::class, 'project_status_id');
-    }
-
-    public function customer(): BelongsTo
-    {
-        return $this->belongsTo(Customer::class);
     }
 
     public function contractors(): BelongsToMany

@@ -2,7 +2,6 @@
 
 use App\Models\Bid;
 use App\Models\BidScopeTitle;
-use App\Models\Customer;
 use App\Models\Product;
 use App\Models\Project;
 use App\Models\ProjectStatus;
@@ -123,13 +122,8 @@ test('a service can be deleted when it is unused', function () {
 test('a service used on a bid cannot be deleted', function () {
     $admin = serviceAdmin();
     $service = Service::query()->create(['name' => 'Linked service']);
-    $customer = Customer::create([
-        'name' => 'Gateway Customer',
-        'company_name' => 'Gateway Facilities',
-    ]);
     $project = Project::create([
         'name' => 'Secure Entry',
-        'customer_id' => $customer->id,
         'project_status_id' => ProjectStatus::idFor('quoted'),
         'priority' => 'normal',
         'created_by' => $admin->id,

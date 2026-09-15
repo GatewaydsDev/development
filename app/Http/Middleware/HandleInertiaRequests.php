@@ -5,7 +5,6 @@ namespace App\Http\Middleware;
 use App\Models\Company;
 use App\Support\BidAccess;
 use App\Support\ContractorAccess;
-use App\Support\CustomerAccess;
 use App\Support\EmployeeAccess;
 use App\Support\ProductAccess;
 use App\Support\ProjectAccess;
@@ -118,9 +117,6 @@ class HandleInertiaRequests extends Middleware
                     'viewSensitiveProjectFields' => $request->user()
                         ? ProjectAccess::canViewSensitiveFields($request->user())
                         : false,
-                    'viewProjectCustomerContactFields' => $request->user()
-                        ? ProjectAccess::canViewCustomerContactFields($request->user())
-                        : false,
                     'viewBids' => $request->user()
                         ? BidAccess::canView($request->user())
                         : false,
@@ -168,18 +164,6 @@ class HandleInertiaRequests extends Middleware
                         : false,
                     'deleteServices' => $request->user()
                         ? ServiceAccess::canDelete($request->user())
-                        : false,
-                    'viewCustomers' => $request->user()
-                        ? CustomerAccess::canView($request->user())
-                        : false,
-                    'createCustomers' => $request->user()
-                        ? CustomerAccess::canCreate($request->user())
-                        : false,
-                    'updateCustomers' => $request->user()
-                        ? CustomerAccess::canUpdate($request->user())
-                        : false,
-                    'deleteCustomers' => $request->user()
-                        ? CustomerAccess::canDelete($request->user())
                         : false,
                     'viewContractors' => $request->user()
                         ? ContractorAccess::canView($request->user())

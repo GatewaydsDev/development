@@ -506,40 +506,9 @@
                 </table>
             @endif
 
-            <h2 class="section-title">Customer / owner</h2>
-            @if (($customer['company'] ?? null) || ($customer['name'] ?? null))
-                <div class="block">
-                    <p class="block-title">{{ $customer['company'] ?: $customer['name'] }}</p>
-                    <table class="meta" style="margin-bottom: 0;">
-                        <tr>
-                            <td>
-                                <span class="meta-label">Contact name</span>
-                                <span class="meta-value">{{ $customer['name'] ?: 'Not added yet' }}</span>
-                            </td>
-                            <td>
-                                <span class="meta-label">Phone number</span>
-                                <span class="meta-value">{{ $customer['phone'] ?: 'Not added yet' }}</span>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>
-                                <span class="meta-label">Email address</span>
-                                <span class="meta-value">{{ $customer['email'] ?: 'Not added yet' }}</span>
-                            </td>
-                            <td>
-                                <span class="meta-label">Customer address</span>
-                                <span class="meta-value">{{ $customer['address'] ?: 'Not added yet' }}</span>
-                            </td>
-                        </tr>
-                    </table>
-                </div>
-            @else
-                <p class="muted">No customer added yet.</p>
-            @endif
-
-            <h2 class="section-title">General contractors</h2>
+            <h2 class="section-title">Contractors</h2>
             @if (count($contractors) === 0)
-                <p class="muted">No general contractors added yet.</p>
+                <p class="muted">No contractors added yet.</p>
             @else
                 @foreach ($contractors as $contractor)
                     <div class="block">

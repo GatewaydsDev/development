@@ -16,7 +16,6 @@ import {
     HammerIcon,
     PrinterIcon,
     TrashIcon,
-    UserRoundIcon,
 } from 'lucide-react';
 import { formatMoney, type BidOptions, type BidPayload } from './types';
 
@@ -204,59 +203,11 @@ export default function Show({ bid, options }: ShowProps) {
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
-                                <UserRoundIcon className="size-4 text-muted-foreground" />
-                                Customer / owner
-                            </CardTitle>
-                            <CardDescription>
-                                The client this bid’s project is for, not the
-                                general contractor.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            {bid.project?.customer?.company_name ||
-                            bid.project?.customer?.name ? (
-                                <dl className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                                    <DetailItem
-                                        label="Customer"
-                                        value={
-                                            bid.project.customer.company_name ||
-                                            bid.project.customer.name
-                                        }
-                                    />
-                                    <DetailItem
-                                        label="Contact name"
-                                        value={
-                                            bid.project.customer.contact_name
-                                        }
-                                    />
-                                    <DetailItem
-                                        label="Phone number"
-                                        value={
-                                            bid.project.customer.phone_number
-                                        }
-                                    />
-                                    <DetailItem
-                                        label="Email address"
-                                        value={bid.project.customer.email}
-                                    />
-                                </dl>
-                            ) : (
-                                <p className="text-sm text-muted-foreground">
-                                    No customer added to this project yet.
-                                </p>
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
                                 <HammerIcon className="size-4 text-muted-foreground" />
-                                General contractors
+                                Contractors
                             </CardTitle>
                             <CardDescription>
-                                General contractors on this job, not the
-                                customer.
+                                Contractors on this job.
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="flex flex-col gap-6">
@@ -286,7 +237,7 @@ export default function Show({ bid, options }: ShowProps) {
                                 ))
                             ) : (
                                 <p className="text-sm text-muted-foreground">
-                                    No general contractors added to this
+                                    No contractors added to this
                                     project yet.
                                 </p>
                             )}

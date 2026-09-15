@@ -42,7 +42,7 @@ export default function Edit({ quotation, options }: EditProps) {
                         action={route('admin.quotations.update', quotation.id)}
                         method="patch"
                         title="Quotation information"
-                        description="Update the customer, project, and quoted items. Previous versions stay in the quotation history as saved records."
+                        description="Update the contractor, project, and quoted items. Previous versions stay in the quotation history as saved records."
                         options={options}
                         quotation={quotation}
                     />

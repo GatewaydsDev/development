@@ -1,8 +1,7 @@
 <?php
 
 use App\Models\Contractor;
-use App\Models\Customer;
-use App\Models\CustomerContact;
+use App\Models\ContractorContact;
 use App\Models\Project;
 use App\Models\ProjectStatus;
 use App\Models\User;
@@ -56,7 +55,7 @@ function contractorPayload(array $overrides = []): array
     ];
 }
 
-test('the create contractor page includes phone types and customers', function () {
+test('the create contractor page includes phone types', function () {
     $admin = contractorAdmin();
 
     $this->actingAs($admin)
@@ -65,8 +64,6 @@ test('the create contractor page includes phone types and customers', function (
         ->assertInertia(fn (Assert $page) => $page
             ->component('Admin/Contractors/Create')
             ->has('options.phoneTypes')
-            ->has('options.customers')
-            ->has('options.customerContacts')
         );
 });
 
@@ -144,13 +141,8 @@ test('a contractor without projects can be deleted', function () {
 test('a contractor linked to a project cannot be deleted', function () {
     $admin = contractorAdmin();
     $contractor = Contractor::create(['name' => 'Linked GC']);
-    $customer = Customer::create([
-        'name' => 'Gateway Customer',
-        'company_name' => 'Gateway Facilities',
-    ]);
     $project = Project::create([
         'name' => 'Secure Entry',
-        'customer_id' => $customer->id,
         'project_status_id' => ProjectStatus::query()->where('slug', 'lead')->value('id'),
         'priority' => 'normal',
         'created_by' => $admin->id,
@@ -232,33 +224,13 @@ test('the project form can create a contractor with phone and email', function (
     expect($contractor->contacts->first()?->is_primary)->toBeTrue();
 });
 
-test('a contractor can be linked to an existing customer and multiple contacts', function () {
+test('a contractor can save multiple contacts', function () {
     $admin = contractorAdmin();
-    $customer = Customer::create([
-        'name' => 'Gateway Facilities',
-        'company_name' => 'Gateway Facilities',
-    ]);
-    $primary = $customer->contacts()->create([
-        'name' => 'Alex Rivera',
-        'email' => 'alex@gateway.example',
-        'phone_number' => '(973) 555-0100',
-        'is_primary' => true,
-    ]);
-    $estimator = $customer->contacts()->create([
-        'name' => 'Jordan Lee',
-        'email' => 'jordan@gateway.example',
-        'phone_number' => '(973) 555-0199',
-        'is_primary' => false,
-    ]);
 
     $this->actingAs($admin)
         ->post(route('admin.contractors.store'), contractorPayload([
-            'customer_id' => $customer->id,
-            'customer_company_name' => 'Gateway Facilities',
             'contacts' => [
                 [
-                    'customer_id' => $customer->id,
-                    'customer_contact_id' => $primary->id,
                     'name' => 'Alex Rivera',
                     'title' => 'Project manager',
                     'email' => 'alex@gateway.example',
@@ -268,8 +240,6 @@ test('a contractor can be linked to an existing customer and multiple contacts',
                     'is_primary' => true,
                 ],
                 [
-                    'customer_id' => $customer->id,
-                    'customer_contact_id' => $estimator->id,
                     'name' => 'Jordan Lee',
                     'title' => 'Estimator',
                     'email' => 'jordan@gateway.example',
@@ -284,48 +254,31 @@ test('a contractor can be linked to an existing customer and multiple contacts',
 
     $contractor = Contractor::query()
         ->where('name', 'Turner Construction')
-        ->with(['customer', 'contacts'])
+        ->with('contacts')
         ->firstOrFail();
 
-    expect($contractor->customer_id)->toBe($customer->id);
     expect($contractor->contacts)->toHaveCount(2);
-    expect($contractor->contacts->pluck('customer_contact_id')->all())
-        ->toEqualCanonicalizing([$primary->id, $estimator->id]);
+    expect($contractor->contacts->pluck('name')->all())
+        ->toEqualCanonicalizing(['Alex Rivera', 'Jordan Lee']);
     expect($contractor->contact_name)->toBe('Alex Rivera');
 });
 
-test('saving a contractor does not create a customer from contact names', function () {
+test('saving contractor contacts only creates contractor_contacts', function () {
     $admin = contractorAdmin();
+    $contractorCount = Contractor::query()->count();
+    $contactCount = ContractorContact::query()->count();
 
     $this->actingAs($admin)
-        ->post(route('admin.contractors.store'), contractorPayload([
-            'customer_id' => '',
-            'customer_company_name' => 'New GC Customer',
-        ]))
+        ->post(route('admin.contractors.store'), contractorPayload())
         ->assertSessionHasNoErrors();
 
     $contractor = Contractor::query()
         ->where('name', 'Turner Construction')
-        ->with(['customer', 'contacts'])
+        ->with('contacts')
         ->firstOrFail();
 
-    expect($contractor->customer_id)->toBeNull()
-        ->and(Customer::query()->where('company_name', 'New GC Customer')->exists())->toBeFalse()
+    expect(Contractor::query()->count())->toBe($contractorCount + 1)
+        ->and(ContractorContact::query()->count())->toBe($contactCount + 2)
         ->and($contractor->contacts)->toHaveCount(2)
-        ->and($contractor->contact_name)->toBe('Alex Rivera')
-        ->and($contractor->contacts->every(fn ($contact) => blank($contact->customer_contact_id)))->toBeTrue();
-});
-
-test('a customer contact must belong to an existing customer', function () {
-    $admin = contractorAdmin();
-
-    $this->actingAs($admin)
-        ->from(route('admin.contractors.create'))
-        ->post(route('admin.customer-contacts.store'), [
-            'name' => 'Alex Rivera',
-        ])
-        ->assertSessionHasErrors('customer_id');
-
-    expect(CustomerContact::query()->where('name', 'Alex Rivera')->exists())->toBeFalse()
-        ->and(Customer::query()->where('name', 'Alex Rivera')->exists())->toBeFalse();
+        ->and($contractor->contact_name)->toBe('Alex Rivera');
 });
