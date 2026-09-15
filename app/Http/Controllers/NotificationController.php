@@ -24,18 +24,18 @@ class NotificationController extends Controller
         $notifications = $request->user()
             ->notifications()
             ->latest()
-            ->limit(100)
-            ->get();
+            ->paginate(10)
+            ->withQueryString();
 
-        $statuses = $this->submissionStatuses($notifications);
+        $statuses = $this->submissionStatuses($notifications->getCollection());
+
+        $notifications->through(fn (DatabaseNotification $notification): array => [
+            ...$this->serialize($notification),
+            'status' => $statuses[$notification->data['contact_submission_id'] ?? null] ?? null,
+        ]);
 
         return Inertia::render('Notifications/Index', [
-            'notifications' => $notifications
-                ->map(fn (DatabaseNotification $notification): array => [
-                    ...$this->serialize($notification),
-                    'status' => $statuses[$notification->data['contact_submission_id'] ?? null] ?? null,
-                ])
-                ->values(),
+            'notifications' => $notifications,
             'unreadCount' => $request->user()->unreadNotifications()->count(),
         ]);
     }

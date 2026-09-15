@@ -1,4 +1,5 @@
 import FormActionFab from '@/Components/FormActionFab';
+import PaginationNav from '@/Components/PaginationNav';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PhoneInput from '@/Components/PhoneInput';
@@ -18,7 +19,7 @@ import { Contact } from '@/types';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Head, Link, router } from '@inertiajs/react';
 import {
-    PencilIcon,
+    EditIcon,
     PlusIcon,
     SearchIcon,
     Trash2Icon,
@@ -37,10 +38,17 @@ type PaginationLink = {
 
 type ContactsPaginator = {
     data: Contact[];
+    current_page: number;
+    last_page: number;
+    per_page: number;
     links: PaginationLink[];
     total: number;
     from: number | null;
     to: number | null;
+    first_page_url?: string | null;
+    last_page_url?: string | null;
+    next_page_url?: string | null;
+    prev_page_url?: string | null;
 };
 
 type IndexProps = {
@@ -173,11 +181,6 @@ export default function Index({ filters, contacts }: IndexProps) {
             preserveScroll: true,
         });
     };
-
-    const paginationLabel = (label: string) =>
-        label
-            .replace('&laquo; Previous', 'Previous')
-            .replace('Next &raquo;', 'Next');
 
     const inputClassName =
         'mt-1 block w-full border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring';
@@ -409,10 +412,13 @@ export default function Index({ filters, contacts }: IndexProps) {
                                             setSearch(event.target.value)
                                         }
                                         placeholder="Search contacts"
-                                        className="h-10 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring sm:w-72"
+                                        className="h-11 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm text-foreground sm:w-64"
                                     />
                                 </div>
-                                <Button type="submit" variant="outline">
+                                <Button
+                                    type="submit"
+                                    className="h-11 min-w-[8.5rem] bg-emerald-600 px-4 text-white hover:bg-emerald-700"
+                                >
                                     Search
                                 </Button>
                             </form>
@@ -467,7 +473,7 @@ export default function Index({ filters, contacts }: IndexProps) {
                                                         openEdit(contact)
                                                     }
                                                 >
-                                                    <PencilIcon className="size-4" />
+                                                    <EditIcon className="size-4" />
                                                     Edit
                                                 </Button>
                                                 <Button
@@ -499,45 +505,10 @@ export default function Index({ filters, contacts }: IndexProps) {
                                 )}
                             </div>
 
-                            <div className="mt-5 flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
-                                <p className="text-sm text-muted-foreground">
-                                    Showing {contacts.from ?? 0} to{' '}
-                                    {contacts.to ?? 0} of {contacts.total}{' '}
-                                    contacts
-                                </p>
-                                <div className="flex flex-wrap gap-2">
-                                    {contacts.links.length > 3 &&
-                                        contacts.links.map((link, index) =>
-                                            link.url ? (
-                                                <Button
-                                                    key={`${link.label}-${index}`}
-                                                    variant={
-                                                        link.active
-                                                            ? 'default'
-                                                            : 'outline'
-                                                    }
-                                                    size="sm"
-                                                    asChild
-                                                >
-                                                    <Link href={link.url}>
-                                                        {paginationLabel(
-                                                            link.label,
-                                                        )}
-                                                    </Link>
-                                                </Button>
-                                            ) : (
-                                                <Button
-                                                    key={`${link.label}-${index}`}
-                                                    variant="outline"
-                                                    size="sm"
-                                                    disabled
-                                                >
-                                                    {paginationLabel(link.label)}
-                                                </Button>
-                                            ),
-                                        )}
-                                </div>
-                            </div>
+                            <PaginationNav
+                                paginator={contacts}
+                                itemLabel="contacts"
+                            />
                         </CardContent>
                     </Card>
                 </div>

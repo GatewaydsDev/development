@@ -1,5 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import ActionHint from '@/Components/ActionHint';
+import PaginationNav from '@/Components/PaginationNav';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import {
@@ -17,7 +17,6 @@ import {
     EditIcon,
     EyeIcon,
     FileTextIcon,
-    FileTypeIcon,
     PlusIcon,
     PrinterIcon,
     SearchIcon,
@@ -85,18 +84,13 @@ export default function Index({ filters, options, projects }: IndexProps) {
         );
     };
 
-    const paginationLabel = (label: string) =>
-        label
-            .replace('&laquo; Previous', 'Previous')
-            .replace('Next &raquo;', 'Next');
-
     const exportQuery = {
         search: search || undefined,
         status: status || undefined,
     };
 
     const projectRowGridClassName =
-        'w-full xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1.4fr)_7.5rem_minmax(0,1.1fr)_7.5rem_10.5rem]';
+        'w-full xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1.4fr)_7.5rem_minmax(0,1.1fr)_7.5rem_minmax(32rem,auto)]';
 
     return (
         <AuthenticatedLayout
@@ -168,7 +162,7 @@ export default function Index({ filters, options, projects }: IndexProps) {
                                                 setSearch(event.target.value)
                                             }
                                             placeholder="Search projects"
-                                            className="h-10 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring sm:w-72"
+                                            className="h-11 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm text-foreground sm:w-64"
                                         />
                                     </div>
                                     <select
@@ -176,7 +170,7 @@ export default function Index({ filters, options, projects }: IndexProps) {
                                         onChange={(event) =>
                                             setStatus(event.target.value)
                                         }
-                                        className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-sm"
+                                        className="h-11 min-w-[8.5rem] rounded-md border border-border bg-background px-4 text-sm text-foreground"
                                     >
                                         <option value="">All statuses</option>
                                         {options.statuses.map((item) => (
@@ -188,62 +182,56 @@ export default function Index({ filters, options, projects }: IndexProps) {
                                             </option>
                                         ))}
                                     </select>
-                                    <Button type="submit" variant="outline">
+                                    <Button
+                                        type="submit"
+                                        className="h-11 min-w-[8.5rem] bg-emerald-600 px-4 text-white hover:bg-emerald-700"
+                                    >
                                         Search
                                     </Button>
                                 </form>
                                 <div className="flex flex-wrap gap-2 sm:justify-end">
-                                    <ActionHint hint="Print the project directory">
-                                        <Button variant="outline" asChild>
-                                            <a
-                                                href={route(
-                                                    'admin.projects.print',
-                                                    exportQuery,
-                                                )}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                aria-label="Print the project directory"
-                                            >
-                                                <PrinterIcon className="size-4" />
-                                                Print
-                                            </a>
-                                        </Button>
-                                    </ActionHint>
-                                    <ActionHint hint="Download the project directory as PDF">
-                                        <Button variant="outline" asChild>
-                                            <a
-                                                href={route(
-                                                    'admin.projects.export.pdf',
-                                                    exportQuery,
-                                                )}
-                                                aria-label="Download the project directory as PDF"
-                                            >
-                                                <FileTextIcon className="size-4" />
-                                                PDF
-                                            </a>
-                                        </Button>
-                                    </ActionHint>
-                                    <ActionHint hint="Download the project directory as Word">
-                                        <Button variant="outline" asChild>
-                                            <a
-                                                href={route(
-                                                    'admin.projects.export.word',
-                                                    exportQuery,
-                                                )}
-                                                aria-label="Download the project directory as Word"
-                                            >
-                                                <FileTextIcon className="size-4" />
-                                                Word 2026
-                                            </a>
-                                        </Button>
-                                    </ActionHint>
+                                    <Button variant="outline" asChild>
+                                        <a
+                                            href={route(
+                                                'admin.projects.print',
+                                                exportQuery,
+                                            )}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                        >
+                                            <PrinterIcon className="size-4" />
+                                            Print
+                                        </a>
+                                    </Button>
+                                    <Button variant="outline" asChild>
+                                        <a
+                                            href={route(
+                                                'admin.projects.export.pdf',
+                                                exportQuery,
+                                            )}
+                                        >
+                                            <FileTextIcon className="size-4" />
+                                            PDF
+                                        </a>
+                                    </Button>
+                                    <Button variant="outline" asChild>
+                                        <a
+                                            href={route(
+                                                'admin.projects.export.word',
+                                                exportQuery,
+                                            )}
+                                        >
+                                            <FileTextIcon className="size-4" />
+                                            Word 2026
+                                        </a>
+                                    </Button>
                                 </div>
                             </div>
                         </CardHeader>
 
                         <CardContent>
                             <div className="overflow-x-auto rounded-lg border border-border">
-                                <div className="xl:min-w-[76rem]">
+                                <div className="xl:min-w-[92rem]">
                                 <div
                                     className={cn(
                                         'hidden items-center gap-6 border-b border-border bg-muted/50 px-5 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground xl:grid',
@@ -395,95 +383,85 @@ export default function Index({ filters, options, projects }: IndexProps) {
                                                         'Not set'}
                                                 </Badge>
                                             </div>
-                                            <div className="flex w-full flex-nowrap items-center justify-end gap-1">
-                                                <ActionHint hint="Print this project">
-                                                    <Button
-                                                        variant="outline"
-                                                        size="icon-sm"
-                                                        asChild
+                                            <div className="flex flex-nowrap gap-2 md:justify-end">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    asChild
+                                                >
+                                                    <a
+                                                        href={route(
+                                                            'admin.projects.document.print',
+                                                            project.id,
+                                                        )}
+                                                        target="_blank"
+                                                        rel="noreferrer"
                                                     >
-                                                        <a
-                                                            href={route(
-                                                                'admin.projects.document.print',
-                                                                project.id,
-                                                            )}
-                                                            target="_blank"
-                                                            rel="noreferrer"
-                                                            aria-label="Print this project"
-                                                        >
-                                                            <PrinterIcon className="size-4" />
-                                                        </a>
-                                                    </Button>
-                                                </ActionHint>
-                                                <ActionHint hint="Download as PDF">
-                                                    <Button
-                                                        variant="outline"
-                                                        size="icon-sm"
-                                                        asChild
+                                                        <PrinterIcon className="size-4" />
+                                                        Print
+                                                    </a>
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    asChild
+                                                >
+                                                    <a
+                                                        href={route(
+                                                            'admin.projects.document.export.pdf',
+                                                            project.id,
+                                                        )}
                                                     >
-                                                        <a
-                                                            href={route(
-                                                                'admin.projects.document.export.pdf',
-                                                                project.id,
-                                                            )}
-                                                            aria-label="Download as PDF"
-                                                        >
-                                                            <FileTextIcon className="size-4" />
-                                                        </a>
-                                                    </Button>
-                                                </ActionHint>
-                                                <ActionHint hint="Download as Word">
-                                                    <Button
-                                                        variant="outline"
-                                                        size="icon-sm"
-                                                        asChild
+                                                        <FileTextIcon className="size-4" />
+                                                        PDF
+                                                    </a>
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    asChild
+                                                >
+                                                    <a
+                                                        href={route(
+                                                            'admin.projects.document.export.word',
+                                                            project.id,
+                                                        )}
                                                     >
-                                                        <a
-                                                            href={route(
-                                                                'admin.projects.document.export.word',
-                                                                project.id,
-                                                            )}
-                                                            aria-label="Download as Word"
-                                                        >
-                                                            <FileTypeIcon className="size-4" />
-                                                        </a>
-                                                    </Button>
-                                                </ActionHint>
-                                                <ActionHint hint="View project details">
+                                                        <FileTextIcon className="size-4" />
+                                                        Word 2026
+                                                    </a>
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    asChild
+                                                >
+                                                    <Link
+                                                        href={route(
+                                                            'admin.projects.show',
+                                                            project.id,
+                                                        )}
+                                                    >
+                                                        <EyeIcon className="size-4" />
+                                                        View
+                                                    </Link>
+                                                </Button>
+                                                {options.can.update && (
                                                     <Button
                                                         variant="outline"
-                                                        size="icon-sm"
+                                                        size="sm"
                                                         asChild
                                                     >
                                                         <Link
                                                             href={route(
-                                                                'admin.projects.show',
+                                                                'admin.projects.edit',
                                                                 project.id,
                                                             )}
-                                                            aria-label="View project details"
                                                         >
-                                                            <EyeIcon className="size-4" />
+                                                            <EditIcon className="size-4" />
+                                                            Edit
                                                         </Link>
                                                     </Button>
-                                                </ActionHint>
-                                                {options.can.update && (
-                                                    <ActionHint hint="Edit this project">
-                                                        <Button
-                                                            variant="outline"
-                                                            size="icon-sm"
-                                                            asChild
-                                                        >
-                                                            <Link
-                                                                href={route(
-                                                                    'admin.projects.edit',
-                                                                    project.id,
-                                                                )}
-                                                                aria-label="Edit this project"
-                                                            >
-                                                                <EditIcon className="size-4" />
-                                                            </Link>
-                                                        </Button>
-                                                    </ActionHint>
                                                 )}
                                             </div>
                                         </div>
@@ -503,47 +481,10 @@ export default function Index({ filters, options, projects }: IndexProps) {
                                 </div>
                             </div>
 
-                            <div className="mt-5 flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
-                                <p className="text-sm text-muted-foreground">
-                                    Showing {projects.from ?? 0} to{' '}
-                                    {projects.to ?? 0} of {projects.total}{' '}
-                                    projects
-                                </p>
-                                <div className="flex flex-wrap gap-2">
-                                    {projects.links.length > 3 &&
-                                        projects.links.map((link, index) =>
-                                            link.url ? (
-                                                <Button
-                                                    key={`${link.label}-${index}`}
-                                                    variant={
-                                                        link.active
-                                                            ? 'default'
-                                                            : 'outline'
-                                                    }
-                                                    size="sm"
-                                                    asChild
-                                                >
-                                                    <Link href={link.url}>
-                                                        {paginationLabel(
-                                                            link.label,
-                                                        )}
-                                                    </Link>
-                                                </Button>
-                                            ) : (
-                                                <Button
-                                                    key={`${link.label}-${index}`}
-                                                    variant="outline"
-                                                    size="sm"
-                                                    disabled
-                                                >
-                                                    {paginationLabel(
-                                                        link.label,
-                                                    )}
-                                                </Button>
-                                            ),
-                                        )}
-                                </div>
-                            </div>
+                            <PaginationNav
+                                paginator={projects}
+                                itemLabel="projects"
+                            />
                         </CardContent>
                     </Card>
                 </div>

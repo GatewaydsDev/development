@@ -1,4 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import PaginationNav from '@/Components/PaginationNav';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import {
@@ -98,11 +99,6 @@ export default function Index({ filters, options, products }: IndexProps) {
             },
         );
     };
-
-    const paginationLabel = (label: string) =>
-        label
-            .replace('&laquo; Previous', 'Previous')
-            .replace('Next &raquo;', 'Next');
 
     const exportQuery = {
         search: search || undefined,
@@ -426,47 +422,10 @@ export default function Index({ filters, options, products }: IndexProps) {
                                 )}
                             </div>
 
-                            <div className="mt-5 flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
-                                <p className="text-sm text-muted-foreground">
-                                    Showing {products.from ?? 0} to{' '}
-                                    {products.to ?? 0} of {products.total}{' '}
-                                    products
-                                </p>
-                                <div className="flex flex-wrap gap-2">
-                                    {products.links.length > 3 &&
-                                        products.links.map((link, index) =>
-                                            link.url ? (
-                                                <Button
-                                                    key={`${link.label}-${index}`}
-                                                    variant={
-                                                        link.active
-                                                            ? 'default'
-                                                            : 'outline'
-                                                    }
-                                                    size="sm"
-                                                    asChild
-                                                >
-                                                    <Link href={link.url}>
-                                                        {paginationLabel(
-                                                            link.label,
-                                                        )}
-                                                    </Link>
-                                                </Button>
-                                            ) : (
-                                                <Button
-                                                    key={`${link.label}-${index}`}
-                                                    variant="outline"
-                                                    size="sm"
-                                                    disabled
-                                                >
-                                                    {paginationLabel(
-                                                        link.label,
-                                                    )}
-                                                </Button>
-                                            ),
-                                        )}
-                                </div>
-                            </div>
+                            <PaginationNav
+                                paginator={products}
+                                itemLabel="products"
+                            />
                         </CardContent>
                     </Card>
                 </div>

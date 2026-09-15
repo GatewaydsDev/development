@@ -254,8 +254,8 @@ test('users can list open update and delete their notifications', function () {
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('Notifications/Index')
-            ->has('notifications', 1)
-            ->where('notifications.0.email', 'jordan@example.com')
+            ->has('notifications.data', 1)
+            ->where('notifications.data.0.email', 'jordan@example.com')
         );
 
     $this->actingAs($superAdmin)

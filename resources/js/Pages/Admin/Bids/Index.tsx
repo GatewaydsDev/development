@@ -1,4 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import PaginationNav from '@/Components/PaginationNav';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import {
@@ -15,7 +16,6 @@ import {
     EditIcon,
     EyeIcon,
     FileTextIcon,
-    FileTypeIcon,
     PlusIcon,
     PrinterIcon,
     SearchIcon,
@@ -62,11 +62,6 @@ export default function Index({ filters, options, bids }: IndexProps) {
             },
         );
     };
-
-    const paginationLabel = (label: string) =>
-        label
-            .replace('&laquo; Previous', 'Previous')
-            .replace('Next &raquo;', 'Next');
 
     const exportQuery = {
         search: search || undefined,
@@ -145,10 +140,13 @@ export default function Index({ filters, options, bids }: IndexProps) {
                                                 setSearch(event.target.value)
                                             }
                                             placeholder="Search bids"
-                                            className="h-11 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm text-foreground sm:w-72"
+                                            className="h-11 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm text-foreground sm:w-64"
                                         />
                                     </div>
-                                    <Button type="submit" variant="outline">
+                                    <Button
+                                        type="submit"
+                                        className="h-11 min-w-[8.5rem] bg-emerald-600 px-4 text-white hover:bg-emerald-700"
+                                    >
                                         Search
                                     </Button>
                                 </form>
@@ -262,10 +260,10 @@ export default function Index({ filters, options, bids }: IndexProps) {
                                             <div className="font-medium text-foreground">
                                                 {formatMoney(bid.latest_total)}
                                             </div>
-                                            <div className="flex flex-nowrap items-center gap-1 md:justify-end">
+                                            <div className="flex flex-nowrap gap-2 md:justify-end">
                                                 <Button
                                                     variant="outline"
-                                                    size="icon-sm"
+                                                    size="sm"
                                                     asChild
                                                 >
                                                     <a
@@ -275,15 +273,14 @@ export default function Index({ filters, options, bids }: IndexProps) {
                                                         )}
                                                         target="_blank"
                                                         rel="noreferrer"
-                                                        title="Print"
-                                                        aria-label="Print"
                                                     >
                                                         <PrinterIcon className="size-4" />
+                                                        Print
                                                     </a>
                                                 </Button>
                                                 <Button
                                                     variant="outline"
-                                                    size="icon-sm"
+                                                    size="sm"
                                                     asChild
                                                 >
                                                     <a
@@ -291,15 +288,14 @@ export default function Index({ filters, options, bids }: IndexProps) {
                                                             'admin.bids.export.pdf',
                                                             bid.id,
                                                         )}
-                                                        title="PDF"
-                                                        aria-label="PDF"
                                                     >
                                                         <FileTextIcon className="size-4" />
+                                                        PDF
                                                     </a>
                                                 </Button>
                                                 <Button
                                                     variant="outline"
-                                                    size="icon-sm"
+                                                    size="sm"
                                                     asChild
                                                 >
                                                     <a
@@ -307,15 +303,14 @@ export default function Index({ filters, options, bids }: IndexProps) {
                                                             'admin.bids.export.word',
                                                             bid.id,
                                                         )}
-                                                        title="Word 2026"
-                                                        aria-label="Word 2026"
                                                     >
-                                                        <FileTypeIcon className="size-4" />
+                                                        <FileTextIcon className="size-4" />
+                                                        Word 2026
                                                     </a>
                                                 </Button>
                                                 <Button
                                                     variant="outline"
-                                                    size="icon-sm"
+                                                    size="sm"
                                                     asChild
                                                 >
                                                     <Link
@@ -323,16 +318,15 @@ export default function Index({ filters, options, bids }: IndexProps) {
                                                             'admin.bids.show',
                                                             bid.id,
                                                         )}
-                                                        title="View"
-                                                        aria-label="View"
                                                     >
                                                         <EyeIcon className="size-4" />
+                                                        View
                                                     </Link>
                                                 </Button>
                                                 {options.can.update && (
                                                     <Button
                                                         variant="outline"
-                                                        size="icon-sm"
+                                                        size="sm"
                                                         asChild
                                                     >
                                                         <Link
@@ -340,10 +334,9 @@ export default function Index({ filters, options, bids }: IndexProps) {
                                                                 'admin.bids.edit',
                                                                 bid.id,
                                                             )}
-                                                            title="Edit"
-                                                            aria-label="Edit"
                                                         >
                                                             <EditIcon className="size-4" />
+                                                            Edit
                                                         </Link>
                                                     </Button>
                                                 )}
@@ -357,43 +350,7 @@ export default function Index({ filters, options, bids }: IndexProps) {
                                 )}
                             </div>
 
-                            {bids.links.length > 3 && (
-                                <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                    <p className="text-sm text-muted-foreground">
-                                        Showing {bids.from ?? 0} to{' '}
-                                        {bids.to ?? 0} of {bids.total}
-                                    </p>
-                                    <div className="flex flex-wrap gap-2">
-                                        {bids.links.map((link, index) => (
-                                            <Button
-                                                key={`${link.label}-${index}`}
-                                                variant={
-                                                    link.active
-                                                        ? 'default'
-                                                        : 'outline'
-                                                }
-                                                size="sm"
-                                                disabled={!link.url}
-                                                asChild={Boolean(link.url)}
-                                            >
-                                                {link.url ? (
-                                                    <Link href={link.url}>
-                                                        {paginationLabel(
-                                                            link.label,
-                                                        )}
-                                                    </Link>
-                                                ) : (
-                                                    <span>
-                                                        {paginationLabel(
-                                                            link.label,
-                                                        )}
-                                                    </span>
-                                                )}
-                                            </Button>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
+                            <PaginationNav paginator={bids} itemLabel="bids" />
                         </CardContent>
                     </Card>
                 </div>

@@ -15,17 +15,18 @@ import {
     TableHeader,
     TableRow,
 } from '@/Components/ui/table';
+import PaginationNav, { type Paginator } from '@/Components/PaginationNav';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { getNotificationStatusMeta } from '@/lib/notificationStatus';
 import { formatProjectType } from '@/lib/projectType';
 import { cn } from '@/lib/utils';
 import { AppNotification } from '@/types';
 import { Head, Link } from '@inertiajs/react';
-import { BellIcon, MailOpenIcon, Trash2Icon } from 'lucide-react';
+import { BellIcon, EyeIcon, Trash2Icon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 type IndexProps = {
-    notifications: AppNotification[];
+    notifications: Paginator & { data: AppNotification[] };
     unreadCount: number;
 };
 
@@ -39,6 +40,7 @@ const formatDate = (value?: string | null) =>
 
 export default function Index({ notifications, unreadCount }: IndexProps) {
     const { t } = useTranslation('common');
+    const items = notifications.data;
 
     return (
         <AuthenticatedLayout
@@ -62,7 +64,7 @@ export default function Index({ notifications, unreadCount }: IndexProps) {
 
             <div className="py-6 sm:py-8">
                 <div className="mx-auto flex max-w-[96rem] flex-col gap-4 px-4 sm:px-6 lg:px-8">
-                    {notifications.length > 0 ? (
+                    {items.length > 0 ? (
                         <Card className="shadow-sm">
                             <CardContent className="p-0">
                                 <Table>
@@ -87,7 +89,7 @@ export default function Index({ notifications, unreadCount }: IndexProps) {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {notifications.map((notification) => {
+                                        {items.map((notification) => {
                                             const statusMeta =
                                                 getNotificationStatusMeta(
                                                     notification.status,
@@ -176,7 +178,7 @@ export default function Index({ notifications, unreadCount }: IndexProps) {
                                                         )}
                                                     </TableCell>
                                                     <TableCell className="text-right">
-                                                        <div className="flex justify-end gap-2">
+                                                        <div className="flex flex-nowrap gap-2 md:justify-end">
                                                             <Button
                                                                 asChild
                                                                 variant="outline"
@@ -188,14 +190,15 @@ export default function Index({ notifications, unreadCount }: IndexProps) {
                                                                         notification.id,
                                                                     )}
                                                                 >
-                                                                    <MailOpenIcon data-icon="inline-start" />
-                                                                    Open
+                                                                    <EyeIcon className="size-4" />
+                                                                    View
                                                                 </Link>
                                                             </Button>
                                                             <Button
                                                                 asChild
-                                                                variant="destructive"
-                                                                size="icon"
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
                                                             >
                                                                 <Link
                                                                     href={route(
@@ -205,7 +208,8 @@ export default function Index({ notifications, unreadCount }: IndexProps) {
                                                                     method="delete"
                                                                     as="button"
                                                                 >
-                                                                    <Trash2Icon />
+                                                                    <Trash2Icon className="size-4" />
+                                                                    Delete
                                                                 </Link>
                                                             </Button>
                                                         </div>
@@ -215,6 +219,12 @@ export default function Index({ notifications, unreadCount }: IndexProps) {
                                         })}
                                     </TableBody>
                                 </Table>
+                                <div className="px-4 pb-5">
+                                    <PaginationNav
+                                        paginator={notifications}
+                                        itemLabel="notifications"
+                                    />
+                                </div>
                             </CardContent>
                         </Card>
                     ) : (
@@ -225,6 +235,12 @@ export default function Index({ notifications, unreadCount }: IndexProps) {
                                     New contact form messages will appear here.
                                 </CardDescription>
                             </CardHeader>
+                            <CardContent>
+                                <PaginationNav
+                                    paginator={notifications}
+                                    itemLabel="notifications"
+                                />
+                            </CardContent>
                         </Card>
                     )}
                 </div>

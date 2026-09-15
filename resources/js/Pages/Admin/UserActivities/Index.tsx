@@ -1,4 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import PaginationNav from '@/Components/PaginationNav';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import {
@@ -82,11 +83,6 @@ const eventLabels: Record<string, string> = {
 
 export default function Index({ filters, stats, activities }: IndexProps) {
     const [search, setSearch] = useState(filters.search ?? '');
-
-    const paginationLabel = (label: string) =>
-        label
-            .replace('&laquo; Previous', 'Previous')
-            .replace('Next &raquo;', 'Next');
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
@@ -233,10 +229,13 @@ export default function Index({ filters, stats, activities }: IndexProps) {
                                             setSearch(event.target.value)
                                         }
                                         placeholder="Search activity"
-                                        className="h-10 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring sm:w-72"
+                                        className="h-11 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm text-foreground sm:w-64"
                                     />
                                 </div>
-                                <Button type="submit" variant="outline">
+                                <Button
+                                    type="submit"
+                                    className="h-11 min-w-[8.5rem] bg-emerald-600 px-4 text-white hover:bg-emerald-700"
+                                >
                                     Search
                                 </Button>
                             </form>
@@ -351,48 +350,10 @@ export default function Index({ filters, stats, activities }: IndexProps) {
                                 )}
                             </div>
 
-                            <div className="mt-5 flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
-                                <p className="text-sm text-muted-foreground">
-                                    Showing {activities.from ?? 0} to{' '}
-                                    {activities.to ?? 0} of {activities.total}{' '}
-                                    events, {activities.per_page} per page
-                                </p>
-
-                                <div className="flex flex-wrap gap-2">
-                                    {activities.links.length > 3 &&
-                                        activities.links.map((link, index) =>
-                                            link.url ? (
-                                                <Button
-                                                    key={`${link.label}-${index}`}
-                                                    variant={
-                                                        link.active
-                                                            ? 'default'
-                                                            : 'outline'
-                                                    }
-                                                    size="sm"
-                                                    asChild
-                                                >
-                                                    <Link href={link.url}>
-                                                        {paginationLabel(
-                                                            link.label,
-                                                        )}
-                                                    </Link>
-                                                </Button>
-                                            ) : (
-                                                <Button
-                                                    key={`${link.label}-${index}`}
-                                                    variant="outline"
-                                                    size="sm"
-                                                    disabled
-                                                >
-                                                    {paginationLabel(
-                                                        link.label,
-                                                    )}
-                                                </Button>
-                                            ),
-                                        )}
-                                </div>
-                            </div>
+                            <PaginationNav
+                                paginator={activities}
+                                itemLabel="events"
+                            />
                         </CardContent>
                     </Card>
                 </div>

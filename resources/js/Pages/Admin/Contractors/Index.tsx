@@ -1,4 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import PaginationNav from '@/Components/PaginationNav';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import {
@@ -71,11 +72,6 @@ export default function Index({ filters, contractors }: IndexProps) {
         });
     };
 
-    const paginationLabel = (label: string) =>
-        label
-            .replace('&laquo; Previous', 'Previous')
-            .replace('Next &raquo;', 'Next');
-
     return (
         <AuthenticatedLayout
             header={
@@ -146,10 +142,13 @@ export default function Index({ filters, contractors }: IndexProps) {
                                             setSearch(event.target.value)
                                         }
                                         placeholder="Search contractors"
-                                        className="h-10 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring sm:w-72"
+                                        className="h-11 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm text-foreground sm:w-64"
                                     />
                                 </div>
-                                <Button type="submit" variant="outline">
+                                <Button
+                                    type="submit"
+                                    className="h-11 min-w-[8.5rem] bg-emerald-600 px-4 text-white hover:bg-emerald-700"
+                                >
                                     Search
                                 </Button>
                             </form>
@@ -294,47 +293,10 @@ export default function Index({ filters, contractors }: IndexProps) {
                                 )}
                             </div>
 
-                            <div className="mt-5 flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
-                                <p className="text-sm text-muted-foreground">
-                                    Showing {contractors.from ?? 0} to{' '}
-                                    {contractors.to ?? 0} of {contractors.total}{' '}
-                                    contractors
-                                </p>
-                                <div className="flex flex-wrap gap-2">
-                                    {contractors.links.length > 3 &&
-                                        contractors.links.map((link, index) =>
-                                            link.url ? (
-                                                <Button
-                                                    key={`${link.label}-${index}`}
-                                                    variant={
-                                                        link.active
-                                                            ? 'default'
-                                                            : 'outline'
-                                                    }
-                                                    size="sm"
-                                                    asChild
-                                                >
-                                                    <Link href={link.url}>
-                                                        {paginationLabel(
-                                                            link.label,
-                                                        )}
-                                                    </Link>
-                                                </Button>
-                                            ) : (
-                                                <Button
-                                                    key={`${link.label}-${index}`}
-                                                    variant="outline"
-                                                    size="sm"
-                                                    disabled
-                                                >
-                                                    {paginationLabel(
-                                                        link.label,
-                                                    )}
-                                                </Button>
-                                            ),
-                                        )}
-                                </div>
-                            </div>
+                            <PaginationNav
+                                paginator={contractors}
+                                itemLabel="contractors"
+                            />
                         </CardContent>
                     </Card>
                 </div>
