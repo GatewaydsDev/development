@@ -1,4 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import ActionHint from '@/Components/ActionHint';
 import PaginationNav from '@/Components/PaginationNav';
 import { Button } from '@/Components/ui/button';
 import {
@@ -186,42 +187,46 @@ export default function Index({ filters, services }: IndexProps) {
                                             <div className="text-sm text-muted-foreground">
                                                 {item.bid_count ?? 0}
                                             </div>
-                                            <div className="flex flex-wrap justify-end gap-2">
+                                            <div className="flex flex-nowrap justify-end gap-1">
                                                 {canUpdateServices && (
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        asChild
-                                                    >
-                                                        <Link
-                                                            href={route(
-                                                                'admin.services.edit',
-                                                                item.id,
-                                                            )}
+                                                    <ActionHint hint="Edit this service">
+                                                        <Button
+                                                            variant="outline"
+                                                            size="icon-xs"
+                                                            asChild
                                                         >
-                                                            <EditIcon className="size-4" />
-                                                            Edit
-                                                        </Link>
-                                                    </Button>
+                                                            <Link
+                                                                href={route(
+                                                                    'admin.services.edit',
+                                                                    item.id,
+                                                                )}
+                                                                aria-label="Edit this service"
+                                                            >
+                                                                <EditIcon className="size-3.5" />
+                                                            </Link>
+                                                        </Button>
+                                                    </ActionHint>
                                                 )}
                                                 {canDeleteServices &&
                                                     (item.bid_count ?? 0) ===
                                                         0 && (
-                                                        <Button
-                                                            type="button"
-                                                            variant="outline"
-                                                            size="sm"
-                                                            className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                                            onClick={() =>
-                                                                destroyService(
-                                                                    item.id,
-                                                                    item.name,
-                                                                )
-                                                            }
-                                                        >
-                                                            <Trash2Icon className="size-4" />
-                                                            Delete
-                                                        </Button>
+                                                        <ActionHint hint="Delete this service">
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="icon-xs"
+                                                                className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                                                onClick={() =>
+                                                                    destroyService(
+                                                                        item.id,
+                                                                        item.name,
+                                                                    )
+                                                                }
+                                                                aria-label="Delete this service"
+                                                            >
+                                                                <Trash2Icon className="size-3.5" />
+                                                            </Button>
+                                                        </ActionHint>
                                                     )}
                                             </div>
                                         </div>

@@ -1,10 +1,10 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link } from '@inertiajs/react';
-import ContractorForm from './Partials/ContractorForm';
-import type { ContractorOptions } from './types';
+import QuotationForm from './Partials/QuotationForm';
+import type { QuotationOptions } from './types';
 
 type CreateProps = {
-    options: ContractorOptions;
+    options: QuotationOptions;
 };
 
 export default function Create({ options }: CreateProps) {
@@ -19,29 +19,28 @@ export default function Create({ options }: CreateProps) {
                         <span>Administration</span>
                         <span>/</span>
                         <Link
-                            href={route('admin.contractors.index')}
+                            href={route('admin.quotations.index')}
                             className="transition hover:text-foreground"
                         >
-                            Contractors
+                            Quotations
                         </Link>
                         <span>/</span>
                         <span className="text-foreground">Add</span>
                     </nav>
                     <h2 className="text-xl font-semibold leading-tight text-emerald-700 dark:text-emerald-300">
-                        Add general contractor
+                        Add quotation
                     </h2>
                 </div>
             }
         >
-            <Head title="Add Contractor" />
+            <Head title="Add Quotation" />
 
             <div className="py-6 sm:py-8">
                 <div className="mx-auto max-w-[96rem] px-4 sm:px-6 lg:px-8">
-                    <ContractorForm
-                        action={route('admin.contractors.store')}
-                        submitLabel="Create contractor"
-                        title="Contractor information"
-                        description="Save the general contractor company and its contacts. This does not create a customer."
+                    <QuotationForm
+                        action={route('admin.quotations.store')}
+                        title="Quotation information"
+                        description="Save a customer quotation with project details and priced line items."
                         options={options}
                     />
                 </div>

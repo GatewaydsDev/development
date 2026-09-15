@@ -33,6 +33,7 @@ class CustomerController extends Controller
                     'contacts' => fn ($query) => $query->orderByDesc('is_primary')->orderBy('name'),
                     'project.status',
                 ])
+                ->withCount('projects')
                 ->when($search !== '', function ($query) use ($search): void {
                     $query->where(function ($query) use ($search): void {
                         $query
@@ -95,28 +96,13 @@ class CustomerController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'customer_id' => ['nullable', 'integer', Rule::exists(Customer::class, 'id')],
+            'customer_id' => ['required', 'integer', Rule::exists(Customer::class, 'id')],
             'email' => ['nullable', 'email', 'max:255'],
             'phone_number' => ['nullable', 'string', 'max:50'],
         ]);
 
         $name = trim($validated['name']);
-        $customer = filled($validated['customer_id'] ?? null)
-            ? Customer::query()->find($validated['customer_id'])
-            : null;
-
-        if (! $customer) {
-            $customer = Customer::query()
-                ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
-                ->first();
-        }
-
-        if (! $customer) {
-            $customer = Customer::create([
-                'name' => $name,
-                'company_name' => $name,
-            ]);
-        }
+        $customer = Customer::query()->findOrFail($validated['customer_id']);
 
         $existing = $customer->contacts()
             ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
@@ -429,6 +415,8 @@ class CustomerController extends Controller
                     'status' => $customer->project->status?->name,
                 ]
                 : null,
+            'projects_count' => $customer->projects_count
+                ?? $customer->projects()->count(),
             'created_at' => $customer->created_at?->toFormattedDateString(),
             'updated_at' => $customer->updated_at?->toFormattedDateString(),
         ];

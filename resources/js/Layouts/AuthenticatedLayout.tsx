@@ -27,6 +27,7 @@ import {
     BriefcaseIcon,
     ChevronDownIcon,
     ClipboardListIcon,
+    FileSpreadsheetIcon,
     HardHatIcon,
     IdCardIcon,
     ListIcon,
@@ -236,6 +237,8 @@ export default function Authenticated({
     const canCreateProjects = Boolean(auth.can?.createProjects);
     const canViewBids = Boolean(auth.can?.viewBids);
     const canCreateBids = Boolean(auth.can?.createBids);
+    const canViewQuotations = Boolean(auth.can?.viewQuotations);
+    const canCreateQuotations = Boolean(auth.can?.createQuotations);
     const canViewProducts = Boolean(auth.can?.viewProducts);
     const canCreateProducts = Boolean(auth.can?.createProducts);
     const canViewServices = Boolean(auth.can?.viewServices);
@@ -248,13 +251,18 @@ export default function Authenticated({
     const canCreateEmployees = Boolean(auth.can?.createEmployees);
     const canOpenProjects = canViewProjects || canCreateProjects;
     const canOpenBids = canViewBids || canCreateBids;
+    const canOpenQuotations = canViewQuotations || canCreateQuotations;
     const canOpenProducts = canViewProducts || canCreateProducts;
     const canOpenServices = canViewServices || canCreateServices;
     const canOpenCustomers = canViewCustomers || canCreateCustomers;
     const canOpenContractors = canViewContractors || canCreateContractors;
     const canOpenEmployees = canViewEmployees || canCreateEmployees;
     const canOpenWork =
-        canOpenProjects || canOpenBids || canOpenProducts || canOpenServices;
+        canOpenProjects ||
+        canOpenBids ||
+        canOpenQuotations ||
+        canOpenProducts ||
+        canOpenServices;
     const canOpenPeople =
         canOpenCustomers ||
         canOpenContractors ||
@@ -522,6 +530,18 @@ export default function Authenticated({
                                                             )}
                                                             createHref={route(
                                                                 'admin.bids.create',
+                                                            )}
+                                                        />
+                                                        <AdminResourceSubmenu
+                                                            label="Quotations"
+                                                            icon={FileSpreadsheetIcon}
+                                                            canView={canViewQuotations}
+                                                            canCreate={canCreateQuotations}
+                                                            viewHref={route(
+                                                                'admin.quotations.index',
+                                                            )}
+                                                            createHref={route(
+                                                                'admin.quotations.create',
                                                             )}
                                                         />
                                                         <AdminResourceSubmenu
@@ -1003,6 +1023,24 @@ export default function Authenticated({
                                                 )}
                                                 createActive={route().current(
                                                     'admin.bids.create',
+                                                )}
+                                            />
+                                            <MobileAdminResource
+                                                label="Quotations"
+                                                icon={FileSpreadsheetIcon}
+                                                canView={canViewQuotations}
+                                                canCreate={canCreateQuotations}
+                                                viewHref={route(
+                                                    'admin.quotations.index',
+                                                )}
+                                                createHref={route(
+                                                    'admin.quotations.create',
+                                                )}
+                                                viewActive={route().current(
+                                                    'admin.quotations.index',
+                                                )}
+                                                createActive={route().current(
+                                                    'admin.quotations.create',
                                                 )}
                                             />
                                             <MobileAdminResource

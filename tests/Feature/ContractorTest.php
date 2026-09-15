@@ -294,7 +294,7 @@ test('a contractor can be linked to an existing customer and multiple contacts',
     expect($contractor->contact_name)->toBe('Alex Rivera');
 });
 
-test('a contractor can create a customer and multiple new contacts', function () {
+test('saving a contractor does not create a customer from contact names', function () {
     $admin = contractorAdmin();
 
     $this->actingAs($admin)
@@ -306,16 +306,17 @@ test('a contractor can create a customer and multiple new contacts', function ()
 
     $contractor = Contractor::query()
         ->where('name', 'Turner Construction')
-        ->with(['customer.contacts', 'contacts'])
+        ->with(['customer', 'contacts'])
         ->firstOrFail();
 
-    expect($contractor->customer?->company_name)->toBe('New GC Customer');
-    expect($contractor->customer?->contacts)->toHaveCount(2);
-    expect($contractor->contacts)->toHaveCount(2);
-    expect($contractor->contacts->every(fn ($contact) => filled($contact->customer_contact_id)))->toBeTrue();
+    expect($contractor->customer_id)->toBeNull()
+        ->and(Customer::query()->where('company_name', 'New GC Customer')->exists())->toBeFalse()
+        ->and($contractor->contacts)->toHaveCount(2)
+        ->and($contractor->contact_name)->toBe('Alex Rivera')
+        ->and($contractor->contacts->every(fn ($contact) => blank($contact->customer_contact_id)))->toBeTrue();
 });
 
-test('a customer contact can be created from the contractor contact name dropdown', function () {
+test('a customer contact must belong to an existing customer', function () {
     $admin = contractorAdmin();
 
     $this->actingAs($admin)
@@ -323,13 +324,8 @@ test('a customer contact can be created from the contractor contact name dropdow
         ->post(route('admin.customer-contacts.store'), [
             'name' => 'Alex Rivera',
         ])
-        ->assertSessionHasNoErrors()
-        ->assertSessionHas('success', 'Contact added successfully.');
+        ->assertSessionHasErrors('customer_id');
 
-    $contact = CustomerContact::query()
-        ->where('name', 'Alex Rivera')
-        ->firstOrFail();
-
-    expect($contact->name)->toBe('Alex Rivera');
-    expect($contact->customer_id)->not->toBeNull();
+    expect(CustomerContact::query()->where('name', 'Alex Rivera')->exists())->toBeFalse()
+        ->and(Customer::query()->where('name', 'Alex Rivera')->exists())->toBeFalse();
 });

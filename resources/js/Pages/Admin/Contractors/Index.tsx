@@ -1,4 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import ActionHint from '@/Components/ActionHint';
 import PaginationNav from '@/Components/PaginationNav';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
@@ -238,42 +239,46 @@ export default function Index({ filters, contractors }: IndexProps) {
                                                         </Badge>
                                                     )}
                                                 </div>
-                                                <div className="flex flex-nowrap gap-2 md:justify-end">
+                                                <div className="flex flex-nowrap gap-1 md:justify-end">
                                                     {canUpdateContractors && (
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            asChild
-                                                        >
-                                                            <Link
-                                                                href={route(
-                                                                    'admin.contractors.edit',
-                                                                    contractor.id,
-                                                                )}
+                                                        <ActionHint hint="Edit this contractor">
+                                                            <Button
+                                                                variant="outline"
+                                                                size="icon-xs"
+                                                                asChild
                                                             >
-                                                                <EditIcon className="size-4" />
-                                                                Edit
-                                                            </Link>
-                                                        </Button>
+                                                                <Link
+                                                                    href={route(
+                                                                        'admin.contractors.edit',
+                                                                        contractor.id,
+                                                                    )}
+                                                                    aria-label="Edit this contractor"
+                                                                >
+                                                                    <EditIcon className="size-3.5" />
+                                                                </Link>
+                                                            </Button>
+                                                        </ActionHint>
                                                     )}
                                                     {canDeleteContractors &&
                                                         contractor.projects_count ===
                                                             0 && (
-                                                            <Button
-                                                                type="button"
-                                                                variant="outline"
-                                                                size="sm"
-                                                                className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                                                onClick={() =>
-                                                                    destroyContractor(
-                                                                        contractor.id,
-                                                                        contractor.name,
-                                                                    )
-                                                                }
-                                                            >
-                                                                <Trash2Icon className="size-4" />
-                                                                Delete
-                                                            </Button>
+                                                            <ActionHint hint="Delete this contractor">
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="outline"
+                                                                    size="icon-xs"
+                                                                    className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                                                    onClick={() =>
+                                                                        destroyContractor(
+                                                                            contractor.id,
+                                                                            contractor.name,
+                                                                        )
+                                                                    }
+                                                                    aria-label="Delete this contractor"
+                                                                >
+                                                                    <Trash2Icon className="size-3.5" />
+                                                                </Button>
+                                                            </ActionHint>
                                                         )}
                                                 </div>
                                             </div>

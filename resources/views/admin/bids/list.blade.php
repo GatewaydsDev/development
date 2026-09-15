@@ -366,7 +366,8 @@
                         <tr>
                             <th style="width: 28px;">#</th>
                             <th>Project</th>
-                            <th>Customer</th>
+                            <th>Customer / owner</th>
+                            <th>General contractor</th>
                             <th>Stage</th>
                             <th>Scope</th>
                             <th>Pricing</th>
@@ -382,6 +383,7 @@
                                     <span class="muted">{{ $row['project_number'] }}</span>
                                 </td>
                                 <td>{{ $row['customer'] }}</td>
+                                <td>{{ $row['contractors'] }}</td>
                                 <td>{{ $row['stage'] }}</td>
                                 <td>{{ $row['scope'] }}</td>
                                 <td>{{ $row['pricing'] }}</td>

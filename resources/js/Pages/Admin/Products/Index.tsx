@@ -1,4 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import ActionHint from '@/Components/ActionHint';
 import PaginationNav from '@/Components/PaginationNav';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
@@ -379,38 +380,42 @@ export default function Index({ filters, options, products }: IndexProps) {
                                                     ? `${product.part_count ?? 0} parts`
                                                     : `${product.door_count ?? 0} doors`}
                                             </div>
-                                            <div className="flex flex-nowrap gap-2 md:justify-end">
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    asChild
-                                                >
-                                                    <Link
-                                                        href={route(
-                                                            'admin.products.show',
-                                                            product.id,
-                                                        )}
-                                                    >
-                                                        <EyeIcon className="size-4" />
-                                                        View
-                                                    </Link>
-                                                </Button>
-                                                {options.can.update && (
+                                            <div className="flex flex-nowrap gap-1 md:justify-end">
+                                                <ActionHint hint="View product details">
                                                     <Button
                                                         variant="outline"
-                                                        size="sm"
+                                                        size="icon-xs"
                                                         asChild
                                                     >
                                                         <Link
                                                             href={route(
-                                                                'admin.products.edit',
+                                                                'admin.products.show',
                                                                 product.id,
                                                             )}
+                                                            aria-label="View product details"
                                                         >
-                                                            <EditIcon className="size-4" />
-                                                            Edit
+                                                            <EyeIcon className="size-3.5" />
                                                         </Link>
                                                     </Button>
+                                                </ActionHint>
+                                                {options.can.update && (
+                                                    <ActionHint hint="Edit this product">
+                                                        <Button
+                                                            variant="outline"
+                                                            size="icon-xs"
+                                                            asChild
+                                                        >
+                                                            <Link
+                                                                href={route(
+                                                                    'admin.products.edit',
+                                                                    product.id,
+                                                                )}
+                                                                aria-label="Edit this product"
+                                                            >
+                                                                <EditIcon className="size-3.5" />
+                                                            </Link>
+                                                        </Button>
+                                                    </ActionHint>
                                                 )}
                                             </div>
                                         </div>

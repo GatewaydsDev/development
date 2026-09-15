@@ -372,6 +372,7 @@
                         <tr>
                             <th style="width: 28px;">#</th>
                             <th>Project</th>
+                            <th>Customer / owner</th>
                             <th>General contractor</th>
                             <th>Bid scope</th>
                         </tr>
@@ -385,6 +386,7 @@
                                     <span class="name">{{ $row['name'] }}</span>
                                     <span class="muted">{{ $row['project_number'] }}</span>
                                 </td>
+                                <td>{{ $row['customer'] }}</td>
                                 <td>{{ $row['contractors'] }}</td>
                                 <td>{{ $row['bid_scope'] }}</td>
                             </tr>

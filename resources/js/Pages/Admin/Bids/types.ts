@@ -65,6 +65,23 @@ export type BidCapabilities = {
     delete: boolean;
 };
 
+export type BidQuotationLineOption = {
+    description: string;
+    quantity?: string | number | null;
+    unit_price?: string | number | null;
+    extended?: string | number | null;
+};
+
+export type BidQuotationOption = {
+    id: number;
+    name: string;
+    quotation_number: string;
+    title: string;
+    project_id?: number | null;
+    notes?: string | null;
+    line_items: BidQuotationLineOption[];
+};
+
 export type BidOptions = {
     projects: BidProjectOption[];
     stageTypes: BidCatalogOption[];
@@ -77,6 +94,7 @@ export type BidOptions = {
     shippingTextTemplates: BidTextTemplateOption[];
     company?: BidCompanyOption;
     can: BidCapabilities;
+    quotations?: BidQuotationOption[];
 };
 
 export type BidStagePayload = {
@@ -146,7 +164,27 @@ export type BidPayload = {
         name?: string | null;
         project_number?: string | null;
         site_address?: string | null;
+        customer?: {
+            id?: number | null;
+            name?: string | null;
+            company_name?: string | null;
+            contact_name?: string | null;
+            email?: string | null;
+            phone_number?: string | null;
+        } | null;
+        contractors?: Array<{
+            id: number;
+            name: string;
+            contact_name?: string | null;
+            email?: string | null;
+            phone_number?: string | null;
+        }>;
     };
+    quotation?: {
+        id: number;
+        quotation_number: string;
+        title: string;
+    } | null;
     creator?: {
         id?: number | null;
         name?: string | null;
@@ -196,6 +234,7 @@ export type BidPricingFormData = {
 
 export type BidFormData = {
     project_id: string;
+    quotation_id: string;
     notes: string;
     bid_shipping_text_template_id: string;
     bid_text_template_id: string;
@@ -502,6 +541,7 @@ export const blankPricing = (name = 'Preliminary pricing'): BidPricingFormData =
 
 export const bidToFormData = (bid?: BidPayload): BidFormData => ({
     project_id: bid?.project?.id ? String(bid.project.id) : '',
+    quotation_id: bid?.quotation?.id ? String(bid.quotation.id) : '',
     notes: bid?.notes ?? '',
     bid_shipping_text_template_id: bid?.bid_shipping_text_template_id
         ? String(bid.bid_shipping_text_template_id)
@@ -597,4 +637,74 @@ export const bidToFormData = (bid?: BidPayload): BidFormData => ({
                           : [blankPricingItem()],
               }))
             : [blankPricing()],
+});
+
+const escapeHtml = (value: string) =>
+    value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+
+const quotationLineAmount = (item: BidQuotationLineOption) => {
+    if (item.extended !== null && item.extended !== undefined && item.extended !== '') {
+        return String(item.extended);
+    }
+
+    const quantity = Number(item.quantity);
+    const unit = Number(item.unit_price);
+
+    if (!Number.isFinite(quantity) || !Number.isFinite(unit)) {
+        return '';
+    }
+
+    return (Math.round(quantity * unit * 100) / 100).toFixed(2);
+};
+
+export const quotationImportHtml = (quotation: BidQuotationOption): string => {
+    const items = quotation.line_items
+        .map((item) => {
+            const parts = [escapeHtml(item.description)];
+            const amount = quotationLineAmount(item);
+
+            if (item.quantity !== null && item.quantity !== undefined && item.quantity !== '') {
+                parts.push(`Qty ${escapeHtml(String(item.quantity))}`);
+            }
+
+            if (amount !== '') {
+                parts.push(escapeHtml(formatMoney(amount)));
+            }
+
+            return `<li>${parts.join(' — ')}</li>`;
+        })
+        .join('');
+
+    return `<p>Imported from quotation ${escapeHtml(quotation.quotation_number)} — ${escapeHtml(quotation.title)}.</p>${items ? `<ul>${items}</ul>` : ''}`;
+};
+
+export const pricingFromQuotation = (
+    quotation: BidQuotationOption,
+): BidPricingFormData => ({
+    name: `Imported from ${quotation.quotation_number}`,
+    revision_date: '',
+    notes: quotation.title,
+    items: quotation.line_items.length
+        ? quotation.line_items.map((item) => ({
+              description: item.description,
+              pricing_basis: [
+                  item.quantity !== null && item.quantity !== undefined && item.quantity !== ''
+                      ? `Qty ${item.quantity}`
+                      : null,
+                  item.unit_price !== null &&
+                  item.unit_price !== undefined &&
+                  item.unit_price !== ''
+                      ? formatMoney(item.unit_price)
+                      : null,
+              ]
+                  .filter(Boolean)
+                  .join(' × '),
+              status_id: '',
+              amount: quotationLineAmount(item),
+          }))
+        : [blankPricingItem()],
 });

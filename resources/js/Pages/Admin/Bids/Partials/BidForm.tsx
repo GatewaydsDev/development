@@ -15,8 +15,8 @@ import {
 } from '@/Components/ui/card';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from '@inertiajs/react';
-import { PlusIcon, Trash2Icon } from 'lucide-react';
-import { FormEventHandler, useEffect, useMemo } from 'react';
+import { PlusIcon, Trash2Icon, FileUpIcon } from 'lucide-react';
+import { FormEventHandler, useEffect, useMemo, useRef, useState } from 'react';
 import {
     Control,
     FieldErrors,
@@ -39,11 +39,14 @@ import {
     formatMoney,
     lineAmountsForProduct,
     scopeExtendedAmount,
+    pricingFromQuotation,
+    quotationImportHtml,
     scopesFromProject,
     scopesTotalAmount,
     type BidFormData,
     type BidOptions,
     type BidPayload,
+    type BidQuotationOption,
 } from '../types';
 
 type BidFormProps = {
@@ -53,6 +56,7 @@ type BidFormProps = {
     description: string;
     options: BidOptions;
     bid?: BidPayload;
+    importQuotationId?: number | null;
     onSelectedProjectNameChange?: (name: string) => void;
 };
 
@@ -72,6 +76,7 @@ const optionalMoneySchema = z
 
 const schema = z.object({
     project_id: z.string().trim().min(1, 'Select a project.'),
+    quotation_id: z.string(),
     notes: z
         .string()
         .max(250000, 'Shipping and handling exclusions/adjustments must be 250,000 characters or less.'),
@@ -193,6 +198,7 @@ export default function BidForm({
     description,
     options,
     bid,
+    importQuotationId = null,
     onSelectedProjectNameChange,
 }: BidFormProps) {
     const defaultValues = useMemo(() => {
@@ -215,6 +221,7 @@ export default function BidForm({
         handleSubmit,
         setValue,
         setError,
+        getValues,
         formState: { errors: validationErrors, isSubmitting },
     } = useForm<BidFormData>({
         resolver: zodResolver(schema),
@@ -255,10 +262,93 @@ export default function BidForm({
         });
     };
 
+    const quotations = options.quotations ?? [];
+    const [importQuotationValue, setImportQuotationValue] = useState(
+        importQuotationId ? String(importQuotationId) : '',
+    );
+    const autoImported = useRef(false);
+
+    const applyQuotation = (quotation: BidQuotationOption, confirmReplace = true) => {
+        if (!quotation.project_id) {
+            toast.error(
+                'Link this quotation to a project before importing it onto a bid.',
+            );
+            return false;
+        }
+
+        const current = getValues();
+        const replacingProject =
+            current.project_id !== '' &&
+            current.project_id !== String(quotation.project_id);
+
+        if (
+            confirmReplace &&
+            (replacingProject || current.scope_of_work_text.trim() !== '') &&
+            !window.confirm(
+                'Import this quotation onto the bid form? The quotation stays saved. Project and quoted items on this form will be replaced.',
+            )
+        ) {
+            return false;
+        }
+
+        const project = options.projects.find(
+            (item) => item.id === quotation.project_id,
+        );
+
+        setData('quotation_id', String(quotation.id));
+        setData('project_id', String(quotation.project_id));
+        replaceScopes(
+            scopesFromProject(project, options.scopeTitles, options.products),
+        );
+        setData('scope_of_work_text', quotationImportHtml(quotation));
+        setData('pricings', [pricingFromQuotation(quotation)]);
+
+        if (current.notes.trim() === '' && quotation.notes) {
+            setData(
+                'notes',
+                `<p>${quotation.notes
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/\n/g, '<br />')}</p>`,
+            );
+        }
+
+        if (current.application_text.trim() === '') {
+            setData(
+                'application_text',
+                `<p>Created from quotation ${quotation.quotation_number} — ${quotation.title}.</p>`,
+            );
+        }
+
+        toast.success(
+            `Imported ${quotation.quotation_number}. The quotation stays saved and linked to this bid.`,
+        );
+
+        return true;
+    };
+
+    useEffect(() => {
+        if (autoImported.current || !importQuotationId) {
+            return;
+        }
+
+        const quotation = quotations.find((item) => item.id === importQuotationId);
+
+        if (!quotation) {
+            return;
+        }
+
+        autoImported.current = true;
+        setImportQuotationValue(String(quotation.id));
+        applyQuotation(quotation, false);
+    }, [importQuotationId, quotations]);
+
     const submit = handleSubmit(
         (values) => {
             const payload = {
                 ...values,
+                quotation_id: values.quotation_id.trim() || null,
                 bid_shipping_text_template_id:
                     values.bid_shipping_text_template_id.trim() || null,
                 bid_text_template_id: values.bid_text_template_id.trim() || null,
@@ -369,9 +459,83 @@ export default function BidForm({
                                             options.products,
                                         ),
                                     );
+
+                                    const linkedQuotation = quotations.find(
+                                        (item) =>
+                                            String(item.id) ===
+                                            (data.quotation_id ?? ''),
+                                    );
+
+                                    if (
+                                        linkedQuotation?.project_id &&
+                                        String(linkedQuotation.project_id) !==
+                                            projectId
+                                    ) {
+                                        setData('quotation_id', '');
+                                    }
                                 }}
                             />
                         </div>
+                        {selectedProject ? (
+                            <p className="text-sm text-muted-foreground">
+                                Customer / owner:{' '}
+                                {selectedProject.customer_company ||
+                                    selectedProject.customer_name ||
+                                    'Not assigned on this project'}
+                            </p>
+                        ) : null}
+                        {quotations.length > 0 ? (
+                            <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_auto] lg:items-end">
+                                <CreatableSelect
+                                    id="bid-import-quotation"
+                                    label="Import quotation"
+                                    value={importQuotationValue}
+                                    options={quotations}
+                                    allowCreate={false}
+                                    placeholder="Type to find a saved quotation"
+                                    hint="The quotation stays in Quotations. Import copies customer project and line items onto this bid."
+                                    onChange={(quotationId) =>
+                                        setImportQuotationValue(quotationId)
+                                    }
+                                />
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="h-11"
+                                    onClick={() => {
+                                        const quotation = quotations.find(
+                                            (item) =>
+                                                String(item.id) ===
+                                                importQuotationValue,
+                                        );
+
+                                        if (!quotation) {
+                                            toast.error(
+                                                'Select a quotation to import.',
+                                            );
+                                            return;
+                                        }
+
+                                        applyQuotation(quotation);
+                                    }}
+                                >
+                                    <FileUpIcon className="size-4" />
+                                    Import quotation
+                                </Button>
+                            </div>
+                        ) : null}
+                        {data.quotation_id ? (
+                            <p className="text-sm text-muted-foreground">
+                                Linked to quotation{' '}
+                                {quotations.find(
+                                    (item) =>
+                                        String(item.id) === data.quotation_id,
+                                )?.quotation_number ??
+                                    bid?.quotation?.quotation_number ??
+                                    `#${data.quotation_id}`}
+                                . The original quote remains saved.
+                            </p>
+                        ) : null}
                         <div className="flex flex-col gap-2">
                             <InputLabel
                                 htmlFor="bid-project-address"

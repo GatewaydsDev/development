@@ -1,4 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import ActionHint from '@/Components/ActionHint';
 import PaginationNav from '@/Components/PaginationNav';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
@@ -147,7 +148,7 @@ export default function Index({ filters, customers }: IndexProps) {
                                     <div>Company name</div>
                                     <div>Email address</div>
                                     <div>Phone number</div>
-                                    <div>Project</div>
+                                    <div>Projects</div>
                                     <div className="text-right">Actions</div>
                                 </div>
 
@@ -181,53 +182,68 @@ export default function Index({ filters, customers }: IndexProps) {
                                                     'Not added'}
                                             </div>
                                             <div>
-                                                {customer.project ? (
+                                                {(customer.projects_count ??
+                                                    (customer.project
+                                                        ? 1
+                                                        : 0)) > 0 ? (
                                                     <Badge variant="outline">
                                                         <BriefcaseIcon className="size-3" />
-                                                        {customer.project.name}
+                                                        {customer.projects_count ===
+                                                        1
+                                                            ? customer.project
+                                                                ?.name ||
+                                                              '1 project'
+                                                            : `${customer.projects_count} projects`}
                                                     </Badge>
                                                 ) : (
                                                     <Badge variant="secondary">
-                                                        No project
+                                                        No projects
                                                     </Badge>
                                                 )}
                                             </div>
-                                            <div className="flex flex-wrap gap-2 md:justify-end">
+                                            <div className="flex flex-nowrap gap-1 md:justify-end">
                                                 {canUpdateCustomers && (
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        asChild
-                                                    >
-                                                        <Link
-                                                            href={route(
-                                                                'admin.customers.edit',
-                                                                customer.id,
-                                                            )}
+                                                    <ActionHint hint="Edit this customer">
+                                                        <Button
+                                                            variant="outline"
+                                                            size="icon-xs"
+                                                            asChild
                                                         >
-                                                            <EditIcon className="size-4" />
-                                                            Edit
-                                                        </Link>
-                                                    </Button>
+                                                            <Link
+                                                                href={route(
+                                                                    'admin.customers.edit',
+                                                                    customer.id,
+                                                                )}
+                                                                aria-label="Edit this customer"
+                                                            >
+                                                                <EditIcon className="size-3.5" />
+                                                            </Link>
+                                                        </Button>
+                                                    </ActionHint>
                                                 )}
                                                 {canDeleteCustomers &&
-                                                    !customer.project && (
-                                                        <Button
-                                                            type="button"
-                                                            variant="outline"
-                                                            size="sm"
-                                                            className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                                            onClick={() =>
-                                                                destroyCustomer(
-                                                                    customer.id,
-                                                                    customer.company_name ||
-                                                                        customer.name,
-                                                                )
-                                                            }
-                                                        >
-                                                            <Trash2Icon className="size-4" />
-                                                            Delete
-                                                        </Button>
+                                                    (customer.projects_count ??
+                                                        (customer.project
+                                                            ? 1
+                                                            : 0)) === 0 && (
+                                                        <ActionHint hint="Delete this customer">
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="icon-xs"
+                                                                className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                                                onClick={() =>
+                                                                    destroyCustomer(
+                                                                        customer.id,
+                                                                        customer.company_name ||
+                                                                            customer.name,
+                                                                    )
+                                                                }
+                                                                aria-label="Delete this customer"
+                                                            >
+                                                                <Trash2Icon className="size-3.5" />
+                                                            </Button>
+                                                        </ActionHint>
                                                     )}
                                             </div>
                                             </div>

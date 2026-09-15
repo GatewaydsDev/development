@@ -12,6 +12,7 @@ class Bid extends Model
     protected $fillable = [
         'uuid',
         'project_id',
+        'quotation_id',
         'created_by',
         'notes',
         'bid_shipping_text_template_id',
@@ -31,6 +32,11 @@ class Bid extends Model
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
+    }
+
+    public function quotation(): BelongsTo
+    {
+        return $this->belongsTo(Quotation::class);
     }
 
     public function creator(): BelongsTo

@@ -20,6 +20,7 @@ export type CustomerPayload = {
     postal_code: string | null;
     country: string | null;
     project: CustomerProject | null;
+    projects_count?: number;
     created_at: string | null;
     updated_at: string | null;
 };

@@ -17,6 +17,7 @@ use App\Models\Company;
 use App\Models\Product;
 use App\Models\Project;
 use App\Models\ProjectScopeType;
+use App\Models\Quotation;
 use App\Models\Service;
 use App\Models\User;
 use App\Support\BidAccess;
@@ -24,12 +25,15 @@ use App\Support\BidApplicationText;
 use App\Support\BidDocument;
 use App\Support\BidListDocument;
 use App\Support\DocumentLogo;
+use App\Support\QuotationAccess;
+use App\Support\QuotationToBid;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -88,6 +92,7 @@ class BidController extends Controller
 
         return Inertia::render('Admin/Bids/Create', [
             'options' => $this->options($request->user()),
+            'importQuotationId' => $request->integer('quotation') ?: null,
         ]);
     }
 
@@ -100,6 +105,7 @@ class BidController extends Controller
         $bid = DB::transaction(function () use ($request, $validated): Bid {
             $bid = Bid::create([
                 'project_id' => $validated['project_id'],
+                'quotation_id' => $validated['quotation_id'] ?? null,
                 'notes' => $this->shippingText($validated),
                 'bid_shipping_text_template_id' => $validated['bid_shipping_text_template_id'] ?? null,
                 'bid_text_template_id' => $validated['bid_text_template_id'] ?? null,
@@ -124,7 +130,10 @@ class BidController extends Controller
         abort_unless(BidAccess::canView($request->user()), 403);
 
         $bid->load([
-            'project:id,name,project_number,site_address_line_1,site_address_line_2,site_city,site_state,site_postal_code,site_country',
+            'project:id,name,project_number,customer_id,site_address_line_1,site_address_line_2,site_city,site_state,site_postal_code,site_country',
+            'project.customer',
+            'project.contractors.contacts',
+            'quotation:id,quotation_number,title',
             'creator:id,name',
             'stages.type',
             'scopes.title',
@@ -165,7 +174,10 @@ class BidController extends Controller
         abort_unless(BidAccess::canUpdate($request->user()), 403);
 
         $bid->load([
-            'project:id,name,project_number,site_address_line_1,site_address_line_2,site_city,site_state,site_postal_code,site_country',
+            'project:id,name,project_number,customer_id,site_address_line_1,site_address_line_2,site_city,site_state,site_postal_code,site_country',
+            'project.customer',
+            'project.contractors.contacts',
+            'quotation:id,quotation_number,title',
             'stages.type',
             'scopes.title',
             'scopes.products.product',
@@ -188,6 +200,7 @@ class BidController extends Controller
         DB::transaction(function () use ($bid, $validated): void {
             $bid->fill([
                 'project_id' => $validated['project_id'],
+                'quotation_id' => $validated['quotation_id'] ?? null,
                 'notes' => $this->shippingText($validated),
                 'bid_shipping_text_template_id' => $validated['bid_shipping_text_template_id'] ?? null,
                 'bid_text_template_id' => $validated['bid_text_template_id'] ?? null,
@@ -300,7 +313,20 @@ class BidController extends Controller
                 Rule::exists(BidPricingStatus::class, 'id'),
             ],
             'pricings.*.items.*.amount' => ['nullable', 'numeric', 'min:0'],
+            'quotation_id' => ['nullable', 'integer', Rule::exists(Quotation::class, 'id')],
         ]);
+
+        if (! empty($validated['quotation_id'])) {
+            $quotation = Quotation::query()->find($validated['quotation_id']);
+
+            if ($quotation?->project_id
+                && (int) $quotation->project_id !== (int) $validated['project_id']
+            ) {
+                throw ValidationException::withMessages([
+                    'quotation_id' => 'That quotation belongs to a different project.',
+                ]);
+            }
+        }
 
         return $validated;
     }
@@ -582,6 +608,7 @@ class BidController extends Controller
     private function bidPayload(Bid $bid, bool $summary = false): array
     {
         $currentStage = $bid->stages->last();
+        $bid->loadMissing('quotation');
 
         return [
             'id' => $bid->id,
@@ -608,7 +635,32 @@ class BidController extends Controller
                         $bid->project->site_country,
                     )
                     : null,
+                'customer' => $bid->project?->customer ? [
+                    'id' => $bid->project->customer->id,
+                    'name' => $bid->project->customer->displayCompanyName(),
+                    'company_name' => $bid->project->customer->displayCompanyName(),
+                    'contact_name' => $bid->project->customer->displayContactName(),
+                    'email' => $bid->project->customer->email,
+                    'phone_number' => $bid->project->customer->phone_number,
+                ] : null,
+                'contractors' => $bid->project?->contractors
+                    ? $bid->project->contractors
+                        ->map(fn ($contractor): array => [
+                            'id' => $contractor->id,
+                            'name' => $contractor->name,
+                            'contact_name' => $contractor->contact_name,
+                            'email' => $contractor->email,
+                            'phone_number' => $contractor->phone_number,
+                        ])
+                        ->values()
+                        ->all()
+                    : [],
             ],
+            'quotation' => $bid->quotation ? [
+                'id' => $bid->quotation->id,
+                'quotation_number' => $bid->quotation->quotation_number,
+                'title' => $bid->quotation->title,
+            ] : null,
             'creator' => $summary ? null : [
                 'id' => $bid->creator?->id,
                 'name' => $bid->creator?->name,
@@ -766,8 +818,8 @@ class BidController extends Controller
                     'id' => $project->id,
                     'name' => $project->name,
                     'project_number' => $project->project_number,
-                    'customer_name' => $project->customer?->name,
-                    'customer_company' => $project->customer?->company_name,
+                    'customer_name' => $project->customer?->displayContactName(),
+                    'customer_company' => $project->customer?->displayCompanyName(),
                     'site_address' => BidApplicationText::formatAddress(
                         $project->site_address_line_1,
                         $project->site_address_line_2,
@@ -906,6 +958,16 @@ class BidController extends Controller
                     )
                     : '',
             ],
+            'quotations' => $user && QuotationAccess::canView($user)
+                ? Quotation::query()
+                    ->with(['customer:id,name,company_name', 'lineItems'])
+                    ->latest()
+                    ->limit(200)
+                    ->get()
+                    ->map(fn (Quotation $quotation): array => QuotationToBid::optionPayload($quotation))
+                    ->values()
+                    ->all()
+                : [],
             'can' => [
                 'create' => $user ? BidAccess::canCreate($user) : false,
                 'update' => $user ? BidAccess::canUpdate($user) : false,

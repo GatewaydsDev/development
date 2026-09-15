@@ -44,8 +44,8 @@ export default function Edit({ customer, contactRoles }: EditProps) {
                         submitLabel="Save changes"
                         title={customer.company_name || customer.name}
                         description={
-                            customer.project
-                                ? `Linked project: ${customer.project.name}`
+                            (customer.projects_count ?? 0) > 0
+                                ? `Linked to ${customer.projects_count} project${customer.projects_count === 1 ? '' : 's'}.`
                                 : 'Update customer contact and address information.'
                         }
                         customer={customer}

@@ -76,6 +76,7 @@ export type ProjectCustomer = {
     id?: number | null;
     name: string | null;
     company_name: string | null;
+    contact_name?: string | null;
     email?: string | null;
     phone_number?: string | null;
     contacts?: Array<{
@@ -243,6 +244,18 @@ export type ProjectFormData = {
     scopes: ProjectScopeFormData[];
     revisions: ProjectRevisionFormData[];
 };
+
+export function projectCustomerLabel(customer?: ProjectCustomer | null) {
+    return (
+        customer?.company_name?.trim() ||
+        customer?.name?.trim() ||
+        ''
+    );
+}
+
+export function projectCustomerContactLabel(customer?: ProjectCustomer | null) {
+    return customer?.contact_name?.trim() || '';
+}
 
 export function scopeTypeLabel(
     type?: string | null,

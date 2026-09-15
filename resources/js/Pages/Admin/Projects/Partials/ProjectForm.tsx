@@ -1,6 +1,7 @@
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import ContractorSelect from '@/Components/ContractorSelect';
+import CustomerSelect from '@/Components/CustomerSelect';
 import CreatableSelect from '@/Components/CreatableSelect';
 import PhoneInput from '@/Components/PhoneInput';
 import FormActionFab from '@/Components/FormActionFab';
@@ -819,12 +820,98 @@ export default function ProjectForm({
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                     <div>
                                         <h3 className="text-base font-semibold text-foreground">
-                                            General contractors/Customer
+                                            Customer / owner
                                         </h3>
                                         <p className="text-sm text-muted-foreground">
-                                            Add each general contractor with a
-                                            company name, phone number, and
-                                            email address.
+                                            The client this project is for.
+                                            This is separate from any general
+                                            contractor on the job.
+                                        </p>
+                                    </div>
+                                    {Boolean(
+                                        auth.can?.viewCustomers ||
+                                            auth.can?.createCustomers,
+                                    ) && (
+                                        <Button
+                                            asChild
+                                            variant="outline"
+                                            className="w-full sm:w-auto"
+                                        >
+                                            <Link
+                                                href={route(
+                                                    'admin.customers.index',
+                                                )}
+                                            >
+                                                Manage customers
+                                            </Link>
+                                        </Button>
+                                    )}
+                                </div>
+                                <CustomerSelect
+                                    customers={options.customers ?? []}
+                                    value={{
+                                        customer_id: data.customer_id,
+                                        company_name:
+                                            data.customer_company_name,
+                                        email: data.customer_email,
+                                        phone_number:
+                                            data.customer_phone_number,
+                                    }}
+                                    onChange={(value) => {
+                                        setData(
+                                            'customer_id',
+                                            value.customer_id,
+                                        );
+                                        setData(
+                                            'customer_company_name',
+                                            value.company_name,
+                                        );
+                                        setData(
+                                            'customer_email',
+                                            value.email,
+                                        );
+                                        setData(
+                                            'customer_phone_number',
+                                            value.phone_number,
+                                        );
+                                    }}
+                                    errors={{
+                                        customer_id: errorMessage(
+                                            validationErrors,
+                                            'customer_id',
+                                        ),
+                                        company_name: errorMessage(
+                                            validationErrors,
+                                            'customer_company_name',
+                                        ),
+                                        email: errorMessage(
+                                            validationErrors,
+                                            'customer_email',
+                                        ),
+                                        phone_number: errorMessage(
+                                            validationErrors,
+                                            'customer_phone_number',
+                                        ),
+                                    }}
+                                    showContactFields={
+                                        options.can.viewCustomerContactFields
+                                    }
+                                    companyLabel="Customer / owner"
+                                    idPrefix="project-customer"
+                                />
+                            </section>
+                        )}
+
+                        {canEditCoreFields && (
+                            <section className="flex flex-col gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <div>
+                                        <h3 className="text-base font-semibold text-foreground">
+                                            General contractors
+                                        </h3>
+                                        <p className="text-sm text-muted-foreground">
+                                            Add each general contractor on this
+                                            job. This is not the customer.
                                         </p>
                                     </div>
                                     <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">

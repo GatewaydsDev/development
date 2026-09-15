@@ -9,6 +9,7 @@ use App\Support\CustomerAccess;
 use App\Support\EmployeeAccess;
 use App\Support\ProductAccess;
 use App\Support\ProjectAccess;
+use App\Support\QuotationAccess;
 use App\Support\ServiceAccess;
 use Closure;
 use Illuminate\Http\Request;
@@ -131,6 +132,18 @@ class HandleInertiaRequests extends Middleware
                         : false,
                     'deleteBids' => $request->user()
                         ? BidAccess::canDelete($request->user())
+                        : false,
+                    'viewQuotations' => $request->user()
+                        ? QuotationAccess::canView($request->user())
+                        : false,
+                    'createQuotations' => $request->user()
+                        ? QuotationAccess::canCreate($request->user())
+                        : false,
+                    'updateQuotations' => $request->user()
+                        ? QuotationAccess::canUpdate($request->user())
+                        : false,
+                    'deleteQuotations' => $request->user()
+                        ? QuotationAccess::canDelete($request->user())
                         : false,
                     'viewProducts' => $request->user()
                         ? ProductAccess::canView($request->user())

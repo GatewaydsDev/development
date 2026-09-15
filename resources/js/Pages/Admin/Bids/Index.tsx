@@ -1,4 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import ActionHint from '@/Components/ActionHint';
 import PaginationNav from '@/Components/PaginationNav';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
@@ -16,6 +17,7 @@ import {
     EditIcon,
     EyeIcon,
     FileTextIcon,
+    FileTypeIcon,
     PlusIcon,
     PrinterIcon,
     SearchIcon,
@@ -222,6 +224,36 @@ export default function Index({ filters, options, bids }: IndexProps) {
                                                         ?.project_number ||
                                                         'No project number'}
                                                 </p>
+                                                {(bid.project?.customer
+                                                    ?.company_name ||
+                                                    bid.project?.customer
+                                                        ?.name) && (
+                                                    <p className="truncate text-sm text-muted-foreground">
+                                                        Customer / owner:{' '}
+                                                        {bid.project.customer
+                                                            .company_name ||
+                                                            bid.project.customer
+                                                                .name}
+                                                    </p>
+                                                )}
+                                                {(bid.project?.contractors
+                                                    ?.length ?? 0) > 0 && (
+                                                    <p className="truncate text-sm text-muted-foreground">
+                                                        General contractor
+                                                        {(bid.project
+                                                            ?.contractors
+                                                            ?.length ?? 0) > 1
+                                                            ? 's'
+                                                            : ''}
+                                                        :{' '}
+                                                        {bid.project?.contractors
+                                                            ?.map(
+                                                                (contractor) =>
+                                                                    contractor.name,
+                                                            )
+                                                            .join(', ')}
+                                                    </p>
+                                                )}
                                             </div>
                                             <div>
                                                 {bid.current_stage ? (
@@ -260,85 +292,95 @@ export default function Index({ filters, options, bids }: IndexProps) {
                                             <div className="font-medium text-foreground">
                                                 {formatMoney(bid.latest_total)}
                                             </div>
-                                            <div className="flex flex-nowrap gap-2 md:justify-end">
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    asChild
-                                                >
-                                                    <a
-                                                        href={route(
-                                                            'admin.bids.print',
-                                                            bid.id,
-                                                        )}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                    >
-                                                        <PrinterIcon className="size-4" />
-                                                        Print
-                                                    </a>
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    asChild
-                                                >
-                                                    <a
-                                                        href={route(
-                                                            'admin.bids.export.pdf',
-                                                            bid.id,
-                                                        )}
-                                                    >
-                                                        <FileTextIcon className="size-4" />
-                                                        PDF
-                                                    </a>
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    asChild
-                                                >
-                                                    <a
-                                                        href={route(
-                                                            'admin.bids.export.word',
-                                                            bid.id,
-                                                        )}
-                                                    >
-                                                        <FileTextIcon className="size-4" />
-                                                        Word 2026
-                                                    </a>
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    asChild
-                                                >
-                                                    <Link
-                                                        href={route(
-                                                            'admin.bids.show',
-                                                            bid.id,
-                                                        )}
-                                                    >
-                                                        <EyeIcon className="size-4" />
-                                                        View
-                                                    </Link>
-                                                </Button>
-                                                {options.can.update && (
+                                            <div className="flex flex-nowrap gap-1 md:justify-end">
+                                                <ActionHint hint="Print this bid">
                                                     <Button
                                                         variant="outline"
-                                                        size="sm"
+                                                        size="icon-xs"
+                                                        asChild
+                                                    >
+                                                        <a
+                                                            href={route(
+                                                                'admin.bids.print',
+                                                                bid.id,
+                                                            )}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            aria-label="Print this bid"
+                                                        >
+                                                            <PrinterIcon className="size-3.5" />
+                                                        </a>
+                                                    </Button>
+                                                </ActionHint>
+                                                <ActionHint hint="Download as PDF">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="icon-xs"
+                                                        asChild
+                                                    >
+                                                        <a
+                                                            href={route(
+                                                                'admin.bids.export.pdf',
+                                                                bid.id,
+                                                            )}
+                                                            aria-label="Download as PDF"
+                                                        >
+                                                            <FileTextIcon className="size-3.5" />
+                                                        </a>
+                                                    </Button>
+                                                </ActionHint>
+                                                <ActionHint hint="Download as Word">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="icon-xs"
+                                                        asChild
+                                                    >
+                                                        <a
+                                                            href={route(
+                                                                'admin.bids.export.word',
+                                                                bid.id,
+                                                            )}
+                                                            aria-label="Download as Word"
+                                                        >
+                                                            <FileTypeIcon className="size-3.5" />
+                                                        </a>
+                                                    </Button>
+                                                </ActionHint>
+                                                <ActionHint hint="View bid details">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="icon-xs"
                                                         asChild
                                                     >
                                                         <Link
                                                             href={route(
-                                                                'admin.bids.edit',
+                                                                'admin.bids.show',
                                                                 bid.id,
                                                             )}
+                                                            aria-label="View bid details"
                                                         >
-                                                            <EditIcon className="size-4" />
-                                                            Edit
+                                                            <EyeIcon className="size-3.5" />
                                                         </Link>
                                                     </Button>
+                                                </ActionHint>
+                                                {options.can.update && (
+                                                    <ActionHint hint="Edit this bid">
+                                                        <Button
+                                                            variant="outline"
+                                                            size="icon-xs"
+                                                            asChild
+                                                        >
+                                                            <Link
+                                                                href={route(
+                                                                    'admin.bids.edit',
+                                                                    bid.id,
+                                                                )}
+                                                                aria-label="Edit this bid"
+                                                            >
+                                                                <EditIcon className="size-3.5" />
+                                                            </Link>
+                                                        </Button>
+                                                    </ActionHint>
                                                 )}
                                             </div>
                                         </div>

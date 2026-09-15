@@ -25,6 +25,8 @@ import {
 } from 'lucide-react';
 import { FormEvent, useEffect, useState } from 'react';
 import {
+    projectCustomerContactLabel,
+    projectCustomerLabel,
     type ProjectOptions,
     type ProjectsPaginator,
 } from './types';
@@ -92,7 +94,7 @@ export default function Index({ filters, options, projects }: IndexProps) {
     };
 
     const projectRowGridClassName =
-        'w-full xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1.4fr)_7.5rem_minmax(0,1.1fr)_7.5rem_10.5rem]';
+        'w-full xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.2fr)_7.5rem_minmax(0,1fr)_7.5rem_10.5rem]';
 
     return (
         <AuthenticatedLayout
@@ -241,7 +243,8 @@ export default function Index({ filters, options, projects }: IndexProps) {
                                     )}
                                 >
                                     <div>Project</div>
-                                    <div>General contractors/Customer</div>
+                                    <div>Customer / owner</div>
+                                    <div>General contractors</div>
                                     <div>Bid/Estimate</div>
                                     <div>Bid scope</div>
                                     <div>Status</div>
@@ -271,6 +274,32 @@ export default function Index({ filters, options, projects }: IndexProps) {
                                                 </p>
                                             </div>
                                             <div className="min-w-0 text-sm text-muted-foreground">
+                                                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground xl:hidden">
+                                                    Customer / owner
+                                                </p>
+                                                {projectCustomerLabel(
+                                                    project.customer,
+                                                ) ? (
+                                                    <div>
+                                                        <p className="truncate font-medium text-foreground">
+                                                            {projectCustomerLabel(
+                                                                project.customer,
+                                                            )}
+                                                        </p>
+                                                        <p className="truncate">
+                                                            {projectCustomerContactLabel(
+                                                                project.customer,
+                                                            ) || 'No contact'}
+                                                        </p>
+                                                    </div>
+                                                ) : (
+                                                    <p>No customer</p>
+                                                )}
+                                            </div>
+                                            <div className="min-w-0 text-sm text-muted-foreground">
+                                                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground xl:hidden">
+                                                    General contractors
+                                                </p>
                                                 {project.contractors?.length ? (
                                                     <div className="flex flex-col gap-3">
                                                         {project.contractors.map(

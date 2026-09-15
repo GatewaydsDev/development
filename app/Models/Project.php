@@ -150,6 +150,11 @@ class Project extends Model
         return $this->hasMany(Bid::class)->latest();
     }
 
+    public function quotations(): HasMany
+    {
+        return $this->hasMany(Quotation::class)->latest();
+    }
+
     public function assignee(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_to');

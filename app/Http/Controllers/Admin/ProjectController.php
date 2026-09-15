@@ -799,6 +799,7 @@ class ProjectController extends Controller
                 'id' => $project->customer?->id,
                 'name' => $project->customer?->name,
                 'company_name' => $project->customer?->company_name,
+                'contact_name' => $project->customer?->displayContactName(),
                 'email' => $project->customer?->email,
                 'phone_number' => $project->customer?->phone_number,
             ],

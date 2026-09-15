@@ -13,8 +13,10 @@ import {
     ClipboardListIcon,
     EditIcon,
     FileTextIcon,
+    HammerIcon,
     PrinterIcon,
     TrashIcon,
+    UserRoundIcon,
 } from 'lucide-react';
 import { formatMoney, type BidOptions, type BidPayload } from './types';
 
@@ -113,6 +115,19 @@ export default function Show({ bid, options }: ShowProps) {
                                 </Link>
                             </Button>
                         )}
+                        {bid.quotation ? (
+                            <Button variant="outline" asChild>
+                                <Link
+                                    href={route(
+                                        'admin.quotations.show',
+                                        bid.quotation.id,
+                                    )}
+                                >
+                                    <ClipboardListIcon className="size-4" />
+                                    Open quotation
+                                </Link>
+                            </Button>
+                        ) : null}
                         {options.can.delete && (
                             <Button variant="outline" onClick={removeBid}>
                                 <TrashIcon className="size-4" />
@@ -152,6 +167,14 @@ export default function Show({ bid, options }: ShowProps) {
                                     value={bid.project?.site_address}
                                 />
                                 <DetailItem
+                                    label="Source quotation"
+                                    value={
+                                        bid.quotation
+                                            ? `${bid.quotation.quotation_number} — ${bid.quotation.title}`
+                                            : null
+                                    }
+                                />
+                                <DetailItem
                                     label="Current stage"
                                     value={bid.current_stage}
                                 />
@@ -173,6 +196,98 @@ export default function Show({ bid, options }: ShowProps) {
                             ) : (
                                 <p className="mt-2 text-sm text-muted-foreground">
                                     No shipping and handling text yet.
+                                </p>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <UserRoundIcon className="size-4 text-muted-foreground" />
+                                Customer / owner
+                            </CardTitle>
+                            <CardDescription>
+                                The client this bid’s project is for, not the
+                                general contractor.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {bid.project?.customer?.company_name ||
+                            bid.project?.customer?.name ? (
+                                <dl className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                                    <DetailItem
+                                        label="Customer"
+                                        value={
+                                            bid.project.customer.company_name ||
+                                            bid.project.customer.name
+                                        }
+                                    />
+                                    <DetailItem
+                                        label="Contact name"
+                                        value={
+                                            bid.project.customer.contact_name
+                                        }
+                                    />
+                                    <DetailItem
+                                        label="Phone number"
+                                        value={
+                                            bid.project.customer.phone_number
+                                        }
+                                    />
+                                    <DetailItem
+                                        label="Email address"
+                                        value={bid.project.customer.email}
+                                    />
+                                </dl>
+                            ) : (
+                                <p className="text-sm text-muted-foreground">
+                                    No customer added to this project yet.
+                                </p>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <HammerIcon className="size-4 text-muted-foreground" />
+                                General contractors
+                            </CardTitle>
+                            <CardDescription>
+                                General contractors on this job, not the
+                                customer.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex flex-col gap-6">
+                            {(bid.project?.contractors?.length ?? 0) > 0 ? (
+                                bid.project?.contractors?.map((contractor) => (
+                                    <dl
+                                        key={contractor.id}
+                                        className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"
+                                    >
+                                        <DetailItem
+                                            label="Company name"
+                                            value={contractor.name}
+                                        />
+                                        <DetailItem
+                                            label="Contact name"
+                                            value={contractor.contact_name}
+                                        />
+                                        <DetailItem
+                                            label="Phone number"
+                                            value={contractor.phone_number}
+                                        />
+                                        <DetailItem
+                                            label="Email address"
+                                            value={contractor.email}
+                                        />
+                                    </dl>
+                                ))
+                            ) : (
+                                <p className="text-sm text-muted-foreground">
+                                    No general contractors added to this
+                                    project yet.
                                 </p>
                             )}
                         </CardContent>

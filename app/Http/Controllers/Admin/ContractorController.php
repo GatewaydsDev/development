@@ -399,47 +399,13 @@ class ContractorController extends Controller
      */
     private function resolveCustomer(array $validated): ?Customer
     {
-        $primary = collect($validated['contacts'] ?? [])
-            ->first(fn (array $contact): bool => (bool) ($contact['is_primary'] ?? false))
-            ?? collect($validated['contacts'] ?? [])->first();
+        $customerId = (int) ($validated['customer_id'] ?? 0);
 
-        $customerId = $primary['customer_id'] ?? $validated['customer_id'] ?? null;
-        $companyName = trim((string) (
-            $validated['customer_company_name']
-            ?? $primary['name']
-            ?? ''
-        ));
-
-        if (! $customerId && $companyName === '') {
-            return null;
+        if ($customerId > 0) {
+            return Customer::query()->find($customerId);
         }
 
-        $customer = $customerId
-            ? Customer::query()->find($customerId)
-            : null;
-
-        if (! $customer && $companyName !== '') {
-            $customer = Customer::query()
-                ->where(function ($query) use ($companyName): void {
-                    $query
-                        ->whereRaw('LOWER(name) = ?', [mb_strtolower($companyName)])
-                        ->orWhereRaw('LOWER(company_name) = ?', [mb_strtolower($companyName)]);
-                })
-                ->first();
-        }
-
-        if ($customer) {
-            return $customer;
-        }
-
-        if ($companyName === '') {
-            return null;
-        }
-
-        return Customer::create([
-            'name' => $companyName,
-            'company_name' => $companyName,
-        ]);
+        return null;
     }
 
     /**
@@ -461,19 +427,17 @@ class ContractorController extends Controller
                 $email = $contact['email'] ?? null;
                 $notes = $contact['notes'] ?? null;
                 $isPrimary = (bool) ($contact['is_primary'] ?? false);
-                $customerContactId = null;
+                $customerContactId = filled($contact['customer_contact_id'] ?? null)
+                    ? (int) $contact['customer_contact_id']
+                    : 0;
                 $rowCustomer = filled($contact['customer_id'] ?? null)
                     ? Customer::query()->find($contact['customer_id'])
-                    : null;
+                    : $customer;
 
-                if (! $rowCustomer && $name !== '') {
-                    $rowCustomer = $customer;
-                }
-
-                if ($rowCustomer) {
+                if ($rowCustomer && $customerContactId > 0) {
                     $customerContact = $this->resolveCustomerContact(
                         $rowCustomer,
-                        (int) ($contact['customer_contact_id'] ?? 0),
+                        $customerContactId,
                         [
                             'name' => $name,
                             'title' => $title,
@@ -489,6 +453,8 @@ class ContractorController extends Controller
                     $email = $customerContact->email ?? $email;
                     $phoneNumber = $customerContact->phone_number ?: $phoneNumber;
                     $notes = $customerContact->notes ?? $notes;
+                } else {
+                    $customerContactId = null;
                 }
 
                 return [
@@ -513,17 +479,6 @@ class ContractorController extends Controller
 
         $contractor->contacts()->delete();
         $contractor->contacts()->createMany($contacts->all());
-
-        if ($customer) {
-            $primary = $contacts->firstWhere('is_primary', true) ?? $contacts->first();
-
-            if ($primary) {
-                $customer->update([
-                    'email' => $primary['email'] ?? $customer->email,
-                    'phone_number' => $primary['phone_number'] ?? $customer->phone_number,
-                ]);
-            }
-        }
     }
 
     /**

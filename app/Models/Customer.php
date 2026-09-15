@@ -45,8 +45,47 @@ class Customer extends Model
         return $this->hasMany(CustomerContact::class);
     }
 
-    public function contractors(): HasMany
+    public function quotations(): HasMany
     {
-        return $this->hasMany(Contractor::class);
+        return $this->hasMany(Quotation::class);
+    }
+
+    public function displayCompanyName(): ?string
+    {
+        if (filled($this->company_name)) {
+            return (string) $this->company_name;
+        }
+
+        return filled($this->name) ? (string) $this->name : null;
+    }
+
+    public function primaryPerson(): ?CustomerContact
+    {
+        if ($this->relationLoaded('contacts')) {
+            return $this->contacts->firstWhere('is_primary', true)
+                ?? $this->contacts->first();
+        }
+
+        return $this->contacts()
+            ->orderByDesc('is_primary')
+            ->orderBy('name')
+            ->first();
+    }
+
+    public function displayContactName(): ?string
+    {
+        $person = $this->primaryPerson()?->name;
+
+        if (filled($person)) {
+            return (string) $person;
+        }
+
+        $company = $this->displayCompanyName();
+
+        if (filled($this->name) && $this->name !== $company) {
+            return (string) $this->name;
+        }
+
+        return null;
     }
 }

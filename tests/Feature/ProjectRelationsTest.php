@@ -46,6 +46,7 @@ test('the create project page includes contractor scopes and revisions fields', 
             ->has('options.scopeTypes')
             ->has('options.statuses')
             ->has('options.contractors')
+            ->has('options.customers')
             ->has('options.products')
             ->has('options.services')
             ->where('options.nextProjectNumber', Project::nextNumber())

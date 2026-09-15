@@ -16,6 +16,7 @@ import {
     TableRow,
 } from '@/Components/ui/table';
 import PaginationNav, { type Paginator } from '@/Components/PaginationNav';
+import ActionHint from '@/Components/ActionHint';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { getNotificationStatusMeta } from '@/lib/notificationStatus';
 import { formatProjectType } from '@/lib/projectType';
@@ -178,40 +179,44 @@ export default function Index({ notifications, unreadCount }: IndexProps) {
                                                         )}
                                                     </TableCell>
                                                     <TableCell className="text-right">
-                                                        <div className="flex flex-nowrap gap-2 md:justify-end">
-                                                            <Button
-                                                                asChild
-                                                                variant="outline"
-                                                                size="sm"
-                                                            >
-                                                                <Link
-                                                                    href={route(
-                                                                        'notifications.show',
-                                                                        notification.id,
-                                                                    )}
+                                                        <div className="flex flex-nowrap gap-1 md:justify-end">
+                                                            <ActionHint hint="View notification">
+                                                                <Button
+                                                                    asChild
+                                                                    variant="outline"
+                                                                    size="icon-xs"
                                                                 >
-                                                                    <EyeIcon className="size-4" />
-                                                                    View
-                                                                </Link>
-                                                            </Button>
-                                                            <Button
-                                                                asChild
-                                                                variant="outline"
-                                                                size="sm"
-                                                                className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                                            >
-                                                                <Link
-                                                                    href={route(
-                                                                        'notifications.destroy',
-                                                                        notification.id,
-                                                                    )}
-                                                                    method="delete"
-                                                                    as="button"
+                                                                    <Link
+                                                                        href={route(
+                                                                            'notifications.show',
+                                                                            notification.id,
+                                                                        )}
+                                                                        aria-label="View notification"
+                                                                    >
+                                                                        <EyeIcon className="size-3.5" />
+                                                                    </Link>
+                                                                </Button>
+                                                            </ActionHint>
+                                                            <ActionHint hint="Delete notification">
+                                                                <Button
+                                                                    asChild
+                                                                    variant="outline"
+                                                                    size="icon-xs"
+                                                                    className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
                                                                 >
-                                                                    <Trash2Icon className="size-4" />
-                                                                    Delete
-                                                                </Link>
-                                                            </Button>
+                                                                    <Link
+                                                                        href={route(
+                                                                            'notifications.destroy',
+                                                                            notification.id,
+                                                                        )}
+                                                                        method="delete"
+                                                                        as="button"
+                                                                        aria-label="Delete notification"
+                                                                    >
+                                                                        <Trash2Icon className="size-3.5" />
+                                                                    </Link>
+                                                                </Button>
+                                                            </ActionHint>
                                                         </div>
                                                     </TableCell>
                                                 </TableRow>

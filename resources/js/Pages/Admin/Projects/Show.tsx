@@ -20,10 +20,13 @@ import {
     MapPinIcon,
     PrinterIcon,
     TrashIcon,
+    UserRoundIcon,
 } from 'lucide-react';
 import { isEmptyHtml } from '@/Pages/Admin/Bids/bidText';
 import {
     optionLabel,
+    projectCustomerContactLabel,
+    projectCustomerLabel,
     scopeTypeLabel,
     type ProjectOptions,
     type ProjectPayload,
@@ -322,12 +325,54 @@ export default function Show({ project, options }: ShowProps) {
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
-                                <HammerIcon className="size-5 text-muted-foreground" />
-                                General contractors/Customer
+                                <UserRoundIcon className="size-5 text-muted-foreground" />
+                                Customer / owner
                             </CardTitle>
                             <CardDescription>
-                                Each contractor has a company name, phone
-                                number, and email address.
+                                The client this project is for.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {projectCustomerLabel(project.customer) ? (
+                                <dl className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                                    <DetailItem
+                                        label="Customer"
+                                        value={projectCustomerLabel(
+                                            project.customer,
+                                        )}
+                                    />
+                                    <DetailItem
+                                        label="Contact name"
+                                        value={projectCustomerContactLabel(
+                                            project.customer,
+                                        )}
+                                    />
+                                    <DetailItem
+                                        label="Phone number"
+                                        value={project.customer?.phone_number}
+                                    />
+                                    <DetailItem
+                                        label="Email address"
+                                        value={project.customer?.email}
+                                    />
+                                </dl>
+                            ) : (
+                                <p className="text-sm text-muted-foreground">
+                                    No customer added yet.
+                                </p>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <HammerIcon className="size-5 text-muted-foreground" />
+                                General contractors
+                            </CardTitle>
+                            <CardDescription>
+                                General contractors on this job, not the
+                                customer.
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="flex flex-col gap-6">

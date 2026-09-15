@@ -218,12 +218,25 @@ class BidDocument
 
         $section->addTextBreak(1);
 
-        $section->addText('General contractors/Customer', ['bold' => true, 'size' => 13, 'color' => '065F46']);
+        $section->addText('Customer / owner', ['bold' => true, 'size' => 13, 'color' => '065F46']);
         $contractors = $this->contractorRows();
         $customer = $this->customerPayload();
 
-        if ($contractors === [] && ! $this->hasCustomer($customer)) {
-            $section->addText('Not added yet.', ['italic' => true, 'size' => 10, 'color' => '6B7280']);
+        if ($this->hasCustomer($customer)) {
+            $this->addMetaTable($section, [
+                ['Customer', $customer['company'] ?: $customer['name'] ?: '—'],
+                ['Contact name', $customer['name'] ?: '—'],
+                ['Phone number', $customer['phone'] ?: '—'],
+                ['Email address', $customer['email'] ?: '—'],
+            ]);
+        } else {
+            $section->addText('No customer added yet.', ['italic' => true, 'size' => 10, 'color' => '6B7280']);
+        }
+
+        $section->addText('General contractors', ['bold' => true, 'size' => 13, 'color' => '065F46']);
+
+        if ($contractors === []) {
+            $section->addText('No general contractors added yet.', ['italic' => true, 'size' => 10, 'color' => '6B7280']);
         }
 
         foreach ($contractors as $contractor) {
@@ -232,15 +245,6 @@ class BidDocument
                 ['Contact name', $contractor['contact_name'] ?: '—'],
                 ['Phone number', $contractor['phone'] ?: '—'],
                 ['Email address', $contractor['email'] ?: '—'],
-            ]);
-        }
-
-        if ($this->hasCustomer($customer)) {
-            $this->addMetaTable($section, [
-                ['Customer', $customer['company'] ?: $customer['name'] ?: '—'],
-                ['Customer contact', $customer['name'] ?: '—'],
-                ['Phone number', $customer['phone'] ?: '—'],
-                ['Email address', $customer['email'] ?: '—'],
             ]);
         }
 
@@ -539,12 +543,9 @@ class BidDocument
         $contact = $customer?->contacts?->firstWhere('is_primary', true)
             ?? $customer?->contacts?->first();
 
-        $name = filled($customer?->name) ? (string) $customer->name : null;
-        $company = filled($customer?->company_name) ? (string) $customer->company_name : null;
-
         return [
-            'name' => $name,
-            'company' => $company ?: $name,
+            'name' => $customer?->displayContactName(),
+            'company' => $customer?->displayCompanyName(),
             'email' => $contact?->email ?: $customer?->email,
             'phone' => $contact?->phone_number ?: $customer?->phone_number,
             'address' => $customer

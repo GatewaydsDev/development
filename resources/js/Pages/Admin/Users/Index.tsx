@@ -1,4 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import ActionHint from '@/Components/ActionHint';
 import PaginationNav from '@/Components/PaginationNav';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
@@ -254,39 +255,43 @@ export default function Index({ filters, users }: IndexProps) {
                                             <div className="hidden text-sm text-muted-foreground md:block">
                                                 {user.last_login_at ?? 'Never'}
                                             </div>
-                                            <div className="flex flex-wrap gap-2 md:justify-end">
+                                            <div className="flex flex-nowrap gap-1 md:justify-end">
                                                 {canManageAccess &&
                                                     user.level && (
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            asChild
-                                                        >
-                                                            <Link
-                                                                href={`${route('admin.access-control.edit')}?level=${user.level.id}`}
+                                                        <ActionHint hint="Edit permissions">
+                                                            <Button
+                                                                variant="outline"
+                                                                size="icon-xs"
+                                                                asChild
                                                             >
-                                                                <SlidersHorizontalIcon className="size-4" />
-                                                                Permissions
-                                                            </Link>
-                                                        </Button>
+                                                                <Link
+                                                                    href={`${route('admin.access-control.edit')}?level=${user.level.id}`}
+                                                                    aria-label="Edit permissions"
+                                                                >
+                                                                    <SlidersHorizontalIcon className="size-3.5" />
+                                                                </Link>
+                                                            </Button>
+                                                        </ActionHint>
                                                     )}
 
                                                 {canUpdateUsers && (
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        asChild
-                                                    >
-                                                        <Link
-                                                            href={route(
-                                                                'admin.users.edit',
-                                                                user.id,
-                                                            )}
+                                                    <ActionHint hint="Edit this user">
+                                                        <Button
+                                                            variant="outline"
+                                                            size="icon-xs"
+                                                            asChild
                                                         >
-                                                            <EditIcon className="size-4" />
-                                                            Edit
-                                                        </Link>
-                                                    </Button>
+                                                            <Link
+                                                                href={route(
+                                                                    'admin.users.edit',
+                                                                    user.id,
+                                                                )}
+                                                                aria-label="Edit this user"
+                                                            >
+                                                                <EditIcon className="size-3.5" />
+                                                            </Link>
+                                                        </Button>
+                                                    </ActionHint>
                                                 )}
 
                                                 {!canManageAccess &&

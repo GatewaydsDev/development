@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\EmployeeController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ProfessionController;
 use App\Http\Controllers\Admin\ProjectController;
+use App\Http\Controllers\Admin\QuotationController;
 use App\Http\Controllers\Admin\ServiceController;
 use App\Http\Controllers\Admin\UserActivityController;
 use App\Http\Controllers\Admin\UserController;
@@ -257,6 +258,40 @@ Route::middleware(['auth', 'prevent-back-history'])
             ->name('bid-text-templates.import');
         Route::patch('/bid-text-templates/{bidTextTemplate}', [BidCatalogController::class, 'updateTextTemplate'])
             ->name('bid-text-templates.update');
+
+        Route::get('/quotations', [QuotationController::class, 'index'])
+            ->middleware('can:view-quotations')
+            ->name('quotations.index');
+        Route::get('/quotations/create', [QuotationController::class, 'create'])
+            ->middleware('can:create-quotations')
+            ->name('quotations.create');
+        Route::post('/quotations', [QuotationController::class, 'store'])
+            ->middleware('can:create-quotations')
+            ->name('quotations.store');
+        Route::get('/quotations/{quotation}', [QuotationController::class, 'show'])
+            ->middleware('can:view-quotations')
+            ->name('quotations.show');
+        Route::get('/quotations/{quotation}/print', [QuotationController::class, 'print'])
+            ->middleware('can:view-quotations')
+            ->name('quotations.print');
+        Route::get('/quotations/{quotation}/export/pdf', [QuotationController::class, 'exportPdf'])
+            ->middleware('can:view-quotations')
+            ->name('quotations.export.pdf');
+        Route::get('/quotations/{quotation}/export/word', [QuotationController::class, 'exportWord'])
+            ->middleware('can:view-quotations')
+            ->name('quotations.export.word');
+        Route::post('/quotations/{quotation}/convert-to-bid', [QuotationController::class, 'convertToBid'])
+            ->middleware('can:create-bids')
+            ->name('quotations.convert-to-bid');
+        Route::get('/quotations/{quotation}/edit', [QuotationController::class, 'edit'])
+            ->middleware('can:update-quotations')
+            ->name('quotations.edit');
+        Route::patch('/quotations/{quotation}', [QuotationController::class, 'update'])
+            ->middleware('can:update-quotations')
+            ->name('quotations.update');
+        Route::delete('/quotations/{quotation}', [QuotationController::class, 'destroy'])
+            ->middleware('can:delete-quotations')
+            ->name('quotations.destroy');
 
         Route::get('/products', [ProductController::class, 'index'])
             ->middleware('can:view-products')

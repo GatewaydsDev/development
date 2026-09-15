@@ -1,4 +1,3 @@
-import CreatableSelect from '@/Components/CreatableSelect';
 import FormActionFab from '@/Components/FormActionFab';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
@@ -26,7 +25,6 @@ import { toast } from 'sonner';
 import { z } from 'zod';
 import {
     blankContact,
-    contactFromCustomerContact,
     contractorToFormData,
     phoneTypeLabel,
     type ContractorFormData,
@@ -427,48 +425,6 @@ export default function ContractorForm({
         );
     };
 
-    const customerContacts = options.customerContacts ?? [];
-    const usedCustomerContactIds = data.contacts
-        .map((contact) => contact.customer_contact_id)
-        .filter(Boolean);
-    const primaryCustomerId =
-        data.contacts.find((contact) => contact.is_primary)?.customer_id ||
-        data.customer_id ||
-        '';
-
-    const applyCustomerContact = (index: number, contactId: string) => {
-        if (contactId === '') {
-            updateContactFields(index, {
-                customer_id: '',
-                customer_contact_id: '',
-                name: '',
-                title: '',
-                email: '',
-                phone_number: '',
-                phone_type: '',
-            });
-            return;
-        }
-
-        const customerContact = customerContacts.find(
-            (item) => String(item.id) === contactId,
-        );
-
-        if (!customerContact) {
-            updateContactFields(index, {
-                customer_contact_id: contactId,
-            });
-            return;
-        }
-
-        updateContactFields(index, {
-            ...contactFromCustomerContact(
-                customerContact,
-                data.contacts[index]?.is_primary ?? index === 0,
-            ),
-        });
-    };
-
     return (
         <Card className="shadow-sm">
             <CardHeader>
@@ -530,10 +486,9 @@ export default function ContractorForm({
                                     Contact information
                                 </h3>
                                 <p className="text-sm text-muted-foreground">
-                                    Contact name comes from the customer
-                                    contacts list. Select an existing contact
-                                    or add a new one, then fill in the remaining
-                                    details.
+                                    People at this general contractor. These
+                                    contacts stay on the contractor and do not
+                                    create a customer.
                                 </p>
                             </div>
                             <Button
@@ -582,47 +537,32 @@ export default function ContractorForm({
                                 </div>
 
                                 <div className="grid gap-5 md:grid-cols-2">
-                                    <CreatableSelect
-                                        id={`contact-name-${index}`}
-                                        label="Contact name"
-                                        compact
-                                        value={contact.customer_contact_id}
-                                        options={customerContacts}
-                                        disabledIds={usedCustomerContactIds.filter(
-                                            (contactId) =>
-                                                contactId !==
-                                                contact.customer_contact_id,
-                                        )}
-                                        createRoute={route(
-                                            'admin.customer-contacts.store',
-                                        )}
-                                        createExtras={
-                                            primaryCustomerId
-                                                ? {
-                                                      customer_id:
-                                                          primaryCustomerId,
-                                                  }
-                                                : {}
-                                        }
-                                        optionsProp="options"
-                                        catalogKey="customerContacts"
-                                        entityLabel="contact"
-                                        placeholder="Select or add a contact"
-                                        error={
-                                            formErrors[
-                                                `contacts.${index}.name`
-                                            ] ||
-                                            formErrors[
-                                                `contacts.${index}.customer_contact_id`
-                                            ]
-                                        }
-                                        onChange={(contactId) =>
-                                            applyCustomerContact(
-                                                index,
-                                                contactId,
-                                            )
-                                        }
-                                    />
+                                    <div className="flex flex-col gap-2">
+                                        <InputLabel
+                                            htmlFor={`contact-name-${index}`}
+                                            value="Contact name"
+                                            className={labelClassName}
+                                        />
+                                        <TextInput
+                                            id={`contact-name-${index}`}
+                                            value={contact.name}
+                                            className={inputClassName}
+                                            placeholder="Alex Rivera"
+                                            onChange={(event) =>
+                                                updateContactFields(index, {
+                                                    name: event.target.value,
+                                                    customer_contact_id: '',
+                                                })
+                                            }
+                                        />
+                                        <InputError
+                                            message={
+                                                formErrors[
+                                                    `contacts.${index}.name`
+                                                ]
+                                            }
+                                        />
+                                    </div>
                                     <div className="flex flex-col gap-2">
                                         <InputLabel
                                             htmlFor={`contact-title-${index}`}

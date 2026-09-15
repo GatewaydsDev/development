@@ -1,8 +1,8 @@
 export const BID_TEXT_PLACEHOLDERS = [
     { key: 'project_name', label: 'Project name' },
     { key: 'project_number', label: 'Project number' },
-    { key: 'customer_name', label: 'Customer name' },
-    { key: 'customer_company', label: 'Customer company' },
+    { key: 'customer_name', label: 'Customer / owner contact' },
+    { key: 'customer_company', label: 'Customer / owner' },
     { key: 'project_address', label: 'Project address' },
     { key: 'scope_of_work', label: 'Scope of work' },
     { key: 'estimated_start_date', label: 'Estimated start date' },

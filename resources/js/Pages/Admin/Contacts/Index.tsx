@@ -1,4 +1,5 @@
 import FormActionFab from '@/Components/FormActionFab';
+import ActionHint from '@/Components/ActionHint';
 import PaginationNav from '@/Components/PaginationNav';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
@@ -465,29 +466,35 @@ export default function Index({ filters, contacts }: IndexProps) {
                                                 {contact.phone_number ||
                                                     'Not added'}
                                             </div>
-                                            <div className="flex flex-wrap gap-2 md:justify-end">
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() =>
-                                                        openEdit(contact)
-                                                    }
-                                                >
-                                                    <EditIcon className="size-4" />
-                                                    Edit
-                                                </Button>
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                                    onClick={() =>
-                                                        destroyContact(contact)
-                                                    }
-                                                >
-                                                    <Trash2Icon className="size-4" />
-                                                    Delete
-                                                </Button>
+                                            <div className="flex flex-nowrap gap-1 md:justify-end">
+                                                <ActionHint hint="Edit this contact">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="icon-xs"
+                                                        onClick={() =>
+                                                            openEdit(contact)
+                                                        }
+                                                        aria-label="Edit this contact"
+                                                    >
+                                                        <EditIcon className="size-3.5" />
+                                                    </Button>
+                                                </ActionHint>
+                                                <ActionHint hint="Delete this contact">
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="icon-xs"
+                                                        className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                                        onClick={() =>
+                                                            destroyContact(
+                                                                contact,
+                                                            )
+                                                        }
+                                                        aria-label="Delete this contact"
+                                                    >
+                                                        <Trash2Icon className="size-3.5" />
+                                                    </Button>
+                                                </ActionHint>
                                             </div>
                                         </div>
                                     ))

@@ -79,6 +79,10 @@ export type PageProps<
             createBids: boolean;
             updateBids: boolean;
             deleteBids: boolean;
+            viewQuotations: boolean;
+            createQuotations: boolean;
+            updateQuotations: boolean;
+            deleteQuotations: boolean;
             viewProducts: boolean;
             createProducts: boolean;
             updateProducts: boolean;

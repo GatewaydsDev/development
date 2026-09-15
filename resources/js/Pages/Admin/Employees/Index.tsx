@@ -1,4 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import ActionHint from '@/Components/ActionHint';
 import PaginationNav from '@/Components/PaginationNav';
 import {
     AlertDialog,
@@ -259,58 +260,61 @@ export default function Index({ filters, employees }: IndexProps) {
                                                     )}
                                                 </Badge>
                                             </div>
-                                            <div className="flex flex-wrap gap-2 md:justify-end">
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() =>
-                                                        setSelectedRatesEmployee(
-                                                            employee,
-                                                        )
-                                                    }
+                                            <div className="flex flex-nowrap gap-1 md:justify-end">
+                                                <ActionHint
+                                                    hint={`Pay rates (${employee.pay_rates.length})`}
                                                 >
-                                                    <DollarSignIcon className="size-4" />
-                                                    Rates (
-                                                    {
-                                                        employee.pay_rates
-                                                            .length
-                                                    }
-                                                    )
-                                                </Button>
-                                                {canUpdateEmployees && (
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        asChild
-                                                    >
-                                                        <Link
-                                                            href={route(
-                                                                'admin.employees.edit',
-                                                                employee.id,
-                                                            )}
-                                                        >
-                                                            <EditIcon className="size-4" />
-                                                            Edit
-                                                        </Link>
-                                                    </Button>
-                                                )}
-                                                {canDeleteEmployees && (
                                                     <Button
                                                         type="button"
                                                         variant="outline"
-                                                        size="sm"
-                                                        className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                                        size="icon-xs"
                                                         onClick={() =>
-                                                            destroyEmployee(
-                                                                employee.id,
-                                                                employee.full_name,
+                                                            setSelectedRatesEmployee(
+                                                                employee,
                                                             )
                                                         }
+                                                        aria-label={`Pay rates (${employee.pay_rates.length})`}
                                                     >
-                                                        <Trash2Icon className="size-4" />
-                                                        Delete
+                                                        <DollarSignIcon className="size-3.5" />
                                                     </Button>
+                                                </ActionHint>
+                                                {canUpdateEmployees && (
+                                                    <ActionHint hint="Edit this employee">
+                                                        <Button
+                                                            variant="outline"
+                                                            size="icon-xs"
+                                                            asChild
+                                                        >
+                                                            <Link
+                                                                href={route(
+                                                                    'admin.employees.edit',
+                                                                    employee.id,
+                                                                )}
+                                                                aria-label="Edit this employee"
+                                                            >
+                                                                <EditIcon className="size-3.5" />
+                                                            </Link>
+                                                        </Button>
+                                                    </ActionHint>
+                                                )}
+                                                {canDeleteEmployees && (
+                                                    <ActionHint hint="Delete this employee">
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="icon-xs"
+                                                            className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                                            onClick={() =>
+                                                                destroyEmployee(
+                                                                    employee.id,
+                                                                    employee.full_name,
+                                                                )
+                                                            }
+                                                            aria-label="Delete this employee"
+                                                        >
+                                                            <Trash2Icon className="size-3.5" />
+                                                        </Button>
+                                                    </ActionHint>
                                                 )}
                                             </div>
                                         </div>
