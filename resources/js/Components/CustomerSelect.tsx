@@ -46,6 +46,9 @@ type CustomerSelectProps = {
         phone_number?: string;
     };
     disabled?: boolean;
+    showContactFields?: boolean;
+    idPrefix?: string;
+    companyLabel?: string;
 };
 
 export function customerCompanyName(customer: CustomerSelectOption): string {
@@ -74,6 +77,9 @@ export default function CustomerSelect({
     onChange,
     errors,
     disabled = false,
+    showContactFields = true,
+    idPrefix = 'customer',
+    companyLabel = 'Company name',
 }: CustomerSelectProps) {
     const listboxId = useId();
     const containerRef = useRef<HTMLDivElement>(null);
@@ -183,17 +189,21 @@ export default function CustomerSelect({
     };
 
     return (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div
+            className={
+                showContactFields ? 'grid gap-4 md:grid-cols-2' : 'flex flex-col'
+            }
+        >
             <div ref={containerRef} className="flex flex-col gap-2">
                 <InputLabel
-                    htmlFor="customer-company-name"
-                    value="Company name"
+                    htmlFor={`${idPrefix}-company-name`}
+                    value={companyLabel}
                     className="text-emerald-700 dark:text-emerald-300"
                 />
                 <div className="relative">
                     <TextInput
                         ref={inputRef}
-                        id="customer-company-name"
+                        id={`${idPrefix}-company-name`}
                         role="combobox"
                         aria-autocomplete="list"
                         aria-expanded={isOpen}
@@ -316,50 +326,54 @@ export default function CustomerSelect({
                 />
             </div>
 
-            <div className="flex flex-col gap-2">
-                <InputLabel
-                    htmlFor="customer-phone-number"
-                    value="Phone number"
-                    className="text-emerald-700 dark:text-emerald-300"
-                />
-                <PhoneInput
-                    id="customer-phone-number"
-                    value={value.phone_number}
-                    disabled={disabled}
-                    className="h-11 w-full border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
-                    onValueChange={(phoneNumber) =>
-                        onChange({
-                            ...value,
-                            phone_number: phoneNumber,
-                        })
-                    }
-                />
-                <InputError message={errors?.phone_number} />
-            </div>
+            {showContactFields ? (
+                <>
+                    <div className="flex flex-col gap-2">
+                        <InputLabel
+                            htmlFor={`${idPrefix}-phone-number`}
+                            value="Phone number"
+                            className="text-emerald-700 dark:text-emerald-300"
+                        />
+                        <PhoneInput
+                            id={`${idPrefix}-phone-number`}
+                            value={value.phone_number}
+                            disabled={disabled}
+                            className="h-11 w-full border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
+                            onValueChange={(phoneNumber) =>
+                                onChange({
+                                    ...value,
+                                    phone_number: phoneNumber,
+                                })
+                            }
+                        />
+                        <InputError message={errors?.phone_number} />
+                    </div>
 
-            <div className="flex flex-col gap-2 md:col-span-2">
-                <InputLabel
-                    htmlFor="customer-email"
-                    value="Email address"
-                    className="text-emerald-700 dark:text-emerald-300"
-                />
-                <TextInput
-                    id="customer-email"
-                    type="email"
-                    value={value.email}
-                    disabled={disabled}
-                    autoComplete="email"
-                    placeholder="name@company.com"
-                    className="h-11 w-full border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
-                    onChange={(event) =>
-                        onChange({
-                            ...value,
-                            email: event.target.value,
-                        })
-                    }
-                />
-                <InputError message={errors?.email} />
-            </div>
+                    <div className="flex flex-col gap-2 md:col-span-2">
+                        <InputLabel
+                            htmlFor={`${idPrefix}-email`}
+                            value="Email address"
+                            className="text-emerald-700 dark:text-emerald-300"
+                        />
+                        <TextInput
+                            id={`${idPrefix}-email`}
+                            type="email"
+                            value={value.email}
+                            disabled={disabled}
+                            autoComplete="email"
+                            placeholder="name@company.com"
+                            className="h-11 w-full border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
+                            onChange={(event) =>
+                                onChange({
+                                    ...value,
+                                    email: event.target.value,
+                                })
+                            }
+                        />
+                        <InputError message={errors?.email} />
+                    </div>
+                </>
+            ) : null}
         </div>
     );
 }

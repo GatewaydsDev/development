@@ -46,7 +46,7 @@ export default function Edit({ contractor, options }: EditProps) {
                         description={
                             contractor.projects_count > 0
                                 ? `Linked to ${contractor.projects_count} project${contractor.projects_count === 1 ? '' : 's'}.`
-                                : 'Update company, address, and contact information.'
+                                : 'Update the linked customer, company, address, and contact information.'
                         }
                         contractor={contractor}
                         options={options}

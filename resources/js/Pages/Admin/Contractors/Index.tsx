@@ -188,7 +188,11 @@ export default function Index({ filters, contractors }: IndexProps) {
                                                         {contractor.name}
                                                     </p>
                                                     <p className="text-sm text-muted-foreground">
-                                                        {primaryContact?.email ||
+                                                        {contractor.customer
+                                                            ?.name ||
+                                                            contractor.customer
+                                                                ?.company_name ||
+                                                            primaryContact?.email ||
                                                             contractor.website ||
                                                             contractor.uuid}
                                                     </p>

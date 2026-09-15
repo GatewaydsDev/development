@@ -1,3 +1,4 @@
+import CreatableSelect from '@/Components/CreatableSelect';
 import FormActionFab from '@/Components/FormActionFab';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
@@ -25,6 +26,7 @@ import { toast } from 'sonner';
 import { z } from 'zod';
 import {
     blankContact,
+    contactFromCustomerContact,
     contractorToFormData,
     phoneTypeLabel,
     type ContractorFormData,
@@ -74,6 +76,8 @@ function contractorSchema(phoneTypes: string[]) {
                 .trim()
                 .max(1000, 'Notes must be 1,000 characters or less.'),
             is_primary: z.boolean(),
+            customer_id: z.string(),
+            customer_contact_id: z.string(),
         })
         .superRefine((contact, context) => {
             const phoneDigits = contact.phone_number.replace(/\D/g, '');
@@ -116,6 +120,11 @@ function contractorSchema(phoneTypes: string[]) {
                 .string()
                 .trim()
                 .max(5000, 'Notes must be 5,000 characters or less.'),
+            customer_id: z.string(),
+            customer_company_name: z
+                .string()
+                .trim()
+                .max(255, 'Customer name must be 255 characters or less.'),
             contacts: z.array(contactSchema),
         })
         .superRefine((values, context) => {
@@ -226,12 +235,21 @@ export default function ContractorForm({
             onFinish: () => setProcessing(false),
         };
 
+        const primary =
+            values.contacts.find((contact) => contact.is_primary) ??
+            values.contacts[0];
+        const payload = {
+            ...values,
+            customer_id: primary?.customer_id ?? '',
+            customer_company_name: primary?.name ?? '',
+        };
+
         if (method === 'patch') {
-            router.patch(action, values, submitOptions);
+            router.patch(action, payload, submitOptions);
             return;
         }
 
-        router.post(action, values, submitOptions);
+        router.post(action, payload, submitOptions);
     }) as FormEventHandler;
 
     const inputClassName =
@@ -409,6 +427,48 @@ export default function ContractorForm({
         );
     };
 
+    const customerContacts = options.customerContacts ?? [];
+    const usedCustomerContactIds = data.contacts
+        .map((contact) => contact.customer_contact_id)
+        .filter(Boolean);
+    const primaryCustomerId =
+        data.contacts.find((contact) => contact.is_primary)?.customer_id ||
+        data.customer_id ||
+        '';
+
+    const applyCustomerContact = (index: number, contactId: string) => {
+        if (contactId === '') {
+            updateContactFields(index, {
+                customer_id: '',
+                customer_contact_id: '',
+                name: '',
+                title: '',
+                email: '',
+                phone_number: '',
+                phone_type: '',
+            });
+            return;
+        }
+
+        const customerContact = customerContacts.find(
+            (item) => String(item.id) === contactId,
+        );
+
+        if (!customerContact) {
+            updateContactFields(index, {
+                customer_contact_id: contactId,
+            });
+            return;
+        }
+
+        updateContactFields(index, {
+            ...contactFromCustomerContact(
+                customerContact,
+                data.contacts[index]?.is_primary ?? index === 0,
+            ),
+        });
+    };
+
     return (
         <Card className="shadow-sm">
             <CardHeader>
@@ -470,8 +530,10 @@ export default function ContractorForm({
                                     Contact information
                                 </h3>
                                 <p className="text-sm text-muted-foreground">
-                                    Add one or more people with a phone number,
-                                    phone type, and email address.
+                                    Contact name comes from the customer
+                                    contacts list. Select an existing contact
+                                    or add a new one, then fill in the remaining
+                                    details.
                                 </p>
                             </div>
                             <Button
@@ -520,32 +582,47 @@ export default function ContractorForm({
                                 </div>
 
                                 <div className="grid gap-5 md:grid-cols-2">
-                                    <div className="flex flex-col gap-2">
-                                        <InputLabel
-                                            htmlFor={`contact-name-${index}`}
-                                            value="Contact name"
-                                            className={labelClassName}
-                                        />
-                                        <TextInput
-                                            id={`contact-name-${index}`}
-                                            value={contact.name}
-                                            className={inputClassName}
-                                            onChange={(event) =>
-                                                updateContact(
-                                                    index,
-                                                    'name',
-                                                    event.target.value,
-                                                )
-                                            }
-                                        />
-                                        <InputError
-                                            message={
-                                                formErrors[
-                                                    `contacts.${index}.name`
-                                                ]
-                                            }
-                                        />
-                                    </div>
+                                    <CreatableSelect
+                                        id={`contact-name-${index}`}
+                                        label="Contact name"
+                                        compact
+                                        value={contact.customer_contact_id}
+                                        options={customerContacts}
+                                        disabledIds={usedCustomerContactIds.filter(
+                                            (contactId) =>
+                                                contactId !==
+                                                contact.customer_contact_id,
+                                        )}
+                                        createRoute={route(
+                                            'admin.customer-contacts.store',
+                                        )}
+                                        createExtras={
+                                            primaryCustomerId
+                                                ? {
+                                                      customer_id:
+                                                          primaryCustomerId,
+                                                  }
+                                                : {}
+                                        }
+                                        optionsProp="options"
+                                        catalogKey="customerContacts"
+                                        entityLabel="contact"
+                                        placeholder="Select or add a contact"
+                                        error={
+                                            formErrors[
+                                                `contacts.${index}.name`
+                                            ] ||
+                                            formErrors[
+                                                `contacts.${index}.customer_contact_id`
+                                            ]
+                                        }
+                                        onChange={(contactId) =>
+                                            applyCustomerContact(
+                                                index,
+                                                contactId,
+                                            )
+                                        }
+                                    />
                                     <div className="flex flex-col gap-2">
                                         <InputLabel
                                             htmlFor={`contact-title-${index}`}

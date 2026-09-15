@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Contractor;
 use App\Models\ContractorContact;
+use App\Models\Customer;
+use App\Models\CustomerContact;
 use App\Support\ContractorAccess;
 use App\Support\ProjectAccess;
 use Closure;
@@ -33,7 +35,9 @@ class ContractorController extends Controller
             ],
             'contractors' => Contractor::query()
                 ->with([
+                    'customer',
                     'contacts' => fn ($query) => $query->orderByDesc('is_primary')->orderBy('name'),
+                    'contacts.customerContact',
                 ])
                 ->withCount('projects')
                 ->when($search !== '', function ($query) use ($search): void {
@@ -43,6 +47,11 @@ class ContractorController extends Controller
                             ->orWhere('website', 'like', "%{$search}%")
                             ->orWhere('city', 'like', "%{$search}%")
                             ->orWhere('state', 'like', "%{$search}%")
+                            ->orWhereHas('customer', function ($query) use ($search): void {
+                                $query
+                                    ->where('name', 'like', "%{$search}%")
+                                    ->orWhere('company_name', 'like', "%{$search}%");
+                            })
                             ->orWhereHas('contacts', function ($query) use ($search): void {
                                 $query
                                     ->where('name', 'like', "%{$search}%")
@@ -82,9 +91,13 @@ class ContractorController extends Controller
         $this->validateContactUniqueness($validated['contacts'] ?? []);
 
         $contractor = DB::transaction(function () use ($validated): Contractor {
-            $contractor = Contractor::create($this->contractorAttributes($validated));
+            $customer = $this->resolveCustomer($validated);
+            $contractor = Contractor::create([
+                ...$this->contractorAttributes($validated),
+                'customer_id' => $customer?->id,
+            ]);
 
-            $this->syncContacts($contractor, $validated['contacts'] ?? []);
+            $this->syncContacts($contractor, $validated['contacts'] ?? [], $customer);
 
             return $contractor;
         });
@@ -99,7 +112,9 @@ class ContractorController extends Controller
         abort_unless(ContractorAccess::canUpdate($request->user()), 403);
 
         $contractor->load([
+            'customer',
             'contacts' => fn ($query) => $query->orderByDesc('is_primary')->orderBy('name'),
+            'contacts.customerContact',
         ]);
         $contractor->loadCount('projects');
 
@@ -117,9 +132,14 @@ class ContractorController extends Controller
         $this->validateContactUniqueness($validated['contacts'] ?? [], $contractor);
 
         DB::transaction(function () use ($contractor, $validated): void {
-            $contractor->update($this->contractorAttributes($validated));
+            $customer = $this->resolveCustomer($validated);
 
-            $this->syncContacts($contractor, $validated['contacts'] ?? []);
+            $contractor->update([
+                ...$this->contractorAttributes($validated),
+                'customer_id' => $customer?->id,
+            ]);
+
+            $this->syncContacts($contractor, $validated['contacts'] ?? [], $customer);
         });
 
         return redirect()
@@ -236,7 +256,19 @@ class ContractorController extends Controller
             'postal_code' => ['nullable', 'string', 'max:50'],
             'country' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:5000'],
+            'customer_id' => ['nullable', 'integer', Rule::exists(Customer::class, 'id')],
+            'customer_company_name' => ['nullable', 'string', 'max:255'],
             'contacts' => ['array'],
+            'contacts.*.customer_id' => [
+                'nullable',
+                'integer',
+                Rule::exists(Customer::class, 'id'),
+            ],
+            'contacts.*.customer_contact_id' => [
+                'nullable',
+                'integer',
+                Rule::exists(CustomerContact::class, 'id'),
+            ],
             'contacts.*.name' => ['nullable', 'string', 'max:255'],
             'contacts.*.title' => ['nullable', 'string', 'max:255'],
             'contacts.*.email' => ['nullable', 'email', 'max:255'],
@@ -298,12 +330,18 @@ class ContractorController extends Controller
                     $seenEmails[$email] = true;
                 }
 
+                $linkedCustomerContactId = (int) ($contact['customer_contact_id'] ?? 0);
+
                 $exists = ContractorContact::query()
                     ->whereRaw('LOWER(email) = ?', [$email])
                     ->when($contractor, fn ($query) => $query->where('contractor_id', '!=', $contractor->id))
+                    ->when(
+                        $linkedCustomerContactId > 0,
+                        fn ($query) => $query->where('customer_contact_id', '!=', $linkedCustomerContactId),
+                    )
                     ->exists();
 
-                if ($exists) {
+                if ($exists && $linkedCustomerContactId === 0) {
                     $errors["contacts.{$index}.email"] = 'This email is already used by another contractor contact.';
                 }
             }
@@ -315,12 +353,18 @@ class ContractorController extends Controller
                     $seenPhones[$phoneDigits] = true;
                 }
 
+                $linkedCustomerContactId = (int) ($contact['customer_contact_id'] ?? 0);
+
                 $exists = ContractorContact::query()
                     ->where('phone_number', $phoneNumber)
                     ->when($contractor, fn ($query) => $query->where('contractor_id', '!=', $contractor->id))
+                    ->when(
+                        $linkedCustomerContactId > 0,
+                        fn ($query) => $query->where('customer_contact_id', '!=', $linkedCustomerContactId),
+                    )
                     ->exists();
 
-                if ($exists) {
+                if ($exists && $linkedCustomerContactId === 0) {
                     $errors["contacts.{$index}.phone_number"] = 'This phone number is already used by another contractor contact.';
                 }
             }
@@ -351,26 +395,111 @@ class ContractorController extends Controller
     }
 
     /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function resolveCustomer(array $validated): ?Customer
+    {
+        $primary = collect($validated['contacts'] ?? [])
+            ->first(fn (array $contact): bool => (bool) ($contact['is_primary'] ?? false))
+            ?? collect($validated['contacts'] ?? [])->first();
+
+        $customerId = $primary['customer_id'] ?? $validated['customer_id'] ?? null;
+        $companyName = trim((string) (
+            $validated['customer_company_name']
+            ?? $primary['name']
+            ?? ''
+        ));
+
+        if (! $customerId && $companyName === '') {
+            return null;
+        }
+
+        $customer = $customerId
+            ? Customer::query()->find($customerId)
+            : null;
+
+        if (! $customer && $companyName !== '') {
+            $customer = Customer::query()
+                ->where(function ($query) use ($companyName): void {
+                    $query
+                        ->whereRaw('LOWER(name) = ?', [mb_strtolower($companyName)])
+                        ->orWhereRaw('LOWER(company_name) = ?', [mb_strtolower($companyName)]);
+                })
+                ->first();
+        }
+
+        if ($customer) {
+            return $customer;
+        }
+
+        if ($companyName === '') {
+            return null;
+        }
+
+        return Customer::create([
+            'name' => $companyName,
+            'company_name' => $companyName,
+        ]);
+    }
+
+    /**
      * @param  array<int, array<string, mixed>>  $contacts
      */
-    private function syncContacts(Contractor $contractor, array $contacts): void
+    private function syncContacts(Contractor $contractor, array $contacts, ?Customer $customer = null): void
     {
         $contacts = collect($contacts)
             ->filter(fn (array $contact): bool => filled($contact['name'] ?? null)
                 || filled($contact['email'] ?? null)
-                || filled($contact['phone_number'] ?? null))
+                || filled($contact['phone_number'] ?? null)
+                || filled($contact['customer_id'] ?? null)
+                || filled($contact['customer_contact_id'] ?? null))
             ->values()
-            ->map(function (array $contact, int $index): array {
+            ->map(function (array $contact, int $index) use ($customer): array {
                 $phoneNumber = trim((string) ($contact['phone_number'] ?? ''));
+                $name = trim((string) ($contact['name'] ?? '')) ?: 'Contact '.($index + 1);
+                $title = $contact['title'] ?? null;
+                $email = $contact['email'] ?? null;
+                $notes = $contact['notes'] ?? null;
+                $isPrimary = (bool) ($contact['is_primary'] ?? false);
+                $customerContactId = null;
+                $rowCustomer = filled($contact['customer_id'] ?? null)
+                    ? Customer::query()->find($contact['customer_id'])
+                    : null;
+
+                if (! $rowCustomer && $name !== '') {
+                    $rowCustomer = $customer;
+                }
+
+                if ($rowCustomer) {
+                    $customerContact = $this->resolveCustomerContact(
+                        $rowCustomer,
+                        (int) ($contact['customer_contact_id'] ?? 0),
+                        [
+                            'name' => $name,
+                            'title' => $title,
+                            'email' => $email,
+                            'phone_number' => $phoneNumber !== '' ? $phoneNumber : null,
+                            'notes' => $notes,
+                            'is_primary' => $isPrimary,
+                        ],
+                    );
+                    $customerContactId = $customerContact->id;
+                    $name = $customerContact->name ?: $name;
+                    $title = $customerContact->title ?? $title;
+                    $email = $customerContact->email ?? $email;
+                    $phoneNumber = $customerContact->phone_number ?: $phoneNumber;
+                    $notes = $customerContact->notes ?? $notes;
+                }
 
                 return [
-                    'name' => trim((string) ($contact['name'] ?? '')) ?: 'Contact '.($index + 1),
-                    'title' => $contact['title'] ?? null,
-                    'email' => $contact['email'] ?? null,
+                    'customer_contact_id' => $customerContactId,
+                    'name' => $name,
+                    'title' => $title,
+                    'email' => $email,
                     'phone_number' => $phoneNumber !== '' ? $phoneNumber : null,
                     'phone_type' => $phoneNumber !== '' ? ($contact['phone_type'] ?: null) : null,
-                    'notes' => $contact['notes'] ?? null,
-                    'is_primary' => (bool) ($contact['is_primary'] ?? false),
+                    'notes' => $notes,
+                    'is_primary' => $isPrimary,
                 ];
             });
 
@@ -384,6 +513,52 @@ class ContractorController extends Controller
 
         $contractor->contacts()->delete();
         $contractor->contacts()->createMany($contacts->all());
+
+        if ($customer) {
+            $primary = $contacts->firstWhere('is_primary', true) ?? $contacts->first();
+
+            if ($primary) {
+                $customer->update([
+                    'email' => $primary['email'] ?? $customer->email,
+                    'phone_number' => $primary['phone_number'] ?? $customer->phone_number,
+                ]);
+            }
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    private function resolveCustomerContact(Customer $customer, int $contactId, array $attributes): CustomerContact
+    {
+        $contact = $contactId > 0
+            ? $customer->contacts()->whereKey($contactId)->first()
+            : null;
+
+        if (! $contact && filled($attributes['email'] ?? null)) {
+            $contact = $customer->contacts()
+                ->whereRaw('LOWER(email) = ?', [mb_strtolower((string) $attributes['email'])])
+                ->first();
+        }
+
+        if (! $contact) {
+            $makePrimary = ! $customer->contacts()->exists();
+
+            return $customer->contacts()->create([
+                ...$attributes,
+                'is_primary' => $makePrimary,
+            ]);
+        }
+
+        $contact->update([
+            'name' => $attributes['name'],
+            'title' => $attributes['title'],
+            'email' => $attributes['email'],
+            'phone_number' => $attributes['phone_number'],
+            'notes' => $attributes['notes'],
+        ]);
+
+        return $contact->refresh();
     }
 
     /**
@@ -405,6 +580,14 @@ class ContractorController extends Controller
             'postal_code' => $contractor->postal_code,
             'country' => $contractor->country,
             'notes' => $contractor->notes,
+            'customer_id' => $contractor->customer_id,
+            'customer' => $contractor->customer
+                ? [
+                    'id' => $contractor->customer->id,
+                    'name' => $contractor->customer->name,
+                    'company_name' => $contractor->customer->company_name,
+                ]
+                : null,
             'email' => $primaryContact?->email,
             'phone_number' => $primaryContact?->phone_number,
             'contact_name' => $primaryContact?->name,
@@ -413,6 +596,9 @@ class ContractorController extends Controller
                 ->map(fn (ContractorContact $contact): array => [
                     'id' => $contact->id,
                     'uuid' => $contact->uuid,
+                    'customer_id' => $contact->customerContact?->customer_id
+                        ?? ($contact->is_primary ? $contractor->customer_id : null),
+                    'customer_contact_id' => $contact->customer_contact_id,
                     'name' => $contact->name,
                     'title' => $contact->title,
                     'email' => $contact->email,
@@ -434,6 +620,46 @@ class ContractorController extends Controller
     {
         return [
             'phoneTypes' => Contractor::PHONE_TYPES,
+            'customers' => Customer::query()
+                ->with(['contacts' => fn ($query) => $query->orderByDesc('is_primary')->orderBy('name')])
+                ->orderByRaw('LOWER(name)')
+                ->get()
+                ->map(fn (Customer $customer): array => [
+                    'id' => $customer->id,
+                    'name' => $customer->name ?: $customer->company_name,
+                    'company_name' => $customer->company_name,
+                    'email' => $customer->email,
+                    'phone_number' => $customer->phone_number,
+                    'address_line_1' => $customer->address_line_1,
+                    'address_line_2' => $customer->address_line_2,
+                    'city' => $customer->city,
+                    'state' => $customer->state,
+                    'postal_code' => $customer->postal_code,
+                    'country' => $customer->country,
+                    'contacts' => $customer->contacts
+                        ->map(fn (CustomerContact $contact): array => [
+                            'id' => $contact->id,
+                            'name' => $contact->name,
+                            'title' => $contact->title,
+                            'email' => $contact->email,
+                            'phone_number' => $contact->phone_number,
+                            'is_primary' => $contact->is_primary,
+                        ])
+                        ->values(),
+                ])
+                ->all(),
+            'customerContacts' => CustomerContact::query()
+                ->orderByRaw('LOWER(name)')
+                ->get(['id', 'customer_id', 'name', 'title', 'email', 'phone_number'])
+                ->map(fn (CustomerContact $contact): array => [
+                    'id' => $contact->id,
+                    'customer_id' => $contact->customer_id,
+                    'name' => $contact->name,
+                    'title' => $contact->title,
+                    'email' => $contact->email,
+                    'phone_number' => $contact->phone_number,
+                ])
+                ->all(),
         ];
     }
 }

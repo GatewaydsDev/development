@@ -44,5 +44,9 @@ class Customer extends Model
     {
         return $this->hasMany(CustomerContact::class);
     }
-}
 
+    public function contractors(): HasMany
+    {
+        return $this->hasMany(Contractor::class);
+    }
+}

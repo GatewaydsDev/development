@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 class CustomerContact extends Model
@@ -43,5 +44,9 @@ class CustomerContact extends Model
     {
         return $this->belongsTo(CustomerContactRole::class, 'customer_contact_role_id');
     }
-}
 
+    public function contractorContacts(): HasMany
+    {
+        return $this->hasMany(ContractorContact::class);
+    }
+}

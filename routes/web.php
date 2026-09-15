@@ -160,6 +160,8 @@ Route::middleware(['auth', 'prevent-back-history'])
             ->name('customers.destroy');
         Route::get('/customer-contacts/availability', [CustomerController::class, 'contactAvailability'])
             ->name('customer-contacts.availability');
+        Route::post('/customer-contacts', [CustomerController::class, 'storeContact'])
+            ->name('customer-contacts.store');
         Route::post('/customer-contact-roles', [CustomerContactRoleController::class, 'store'])
             ->name('customer-contact-roles.store');
 

@@ -68,6 +68,10 @@ class CustomerController extends Controller
     {
         abort_unless(CustomerAccess::canCreate($request->user()), 403);
 
+        if (! $request->exists('company_name') && $request->filled('name')) {
+            return $this->storeFromCatalog($request);
+        }
+
         $validated = $this->validatedCustomer($request);
         $this->validateContactUniqueness($validated['contacts'] ?? []);
 
@@ -80,6 +84,56 @@ class CustomerController extends Controller
         return redirect()
             ->route('admin.customers.index')
             ->with('success', 'Customer created successfully.');
+    }
+
+    public function storeContact(Request $request): RedirectResponse
+    {
+        abort_unless(
+            CustomerAccess::canCreate($request->user()) || CustomerAccess::canUpdate($request->user()),
+            403,
+        );
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'customer_id' => ['nullable', 'integer', Rule::exists(Customer::class, 'id')],
+            'email' => ['nullable', 'email', 'max:255'],
+            'phone_number' => ['nullable', 'string', 'max:50'],
+        ]);
+
+        $name = trim($validated['name']);
+        $customer = filled($validated['customer_id'] ?? null)
+            ? Customer::query()->find($validated['customer_id'])
+            : null;
+
+        if (! $customer) {
+            $customer = Customer::query()
+                ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
+                ->first();
+        }
+
+        if (! $customer) {
+            $customer = Customer::create([
+                'name' => $name,
+                'company_name' => $name,
+            ]);
+        }
+
+        $existing = $customer->contacts()
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
+            ->first();
+
+        if ($existing) {
+            return back()->with('success', 'Contact already exists.');
+        }
+
+        $customer->contacts()->create([
+            'name' => $name,
+            'email' => $validated['email'] ?? null,
+            'phone_number' => $validated['phone_number'] ?? null,
+            'is_primary' => ! $customer->contacts()->exists(),
+        ]);
+
+        return back()->with('success', 'Contact added successfully.');
     }
 
     public function edit(Request $request, Customer $customer): Response
@@ -245,6 +299,37 @@ class CustomerController extends Controller
         if ($errors !== []) {
             throw ValidationException::withMessages($errors);
         }
+    }
+
+    private function storeFromCatalog(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'phone_number' => ['nullable', 'string', 'max:50'],
+        ]);
+
+        $name = trim($validated['name']);
+        $existing = Customer::query()
+            ->where(function ($query) use ($name): void {
+                $query
+                    ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
+                    ->orWhereRaw('LOWER(company_name) = ?', [mb_strtolower($name)]);
+            })
+            ->first();
+
+        if ($existing) {
+            return back()->with('success', 'Customer already exists.');
+        }
+
+        Customer::create([
+            'name' => $name,
+            'company_name' => $name,
+            'email' => $validated['email'] ?? null,
+            'phone_number' => $validated['phone_number'] ?? null,
+        ]);
+
+        return back()->with('success', 'Customer added successfully.');
     }
 
     /**

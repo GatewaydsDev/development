@@ -41,7 +41,7 @@ export default function Create({ options }: CreateProps) {
                         action={route('admin.contractors.store')}
                         submitLabel="Create contractor"
                         title="Contractor information"
-                        description="Save company details and one or more contacts so this contractor can be reused on projects."
+                        description="Save company details and one or more contacts. Contact name comes from the customer contacts list, so you can select an existing person or add a new one."
                         options={options}
                     />
                 </div>
