@@ -19,6 +19,7 @@ use App\Models\WindowGlazingType;
 use App\Models\WindowSeal;
 use App\Support\ProductAccess;
 use App\Support\ProductCatalogDocument;
+use App\Support\StateInitials;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
@@ -325,15 +326,15 @@ class ProductController extends Controller
             403,
         );
 
+        StateInitials::prepare($request, 'name');
+
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
+            'name' => StateInitials::requiredRules(),
             'rate' => ['nullable', 'numeric', 'min:0', 'max:999.999'],
         ]);
 
-        $name = trim($validated['name']);
-        $existing = TaxState::query()
-            ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
-            ->first();
+        $name = $validated['name'];
+        $existing = TaxState::findForProjectState($name);
 
         if ($existing) {
             if (array_key_exists('rate', $validated) && $validated['rate'] !== null) {
@@ -1064,6 +1065,7 @@ class ProductController extends Controller
                 ? [
                     'id' => $product->taxState->id,
                     'name' => $product->taxState->name,
+                    'abbreviation' => $product->taxState->abbreviation(),
                     'rate' => $product->taxState->rate === null
                         ? null
                         : (float) $product->taxState->rate,
@@ -1081,6 +1083,7 @@ class ProductController extends Controller
                             ? [
                                 'id' => $statePrice->taxState->id,
                                 'name' => $statePrice->taxState->name,
+                                'abbreviation' => $statePrice->taxState->abbreviation(),
                                 'rate' => $statePrice->taxState->rate === null
                                     ? null
                                     : (float) $statePrice->taxState->rate,
@@ -1200,6 +1203,7 @@ class ProductController extends Controller
                 ->map(fn (TaxState $taxState): array => [
                     'id' => $taxState->id,
                     'name' => $taxState->name,
+                    'abbreviation' => $taxState->abbreviation(),
                     'rate' => $taxState->rate === null ? null : (float) $taxState->rate,
                 ])
                 ->all(),

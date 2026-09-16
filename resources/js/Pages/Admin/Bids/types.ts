@@ -97,6 +97,18 @@ export type BidOptions = {
     quotations?: BidQuotationOption[];
 };
 
+export type BidRevisionPayload = {
+    id?: number;
+    number: string;
+    revision_date?: string | null;
+    notes?: string | null;
+    user_id?: number | null;
+    user?: {
+        id?: number | null;
+        name?: string | null;
+    } | null;
+};
+
 export type BidStagePayload = {
     id?: number;
     stage_type_id: number;
@@ -113,10 +125,12 @@ export type BidScopeProductPayload = {
     kind?: string | null;
     service_id?: number | null;
     service_name?: string | null;
+    location?: string | null;
     description?: string | null;
     quantity?: string | number | null;
     unit_bid?: string | number | null;
     extended?: string | number | null;
+    allocated_handling?: string | number | null;
 };
 
 export type BidScopePayload = {
@@ -183,9 +197,19 @@ export type BidPayload = {
     } | null;
     current_stage?: string | null;
     latest_total?: string | null;
+    revisions?: BidRevisionPayload[];
     stages: BidStagePayload[];
     scopes: BidScopePayload[];
     pricings: BidPricingPayload[];
+};
+
+export type BidRevisionFormData = {
+    id: string;
+    number: string;
+    revision_date: string;
+    notes: string;
+    user_id: string;
+    user_name: string;
 };
 
 export type BidStageFormData = {
@@ -197,9 +221,11 @@ export type BidStageFormData = {
 export type BidScopeProductFormData = {
     product_id: string;
     service_id: string;
+    location: string;
     quantity: string;
     unit_bid: string;
     extended: string;
+    allocated_handling: string;
 };
 
 export type BidScopeFormData = {
@@ -233,6 +259,7 @@ export type BidFormData = {
     application_text: string;
     bid_scope_text_template_id: string;
     scope_of_work_text: string;
+    revisions: BidRevisionFormData[];
     stages: BidStageFormData[];
     scopes: BidScopeFormData[];
     pricings: BidPricingFormData[];
@@ -261,6 +288,15 @@ export const formatMoney = (value?: string | number | null) => {
     }).format(Number.isFinite(amount) ? amount : 0);
 };
 
+export const blankRevision = (userId = '', userName = ''): BidRevisionFormData => ({
+    id: '',
+    number: '',
+    revision_date: '',
+    notes: '',
+    user_id: userId,
+    user_name: userName,
+});
+
 export const blankStage = (): BidStageFormData => ({
     stage_type_id: '',
     stage_date: '',
@@ -270,9 +306,11 @@ export const blankStage = (): BidStageFormData => ({
 export const blankScopeProduct = (): BidScopeProductFormData => ({
     product_id: '',
     service_id: '',
+    location: '',
     quantity: '',
     unit_bid: '',
     extended: '',
+    allocated_handling: '',
 });
 
 export const blankScope = (): BidScopeFormData => ({
@@ -283,16 +321,91 @@ export const blankScope = (): BidScopeFormData => ({
     products: [blankScopeProduct()],
 });
 
-export const scopeExtendedAmount = (quantity: string, unitBid: string) => {
-    const qty = Number(quantity);
-    const unit = Number(unitBid);
+export const combinedPriceAmount = (
+    unitBid: string,
+    allocatedHandling: string = '',
+) => {
+    const hasUnit = unitBid.trim() !== '';
+    const hasAllocated = allocatedHandling.trim() !== '';
+    const unit = hasUnit ? Number(unitBid) : 0;
+    const allocated = hasAllocated ? Number(allocatedHandling) : 0;
 
-    if (!Number.isFinite(qty) || !Number.isFinite(unit) || quantity === '' || unitBid === '') {
+    if (!hasUnit && !hasAllocated) {
         return '';
     }
 
-    return (Math.round(qty * unit * 100) / 100).toFixed(2);
+    if ((hasUnit && !Number.isFinite(unit)) || (hasAllocated && !Number.isFinite(allocated))) {
+        return '';
+    }
+
+    return (
+        Math.round(
+            ((hasUnit ? unit : 0) + (hasAllocated ? allocated : 0)) * 100,
+        ) / 100
+    ).toFixed(2);
 };
+
+export const scopeExtendedAmount = (
+    quantity: string,
+    unitBid: string,
+    allocatedHandling: string = '',
+) => {
+    const hasQty = quantity.trim() !== '';
+    const hasUnit = unitBid.trim() !== '';
+    const hasAllocated = allocatedHandling.trim() !== '';
+    const qty = hasQty ? Number(quantity) : 0;
+    const unit = hasUnit ? Number(unitBid) : 0;
+    const allocated = hasAllocated ? Number(allocatedHandling) : 0;
+
+    if (hasQty && !Number.isFinite(qty)) {
+        return '';
+    }
+
+    if (hasUnit && !Number.isFinite(unit)) {
+        return '';
+    }
+
+    if (hasAllocated && !Number.isFinite(allocated)) {
+        return '';
+    }
+
+    if (hasQty && hasUnit) {
+        return (
+            Math.round((qty * unit + (hasAllocated ? allocated : 0)) * 100) /
+            100
+        ).toFixed(2);
+    }
+
+    if (hasAllocated) {
+        return (Math.round(allocated * 100) / 100).toFixed(2);
+    }
+
+    return '';
+};
+
+export const lineExtendedAmount = (line: {
+    quantity?: string | number | null;
+    unit_bid?: string | number | null;
+    allocated_handling?: string | number | null;
+    extended?: string | number | null;
+}) =>
+    scopeExtendedAmount(
+        String(line.quantity ?? ''),
+        String(line.unit_bid ?? ''),
+        String(line.allocated_handling ?? ''),
+    ) ||
+    (line.extended === null || line.extended === undefined
+        ? ''
+        : String(line.extended));
+
+export const lineCombinedPrice = (line: {
+    unit_bid?: string | number | null;
+    allocated_handling?: string | number | null;
+}) =>
+    combinedPriceAmount(
+        String(line.unit_bid ?? ''),
+        String(line.allocated_handling ?? ''),
+    );
 
 export const scopesTotalAmount = (scopes: BidScopeFormData[] = []) =>
     scopes.reduce((sum, scope) => {
@@ -304,7 +417,11 @@ export const scopesTotalAmount = (scopes: BidScopeFormData[] = []) =>
                 }
 
                 const extended = Number(
-                    scopeExtendedAmount(line.quantity, line.unit_bid) ||
+                    scopeExtendedAmount(
+                        line.quantity,
+                        line.unit_bid,
+                        line.allocated_handling,
+                    ) ||
                         line.extended ||
                         0,
                 );
@@ -313,6 +430,47 @@ export const scopesTotalAmount = (scopes: BidScopeFormData[] = []) =>
             }, 0)
         );
     }, 0);
+
+export const scopesCombinedPriceAmount = (
+    scopes: BidScopeFormData[] = [],
+) => {
+    const prices = new Set<string>();
+
+    scopes.forEach((scope) => {
+        (scope.products ?? []).forEach((line) => {
+            if (line.product_id.trim() === '' && line.service_id.trim() === '') {
+                return;
+            }
+
+            const price = combinedPriceAmount(
+                line.unit_bid,
+                line.allocated_handling,
+            );
+
+            if (price !== '') {
+                prices.add(price);
+            }
+        });
+    });
+
+    return prices.size === 1 ? [...prices][0] : '';
+};
+
+export const combinedPriceAmountFromBid = (bid?: BidPayload | null) => {
+    const prices = new Set<string>();
+
+    (bid?.scopes ?? []).forEach((scope) => {
+        (scope.products ?? []).forEach((product) => {
+            const price = lineCombinedPrice(product);
+
+            if (price !== '') {
+                prices.add(price);
+            }
+        });
+    });
+
+    return prices.size === 1 ? [...prices][0] : '';
+};
 
 const moneyAmount = (value: number) => (Math.round(value * 100) / 100).toFixed(2);
 
@@ -457,7 +615,11 @@ export const lineAmountsForProduct = (
     return {
         quantity,
         unit_bid: unitBid,
-        extended: scopeExtendedAmount(quantity, unitBid),
+        extended: scopeExtendedAmount(
+            quantity,
+            unitBid,
+            current?.allocated_handling ?? '',
+        ),
     };
 };
 
@@ -498,6 +660,8 @@ export const scopesFromProject = (
                           service_id: scope.service_id
                               ? String(scope.service_id)
                               : '',
+                          location: '',
+                          allocated_handling: '',
                           ...lineAmountsForProduct(
                               scope.product_id ? String(scope.product_id) : '',
                               products,
@@ -546,6 +710,15 @@ export const bidToFormData = (bid?: BidPayload): BidFormData => ({
         ? String(bid.bid_scope_text_template_id)
         : '',
     scope_of_work_text: bid?.scope_of_work_text ?? '',
+    revisions:
+        bid?.revisions?.map((revision) => ({
+            id: revision.id ? String(revision.id) : '',
+            number: revision.number ?? '',
+            revision_date: revision.revision_date ?? '',
+            notes: revision.notes ?? '',
+            user_id: revision.user_id ? String(revision.user_id) : '',
+            user_name: revision.user?.name ?? '',
+        })) ?? [],
     stages:
         bid?.stages?.length
             ? bid.stages.map((stage) => ({
@@ -592,6 +765,7 @@ export const bidToFormData = (bid?: BidPayload): BidFormData => ({
                                     service_id: product.service_id
                                         ? String(product.service_id)
                                         : '',
+                                    location: product.location ?? '',
                                     quantity:
                                         decimalString(product.quantity) ||
                                         fallback.quantity,
@@ -601,6 +775,9 @@ export const bidToFormData = (bid?: BidPayload): BidFormData => ({
                                     extended:
                                         decimalString(product.extended) ||
                                         fallback.extended,
+                                    allocated_handling: decimalString(
+                                        product.allocated_handling,
+                                    ),
                                 };
                             })
                           : [blankScopeProduct()],

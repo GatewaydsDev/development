@@ -18,6 +18,16 @@ import {
 import { zodResolver } from '@hookform/resolvers/zod';
 import { router, usePage, Link } from '@inertiajs/react';
 import { inputToDecimal, parseDecimal } from '@/lib/money';
+import {
+    normalizePostalCode,
+    optionalPostalCodeSchema,
+} from '@/lib/postalCode';
+import {
+    normalizeStateInitials,
+    optionalStateInitialsSchema,
+    stateInitialsInputClassName,
+} from '@/lib/stateInitials';
+import { cn } from '@/lib/utils';
 import { PlusIcon, Trash2Icon } from 'lucide-react';
 import { FormEventHandler, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -99,8 +109,8 @@ function projectSchema(options: ProjectOptions, canEditCoreFields: boolean) {
             site_address_line_1: z.string().trim().max(255),
             site_address_line_2: z.string().trim().max(255),
             site_city: z.string().trim().max(255),
-            site_state: z.string().trim().max(255),
-            site_postal_code: z.string().trim().max(50),
+            site_state: optionalStateInitialsSchema,
+            site_postal_code: optionalPostalCodeSchema,
             site_country: z.string().trim().max(255),
             estimated_start_date: optionalDateSchema,
             estimated_end_date: optionalDateSchema,
@@ -740,8 +750,8 @@ export default function ProjectForm({
                                         }
                                     />
                                 </div>
-                                <div className="grid gap-5 sm:grid-cols-3">
-                                    <div className="flex flex-col gap-2">
+                                <div className="grid gap-5 sm:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)]">
+                                    <div className="flex w-fit flex-col gap-2">
                                         <InputLabel
                                             htmlFor="site-state"
                                             value="State"
@@ -750,11 +760,21 @@ export default function ProjectForm({
                                         <TextInput
                                             id="site-state"
                                             value={data.site_state}
-                                            className={inputClassName}
+                                            className={cn(
+                                                inputClassName,
+                                                stateInitialsInputClassName,
+                                            )}
+                                            autoComplete="address-level1"
+                                            autoCapitalize="characters"
+                                            maxLength={2}
+                                            size={2}
+                                            placeholder="PA"
                                             onChange={(event) =>
                                                 setData(
                                                     'site_state',
-                                                    event.target.value,
+                                                    normalizeStateInitials(
+                                                        event.target.value,
+                                                    ),
                                                 )
                                             }
                                         />
@@ -769,10 +789,15 @@ export default function ProjectForm({
                                             id="site-postal-code"
                                             value={data.site_postal_code}
                                             className={inputClassName}
+                                            autoComplete="postal-code"
+                                            maxLength={15}
+                                            placeholder="07102-1234"
                                             onChange={(event) =>
                                                 setData(
                                                     'site_postal_code',
-                                                    event.target.value,
+                                                    normalizePostalCode(
+                                                        event.target.value,
+                                                    ),
                                                 )
                                             }
                                         />

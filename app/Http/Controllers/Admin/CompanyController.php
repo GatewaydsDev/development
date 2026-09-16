@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Company;
+use App\Support\PostalCode;
+use App\Support\StateInitials;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -80,6 +82,9 @@ class CompanyController extends Controller
      */
     private function validatedCompanyData(Request $request): array
     {
+        StateInitials::prepare($request, 'state');
+        PostalCode::prepare($request, 'postal_code');
+
         return $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'legal_name' => ['nullable', 'string', 'max:255'],
@@ -89,8 +94,8 @@ class CompanyController extends Controller
             'address_line_1' => ['nullable', 'string', 'max:255'],
             'address_line_2' => ['nullable', 'string', 'max:255'],
             'city' => ['nullable', 'string', 'max:255'],
-            'state' => ['nullable', 'string', 'max:255'],
-            'postal_code' => ['nullable', 'string', 'max:50'],
+            'state' => StateInitials::optionalRules(),
+            'postal_code' => PostalCode::optionalRules(),
             'country' => ['nullable', 'string', 'max:255'],
             'website_url' => ['nullable', 'url', 'max:255'],
             'contact_url' => ['nullable', 'url', 'max:255'],

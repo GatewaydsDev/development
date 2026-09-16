@@ -274,21 +274,21 @@ test('state taxes can be created and their percent can be changed', function () 
 
     $this->actingAs($admin)
         ->post(route('admin.tax-states.store'), [
-            'name' => 'Connecticut',
+            'name' => 'CT',
             'rate' => '6.35',
         ])
         ->assertSessionHasNoErrors();
 
     $this->actingAs($admin)
         ->post(route('admin.tax-states.store'), [
-            'name' => 'connecticut',
+            'name' => 'ct',
             'rate' => '6.35',
         ])
         ->assertSessionHasNoErrors();
 
-    $connecticut = TaxState::query()->whereRaw('LOWER(name) = ?', ['connecticut'])->firstOrFail();
+    $connecticut = TaxState::query()->whereRaw('LOWER(name) = ?', ['ct'])->firstOrFail();
 
-    expect(TaxState::query()->whereRaw('LOWER(name) = ?', ['connecticut'])->count())->toBe(1);
+    expect(TaxState::query()->whereRaw('LOWER(name) = ?', ['ct'])->count())->toBe(1);
     expect((float) $connecticut->rate)->toBe(6.35);
 
     $manufacturer = Manufacturer::create(['name' => 'Curries']);

@@ -17,9 +17,11 @@ use App\Models\User;
 use App\Models\UserLevel;
 use App\Support\BidAccess;
 use App\Support\BidApplicationText;
+use App\Support\PostalCode;
 use App\Support\ProjectAccess;
 use App\Support\ProjectDocument;
 use App\Support\ProjectListDocument;
+use App\Support\StateInitials;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -356,6 +358,9 @@ class ProjectController extends Controller
         $user = $request->user();
         $isProjectManager = $user->hasUserLevel(UserLevel::PROJECT_MANAGER);
 
+        StateInitials::prepare($request, 'site_state');
+        PostalCode::prepare($request, 'site_postal_code');
+
         $rules = [
             'status_id' => ['required', 'integer', Rule::exists(ProjectStatus::class, 'id')],
             'priority' => ['required', 'string', Rule::in(Project::PRIORITIES)],
@@ -373,8 +378,8 @@ class ProjectController extends Controller
                 'site_address_line_1' => ['nullable', 'string', 'max:255'],
                 'site_address_line_2' => ['nullable', 'string', 'max:255'],
                 'site_city' => ['nullable', 'string', 'max:255'],
-                'site_state' => ['nullable', 'string', 'max:255'],
-                'site_postal_code' => ['nullable', 'string', 'max:50'],
+                'site_state' => StateInitials::optionalRules(),
+                'site_postal_code' => PostalCode::optionalRules(),
                 'site_country' => ['nullable', 'string', 'max:255'],
                 'contractors' => ['array'],
                 'contractors.*.contractor_id' => [

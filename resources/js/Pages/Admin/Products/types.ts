@@ -49,6 +49,7 @@ export type ProductPartOption = {
 export type TaxStateOption = {
     id: number;
     name: string;
+    abbreviation?: string | null;
     rate?: number | null;
 };
 

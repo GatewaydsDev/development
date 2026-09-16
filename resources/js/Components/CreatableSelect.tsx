@@ -13,6 +13,11 @@ import {
     AlertDialogTitle,
 } from '@/Components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
+import {
+    normalizeStateInitials,
+    requiredStateInitialsSchema,
+    stateInitialsInputClassName,
+} from '@/lib/stateInitials';
 import { router } from '@inertiajs/react';
 import { CheckIcon, ChevronDownIcon, PlusIcon } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 'react';
@@ -52,6 +57,9 @@ type CreatableSelectProps = {
     compact?: boolean;
     clearOnSelect?: boolean;
     createExtras?: Record<string, string>;
+    wrapOptions?: boolean;
+    menuMinWidth?: number;
+    stateInitials?: boolean;
 };
 
 const nameSchema = z
@@ -80,14 +88,23 @@ export default function CreatableSelect({
     compact = false,
     clearOnSelect = false,
     createExtras = {},
+    wrapOptions = false,
+    menuMinWidth,
+    stateInitials = false,
 }: CreatableSelectProps) {
     const listboxId = useId();
     const containerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const listRef = useRef<HTMLDivElement>(null);
     const commitQueryRef = useRef<() => void>(() => {});
+    const createNameSchema = stateInitials
+        ? requiredStateInitialsSchema
+        : nameSchema;
     const selected = options.find((option) => String(option.id) === value);
-    const [query, setQuery] = useState(selected?.name ?? '');
+    const selectedLabel = stateInitials
+        ? (selected?.abbreviation || selected?.name || '')
+        : (selected?.name ?? '');
+    const [query, setQuery] = useState(selectedLabel);
     const [description, setDescription] = useState('');
     const [isOpen, setIsOpen] = useState(false);
     const [hasTyped, setHasTyped] = useState(false);
@@ -104,10 +121,15 @@ export default function CreatableSelect({
     const openDirectionRef = useRef<'up' | 'down' | null>(null);
 
     const normalizedQuery = query.trim();
-    const selectedName = selected?.name ?? '';
-    const exactMatch = options.find(
-        (option) => option.name.toLowerCase() === normalizedQuery.toLowerCase(),
-    );
+    const selectedName = selectedLabel;
+    const exactMatch = options.find((option) => {
+        const queryValue = normalizedQuery.toLowerCase();
+
+        return (
+            option.name.toLowerCase() === queryValue ||
+            (option.abbreviation ?? '').toLowerCase() === queryValue
+        );
+    });
     const exactMatchAlreadyAdded =
         exactMatch !== undefined &&
         disabledIds.includes(String(exactMatch.id)) &&
@@ -115,7 +137,7 @@ export default function CreatableSelect({
     const canCreate =
         allowCreate &&
         Boolean(createRoute) &&
-        nameSchema.safeParse(query).success &&
+        createNameSchema.safeParse(query).success &&
         exactMatch === undefined &&
         normalizedQuery !== '';
 
@@ -134,7 +156,8 @@ export default function CreatableSelect({
                     return true;
                 }
 
-                const haystack = `${option.name} ${option.project_number ?? ''}`.toLowerCase();
+                const haystack =
+                    `${option.name} ${option.abbreviation ?? ''} ${option.description ?? ''} ${option.project_number ?? ''}`.toLowerCase();
 
                 return haystack.includes(normalizedQuery.toLowerCase());
             })
@@ -145,9 +168,9 @@ export default function CreatableSelect({
     const optionCount = filtered.length + (canCreate ? 1 : 0);
 
     useEffect(() => {
-        setQuery(selected?.name ?? '');
+        setQuery(selectedLabel);
         setHasTyped(false);
-    }, [selected?.name, value]);
+    }, [selectedLabel, value]);
 
     useEffect(() => {
         setHighlightedIndex(0);
@@ -169,7 +192,10 @@ export default function CreatableSelect({
             const rect = input.getBoundingClientRect();
             const spaceBelow = window.innerHeight - rect.bottom - 8;
             const spaceAbove = rect.top - 8;
-            const maxHeight = Math.min(320, Math.max(spaceBelow, spaceAbove, 160));
+            const maxHeight = Math.min(
+                wrapOptions ? 420 : 320,
+                Math.max(spaceBelow, spaceAbove, 160),
+            );
 
             if (openDirectionRef.current === null) {
                 openDirectionRef.current =
@@ -177,10 +203,18 @@ export default function CreatableSelect({
             }
 
             const openUp = openDirectionRef.current === 'up';
+            const minWidth = stateInitials
+                ? 288
+                : wrapOptions
+                  ? (menuMinWidth ?? 480)
+                  : rect.width;
             const nextStyle: CSSProperties = {
                 position: 'fixed',
                 left: rect.left,
-                width: rect.width,
+                width: Math.min(
+                    window.innerWidth - 24,
+                    Math.max(rect.width, minWidth),
+                ),
                 maxHeight,
                 top: openUp ? undefined : rect.bottom + 4,
                 bottom: openUp ? window.innerHeight - rect.top + 4 : undefined,
@@ -212,7 +246,7 @@ export default function CreatableSelect({
             window.removeEventListener('resize', updateMenuPosition);
             window.removeEventListener('scroll', updateMenuPosition, true);
         };
-    }, [isOpen, filtered.length]);
+    }, [isOpen, filtered.length, menuMinWidth, stateInitials, wrapOptions]);
 
     const optionLabel = (option: CreatableOption) => {
         const details = [
@@ -240,22 +274,32 @@ export default function CreatableSelect({
         }
 
         onChange(String(option.id), option);
-        setQuery(clearOnSelect ? '' : option.name);
+        setQuery(
+            clearOnSelect
+                ? ''
+                : stateInitials
+                  ? option.abbreviation || option.name
+                  : option.name,
+        );
         setHasTyped(false);
         setIsOpen(false);
     };
 
     const askToCreate = (name: string) => {
-        const parsed = nameSchema.safeParse(name);
+        const parsed = createNameSchema.safeParse(name);
 
         if (!parsed.success || !createRoute) {
             return;
         }
 
-        const existing = options.find(
-            (option) =>
-                option.name.toLowerCase() === parsed.data.toLowerCase(),
-        );
+        const existing = options.find((option) => {
+            const createdName = parsed.data.toLowerCase();
+
+            return (
+                option.name.toLowerCase() === createdName ||
+                (option.abbreviation ?? '').toLowerCase() === createdName
+            );
+        });
 
         if (existing) {
             choose(existing);
@@ -368,15 +412,25 @@ export default function CreatableSelect({
                                         ...(catalog?.products ?? []),
                                         ...(catalog?.parts ?? []),
                                     ];
-                            const created = list.find(
-                                (option) =>
-                                    option.name.toLowerCase() ===
-                                    pendingName.toLowerCase(),
-                            );
+                            const created = list.find((option) => {
+                                const createdName = pendingName.toLowerCase();
+
+                                return (
+                                    option.name.toLowerCase() === createdName ||
+                                    (option.abbreviation ?? '').toLowerCase() ===
+                                        createdName
+                                );
+                            });
 
                             if (created) {
                                 onChange(String(created.id), created);
-                                setQuery(clearOnSelect ? '' : created.name);
+                                setQuery(
+                                    clearOnSelect
+                                        ? ''
+                                        : stateInitials
+                                          ? created.abbreviation || created.name
+                                          : created.name,
+                                );
                             }
 
                             setPendingName('');
@@ -416,7 +470,10 @@ export default function CreatableSelect({
     };
 
     return (
-        <div ref={containerRef} className="flex flex-col gap-2">
+        <div
+            ref={containerRef}
+            className={cn('flex flex-col gap-2', stateInitials && 'w-fit')}
+        >
             {label ? (
                 <InputLabel
                     htmlFor={id}
@@ -427,7 +484,7 @@ export default function CreatableSelect({
             {hint ? (
                 <p className="truncate text-sm text-muted-foreground">{hint}</p>
             ) : null}
-            <div className="relative">
+            <div className={cn('relative', stateInitials && 'w-fit')}>
                 <TextInput
                     ref={inputRef}
                     id={id}
@@ -437,8 +494,14 @@ export default function CreatableSelect({
                     aria-controls={listboxId}
                     value={query}
                     autoComplete="off"
+                    autoCapitalize={stateInitials ? 'characters' : undefined}
+                    maxLength={stateInitials ? 2 : undefined}
+                    size={stateInitials ? 2 : undefined}
                     placeholder={placeholder}
-                    className="h-11 w-full border-border bg-background pr-10 text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
+                    className={cn(
+                        'h-11 w-full border-border bg-background pr-10 text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring',
+                        stateInitials && stateInitialsInputClassName,
+                    )}
                     onFocus={() => {
                         setHasTyped(false);
                         setIsOpen(true);
@@ -447,11 +510,15 @@ export default function CreatableSelect({
                         });
                     }}
                     onChange={(event) => {
-                        setQuery(event.target.value);
+                        const nextValue = stateInitials
+                            ? normalizeStateInitials(event.target.value)
+                            : event.target.value;
+
+                        setQuery(nextValue);
                         setHasTyped(true);
                         setIsOpen(true);
 
-                        if (event.target.value.trim() === '') {
+                        if (nextValue.trim() === '') {
                             onChange('', undefined);
                         }
                     }}
@@ -495,10 +562,12 @@ export default function CreatableSelect({
                         }
                     }}
                 />
-                <ChevronDownIcon
-                    className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-                    aria-hidden
-                />
+                {stateInitials ? null : (
+                    <ChevronDownIcon
+                        className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                        aria-hidden
+                    />
+                )}
             </div>
             {isOpen &&
                 createPortal(
@@ -524,7 +593,8 @@ export default function CreatableSelect({
                                     aria-selected={isSelected}
                                     disabled={isDisabled}
                                     className={cn(
-                                        'flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm',
+                                        'flex w-full flex-col items-start gap-1 px-3 py-2 text-left text-sm',
+                                        wrapOptions && 'py-2.5',
                                         isDisabled
                                             ? 'cursor-not-allowed text-muted-foreground'
                                             : 'text-foreground',
@@ -540,19 +610,57 @@ export default function CreatableSelect({
                                     }
                                     onClick={() => choose(option)}
                                 >
-                                    <span className="flex w-full items-center justify-between gap-3">
-                                        <span className="min-w-0 truncate">
-                                            {optionLabel(option)}
-                                            {isDisabled
-                                                ? ' (already added)'
-                                                : ''}
+                                    <span className="flex w-full items-start justify-between gap-3">
+                                        <span
+                                            className={cn(
+                                                'min-w-0',
+                                                wrapOptions
+                                                    ? 'whitespace-normal break-words leading-snug'
+                                                    : 'truncate',
+                                            )}
+                                        >
+                                            {wrapOptions ? (
+                                                <span className="flex flex-col gap-0.5">
+                                                    <span className="font-medium">
+                                                        {option.name}
+                                                        {isDisabled
+                                                            ? ' (already added)'
+                                                            : ''}
+                                                    </span>
+                                                    {option.abbreviation ||
+                                                    option.kind ? (
+                                                        <span className="text-xs text-muted-foreground">
+                                                            {[
+                                                                option.abbreviation,
+                                                                option.kind,
+                                                            ]
+                                                                .filter(Boolean)
+                                                                .join(' · ')}
+                                                        </span>
+                                                    ) : null}
+                                                </span>
+                                            ) : (
+                                                <>
+                                                    {optionLabel(option)}
+                                                    {isDisabled
+                                                        ? ' (already added)'
+                                                        : ''}
+                                                </>
+                                            )}
                                         </span>
                                         {isSelected ? (
                                             <CheckIcon className="size-4 shrink-0 text-emerald-700 dark:text-emerald-300" />
                                         ) : null}
                                     </span>
                                     {option.description ? (
-                                        <span className="line-clamp-2 text-xs text-muted-foreground">
+                                        <span
+                                            className={cn(
+                                                'text-xs text-muted-foreground',
+                                                wrapOptions
+                                                    ? 'whitespace-normal break-words'
+                                                    : 'line-clamp-2',
+                                            )}
+                                        >
                                             {option.description}
                                         </span>
                                     ) : null}

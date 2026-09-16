@@ -80,6 +80,13 @@ class Bid extends Model
             ->orderBy('id');
     }
 
+    public function revisions(): HasMany
+    {
+        return $this->hasMany(BidRevision::class)
+            ->orderByDesc('revision_date')
+            ->orderByDesc('id');
+    }
+
     public function latestTotal(): float
     {
         $this->loadMissing('scopes.products');
@@ -87,13 +94,14 @@ class Bid extends Model
         return round((float) $this->scopes->sum(function (BidScope $scope): float {
             if ($scope->products->isNotEmpty()) {
                 $fromLines = $scope->products->sum(
-                    fn (BidScopeProduct $line): float => $line->extendedAmount(),
+                    fn (BidScopeProduct $line): float => $line->lineTotal(),
                 );
 
                 if ($fromLines > 0.0 || $scope->products->contains(
                     fn (BidScopeProduct $line): bool => $line->extended !== null
                         || $line->quantity !== null
-                        || $line->unit_bid !== null,
+                        || $line->unit_bid !== null
+                        || $line->allocated_handling !== null,
                 )) {
                     return $fromLines;
                 }

@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Contractor;
 use App\Models\ContractorContact;
 use App\Support\ContractorAccess;
+use App\Support\PostalCode;
 use App\Support\ProjectAccess;
+use App\Support\StateInitials;
 use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -230,14 +232,17 @@ class ContractorController extends Controller
      */
     private function validatedContractor(Request $request, ?Contractor $contractor = null): array
     {
+        StateInitials::prepare($request, 'state');
+        PostalCode::prepare($request, 'postal_code');
+
         return $request->validate([
             'name' => ['required', 'string', 'max:255', $this->uniqueContractorNameRule($contractor)],
             'website' => ['nullable', 'string', 'max:255'],
             'address_line_1' => ['nullable', 'string', 'max:255'],
             'address_line_2' => ['nullable', 'string', 'max:255'],
             'city' => ['nullable', 'string', 'max:255'],
-            'state' => ['nullable', 'string', 'max:255'],
-            'postal_code' => ['nullable', 'string', 'max:50'],
+            'state' => StateInitials::optionalRules(),
+            'postal_code' => PostalCode::optionalRules(),
             'country' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:5000'],
             'contacts' => ['array'],

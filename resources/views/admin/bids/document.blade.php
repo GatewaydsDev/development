@@ -48,9 +48,19 @@
             max-height: 64px;
             max-width: 64px;
             display: block;
+            margin: 0 auto;
             background: #ffffff;
             padding: 2px;
             border-radius: 999px;
+        }
+
+        .hero-brand {
+            margin-bottom: 14px;
+            text-align: center;
+        }
+
+        .hero-brand .eyebrow {
+            margin: 8px 0 0;
         }
 
         .eyebrow {
@@ -110,7 +120,7 @@
         }
 
         .stats td {
-            width: 33.33%;
+            width: 50%;
             padding: 10px 12px;
             background: #ecfdf5;
             border: 1px solid #a7f3d0;
@@ -246,12 +256,49 @@
             white-space: nowrap;
         }
 
-        .total {
-            margin: 8px 0 0;
+        .totals {
+            margin-top: 18px;
+            margin-left: auto;
+            max-width: 420px;
+        }
+
+        .totals-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .totals-table td {
+            border: 1px solid #d1d5db;
+            padding: 8px 10px;
+            font-size: 11px;
+        }
+
+        .totals-table td.amount {
+            width: 38%;
             text-align: right;
-            font-size: 13px;
+            white-space: nowrap;
             font-weight: 700;
             color: #065f46;
+        }
+
+        .totals-table tr.grand td {
+            background: #ecfdf5;
+            font-weight: 700;
+            color: #064e3b;
+        }
+
+        .totals-table .note {
+            display: block;
+            margin-top: 2px;
+            font-size: 9px;
+            font-weight: 400;
+            color: #6b7280;
+        }
+
+        .scope-totals {
+            margin-top: 8px;
+            margin-left: auto;
+            max-width: 360px;
         }
 
         .rich-text {
@@ -425,15 +472,15 @@
 
     <div class="page">
         <div class="hero">
+            <div class="hero-brand">
+                @if ($logoPath)
+                    <img class="logo" src="{{ $logoPath }}" alt="{{ $companyName }}">
+                @endif
+                <p class="eyebrow">Gateway Door Systems</p>
+            </div>
             <table class="hero-table">
                 <tr>
                     <td>
-                        @if ($logoPath)
-                            <img class="logo" src="{{ $logoPath }}" alt="{{ $companyName }}">
-                        @else
-                            <p class="eyebrow">{{ $companyName }}</p>
-                        @endif
-                        <p class="eyebrow" style="margin-top: 10px;">Gateway Door Systems</p>
                         <h1>Bid</h1>
                         <p class="hero-meta">
                             Generated {{ $generatedAt->format('F j, Y') }}
@@ -459,10 +506,6 @@
                         <span class="stat-label">Project number</span>
                     </td>
                     <td>
-                        <span class="stat-value">{{ $latestTotal }}</span>
-                        <span class="stat-label">Latest total</span>
-                    </td>
-                    <td>
                         <span class="stat-value">{{ count($scopes) }}</span>
                         <span class="stat-label">Scopes</span>
                     </td>
@@ -475,8 +518,28 @@
                 <div class="block">
                     <p class="block-title">{{ $projectAddress }}</p>
                 </div>
-            @else
-                <p class="muted">No project address added yet.</p>
+            @endif
+
+            @if (count($revisions) > 0)
+                <h2 class="section-title">Bid revisions</h2>
+                <table class="pricing">
+                    <thead>
+                        <tr>
+                            @foreach ($revisionColumns as $column)
+                                <th>{{ $column['label'] }}</th>
+                            @endforeach
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($revisions as $revision)
+                            <tr>
+                                @foreach ($revisionColumns as $column)
+                                    <td>{{ $revision[$column['key']] }}</td>
+                                @endforeach
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
             @endif
 
             <h2 class="section-title">Contractors</h2>
@@ -486,24 +549,34 @@
                 @foreach ($contractors as $contractor)
                     <div class="block">
                         <p class="block-title">{{ $contractor['name'] ?: 'Contractor' }}</p>
-                        <table class="meta" style="margin-bottom: 0;">
-                            <tr>
-                                <td>
-                                    <span class="meta-label">Contact name</span>
-                                    <span class="meta-value">{{ $contractor['contact_name'] ?: 'Not added yet' }}</span>
-                                </td>
-                                <td>
-                                    <span class="meta-label">Phone number</span>
-                                    <span class="meta-value">{{ $contractor['phone'] ?: 'Not added yet' }}</span>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td colspan="2">
-                                    <span class="meta-label">Email address</span>
-                                    <span class="meta-value">{{ $contractor['email'] ?: 'Not added yet' }}</span>
-                                </td>
-                            </tr>
-                        </table>
+                        @if ($contractor['contact_name'] || $contractor['phone'] || $contractor['email'])
+                            <table class="meta" style="margin-bottom: 0;">
+                                @if ($contractor['contact_name'] || $contractor['phone'])
+                                    <tr>
+                                        @if ($contractor['contact_name'])
+                                            <td>
+                                                <span class="meta-label">Contact name</span>
+                                                <span class="meta-value">{{ $contractor['contact_name'] }}</span>
+                                            </td>
+                                        @endif
+                                        @if ($contractor['phone'])
+                                            <td>
+                                                <span class="meta-label">Phone number</span>
+                                                <span class="meta-value">{{ $contractor['phone'] }}</span>
+                                            </td>
+                                        @endif
+                                    </tr>
+                                @endif
+                                @if ($contractor['email'])
+                                    <tr>
+                                        <td colspan="2">
+                                            <span class="meta-label">Email address</span>
+                                            <span class="meta-value">{{ $contractor['email'] }}</span>
+                                        </td>
+                                    </tr>
+                                @endif
+                            </table>
+                        @endif
                     </div>
                 @endforeach
             @endif
@@ -523,24 +596,36 @@
                         <table class="pricing">
                             <thead>
                                 <tr>
-                                    <th>Service</th>
-                                    <th>Product</th>
-                                    <th class="amount">Qty</th>
-                                    <th class="amount">Unit value</th>
-                                    <th class="amount">Extended</th>
+                                    @foreach ($scope['columns'] as $column)
+                                        <th @class(['amount' => $column['amount']])>{{ $column['label'] }}</th>
+                                    @endforeach
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach ($scope['items'] as $item)
                                     <tr>
-                                        <td>{{ $item['service'] }}</td>
-                                        <td>{{ $item['product'] }}</td>
-                                        <td class="amount">{{ $item['quantity'] }}</td>
-                                        <td class="amount">{{ $item['unit_bid'] }}</td>
-                                        <td class="amount">{{ $item['extended'] }}</td>
+                                        @foreach ($scope['columns'] as $column)
+                                            <td @class(['amount' => $column['amount']])>{{ $item[$column['key']] }}</td>
+                                        @endforeach
                                     </tr>
                                 @endforeach
                             </tbody>
+                        </table>
+                        <table class="totals-table scope-totals">
+                            <tr>
+                                <td>Product / work subtotal</td>
+                                <td class="amount">{{ $scope['product_subtotal'] }}</td>
+                            </tr>
+                            @if ($scope['shipping_handling'])
+                                <tr>
+                                    <td>Allocated install / freight / handling</td>
+                                    <td class="amount">{{ $scope['shipping_handling'] }}</td>
+                                </tr>
+                            @endif
+                            <tr class="grand">
+                                <td>Scope total</td>
+                                <td class="amount">{{ $scope['total'] }}</td>
+                            </tr>
                         </table>
                     @else
                         <p class="muted">No service and product</p>
@@ -550,14 +635,31 @@
                 <p class="muted">No scopes added yet.</p>
             @endforelse
             @if (count($scopes) > 0)
-                <table class="pricing">
-                    <tbody>
+                <div class="totals">
+                    <h2 class="section-title" style="margin-top: 0;">Bid totals</h2>
+                    <table class="totals-table">
                         <tr>
-                            <td colspan="4" class="amount"><strong>Total amount</strong></td>
-                            <td class="amount"><strong>{{ $scopeTotal ?? $latestTotal }}</strong></td>
+                            <td>
+                                Product / work subtotal
+                                <span class="note">Qty × unit value</span>
+                            </td>
+                            <td class="amount">{{ $productSubtotal }}</td>
                         </tr>
-                    </tbody>
-                </table>
+                        @if ($showShippingHandling)
+                            <tr>
+                                <td>
+                                    Allocated install / freight / handling
+                                    <span class="note">Sum of shipping and handling on each line</span>
+                                </td>
+                                <td class="amount">{{ $shippingHandlingTotal }}</td>
+                            </tr>
+                        @endif
+                        <tr class="grand">
+                            <td>Bid total</td>
+                            <td class="amount">{{ $bidTotal }}</td>
+                        </tr>
+                    </table>
+                </div>
             @endif
             </div>
 

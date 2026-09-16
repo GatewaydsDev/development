@@ -1,3 +1,5 @@
+import { coerceStateInitials } from '@/lib/stateInitials';
+
 export type ProjectCapabilities = {
     create: boolean;
     update: boolean;
@@ -284,7 +286,7 @@ export function projectToFormData(
         site_address_line_1: project?.site_address_line_1 ?? '',
         site_address_line_2: project?.site_address_line_2 ?? '',
         site_city: project?.site_city ?? '',
-        site_state: project?.site_state ?? '',
+        site_state: coerceStateInitials(project?.site_state),
         site_postal_code: project?.site_postal_code ?? '',
         site_country: project?.site_country ?? '',
         estimated_start_date: project?.estimated_start_date ?? '',

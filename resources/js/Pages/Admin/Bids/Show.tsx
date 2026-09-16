@@ -14,10 +14,18 @@ import {
     EditIcon,
     FileTextIcon,
     HammerIcon,
+    HistoryIcon,
     PrinterIcon,
     TrashIcon,
 } from 'lucide-react';
-import { formatMoney, type BidOptions, type BidPayload } from './types';
+import {
+    combinedPriceAmountFromBid,
+    formatMoney,
+    lineCombinedPrice,
+    lineExtendedAmount,
+    type BidOptions,
+    type BidPayload,
+} from './types';
 
 type ShowProps = {
     bid: BidPayload;
@@ -44,6 +52,7 @@ function DetailItem({
 }
 
 export default function Show({ bid, options }: ShowProps) {
+    const combinedPrice = combinedPriceAmountFromBid(bid);
     const removeBid = () => {
         if (!window.confirm('Remove this bid? This cannot be undone.')) {
             return;
@@ -181,7 +190,75 @@ export default function Show({ bid, options }: ShowProps) {
                                     label="Latest total"
                                     value={formatMoney(bid.latest_total)}
                                 />
+                                <DetailItem
+                                    label="Combined price"
+                                    value={
+                                        combinedPrice
+                                            ? formatMoney(combinedPrice)
+                                            : null
+                                    }
+                                />
                             </dl>
+                            <div className="mt-6 flex flex-col gap-3">
+                                <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                                    <HistoryIcon className="size-4 text-muted-foreground" />
+                                    Bid revisions
+                                </h3>
+                                {bid.revisions && bid.revisions.length > 0 ? (
+                                    <div className="flex flex-col gap-3">
+                                        {bid.revisions.map((revision) => (
+                                            <div
+                                                key={
+                                                    revision.id ??
+                                                    revision.number
+                                                }
+                                                className="grid gap-3 rounded-lg border border-border bg-muted/30 p-4 sm:grid-cols-[8rem_10rem_minmax(10rem,0.9fr)_minmax(0,1fr)] sm:items-start"
+                                            >
+                                                <div>
+                                                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                                        Revision
+                                                    </p>
+                                                    <p className="mt-1 font-medium text-foreground">
+                                                        {revision.number}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                                        Date
+                                                    </p>
+                                                    <p className="mt-1 text-sm text-foreground">
+                                                        {revision.revision_date ||
+                                                            'Not set'}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                                        Updated by
+                                                    </p>
+                                                    <p className="mt-1 text-sm text-foreground">
+                                                        {revision.user?.name ||
+                                                            'Not set'}
+                                                    </p>
+                                                </div>
+                                                {revision.notes ? (
+                                                    <div>
+                                                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                                            Notes
+                                                        </p>
+                                                        <p className="mt-1 text-sm text-foreground">
+                                                            {revision.notes}
+                                                        </p>
+                                                    </div>
+                                                ) : null}
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground">
+                                        No revisions added yet.
+                                    </p>
+                                )}
+                            </div>
                                 <p className="mt-4 text-sm font-medium text-foreground">
                                     Shipping and handling exclusions/adjustments
                                 </p>
@@ -347,6 +424,9 @@ export default function Show({ bid, options }: ShowProps) {
                                                     <thead>
                                                         <tr className="border-b border-border text-left text-muted-foreground">
                                                             <th className="py-2 pr-3 font-medium">
+                                                                Location
+                                                            </th>
+                                                            <th className="py-2 pr-3 font-medium">
                                                                 Service
                                                             </th>
                                                             <th className="py-2 pr-3 font-medium">
@@ -358,8 +438,15 @@ export default function Show({ bid, options }: ShowProps) {
                                                             <th className="py-2 pr-3 text-right font-medium">
                                                                 Unit value
                                                             </th>
+                                                            <th className="py-2 pr-3 text-right font-medium">
+                                                                Allocated Install /
+                                                                Freight / Handling
+                                                            </th>
+                                                            <th className="py-2 pr-3 text-right font-medium">
+                                                                Combined price
+                                                            </th>
                                                             <th className="py-2 text-right font-medium">
-                                                                Extended
+                                                                Total
                                                             </th>
                                                         </tr>
                                                     </thead>
@@ -368,7 +455,17 @@ export default function Show({ bid, options }: ShowProps) {
                                                             (
                                                                 product,
                                                                 productIndex,
-                                                            ) => (
+                                                            ) => {
+                                                                const combined =
+                                                                    lineCombinedPrice(
+                                                                        product,
+                                                                    );
+                                                                const extended =
+                                                                    lineExtendedAmount(
+                                                                        product,
+                                                                    );
+
+                                                                return (
                                                                 <tr
                                                                     key={
                                                                         product.id ??
@@ -376,6 +473,10 @@ export default function Show({ bid, options }: ShowProps) {
                                                                     }
                                                                     className="border-b border-border last:border-0"
                                                                 >
+                                                                    <td className="py-2 pr-3">
+                                                                        {product.location ||
+                                                                            '—'}
+                                                                    </td>
                                                                     <td className="py-2 pr-3">
                                                                         {product.service_name ||
                                                                             '—'}
@@ -398,37 +499,67 @@ export default function Show({ bid, options }: ShowProps) {
                                                                               )
                                                                             : '—'}
                                                                     </td>
-                                                                    <td className="py-2 text-right tabular-nums">
-                                                                        {product.extended
+                                                                    <td className="py-2 pr-3 text-right tabular-nums">
+                                                                        {product.allocated_handling
                                                                             ? formatMoney(
-                                                                                  product.extended,
+                                                                                  product.allocated_handling,
+                                                                              )
+                                                                            : '—'}
+                                                                    </td>
+                                                                    <td className="py-2 pr-3 text-right tabular-nums">
+                                                                        {combined
+                                                                            ? formatMoney(
+                                                                                  combined,
+                                                                              )
+                                                                            : '—'}
+                                                                    </td>
+                                                                    <td className="py-2 text-right tabular-nums">
+                                                                        {extended
+                                                                            ? formatMoney(
+                                                                                  extended,
                                                                               )
                                                                             : '—'}
                                                                     </td>
                                                                 </tr>
-                                                            ),
+                                                                );
+                                                            },
                                                         )}
                                                     </tbody>
                                                     <tfoot>
                                                         <tr>
                                                             <td
-                                                                colSpan={4}
+                                                                colSpan={6}
                                                                 className="pt-3 text-right font-medium text-foreground"
                                                             >
                                                                 Scope total
                                                             </td>
-                                                            <td className="pt-3 text-right font-medium tabular-nums text-foreground">
+                                                            <td
+                                                                colSpan={2}
+                                                                className="pt-3 text-right font-medium tabular-nums text-foreground"
+                                                            >
                                                                 {formatMoney(
                                                                     scope.products.reduce(
                                                                         (
                                                                             sum,
                                                                             product,
-                                                                        ) =>
-                                                                            sum +
-                                                                            Number(
-                                                                                product.extended ??
-                                                                                    0,
-                                                                            ),
+                                                                        ) => {
+                                                                            const extended =
+                                                                                Number(
+                                                                                    lineExtendedAmount(
+                                                                                        product,
+                                                                                    ) ||
+                                                                                        0,
+                                                                                );
+
+                                                                            return (
+                                                                                sum +
+                                                                                (Number.isFinite(
+                                                                                    extended,
+                                                                                )
+                                                                                    ? extended
+                                                                                    : 0)
+                                                                            );
+                                                                        },
                                                                         0,
                                                                     ) ||
                                                                         scope.extended,

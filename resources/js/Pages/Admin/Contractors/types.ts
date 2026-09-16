@@ -1,3 +1,5 @@
+import { coerceStateInitials } from '@/lib/stateInitials';
+
 export type ContractorContact = {
     id?: number;
     uuid?: string;
@@ -104,7 +106,7 @@ export function contractorToFormData(
         address_line_1: contractor?.address_line_1 ?? '',
         address_line_2: contractor?.address_line_2 ?? '',
         city: contractor?.city ?? '',
-        state: contractor?.state ?? '',
+        state: coerceStateInitials(contractor?.state),
         postal_code: contractor?.postal_code ?? '',
         country: contractor?.country ?? '',
         notes: contractor?.notes ?? '',

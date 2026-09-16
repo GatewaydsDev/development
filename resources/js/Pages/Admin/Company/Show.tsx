@@ -11,6 +11,13 @@ import {
     CardHeader,
     CardTitle,
 } from '@/Components/ui/card';
+import { normalizePostalCode } from '@/lib/postalCode';
+import {
+    coerceStateInitials,
+    normalizeStateInitials,
+    stateInitialsInputClassName,
+} from '@/lib/stateInitials';
+import { cn } from '@/lib/utils';
 import { Head, useForm } from '@inertiajs/react';
 import { ImageIcon, Trash2Icon } from 'lucide-react';
 import { ChangeEvent, FormEventHandler, useEffect, useState } from 'react';
@@ -77,7 +84,7 @@ export default function Show({ company }: ShowProps) {
             address_line_1: company?.address_line_1 ?? '',
             address_line_2: company?.address_line_2 ?? '',
             city: company?.city ?? '',
-            state: company?.state ?? '',
+            state: coerceStateInitials(company?.state),
             postal_code: company?.postal_code ?? '',
             country: company?.country ?? '',
             website_url: company?.website_url ?? '',
@@ -419,7 +426,7 @@ export default function Show({ company }: ShowProps) {
                                     </div>
                                 </div>
 
-                                <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+                                <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_minmax(0,1fr)]">
                                     <div className="flex flex-col gap-2">
                                         <InputLabel
                                             htmlFor="city"
@@ -440,7 +447,7 @@ export default function Show({ company }: ShowProps) {
                                         <InputError message={errors.city} />
                                     </div>
 
-                                    <div className="flex flex-col gap-2">
+                                    <div className="flex w-fit flex-col gap-2">
                                         <InputLabel
                                             htmlFor="state"
                                             value="State"
@@ -449,11 +456,21 @@ export default function Show({ company }: ShowProps) {
                                         <TextInput
                                             id="state"
                                             value={data.state}
-                                            className={inputClassName}
+                                            className={cn(
+                                                inputClassName,
+                                                stateInitialsInputClassName,
+                                            )}
+                                            autoComplete="address-level1"
+                                            autoCapitalize="characters"
+                                            maxLength={2}
+                                            size={2}
+                                            placeholder="PA"
                                             onChange={(event) =>
                                                 setData(
                                                     'state',
-                                                    event.target.value,
+                                                    normalizeStateInitials(
+                                                        event.target.value,
+                                                    ),
                                                 )
                                             }
                                         />
@@ -470,10 +487,15 @@ export default function Show({ company }: ShowProps) {
                                             id="postal_code"
                                             value={data.postal_code}
                                             className={inputClassName}
+                                            autoComplete="postal-code"
+                                            maxLength={15}
+                                            placeholder="07102-1234"
                                             onChange={(event) =>
                                                 setData(
                                                     'postal_code',
-                                                    event.target.value,
+                                                    normalizePostalCode(
+                                                        event.target.value,
+                                                    ),
                                                 )
                                             }
                                         />

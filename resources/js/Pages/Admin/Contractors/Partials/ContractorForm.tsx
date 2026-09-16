@@ -12,6 +12,16 @@ import {
     CardTitle,
 } from '@/Components/ui/card';
 import { zodResolver } from '@hookform/resolvers/zod';
+import {
+    normalizePostalCode,
+    optionalPostalCodeSchema,
+} from '@/lib/postalCode';
+import {
+    normalizeStateInitials,
+    optionalStateInitialsSchema,
+    stateInitialsInputClassName,
+} from '@/lib/stateInitials';
+import { cn } from '@/lib/utils';
 import { router } from '@inertiajs/react';
 import { PlusIcon, Trash2Icon } from 'lucide-react';
 import { FormEventHandler, useEffect, useState } from 'react';
@@ -109,8 +119,8 @@ function contractorSchema(phoneTypes: string[]) {
             address_line_1: z.string().trim().max(255),
             address_line_2: z.string().trim().max(255),
             city: z.string().trim().max(255),
-            state: z.string().trim().max(255),
-            postal_code: z.string().trim().max(50),
+            state: optionalStateInitialsSchema,
+            postal_code: optionalPostalCodeSchema,
             country: z.string().trim().max(255),
             notes: z
                 .string()
@@ -763,8 +773,8 @@ export default function ContractorForm({
                             />
                             <InputError message={errors.city} />
                         </div>
-                        <div className="grid gap-5 sm:grid-cols-3">
-                            <div className="flex flex-col gap-2">
+                        <div className="grid gap-5 sm:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)]">
+                            <div className="flex w-fit flex-col gap-2">
                                 <InputLabel
                                     htmlFor="state"
                                     value="State"
@@ -773,9 +783,22 @@ export default function ContractorForm({
                                 <TextInput
                                     id="state"
                                     value={data.state}
-                                    className={inputClassName}
+                                    className={cn(
+                                        inputClassName,
+                                        stateInitialsInputClassName,
+                                    )}
+                                    autoComplete="address-level1"
+                                    autoCapitalize="characters"
+                                    maxLength={2}
+                                    size={2}
+                                    placeholder="PA"
                                     onChange={(event) =>
-                                        setData('state', event.target.value)
+                                        setData(
+                                            'state',
+                                            normalizeStateInitials(
+                                                event.target.value,
+                                            ),
+                                        )
                                     }
                                 />
                                 <InputError message={errors.state} />
@@ -790,10 +813,15 @@ export default function ContractorForm({
                                     id="postal-code"
                                     value={data.postal_code}
                                     className={inputClassName}
+                                    autoComplete="postal-code"
+                                    maxLength={15}
+                                    placeholder="07102-1234"
                                     onChange={(event) =>
                                         setData(
                                             'postal_code',
-                                            event.target.value,
+                                            normalizePostalCode(
+                                                event.target.value,
+                                            ),
                                         )
                                     }
                                 />

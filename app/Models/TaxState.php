@@ -60,6 +60,35 @@ class TaxState extends Model
         return $this->hasMany(ProductStatePrice::class);
     }
 
+    public function abbreviation(): string
+    {
+        return static::abbreviationFor($this->name);
+    }
+
+    public static function abbreviationFor(?string $name): string
+    {
+        $name = trim((string) $name);
+
+        if ($name === '') {
+            return '';
+        }
+
+        if (preg_match('/^[A-Za-z]{2}$/', $name) === 1) {
+            return strtoupper($name);
+        }
+
+        foreach (static::ABBREVIATIONS as $code => $fullName) {
+            if (strcasecmp($fullName, $name) === 0) {
+                return $code;
+            }
+        }
+
+        return collect(preg_split('/\s+/', $name) ?: [])
+            ->filter()
+            ->map(fn (string $part): string => mb_strtoupper(mb_substr($part, 0, 1)))
+            ->implode('');
+    }
+
     public static function findForProjectState(?string $state): ?self
     {
         $state = trim((string) $state);

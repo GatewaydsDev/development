@@ -196,6 +196,7 @@ test('a bid stores quantity unit bid and computed extended', function () {
                         [
                             'product_id' => $door->id,
                             'service_id' => $service->id,
+                            'location' => 'Bldg 19',
                             'quantity' => '2',
                             'unit_bid' => '1250',
                         ],
@@ -212,6 +213,7 @@ test('a bid stores quantity unit bid and computed extended', function () {
 
     $line = $bid->scopes->first()?->products->first();
 
+    expect($line?->location)->toBe('Bldg 19');
     expect((float) $line?->quantity)->toBe(2.0);
     expect((float) $line?->unit_bid)->toBe(1250.0);
     expect((float) $line?->extended)->toBe(2500.0);
@@ -219,6 +221,58 @@ test('a bid stores quantity unit bid and computed extended', function () {
     expect((float) $bid->scopes->first()?->unit_bid)->toBe(1250.0);
     expect((float) $bid->scopes->first()?->extended)->toBe(2500.0);
     expect($bid->latestTotal())->toBe(2500.0);
+});
+
+test('a bid total amount is quantity times unit plus allocated', function () {
+    $admin = bidAdmin();
+    $project = bidProject($admin);
+    $stage = BidStageType::query()->where('name', 'Preliminary Bid')->firstOrFail();
+    $title = bidScopeType('RF Doors');
+    $door = Product::create(['name' => 'RF door leaf', 'kind' => Product::KIND_DOOR]);
+    $service = bidService();
+
+    $this->actingAs($admin)
+        ->post(route('admin.bids.store'), [
+            'project_id' => $project->id,
+            'stages' => [
+                [
+                    'stage_type_id' => $stage->id,
+                    'stage_date' => '2026-09-01',
+                    'notes' => '',
+                ],
+            ],
+            'scopes' => [
+                [
+                    'title_id' => $title->id,
+                    'notations' => '',
+                    'products' => [
+                        [
+                            'product_id' => $door->id,
+                            'service_id' => $service->id,
+                            'location' => 'Room 54',
+                            'quantity' => '2',
+                            'unit_bid' => '1250',
+                            'allocated_handling' => '100',
+                        ],
+                    ],
+                ],
+            ],
+        ])
+        ->assertSessionHasNoErrors();
+
+    $bid = Bid::query()
+        ->where('project_id', $project->id)
+        ->with('scopes.products')
+        ->firstOrFail();
+
+    $line = $bid->scopes->first()?->products->first();
+
+    expect((float) $line?->quantity)->toBe(2.0);
+    expect((float) $line?->unit_bid)->toBe(1250.0);
+    expect((float) $line?->allocated_handling)->toBe(100.0);
+    expect((float) $line?->extended)->toBe(2600.0);
+    expect((float) $bid->scopes->first()?->extended)->toBe(2600.0);
+    expect($bid->latestTotal())->toBe(2600.0);
 });
 
 test('project and bid scope dropdowns share the same catalog', function () {
@@ -255,6 +309,68 @@ test('project and bid scope dropdowns share the same catalog', function () {
                 ),
             )
         );
+});
+
+test('a bid can store revisions like a project', function () {
+    $admin = bidAdmin();
+    $project = bidProject($admin);
+    $stage = BidStageType::query()->where('name', 'Preliminary Bid')->firstOrFail();
+    $title = bidScopeType('RF Doors');
+    $door = Product::create(['name' => 'RF door leaf', 'kind' => Product::KIND_DOOR]);
+    $service = bidService();
+
+    $this->actingAs($admin)
+        ->post(route('admin.bids.store'), [
+            'project_id' => $project->id,
+            'stages' => [
+                [
+                    'stage_type_id' => $stage->id,
+                    'stage_date' => '2026-09-01',
+                    'notes' => '',
+                ],
+            ],
+            'scopes' => [
+                [
+                    'title_id' => $title->id,
+                    'notations' => '',
+                    'products' => [
+                        [
+                            'product_id' => $door->id,
+                            'service_id' => $service->id,
+                            'quantity' => '1',
+                            'unit_bid' => '100',
+                        ],
+                    ],
+                ],
+            ],
+            'revisions' => [
+                [
+                    'number' => 'A',
+                    'revision_date' => '2026-09-15',
+                    'notes' => 'Issued for owner review',
+                ],
+            ],
+        ])
+        ->assertSessionHasNoErrors();
+
+    $bid = Bid::query()
+        ->where('project_id', $project->id)
+        ->with('revisions.user')
+        ->firstOrFail();
+
+    expect($bid->revisions)->toHaveCount(1);
+    expect($bid->revisions->first()?->number)->toBe('A');
+    expect($bid->revisions->first()?->revision_date?->toDateString())->toBe('2026-09-15');
+    expect($bid->revisions->first()?->notes)->toBe('Issued for owner review');
+    expect($bid->revisions->first()?->user_id)->toBe($admin->id);
+
+    $this->actingAs($admin)
+        ->get(route('admin.bids.print', $bid))
+        ->assertOk()
+        ->assertSee('Bid revisions', false)
+        ->assertSee('Revision', false)
+        ->assertSee('A', false)
+        ->assertSee('Issued for owner review', false);
 });
 
 test('a bid can be created with stages reusable scopes and pricing revisions', function () {
@@ -1326,21 +1442,24 @@ test('a bid can be printed and exported as pdf or word', function () {
         ->assertDontSee('Issued for review', false)
         ->assertSee('P-2026-PRINT', false)
         ->assertSee('12 Dock Road', false)
+        ->assertDontSee('Bid revisions', false)
         ->assertSee('Proposal for Harbor Print Package.', false)
         ->assertDontSee('Bid application text', false)
         ->assertSee('Furnish and install RF doors for Harbor Print Package.', false)
         ->assertSee('RF Doors', false)
+        ->assertDontSee('Location', false)
         ->assertSee('Service', false)
         ->assertSee('Product', false)
         ->assertSee('Qty', false)
         ->assertSee('Unit value', false)
-        ->assertSee('Extended', false)
+        ->assertSee('Combined price', false)
+        ->assertSee('Total', false)
         ->assertSee('Include frames and hardware', false)
         ->assertSee('Assembly w/ vision glazing', false)
         ->assertSee('RF door leaf', false)
         ->assertSee('$1,250.00', false)
         ->assertSee('$2,500.00', false)
-        ->assertSee('Total amount', false)
+        ->assertSee('Bid total', false)
         ->assertSee('Owner review draft', false)
         ->assertSee('Submitted by', false)
         ->assertSee('Authorized representative', false)
@@ -1404,7 +1523,45 @@ test('printed scope tables omit the empty information placeholder', function () 
         ->assertOk()
         ->assertSee('RF door leaf', false)
         ->assertSee('Service', false)
+        ->assertDontSee('Location', false)
         ->assertDontSee('No information added', false);
+});
+
+test('printed scope tables include location when it is set', function () {
+    $admin = bidAdmin();
+    $project = bidProject($admin, 'Harbor Located Package');
+    $title = bidScopeType('RF Doors');
+    $door = Product::create(['name' => 'RF door leaf', 'kind' => Product::KIND_DOOR]);
+    $service = bidService();
+
+    $this->actingAs($admin)
+        ->post(route('admin.bids.store'), [
+            'project_id' => $project->id,
+            'scopes' => [
+                [
+                    'title_id' => $title->id,
+                    'notations' => '',
+                    'products' => [
+                        [
+                            'product_id' => $door->id,
+                            'service_id' => $service->id,
+                            'location' => 'Bldg 19',
+                            'quantity' => '1',
+                            'unit_bid' => '100',
+                        ],
+                    ],
+                ],
+            ],
+        ])
+        ->assertSessionHasNoErrors();
+
+    $bid = Bid::query()->where('project_id', $project->id)->firstOrFail();
+
+    $this->actingAs($admin)
+        ->get(route('admin.bids.print', $bid))
+        ->assertOk()
+        ->assertSee('Location', false)
+        ->assertSee('Bldg 19', false);
 });
 
 test('the bid list can be printed and exported as pdf or word', function () {

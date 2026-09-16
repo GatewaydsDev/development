@@ -7,6 +7,7 @@ use App\Models\Bid;
 use App\Models\BidPricing;
 use App\Models\BidPricingItem;
 use App\Models\BidPricingStatus;
+use App\Models\BidRevision;
 use App\Models\BidScope;
 use App\Models\BidScopeProduct;
 use App\Models\BidScopeTitle;
@@ -115,7 +116,7 @@ class BidController extends Controller
                 'created_by' => $request->user()->id,
             ]);
 
-            $this->syncBidRelations($bid, $validated);
+            $this->syncBidRelations($bid, $validated, $request->user());
 
             return $bid;
         });
@@ -139,6 +140,7 @@ class BidController extends Controller
             'scopes.products.product',
             'scopes.products.service',
             'pricings.items.status',
+            'revisions.user:id,name',
         ]);
 
         return Inertia::render('Admin/Bids/Show', [
@@ -181,6 +183,7 @@ class BidController extends Controller
             'scopes.products.product',
             'scopes.products.service',
             'pricings.items.status',
+            'revisions.user:id,name',
         ]);
 
         return Inertia::render('Admin/Bids/Edit', [
@@ -193,9 +196,9 @@ class BidController extends Controller
     {
         abort_unless(BidAccess::canUpdate($request->user()), 403);
 
-        $validated = $this->validatedBid($request);
+        $validated = $this->validatedBid($request, $bid);
 
-        DB::transaction(function () use ($bid, $validated): void {
+        DB::transaction(function () use ($request, $bid, $validated): void {
             $bid->fill([
                 'project_id' => $validated['project_id'],
                 'quotation_id' => $validated['quotation_id'] ?? null,
@@ -207,7 +210,7 @@ class BidController extends Controller
                 'scope_of_work_text' => $this->scopeOfWorkText($validated),
             ])->save();
 
-            $this->syncBidRelations($bid, $validated);
+            $this->syncBidRelations($bid, $validated, $request->user());
         });
 
         return redirect()
@@ -229,7 +232,7 @@ class BidController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function validatedBid(Request $request): array
+    private function validatedBid(Request $request, ?Bid $bid = null): array
     {
         $validated = $request->validate([
             'project_id' => ['required', 'integer', Rule::exists(Project::class, 'id')],
@@ -269,6 +272,19 @@ class BidController extends Controller
             ],
             'stages.*.stage_date' => ['nullable', 'date'],
             'stages.*.notes' => ['nullable', 'string', 'max:2000'],
+            'revisions' => ['array'],
+            'revisions.*.id' => [
+                'nullable',
+                'integer',
+                Rule::exists(BidRevision::class, 'id')->where(
+                    fn ($query) => $bid
+                        ? $query->where('bid_id', $bid->id)
+                        : $query->whereRaw('0 = 1'),
+                ),
+            ],
+            'revisions.*.number' => ['required', 'string', 'max:50', 'distinct'],
+            'revisions.*.revision_date' => ['nullable', 'date'],
+            'revisions.*.notes' => ['nullable', 'string', 'max:2000'],
             'scopes' => ['array'],
             'scopes.*.title_id' => [
                 'nullable',
@@ -295,15 +311,17 @@ class BidController extends Controller
                 'integer',
                 Rule::exists(Service::class, 'id'),
             ],
+            'scopes.*.products.*.location' => ['nullable', 'string', 'max:255'],
             'scopes.*.products.*.quantity' => ['nullable', 'numeric', 'min:0'],
             'scopes.*.products.*.unit_bid' => ['nullable', 'numeric', 'min:0'],
             'scopes.*.products.*.extended' => ['nullable', 'numeric', 'min:0'],
+            'scopes.*.products.*.allocated_handling' => ['nullable', 'numeric', 'min:0'],
             'pricings' => ['array'],
             'pricings.*.name' => ['required', 'string', 'max:255'],
             'pricings.*.revision_date' => ['nullable', 'date'],
             'pricings.*.notes' => ['nullable', 'string', 'max:2000'],
             'pricings.*.items' => ['array'],
-            'pricings.*.items.*.description' => ['required', 'string', 'max:255'],
+            'pricings.*.items.*.description' => ['nullable', 'string', 'max:255'],
             'pricings.*.items.*.pricing_basis' => ['nullable', 'string', 'max:2000'],
             'pricings.*.items.*.status_id' => [
                 'nullable',
@@ -330,10 +348,68 @@ class BidController extends Controller
     }
 
     /**
+     * @param  array<int, array<string, mixed>>  $revisions
+     */
+    private function syncRevisions(Bid $bid, array $revisions, User $user): void
+    {
+        $revisions = collect($revisions)
+            ->filter(fn (array $revision): bool => filled($revision['number'] ?? null))
+            ->unique(fn (array $revision): string => strtolower(trim((string) $revision['number'])))
+            ->values();
+
+        $keptIds = [];
+
+        foreach ($revisions as $revision) {
+            $revisionId = (int) ($revision['id'] ?? 0);
+            $existing = $revisionId > 0
+                ? $bid->revisions()->whereKey($revisionId)->first()
+                : null;
+
+            $attributes = [
+                'number' => trim((string) $revision['number']),
+                'revision_date' => $revision['revision_date'] ?: null,
+                'notes' => $revision['notes'] ?? null,
+            ];
+
+            if ($existing) {
+                $existingDate = $existing->revision_date?->toDateString();
+                $changed = $existing->number !== $attributes['number']
+                    || $existingDate !== $attributes['revision_date']
+                    || trim((string) ($existing->notes ?? '')) !== trim((string) ($attributes['notes'] ?? ''));
+
+                if ($changed) {
+                    $attributes['user_id'] = $user->id;
+                }
+
+                $existing->update($attributes);
+                $keptIds[] = $existing->id;
+
+                continue;
+            }
+
+            $created = $bid->revisions()->create([
+                ...$attributes,
+                'user_id' => $user->id,
+            ]);
+            $keptIds[] = $created->id;
+        }
+
+        $bid->revisions()
+            ->when(
+                $keptIds !== [],
+                fn ($query) => $query->whereKeyNot($keptIds),
+                fn ($query) => $query,
+            )
+            ->delete();
+    }
+
+    /**
      * @param  array<string, mixed>  $validated
      */
-    private function syncBidRelations(Bid $bid, array $validated): void
+    private function syncBidRelations(Bid $bid, array $validated, User $user): void
     {
+        $this->syncRevisions($bid, $validated['revisions'] ?? [], $user);
+
         $stageIds = [];
 
         foreach (array_values($validated['stages'] ?? []) as $index => $stage) {
@@ -381,13 +457,16 @@ class BidController extends Controller
                     'bid_scope_id' => $record->id,
                     'product_id' => $item['product_id'],
                     'service_id' => $item['service_id'],
+                    'location' => filled($item['location'] ?? null) ? trim((string) $item['location']) : null,
                     'description' => $this->scopeLineDescription($catalogProduct, $service),
                     'quantity' => $quantity,
                     'unit_bid' => $unitBid,
                     'extended' => $this->scopeExtendedAmount(
                         $item['quantity'] ?? null,
                         $item['unit_bid'] ?? null,
+                        $item['allocated_handling'] ?? null,
                     ),
+                    'allocated_handling' => $this->nullableDecimal($item['allocated_handling'] ?? null),
                     'sort_order' => $productIndex,
                 ]);
             }
@@ -416,14 +495,22 @@ class BidController extends Controller
             ]);
 
             foreach (array_values($pricing['items'] ?? []) as $itemIndex => $item) {
+                $description = trim((string) ($item['description'] ?? ''));
+                $pricingBasis = trim((string) ($item['pricing_basis'] ?? ''));
+                $amount = $item['amount'] !== null && $item['amount'] !== ''
+                    ? $item['amount']
+                    : null;
+
+                if ($description === '' && $pricingBasis === '' && $amount === null) {
+                    continue;
+                }
+
                 BidPricingItem::query()->create([
                     'bid_pricing_id' => $record->id,
-                    'description' => $item['description'],
-                    'pricing_basis' => $item['pricing_basis'] ?? null,
+                    'description' => $description !== '' ? $description : 'Item',
+                    'pricing_basis' => $pricingBasis !== '' ? $pricingBasis : null,
                     'bid_pricing_status_id' => $item['status_id'] ?: null,
-                    'amount' => $item['amount'] !== null && $item['amount'] !== ''
-                        ? $item['amount']
-                        : null,
+                    'amount' => $amount,
                     'sort_order' => $itemIndex,
                 ]);
             }
@@ -537,6 +624,7 @@ class BidController extends Controller
             $extended = $this->scopeExtendedAmount(
                 $item['quantity'] ?? null,
                 $item['unit_bid'] ?? null,
+                $item['allocated_handling'] ?? null,
             );
 
             if ($quantity !== null) {
@@ -572,13 +660,23 @@ class BidController extends Controller
         return number_format((float) $value, 2, '.', '');
     }
 
-    private function scopeExtendedAmount(mixed $quantity, mixed $unitBid): ?string
+    private function scopeExtendedAmount(mixed $quantity, mixed $unitBid, mixed $allocatedHandling = null): ?string
     {
-        if ($quantity === null || $quantity === '' || $unitBid === null || $unitBid === '') {
-            return null;
+        $hasQuantity = $quantity !== null && $quantity !== '';
+        $hasUnit = $unitBid !== null && $unitBid !== '';
+        $hasAllocated = $allocatedHandling !== null && $allocatedHandling !== '';
+
+        if ($hasQuantity && $hasUnit) {
+            $allocated = $hasAllocated ? (float) $allocatedHandling : 0.0;
+
+            return number_format((float) $quantity * (float) $unitBid + $allocated, 2, '.', '');
         }
 
-        return number_format((float) $quantity * (float) $unitBid, 2, '.', '');
+        if ($hasAllocated) {
+            return number_format((float) $allocatedHandling, 2, '.', '');
+        }
+
+        return null;
     }
 
     private function plainScopeNotations(mixed $notations): string
@@ -606,7 +704,7 @@ class BidController extends Controller
     private function bidPayload(Bid $bid, bool $summary = false): array
     {
         $currentStage = $bid->stages->last();
-        $bid->loadMissing('quotation');
+        $bid->loadMissing('quotation', 'revisions.user:id,name');
 
         return [
             'id' => $bid->id,
@@ -657,6 +755,24 @@ class BidController extends Controller
             ],
             'current_stage' => $currentStage?->type?->name,
             'latest_total' => number_format($bid->latestTotal(), 2, '.', ''),
+            'revisions' => $summary
+                ? []
+                : $bid->revisions
+                    ->map(fn (BidRevision $revision): array => [
+                        'id' => $revision->id,
+                        'number' => $revision->number,
+                        'revision_date' => $revision->revision_date?->toDateString(),
+                        'notes' => $revision->notes,
+                        'user_id' => $revision->user_id,
+                        'user' => $revision->user
+                            ? [
+                                'id' => $revision->user->id,
+                                'name' => $revision->user->name,
+                            ]
+                            : null,
+                    ])
+                    ->values()
+                    ->all(),
             'stages' => $bid->stages
                 ->map(fn (BidStage $stage): array => [
                     'id' => $stage->id,
@@ -685,10 +801,16 @@ class BidController extends Controller
                             'kind' => $product->product?->kind,
                             'service_id' => $product->service_id,
                             'service_name' => $product->service?->name,
+                            'location' => $product->location,
                             'description' => $product->description,
                             'quantity' => $product->quantity,
                             'unit_bid' => $product->unit_bid,
-                            'extended' => $product->extended,
+                            'extended' => $this->scopeExtendedAmount(
+                                $product->quantity,
+                                $product->unit_bid,
+                                $product->allocated_handling,
+                            ) ?? $product->extended,
+                            'allocated_handling' => $product->allocated_handling,
                         ])
                         ->values()
                         ->all(),

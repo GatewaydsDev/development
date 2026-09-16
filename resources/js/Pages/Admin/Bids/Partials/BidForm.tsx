@@ -14,7 +14,7 @@ import {
     CardTitle,
 } from '@/Components/ui/card';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import { PlusIcon, Trash2Icon, FileUpIcon } from 'lucide-react';
 import { FormEventHandler, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -30,19 +30,23 @@ import {
 import { inputToDecimal } from '@/lib/money';
 import { toast } from 'sonner';
 import { z } from 'zod';
+import { type PageProps } from '@/types';
 import BidApplicationTextSection from './BidApplicationTextSection';
 import {
     bidToFormData,
+    blankRevision,
     blankScope,
     blankScopeProduct,
     blankStage,
     formatMoney,
     lineAmountsForProduct,
     scopeExtendedAmount,
+    combinedPriceAmount,
     pricingFromQuotation,
     quotationImportHtml,
     scopesFromProject,
     scopesTotalAmount,
+    scopesCombinedPriceAmount,
     type BidFormData,
     type BidOptions,
     type BidPayload,
@@ -89,6 +93,19 @@ const schema = z.object({
     scope_of_work_text: z
         .string()
         .max(250000, 'Scope of work text must be 250,000 characters or less.'),
+    revisions: z.array(
+        z.object({
+            id: z.string(),
+            number: z.string().trim().max(50),
+            revision_date: optionalDateSchema,
+            notes: z
+                .string()
+                .trim()
+                .max(2000, 'Revision notes must be 2,000 characters or less.'),
+            user_id: z.string(),
+            user_name: z.string(),
+        }),
+    ),
     stages: z.array(
         z.object({
             stage_type_id: z.string(),
@@ -108,9 +125,14 @@ const schema = z.object({
                 z.object({
                     product_id: z.string(),
                     service_id: z.string(),
+                    location: z
+                        .string()
+                        .trim()
+                        .max(255, 'Location must be 255 characters or less.'),
                     quantity: optionalMoneySchema,
                     unit_bid: optionalMoneySchema,
                     extended: optionalMoneySchema,
+                    allocated_handling: optionalMoneySchema,
                 }),
             ),
         }),
@@ -169,6 +191,27 @@ const schema = z.object({
             }
         });
     });
+
+    const seenRevisions = new Map<string, number>();
+    values.revisions.forEach((revision, index) => {
+        const number = revision.number.trim().toLowerCase();
+
+        if (number === '') {
+            return;
+        }
+
+        const firstIndex = seenRevisions.get(number);
+
+        if (firstIndex !== undefined) {
+            context.addIssue({
+                code: 'custom',
+                path: ['revisions', index, 'number'],
+                message: 'This revision is already added.',
+            });
+        } else {
+            seenRevisions.set(number, index);
+        }
+    });
 });
 
 function errorMessage(
@@ -201,6 +244,8 @@ export default function BidForm({
     importQuotationId = null,
     onSelectedProjectNameChange,
 }: BidFormProps) {
+    const { auth } = usePage<PageProps>().props;
+    const currentUserId = auth.user?.id ? String(auth.user.id) : '';
     const defaultValues = useMemo(() => {
         const values = bidToFormData(bid);
 
@@ -228,6 +273,11 @@ export default function BidForm({
         defaultValues,
     });
 
+    const {
+        fields: revisionFields,
+        append: appendRevision,
+        remove: removeRevision,
+    } = useFieldArray({ control, name: 'revisions' });
     const {
         fields: stageFields,
         append: appendStage,
@@ -359,6 +409,14 @@ export default function BidForm({
                 stages: values.stages.filter(
                     (stage) => stage.stage_type_id.trim() !== '',
                 ),
+                revisions: (values.revisions ?? [])
+                    .filter((revision) => revision.number.trim() !== '')
+                    .map((revision) => ({
+                        id: revision.id.trim() || null,
+                        number: revision.number,
+                        revision_date: revision.revision_date,
+                        notes: revision.notes,
+                    })),
                 scopes: values.scopes
                     .filter(
                         (scope) =>
@@ -375,6 +433,7 @@ export default function BidForm({
                             )
                             .map((product) => ({
                                 ...product,
+                                location: product.location.trim() || null,
                                 quantity: inputToDecimal(product.quantity) || null,
                                 unit_bid: inputToDecimal(product.unit_bid) || null,
                                 extended:
@@ -382,10 +441,30 @@ export default function BidForm({
                                         scopeExtendedAmount(
                                             product.quantity,
                                             product.unit_bid,
+                                            product.allocated_handling,
                                         ),
                                     ) || null,
+                                allocated_handling:
+                                    inputToDecimal(product.allocated_handling) ||
+                                    null,
                             })),
                     })),
+                pricings: values.pricings
+                    .map((pricing) => ({
+                        ...pricing,
+                        items: pricing.items.filter(
+                            (item) =>
+                                item.description.trim() !== '' ||
+                                item.pricing_basis.trim() !== '' ||
+                                String(item.amount ?? '').trim() !== '',
+                        ),
+                    }))
+                    .filter(
+                        (pricing) =>
+                            pricing.items.length > 0 ||
+                            pricing.notes.trim() !== '' ||
+                            pricing.revision_date.trim() !== '',
+                    ),
             };
 
             const submitOptions = {
@@ -420,6 +499,7 @@ export default function BidForm({
     const inputClassName =
         'h-11 w-full border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring';
     const latestTotal = scopesTotalAmount(data.scopes ?? []);
+    const combinedPriceValue = scopesCombinedPriceAmount(data.scopes ?? []);
     const selectedProjectScopes = selectedProject?.scopes ?? [];
 
     return (
@@ -553,6 +633,144 @@ export default function BidForm({
                     </div>
                 </CardContent>
             </Card>
+
+            <section className="flex flex-col gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h3 className="text-base font-semibold text-foreground">
+                            Bid revisions
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                            Track drawing or document revisions for this bid.
+                        </p>
+                    </div>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() =>
+                            appendRevision(
+                                blankRevision(
+                                    currentUserId,
+                                    auth.user?.name ?? '',
+                                ),
+                            )
+                        }
+                    >
+                        <PlusIcon className="size-4" />
+                        Add revision
+                    </Button>
+                </div>
+
+                {revisionFields.length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-border bg-background/70 p-4 text-sm text-muted-foreground">
+                        No revisions added yet.
+                    </div>
+                ) : (
+                    <div className="flex flex-col gap-4">
+                        {revisionFields.map((field, index) => {
+                            const revision = data.revisions?.[index];
+
+                            return (
+                                <div
+                                    key={field.id}
+                                    className="grid gap-4 overflow-visible rounded-lg border border-emerald-200 bg-background p-4 dark:border-emerald-900/70 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,0.9fr)_minmax(0,1.1fr)_minmax(0,1.3fr)_auto]"
+                                >
+                                    <div className="flex flex-col gap-2">
+                                        <InputLabel
+                                            htmlFor={`bid-revision-number-${index}`}
+                                            value="Revision"
+                                            className="text-emerald-700 dark:text-emerald-300"
+                                        />
+                                        <TextInput
+                                            id={`bid-revision-number-${index}`}
+                                            value={revision?.number ?? ''}
+                                            className={inputClassName}
+                                            placeholder="A, B, 1"
+                                            onChange={(event) =>
+                                                setData(
+                                                    `revisions.${index}.number`,
+                                                    event.target.value,
+                                                )
+                                            }
+                                        />
+                                        <InputError
+                                            message={errorMessage(
+                                                validationErrors,
+                                                `revisions.${index}.number`,
+                                            )}
+                                        />
+                                    </div>
+                                    <div className="flex flex-col gap-2">
+                                        <InputLabel
+                                            htmlFor={`bid-revision-date-${index}`}
+                                            value="Date"
+                                            className="text-emerald-700 dark:text-emerald-300"
+                                        />
+                                        <TextInput
+                                            id={`bid-revision-date-${index}`}
+                                            type="date"
+                                            value={
+                                                revision?.revision_date ?? ''
+                                            }
+                                            className={inputClassName}
+                                            onChange={(event) =>
+                                                setData(
+                                                    `revisions.${index}.revision_date`,
+                                                    event.target.value,
+                                                )
+                                            }
+                                        />
+                                    </div>
+                                    <div className="flex flex-col gap-2">
+                                        <InputLabel
+                                            htmlFor={`bid-revision-user-${index}`}
+                                            value="Updated by"
+                                            className="text-emerald-700 dark:text-emerald-300"
+                                        />
+                                        <TextInput
+                                            id={`bid-revision-user-${index}`}
+                                            value={revision?.user_name ?? ''}
+                                            disabled
+                                            readOnly
+                                            className={`${inputClassName} cursor-not-allowed bg-muted`}
+                                        />
+                                    </div>
+                                    <div className="flex flex-col gap-2">
+                                        <InputLabel
+                                            htmlFor={`bid-revision-notes-${index}`}
+                                            value="Notes"
+                                            className="text-emerald-700 dark:text-emerald-300"
+                                        />
+                                        <TextInput
+                                            id={`bid-revision-notes-${index}`}
+                                            value={revision?.notes ?? ''}
+                                            className={inputClassName}
+                                            onChange={(event) =>
+                                                setData(
+                                                    `revisions.${index}.notes`,
+                                                    event.target.value,
+                                                )
+                                            }
+                                        />
+                                    </div>
+                                    <div className="flex items-start lg:pt-7">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            aria-label={`Remove revision ${index + 1}`}
+                                            onClick={() =>
+                                                removeRevision(index)
+                                            }
+                                        >
+                                            <Trash2Icon className="size-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </section>
 
             <section className="flex flex-col gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -762,7 +980,7 @@ export default function BidForm({
                 }
             />
 
-            <div className="sticky bottom-4 z-10 mr-16 flex flex-col gap-1 rounded-xl border border-emerald-200 bg-background/95 px-4 py-3 shadow-lg backdrop-blur sm:mr-20 sm:flex-row sm:items-center sm:justify-between dark:border-emerald-900/70">
+            <div className="sticky bottom-4 z-10 mr-16 flex flex-col gap-3 rounded-xl border border-emerald-200 bg-background/95 px-4 py-3 shadow-lg backdrop-blur sm:mr-20 sm:flex-row sm:items-center sm:justify-between dark:border-emerald-900/70">
                 <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                         Latest revision total
@@ -771,9 +989,16 @@ export default function BidForm({
                         {formatMoney(latestTotal)}
                     </p>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                    From line quantities
-                </p>
+                <div className="sm:text-right">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Combined price
+                    </p>
+                    <p className="text-xl font-semibold text-emerald-700 dark:text-emerald-300">
+                        {combinedPriceValue
+                            ? formatMoney(combinedPriceValue)
+                            : '—'}
+                    </p>
+                </div>
             </div>
 
             <FormActionFab
@@ -831,17 +1056,21 @@ function ScopeWorkCard({
     const canAddProduct = !hasEmptyLine;
     const setLineAmount = (
         productIndex: number,
-        field: 'quantity' | 'unit_bid',
+        field: 'quantity' | 'unit_bid' | 'allocated_handling',
         value: string,
     ) => {
         const line = scope?.products?.[productIndex];
         const quantity = field === 'quantity' ? value : (line?.quantity ?? '');
         const unitBid = field === 'unit_bid' ? value : (line?.unit_bid ?? '');
+        const allocated =
+            field === 'allocated_handling'
+                ? value
+                : (line?.allocated_handling ?? '');
 
         onChange(`scopes.${index}.products.${productIndex}.${field}`, value);
         onChange(
             `scopes.${index}.products.${productIndex}.extended`,
-            scopeExtendedAmount(quantity, unitBid),
+            scopeExtendedAmount(quantity, unitBid, allocated),
         );
     };
 
@@ -934,10 +1163,56 @@ function ScopeWorkCard({
                     const currentProductId = line?.product_id ?? '';
 
                     return (
-                    <div
+                    <Card
                         key={productField.id}
-                        className="grid gap-3 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.3fr)_minmax(5.5rem,0.45fr)_minmax(7rem,0.55fr)_minmax(7rem,0.55fr)_auto] lg:items-end"
+                        size="sm"
+                        className="overflow-visible border-rose-200 bg-rose-50/90 ring-rose-200/80 dark:border-rose-900/70 dark:bg-rose-950/40 dark:ring-rose-900/50"
                     >
+                        <CardHeader className="flex flex-row items-start justify-between gap-3">
+                            <div>
+                                <CardTitle className="text-rose-800 dark:text-rose-200">
+                                    Line {productIndex + 1}
+                                </CardTitle>
+                                <CardDescription>
+                                    Location, service, product, and pricing for this item.
+                                </CardDescription>
+                            </div>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                aria-label={`Remove line ${productIndex + 1}`}
+                                onClick={() => remove(productIndex)}
+                            >
+                                <Trash2Icon className="size-4" />
+                            </Button>
+                        </CardHeader>
+                        <CardContent className="flex flex-col gap-4">
+                        <div className="flex flex-col gap-2">
+                            <InputLabel
+                                htmlFor={`bid-scope-location-${index}-${productIndex}`}
+                                value="Location"
+                                className="text-emerald-700 dark:text-emerald-300"
+                            />
+                            <TextInput
+                                id={`bid-scope-location-${index}-${productIndex}`}
+                                value={line?.location ?? ''}
+                                className={inputClassName}
+                                placeholder="Bldg 19, Room 54"
+                                onChange={(event) =>
+                                    onChange(
+                                        `scopes.${index}.products.${productIndex}.location`,
+                                        event.target.value,
+                                    )
+                                }
+                            />
+                            <InputError
+                                message={errorMessage(
+                                    validationErrors,
+                                    `scopes.${index}.products.${productIndex}.location`,
+                                )}
+                            />
+                        </div>
+                        <div className="grid gap-4">
                         <CreatableSelect
                             id={`bid-scope-service-${index}-${productIndex}`}
                             label="Service"
@@ -963,6 +1238,8 @@ function ScopeWorkCard({
                             id={`bid-scope-product-${index}-${productIndex}`}
                             label="Product"
                             compact
+                            wrapOptions
+                            menuMinWidth={560}
                             value={currentProductId}
                             options={options.products}
                             createRoute={route('admin.products.catalog')}
@@ -987,6 +1264,9 @@ function ScopeWorkCard({
                                     {
                                         product_id: productId,
                                         service_id: line?.service_id ?? '',
+                                        location: line?.location ?? '',
+                                        allocated_handling:
+                                            line?.allocated_handling ?? '',
                                         quantity: amounts.quantity,
                                         unit_bid: amounts.unit_bid,
                                         extended: amounts.extended,
@@ -998,6 +1278,8 @@ function ScopeWorkCard({
                                 );
                             }}
                         />
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
                         <div className="flex flex-col gap-2">
                             <InputLabel
                                 htmlFor={`bid-scope-quantity-${index}-${productIndex}`}
@@ -1046,8 +1328,56 @@ function ScopeWorkCard({
                         </div>
                         <div className="flex flex-col gap-2">
                             <InputLabel
+                                htmlFor={`bid-scope-allocated-${index}-${productIndex}`}
+                                value="Allocated Install / Freight / Handling"
+                                className="text-emerald-700 dark:text-emerald-300"
+                            />
+                            <MaskedDecimalInput
+                                id={`bid-scope-allocated-${index}-${productIndex}`}
+                                prefix="$"
+                                value={line?.allocated_handling ?? ''}
+                                className={inputClassName}
+                                placeholder="0.00"
+                                onChange={(value) =>
+                                    setLineAmount(
+                                        productIndex,
+                                        'allocated_handling',
+                                        value,
+                                    )
+                                }
+                            />
+                            <InputError
+                                message={errorMessage(
+                                    validationErrors,
+                                    `scopes.${index}.products.${productIndex}.allocated_handling`,
+                                )}
+                            />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <InputLabel
+                                htmlFor={`bid-scope-combined-${index}-${productIndex}`}
+                                value="Combined price"
+                                className="text-emerald-700 dark:text-emerald-300"
+                            />
+                            <MaskedDecimalInput
+                                id={`bid-scope-combined-${index}-${productIndex}`}
+                                prefix="$"
+                                disabled
+                                value={
+                                    combinedPriceAmount(
+                                        line?.unit_bid ?? '',
+                                        line?.allocated_handling ?? '',
+                                    ) || ''
+                                }
+                                className={inputClassName}
+                                placeholder="0.00"
+                                onChange={() => undefined}
+                            />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <InputLabel
                                 htmlFor={`bid-scope-extended-${index}-${productIndex}`}
-                                value="Extended"
+                                value="Total"
                                 className="text-emerald-700 dark:text-emerald-300"
                             />
                             <MaskedDecimalInput
@@ -1058,6 +1388,7 @@ function ScopeWorkCard({
                                     scopeExtendedAmount(
                                         line?.quantity ?? '',
                                         line?.unit_bid ?? '',
+                                        line?.allocated_handling ?? '',
                                     ) ||
                                     line?.extended ||
                                     ''
@@ -1067,27 +1398,21 @@ function ScopeWorkCard({
                                 onChange={() => undefined}
                             />
                         </div>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            aria-label={`Remove line ${productIndex + 1}`}
-                            onClick={() => remove(productIndex)}
-                        >
-                            <Trash2Icon className="size-4" />
-                        </Button>
-                    </div>
+                        </div>
+                        </CardContent>
+                    </Card>
                     );
                 })}
-                <div className="flex justify-end">
+                <div className="flex">
                     <Button
                         type="button"
                         size="sm"
                         disabled={!canAddProduct}
                         onClick={() => append(blankScopeProduct())}
-                        className="border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 hover:text-white"
+                        className="border-rose-600 bg-rose-600 text-white hover:bg-rose-700 hover:text-white"
                     >
                         <PlusIcon className="size-3.5" />
-                        Add line
+                        Add item
                     </Button>
                 </div>
             </div>

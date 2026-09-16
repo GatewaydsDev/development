@@ -1628,7 +1628,7 @@ export default function ProductForm({
                                                                 </Button>
                                                             ) : null}
                                                         </div>
-                                                        <div className="grid grid-cols-[minmax(0,1fr)_7.5rem] items-start gap-3 sm:grid-cols-[minmax(0,1fr)_9rem] sm:gap-4">
+                                                        <div className="grid grid-cols-[auto_7.5rem] items-start gap-3 sm:grid-cols-[auto_9rem] sm:gap-4">
                                                             <CreatableSelect
                                                                 id={`product-state-price-${index}`}
                                                                 label="State"
@@ -1650,7 +1650,8 @@ export default function ProductForm({
                                                                 entityLabel="state"
                                                                 withRate
                                                                 compact
-                                                                placeholder="New Jersey, New York, Pennsylvania"
+                                                                stateInitials
+                                                                placeholder="PA"
                                                                 error={errorMessage(
                                                                     validationErrors,
                                                                     `state_prices.${index}.tax_state_id`,
@@ -1931,7 +1932,7 @@ export default function ProductForm({
                                 ) : (
                                 <>
                                 <div className="flex flex-col gap-2">
-                                    <div className="grid grid-cols-[minmax(0,1fr)_7.5rem] items-start gap-3 sm:grid-cols-[minmax(0,1fr)_9rem] sm:gap-4">
+                                    <div className="grid grid-cols-[auto_7.5rem] items-start gap-3 sm:grid-cols-[auto_9rem] sm:gap-4">
                                         <CreatableSelect
                                             id="product-tax-state"
                                             label="State tax"
@@ -1944,7 +1945,8 @@ export default function ProductForm({
                                             entityLabel="state tax"
                                             withRate
                                             compact
-                                            placeholder="New Jersey, New York, Pennsylvania"
+                                            stateInitials
+                                            placeholder="PA"
                                             error={errorMessage(
                                                 validationErrors,
                                                 'tax_state_id',
