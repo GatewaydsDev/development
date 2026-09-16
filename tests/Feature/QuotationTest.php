@@ -211,7 +211,6 @@ test('a bid can be saved with a linked quotation without converting it', functio
             'project_id' => $project->id,
             'quotation_id' => $quotation->id,
             'notes' => 'Imported shipping notes',
-            'application_text' => '<p>From quotation.</p>',
             'scope_of_work_text' => '<p>RF door leaf</p>',
         ])
         ->assertSessionHasNoErrors()

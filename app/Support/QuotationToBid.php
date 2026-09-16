@@ -50,7 +50,6 @@ class QuotationToBid
                 'notes' => $quotation->notes
                     ? BidApplicationText::plainTextToHtml($quotation->notes)
                     : null,
-                'application_text' => $intro,
                 'scope_of_work_text' => $intro.$lineItemsHtml,
                 'created_by' => $user->id,
             ]);

@@ -21,7 +21,6 @@ import { FileUpIcon, PlusIcon, SaveIcon } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
-    DEFAULT_APPLICATION_TEXT_BODY,
     DEFAULT_SCOPE_TEXT_BODY,
     DEFAULT_SHIPPING_TEXT_BODY,
     fillBidTextPlaceholders,
@@ -36,7 +35,7 @@ import type {
     BidTextTemplateOption,
 } from '../types';
 
-type BidReusableTextPurpose = 'application' | 'scope' | 'shipping';
+type BidReusableTextPurpose = 'scope' | 'shipping';
 
 type BidApplicationTextSectionProps = {
     options: BidOptions;
@@ -45,41 +44,13 @@ type BidApplicationTextSectionProps = {
     value: string;
     templateId: string;
     error?: string;
-    purpose?: BidReusableTextPurpose;
+    purpose: BidReusableTextPurpose;
     embedded?: boolean;
     onChange: (html: string) => void;
     onTemplateIdChange: (id: string) => void;
 };
 
 const copyFor = (purpose: BidReusableTextPurpose) => {
-    if (purpose === 'scope') {
-        return {
-            kind: 'scope',
-            heading: 'Predefined scope of work',
-            description:
-                'Pick a saved page to insert it, the same way Word templates work. Create new adds another reusable page. You can still add and remove scope lines below. Saving the bid stores this wording on the bid.',
-            selectLabel: 'Saved scope texts',
-            selectPlaceholder: 'Type to search or add a saved scope…',
-            selectId: 'bid-scope-text-template',
-            editorLabel: 'Scope of work text',
-            editorId: 'bid-scope-of-work-text',
-            editorPlaceholder:
-                'Write the predefined scope of work, or click a saved page to start…',
-            saveTitle: 'Save reusable scope text',
-            importTitle: 'Import scope text',
-            emptySave: 'Enter scope text before saving it.',
-            namePlaceholder: 'Standard scope of work',
-            replaceNoun: 'scope of work text',
-            entityLabel: 'saved scope text',
-            allowCreate: true,
-            gallery: true,
-            defaultBody: DEFAULT_SCOPE_TEXT_BODY,
-            catalogKey: 'scopeTextTemplates' as const,
-            importedText: 'importedScopeText' as const,
-            importedTemplateId: 'importedScopeTextTemplateId' as const,
-        };
-    }
-
     if (purpose === 'shipping') {
         return {
             kind: 'shipping',
@@ -109,29 +80,29 @@ const copyFor = (purpose: BidReusableTextPurpose) => {
     }
 
     return {
-        kind: 'application',
-        heading: 'Bid application text',
+        kind: 'scope',
+        heading: 'Predefined scope of work',
         description:
-            'Pick a saved page to insert it, the same way Word templates work. Create new adds another reusable page. Saving the bid stores this wording on the bid.',
-        selectLabel: 'Saved bid texts',
-        selectPlaceholder: 'Cover letter, scope summary…',
-        selectId: 'bid-text-template',
-        editorLabel: 'Application text',
-        editorId: 'bid-application-text',
+            'Pick a saved page to insert it, the same way Word templates work. Create new adds another reusable page. You can still add and remove scope lines below. Saving the bid stores this wording on the bid.',
+        selectLabel: 'Saved scope texts',
+        selectPlaceholder: 'Type to search or add a saved scope…',
+        selectId: 'bid-scope-text-template',
+        editorLabel: 'Scope of work text',
+        editorId: 'bid-scope-of-work-text',
         editorPlaceholder:
-            'Write the bid application, or click a saved page to start…',
-        saveTitle: 'Save reusable bid text',
-        importTitle: 'Import bid text',
-        emptySave: 'Enter bid text before saving it.',
-        namePlaceholder: 'Cover letter',
-        replaceNoun: 'application text',
-        entityLabel: 'saved bid text',
+            'Write the predefined scope of work, or click a saved page to start…',
+        saveTitle: 'Save reusable scope text',
+        importTitle: 'Import scope text',
+        emptySave: 'Enter scope text before saving it.',
+        namePlaceholder: 'Standard scope of work',
+        replaceNoun: 'scope of work text',
+        entityLabel: 'saved scope text',
         allowCreate: true,
         gallery: true,
-        defaultBody: DEFAULT_APPLICATION_TEXT_BODY,
-        catalogKey: 'textTemplates' as const,
-        importedText: 'importedBidText' as const,
-        importedTemplateId: 'importedBidTextTemplateId' as const,
+        defaultBody: DEFAULT_SCOPE_TEXT_BODY,
+        catalogKey: 'scopeTextTemplates' as const,
+        importedText: 'importedScopeText' as const,
+        importedTemplateId: 'importedScopeTextTemplateId' as const,
     };
 };
 
@@ -196,7 +167,7 @@ export default function BidApplicationTextSection({
     value,
     templateId,
     error,
-    purpose = 'application',
+    purpose,
     embedded = false,
     onChange,
     onTemplateIdChange,

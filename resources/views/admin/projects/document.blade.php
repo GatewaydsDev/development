@@ -539,11 +539,6 @@
             @forelse ($scopes as $scope)
                 <div class="block">
                     <p class="block-title">{{ $scope['name'] ?: 'Scope' }}</p>
-                    @if ($scope['notes'])
-                        <div class="rich-text">{!! $scope['notes'] !!}</div>
-                    @else
-                        <p class="muted">No text added.</p>
-                    @endif
                 </div>
             @empty
                 <p class="muted">No scopes added yet.</p>

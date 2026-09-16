@@ -407,7 +407,6 @@ export default function CreatableSelect({
                                         ...(catalog?.scopeTitles ?? []),
                                         ...(catalog?.scopeTextTemplates ?? []),
                                         ...(catalog?.shippingTextTemplates ?? []),
-                                        ...(catalog?.textTemplates ?? []),
                                         ...(catalog?.pricingStatuses ?? []),
                                         ...(catalog?.products ?? []),
                                         ...(catalog?.parts ?? []),

@@ -84,9 +84,7 @@ class BidDocument
             'contractors' => $this->contractorRows(),
             'revisions' => $revisions = $this->revisionRows(),
             'revisionColumns' => $this->visibleRevisionColumns($revisions),
-            'latestTotal' => $this->money($totals['bid_total']),
             'notes' => $this->displayHtml($this->bid->notes),
-            'applicationText' => $this->displayHtml($this->bid->application_text),
             'scopeOfWorkText' => $this->displayHtml($this->bid->scope_of_work_text),
             'scopes' => $this->scopeRows(),
             'productSubtotal' => $this->money($totals['product_subtotal']),
@@ -282,9 +280,6 @@ class BidDocument
         } else {
             foreach ($this->scopeRows() as $scope) {
                 $section->addText($scope['name'] ?: 'Scope', ['bold' => true, 'size' => 12, 'color' => $this->wordColor('title')]);
-                if ($this->displayHtml($scope['rawNotations'])) {
-                    $this->addHtml($section, $scope['rawNotations']);
-                }
 
                 if ($scope['items'] === []) {
                     $section->addText('No service and product', ['italic' => true, 'size' => 10, 'color' => '6B7280']);
@@ -323,11 +318,6 @@ class BidDocument
             $section->addTextBreak(1);
             $section->addText('Shipping and handling exclusions/adjustments', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
             $this->addHtml($section, $this->bid->notes);
-        }
-
-        if ($this->displayHtml($this->bid->application_text)) {
-            $section->addTextBreak(1);
-            $this->addHtml($section, $this->bid->application_text);
         }
 
         $section->addTextBreak(1);

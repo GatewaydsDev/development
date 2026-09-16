@@ -89,7 +89,6 @@ export type BidOptions = {
     products: BidCatalogOption[];
     services: BidCatalogOption[];
     pricingStatuses: BidCatalogOption[];
-    textTemplates: BidTextTemplateOption[];
     scopeTextTemplates: BidTextTemplateOption[];
     shippingTextTemplates: BidTextTemplateOption[];
     company?: BidCompanyOption;
@@ -171,8 +170,6 @@ export type BidPayload = {
     uuid: string;
     notes?: string | null;
     bid_shipping_text_template_id?: number | null;
-    bid_text_template_id?: number | null;
-    application_text?: string | null;
     bid_scope_text_template_id?: number | null;
     scope_of_work_text?: string | null;
     created_at?: string | null;
@@ -265,8 +262,6 @@ export type BidFormData = {
     quotation_id: string;
     notes: string;
     bid_shipping_text_template_id: string;
-    bid_text_template_id: string;
-    application_text: string;
     bid_scope_text_template_id: string;
     scope_of_work_text: string;
     revisions: BidRevisionFormData[];
@@ -652,7 +647,7 @@ export const scopesFromProject = (
     const projectScopes = project?.scopes ?? [];
 
     if (projectScopes.length === 0) {
-        return [];
+        return [blankScope()];
     }
 
     return projectScopes.map((scope) => {
@@ -685,7 +680,7 @@ export const scopesFromProject = (
             title_id: matchedTitle ? String(matchedTitle.id) : '',
             scope_type: scope.type,
             title_name: titleName,
-            notations: scope.notes ?? '',
+            notations: '',
             products: lines,
         };
     });
@@ -717,10 +712,6 @@ export const bidToFormData = (bid?: BidPayload): BidFormData => ({
     bid_shipping_text_template_id: bid?.bid_shipping_text_template_id
         ? String(bid.bid_shipping_text_template_id)
         : '',
-    bid_text_template_id: bid?.bid_text_template_id
-        ? String(bid.bid_text_template_id)
-        : '',
-    application_text: bid?.application_text ?? '',
     bid_scope_text_template_id: bid?.bid_scope_text_template_id
         ? String(bid.bid_scope_text_template_id)
         : '',
@@ -797,7 +788,7 @@ export const bidToFormData = (bid?: BidPayload): BidFormData => ({
                             })
                           : [blankScopeProduct()],
               }))
-            : [],
+            : [blankScope()],
     pricings:
         bid?.pricings?.length
             ? bid.pricings.map((pricing) => ({

@@ -641,9 +641,6 @@
             @forelse ($scopes as $scope)
                 <div class="block">
                     <p class="block-title">{{ $scope['name'] ?: 'Scope' }}</p>
-                    @if ($scope['notations'])
-                        <div class="rich-text">{!! $scope['notations'] !!}</div>
-                    @endif
                     @if (count($scope['items']) > 0)
                         <table class="pricing">
                             <thead>
@@ -718,10 +715,6 @@
             @if ($notes)
                 <h2 class="section-title">Shipping and handling exclusions/adjustments</h2>
                 <div class="rich-text">{!! $notes !!}</div>
-            @endif
-
-            @if ($applicationText)
-                <div class="rich-text" style="margin-bottom: 24px;">{!! $applicationText !!}</div>
             @endif
 
             <h2 class="section-title">Authorization</h2>

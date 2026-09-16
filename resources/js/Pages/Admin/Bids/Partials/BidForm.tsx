@@ -3,7 +3,6 @@ import FormActionFab from '@/Components/FormActionFab';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import MaskedDecimalInput from '@/Components/MaskedDecimalInput';
-import RichTextEditor from '@/Components/RichTextEditor';
 import TextInput from '@/Components/TextInput';
 import { Button } from '@/Components/ui/button';
 import {
@@ -86,10 +85,6 @@ const schema = z.object({
         .string()
         .max(250000, 'Shipping and handling exclusions/adjustments must be 250,000 characters or less.'),
     bid_shipping_text_template_id: z.string(),
-    bid_text_template_id: z.string(),
-    application_text: z
-        .string()
-        .max(250000, 'Bid text must be 250,000 characters or less.'),
     bid_scope_text_template_id: z.string(),
     scope_of_work_text: z
         .string()
@@ -269,6 +264,10 @@ export default function BidForm({
             }
         }
 
+        if (!values.scopes.length) {
+            values.scopes = [blankScope()];
+        }
+
         return values;
     }, [bid, currentUserId, options.assignees, options.stageTypes]);
 
@@ -312,6 +311,14 @@ export default function BidForm({
     useEffect(() => {
         onSelectedProjectNameChange?.(selectedProject?.name ?? '');
     }, [onSelectedProjectNameChange, selectedProject?.name]);
+
+    useEffect(() => {
+        if (scopeFields.length > 0) {
+            return;
+        }
+
+        replaceScopes([blankScope()]);
+    }, [replaceScopes, scopeFields.length]);
 
     const setData = <Field extends FieldPath<BidFormData>>(
         field: Field,
@@ -375,13 +382,6 @@ export default function BidForm({
             );
         }
 
-        if (current.application_text.trim() === '') {
-            setData(
-                'application_text',
-                `<p>Created from quotation ${quotation.quotation_number} — ${quotation.title}.</p>`,
-            );
-        }
-
         toast.success(
             `Imported ${quotation.quotation_number}. The quotation stays saved and linked to this bid.`,
         );
@@ -413,8 +413,6 @@ export default function BidForm({
                 quotation_id: values.quotation_id.trim() || null,
                 bid_shipping_text_template_id:
                     values.bid_shipping_text_template_id.trim() || null,
-                bid_text_template_id: values.bid_text_template_id.trim() || null,
-                application_text: values.application_text,
                 bid_scope_text_template_id:
                     values.bid_scope_text_template_id.trim() || null,
                 scope_of_work_text: values.scope_of_work_text,
@@ -437,6 +435,7 @@ export default function BidForm({
                     )
                     .map((scope) => ({
                         ...scope,
+                        notations: '',
                         products: scope.products
                             .filter(
                                 (product) =>
@@ -939,18 +938,39 @@ export default function BidForm({
             </section>
 
             <section className="flex flex-col gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <h3 className="text-base font-semibold text-foreground">
-                            Scope of work
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                            {selectedProjectScopes.length > 0
-                                ? 'Start with predefined scope wording, then add or remove service and product lines from the selected project.'
-                                : 'Start with predefined scope wording. Select a project to load its scopes, then add or remove service and product lines.'}
-                        </p>
-                    </div>
-                    {selectedProjectScopes.length === 0 && (
+                <div>
+                    <h3 className="text-base font-semibold text-foreground">
+                        Scope of work
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                        {selectedProjectScopes.length > 0
+                            ? 'Start with predefined scope wording, then add or remove service and product lines from the selected project.'
+                            : 'A scope is ready below. Use Add scope under the last card if you need another.'}
+                    </p>
+                </div>
+
+                <div className="flex flex-col gap-4">
+                    {scopeFields.map((field, index) => (
+                        <ScopeWorkCard
+                            key={field.id}
+                            control={control}
+                            data={data}
+                            index={index}
+                            options={options}
+                            projectState={selectedProject?.site_state}
+                            validationErrors={validationErrors}
+                            inputClassName={inputClassName}
+                            locked={
+                                selectedProjectScopes.length > 0 &&
+                                index < selectedProjectScopes.length
+                            }
+                            canRemove={scopeFields.length > 1}
+                            onChange={setData}
+                            setValue={setValue}
+                            onRemove={() => removeScope(index)}
+                        />
+                    ))}
+                    <div className="flex">
                         <Button
                             type="button"
                             variant="outline"
@@ -959,7 +979,7 @@ export default function BidForm({
                             <PlusIcon className="size-4" />
                             Add scope
                         </Button>
-                    )}
+                    </div>
                 </div>
 
                 <BidApplicationTextSection
@@ -976,33 +996,6 @@ export default function BidForm({
                         setData('bid_scope_text_template_id', id)
                     }
                 />
-
-                {scopeFields.length === 0 ? (
-                    <div className="rounded-lg border border-dashed border-border bg-background/60 p-4 text-sm text-muted-foreground">
-                        {data.project_id
-                            ? 'This project does not have a scope of work yet.'
-                            : 'Select a project to load its scope of work.'}
-                    </div>
-                ) : (
-                    <div className="flex flex-col gap-4">
-                        {scopeFields.map((field, index) => (
-                            <ScopeWorkCard
-                                key={field.id}
-                                control={control}
-                                data={data}
-                                index={index}
-                                options={options}
-                                projectState={selectedProject?.site_state}
-                                validationErrors={validationErrors}
-                                inputClassName={inputClassName}
-                                locked={selectedProjectScopes.length > 0}
-                                onChange={setData}
-                                setValue={setValue}
-                                onRemove={() => removeScope(index)}
-                            />
-                        ))}
-                    </div>
-                )}
             </section>
 
             <BidApplicationTextSection
@@ -1016,19 +1009,6 @@ export default function BidForm({
                 onChange={(html) => setData('notes', html)}
                 onTemplateIdChange={(id) =>
                     setData('bid_shipping_text_template_id', id)
-                }
-            />
-
-            <BidApplicationTextSection
-                options={options}
-                project={selectedProject}
-                scopes={data.scopes ?? []}
-                value={data.application_text ?? ''}
-                templateId={data.bid_text_template_id ?? ''}
-                error={errorMessage(validationErrors, 'application_text')}
-                onChange={(html) => setData('application_text', html)}
-                onTemplateIdChange={(id) =>
-                    setData('bid_text_template_id', id)
                 }
             />
 
@@ -1071,6 +1051,7 @@ function ScopeWorkCard({
     validationErrors,
     inputClassName,
     locked,
+    canRemove,
     onChange,
     setValue,
     onRemove,
@@ -1083,6 +1064,7 @@ function ScopeWorkCard({
     validationErrors: FieldErrors<BidFormData>;
     inputClassName: string;
     locked: boolean;
+    canRemove: boolean;
     onChange: <Field extends FieldPath<BidFormData>>(
         field: Field,
         value: PathValue<BidFormData, Field>,
@@ -1128,6 +1110,9 @@ function ScopeWorkCard({
 
     return (
         <div className="flex flex-col gap-4 overflow-visible rounded-lg border border-emerald-200 bg-background p-4 dark:border-emerald-900/70">
+            <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">
+                Scope {index + 1}
+            </p>
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto]">
                 {locked || scope?.scope_type ? (
                     <div className="flex flex-col gap-2">
@@ -1163,7 +1148,7 @@ function ScopeWorkCard({
                         }
                     />
                 )}
-                {!locked && (
+                {!locked && canRemove && (
                     <div className="flex items-start lg:pt-7">
                         <Button
                             type="button"
@@ -1175,34 +1160,6 @@ function ScopeWorkCard({
                         </Button>
                     </div>
                 )}
-            </div>
-
-            <div className="flex flex-col gap-2">
-                <InputLabel
-                    htmlFor={`bid-scope-notations-${index}`}
-                    value="Information"
-                    className="text-emerald-700 dark:text-emerald-300"
-                />
-                <RichTextEditor
-                    id={`bid-scope-notations-${index}`}
-                    compact
-                    showPlaceholders={false}
-                    value={scope?.notations ?? ''}
-                    placeholder="Add details for this scope of work…"
-                    error={errorMessage(
-                        validationErrors,
-                        `scopes.${index}.notations`,
-                    )}
-                    onChange={(html) =>
-                        onChange(`scopes.${index}.notations`, html)
-                    }
-                />
-                <InputError
-                    message={errorMessage(
-                        validationErrors,
-                        `scopes.${index}.notations`,
-                    )}
-                />
             </div>
 
             <div className="flex flex-col gap-3">

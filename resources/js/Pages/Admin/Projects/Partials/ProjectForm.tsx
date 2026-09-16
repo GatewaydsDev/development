@@ -5,7 +5,6 @@ import CreatableSelect from '@/Components/CreatableSelect';
 import PhoneInput from '@/Components/PhoneInput';
 import FormActionFab from '@/Components/FormActionFab';
 import MaskedDecimalInput from '@/Components/MaskedDecimalInput';
-import RichTextEditor from '@/Components/RichTextEditor';
 import TextInput from '@/Components/TextInput';
 import { Button } from '@/Components/ui/button';
 import {
@@ -425,7 +424,7 @@ export default function ProjectForm({
                 .filter((scope) => scope.type.trim() !== '')
                 .map((scope) => ({
                     type: scope.type,
-                    notes: scope.notes,
+                    notes: '',
                 })),
             revisions: (values.revisions ?? [])
                 .filter((revision) => revision.number.trim() !== '')
@@ -1107,8 +1106,7 @@ export default function ProjectForm({
                                             Scope of work
                                         </h3>
                                         <p className="text-sm text-muted-foreground">
-                                            Add a scope type and any necessary
-                                            text.
+                                            Add a scope type.
                                         </p>
                                     </div>
                                     <Button
@@ -1195,44 +1193,6 @@ export default function ProjectForm({
                                                                 )
                                                             }
                                                         />
-                                                        <div className="flex flex-col gap-2">
-                                                            <InputLabel
-                                                                htmlFor={`project-scope-notes-${index}`}
-                                                                value="Text"
-                                                                className={
-                                                                    labelClassName
-                                                                }
-                                                            />
-                                                            <RichTextEditor
-                                                                id={`project-scope-notes-${index}`}
-                                                                compact
-                                                                showPlaceholders={
-                                                                    false
-                                                                }
-                                                                value={
-                                                                    scope?.notes ??
-                                                                    ''
-                                                                }
-                                                                placeholder="Add any necessary details for this scope."
-                                                                error={errorMessage(
-                                                                    validationErrors,
-                                                                    `scopes.${index}.notes`,
-                                                                )}
-                                                                onChange={(html) =>
-                                                                    setScopeData(
-                                                                        index,
-                                                                        'notes',
-                                                                        html,
-                                                                    )
-                                                                }
-                                                            />
-                                                            <InputError
-                                                                message={errorMessage(
-                                                                    validationErrors,
-                                                                    `scopes.${index}.notes`,
-                                                                )}
-                                                            />
-                                                        </div>
                                                     </div>
                                                     <div className="flex items-start lg:pt-7">
                                                         <Button

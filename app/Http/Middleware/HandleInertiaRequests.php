@@ -65,8 +65,6 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'success' => $request->session()->get('success'),
                 'error' => $request->session()->get('error'),
-                'importedBidText' => $request->session()->get('imported_bid_text'),
-                'importedBidTextTemplateId' => $request->session()->get('imported_bid_text_template_id'),
                 'importedScopeText' => $request->session()->get('imported_scope_text'),
                 'importedScopeTextTemplateId' => $request->session()->get('imported_scope_text_template_id'),
                 'importedShippingText' => $request->session()->get('imported_shipping_text'),

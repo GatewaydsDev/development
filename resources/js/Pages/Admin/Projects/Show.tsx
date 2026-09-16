@@ -21,7 +21,6 @@ import {
     PrinterIcon,
     TrashIcon,
 } from 'lucide-react';
-import { isEmptyHtml } from '@/Pages/Admin/Bids/bidText';
 import {
     optionLabel,
     scopeTypeLabel,
@@ -381,8 +380,7 @@ export default function Show({ project, options }: ShowProps) {
                                     Scope of work
                                 </CardTitle>
                                 <CardDescription>
-                                    Scope type and any necessary text for this
-                                    project.
+                                    Scope types for this project.
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
@@ -399,18 +397,6 @@ export default function Show({ project, options }: ShowProps) {
                                                         options.scopeTypes,
                                                     )}
                                                 </p>
-                                                {isEmptyHtml(scope.notes) ? (
-                                                    <p className="mt-1 text-sm text-muted-foreground">
-                                                        No text added.
-                                                    </p>
-                                                ) : (
-                                                    <div
-                                                        className="rich-text-content mt-2 text-sm text-foreground"
-                                                        dangerouslySetInnerHTML={{
-                                                            __html: scope.notes ?? '',
-                                                        }}
-                                                    />
-                                                )}
                                             </div>
                                         ))}
                                     </div>

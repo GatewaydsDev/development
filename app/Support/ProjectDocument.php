@@ -283,11 +283,6 @@ class ProjectDocument
         } else {
             foreach ($this->scopeRows() as $scope) {
                 $section->addText($scope['name'] ?: 'Scope', ['bold' => true, 'size' => 12, 'color' => $this->wordColor('title')]);
-                if ($this->displayHtml($scope['rawNotes'])) {
-                    $this->addHtml($section, $scope['rawNotes']);
-                } else {
-                    $section->addText('No text added.', ['italic' => true, 'size' => 10, 'color' => '6B7280']);
-                }
                 $section->addTextBreak(1);
             }
         }

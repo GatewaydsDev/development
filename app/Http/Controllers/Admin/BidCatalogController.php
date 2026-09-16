@@ -102,9 +102,8 @@ class BidCatalogController extends Controller
         if ($duplicate) {
             return back()->withErrors([
                 'name' => match ($kind) {
-                    BidTextTemplate::KIND_SCOPE => 'Another saved scope text already uses this name.',
                     BidTextTemplate::KIND_SHIPPING => 'Another saved shipping and handling text already uses this name.',
-                    default => 'Another saved bid text already uses this name.',
+                    default => 'Another saved scope text already uses this name.',
                 },
             ]);
         }
@@ -220,13 +219,10 @@ class BidCatalogController extends Controller
 
         if ($body === null) {
             $body = match ($kind) {
-                BidTextTemplate::KIND_APPLICATION => BidApplicationText::sanitize(BidTextTemplate::DEFAULT_APPLICATION_BODY)
-                    ?: BidTextTemplate::DEFAULT_APPLICATION_BODY,
-                BidTextTemplate::KIND_SCOPE => BidApplicationText::sanitize(BidTextTemplate::DEFAULT_SCOPE_BODY)
-                    ?: BidTextTemplate::DEFAULT_SCOPE_BODY,
                 BidTextTemplate::KIND_SHIPPING => BidApplicationText::sanitize(BidTextTemplate::DEFAULT_SHIPPING_BODY)
                     ?: BidTextTemplate::DEFAULT_SHIPPING_BODY,
-                default => null,
+                default => BidApplicationText::sanitize(BidTextTemplate::DEFAULT_SCOPE_BODY)
+                    ?: BidTextTemplate::DEFAULT_SCOPE_BODY,
             };
         }
 
@@ -244,9 +240,8 @@ class BidCatalogController extends Controller
         $action = $updated ? 'updated' : 'saved';
 
         return match ($kind) {
-            BidTextTemplate::KIND_SCOPE => "Scope text {$action} successfully.",
             BidTextTemplate::KIND_SHIPPING => "Shipping and handling text {$action} successfully.",
-            default => "Bid text {$action} successfully.",
+            default => "Scope text {$action} successfully.",
         };
     }
 
@@ -272,20 +267,20 @@ class BidCatalogController extends Controller
             ],
             default => [
                 'success' => $saved
-                    ? 'Bid text imported and saved.'
-                    : 'Bid text imported. Save it if you want to reuse it on other bids.',
-                'textKey' => 'imported_bid_text',
-                'idKey' => 'imported_bid_text_template_id',
+                    ? 'Scope text imported and saved.'
+                    : 'Scope text imported. Save it if you want to reuse it on other bids.',
+                'textKey' => 'imported_scope_text',
+                'idKey' => 'imported_scope_text_template_id',
             ],
         };
     }
 
     private function textTemplateKind(Request $request): string
     {
-        $kind = trim((string) $request->input('kind', BidTextTemplate::KIND_APPLICATION));
+        $kind = trim((string) $request->input('kind', BidTextTemplate::KIND_SCOPE));
 
         return in_array($kind, BidTextTemplate::KINDS, true)
             ? $kind
-            : BidTextTemplate::KIND_APPLICATION;
+            : BidTextTemplate::KIND_SCOPE;
     }
 }

@@ -327,29 +327,6 @@ export default function Show({ bid, options }: ShowProps) {
 
                     <Card>
                         <CardHeader>
-                            <CardTitle>Bid application text</CardTitle>
-                            <CardDescription>
-                                The proposal language for this bid.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            {bid.application_text ? (
-                                <div
-                                    className="rich-text-content rounded-lg border border-border bg-background p-4"
-                                    dangerouslySetInnerHTML={{
-                                        __html: bid.application_text,
-                                    }}
-                                />
-                            ) : (
-                                <p className="text-sm text-muted-foreground">
-                                    No bid application text yet.
-                                </p>
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader>
                             <CardTitle>Stages</CardTitle>
                             <CardDescription>
                                 One-to-many bid stages such as preliminary bid.
@@ -410,18 +387,6 @@ export default function Show({ bid, options }: ShowProps) {
                                         <p className="font-medium text-foreground">
                                             {scope.name}
                                         </p>
-                                        {scope.notations ? (
-                                            <div
-                                                className="rich-text-content text-sm text-foreground"
-                                                dangerouslySetInnerHTML={{
-                                                    __html: scope.notations,
-                                                }}
-                                            />
-                                        ) : (
-                                            <p className="text-sm text-muted-foreground">
-                                                No information added
-                                            </p>
-                                        )}
                                         {scope.products?.length > 0 ? (
                                             <div className="overflow-x-auto">
                                                 <table className="w-full text-sm">

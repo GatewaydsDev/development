@@ -17,8 +17,6 @@ class Bid extends Model
         'assigned_to',
         'notes',
         'bid_shipping_text_template_id',
-        'bid_text_template_id',
-        'application_text',
         'bid_scope_text_template_id',
         'scope_of_work_text',
     ];
@@ -53,11 +51,6 @@ class Bid extends Model
     public function shippingTextTemplate(): BelongsTo
     {
         return $this->belongsTo(BidTextTemplate::class, 'bid_shipping_text_template_id');
-    }
-
-    public function textTemplate(): BelongsTo
-    {
-        return $this->belongsTo(BidTextTemplate::class, 'bid_text_template_id');
     }
 
     public function scopeTextTemplate(): BelongsTo

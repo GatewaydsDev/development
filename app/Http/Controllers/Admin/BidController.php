@@ -111,8 +111,6 @@ class BidController extends Controller
                 'assigned_to' => $validated['assigned_to'] ?? null,
                 'notes' => $this->shippingText($validated),
                 'bid_shipping_text_template_id' => $validated['bid_shipping_text_template_id'] ?? null,
-                'bid_text_template_id' => $validated['bid_text_template_id'] ?? null,
-                'application_text' => $this->applicationText($validated),
                 'bid_scope_text_template_id' => $validated['bid_scope_text_template_id'] ?? null,
                 'scope_of_work_text' => $this->scopeOfWorkText($validated),
                 'created_by' => $request->user()->id,
@@ -209,8 +207,6 @@ class BidController extends Controller
                 'assigned_to' => $validated['assigned_to'] ?? null,
                 'notes' => $this->shippingText($validated),
                 'bid_shipping_text_template_id' => $validated['bid_shipping_text_template_id'] ?? null,
-                'bid_text_template_id' => $validated['bid_text_template_id'] ?? null,
-                'application_text' => $this->applicationText($validated),
                 'bid_scope_text_template_id' => $validated['bid_scope_text_template_id'] ?? null,
                 'scope_of_work_text' => $this->scopeOfWorkText($validated),
             ])->save();
@@ -251,15 +247,6 @@ class BidController extends Controller
                     BidTextTemplate::KIND_SHIPPING,
                 ),
             ],
-            'bid_text_template_id' => [
-                'nullable',
-                'integer',
-                Rule::exists(BidTextTemplate::class, 'id')->where(
-                    'kind',
-                    BidTextTemplate::KIND_APPLICATION,
-                ),
-            ],
-            'application_text' => ['nullable', 'string', 'max:250000'],
             'bid_scope_text_template_id' => [
                 'nullable',
                 'integer',
@@ -717,8 +704,6 @@ class BidController extends Controller
             'uuid' => $bid->uuid,
             'notes' => $summary ? null : BidApplicationText::sanitize($bid->notes),
             'bid_shipping_text_template_id' => $summary ? null : $bid->bid_shipping_text_template_id,
-            'bid_text_template_id' => $summary ? null : $bid->bid_text_template_id,
-            'application_text' => $summary ? null : BidApplicationText::sanitize($bid->application_text),
             'bid_scope_text_template_id' => $summary ? null : $bid->bid_scope_text_template_id,
             'scope_of_work_text' => $summary ? null : BidApplicationText::sanitize($bid->scope_of_work_text),
             'created_at' => $bid->created_at?->toDateString(),
@@ -860,14 +845,6 @@ class BidController extends Controller
                 ->values()
                 ->all(),
         ];
-    }
-
-    /**
-     * @param  array<string, mixed>  $validated
-     */
-    private function applicationText(array $validated): ?string
-    {
-        return $this->filledBidHtml($validated, 'application_text');
     }
 
     /**
@@ -1038,16 +1015,6 @@ class BidController extends Controller
                     'name' => $status->name,
                 ])
                 ->all(),
-            'textTemplates' => BidTextTemplate::query()
-                ->where('kind', BidTextTemplate::KIND_APPLICATION)
-                ->orderBy('name')
-                ->get(['id', 'name', 'body'])
-                ->map(fn (BidTextTemplate $template): array => [
-                    'id' => $template->id,
-                    'name' => $template->name,
-                    'body' => $template->body,
-                ])
-                ->all(),
             'scopeTextTemplates' => BidTextTemplate::query()
                 ->where('kind', BidTextTemplate::KIND_SCOPE)
                 ->orderBy('name')
@@ -1145,7 +1112,6 @@ class BidController extends Controller
                 $query->where(function ($query) use ($search): void {
                     $query
                         ->where('notes', 'like', "%{$search}%")
-                        ->orWhere('application_text', 'like', "%{$search}%")
                         ->orWhere('scope_of_work_text', 'like', "%{$search}%")
                         ->orWhereHas('project', function ($query) use ($search): void {
                             $query

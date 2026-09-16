@@ -21,9 +21,6 @@ export type BidTextPlaceholderKey =
 export const placeholderToken = (key: BidTextPlaceholderKey | string) =>
     `{{${key}}}`;
 
-export const DEFAULT_APPLICATION_TEXT_BODY =
-    '<p>Dear {{customer_name}},</p><p>Thank you for the opportunity to bid on <strong>{{project_name}}</strong>. {{company_name}} is pleased to submit this proposal.</p><p>Sincerely,<br>{{company_name}}</p>';
-
 export const DEFAULT_SCOPE_TEXT_BODY =
     '<p>This proposal covers the scope of work for <strong>{{project_name}}</strong> at {{project_address}}.</p><p>{{scope_of_work}}</p>';
 

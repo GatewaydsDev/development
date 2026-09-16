@@ -225,7 +225,7 @@ type RichTextEditorProps = {
 export default function RichTextEditor({
     value,
     onChange,
-    placeholder = 'Write or adapt the bid application text…',
+    placeholder = 'Write or adapt this text…',
     error,
     id,
     compact = false,

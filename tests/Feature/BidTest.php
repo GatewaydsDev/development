@@ -94,7 +94,6 @@ test('the create bid page includes stages scopes and pricing catalogs', function
             ->has('options.products')
             ->has('options.services')
             ->has('options.pricingStatuses')
-            ->has('options.textTemplates')
             ->has('options.scopeTextTemplates')
             ->has('options.shippingTextTemplates')
             ->where(
@@ -808,24 +807,26 @@ test('reusable bid catalogs can be created and reused', function () {
     expect(BidPricingStatus::query()->whereRaw('LOWER(name) = ?', ['owner allowance'])->count())->toBe(1);
 });
 
-test('reusable bid texts can be saved and reused', function () {
+test('reusable scope texts can be saved and reused', function () {
     $admin = bidAdmin();
 
     $this->actingAs($admin)
         ->post(route('admin.bid-text-templates.store'), [
+            'kind' => 'scope',
             'name' => 'Owner cover letter',
             'body' => '<p>Thank you for the opportunity to bid on {{project_name}}.</p>',
         ])
         ->assertSessionHasNoErrors()
-        ->assertSessionHas('success', 'Bid text saved successfully.');
+        ->assertSessionHas('success', 'Scope text saved successfully.');
 
     $this->actingAs($admin)
         ->post(route('admin.bid-text-templates.store'), [
+            'kind' => 'scope',
             'name' => 'owner cover letter',
             'body' => '<p>Updated letter for {{project_name}} at {{site_address}}.</p>',
         ])
         ->assertSessionHasNoErrors()
-        ->assertSessionHas('success', 'Bid text updated successfully.');
+        ->assertSessionHas('success', 'Scope text updated successfully.');
 
     expect(BidTextTemplate::query()->whereRaw('LOWER(name) = ?', ['owner cover letter'])->count())->toBe(1);
     expect(BidTextTemplate::query()->whereRaw('LOWER(name) = ?', ['owner cover letter'])->value('body'))
@@ -839,11 +840,12 @@ test('saving reusable bid text from the create page does not create a bid', func
     $this->actingAs($admin)
         ->from(route('admin.bids.create'))
         ->post(route('admin.bid-text-templates.store'), [
+            'kind' => 'scope',
             'name' => 'Standalone cover letter',
             'body' => '<p>Library-only text for {{project_name}}.</p>',
         ])
         ->assertSessionHasNoErrors()
-        ->assertSessionHas('success', 'Bid text saved successfully.');
+        ->assertSessionHas('success', 'Scope text saved successfully.');
 
     expect(Bid::query()->count())->toBe($before);
     expect(BidTextTemplate::query()->where('name', 'Standalone cover letter')->exists())->toBeTrue();
@@ -895,14 +897,14 @@ test('reusable scope texts can be saved and stored on a bid', function () {
     expect($bid->scopes)->toHaveCount(1);
 });
 
-test('application and scope texts can share the same name', function () {
+test('shipping and scope texts can share the same name', function () {
     $admin = bidAdmin();
 
     $this->actingAs($admin)
         ->post(route('admin.bid-text-templates.store'), [
-            'kind' => 'application',
+            'kind' => 'shipping',
             'name' => 'Shared wording',
-            'body' => '<p>Application library text.</p>',
+            'body' => '<p>Shipping library text.</p>',
         ])
         ->assertSessionHasNoErrors();
 
@@ -917,10 +919,10 @@ test('application and scope texts can share the same name', function () {
     expect(BidTextTemplate::query()->where('name', 'Shared wording')->count())->toBe(2);
     expect(
         BidTextTemplate::query()
-            ->where('kind', BidTextTemplate::KIND_APPLICATION)
+            ->where('kind', BidTextTemplate::KIND_SHIPPING)
             ->where('name', 'Shared wording')
             ->value('body'),
-    )->toContain('Application library text');
+    )->toContain('Shipping library text');
     expect(
         BidTextTemplate::query()
             ->where('kind', BidTextTemplate::KIND_SCOPE)
@@ -1001,27 +1003,7 @@ test('shipping and handling text can be stored on a bid', function () {
     expect($bid->notes)->toContain('Harbor Freight Project');
 });
 
-test('a saved application text can be created with only a name', function () {
-    $admin = bidAdmin();
-
-    $this->actingAs($admin)
-        ->from(route('admin.bids.create'))
-        ->post(route('admin.bid-text-templates.store'), [
-            'kind' => 'application',
-            'name' => 'Empty cover letter',
-        ])
-        ->assertSessionHasNoErrors()
-        ->assertSessionHas('success', 'Bid text saved successfully.');
-
-    $template = BidTextTemplate::query()
-        ->where('kind', BidTextTemplate::KIND_APPLICATION)
-        ->where('name', 'Empty cover letter')
-        ->firstOrFail();
-
-    expect($template->body)->toContain('{{project_name}}');
-});
-
-test('a text file can be imported and saved as reusable bid text', function () {
+test('a text file can be imported and saved as reusable scope text', function () {
     $admin = bidAdmin();
     $file = UploadedFile::fake()->createWithContent(
         'owner_cover_letter.txt',
@@ -1031,13 +1013,14 @@ test('a text file can be imported and saved as reusable bid text', function () {
     $this->actingAs($admin)
         ->from(route('admin.bids.create'))
         ->post(route('admin.bid-text-templates.import'), [
+            'kind' => 'scope',
             'name' => 'Imported cover letter',
             'save' => 1,
             'file' => $file,
         ])
         ->assertSessionHasNoErrors()
-        ->assertSessionHas('success', 'Bid text imported and saved.')
-        ->assertSessionHas('imported_bid_text');
+        ->assertSessionHas('success', 'Scope text imported and saved.')
+        ->assertSessionHas('imported_scope_text');
 
     $template = BidTextTemplate::query()
         ->where('name', 'Imported cover letter')
@@ -1059,15 +1042,16 @@ test('an imported text can be used on a bid without saving it', function () {
     $this->actingAs($admin)
         ->from(route('admin.bids.create'))
         ->post(route('admin.bid-text-templates.import'), [
+            'kind' => 'scope',
             'save' => 0,
             'file' => $file,
         ])
         ->assertSessionHasNoErrors()
-        ->assertSessionHas('imported_bid_text');
+        ->assertSessionHas('imported_scope_text');
 
     expect(BidTextTemplate::query()->count())->toBe($before);
-    expect(session('imported_bid_text'))->toContain('{{project_name}}');
-    expect(session('imported_bid_text_template_id'))->toBeNull();
+    expect(session('imported_scope_text'))->toContain('{{project_name}}');
+    expect(session('imported_scope_text_template_id'))->toBeNull();
 });
 
 test('a word document can be imported as reusable bid text', function () {
@@ -1089,12 +1073,13 @@ test('a word document can be imported as reusable bid text', function () {
         $this->actingAs($admin)
             ->from(route('admin.bids.create'))
             ->post(route('admin.bid-text-templates.import'), [
+                'kind' => 'scope',
                 'name' => 'Word cover letter',
                 'save' => 1,
                 'file' => $file,
             ])
             ->assertSessionHasNoErrors()
-            ->assertSessionHas('success', 'Bid text imported and saved.');
+            ->assertSessionHas('success', 'Scope text imported and saved.');
 
         expect(BidTextTemplate::query()->where('name', 'Word cover letter')->value('body'))
             ->toContain('{{project_name}}');
@@ -1305,12 +1290,13 @@ test('a doc file can be imported as reusable bid text', function () {
         $this->actingAs($admin)
             ->from(route('admin.bids.create'))
             ->post(route('admin.bid-text-templates.import'), [
+                'kind' => 'scope',
                 'name' => 'Doc cover letter',
                 'save' => 1,
                 'file' => $file,
             ])
             ->assertSessionHasNoErrors()
-            ->assertSessionHas('success', 'Bid text imported and saved.');
+            ->assertSessionHas('success', 'Scope text imported and saved.');
 
         expect(BidTextTemplate::query()->where('name', 'Doc cover letter')->value('body'))
             ->toContain('{{project_name}}');
@@ -1333,55 +1319,19 @@ test('a pdf can be imported as reusable bid text', function () {
         $this->actingAs($admin)
             ->from(route('admin.bids.create'))
             ->post(route('admin.bid-text-templates.import'), [
+                'kind' => 'scope',
                 'name' => 'PDF cover letter',
                 'save' => 1,
                 'file' => $file,
             ])
             ->assertSessionHasNoErrors()
-            ->assertSessionHas('success', 'Bid text imported and saved.');
+            ->assertSessionHas('success', 'Scope text imported and saved.');
 
         expect(BidTextTemplate::query()->where('name', 'PDF cover letter')->value('body'))
             ->toContain('{{project_name}}');
     } finally {
         @unlink($path);
     }
-});
-
-test('bid application text placeholders are filled when a bid is saved', function () {
-    $admin = bidAdmin();
-    $project = bidProject($admin, 'Harbor RF Upgrade');
-    $project->update([
-        'site_address_line_1' => '12 Dock Road',
-        'site_city' => 'Portsmouth',
-        'site_state' => 'NH',
-    ]);
-    $template = BidTextTemplate::query()->where('name', 'Cover letter')->firstOrFail();
-
-    $response = $this
-        ->actingAs($admin)
-        ->post(route('admin.bids.store'), [
-            'project_id' => $project->id,
-            'notes' => '',
-            'bid_text_template_id' => $template->id,
-            'application_text' => '<p>Proposal for {{project_name}} ({{project_number}}) at {{project_address}}.</p>',
-            'stages' => [],
-            'scopes' => [],
-            'pricings' => [],
-        ]);
-
-    $bid = Bid::query()->where('project_id', $project->id)->firstOrFail();
-
-    $response
-        ->assertSessionHasNoErrors()
-        ->assertRedirect(route('admin.bids.index', ['highlight' => $bid->id]));
-
-    expect($bid->bid_text_template_id)->toBe($template->id);
-    expect($bid->application_text)
-        ->toContain('Harbor RF Upgrade')
-        ->toContain($project->fresh()->project_number)
-        ->toContain('12 Dock Road')
-        ->not->toContain('{{project_name}}')
-        ->not->toContain('{{project_address}}');
 });
 
 test('a bid can be printed and exported as pdf or word', function () {
@@ -1410,7 +1360,6 @@ test('a bid can be printed and exported as pdf or word', function () {
             'project_id' => $project->id,
             'assigned_to' => $representative->id,
             'notes' => 'Owner review draft',
-            'application_text' => '<p>Proposal for Harbor Print Package.</p>',
             'scope_of_work_text' => '<p>Furnish and install RF doors for Harbor Print Package.</p>',
             'stages' => [
                 [
@@ -1450,8 +1399,8 @@ test('a bid can be printed and exported as pdf or word', function () {
         ->assertSee('P-2026-PRINT', false)
         ->assertSee('12 Dock Road', false)
         ->assertDontSee('Bid revisions', false)
-        ->assertSee('Proposal for Harbor Print Package.', false)
         ->assertDontSee('Bid application text', false)
+        ->assertDontSee('Proposal for Harbor Print Package.', false)
         ->assertSee('Furnish and install RF doors for Harbor Print Package.', false)
         ->assertSee('RF Doors', false)
         ->assertDontSee('Location', false)
@@ -1461,7 +1410,7 @@ test('a bid can be printed and exported as pdf or word', function () {
         ->assertSee('Unit value', false)
         ->assertSee('Combined price', false)
         ->assertSee('Total', false)
-        ->assertSee('Include frames and hardware', false)
+        ->assertDontSee('Include frames and hardware', false)
         ->assertSee('Assembly w/ vision glazing', false)
         ->assertSee('RF door leaf', false)
         ->assertSee('$1,250.00', false)
