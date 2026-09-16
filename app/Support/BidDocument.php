@@ -10,6 +10,7 @@ use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Response;
 use Illuminate\Support\Str;
+use PhpOffice\PhpWord\Element\Cell;
 use PhpOffice\PhpWord\Element\Section;
 use PhpOffice\PhpWord\IOFactory;
 use PhpOffice\PhpWord\PhpWord;
@@ -32,6 +33,7 @@ class BidDocument
         $bid->load([
             'project.contractors.contacts',
             'creator',
+            'assignee:id,name',
             'stages.type',
             'scopes.title',
             'scopes.products.product.statePrices.taxState',
@@ -57,6 +59,8 @@ class BidDocument
             'year' => now()->year,
             'generatedAt' => now(),
             'generatedBy' => $this->user?->name,
+            'assigneeName' => $this->bid->assignee?->name,
+            'signatureDate' => $this->generatedAtLabel(),
             'companyName' => $this->companyName(),
             'companyAddress' => $this->companyAddress(),
             'companyPhone' => $this->company?->contact_phone_number ?: $this->company?->phone_number,
@@ -319,8 +323,7 @@ class BidDocument
         }
 
         $section->addTextBreak(1);
-        $this->addSignatureParty($section, 'Submitted by', $this->companyName());
-        $this->addSignatureParty($section, 'Accepted by');
+        $this->addAuthorizationSignatures($section);
 
         $path = tempnam(sys_get_temp_dir(), 'bid-document-').'.docx';
         IOFactory::createWriter($phpWord, 'Word2007')->save($path);
@@ -385,32 +388,52 @@ class BidDocument
         $section->addTextBreak(1);
     }
 
-    private function addSignatureParty(Section $section, string $heading, ?string $company = null): void
+    private function addAuthorizationSignatures(Section $section): void
     {
-        $section->addText($heading, ['bold' => true, 'size' => 13, 'color' => '065F46']);
-
-        $table = $section->addTable(['borderSize' => 0, 'cellMargin' => 80]);
-        $cellStyle = ['bgColor' => 'F9FAFB', 'borderSize' => 4, 'borderColor' => 'E5E7EB'];
-        $blankLine = str_repeat('_', 32);
-
-        $table->addRow();
-        $companyCell = $table->addCell(5400, $cellStyle);
-        $companyCell->addText('Company', ['size' => 8, 'color' => '6B7280']);
-        $companyCell->addText(
-            filled($company) ? $company : $blankLine,
-            ['size' => 11, 'color' => '111827'],
+        $section->addText('Authorization', ['bold' => true, 'size' => 13, 'color' => '065F46']);
+        $section->addText(
+            'This proposal is submitted by '.$this->companyName().'. Acceptance below confirms the scope and pricing in this document.',
+            ['size' => 10, 'color' => '374151'],
         );
-
-        $dateCell = $table->addCell(5400, $cellStyle);
-        $dateCell->addText('Date', ['size' => 8, 'color' => '6B7280']);
-        $dateCell->addText($blankLine, ['size' => 11, 'color' => '111827']);
-
-        $table->addRow();
-        $signCell = $table->addCell(10800, $cellStyle + ['gridSpan' => 2]);
-        $signCell->addText('Authorized representative', ['size' => 8, 'color' => '6B7280']);
-        $signCell->addText(str_repeat('_', 48), ['size' => 11, 'color' => '111827']);
-
         $section->addTextBreak(1);
+
+        $table = $section->addTable(['borderSize' => 0, 'cellMargin' => 120]);
+        $table->addRow();
+        $cellStyle = ['bgColor' => 'F9FAFB', 'borderSize' => 8, 'borderColor' => 'D1D5DB', 'valign' => 'top'];
+
+        $this->fillSignatureColumn(
+            $table->addCell(5400, $cellStyle),
+            'Submitted by',
+            $this->companyName(),
+            $this->bid->assignee?->name,
+            $this->generatedAtLabel(),
+        );
+        $this->fillSignatureColumn(
+            $table->addCell(5400, $cellStyle),
+            'Accepted by',
+        );
+    }
+
+    private function fillSignatureColumn(
+        Cell $cell,
+        string $heading,
+        ?string $company = null,
+        ?string $representative = null,
+        ?string $date = null,
+    ): void {
+        $blankLine = str_repeat('_', 28);
+
+        $cell->addText($heading, ['bold' => true, 'size' => 12, 'color' => '065F46']);
+        $this->addSignatureField($cell, 'Company', $company ?: $blankLine);
+        $this->addSignatureField($cell, 'Authorized representative', $representative ?: $blankLine);
+        $this->addSignatureField($cell, 'Signature', $blankLine);
+        $this->addSignatureField($cell, 'Date', $date ?: $blankLine);
+    }
+
+    private function addSignatureField(Cell $cell, string $label, string $value): void
+    {
+        $cell->addText($label, ['size' => 8, 'color' => '6B7280']);
+        $cell->addText($value, ['size' => 11, 'color' => '111827']);
     }
 
     private function addHtml(Section $section, ?string $html, string $empty = 'Not added yet.'): void

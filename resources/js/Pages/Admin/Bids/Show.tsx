@@ -167,6 +167,10 @@ export default function Show({ bid, options }: ShowProps) {
                                     value={bid.project?.name}
                                 />
                                 <DetailItem
+                                    label="Authorized representative"
+                                    value={bid.assignee?.name}
+                                />
+                                <DetailItem
                                     label="Project number"
                                     value={bid.project?.project_number}
                                 />

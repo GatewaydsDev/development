@@ -110,6 +110,7 @@ test('the create bid page includes stages scopes and pricing catalogs', function
                 ),
             )
             ->has('options.company')
+            ->has('options.assignees')
         );
 });
 
@@ -387,6 +388,7 @@ test('a bid can be created with stages reusable scopes and pricing revisions', f
         ->actingAs($admin)
         ->post(route('admin.bids.store'), [
             'project_id' => $project->id,
+            'assigned_to' => $admin->id,
             'notes' => 'First pass for the owner',
             'stages' => [
                 [
@@ -443,6 +445,7 @@ test('a bid can be created with stages reusable scopes and pricing revisions', f
     expect($bid->pricings)->toHaveCount(1);
     expect($bid->pricings->first()?->items)->toHaveCount(1);
     expect((float) $bid->pricings->first()?->items->first()?->amount)->toBe(12500.0);
+    expect($bid->assigned_to)->toBe($admin->id);
 });
 
 test('a bid scope pairs a product with a service', function () {
@@ -1399,9 +1402,15 @@ test('a bid can be printed and exported as pdf or word', function () {
     $door = Product::create(['name' => 'RF door leaf', 'kind' => Product::KIND_DOOR]);
     $service = bidService();
 
+    $representative = User::factory()->create([
+        'name' => 'Jordan Hale',
+        'level_id' => $admin->level_id,
+    ]);
+
     $this->actingAs($admin)
         ->post(route('admin.bids.store'), [
             'project_id' => $project->id,
+            'assigned_to' => $representative->id,
             'notes' => 'Owner review draft',
             'application_text' => '<p>Proposal for Harbor Print Package.</p>',
             'scope_of_work_text' => '<p>Furnish and install RF doors for Harbor Print Package.</p>',
@@ -1463,6 +1472,10 @@ test('a bid can be printed and exported as pdf or word', function () {
         ->assertSee('Owner review draft', false)
         ->assertSee('Submitted by', false)
         ->assertSee('Authorized representative', false)
+        ->assertSee('Jordan Hale', false)
+        ->assertSee('Authorization', false)
+        ->assertSee('Signature', false)
+        ->assertSee(now()->format('F j, Y'), false)
         ->assertSee('Accepted by', false)
         ->assertSee('Print bid', false)
         ->assertDontSee('Preliminary pricing', false)

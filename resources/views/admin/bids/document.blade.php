@@ -367,6 +367,58 @@
             min-height: 18px;
         }
 
+        .authorization-intro {
+            margin: 0 0 14px;
+            font-size: 11px;
+            line-height: 1.5;
+            color: #374151;
+        }
+
+        .signature-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 12px 0;
+            margin: 0 -12px 8px;
+        }
+
+        .signature-col {
+            width: 50%;
+            vertical-align: top;
+            background: #f9fafb;
+            border: 1px solid #d1d5db;
+            padding: 14px 16px;
+        }
+
+        .signature-heading {
+            margin: 0 0 12px;
+            font-size: 13px;
+            font-weight: 700;
+            color: #065f46;
+        }
+
+        .signature-field {
+            margin: 0 0 12px;
+        }
+
+        .signature-field:last-child {
+            margin-bottom: 0;
+        }
+
+        .signature-value {
+            display: block;
+            margin-top: 4px;
+            min-height: 18px;
+            font-size: 12px;
+            color: #111827;
+        }
+
+        .signature-line {
+            display: block;
+            margin-top: 18px;
+            border-bottom: 1px solid #111827;
+            min-height: 22px;
+        }
+
         @media screen {
             @if ($mode === 'print')
             .toolbar {
@@ -672,49 +724,56 @@
                 <div class="rich-text" style="margin-bottom: 24px;">{!! $applicationText !!}</div>
             @endif
 
-            <h2 class="section-title">Submitted by</h2>
-            <div class="block">
-                <table class="meta" style="margin-bottom: 0;">
-                    <tr>
-                        <td>
+            <h2 class="section-title">Authorization</h2>
+            <p class="authorization-intro">
+                This proposal is submitted by {{ $companyName }}. Acceptance below confirms the scope and pricing in this document.
+            </p>
+            <table class="signature-table">
+                <tr>
+                    <td class="signature-col">
+                        <p class="signature-heading">Submitted by</p>
+                        <div class="signature-field">
                             <span class="meta-label">Company</span>
-                            <span class="meta-value">{{ $companyName }}</span>
-                        </td>
-                        <td>
-                            <span class="meta-label">Date</span>
-                            <span class="sign-line"></span>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td colspan="2">
+                            <span class="signature-value">{{ $companyName }}</span>
+                        </div>
+                        <div class="signature-field">
                             <span class="meta-label">Authorized representative</span>
-                            <span class="sign-line"></span>
-                        </td>
-                    </tr>
-                </table>
-            </div>
-
-            <h2 class="section-title">Accepted by</h2>
-            <div class="block">
-                <table class="meta" style="margin-bottom: 0;">
-                    <tr>
-                        <td>
+                            @if ($assigneeName)
+                                <span class="signature-value">{{ $assigneeName }}</span>
+                            @else
+                                <span class="signature-line"></span>
+                            @endif
+                        </div>
+                        <div class="signature-field">
+                            <span class="meta-label">Signature</span>
+                            <span class="signature-line"></span>
+                        </div>
+                        <div class="signature-field">
+                            <span class="meta-label">Date</span>
+                            <span class="signature-value">{{ $signatureDate }}</span>
+                        </div>
+                    </td>
+                    <td class="signature-col">
+                        <p class="signature-heading">Accepted by</p>
+                        <div class="signature-field">
                             <span class="meta-label">Company</span>
-                            <span class="sign-line"></span>
-                        </td>
-                        <td>
-                            <span class="meta-label">Date</span>
-                            <span class="sign-line"></span>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td colspan="2">
+                            <span class="signature-line"></span>
+                        </div>
+                        <div class="signature-field">
                             <span class="meta-label">Authorized representative</span>
-                            <span class="sign-line"></span>
-                        </td>
-                    </tr>
-                </table>
-            </div>
+                            <span class="signature-line"></span>
+                        </div>
+                        <div class="signature-field">
+                            <span class="meta-label">Signature</span>
+                            <span class="signature-line"></span>
+                        </div>
+                        <div class="signature-field">
+                            <span class="meta-label">Date</span>
+                            <span class="signature-line"></span>
+                        </div>
+                    </td>
+                </tr>
+            </table>
 
             <p class="footnote">
                 {{ $companyName }}

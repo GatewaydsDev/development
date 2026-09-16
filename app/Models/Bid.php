@@ -14,6 +14,7 @@ class Bid extends Model
         'project_id',
         'quotation_id',
         'created_by',
+        'assigned_to',
         'notes',
         'bid_shipping_text_template_id',
         'bid_text_template_id',
@@ -42,6 +43,11 @@ class Bid extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function assignee(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_to');
     }
 
     public function shippingTextTemplate(): BelongsTo

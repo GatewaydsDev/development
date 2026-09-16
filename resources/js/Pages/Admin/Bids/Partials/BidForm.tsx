@@ -80,6 +80,7 @@ const optionalMoneySchema = z
 
 const schema = z.object({
     project_id: z.string().trim().min(1, 'Select a project.'),
+    assigned_to: z.string(),
     quotation_id: z.string(),
     notes: z
         .string()
@@ -258,8 +259,18 @@ export default function BidForm({
             values.stages[0].stage_type_id = String(preliminary.id);
         }
 
+        if (!bid && currentUserId) {
+            const canAssign = (options.assignees ?? []).some(
+                (assignee) => String(assignee.id) === currentUserId,
+            );
+
+            if (canAssign) {
+                values.assigned_to = currentUserId;
+            }
+        }
+
         return values;
-    }, [bid, options.stageTypes]);
+    }, [bid, currentUserId, options.assignees, options.stageTypes]);
 
     const {
         control,
@@ -398,6 +409,7 @@ export default function BidForm({
         (values) => {
             const payload = {
                 ...values,
+                assigned_to: values.assigned_to.trim() || null,
                 quotation_id: values.quotation_id.trim() || null,
                 bid_shipping_text_template_id:
                     values.bid_shipping_text_template_id.trim() || null,
@@ -555,6 +567,46 @@ export default function BidForm({
                                     }
                                 }}
                             />
+                            <div className="flex flex-col gap-2">
+                                <InputLabel
+                                    htmlFor="bid-assigned-to"
+                                    value="Assigned to / Authorized representative"
+                                    className="text-emerald-700 dark:text-emerald-300"
+                                />
+                                <select
+                                    id="bid-assigned-to"
+                                    value={data.assigned_to ?? ''}
+                                    onChange={(event) =>
+                                        setData(
+                                            'assigned_to',
+                                            event.target.value,
+                                        )
+                                    }
+                                    className={`${inputClassName} rounded-md border px-3 text-sm shadow-sm focus:outline-none focus:ring-2`}
+                                >
+                                    <option value="">Unassigned</option>
+                                    {(options.assignees ?? []).map(
+                                        (assignee) => (
+                                            <option
+                                                key={assignee.id}
+                                                value={assignee.id}
+                                            >
+                                                {assignee.name}
+                                            </option>
+                                        ),
+                                    )}
+                                </select>
+                                <p className="text-xs text-muted-foreground">
+                                    This name appears on the printed bid
+                                    signature.
+                                </p>
+                                <InputError
+                                    message={errorMessage(
+                                        validationErrors,
+                                        'assigned_to',
+                                    )}
+                                />
+                            </div>
                         </div>
                         {selectedProject ? (
                             <p className="text-sm text-muted-foreground">

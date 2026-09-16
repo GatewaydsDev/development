@@ -95,6 +95,10 @@ export type BidOptions = {
     company?: BidCompanyOption;
     can: BidCapabilities;
     quotations?: BidQuotationOption[];
+    assignees?: Array<{
+        id: number;
+        name: string;
+    }>;
 };
 
 export type BidRevisionPayload = {
@@ -195,6 +199,11 @@ export type BidPayload = {
         id?: number | null;
         name?: string | null;
     } | null;
+    assigned_to?: number | null;
+    assignee?: {
+        id?: number | null;
+        name?: string | null;
+    } | null;
     current_stage?: string | null;
     latest_total?: string | null;
     revisions?: BidRevisionPayload[];
@@ -252,6 +261,7 @@ export type BidPricingFormData = {
 
 export type BidFormData = {
     project_id: string;
+    assigned_to: string;
     quotation_id: string;
     notes: string;
     bid_shipping_text_template_id: string;
@@ -697,6 +707,11 @@ export const blankPricing = (name = 'Preliminary pricing'): BidPricingFormData =
 
 export const bidToFormData = (bid?: BidPayload): BidFormData => ({
     project_id: bid?.project?.id ? String(bid.project.id) : '',
+    assigned_to: bid?.assigned_to
+        ? String(bid.assigned_to)
+        : bid?.assignee?.id
+          ? String(bid.assignee.id)
+          : '',
     quotation_id: bid?.quotation?.id ? String(bid.quotation.id) : '',
     notes: bid?.notes ?? '',
     bid_shipping_text_template_id: bid?.bid_shipping_text_template_id

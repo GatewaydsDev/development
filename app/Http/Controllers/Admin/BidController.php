@@ -21,6 +21,7 @@ use App\Models\ProjectScopeType;
 use App\Models\Quotation;
 use App\Models\Service;
 use App\Models\User;
+use App\Models\UserLevel;
 use App\Support\BidAccess;
 use App\Support\BidApplicationText;
 use App\Support\BidDocument;
@@ -107,6 +108,7 @@ class BidController extends Controller
             $bid = Bid::create([
                 'project_id' => $validated['project_id'],
                 'quotation_id' => $validated['quotation_id'] ?? null,
+                'assigned_to' => $validated['assigned_to'] ?? null,
                 'notes' => $this->shippingText($validated),
                 'bid_shipping_text_template_id' => $validated['bid_shipping_text_template_id'] ?? null,
                 'bid_text_template_id' => $validated['bid_text_template_id'] ?? null,
@@ -135,6 +137,7 @@ class BidController extends Controller
             'project.contractors.contacts',
             'quotation:id,quotation_number,title',
             'creator:id,name',
+            'assignee:id,name',
             'stages.type',
             'scopes.title',
             'scopes.products.product',
@@ -178,6 +181,7 @@ class BidController extends Controller
             'project:id,name,project_number,site_address_line_1,site_address_line_2,site_city,site_state,site_postal_code,site_country',
             'project.contractors.contacts',
             'quotation:id,quotation_number,title',
+            'assignee:id,name',
             'stages.type',
             'scopes.title',
             'scopes.products.product',
@@ -202,6 +206,7 @@ class BidController extends Controller
             $bid->fill([
                 'project_id' => $validated['project_id'],
                 'quotation_id' => $validated['quotation_id'] ?? null,
+                'assigned_to' => $validated['assigned_to'] ?? null,
                 'notes' => $this->shippingText($validated),
                 'bid_shipping_text_template_id' => $validated['bid_shipping_text_template_id'] ?? null,
                 'bid_text_template_id' => $validated['bid_text_template_id'] ?? null,
@@ -236,6 +241,7 @@ class BidController extends Controller
     {
         $validated = $request->validate([
             'project_id' => ['required', 'integer', Rule::exists(Project::class, 'id')],
+            'assigned_to' => ['nullable', 'integer', Rule::exists(User::class, 'id')],
             'notes' => ['nullable', 'string', 'max:250000'],
             'bid_shipping_text_template_id' => [
                 'nullable',
@@ -704,7 +710,7 @@ class BidController extends Controller
     private function bidPayload(Bid $bid, bool $summary = false): array
     {
         $currentStage = $bid->stages->last();
-        $bid->loadMissing('quotation', 'revisions.user:id,name');
+        $bid->loadMissing('quotation', 'assignee:id,name', 'revisions.user:id,name');
 
         return [
             'id' => $bid->id,
@@ -749,6 +755,13 @@ class BidController extends Controller
                 'quotation_number' => $bid->quotation->quotation_number,
                 'title' => $bid->quotation->title,
             ] : null,
+            'assigned_to' => $bid->assigned_to,
+            'assignee' => $bid->assignee
+                ? [
+                    'id' => $bid->assignee->id,
+                    'name' => $bid->assignee->name,
+                ]
+                : null,
             'creator' => $summary ? null : [
                 'id' => $bid->creator?->id,
                 'name' => $bid->creator?->name,
@@ -1081,6 +1094,20 @@ class BidController extends Controller
                     ->values()
                     ->all()
                 : [],
+            'assignees' => User::query()
+                ->whereHas('level', fn ($query) => $query->whereIn('name', [
+                    UserLevel::SUPER_ADMIN,
+                    UserLevel::ADMINISTRATOR,
+                    UserLevel::ADMIN,
+                    UserLevel::PROJECT_MANAGER,
+                ]))
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->map(fn (User $assignee): array => [
+                    'id' => $assignee->id,
+                    'name' => $assignee->name,
+                ])
+                ->all(),
             'can' => [
                 'create' => $user ? BidAccess::canCreate($user) : false,
                 'update' => $user ? BidAccess::canUpdate($user) : false,
@@ -1107,6 +1134,7 @@ class BidController extends Controller
             ->with([
                 'project:id,name,project_number',
                 'project.contractors.contacts',
+                'assignee:id,name',
                 'stages.type',
                 'scopes.title',
                 'scopes.products.product',
