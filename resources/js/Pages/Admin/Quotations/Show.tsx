@@ -1,4 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import DirectoryFieldLabel from '@/Components/DirectoryFieldLabel';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import {
@@ -313,17 +314,29 @@ export default function Show({ quotation, options }: ShowProps) {
                                         className="grid gap-2 border-b border-border px-4 py-3 last:border-b-0 md:grid-cols-[minmax(0,2fr)_6rem_8rem_8rem] md:items-center"
                                     >
                                         <p className="font-medium text-foreground">
+                                            <DirectoryFieldLabel hideFrom="md">
+                                                Description
+                                            </DirectoryFieldLabel>
                                             {item.description}
                                         </p>
                                         <p className="text-sm text-muted-foreground md:text-right">
+                                            <DirectoryFieldLabel hideFrom="md">
+                                                Qty
+                                            </DirectoryFieldLabel>
                                             {item.quantity ?? '—'}
                                         </p>
                                         <p className="text-sm text-muted-foreground md:text-right">
+                                            <DirectoryFieldLabel hideFrom="md">
+                                                Unit price
+                                            </DirectoryFieldLabel>
                                             {item.unit_price === null
                                                 ? '—'
                                                 : formatMoney(item.unit_price)}
                                         </p>
                                         <p className="text-sm font-medium md:text-right">
+                                            <DirectoryFieldLabel hideFrom="md">
+                                                Extended
+                                            </DirectoryFieldLabel>
                                             {formatMoney(item.extended)}
                                         </p>
                                     </div>

@@ -1,5 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ActionHint from '@/Components/ActionHint';
+import DirectoryFieldLabel from '@/Components/DirectoryFieldLabel';
 import PaginationNav from '@/Components/PaginationNav';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
@@ -184,6 +185,7 @@ export default function Index({ filters, contractors }: IndexProps) {
                                                 )}
                                             >
                                                 <div>
+                                                    <DirectoryFieldLabel>Contractor</DirectoryFieldLabel>
                                                     <p className="font-medium text-foreground">
                                                         {contractor.name}
                                                     </p>
@@ -194,6 +196,7 @@ export default function Index({ filters, contractors }: IndexProps) {
                                                     </p>
                                                 </div>
                                                 <div className="text-sm text-muted-foreground">
+                                                    <DirectoryFieldLabel>Primary contact</DirectoryFieldLabel>
                                                     {primaryContact?.name ||
                                                         'Not added'}
                                                     {primaryContact?.title ? (
@@ -203,6 +206,7 @@ export default function Index({ filters, contractors }: IndexProps) {
                                                     ) : null}
                                                 </div>
                                                 <div className="text-sm text-muted-foreground">
+                                                    <DirectoryFieldLabel>Phone</DirectoryFieldLabel>
                                                     {primaryContact?.phone_number ? (
                                                         <>
                                                             {
@@ -221,6 +225,7 @@ export default function Index({ filters, contractors }: IndexProps) {
                                                     )}
                                                 </div>
                                                 <div>
+                                                    <DirectoryFieldLabel>Projects</DirectoryFieldLabel>
                                                     {contractor.projects_count >
                                                     0 ? (
                                                         <Badge variant="outline">
@@ -235,7 +240,9 @@ export default function Index({ filters, contractors }: IndexProps) {
                                                         </Badge>
                                                     )}
                                                 </div>
-                                                <div className="flex flex-nowrap gap-1 md:justify-end">
+                                                <div className="flex min-w-0 flex-col gap-1 md:items-end">
+                                                    <DirectoryFieldLabel>Actions</DirectoryFieldLabel>
+                                                    <div className="flex flex-wrap gap-1 md:justify-end">
                                                     {canUpdateContractors && (
                                                         <ActionHint hint="Edit this contractor">
                                                             <Button
@@ -276,6 +283,7 @@ export default function Index({ filters, contractors }: IndexProps) {
                                                                 </Button>
                                                             </ActionHint>
                                                         )}
+                                                    </div>
                                                 </div>
                                             </div>
                                         );

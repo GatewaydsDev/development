@@ -95,6 +95,12 @@
     height: auto;
   }
 
+  input,
+  select,
+  textarea {
+    max-width: 100%;
+  }
+
   header [aria-label='Breadcrumb'] {
     flex-wrap: wrap;
   }
@@ -555,6 +561,18 @@
     font-size: 0.9375rem;
     line-height: 1.65;
     color: var(--foreground);
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .rich-text-content table {
+    width: max-content;
+    min-width: 100%;
+    border-collapse: collapse;
+  }
+
+  .rich-text-content :where(th, td) {
+    white-space: normal;
+    word-break: break-word;
   }
 
   .rich-text-content :where(p, ul, ol, blockquote, pre, h1, h2, h3, h4) {

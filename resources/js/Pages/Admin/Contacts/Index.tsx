@@ -1,5 +1,6 @@
 import FormActionFab from '@/Components/FormActionFab';
 import ActionHint from '@/Components/ActionHint';
+import DirectoryFieldLabel from '@/Components/DirectoryFieldLabel';
 import PaginationNav from '@/Components/PaginationNav';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
@@ -239,7 +240,7 @@ export default function Index({ filters, contacts }: IndexProps) {
                             <CardContent>
                                 <form
                                     onSubmit={handleSubmit(submit)}
-                                    className="grid gap-4 pr-14 sm:pr-16 md:grid-cols-2"
+                                    className="grid gap-4 pr-4 pb-28 sm:pr-20 lg:pb-6 md:grid-cols-2"
                                     noValidate
                                 >
                                     <FormActionFab
@@ -441,6 +442,7 @@ export default function Index({ filters, contacts }: IndexProps) {
                                             className="grid gap-3 border-b border-border px-4 py-4 last:border-b-0 lg:grid-cols-[1.4fr_1fr_1fr_auto] lg:items-center lg:gap-4"
                                         >
                                             <div>
+                                                <DirectoryFieldLabel>Contact</DirectoryFieldLabel>
                                                 <p className="flex items-center gap-2 font-medium text-foreground">
                                                     {contact.name}
                                                     {!contact.is_active && (
@@ -460,13 +462,17 @@ export default function Index({ filters, contacts }: IndexProps) {
                                                 </p>
                                             </div>
                                             <div className="text-sm text-muted-foreground">
+                                                <DirectoryFieldLabel>Email</DirectoryFieldLabel>
                                                 {contact.email}
                                             </div>
                                             <div className="text-sm text-muted-foreground">
+                                                <DirectoryFieldLabel>Phone</DirectoryFieldLabel>
                                                 {contact.phone_number ||
                                                     'Not added'}
                                             </div>
-                                            <div className="flex flex-nowrap gap-1 md:justify-end">
+                                            <div className="flex min-w-0 flex-col gap-1 md:items-end">
+                                                <DirectoryFieldLabel>Actions</DirectoryFieldLabel>
+                                                <div className="flex flex-wrap gap-1 md:justify-end">
                                                 <ActionHint hint="Edit this contact">
                                                     <Button
                                                         variant="outline"
@@ -495,6 +501,7 @@ export default function Index({ filters, contacts }: IndexProps) {
                                                         <Trash2Icon className="size-3.5" />
                                                     </Button>
                                                 </ActionHint>
+                                                </div>
                                             </div>
                                         </div>
                                     ))

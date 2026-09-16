@@ -208,13 +208,19 @@ export default function CreatableSelect({
                 : wrapOptions
                   ? (menuMinWidth ?? 480)
                   : rect.width;
+            const maxMenuWidth = Math.max(window.innerWidth - 24, 160);
+            const width = Math.min(
+                maxMenuWidth,
+                Math.max(rect.width, Math.min(minWidth, maxMenuWidth)),
+            );
+            const left = Math.min(
+                Math.max(12, rect.left),
+                Math.max(12, window.innerWidth - width - 12),
+            );
             const nextStyle: CSSProperties = {
                 position: 'fixed',
-                left: rect.left,
-                width: Math.min(
-                    window.innerWidth - 24,
-                    Math.max(rect.width, minWidth),
-                ),
+                left,
+                width,
                 maxHeight,
                 top: openUp ? undefined : rect.bottom + 4,
                 bottom: openUp ? window.innerHeight - rect.top + 4 : undefined,

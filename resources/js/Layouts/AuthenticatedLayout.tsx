@@ -456,7 +456,7 @@ export default function Authenticated({
                         <div className="flex">
                             <div className="flex shrink-0 items-center">
                                 <Link href="/" className="shrink-0">
-                                    <ApplicationLogo className="block size-14 sm:size-16 md:size-20 lg:size-24" />
+                                    <ApplicationLogo className="block size-12 sm:size-16 md:size-20 lg:size-24" />
                                 </Link>
                             </div>
 
@@ -1390,7 +1390,7 @@ export default function Authenticated({
                 </div>
             )}
 
-            <main className="min-w-0">{children}</main>
+            <main className="min-w-0 overflow-x-clip">{children}</main>
         </div>
     );
 }

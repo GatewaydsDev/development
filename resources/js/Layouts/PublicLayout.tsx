@@ -141,7 +141,7 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                         <div className="flex min-w-0 items-center">
                             <div className="flex shrink-0 items-center">
                                 <Link href={route('home')} className="shrink-0">
-                                    <ApplicationLogo className="block size-14 sm:size-16 md:size-20 lg:size-24" />
+                                    <ApplicationLogo className="block size-12 sm:size-16 md:size-20 lg:size-24" />
                                 </Link>
                             </div>
 
@@ -339,7 +339,7 @@ export default function PublicLayout({ children }: PropsWithChildren) {
             </nav>
             </header>
 
-            <main>{children}</main>
+            <main className="min-w-0 overflow-x-clip">{children}</main>
 
             <footer className="border-t border-emerald-500/20 bg-gradient-to-br from-emerald-950 via-slate-950 to-background text-white">
                 <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-14 lg:px-8 lg:py-16">

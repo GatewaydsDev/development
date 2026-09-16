@@ -514,7 +514,7 @@ export default function BidForm({
     const selectedProjectScopes = selectedProject?.scopes ?? [];
 
     return (
-        <form onSubmit={submit} className="flex min-w-0 flex-col gap-6 pr-16 sm:pr-20">
+        <form onSubmit={submit} className="flex min-w-0 flex-col gap-6 pr-4 pb-28 sm:pr-20 lg:pb-6">
             <Card className="overflow-visible shadow-sm">
                 <CardHeader>
                     <CardTitle>{title}</CardTitle>
@@ -1012,7 +1012,7 @@ export default function BidForm({
                 }
             />
 
-            <div className="sticky bottom-4 z-10 mr-16 flex flex-col gap-3 rounded-xl border border-emerald-200 bg-background/95 px-4 py-3 shadow-lg backdrop-blur sm:mr-20 sm:flex-row sm:items-center sm:justify-between dark:border-emerald-900/70">
+            <div className="sticky bottom-24 z-10 mr-4 flex min-w-0 flex-col gap-3 rounded-xl border border-emerald-200 bg-background/95 px-4 py-3 shadow-lg backdrop-blur lg:bottom-4 lg:mr-20 sm:flex-row sm:items-center sm:justify-between dark:border-emerald-900/70">
                 <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                         Latest revision total
@@ -1177,7 +1177,7 @@ function ScopeWorkCard({
                         size="sm"
                         className="overflow-visible border-rose-200 bg-rose-50/90 ring-rose-200/80 dark:border-rose-900/70 dark:bg-rose-950/40 dark:ring-rose-900/50"
                     >
-                        <CardHeader className="flex flex-row items-start justify-between gap-3">
+                        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div>
                                 <CardTitle className="text-rose-800 dark:text-rose-200">
                                     Line {productIndex + 1}
@@ -1288,7 +1288,7 @@ function ScopeWorkCard({
                             }}
                         />
                         </div>
-                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
                         <div className="flex flex-col gap-2">
                             <InputLabel
                                 htmlFor={`bid-scope-quantity-${index}-${productIndex}`}
@@ -1338,9 +1338,12 @@ function ScopeWorkCard({
                         <div className="flex flex-col gap-2">
                             <InputLabel
                                 htmlFor={`bid-scope-allocated-${index}-${productIndex}`}
-                                value="Allocated Install / Freight / Handling"
+                                value="Allocated IFH"
                                 className="text-emerald-700 dark:text-emerald-300"
                             />
+                            <p className="sr-only">
+                                Allocated Install / Freight / Handling
+                            </p>
                             <MaskedDecimalInput
                                 id={`bid-scope-allocated-${index}-${productIndex}`}
                                 prefix="$"

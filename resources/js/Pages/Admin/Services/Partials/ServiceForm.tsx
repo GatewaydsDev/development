@@ -106,7 +106,7 @@ export default function ServiceForm({
     };
 
     return (
-        <form onSubmit={submit} className="flex min-w-0 flex-col gap-6 pr-16 sm:pr-20">
+        <form onSubmit={submit} className="flex min-w-0 flex-col gap-6 pr-4 pb-28 sm:pr-20 lg:pb-6">
             <Card className="shadow-sm">
                 <CardHeader>
                     <CardTitle>{title}</CardTitle>

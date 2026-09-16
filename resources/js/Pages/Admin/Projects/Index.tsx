@@ -1,5 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ActionHint from '@/Components/ActionHint';
+import DirectoryFieldLabel from '@/Components/DirectoryFieldLabel';
 import PaginationNav from '@/Components/PaginationNav';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
@@ -262,6 +263,9 @@ export default function Index({ filters, options, projects }: IndexProps) {
                                             )}
                                         >
                                             <div className="flex min-w-0 flex-col gap-1">
+                                                <DirectoryFieldLabel hideFrom="xl">
+                                                    Project
+                                                </DirectoryFieldLabel>
                                                 <p className="truncate font-medium text-foreground">
                                                     {project.name}
                                                 </p>
@@ -271,9 +275,9 @@ export default function Index({ filters, options, projects }: IndexProps) {
                                                 </p>
                                             </div>
                                             <div className="min-w-0 text-sm text-muted-foreground">
-                                                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground xl:hidden">
+                                                <DirectoryFieldLabel hideFrom="xl">
                                                     Contractors
-                                                </p>
+                                                </DirectoryFieldLabel>
                                                 {project.contractors?.length ? (
                                                     <div className="flex flex-col gap-3">
                                                         {project.contractors.map(
@@ -303,6 +307,9 @@ export default function Index({ filters, options, projects }: IndexProps) {
                                                 )}
                                             </div>
                                             <div className="min-w-0">
+                                                <DirectoryFieldLabel hideFrom="xl">
+                                                    Bid/Estimate
+                                                </DirectoryFieldLabel>
                                                 {project.bids_count ? (
                                                     canViewBids &&
                                                     project.latest_bid_id ? (
@@ -341,6 +348,9 @@ export default function Index({ filters, options, projects }: IndexProps) {
                                                 )}
                                             </div>
                                             <div className="min-w-0">
+                                                <DirectoryFieldLabel hideFrom="xl">
+                                                    Bid scope
+                                                </DirectoryFieldLabel>
                                                 {project.bids_count &&
                                                 project.bid_scopes &&
                                                 project.bid_scopes.length >
@@ -378,6 +388,9 @@ export default function Index({ filters, options, projects }: IndexProps) {
                                                 )}
                                             </div>
                                             <div className="min-w-0">
+                                                <DirectoryFieldLabel hideFrom="xl">
+                                                    Status
+                                                </DirectoryFieldLabel>
                                                 <Badge
                                                     variant="outline"
                                                     className={cn(
@@ -391,7 +404,11 @@ export default function Index({ filters, options, projects }: IndexProps) {
                                                         'Not set'}
                                                 </Badge>
                                             </div>
-                                            <div className="flex flex-nowrap gap-1 md:justify-end">
+                                            <div className="flex min-w-0 flex-col gap-1 md:items-end">
+                                                <DirectoryFieldLabel hideFrom="xl">
+                                                    Actions
+                                                </DirectoryFieldLabel>
+                                                <div className="flex flex-wrap gap-1 md:justify-end">
                                                 <ActionHint hint="Print this project">
                                                     <Button
                                                         variant="outline"
@@ -481,6 +498,7 @@ export default function Index({ filters, options, projects }: IndexProps) {
                                                         </Button>
                                                     </ActionHint>
                                                 )}
+                                                </div>
                                             </div>
                                         </div>
                                     ))

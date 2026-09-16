@@ -1,5 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ActionHint from '@/Components/ActionHint';
+import DirectoryFieldLabel from '@/Components/DirectoryFieldLabel';
 import PaginationNav from '@/Components/PaginationNav';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
@@ -215,6 +216,7 @@ export default function Index({ filters, options, bids }: IndexProps) {
                                             )}
                                         >
                                             <div className="min-w-0">
+                                                <DirectoryFieldLabel>Project</DirectoryFieldLabel>
                                                 <p className="truncate font-medium text-foreground">
                                                     {bid.project?.name ||
                                                         'Untitled project'}
@@ -244,6 +246,7 @@ export default function Index({ filters, options, bids }: IndexProps) {
                                                 )}
                                             </div>
                                             <div>
+                                                <DirectoryFieldLabel>Stage</DirectoryFieldLabel>
                                                 {bid.current_stage ? (
                                                     <Badge variant="outline">
                                                         {bid.current_stage}
@@ -254,7 +257,9 @@ export default function Index({ filters, options, bids }: IndexProps) {
                                                     </span>
                                                 )}
                                             </div>
-                                            <div className="flex flex-wrap gap-1">
+                                            <div className="min-w-0">
+                                                <DirectoryFieldLabel>Scope</DirectoryFieldLabel>
+                                                <div className="flex flex-wrap gap-1">
                                                 {bid.scopes?.length > 0 ? (
                                                     bid.scopes
                                                         .slice(0, 2)
@@ -276,11 +281,15 @@ export default function Index({ filters, options, bids }: IndexProps) {
                                                         +{bid.scopes.length - 2}
                                                     </Badge>
                                                 )}
+                                                </div>
                                             </div>
                                             <div className="font-medium text-foreground">
+                                                <DirectoryFieldLabel>Pricing</DirectoryFieldLabel>
                                                 {formatMoney(bid.latest_total)}
                                             </div>
-                                            <div className="flex flex-nowrap gap-1 md:justify-end">
+                                            <div className="flex min-w-0 flex-col gap-1 md:items-end">
+                                                <DirectoryFieldLabel>Actions</DirectoryFieldLabel>
+                                                <div className="flex flex-wrap gap-1 md:justify-end">
                                                 <ActionHint hint="Print this bid">
                                                     <Button
                                                         variant="outline"
@@ -370,6 +379,7 @@ export default function Index({ filters, options, bids }: IndexProps) {
                                                         </Button>
                                                     </ActionHint>
                                                 )}
+                                                </div>
                                             </div>
                                         </div>
                                     ))

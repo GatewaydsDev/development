@@ -1,5 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ActionHint from '@/Components/ActionHint';
+import DirectoryFieldLabel from '@/Components/DirectoryFieldLabel';
 import PaginationNav from '@/Components/PaginationNav';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
@@ -218,6 +219,9 @@ export default function Index({ filters, users }: IndexProps) {
                                             className="grid gap-3 border-b border-border px-4 py-4 last:border-b-0 xl:grid-cols-[1.1fr_1.2fr_1fr_0.9fr_1fr_minmax(220px,auto)] xl:items-center xl:gap-4"
                                         >
                                             <div>
+                                                <DirectoryFieldLabel hideFrom="xl">
+                                                    Name
+                                                </DirectoryFieldLabel>
                                                 <p className="font-medium text-foreground">
                                                     {user.name}
                                                 </p>
@@ -231,9 +235,15 @@ export default function Index({ filters, users }: IndexProps) {
                                                 </p>
                                             </div>
                                             <div className="hidden text-sm text-muted-foreground md:block">
+                                                <DirectoryFieldLabel hideFrom="xl">
+                                                    Email
+                                                </DirectoryFieldLabel>
                                                 {user.email}
                                             </div>
                                             <div className="text-sm text-muted-foreground">
+                                                <DirectoryFieldLabel hideFrom="xl">
+                                                    Profile
+                                                </DirectoryFieldLabel>
                                                 <span className="block">
                                                     DOB:{' '}
                                                     {user.date_of_birth ??
@@ -247,15 +257,25 @@ export default function Index({ filters, users }: IndexProps) {
                                                 </span>
                                             </div>
                                             <div>
+                                                <DirectoryFieldLabel hideFrom="xl">
+                                                    Level
+                                                </DirectoryFieldLabel>
                                                 <Badge variant="outline">
                                                     {user.level?.name ??
                                                         'No level'}
                                                 </Badge>
                                             </div>
                                             <div className="hidden text-sm text-muted-foreground md:block">
+                                                <DirectoryFieldLabel hideFrom="xl">
+                                                    Last login
+                                                </DirectoryFieldLabel>
                                                 {user.last_login_at ?? 'Never'}
                                             </div>
-                                            <div className="flex flex-nowrap gap-1 md:justify-end">
+                                            <div className="flex min-w-0 flex-col gap-1 md:items-end">
+                                                <DirectoryFieldLabel hideFrom="xl">
+                                                    Actions
+                                                </DirectoryFieldLabel>
+                                                <div className="flex flex-wrap gap-1 md:justify-end">
                                                 {canManageAccess &&
                                                     user.level && (
                                                         <ActionHint hint="Edit permissions">
@@ -300,6 +320,7 @@ export default function Index({ filters, users }: IndexProps) {
                                                         View only
                                                     </Badge>
                                                     )}
+                                                </div>
                                             </div>
                                         </div>
                                     ))

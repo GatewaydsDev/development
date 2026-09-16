@@ -139,7 +139,7 @@ export default function QuotationForm({
     });
 
     return (
-        <form onSubmit={submit} className="flex flex-col gap-6 pr-14 sm:pr-16">
+        <form onSubmit={submit} className="flex min-w-0 flex-col gap-6 pr-4 pb-28 sm:pr-20 lg:pb-6">
             <FormActionFab
                 cancelHref={route('admin.quotations.index')}
                 saveLabel={quotation ? 'Save quotation' : 'Add quotation'}
@@ -336,7 +336,7 @@ export default function QuotationForm({
             </Card>
 
             <Card className="shadow-sm">
-                <CardHeader className="flex flex-row items-center justify-between gap-3">
+                <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <CardTitle>Quoted items</CardTitle>
                         <CardDescription>
@@ -366,7 +366,7 @@ export default function QuotationForm({
                         return (
                             <div
                                 key={field.id}
-                                className="grid gap-3 rounded-lg border border-border p-4 md:grid-cols-[minmax(0,2fr)_7rem_8rem_7rem_auto] md:items-end"
+                                className="grid gap-3 rounded-lg border border-border p-4 lg:grid-cols-[minmax(0,2fr)_7rem_8rem_7rem_auto] lg:items-end"
                             >
                                 <div className="flex flex-col gap-2">
                                     <InputLabel

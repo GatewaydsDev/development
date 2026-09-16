@@ -190,7 +190,7 @@ export default function Show({ company }: ShowProps) {
                             <form
                                 id="company-profile-form"
                                 onSubmit={submit}
-                                className="flex flex-col gap-6 pr-14 sm:pr-16"
+                                className="flex min-w-0 flex-col gap-6 pr-4 pb-28 sm:pr-20 lg:pb-6"
                             >
                                 <FormActionFab
                                     form="company-profile-form"

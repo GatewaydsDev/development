@@ -388,8 +388,8 @@ export default function Show({ bid, options }: ShowProps) {
                                             {scope.name}
                                         </p>
                                         {scope.products?.length > 0 ? (
-                                            <div className="overflow-x-auto">
-                                                <table className="w-full text-sm">
+                                            <div className="overflow-x-auto overscroll-x-contain rounded-lg border border-border">
+                                                <table className="w-max min-w-full text-sm">
                                                     <thead>
                                                         <tr className="border-b border-border text-left text-muted-foreground">
                                                             <th className="py-2 pr-3 font-medium">
@@ -398,7 +398,7 @@ export default function Show({ bid, options }: ShowProps) {
                                                             <th className="py-2 pr-3 font-medium">
                                                                 Service
                                                             </th>
-                                                            <th className="py-2 pr-3 font-medium">
+                                                            <th className="min-w-40 py-2 pr-3 font-medium">
                                                                 Product
                                                             </th>
                                                             <th className="py-2 pr-3 text-right font-medium">
@@ -408,8 +408,7 @@ export default function Show({ bid, options }: ShowProps) {
                                                                 Unit value
                                                             </th>
                                                             <th className="py-2 pr-3 text-right font-medium">
-                                                                Allocated Install /
-                                                                Freight / Handling
+                                                                Allocated IFH
                                                             </th>
                                                             <th className="py-2 pr-3 text-right font-medium">
                                                                 Combined price
@@ -450,7 +449,7 @@ export default function Show({ bid, options }: ShowProps) {
                                                                         {product.service_name ||
                                                                             '—'}
                                                                     </td>
-                                                                    <td className="py-2 pr-3">
+                                                                    <td className="max-w-56 py-2 pr-3 break-words">
                                                                         {product.abbreviation
                                                                             ? `${product.abbreviation} — ${product.name || product.description}`
                                                                             : product.name ||

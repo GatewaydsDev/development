@@ -179,7 +179,7 @@ export default function Index({ notifications, unreadCount }: IndexProps) {
                                                         )}
                                                     </TableCell>
                                                     <TableCell className="text-right">
-                                                        <div className="flex flex-nowrap gap-1 md:justify-end">
+                                                        <div className="flex flex-wrap gap-1 md:justify-end">
                                                             <ActionHint hint="View notification">
                                                                 <Button
                                                                     asChild

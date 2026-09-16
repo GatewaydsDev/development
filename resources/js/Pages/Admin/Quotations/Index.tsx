@@ -1,5 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ActionHint from '@/Components/ActionHint';
+import DirectoryFieldLabel from '@/Components/DirectoryFieldLabel';
 import PaginationNav from '@/Components/PaginationNav';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
@@ -212,6 +213,7 @@ export default function Index({ filters, options, quotations }: IndexProps) {
                                             )}
                                         >
                                             <div className="min-w-0">
+                                                <DirectoryFieldLabel>Number</DirectoryFieldLabel>
                                                 <p className="font-medium text-foreground">
                                                     {quotation.quotation_number}
                                                 </p>
@@ -220,15 +222,18 @@ export default function Index({ filters, options, quotations }: IndexProps) {
                                                 </p>
                                             </div>
                                             <div className="min-w-0 text-sm text-muted-foreground">
+                                                <DirectoryFieldLabel>Contractor</DirectoryFieldLabel>
                                                 {quotation.contractor?.name ||
                                                     '—'}
                                             </div>
                                             <div className="min-w-0 text-sm text-muted-foreground">
+                                                <DirectoryFieldLabel>Project</DirectoryFieldLabel>
                                                 {quotation.project
                                                     ? `${quotation.project.project_number ? `${quotation.project.project_number} · ` : ''}${quotation.project.name}`
                                                     : 'No project'}
                                             </div>
                                             <div>
+                                                <DirectoryFieldLabel>Status</DirectoryFieldLabel>
                                                 <Badge
                                                     variant="outline"
                                                     className={statusBadgeClassName(
@@ -239,9 +244,12 @@ export default function Index({ filters, options, quotations }: IndexProps) {
                                                 </Badge>
                                             </div>
                                             <div className="font-medium text-foreground">
+                                                <DirectoryFieldLabel>Total</DirectoryFieldLabel>
                                                 {formatMoney(quotation.total)}
                                             </div>
-                                            <div className="flex flex-nowrap gap-1 md:justify-end">
+                                            <div className="flex min-w-0 flex-col gap-1 md:items-end">
+                                                <DirectoryFieldLabel>Actions</DirectoryFieldLabel>
+                                                <div className="flex flex-wrap gap-1 md:justify-end">
                                                 <ActionHint hint="Print this quotation">
                                                     <Button
                                                         variant="outline"
@@ -368,6 +376,7 @@ export default function Index({ filters, options, quotations }: IndexProps) {
                                                         </Button>
                                                     </ActionHint>
                                                 ) : null}
+                                                </div>
                                             </div>
                                         </div>
                                     ))

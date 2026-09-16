@@ -111,7 +111,7 @@ export default function ColorPalettePicker({
                 <PopoverPanel
                     portal
                     anchor="bottom start"
-                    className="z-50 w-72 rounded-xl border border-border bg-background p-4 shadow-lg"
+                    className="z-50 w-[min(18rem,calc(100vw-1.5rem))] rounded-xl border border-border bg-background p-4 shadow-lg"
                 >
                     {({ close }) => (
                         <div className="flex flex-col gap-4">

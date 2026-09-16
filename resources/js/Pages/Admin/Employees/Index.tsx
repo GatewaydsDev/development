@@ -1,5 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ActionHint from '@/Components/ActionHint';
+import DirectoryFieldLabel from '@/Components/DirectoryFieldLabel';
 import PaginationNav from '@/Components/PaginationNav';
 import {
     AlertDialog,
@@ -217,6 +218,7 @@ export default function Index({ filters, employees }: IndexProps) {
                                             className="grid gap-3 border-b border-border px-4 py-4 last:border-b-0 lg:grid-cols-[1.2fr_1fr_1fr_0.8fr_auto] lg:items-center lg:gap-4"
                                         >
                                             <div className="min-w-0">
+                                                <DirectoryFieldLabel>Employee</DirectoryFieldLabel>
                                                 <p className="font-medium text-foreground">
                                                     {employee.full_name}
                                                 </p>
@@ -229,6 +231,7 @@ export default function Index({ filters, employees }: IndexProps) {
                                                 </p>
                                             </div>
                                             <div className="min-w-0 text-sm text-muted-foreground">
+                                                <DirectoryFieldLabel>Contact</DirectoryFieldLabel>
                                                 <p className="flex items-center gap-2 truncate">
                                                     <MailIcon className="size-4 shrink-0" />
                                                     {employee.email}
@@ -239,6 +242,7 @@ export default function Index({ filters, employees }: IndexProps) {
                                                 </p>
                                             </div>
                                             <div className="text-sm text-muted-foreground">
+                                                <DirectoryFieldLabel>Department</DirectoryFieldLabel>
                                                 {employee.department ||
                                                     'Not added'}
                                                 {employee.hire_date && (
@@ -249,6 +253,7 @@ export default function Index({ filters, employees }: IndexProps) {
                                                 )}
                                             </div>
                                             <div>
+                                                <DirectoryFieldLabel>Status</DirectoryFieldLabel>
                                                 <Badge
                                                     variant="outline"
                                                     className={statusBadgeClassName(
@@ -260,7 +265,9 @@ export default function Index({ filters, employees }: IndexProps) {
                                                     )}
                                                 </Badge>
                                             </div>
-                                            <div className="flex flex-nowrap gap-1 md:justify-end">
+                                            <div className="flex min-w-0 flex-col gap-1 md:items-end">
+                                                <DirectoryFieldLabel>Actions</DirectoryFieldLabel>
+                                                <div className="flex flex-wrap gap-1 md:justify-end">
                                                 <ActionHint
                                                     hint={`Pay rates (${employee.pay_rates.length})`}
                                                 >
@@ -316,6 +323,7 @@ export default function Index({ filters, employees }: IndexProps) {
                                                         </Button>
                                                     </ActionHint>
                                                 )}
+                                                </div>
                                             </div>
                                         </div>
                                     ))
@@ -373,6 +381,7 @@ export default function Index({ filters, employees }: IndexProps) {
                                     className="grid gap-2 border-b border-border px-4 py-4 last:border-b-0 lg:grid-cols-[1.2fr_1fr_0.8fr] lg:gap-4"
                                 >
                                     <div>
+                                        <DirectoryFieldLabel>Profession</DirectoryFieldLabel>
                                         <p className="font-medium text-foreground">
                                             {rate.profession?.name ||
                                                 'Profession removed'}
@@ -384,12 +393,14 @@ export default function Index({ filters, employees }: IndexProps) {
                                         )}
                                     </div>
                                     <div className="text-sm text-muted-foreground">
+                                        <DirectoryFieldLabel>Rate type</DirectoryFieldLabel>
                                         {rateTypeLabel(
                                             rate.rate_type,
                                             rate.custom_rate_type,
                                         )}
                                     </div>
                                     <div className="font-semibold text-foreground">
+                                        <DirectoryFieldLabel>Amount</DirectoryFieldLabel>
                                         {formatCurrency(rate.amount)}
                                     </div>
                                 </div>

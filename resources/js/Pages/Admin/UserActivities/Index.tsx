@@ -1,5 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import PaginationNav from '@/Components/PaginationNav';
+import DirectoryFieldLabel from '@/Components/DirectoryFieldLabel';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import {
@@ -258,6 +259,7 @@ export default function Index({ filters, stats, activities }: IndexProps) {
                                             className="grid gap-3 border-b border-border px-4 py-4 last:border-b-0 lg:grid-cols-[1.1fr_1.3fr_1.2fr_1.3fr_1fr] lg:items-center lg:gap-4"
                                         >
                                             <div className="min-w-0">
+                                                <DirectoryFieldLabel>User</DirectoryFieldLabel>
                                                 <p className="truncate font-medium text-foreground">
                                                     {activity.user?.name ??
                                                         'Deleted user'}
@@ -275,6 +277,7 @@ export default function Index({ filters, stats, activities }: IndexProps) {
                                             </div>
 
                                             <div className="flex flex-col gap-2">
+                                                <DirectoryFieldLabel>Activity</DirectoryFieldLabel>
                                                 <div className="flex flex-wrap items-center gap-2">
                                                     <Badge variant="outline">
                                                         {eventLabels[
@@ -301,6 +304,7 @@ export default function Index({ filters, stats, activities }: IndexProps) {
                                             </div>
 
                                             <div className="text-sm text-muted-foreground">
+                                                <DirectoryFieldLabel>Page / Route</DirectoryFieldLabel>
                                                 <span className="block font-medium text-foreground">
                                                     {activity.page_name ??
                                                         'Not available'}
@@ -312,6 +316,9 @@ export default function Index({ filters, stats, activities }: IndexProps) {
                                             </div>
 
                                             <div className="text-sm text-muted-foreground">
+                                                <DirectoryFieldLabel>
+                                                    Record / Request
+                                                </DirectoryFieldLabel>
                                                 <span className="block">
                                                     {activity.subject_type
                                                         ? `${activity.subject_type} #${activity.subject_id}`
@@ -331,6 +338,7 @@ export default function Index({ filters, stats, activities }: IndexProps) {
                                             </div>
 
                                             <div className="text-sm text-muted-foreground">
+                                                <DirectoryFieldLabel>Time</DirectoryFieldLabel>
                                                 {activity.occurred_at ??
                                                     'Not recorded'}
                                             </div>

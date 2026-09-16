@@ -181,7 +181,7 @@ export default function Edit({
                     <form
                         id="document-colors-form"
                         onSubmit={submit}
-                        className="grid gap-6 pr-14 lg:grid-cols-[18rem_minmax(0,1fr)] sm:pr-16"
+                        className="grid min-w-0 gap-6 pr-4 pb-28 lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)] sm:pr-20 lg:pb-6"
                     >
                         <Card className="h-fit shadow-sm">
                             <CardHeader>
@@ -360,7 +360,7 @@ function DocumentPreview({
     if (format === 'word') {
         return (
             <div className="overflow-hidden rounded-xl border border-border bg-background">
-                <div className="flex items-center justify-between border-b border-border px-4 py-3">
+                <div className="flex flex-col gap-1 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                     <p
                         className="text-sm font-semibold"
                         style={{ color: headerColor }}
@@ -384,7 +384,8 @@ function DocumentPreview({
                     <p className="mt-1 text-xs text-muted-foreground">
                         Word document preview
                     </p>
-                    <table className="mt-4 w-full text-left text-sm">
+                    <div className="mt-4 overflow-x-auto overscroll-x-contain">
+                    <table className="w-max min-w-full text-left text-sm">
                         <thead>
                             <tr
                                 style={{
@@ -410,6 +411,7 @@ function DocumentPreview({
                             </tr>
                         </tbody>
                     </table>
+                    </div>
                 </div>
             </div>
         );
@@ -433,7 +435,8 @@ function DocumentPreview({
                         : 'Print-ready preview'}
                 </p>
             </div>
-            <table className="w-full text-left text-sm">
+            <div className="overflow-x-auto overscroll-x-contain">
+            <table className="w-max min-w-full text-left text-sm">
                 <thead>
                     <tr
                         style={{
@@ -456,6 +459,7 @@ function DocumentPreview({
                     </tr>
                 </tbody>
             </table>
+            </div>
         </div>
     );
 }

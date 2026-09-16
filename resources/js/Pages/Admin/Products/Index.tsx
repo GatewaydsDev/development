@@ -1,5 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ActionHint from '@/Components/ActionHint';
+import DirectoryFieldLabel from '@/Components/DirectoryFieldLabel';
 import PaginationNav from '@/Components/PaginationNav';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
@@ -271,6 +272,9 @@ export default function Index({ filters, options, products }: IndexProps) {
                                             )}
                                         >
                                             <div className="min-w-0">
+                                                <DirectoryFieldLabel hideFrom="xl">
+                                                    Model
+                                                </DirectoryFieldLabel>
                                                 <p className="font-medium text-foreground wrap-break-word">
                                                     {product.name}
                                                 </p>
@@ -292,10 +296,16 @@ export default function Index({ filters, options, products }: IndexProps) {
                                                 ) : null}
                                             </div>
                                             <div className="min-w-0 text-sm text-muted-foreground">
+                                                <DirectoryFieldLabel hideFrom="xl">
+                                                    Manufacturer
+                                                </DirectoryFieldLabel>
                                                 {product.manufacturer?.name ||
                                                     'Not added yet'}
                                             </div>
                                             <div>
+                                                <DirectoryFieldLabel hideFrom="xl">
+                                                    Type
+                                                </DirectoryFieldLabel>
                                                 <Badge
                                                     variant="outline"
                                                     className={
@@ -307,6 +317,11 @@ export default function Index({ filters, options, products }: IndexProps) {
                                                 </Badge>
                                             </div>
                                             <div className="min-w-0">
+                                                <DirectoryFieldLabel hideFrom="xl">
+                                                    {isWindowProduct(product)
+                                                        ? 'Glass type'
+                                                        : 'Configuration'}
+                                                </DirectoryFieldLabel>
                                                 {isWindowProduct(product) ? (
                                                     <p className="truncate text-sm text-muted-foreground">
                                                         {product.glass_type
@@ -321,6 +336,11 @@ export default function Index({ filters, options, products }: IndexProps) {
                                                 )}
                                             </div>
                                             <div className="min-w-0">
+                                                <DirectoryFieldLabel hideFrom="xl">
+                                                    {isWindowProduct(product)
+                                                        ? 'Glazing'
+                                                        : 'Door handing'}
+                                                </DirectoryFieldLabel>
                                                 {isWindowProduct(product) ? (
                                                     <p className="truncate text-sm text-muted-foreground">
                                                         {product.glazing_type
@@ -333,6 +353,9 @@ export default function Index({ filters, options, products }: IndexProps) {
                                                 )}
                                             </div>
                                             <div className="min-w-0 text-sm text-muted-foreground">
+                                                <DirectoryFieldLabel hideFrom="xl">
+                                                    Sell price
+                                                </DirectoryFieldLabel>
                                                 {(product.state_prices ?? [])
                                                     .length > 0 ? (
                                                     <div className="flex flex-col gap-1">
@@ -376,11 +399,18 @@ export default function Index({ filters, options, products }: IndexProps) {
                                                 )}
                                             </div>
                                             <div className="text-sm text-muted-foreground">
+                                                <DirectoryFieldLabel hideFrom="xl">
+                                                    Linked
+                                                </DirectoryFieldLabel>
                                                 {isAssemblyProduct(product)
                                                     ? `${product.part_count ?? 0} parts`
                                                     : `${product.door_count ?? 0} doors`}
                                             </div>
-                                            <div className="flex flex-nowrap gap-1 md:justify-end">
+                                            <div className="flex min-w-0 flex-col gap-1 md:items-end">
+                                                <DirectoryFieldLabel hideFrom="xl">
+                                                    Actions
+                                                </DirectoryFieldLabel>
+                                                <div className="flex flex-wrap gap-1 md:justify-end">
                                                 <ActionHint hint="View product details">
                                                     <Button
                                                         variant="outline"
@@ -417,6 +447,7 @@ export default function Index({ filters, options, products }: IndexProps) {
                                                         </Button>
                                                     </ActionHint>
                                                 )}
+                                                </div>
                                             </div>
                                         </div>
                                     ))

@@ -179,7 +179,7 @@ export default function Edit({
 
             <div className="py-6 sm:py-8">
                 <div className="mx-auto flex max-w-[96rem] flex-col gap-6 px-4 sm:px-6 lg:px-8">
-                    <form onSubmit={submit} className="pr-14 sm:pr-16">
+                    <form onSubmit={submit} className="min-w-0 pr-4 pb-28 sm:pr-20 lg:pb-6">
                         <FormActionFab
                             cancelHref={route('admin.users.index')}
                             saveLabel="Save permissions"

@@ -1,5 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ActionHint from '@/Components/ActionHint';
+import DirectoryFieldLabel from '@/Components/DirectoryFieldLabel';
 import PaginationNav from '@/Components/PaginationNav';
 import { Button } from '@/Components/ui/button';
 import {
@@ -175,6 +176,9 @@ export default function Index({ filters, services }: IndexProps) {
                                             )}
                                         >
                                             <div className="min-w-0">
+                                                <DirectoryFieldLabel hideFrom="md">
+                                                    Service
+                                                </DirectoryFieldLabel>
                                                 <p className="font-medium text-foreground wrap-break-word">
                                                     {item.name}
                                                 </p>
@@ -185,9 +189,16 @@ export default function Index({ filters, services }: IndexProps) {
                                                 ) : null}
                                             </div>
                                             <div className="text-sm text-muted-foreground">
+                                                <DirectoryFieldLabel hideFrom="md">
+                                                    Used on bids
+                                                </DirectoryFieldLabel>
                                                 {item.bid_count ?? 0}
                                             </div>
-                                            <div className="flex flex-nowrap justify-end gap-1">
+                                            <div className="flex min-w-0 flex-col gap-1 md:items-end">
+                                                <DirectoryFieldLabel hideFrom="md">
+                                                    Actions
+                                                </DirectoryFieldLabel>
+                                                <div className="flex flex-wrap justify-end gap-1">
                                                 {canUpdateServices && (
                                                     <ActionHint hint="Edit this service">
                                                         <Button
@@ -228,6 +239,7 @@ export default function Index({ filters, services }: IndexProps) {
                                                             </Button>
                                                         </ActionHint>
                                                     )}
+                                                </div>
                                             </div>
                                         </div>
                                     ))

@@ -91,7 +91,7 @@ export default function Edit({ account }: EditProps) {
                         <CardContent className="p-6 pt-0 sm:p-8 sm:pt-0">
                             <form
                                 onSubmit={submit}
-                                className="flex flex-col gap-8 pr-14 sm:pr-16"
+                                className="flex min-w-0 flex-col gap-8 pr-4 pb-28 sm:pr-20 lg:pb-6"
                             >
                                 <FormActionFab
                                     cancelHref={route('dashboard')}
