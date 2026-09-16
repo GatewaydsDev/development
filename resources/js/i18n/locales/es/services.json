@@ -14,14 +14,36 @@
     "processDescription": "Cada página de servicio se enfoca en el conjunto instalado, porque la puerta, el marco, los herrajes, los sellos y las condiciones alrededor afectan el rendimiento.",
     "primaryCta": "Solicitar cotización",
     "secondaryCta": "Ver todos los servicios",
-    "ctaEyebrow": "Planifica tu apertura segura",
-    "ctaTitle": "¿Necesitas ayuda para elegir el sistema de puerta especial adecuado?",
-    "ctaDescription": "Gateway puede revisar la apertura, el tipo de puerta, los requisitos de herrajes y las condiciones del proyecto antes de iniciar la instalación.",
+    "ctaEyebrow": "Planifica tu proyecto",
+    "ctaTitle": "¿Necesitas ayuda para elegir la puerta, apertura o equipo adecuado?",
+    "ctaDescription": "Gateway puede revisar la apertura, el tipo de puerta, el equipo, los requisitos de herrajes y las condiciones del proyecto antes de iniciar la instalación.",
     "ctaButton": "Comenzar con una cotización",
     "capabilityTitles": {
       "performance": "Detalles de rendimiento",
       "coordination": "Coordinación del proyecto",
       "handoff": "Entrega confiable"
+    }
+  },
+  "groups": {
+    "commercial": {
+      "metaTitle": "Puertas comerciales | Gateway Door Systems",
+      "metaDescription": "Instalación de hollow metal, storefront de aluminio, rejas de seguridad, puertas seccionales, de alta velocidad y de acero enrollable en NY, NJ y PA.",
+      "title": "Puertas comerciales",
+      "description": "Sistemas de puertas cotidianos e industriales para oficinas, almacenes, storefronts y áreas de carga — instalados en el mismo catálogo de Gateway que las aperturas especiales.",
+      "imageAlt": "Instalación de puertas comerciales en una apertura de instalación activa",
+      "overviewTitle": "Más que aperturas especiales",
+      "overviewText": "Hollow metal, storefront, rejas y puertas overhead son el trabajo que la mayoría de los edificios comerciales necesitan primero. Gateway instala estos sistemas con la misma atención al ajuste, herrajes y uso diario que las aperturas de alta seguridad por las que somos conocidos.",
+      "supportText": "Usa esta página para revisar los tipos de puertas comerciales que instalamos. Envía una revisión de proyecto si necesitas puertas comerciales y aperturas especiales en el mismo trabajo."
+    },
+    "equipment": {
+      "metaTitle": "Equipo de instalaciones | Gateway Door Systems",
+      "metaDescription": "Instalación de equipo de muelle, equipo de seguridad, bolardos y particiones de baño para edificios comerciales e institucionales en NY, NJ y PA.",
+      "title": "Equipo de instalaciones",
+      "description": "Equipo de muelle, equipo de seguridad, bolardos y particiones de baño que completan el edificio alrededor de la puerta — no solo la apertura.",
+      "imageAlt": "Equipo de instalaciones alrededor de un área comercial de carga y acceso",
+      "overviewTitle": "El trabajo alrededor de la apertura",
+      "overviewText": "Muchos trabajos necesitan más que una puerta. El equipo de muelle, bolardos, herrajes de seguridad y particiones de baño forman parte del mismo paquete. Gateway coordina ese trabajo para que la apertura y el área alrededor se instalen juntas.",
+      "supportText": "Usa esta página para revisar el equipo de instalaciones que instalamos. Envía una revisión de proyecto si tu alcance incluye puertas y equipo relacionado."
     }
   },
   "services": {

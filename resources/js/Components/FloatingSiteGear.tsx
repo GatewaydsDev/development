@@ -29,14 +29,49 @@ type FloatingSiteGearProps = {
     delayMs?: number;
 };
 
+const driveTeeth = 12;
+
+const gears = [
+    {
+        key: 'drive',
+        teeth: driveTeeth,
+        className: 'floating-site-gear--drive',
+        direction: 1,
+        offset: 0,
+    },
+    {
+        key: 'middle',
+        teeth: 8,
+        className: 'floating-site-gear--middle',
+        direction: -1,
+        offset: 22.5,
+    },
+    {
+        key: 'end',
+        teeth: 10,
+        className: 'floating-site-gear--end',
+        direction: 1,
+        offset: 0,
+    },
+] as const;
+
 export default function FloatingSiteGear({
     delayMs = 0,
 }: FloatingSiteGearProps) {
-    const path = useMemo(() => buildGearPath(12, 46, 34), []);
+    const paths = useMemo(
+        () =>
+            Object.fromEntries(
+                gears.map((gear) => [
+                    gear.key,
+                    buildGearPath(gear.teeth, 46, 34),
+                ]),
+            ),
+        [],
+    );
 
     return (
         <div
-            className="floating-site-gear"
+            className="floating-site-gears"
             style={
                 {
                     '--floating-gear-delay': `${delayMs}ms`,
@@ -44,14 +79,31 @@ export default function FloatingSiteGear({
             }
             aria-hidden="true"
         >
-            <svg
-                viewBox="0 0 100 100"
-                className="floating-site-gear__mark"
-            >
-                <path d={path} />
-                <circle cx="50" cy="50" r="18" />
-                <circle cx="50" cy="50" r="7.5" />
-            </svg>
+            {gears.map((gear) => {
+                const turns = 3 * (driveTeeth / gear.teeth) * gear.direction;
+
+                return (
+                    <div
+                        key={gear.key}
+                        className={`floating-site-gear ${gear.className}`}
+                        style={
+                            {
+                                '--gear-turns': `${turns * 360}deg`,
+                                '--gear-offset': `${gear.offset}deg`,
+                            } as CSSProperties
+                        }
+                    >
+                        <svg
+                            viewBox="0 0 100 100"
+                            className="floating-site-gear__mark"
+                        >
+                            <path d={paths[gear.key]} />
+                            <circle cx="50" cy="50" r="18" />
+                            <circle cx="50" cy="50" r="7.5" />
+                        </svg>
+                    </div>
+                );
+            })}
         </div>
     );
 }

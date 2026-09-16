@@ -26,6 +26,14 @@ class SeoController extends Controller
             ],
         ];
 
+        foreach (array_keys(config('public_service_groups')) as $slug) {
+            $urls[] = [
+                'loc' => url('/services/'.$slug),
+                'changefreq' => 'monthly',
+                'priority' => '0.85',
+            ];
+        }
+
         foreach (array_keys(config('public_services')) as $slug) {
             $urls[] = [
                 'loc' => url('/services/'.$slug),

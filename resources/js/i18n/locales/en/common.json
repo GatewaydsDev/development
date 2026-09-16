@@ -7,6 +7,11 @@
     "about": "About us",
     "certifications": "Certifications",
     "services": "Services",
+    "serviceGroups": {
+      "specialty": "Specialty & high-security",
+      "commercial": "Commercial doors",
+      "equipment": "Facility equipment"
+    },
     "serviceItems": {
       "scifRoomsConstruction": "SCIF Rooms Construction",
       "radioFrequencyDoors": "Radio Frequency doors",
@@ -15,7 +20,17 @@
       "blast": "Blast",
       "oversizedAssemblies": "Oversized Assemblies",
       "hurricaneAndTornado": "Hurricane and tornado",
-      "forcedEntryDoors": "Forced Entry doors"
+      "forcedEntryDoors": "Forced Entry doors",
+      "hollowMetal": "Hollow metal",
+      "aluminumStorefront": "Aluminum storefront",
+      "securityGrilles": "Security grilles",
+      "overheadSectional": "Overhead sectional doors",
+      "highSpeedDoors": "High-speed doors",
+      "rollingSteel": "Rolling steel doors",
+      "dockEquipment": "Dock equipment",
+      "securityEquipment": "Security equipment",
+      "pipeBollards": "Pipe bollards",
+      "bathroomPartitions": "Bathroom partitions"
     }
   },
   "auth": {
@@ -47,9 +62,9 @@
     "tab": "Contact us",
     "open": "Open contact form",
     "close": "Close contact form",
-    "eyebrow": "Secure door project review",
-    "title": "Tell us about your opening.",
-    "description": "Share the basics and Gateway Door Systems will review the secure door, access-control, or SCIF-related opening request.",
+    "eyebrow": "Project review",
+    "title": "Tell us about your project.",
+    "description": "Share the basics and Gateway Door Systems will review the door, equipment, access-control, or SCIF-related request.",
     "submit": "Send request",
     "submitting": "Sending request",
     "done": "Done",
@@ -80,6 +95,8 @@
     "projectTypes": {
       "secureDoorInstallation": "Secure door installation",
       "scifRelatedOpening": "SCIF-related secure opening",
+      "commercialDoors": "Commercial doors",
+      "facilityEquipment": "Dock or facility equipment",
       "accessControlReady": "Access-control ready door",
       "retrofitReplacement": "Retrofit or replacement",
       "generalInquiry": "General inquiry"
@@ -119,8 +136,8 @@
       },
       "services": {
         "title": "How can I check your services?",
-        "answer": "Use the Services menu or the services section on the home page to review SCIF rooms construction plus specialty door services like RF, blast, bullet, hurricane, oversized, and forced entry doors.",
-        "keywords": "services door scif rooms construction rf blast bullet hurricane oversized forced entry sound transmission"
+        "answer": "Use the Services menu or the services section on the home page. Gateway installs commercial doors and facility equipment, including certified SCIF and RF openings plus hollow metal, storefront, overhead doors, dock equipment, bollards, and bathroom partitions.",
+        "keywords": "services door scif rooms construction rf blast bullet hurricane oversized forced entry sound transmission hollow metal storefront overhead dock bollards partitions"
       },
       "quote": {
         "title": "How do I request a quote?",
@@ -134,8 +151,8 @@
       },
       "secureOpenings": {
         "title": "What secure door openings do you support?",
-        "answer": "Gateway Door Systems supports SCIF rooms construction plus secure openings including RF doors, sound transmission, bullet, blast, oversized assemblies, hurricane and tornado, and forced entry doors.",
-        "keywords": "secure openings rf sound transmission bullet blast oversized hurricane tornado forced entry scif"
+        "answer": "Gateway Door Systems supports SCIF rooms construction and specialty openings including RF, sound, bullet, blast, oversized, hurricane, and forced entry doors, plus commercial doors and facility equipment.",
+        "keywords": "secure openings rf sound transmission bullet blast oversized hurricane tornado forced entry scif commercial dock equipment"
       },
       "process": {
         "title": "How does the project review process work?",
@@ -165,7 +182,7 @@
     }
   },
   "footer": {
-    "description": "Secure opening solutions for facilities that depend on reliable doors, coordinated hardware, and responsive service.",
+    "description": "Commercial doors, specialty openings, and facility equipment for buildings that depend on reliable install work and responsive service.",
     "supportTitle": "Need support?",
     "supportText": "Use the customer portal for account access or reach out to schedule service, maintenance, or a project review.",
     "company": "Company",

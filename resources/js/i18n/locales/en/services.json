@@ -14,14 +14,36 @@
     "processDescription": "Each service page focuses on the installed assembly, because the door, frame, hardware, seals, and surrounding conditions all affect performance.",
     "primaryCta": "Request a service quote",
     "secondaryCta": "View all services",
-    "ctaEyebrow": "Plan your secure opening",
-    "ctaTitle": "Need help choosing the right specialty door system?",
-    "ctaDescription": "Gateway can review the opening, door type, hardware requirements, and project constraints before installation begins.",
+    "ctaEyebrow": "Plan your project",
+    "ctaTitle": "Need help choosing the right door, opening, or equipment?",
+    "ctaDescription": "Gateway can review the opening, door type, equipment, hardware requirements, and project constraints before installation begins.",
     "ctaButton": "Start with a quote",
     "capabilityTitles": {
       "performance": "Performance details",
       "coordination": "Project coordination",
       "handoff": "Reliable handoff"
+    }
+  },
+  "groups": {
+    "commercial": {
+      "metaTitle": "Commercial Doors | Gateway Door Systems",
+      "metaDescription": "Hollow metal, aluminum storefront, security grilles, overhead sectional, high-speed, and rolling steel door installation across NY, NJ, and PA.",
+      "title": "Commercial doors",
+      "description": "Everyday and industrial door systems for offices, warehouses, storefronts, and loading areas — installed as part of the same Gateway catalog as specialty openings.",
+      "imageAlt": "Commercial door installation for a busy facility opening",
+      "overviewTitle": "More than specialty openings",
+      "overviewText": "Hollow metal, storefront, grilles, and overhead doors are the work most commercial buildings need first. Gateway installs these systems with the same attention to fit, hardware, and daily use as the high-security openings we are known for.",
+      "supportText": "Use this page to review the commercial door types we install. Send a project review if you need a mix of commercial doors and specialty openings on the same job."
+    },
+    "equipment": {
+      "metaTitle": "Facility Equipment | Gateway Door Systems",
+      "metaDescription": "Dock equipment, security equipment, pipe bollards, and bathroom partition installation for commercial and institutional buildings across NY, NJ, and PA.",
+      "title": "Facility equipment",
+      "description": "Dock equipment, security equipment, pipe bollards, and bathroom partitions that finish the building around the door — not only the opening itself.",
+      "imageAlt": "Facility equipment installed around a commercial loading and access area",
+      "overviewTitle": "The work around the opening",
+      "overviewText": "Many jobs need more than a door. Dock equipment, bollards, security hardware, and restroom partitions are part of the same facility package. Gateway coordinates that work so the opening and the area around it are installed together.",
+      "supportText": "Use this page to review the facility equipment we install. Send a project review if your scope includes doors and related equipment."
     }
   },
   "services": {

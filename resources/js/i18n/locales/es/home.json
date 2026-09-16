@@ -1,34 +1,33 @@
 {
   "meta": {
-    "title": "Construcción de salas SCIF e instalación de puertas de alta seguridad",
-    "description": "Gateway Door Systems ofrece construcción de salas SCIF e instalación de puertas de alta seguridad—incluidos sistemas RF y preparados para control de acceso—en NY, NJ y PA."
+    "title": "Puertas comerciales, aperturas especiales y equipo de instalaciones",
+    "description": "Gateway Door Systems instala puertas comerciales, aperturas especiales y equipo de instalaciones—incluidos sistemas SCIF y RF certificados—en NY, NJ y PA."
   },
   "serviceArea": {
     "banner": "Orgullosamente sirviendo el área tri-estatal: NY · NJ · PA"
   },
   "hero": {
-    "badge": "Instalación de puertas de alta seguridad",
-    "title": "Instalación de puertas especiales en la que puedes confiar",
-    "description": "Construcción certificada de salas SCIF e instalación experta de puertas seguras y de alto rendimiento, incluidos sistemas RF y con clasificación SCIF, diseñadas para cumplimiento, durabilidad y precisión.",
+    "badge": "Puertas especiales e instalación comercial completa",
+    "title": "Puertas comerciales, aperturas especiales y equipo de instalaciones.",
+    "description": "Gateway instala puertas comerciales y equipo de instalaciones, incluidas aperturas SCIF y RF certificadas, en NY, NJ y PA.",
     "imageAlt": "Puerta comercial segura que representa instalación de puertas para SCIF e instalaciones seguras",
     "primaryCta": "Obtén una cotización gratis",
     "secondaryCta": "Llamar ahora",
     "progressLabel": "Progreso del carrusel de imágenes del hero",
     "keywords": {
+      "specialty": "Especialidad y alta seguridad",
+      "commercial": "Puertas comerciales",
+      "equipment": "Equipo de instalaciones",
       "scifRoomsConstruction": "Construcción de salas SCIF",
-      "radioFrequencyDoors": "Radio Frequency doors",
-      "soundTransmission": "Sound Transmission",
-      "bullet": "Bullet",
-      "blast": "Blast",
-      "oversizedAssemblies": "Oversized Assemblies",
-      "hurricaneAndTornado": "Hurricane and tornado",
-      "forcedEntryDoors": "Forced Entry doors"
+      "radioFrequencyDoors": "Radio Frequency doors"
     },
     "slides": {
-      "secureEntry": "Puerta de entrada comercial segura para acceso a instalaciones sensibles",
-      "secureFacility": "Puerta de instalación de alta seguridad y área de acceso controlado",
-      "facilityAccess": "Puerta de acceso seguro para operaciones comerciales",
-      "reliableOpenings": "Apertura de puerta comercial confiable para uso de alta seguridad"
+      "commercialStorefront": "Lobby comercial de vidrio y apertura tipo storefront",
+      "warehouseOverhead": "Interior de almacén con aperturas industriales y puertas overhead",
+      "loadingDock": "Fila de puertas comerciales y de seguridad instaladas en una instalación",
+      "industrialSteel": "Construcción de acero industrial para hollow metal y puertas comerciales",
+      "specialtyOpenings": "Puerta especial reforzada instalada en una apertura de alta seguridad",
+      "secureAccess": "Puerta comercial con control de acceso y lector de tarjetas"
     },
     "card": {
       "title": "Diseñado para accesos seguros",
@@ -65,9 +64,9 @@
     "button": "Llama ahora para cotizar"
   },
   "secureDoor": {
-    "badge": "Instalación de puertas seguras",
-    "title": "Instalación de puertas seguras para SCIF, comercios y áreas de acceso controlado",
-    "description": "Gateway Door Systems ofrece instalación profesional de puertas seguras, marcos reforzados, herrajes comerciales, aperturas preparadas para control de acceso y puertas especiales para áreas sensibles. También construimos salas SCIF e instalamos los sistemas de puertas utilizados en instalaciones seguras, espacios gubernamentales, edificios comerciales y entornos de acceso controlado.",
+    "badge": "Qué instalamos",
+    "title": "Puertas, aperturas y equipo de instalaciones para trabajo comercial y seguro",
+    "description": "Gateway Door Systems instala puertas comerciales y equipo de instalaciones, incluidas aperturas SCIF y RF certificadas. También trabajamos hollow metal, storefront, puertas overhead, equipo de muelle y herrajes relacionados para instalaciones gubernamentales, comerciales e industriales.",
     "imageAlt": "Instalación de puertas seguras, seguridad reforzada y soluciones preparadas para control de acceso",
     "card": {
       "title": "Instalación de puertas seguras",
@@ -100,12 +99,12 @@
         "description": "Construcción certificada de salas SCIF e instalación de puertas, marcos, sellos, bisagras, cerraduras y herrajes de seguridad usados en aperturas de instalaciones sensibles."
       },
       "commercial": {
-        "title": "Puertas comerciales seguras",
-        "description": "Instalación de puertas de alta resistencia para oficinas, almacenes, cuartos mecánicos, áreas restringidas y entradas comerciales."
+        "title": "Puertas comerciales",
+        "description": "Hollow metal, storefront de aluminio, rejas de seguridad, puertas seccionales, de alta velocidad y de acero enrollable."
       },
-      "accessControl": {
-        "title": "Preparadas para control de acceso",
-        "description": "Aperturas de puertas preparadas para lectores de tarjetas, cerraduras eléctricas, cerraduras magnéticas, cierrapuertas, barras antipánico y otros herrajes de seguridad."
+      "equipment": {
+        "title": "Equipo de instalaciones",
+        "description": "Equipo de muelle, equipo de seguridad, bolardos, particiones de baño y herrajes relacionados."
       },
       "retrofit": {
         "title": "Reemplazo y modernización",
@@ -115,10 +114,24 @@
   },
   "services": {
     "badge": "Nuestros servicios",
-    "title": "Servicios de instalación de puertas para accesos seguros y confiables.",
-    "description": "Desde la construcción de salas SCIF hasta aperturas apantalladas RF y reforzadas, Gateway instala las puertas que protegen personas, equipos y espacios sensibles.",
+    "title": "Un catálogo completo de instalación, con las aperturas especiales como prueba.",
+    "description": "Gateway instala puertas comerciales y equipo de instalaciones, incluidas aperturas SCIF y RF certificadas que protegen personas, equipos y espacios sensibles.",
     "primaryCta": "Solicitar cotización",
     "secondaryCta": "Llamar por servicios",
+    "groups": {
+      "specialty": {
+        "title": "Especialidad y alta seguridad",
+        "description": "Trabajo SCIF certificado y aperturas de alto rendimiento."
+      },
+      "commercial": {
+        "title": "Puertas comerciales",
+        "description": "Sistemas de puertas cotidianos e industriales para instalaciones activas."
+      },
+      "equipment": {
+        "title": "Equipo de instalaciones",
+        "description": "Equipo relacionado que completa el edificio, no solo la apertura."
+      }
+    },
     "items": {
       "scifRoomsConstruction": {
         "title": "Construcción de salas SCIF",
@@ -151,6 +164,46 @@
       "forcedEntryDoors": {
         "title": "Forced Entry doors",
         "description": "Sistemas de puertas seguras instalados para resistir el acceso no autorizado y proteger espacios controlados."
+      },
+      "hollowMetal": {
+        "title": "Hollow metal",
+        "description": "Puertas y marcos hollow metal para oficinas, pasillos, escaleras y cuartos de servicio."
+      },
+      "aluminumStorefront": {
+        "title": "Storefront de aluminio",
+        "description": "Puertas y marcos de storefront para entradas comerciales, vestíbulos y frentes de tienda."
+      },
+      "securityGrilles": {
+        "title": "Rejas de seguridad",
+        "description": "Rejas de seguridad enrollables y corredizas para storefronts, concursos y protección fuera de horario."
+      },
+      "overheadSectional": {
+        "title": "Puertas seccionales overhead",
+        "description": "Puertas seccionales para almacenes, áreas de carga y aperturas vehiculares."
+      },
+      "highSpeedDoors": {
+        "title": "Puertas de alta velocidad",
+        "description": "Puertas de alto ciclo para producción, frío y otras aperturas que deben moverse rápido."
+      },
+      "rollingSteel": {
+        "title": "Puertas de acero enrollable",
+        "description": "Puertas de acero enrollable para servicio, fuego y aperturas industriales que necesitan un enrollado compacto."
+      },
+      "dockEquipment": {
+        "title": "Equipo de muelle",
+        "description": "Niveladores, sellos, refugios y equipo relacionado en el muelle de carga."
+      },
+      "securityEquipment": {
+        "title": "Equipo de seguridad",
+        "description": "Herrajes de acceso, cerraduras y equipo de seguridad coordinado con la apertura."
+      },
+      "pipeBollards": {
+        "title": "Bolardos",
+        "description": "Bolardos y protección contra impacto alrededor de puertas, muelles y equipos."
+      },
+      "bathroomPartitions": {
+        "title": "Particiones de baño",
+        "description": "Particiones de baño y cubículos para edificios comerciales e institucionales."
       }
     }
   },
@@ -171,8 +224,8 @@
     }
   },
   "cta": {
-    "eyebrow": "¿Listo para revisar una apertura segura?",
-    "title": "Habla con Gateway sobre instalación de puertas de alta seguridad para tu instalación.",
+    "eyebrow": "¿Listo para revisar un proyecto?",
+    "title": "Habla con Gateway sobre puertas, aperturas o equipo de instalaciones para tu edificio.",
     "button": "Llamar ahora"
   }
 }

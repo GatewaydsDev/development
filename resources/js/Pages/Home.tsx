@@ -8,9 +8,15 @@ import HeroProductCard from '@/Components/HeroProductCard';
 import SecureDoorCard from '@/Components/SecureDoorCard';
 import CertificationCard from '@/Components/CertificationCard';
 import { certifications } from '@/data/certifications';
-import { serviceDefinitions } from '@/data/services';
+import {
+    catalogItemHref,
+    catalogItems,
+    catalogItemsForGroup,
+    serviceGroups,
+} from '@/data/services';
 import PublicLayout from '@/Layouts/PublicLayout';
 import { openContactForm } from '@/lib/contact';
+import { useHeroCopyTone } from '@/lib/heroCopyTone';
 import { Head, Link } from '@inertiajs/react';
 import {
     CheckCircle2Icon,
@@ -22,34 +28,39 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const heroKeywords = [
+    'specialty',
+    'commercial',
+    'equipment',
     'scifRoomsConstruction',
     'radioFrequencyDoors',
-    'soundTransmission',
-    'bullet',
-    'blast',
-    'oversizedAssemblies',
-    'hurricaneAndTornado',
-    'forcedEntryDoors',
 ];
 
 const heroCarouselDuration = 8000;
 
 const heroSlides = [
     {
-        key: 'secureEntry',
-        image: '/images/gateway-door-project-secure-entry.webp',
+        key: 'commercialStorefront',
+        image: '/images/hero/commercial-storefront.jpg',
     },
     {
-        key: 'secureFacility',
-        image: '/images/gateway-door-project-secure-facility.webp',
+        key: 'warehouseOverhead',
+        image: '/images/hero/warehouse-overhead.jpg',
     },
     {
-        key: 'facilityAccess',
-        image: '/images/gateway-door-project-facility-access.webp',
+        key: 'loadingDock',
+        image: '/images/high-security-door-row.jpeg',
     },
     {
-        key: 'reliableOpenings',
-        image: '/images/gateway-door-project-reliable-openings.webp',
+        key: 'industrialSteel',
+        image: '/images/hero/industrial-steel.jpg',
+    },
+    {
+        key: 'specialtyOpenings',
+        image: '/images/high-security-reinforced-door.jpeg',
+    },
+    {
+        key: 'secureAccess',
+        image: '/images/high-security-access-card-door.jpeg',
     },
 ];
 
@@ -93,18 +104,17 @@ export default function Home({ companyPhoneNumber, canonicalUrl }: HomeProps) {
                 hasOfferCatalog: {
                     '@type': 'OfferCatalog',
                     name: t('services.title'),
-                    itemListElement: serviceDefinitions.map((service) => ({
+                    itemListElement: catalogItems.map((item) => ({
                         '@type': 'Offer',
                         itemOffered: {
                             '@type': 'Service',
-                            name: t(`services.items.${service.key}.title`),
+                            name: t(`services.items.${item.key}.title`),
                             description: t(
-                                `services.items.${service.key}.description`,
+                                `services.items.${item.key}.description`,
                             ),
                             url: pageUrl
-                                ? new URL(`/services/${service.slug}`, pageUrl)
-                                      .href
-                                : `/services/${service.slug}`,
+                                ? new URL(catalogItemHref(item), pageUrl).href
+                                : catalogItemHref(item),
                         },
                     })),
                 },
@@ -138,8 +148,15 @@ export default function Home({ companyPhoneNumber, canonicalUrl }: HomeProps) {
     const [progress, setProgress] = useState(0);
     const [isSecureDoorImageVisible, setIsSecureDoorImageVisible] =
         useState(false);
+    const heroSectionRef = useRef<HTMLElement>(null);
+    const heroCopyRef = useRef<HTMLDivElement>(null);
     const secureDoorSectionRef = useRef<HTMLElement>(null);
     const quotePhoneNumber = companyPhoneNumber?.replace(/\D/g, '') ?? '';
+    const heroCopyTone = useHeroCopyTone(
+        heroSectionRef,
+        heroCopyRef,
+        activeSlide,
+    );
 
     useEffect(() => {
         const startedAt = Date.now();
@@ -213,49 +230,57 @@ export default function Home({ companyPhoneNumber, canonicalUrl }: HomeProps) {
                 </script>
             </Head>
 
-            <section className="relative overflow-hidden border-b border-border">
-                {heroSlides.map((slide, index) => (
-                    <img
-                        key={slide.key}
-                        src={slide.image}
-                        alt={t(`hero.slides.${slide.key}`)}
-                        className={
-                            'absolute inset-0 size-full object-cover object-[62%_center] transition duration-1000 ease-out sm:object-center ' +
-                            (activeSlide === index
-                                ? 'scale-100 opacity-100'
-                                : 'scale-105 opacity-0')
-                        }
-                    />
-                ))}
+            <section
+                ref={heroSectionRef}
+                data-copy-tone={heroCopyTone}
+                className="hero-adaptive relative border-b border-border"
+            >
+                <div className="hero-adaptive__media absolute inset-0 overflow-hidden">
+                    {heroSlides.map((slide, index) => (
+                        <img
+                            key={slide.key}
+                            src={slide.image}
+                            data-hero-slide={index}
+                            alt={t(`hero.slides.${slide.key}`)}
+                            className={
+                                'absolute inset-0 size-full object-cover object-center transition duration-1000 ease-out ' +
+                                (activeSlide === index
+                                    ? 'scale-100 opacity-100'
+                                    : 'scale-105 opacity-0')
+                            }
+                        />
+                    ))}
 
-                <div className="absolute inset-0 bg-gradient-to-r from-background via-background/95 to-background/70 sm:to-background/45" />
-                <div className="absolute inset-0 bg-gradient-to-t from-background via-background/35 to-background/20" />
-                <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.045)_1px,_transparent_1px),linear-gradient(90deg,_rgba(0,0,0,0.045)_1px,_transparent_1px)] bg-[size:56px_56px] dark:bg-[linear-gradient(rgba(255,255,255,0.035)_1px,_transparent_1px),linear-gradient(90deg,_rgba(255,255,255,0.035)_1px,_transparent_1px)]" />
+                    <div className="hero-adaptive__wash-x absolute inset-0" />
+                    <div className="hero-adaptive__wash-y absolute inset-0" />
+                </div>
 
-                <div className="relative mx-auto grid min-h-[calc(100svh-4rem)] max-w-7xl gap-8 px-4 py-10 sm:min-h-[calc(100svh-5rem)] sm:px-6 sm:py-16 lg:min-h-[calc(100vh-7rem)] lg:grid-cols-[0.72fr_1.28fr] lg:items-start lg:px-8 lg:py-24">
-                    <div>
+                <div className="relative mx-auto flex min-h-[calc(100svh-4rem)] max-w-7xl flex-col gap-10 px-4 py-10 sm:min-h-[calc(100svh-5rem)] sm:gap-12 sm:px-6 sm:py-16 lg:min-h-[calc(100vh-7rem)] lg:px-8 lg:py-20">
+                    <div className="max-w-6xl">
                         <Badge
                             variant="outline"
-                            className="border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                            className="border-emerald-500/20 bg-background/80 text-emerald-700 backdrop-blur dark:text-emerald-300"
                         >
                             <span className="h-2 w-2 rounded-full bg-emerald-600 dark:bg-emerald-300" />
                             {t('hero.badge')}
                         </Badge>
 
-                        <h1 className="mt-6 max-w-4xl text-3xl font-semibold tracking-tight text-foreground sm:mt-8 sm:text-5xl lg:text-7xl">
-                            {t('hero.title')}
-                        </h1>
+                        <div ref={heroCopyRef}>
+                            <h1 className="hero-adaptive-copy mt-6 text-4xl font-semibold tracking-tight sm:mt-8 sm:text-6xl lg:text-8xl lg:leading-[0.95]">
+                                {t('hero.title')}
+                            </h1>
 
-                        <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground sm:mt-6 sm:text-lg sm:leading-8">
-                            {t('hero.description')}
-                        </p>
+                            <p className="hero-adaptive-copy hero-adaptive-copy--muted mt-5 max-w-3xl text-base leading-7 sm:mt-6 sm:text-xl sm:leading-8">
+                                {t('hero.description')}
+                            </p>
+                        </div>
 
-                        <div className="mt-5 flex max-h-28 flex-wrap gap-2 overflow-y-auto pr-1 sm:mt-6 sm:max-h-none sm:overflow-visible sm:pr-0">
+                        <div className="mt-5 flex flex-wrap gap-2 sm:mt-6">
                             {heroKeywords.map((keyword) => (
                                 <Badge
                                     key={keyword}
                                     variant="outline"
-                                    className="border-emerald-500/20 bg-background/70 text-emerald-700 backdrop-blur dark:text-emerald-300"
+                                    className="border-emerald-500/20 bg-background/80 text-emerald-700 backdrop-blur dark:text-emerald-300"
                                 >
                                     {t(`hero.keywords.${keyword}`)}
                                 </Badge>
@@ -277,7 +302,7 @@ export default function Home({ companyPhoneNumber, canonicalUrl }: HomeProps) {
                                     asChild
                                     variant="outline"
                                     size="lg"
-                                    className="w-full sm:w-auto"
+                                    className="w-full bg-background/80 sm:w-auto"
                                 >
                                     <a href={`tel:${quotePhoneNumber}`}>
                                         <PhoneCallIcon className="size-4" />
@@ -288,7 +313,7 @@ export default function Home({ companyPhoneNumber, canonicalUrl }: HomeProps) {
                         </div>
 
                         <div
-                            className="mt-8 h-1.5 max-w-full overflow-hidden rounded-full bg-muted sm:max-w-md"
+                            className="mt-8 h-1.5 max-w-full overflow-hidden rounded-full bg-background/60 sm:max-w-md"
                             aria-label={t('hero.progressLabel')}
                         >
                             <div
@@ -298,16 +323,10 @@ export default function Home({ companyPhoneNumber, canonicalUrl }: HomeProps) {
                         </div>
                     </div>
 
-                    <div className="group relative flex items-start justify-center rounded-[2rem]">
-                        <div className="absolute inset-x-4 top-8 h-72 rounded-full bg-emerald-400/20 blur-3xl transition duration-700 group-hover:bg-emerald-400/30 sm:h-96 lg:-inset-x-6 lg:h-[28rem]" />
-                        <div className="absolute bottom-10 right-4 size-52 rounded-full bg-primary/10 blur-2xl transition duration-700 group-hover:scale-110 lg:size-60" />
-
-                        <div className="relative w-full animate-in fade-in slide-in-from-bottom-6 duration-700">
-                            <div className="absolute inset-0 translate-y-8 rounded-[2rem] bg-emerald-950/20 blur-2xl transition duration-700 group-hover:translate-y-10 group-hover:scale-105" />
-
-                            <div className="relative overflow-hidden rounded-[2rem] border border-white/30 shadow-2xl shadow-emerald-950/20 ring-1 ring-emerald-500/10 dark:border-white/10 dark:shadow-emerald-950/40">
-                                <HeroProductCard />
-                            </div>
+                    <div className="group relative w-full">
+                        <div className="absolute inset-x-8 -top-6 h-40 rounded-full bg-emerald-400/20 blur-3xl transition duration-700 group-hover:bg-emerald-400/30" />
+                        <div className="relative overflow-hidden rounded-[2rem] border border-white/40 bg-background/80 shadow-2xl shadow-emerald-950/20 ring-1 ring-emerald-500/10 backdrop-blur-sm dark:border-white/10 dark:shadow-emerald-950/40">
+                            <HeroProductCard />
                         </div>
                     </div>
                 </div>
@@ -319,20 +338,20 @@ export default function Home({ companyPhoneNumber, canonicalUrl }: HomeProps) {
                 className="border-y border-border bg-muted/40"
             >
                 <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-24">
-                    <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:gap-10">
+                    <Badge
+                        variant="outline"
+                        className="border-emerald-500/20 bg-background/70 text-emerald-700 dark:text-emerald-300"
+                    >
+                        {t('secureDoor.badge')}
+                    </Badge>
+
+                    <h2 className="mt-5 w-full text-2xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-6xl lg:leading-[1.05]">
+                        {t('secureDoor.title')}
+                    </h2>
+
+                    <div className="mt-8 grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:gap-10">
                         <div>
-                            <Badge
-                                variant="outline"
-                                className="border-emerald-500/20 bg-background/70 text-emerald-700 dark:text-emerald-300"
-                            >
-                                {t('secureDoor.badge')}
-                            </Badge>
-
-                            <h2 className="mt-5 text-2xl font-semibold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
-                                {t('secureDoor.title')}
-                            </h2>
-
-                            <p className="mt-5 text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
+                            <p className="text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
                                 {t('secureDoor.description')}
                             </p>
                         </div>
@@ -377,7 +396,10 @@ export default function Home({ companyPhoneNumber, canonicalUrl }: HomeProps) {
                             </p>
                         </Link>
 
-                        <div className="rounded-2xl border border-border bg-background p-5">
+                        <Link
+                            href={route('services.show', 'commercial-doors')}
+                            className="rounded-2xl border border-border bg-background p-5 transition hover:border-emerald-500/30 hover:shadow-lg hover:shadow-emerald-950/10"
+                        >
                             <DoorOpenIcon className="mb-4 size-6 text-emerald-700 dark:text-emerald-300" />
                             <h3 className="font-semibold text-foreground">
                                 {t('secureDoor.features.commercial.title')}
@@ -385,17 +407,20 @@ export default function Home({ companyPhoneNumber, canonicalUrl }: HomeProps) {
                             <p className="mt-2 text-sm leading-6 text-muted-foreground">
                                 {t('secureDoor.features.commercial.description')}
                             </p>
-                        </div>
+                        </Link>
 
-                        <div className="rounded-2xl border border-border bg-background p-5">
+                        <Link
+                            href={route('services.show', 'facility-equipment')}
+                            className="rounded-2xl border border-border bg-background p-5 transition hover:border-emerald-500/30 hover:shadow-lg hover:shadow-emerald-950/10"
+                        >
                             <CheckCircle2Icon className="mb-4 size-6 text-emerald-700 dark:text-emerald-300" />
                             <h3 className="font-semibold text-foreground">
-                                {t('secureDoor.features.accessControl.title')}
+                                {t('secureDoor.features.equipment.title')}
                             </h3>
                             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                                {t('secureDoor.features.accessControl.description')}
+                                {t('secureDoor.features.equipment.description')}
                             </p>
-                        </div>
+                        </Link>
 
                         <div className="rounded-2xl border border-border bg-background p-5">
                             <PhoneCallIcon className="mb-4 size-6 text-emerald-700 dark:text-emerald-300" />
@@ -413,8 +438,8 @@ export default function Home({ companyPhoneNumber, canonicalUrl }: HomeProps) {
             <section id="services" className="bg-background">
                 <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-24">
                     <div className="overflow-hidden rounded-3xl border border-emerald-500/20 bg-emerald-950 text-white shadow-2xl shadow-emerald-950/20">
-                        <div className="grid gap-8 bg-[radial-gradient(circle_at_top_left,_rgba(52,211,153,0.35),_transparent_36%),linear-gradient(135deg,_rgba(6,78,59,0.92),_rgba(6,95,70,0.72)_48%,_rgba(2,6,23,0.98))] p-6 sm:p-8 lg:grid-cols-[1fr_0.85fr] lg:items-center lg:p-10">
-                            <div>
+                        <div className="bg-[radial-gradient(circle_at_top_left,_rgba(52,211,153,0.35),_transparent_36%),linear-gradient(135deg,_rgba(6,78,59,0.92),_rgba(6,95,70,0.72)_48%,_rgba(2,6,23,0.98))] p-6 sm:p-8 lg:p-10">
+                            <div className="max-w-3xl">
                                 <Badge
                                     variant="outline"
                                     className="border-emerald-300/30 bg-white/10 text-emerald-50"
@@ -457,39 +482,82 @@ export default function Home({ companyPhoneNumber, canonicalUrl }: HomeProps) {
                                 </div>
                             </div>
 
-                            <div className="grid gap-3">
-                                {serviceDefinitions.map((service) => {
-                                    const Icon = service.Icon;
+                            <div className="mt-10 grid gap-6 lg:grid-cols-[1.15fr_0.925fr_0.925fr]">
+                                {serviceGroups.map((group) => {
+                                    const items = catalogItemsForGroup(
+                                        group.key,
+                                    );
+                                    const isSpecialty =
+                                        group.key === 'specialty';
 
                                     return (
-                                        <a
-                                            key={service.key}
-                                            id={`service-${service.key}`}
-                                            href={route(
-                                                'services.show',
-                                                service.slug,
-                                            )}
-                                            className="scroll-mt-28 rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur"
+                                        <div
+                                            key={group.key}
+                                            className="rounded-2xl border border-white/10 bg-white/10 p-5 backdrop-blur"
                                         >
-                                            <div className="flex gap-4">
-                                                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-emerald-300/20 text-emerald-100">
-                                                    <Icon className="size-5" />
-                                                </div>
-
-                                                <div>
-                                                    <h3 className="font-semibold">
+                                            {group.slug ? (
+                                                <a
+                                                    href={route(
+                                                        'services.show',
+                                                        group.slug,
+                                                    )}
+                                                    className="block"
+                                                >
+                                                    <h3 className="text-lg font-semibold">
                                                         {t(
-                                                            `services.items.${service.key}.title`,
+                                                            `services.groups.${group.key}.title`,
                                                         )}
                                                     </h3>
-                                                    <p className="mt-1 text-sm leading-6 text-emerald-50/75">
-                                                        {t(
-                                                            `services.items.${service.key}.description`,
-                                                        )}
-                                                    </p>
-                                                </div>
+                                                </a>
+                                            ) : (
+                                                <h3 className="text-lg font-semibold">
+                                                    {t(
+                                                        `services.groups.${group.key}.title`,
+                                                    )}
+                                                </h3>
+                                            )}
+                                            <p className="mt-2 text-sm leading-6 text-emerald-50/75">
+                                                {t(
+                                                    `services.groups.${group.key}.description`,
+                                                )}
+                                            </p>
+                                            <div className="mt-4 grid gap-2">
+                                                {items.map((item) => {
+                                                    const Icon = item.Icon;
+
+                                                    return (
+                                                        <a
+                                                            key={item.key}
+                                                            id={`service-${item.key}`}
+                                                            href={catalogItemHref(
+                                                                item,
+                                                            )}
+                                                            className="scroll-mt-28 rounded-xl border border-white/10 bg-white/5 p-3 transition hover:bg-white/10"
+                                                        >
+                                                            <div className="flex gap-3">
+                                                                <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-300/20 text-emerald-100">
+                                                                    <Icon className="size-4" />
+                                                                </div>
+                                                                <div>
+                                                                    <p className="font-medium">
+                                                                        {t(
+                                                                            `services.items.${item.key}.title`,
+                                                                        )}
+                                                                    </p>
+                                                                    {isSpecialty && (
+                                                                        <p className="mt-1 text-xs leading-5 text-emerald-50/70">
+                                                                            {t(
+                                                                                `services.items.${item.key}.description`,
+                                                                            )}
+                                                                        </p>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </a>
+                                                    );
+                                                })}
                                             </div>
-                                        </a>
+                                        </div>
                                     );
                                 })}
                             </div>

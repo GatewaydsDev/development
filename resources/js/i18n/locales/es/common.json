@@ -7,6 +7,11 @@
     "about": "Nosotros",
     "certifications": "Certificaciones",
     "services": "Servicios",
+    "serviceGroups": {
+      "specialty": "Especialidad y alta seguridad",
+      "commercial": "Puertas comerciales",
+      "equipment": "Equipo de instalaciones"
+    },
     "serviceItems": {
       "scifRoomsConstruction": "Construcción de salas SCIF",
       "radioFrequencyDoors": "Radio Frequency doors",
@@ -15,7 +20,17 @@
       "blast": "Blast",
       "oversizedAssemblies": "Oversized Assemblies",
       "hurricaneAndTornado": "Hurricane and tornado",
-      "forcedEntryDoors": "Forced Entry doors"
+      "forcedEntryDoors": "Forced Entry doors",
+      "hollowMetal": "Hollow metal",
+      "aluminumStorefront": "Storefront de aluminio",
+      "securityGrilles": "Rejas de seguridad",
+      "overheadSectional": "Puertas seccionales overhead",
+      "highSpeedDoors": "Puertas de alta velocidad",
+      "rollingSteel": "Puertas de acero enrollable",
+      "dockEquipment": "Equipo de muelle",
+      "securityEquipment": "Equipo de seguridad",
+      "pipeBollards": "Bolardos",
+      "bathroomPartitions": "Particiones de baño"
     }
   },
   "auth": {
@@ -47,9 +62,9 @@
     "tab": "Contáctanos",
     "open": "Abrir formulario de contacto",
     "close": "Cerrar formulario de contacto",
-    "eyebrow": "Revisión de proyecto de puerta segura",
-    "title": "Cuéntanos sobre tu apertura.",
-    "description": "Comparte la información básica y Gateway Door Systems revisará la solicitud relacionada con puerta segura, control de acceso o apertura relacionada con SCIF.",
+    "eyebrow": "Revisión de proyecto",
+    "title": "Cuéntanos sobre tu proyecto.",
+    "description": "Comparte la información básica y Gateway Door Systems revisará la solicitud de puerta, equipo, control de acceso o apertura relacionada con SCIF.",
     "submit": "Enviar solicitud",
     "submitting": "Enviando solicitud",
     "done": "Listo",
@@ -80,6 +95,8 @@
     "projectTypes": {
       "secureDoorInstallation": "Instalación de puerta segura",
       "scifRelatedOpening": "Apertura segura relacionada con SCIF",
+      "commercialDoors": "Puertas comerciales",
+      "facilityEquipment": "Equipo de muelle o de instalaciones",
       "accessControlReady": "Puerta preparada para control de acceso",
       "retrofitReplacement": "Reemplazo o modernización",
       "generalInquiry": "Consulta general"
@@ -119,8 +136,8 @@
       },
       "services": {
         "title": "¿Cómo puedo revisar sus servicios?",
-        "answer": "Usa el menú Servicios o la sección de servicios en la página de inicio para revisar construcción de salas SCIF y puertas RF, blast, bullet, huracanes, sobredimensionadas y forced entry.",
-        "keywords": "servicios puerta scif salas construccion rf blast bullet huracan sobredimensionadas forced entry transmision sonido"
+        "answer": "Usa el menú Servicios o la sección de servicios en la página de inicio. Gateway instala puertas comerciales y equipo de instalaciones, incluidas aperturas SCIF y RF certificadas, hollow metal, storefront, puertas overhead, equipo de muelle, bolardos y particiones de baño.",
+        "keywords": "servicios puerta scif salas construccion rf blast bullet huracan sobredimensionadas forced entry hollow metal storefront overhead muelle bolardos particiones"
       },
       "quote": {
         "title": "¿Cómo solicito una cotización?",
@@ -134,8 +151,8 @@
       },
       "secureOpenings": {
         "title": "¿Qué aperturas de puertas seguras trabajan?",
-        "answer": "Gateway Door Systems trabaja construcción de salas SCIF y aperturas seguras incluyendo puertas RF, transmisión de sonido, bullet, blast, ensamblajes sobredimensionados, huracanes y tornados, y forced entry.",
-        "keywords": "aperturas seguras rf transmision sonido bullet blast sobredimensionadas huracan tornado forced entry scif"
+        "answer": "Gateway Door Systems trabaja construcción de salas SCIF y aperturas especiales incluyendo RF, sonido, bullet, blast, sobredimensionadas, huracanes y forced entry, además de puertas comerciales y equipo de instalaciones.",
+        "keywords": "aperturas seguras rf transmision sonido bullet blast sobredimensionadas huracan tornado forced entry scif comercial muelle"
       },
       "process": {
         "title": "¿Cómo funciona el proceso de revisión del proyecto?",
@@ -165,7 +182,7 @@
     }
   },
   "footer": {
-    "description": "Soluciones de accesos seguros para instalaciones que dependen de puertas confiables, herrajes coordinados y servicio receptivo.",
+    "description": "Puertas comerciales, aperturas especiales y equipo de instalaciones para edificios que dependen de una instalación confiable y un servicio receptivo.",
     "supportTitle": "¿Necesitas soporte?",
     "supportText": "Usa el portal de clientes para acceder a tu cuenta o comunícate para programar servicio, mantenimiento o una revisión de proyecto.",
     "company": "Compañía",

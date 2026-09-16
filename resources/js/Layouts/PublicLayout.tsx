@@ -5,22 +5,27 @@ import SiteVaultIntro from '@/Components/SiteVaultIntro';
 import HelpCenter from '@/Components/HelpCenter';
 import LanguageSwitcher from '@/Components/LanguageSwitcher';
 import PublicActionFab from '@/Components/PublicActionFab';
+import {
+    PublicMobileServiceLinks,
+    PublicServicesNavigationContent,
+} from '@/Components/PublicServicesNavigation';
 import ThemeModeToggle from '@/Components/ThemeModeToggle';
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuGroup,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/Components/ui/dropdown-menu';
-import { serviceDefinitions } from '@/data/services';
+    NavigationMenu,
+    NavigationMenuItem,
+    NavigationMenuLink,
+    NavigationMenuList,
+    NavigationMenuTrigger,
+    navigationMenuTriggerStyle,
+} from '@/Components/ui/navigation-menu';
+import { serviceGroups } from '@/data/services';
+import { cn } from '@/lib/utils';
 import { PageProps } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import {
     AnchorIcon,
     BadgeCheckIcon,
     Building2Icon,
-    ChevronDownIcon,
     FactoryIcon,
     GraduationCapIcon,
     HomeIcon,
@@ -30,6 +35,7 @@ import {
     LayoutDashboardIcon,
     LogInIcon,
     LandmarkIcon,
+    RadioTowerIcon,
     ShieldIcon,
     WrenchIcon,
 } from 'lucide-react';
@@ -85,6 +91,19 @@ export default function PublicLayout({ children }: PropsWithChildren) {
         };
     }, [isAuthPage]);
 
+    useEffect(() => {
+        if (!showingNavigationDropdown) {
+            return;
+        }
+
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+
+        return () => {
+            document.body.style.overflow = previousOverflow;
+        };
+    }, [showingNavigationDropdown]);
+
     return (
         <div className="min-h-screen bg-background text-foreground">
             {!isAuthPage && <SiteVaultIntro />}
@@ -95,7 +114,13 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                     }
                 />
             )}
-            <header className="sticky top-0 z-50">
+            <header
+                className={cn(
+                    'sticky top-0 z-50',
+                    showingNavigationDropdown &&
+                        'flex h-svh flex-col lg:block lg:h-auto',
+                )}
+            >
                 {isHome ? (
                     <div className="border-b border-emerald-500/20 bg-emerald-950/95 text-center text-sm font-medium tracking-wide text-emerald-50 backdrop-blur supports-[backdrop-filter]:bg-emerald-950/90">
                         <p className="px-4 py-2.5 sm:text-base">
@@ -104,8 +129,14 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                     </div>
                 ) : null}
 
-                <nav className="border-b border-border bg-background/95 backdrop-blur">
-                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <nav
+                    className={cn(
+                        'border-b border-border bg-background/95 backdrop-blur',
+                        showingNavigationDropdown &&
+                            'flex min-h-0 flex-1 flex-col bg-background lg:block',
+                    )}
+                >
+                <div className="mx-auto w-full max-w-7xl shrink-0 px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between gap-3 overflow-visible py-2 sm:py-2.5 md:py-3 lg:gap-8">
                         <div className="flex min-w-0 items-center">
                             <div className="flex shrink-0 items-center">
@@ -114,67 +145,54 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                                 </Link>
                             </div>
 
-                            <div className="hidden gap-8 lg:ms-12 lg:flex lg:items-center">
-                                {navigation.map((item) => {
-                                    const Icon = item.Icon;
+                            <NavigationMenu
+                                viewport={false}
+                                className="hidden max-w-none justify-start lg:ms-12 lg:flex"
+                            >
+                                <NavigationMenuList className="gap-1">
+                                    {navigation.map((item) => {
+                                        const Icon = item.Icon;
+                                        const isActive = route().current(
+                                            item.route,
+                                        );
 
-                                    return (
-                                        <Link
-                                            key={item.route}
-                                            href={route(item.route)}
-                                            className={
-                                                'group inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2 focus:ring-offset-background ' +
-                                                (route().current(item.route)
-                                                    ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
-                                                    : 'text-muted-foreground hover:bg-muted hover:text-foreground')
-                                            }
-                                        >
-                                            <Icon className="size-4 shrink-0 transition group-hover:animate-bell-shake group-focus-visible:animate-bell-shake" />
-                                            {t(item.labelKey)}
-                                        </Link>
-                                    );
-                                })}
-
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger className="group inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2 focus:ring-offset-background data-open:bg-emerald-500/10 data-open:text-emerald-700 dark:data-open:text-emerald-300">
-                                        <WrenchIcon className="size-4 shrink-0 transition group-hover:animate-bell-shake group-focus-visible:animate-bell-shake" />
-                                        {t('navigation.services')}
-                                        <ChevronDownIcon className="size-4" />
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent className="w-72 p-2">
-                                        <DropdownMenuGroup>
-                                            {serviceDefinitions.map((service) => {
-                                                const Icon = service.Icon;
-
-                                                return (
-                                                    <DropdownMenuItem
-                                                        key={service.key}
-                                                        asChild
-                                                        className="p-0"
+                                        return (
+                                            <NavigationMenuItem key={item.route}>
+                                                <NavigationMenuLink
+                                                    asChild
+                                                    active={isActive}
+                                                    className={cn(
+                                                        navigationMenuTriggerStyle(),
+                                                        'rounded-full px-3',
+                                                        isActive
+                                                            ? 'bg-muted text-foreground'
+                                                            : 'text-muted-foreground',
+                                                    )}
+                                                >
+                                                    <Link
+                                                        href={route(item.route)}
                                                     >
-                                                        <Link
-                                                            href={route(
-                                                                'services.show',
-                                                                service.slug,
-                                                            )}
-                                                            className="group flex w-full items-center gap-3 rounded-md px-2 py-2 text-sm"
-                                                        >
-                                                            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
-                                                                <Icon className="size-4 transition group-hover:animate-bell-shake group-focus-visible:animate-bell-shake" />
-                                                            </span>
-                                                            <span>
-                                                                {t(
-                                                                    `navigation.serviceItems.${service.key}`,
-                                                                )}
-                                                            </span>
-                                                        </Link>
-                                                    </DropdownMenuItem>
-                                                );
-                                            })}
-                                        </DropdownMenuGroup>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            </div>
+                                                        <Icon />
+                                                        {t(item.labelKey)}
+                                                    </Link>
+                                                </NavigationMenuLink>
+                                            </NavigationMenuItem>
+                                        );
+                                    })}
+
+                                    <NavigationMenuItem>
+                                        <NavigationMenuTrigger
+                                            className={cn(
+                                                'gap-2 rounded-full px-3 text-muted-foreground',
+                                            )}
+                                        >
+                                            <WrenchIcon className="size-4" />
+                                            {t('navigation.services')}
+                                        </NavigationMenuTrigger>
+                                        <PublicServicesNavigationContent />
+                                    </NavigationMenuItem>
+                                </NavigationMenuList>
+                            </NavigationMenu>
                         </div>
 
                         <div className="hidden gap-2 lg:ms-6 lg:flex lg:items-center lg:gap-4">
@@ -245,10 +263,10 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                 </div>
 
                 <div
-                    className={
-                        (showingNavigationDropdown ? 'block' : 'hidden') +
-                        ' border-t border-border lg:hidden'
-                    }
+                    className={cn(
+                        showingNavigationDropdown ? 'flex' : 'hidden',
+                        'min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain border-t border-border bg-background lg:hidden',
+                    )}
                 >
                     <div className="flex flex-col gap-1 px-4 pb-3 pt-4">
                         {navigation.map((item) => (
@@ -275,40 +293,15 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                                 <WrenchIcon className="size-3.5" />
                                 {t('navigation.services')}
                             </p>
-                            <div className="mt-1 flex flex-col gap-1">
-                                {serviceDefinitions.map((service) => {
-                                    const Icon = service.Icon;
-
-                                    return (
-                                        <Link
-                                            key={service.key}
-                                            href={route(
-                                                'services.show',
-                                                service.slug,
-                                            )}
-                                            onClick={() =>
-                                                setShowingNavigationDropdown(
-                                                    false,
-                                                )
-                                            }
-                                            className="group flex items-center gap-3 rounded-md px-2 py-2 text-sm font-medium text-muted-foreground transition hover:bg-background hover:text-foreground"
-                                        >
-                                            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
-                                                <Icon className="size-4 transition group-hover:animate-bell-shake group-focus-visible:animate-bell-shake" />
-                                            </span>
-                                            <span>
-                                                {t(
-                                                    `navigation.serviceItems.${service.key}`,
-                                                )}
-                                            </span>
-                                        </Link>
-                                    );
-                                })}
-                            </div>
+                            <PublicMobileServiceLinks
+                                onNavigate={() =>
+                                    setShowingNavigationDropdown(false)
+                                }
+                            />
                         </div>
                     </div>
 
-                    <div className="border-t border-border px-4 pb-4 pt-4">
+                    <div className="border-t border-border px-4 pb-28 pt-4">
                         <div className="mb-4">
                             <div className="flex flex-wrap gap-3">
                                 <LanguageSwitcher />
@@ -394,27 +387,55 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                                     {t('footer.services')}
                                 </h2>
                                 <div className="mt-4 flex flex-col gap-3 text-sm text-emerald-50/70">
-                                    {serviceDefinitions.map((service) => {
-                                        const Icon = service.Icon;
-
-                                        return (
-                                            <Link
-                                                key={service.key}
-                                                href={route(
-                                                    'services.show',
-                                                    service.slug,
+                                    {serviceGroups.map((group) => (
+                                        <Link
+                                            key={group.key}
+                                            href={
+                                                group.slug
+                                                    ? route(
+                                                          'services.show',
+                                                          group.slug,
+                                                      )
+                                                    : '/#services'
+                                            }
+                                            className="group inline-flex items-center gap-2 transition hover:text-white"
+                                        >
+                                            <WrenchIcon className="size-4 shrink-0 text-emerald-300 transition group-hover:animate-bell-shake" />
+                                            <span>
+                                                {t(
+                                                    `navigation.serviceGroups.${group.key}`,
                                                 )}
-                                                className="group inline-flex items-center gap-2 transition hover:text-white"
-                                            >
-                                                <Icon className="size-4 shrink-0 text-emerald-300 transition group-hover:animate-bell-shake" />
-                                                <span>
-                                                    {t(
-                                                        `navigation.serviceItems.${service.key}`,
-                                                    )}
-                                                </span>
-                                            </Link>
-                                        );
-                                    })}
+                                            </span>
+                                        </Link>
+                                    ))}
+                                    <Link
+                                        href={route(
+                                            'services.show',
+                                            'scif-rooms-construction',
+                                        )}
+                                        className="group inline-flex items-center gap-2 transition hover:text-white"
+                                    >
+                                        <Building2Icon className="size-4 shrink-0 text-emerald-300 transition group-hover:animate-bell-shake" />
+                                        <span>
+                                            {t(
+                                                'navigation.serviceItems.scifRoomsConstruction',
+                                            )}
+                                        </span>
+                                    </Link>
+                                    <Link
+                                        href={route(
+                                            'services.show',
+                                            'radio-frequency-doors',
+                                        )}
+                                        className="group inline-flex items-center gap-2 transition hover:text-white"
+                                    >
+                                        <RadioTowerIcon className="size-4 shrink-0 text-emerald-300 transition group-hover:animate-bell-shake" />
+                                        <span>
+                                            {t(
+                                                'navigation.serviceItems.radioFrequencyDoors',
+                                            )}
+                                        </span>
+                                    </Link>
                                 </div>
                             </div>
 

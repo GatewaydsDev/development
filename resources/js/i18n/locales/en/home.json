@@ -1,34 +1,33 @@
 {
   "meta": {
-    "title": "SCIF Rooms Construction & High-Security Door Installation",
-    "description": "Gateway Door Systems provides SCIF rooms construction and high-security door installation—including RF and access-control-ready systems—across NY, NJ, and PA."
+    "title": "Commercial Doors, Specialty Openings & Facility Equipment",
+    "description": "Gateway Door Systems installs commercial doors, specialty openings, and facility equipment—including certified SCIF and RF systems—across NY, NJ, and PA."
   },
   "serviceArea": {
     "banner": "Proudly serving the tri-state area: NY · NJ · PA"
   },
   "hero": {
-    "badge": "High-security door installation",
-    "title": "Specialty Door Installation You Can Trust",
-    "description": "Certified SCIF rooms construction and expert installation of secure, high-performance doors—including RF and SCIF-rated systems—built for compliance, durability, and precision.",
+    "badge": "Specialty doors and full commercial install",
+    "title": "Commercial doors, specialty openings, and facility equipment.",
+    "description": "Gateway installs commercial doors and facility equipment, including certified SCIF and RF openings, across NY, NJ, and PA.",
     "imageAlt": "Secure commercial doorway representing SCIF and secure facility door installation",
     "primaryCta": "Get a Free Quote",
     "secondaryCta": "Call now",
     "progressLabel": "Hero image carousel progress",
     "keywords": {
+      "specialty": "Specialty & high-security",
+      "commercial": "Commercial doors",
+      "equipment": "Facility equipment",
       "scifRoomsConstruction": "SCIF Rooms Construction",
-      "radioFrequencyDoors": "Radio Frequency doors",
-      "soundTransmission": "Sound Transmission",
-      "bullet": "Bullet",
-      "blast": "Blast",
-      "oversizedAssemblies": "Oversized Assemblies",
-      "hurricaneAndTornado": "Hurricane and tornado",
-      "forcedEntryDoors": "Forced Entry doors"
+      "radioFrequencyDoors": "Radio Frequency doors"
     },
     "slides": {
-      "secureEntry": "Secure commercial entry door for sensitive facility access",
-      "secureFacility": "High-security facility door and controlled access area",
-      "facilityAccess": "Secure facility access door for commercial operations",
-      "reliableOpenings": "Reliable commercial door opening for high-security use"
+      "commercialStorefront": "Glass commercial lobby and storefront-style opening",
+      "warehouseOverhead": "Warehouse interior with overhead and industrial door openings",
+      "loadingDock": "Row of commercial and security doors installed at a facility",
+      "industrialSteel": "Industrial steel construction for hollow metal and commercial doors",
+      "specialtyOpenings": "Reinforced specialty door installed for a high-security opening",
+      "secureAccess": "Access-controlled commercial door with card reader hardware"
     },
     "card": {
       "title": "Built around secure openings",
@@ -65,9 +64,9 @@
     "button": "Call now for a quote"
   },
   "secureDoor": {
-    "badge": "Secure Door Installation",
-    "title": "Secure Door Installation for SCIF, Commercial & Controlled-Access Areas",
-    "description": "Gateway Door Systems provides professional installation of secure doors, reinforced door frames, commercial hardware, access-control ready openings, and specialty doors for sensitive areas. We also build SCIF rooms and install the door systems used in secure facilities, government spaces, commercial buildings, and controlled-access environments.",
+    "badge": "What we install",
+    "title": "Doors, openings, and facility equipment for commercial and secure work",
+    "description": "Gateway Door Systems installs commercial doors and facility equipment, including certified SCIF and RF openings. We also handle hollow metal, storefront, overhead doors, dock equipment, and related hardware for government, commercial, and industrial facilities.",
     "imageAlt": "Secure door installation, reinforced security, and access control ready door solutions",
     "card": {
       "title": "Secure Door Installation",
@@ -100,12 +99,12 @@
         "description": "Certified SCIF rooms construction plus installation of doors, frames, seals, hinges, locks, and security hardware used in sensitive facility openings."
       },
       "commercial": {
-        "title": "Commercial Secure Doors",
-        "description": "Heavy-duty door installation for offices, warehouses, mechanical rooms, restricted areas, and commercial entry points."
+        "title": "Commercial doors",
+        "description": "Hollow metal, aluminum storefront, security grilles, overhead sectional, high-speed, and rolling steel doors."
       },
-      "accessControl": {
-        "title": "Access-Control Ready",
-        "description": "Door openings prepared for card readers, electric strikes, maglocks, closers, panic bars, and other security hardware."
+      "equipment": {
+        "title": "Facility equipment",
+        "description": "Dock equipment, security equipment, pipe bollards, bathroom partitions, and related facility hardware."
       },
       "retrofit": {
         "title": "Retrofit & Replacement",
@@ -115,10 +114,24 @@
   },
   "services": {
     "badge": "Our services",
-    "title": "Door installation services built for secure, reliable access.",
-    "description": "From SCIF rooms construction to RF-shielded and reinforced openings, Gateway installs the doors that protect people, equipment, and sensitive spaces.",
+    "title": "A full install catalog, with specialty openings as the proof.",
+    "description": "Gateway installs commercial doors and facility equipment, including certified SCIF and RF openings that protect people, equipment, and sensitive spaces.",
     "primaryCta": "Request a service quote",
     "secondaryCta": "Call about services",
+    "groups": {
+      "specialty": {
+        "title": "Specialty & high-security",
+        "description": "Certified SCIF work and high-performance openings."
+      },
+      "commercial": {
+        "title": "Commercial doors",
+        "description": "Everyday and industrial door systems for busy facilities."
+      },
+      "equipment": {
+        "title": "Facility equipment",
+        "description": "Related equipment that finishes the building, not just the opening."
+      }
+    },
     "items": {
       "scifRoomsConstruction": {
         "title": "SCIF Rooms Construction",
@@ -151,6 +164,46 @@
       "forcedEntryDoors": {
         "title": "Forced Entry doors",
         "description": "Secure door systems installed to resist unauthorized entry and protect controlled spaces."
+      },
+      "hollowMetal": {
+        "title": "Hollow metal",
+        "description": "Hollow metal doors and frames for offices, corridors, stairwells, and utility rooms."
+      },
+      "aluminumStorefront": {
+        "title": "Aluminum storefront",
+        "description": "Storefront doors and framing for commercial entries, vestibules, and storefront openings."
+      },
+      "securityGrilles": {
+        "title": "Security grilles",
+        "description": "Rolling and sliding security grilles for storefronts, concourses, and after-hours protection."
+      },
+      "overheadSectional": {
+        "title": "Overhead sectional doors",
+        "description": "Sectional overhead doors for warehouses, loading areas, and vehicle openings."
+      },
+      "highSpeedDoors": {
+        "title": "High-speed doors",
+        "description": "High-cycle doors for production, cold storage, and other openings that need to move quickly."
+      },
+      "rollingSteel": {
+        "title": "Rolling steel doors",
+        "description": "Rolling steel doors for service, fire, and industrial openings that need a compact stack."
+      },
+      "dockEquipment": {
+        "title": "Dock equipment",
+        "description": "Dock levelers, seals, shelters, and related equipment at the loading dock."
+      },
+      "securityEquipment": {
+        "title": "Security equipment",
+        "description": "Access hardware, locks, and related security equipment coordinated with the opening."
+      },
+      "pipeBollards": {
+        "title": "Pipe bollards",
+        "description": "Pipe bollards and impact protection around doors, docks, and equipment."
+      },
+      "bathroomPartitions": {
+        "title": "Bathroom partitions",
+        "description": "Toilet partitions and restroom compartments for commercial and institutional buildings."
       }
     }
   },
@@ -171,8 +224,8 @@
     }
   },
   "cta": {
-    "eyebrow": "Ready to review a secure opening?",
-    "title": "Talk with Gateway about high-security door installation for your facility.",
+    "eyebrow": "Ready to review a project?",
+    "title": "Talk with Gateway about doors, openings, or facility equipment for your building.",
     "button": "Call now"
   }
 }

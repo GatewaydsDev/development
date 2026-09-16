@@ -42,6 +42,8 @@ type ToastState = {
 const projectTypes = [
     'secureDoorInstallation',
     'scifRelatedOpening',
+    'commercialDoors',
+    'facilityEquipment',
     'accessControlReady',
     'retrofitReplacement',
     'generalInquiry',

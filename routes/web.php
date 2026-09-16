@@ -52,6 +52,16 @@ Route::get('/certifications', function () {
 })->name('certifications');
 
 Route::get('/services/{service}', function (string $service) {
+    $groups = config('public_service_groups');
+
+    if (is_array($groups) && array_key_exists($service, $groups)) {
+        return Inertia::render('Services/Group', [
+            'groupKey' => $groups[$service],
+            'groupSlug' => $service,
+            'canonicalUrl' => url()->current(),
+        ]);
+    }
+
     $services = config('public_services');
 
     abort_unless(is_array($services) && array_key_exists($service, $services), 404);
