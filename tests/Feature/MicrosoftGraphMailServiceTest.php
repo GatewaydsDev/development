@@ -12,7 +12,7 @@ beforeEach(function () {
     ]);
 });
 
-test('microsoft graph mail service sends html mail through graph', function () {
+test('microsoft graph mail service sends html mail through azure', function () {
     Http::fake([
         'https://login.microsoftonline.com/*' => Http::response([
             'access_token' => 'graph-token',
@@ -22,7 +22,7 @@ test('microsoft graph mail service sends html mail through graph', function () {
     ]);
 
     app(MicrosoftGraphMailService::class)->send(
-        'lead@example.com',
+        'sales@gateway-ds.com',
         'Quote ready',
         '<p>The quote is attached.</p>',
         'buyer@example.com',
@@ -42,27 +42,36 @@ test('microsoft graph mail service sends html mail through graph', function () {
             && $request->hasHeader('Authorization', 'Bearer graph-token')
             && $payload['saveToSentItems'] === true
             && $payload['message']['subject'] === 'Quote ready'
-            && $payload['message']['toRecipients'][0]['emailAddress']['address'] === 'lead@example.com'
+            && $payload['message']['toRecipients'][0]['emailAddress']['address'] === 'sales@gateway-ds.com'
             && $payload['message']['replyTo'][0]['emailAddress']['address'] === 'buyer@example.com';
     });
 });
 
-test('microsoft graph mail service surfaces graph errors', function () {
-    Http::fake([
-        'https://login.microsoftonline.com/*' => Http::response([
-            'access_token' => 'graph-token',
-            'expires_in' => 3600,
-        ], 200),
-        'https://graph.microsoft.com/*' => Http::response([
-            'error' => [
-                'message' => 'Mailbox not found.',
-            ],
-        ], 404),
+test('microsoft graph mail service requires azure app credentials', function () {
+    config([
+        'services.microsoft.tenant_id' => '',
+        'services.microsoft.client_id' => '',
+        'services.microsoft.client_secret' => '',
     ]);
 
     app(MicrosoftGraphMailService::class)->send(
-        'lead@example.com',
+        'sales@gateway-ds.com',
         'Quote ready',
         '<p>Hello</p>',
     );
-})->throws(RuntimeException::class, 'Microsoft Graph sendMail failed:');
+})->throws(RuntimeException::class, 'MICROSOFT_TENANT_ID');
+
+test('microsoft graph mail service surfaces azure errors', function () {
+    Http::fake([
+        'https://login.microsoftonline.com/*' => Http::response([
+            'error' => 'unauthorized_client',
+            'error_description' => 'AADSTS700016: Application was not found in the directory.',
+        ], 400),
+    ]);
+
+    app(MicrosoftGraphMailService::class)->send(
+        'sales@gateway-ds.com',
+        'Quote ready',
+        '<p>Hello</p>',
+    );
+})->throws(RuntimeException::class, 'AADSTS700016');

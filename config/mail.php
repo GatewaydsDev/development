@@ -96,6 +96,17 @@ return [
             ],
         ],
 
+        'microsoft' => [
+            'transport' => 'smtp',
+            'host' => env('MICROSOFT_MAIL_HOST', 'smtp.office365.com'),
+            'port' => env('MICROSOFT_MAIL_PORT', 587),
+            'encryption' => env('MICROSOFT_MAIL_ENCRYPTION', 'tls'),
+            'username' => env('MICROSOFT_MAIL_USERNAME', env('MICROSOFT_MAIL_FROM', 'sales@gateway-ds.com')),
+            'password' => env('MICROSOFT_MAIL_PASSWORD'),
+            'timeout' => 30,
+            'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url(env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
+        ],
+
     ],
 
     /*

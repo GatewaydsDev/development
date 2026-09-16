@@ -60,6 +60,13 @@ return [
             'MICROSOFT_MAIL_FROM_NAME',
             'Gateway Door Systems'
         ),
+        'mail_username' => env(
+            'MICROSOFT_MAIL_USERNAME',
+            env('MICROSOFT_MAIL_FROM', 'sales@gateway-ds.com')
+        ),
+        'mail_password' => env('MICROSOFT_MAIL_PASSWORD'),
+        'mail_host' => env('MICROSOFT_MAIL_HOST', 'smtp.office365.com'),
+        'mail_port' => env('MICROSOFT_MAIL_PORT', 587),
     ],
 
 ];
