@@ -92,7 +92,7 @@ export default function Index({ filters, options, projects }: IndexProps) {
     };
 
     const projectRowGridClassName =
-        'w-full xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1.2fr)_7.5rem_minmax(0,1fr)_7.5rem_10.5rem]';
+        'w-full xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1.2fr)_7.5rem_minmax(0,1fr)_minmax(0,8.5rem)_10.5rem]';
 
     return (
         <AuthenticatedLayout
@@ -380,8 +380,11 @@ export default function Index({ filters, options, projects }: IndexProps) {
                                             <div className="min-w-0">
                                                 <Badge
                                                     variant="outline"
-                                                    className={statusBadgeClassName(
-                                                        project.status_slug,
+                                                    className={cn(
+                                                        'h-auto max-w-full whitespace-normal break-words py-1 leading-snug',
+                                                        statusBadgeClassName(
+                                                            project.status_slug,
+                                                        ),
                                                     )}
                                                 >
                                                     {project.status ||
