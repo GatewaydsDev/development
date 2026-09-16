@@ -572,7 +572,7 @@
                 </div>
             @endif
 
-            @if (count($revisions) > 0)
+            @if ($mode !== 'print' && count($revisions) > 0)
                 <h2 class="section-title">Bid revisions</h2>
                 <table class="pricing">
                     <thead>

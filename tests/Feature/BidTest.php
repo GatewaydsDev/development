@@ -368,10 +368,8 @@ test('a bid can store revisions like a project', function () {
     $this->actingAs($admin)
         ->get(route('admin.bids.print', $bid))
         ->assertOk()
-        ->assertSee('Bid revisions', false)
-        ->assertSee('Revision', false)
-        ->assertSee('A', false)
-        ->assertSee('Issued for owner review', false);
+        ->assertDontSee('Bid revisions', false)
+        ->assertDontSee('Issued for owner review', false);
 });
 
 test('a bid can be created with stages reusable scopes and pricing revisions', function () {
