@@ -16,6 +16,8 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class ProjectListDocument
 {
+    use UsesDocumentAppearance;
+
     /**
      * @param  Collection<int, Project>  $projects
      */
@@ -27,6 +29,11 @@ class ProjectListDocument
         private readonly int|string|null $statusId = null,
         private readonly ?string $statusName = null,
     ) {}
+
+    protected function documentAppearanceKey(): string
+    {
+        return 'project_list';
+    }
 
     /**
      * @return array<string, mixed>
@@ -59,6 +66,7 @@ class ProjectListDocument
             'pdfUrl' => route('admin.projects.export.pdf', $this->query()),
             'wordUrl' => route('admin.projects.export.word', $this->query()),
             'indexUrl' => route('admin.projects.index', $this->query()),
+            'colors' => $this->cssColors($mode),
         ];
     }
 
@@ -107,7 +115,7 @@ class ProjectListDocument
             'cellMargin' => 80,
             'alignment' => Jc::START,
         ], [
-            'bgColor' => '065F46',
+            'bgColor' => $this->wordColor('table_header_bg'),
         ]);
 
         $section = $phpWord->addSection([
@@ -129,11 +137,11 @@ class ProjectListDocument
         }
         $headerTable->addCell($logoPath ? 9400 : 11000)->addText(
             $this->companyName(),
-            ['bold' => true, 'size' => 11, 'color' => '065F46'],
+            ['bold' => true, 'size' => 11, 'color' => $this->wordColor('brand')],
         );
         $headerTable->addCell(6000, ['valign' => 'center'])->addText(
             now()->year.' Project Directory',
-            ['bold' => true, 'size' => 11, 'color' => '047857'],
+            ['bold' => true, 'size' => 11, 'color' => $this->wordColor('brand_mid')],
             ['alignment' => Jc::END],
         );
 
@@ -151,7 +159,7 @@ class ProjectListDocument
 
         $section->addText(
             now()->year.' Project Directory',
-            ['bold' => true, 'size' => 26, 'color' => '064E3B'],
+            ['bold' => true, 'size' => 26, 'color' => $this->wordColor('title')],
         );
         $section->addText(
             'Projects, contractors, and bid scopes  ·  Generated '.$this->generatedAtLabel(),
@@ -162,7 +170,7 @@ class ProjectListDocument
         if ($filters !== []) {
             $section->addText(
                 implode('  ·  ', $filters),
-                ['size' => 10, 'color' => '047857', 'italic' => true],
+                ['size' => 10, 'color' => $this->wordColor('brand_mid'), 'italic' => true],
             );
         }
 
@@ -179,9 +187,9 @@ class ProjectListDocument
             [$withBidCount, 'With bid'],
             [$this->projects->count() - $withBidCount, 'Without bid'],
         ] as [$count, $label]) {
-            $cell = $stats->addCell(4800, ['bgColor' => 'ECFDF5', 'borderSize' => 6, 'borderColor' => 'A7F3D0']);
-            $cell->addText((string) $count, ['bold' => true, 'size' => 18, 'color' => '065F46']);
-            $cell->addText($label, ['size' => 9, 'color' => '047857']);
+            $cell = $stats->addCell(4800, ['bgColor' => $this->wordColor('highlight_bg'), 'borderSize' => 6, 'borderColor' => $this->wordColor('highlight_border')]);
+            $cell->addText((string) $count, ['bold' => true, 'size' => 18, 'color' => $this->wordColor('brand')]);
+            $cell->addText($label, ['size' => 9, 'color' => $this->wordColor('brand_mid')]);
         }
 
         $section->addTextBreak(1);
@@ -194,7 +202,7 @@ class ProjectListDocument
         foreach ($this->groupedRows() as $group) {
             $section->addText(
                 $group['label'],
-                ['bold' => true, 'size' => 13, 'color' => '065F46'],
+                ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')],
             );
 
             $table = $section->addTable('projectTable');
@@ -207,19 +215,19 @@ class ProjectListDocument
             ];
 
             foreach ($headings as [$heading, $width]) {
-                $table->addCell($width, ['bgColor' => '065F46', 'valign' => 'center'])
-                    ->addText($heading, ['bold' => true, 'color' => 'FFFFFF', 'size' => 8]);
+                $table->addCell($width, ['bgColor' => $this->wordColor('table_header_bg'), 'valign' => 'center'])
+                    ->addText($heading, ['bold' => true, 'color' => $this->wordColor('table_header_text'), 'size' => 8]);
             }
 
             foreach ($group['rows'] as $row) {
-                $bg = $index % 2 === 0 ? 'F0FDF4' : 'FFFFFF';
+                $bg = $index % 2 === 0 ? $this->wordColor('row_alt') : 'FFFFFF';
                 $table->addRow();
 
                 $table->addCell(700, ['bgColor' => $bg, 'valign' => 'center'])
                     ->addText((string) $index, ['size' => 9, 'color' => '111827']);
 
                 $projectCell = $table->addCell(5200, ['bgColor' => $bg, 'valign' => 'center']);
-                $projectCell->addText($row['name'], ['size' => 10, 'color' => '064E3B', 'bold' => true]);
+                $projectCell->addText($row['name'], ['size' => 10, 'color' => $this->wordColor('title'), 'bold' => true]);
                 $projectCell->addText($row['project_number'], ['size' => 8, 'color' => '6B7280']);
 
                 $table->addCell(4800, ['bgColor' => $bg, 'valign' => 'center'])

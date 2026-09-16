@@ -30,8 +30,8 @@
         }
 
         .hero {
-            background: #065f46;
-            color: #ffffff;
+            background: {{ $c['header_bg'] }};
+            color: {{ $c['header_text'] }};
             padding: 22px 24px 20px;
         }
 
@@ -58,7 +58,7 @@
             font-size: 10px;
             letter-spacing: 1.6px;
             text-transform: uppercase;
-            color: #a7f3d0;
+            color: {{ $c['header_muted'] }};
         }
 
         .hero h1 {
@@ -71,7 +71,7 @@
         .hero-meta {
             margin: 6px 0 0;
             font-size: 11px;
-            color: #d1fae5;
+            color: {{ $c['header_soft'] }};
         }
 
         .hero-right {
@@ -83,7 +83,7 @@
             font-size: 22px;
             font-weight: 700;
             line-height: 1.15;
-            color: #ecfdf5;
+            color: {{ $c['header_year'] }};
         }
 
         .hero-label {
@@ -91,12 +91,12 @@
             font-size: 10px;
             letter-spacing: 1.4px;
             text-transform: uppercase;
-            color: #a7f3d0;
+            color: {{ $c['header_muted'] }};
         }
 
         .accent {
             height: 6px;
-            background: #10b981;
+            background: {{ $c['accent'] }};
         }
 
         .body {
@@ -112,8 +112,8 @@
         .stats td {
             width: 33.33%;
             padding: 10px 12px;
-            background: #ecfdf5;
-            border: 1px solid #a7f3d0;
+            background: {{ $c['highlight_bg'] }};
+            border: 1px solid {{ $c['highlight_border'] }};
             vertical-align: top;
         }
 
@@ -121,7 +121,7 @@
             display: block;
             font-size: 14px;
             font-weight: 700;
-            color: #065f46;
+            color: {{ $c['brand'] }};
         }
 
         .stat-label {
@@ -130,7 +130,7 @@
             font-size: 9px;
             letter-spacing: 1px;
             text-transform: uppercase;
-            color: #047857;
+            color: {{ $c['brand_mid'] }};
         }
 
         .meta {
@@ -166,7 +166,7 @@
             margin: 0 0 8px;
             font-size: 22px;
             line-height: 1.2;
-            color: #064e3b;
+            color: {{ $c['title'] }};
         }
 
         .section-title {
@@ -174,7 +174,7 @@
             font-size: 11px;
             letter-spacing: 1.3px;
             text-transform: uppercase;
-            color: #065f46;
+            color: {{ $c['brand'] }};
         }
 
         .block {
@@ -186,7 +186,7 @@
         .block-title {
             margin: 0 0 8px;
             font-size: 13px;
-            color: #064e3b;
+            color: {{ $c['title'] }};
         }
 
         .muted {
@@ -211,8 +211,8 @@
         }
 
         .pricing th {
-            background: #065f46;
-            color: #ffffff;
+            background: {{ $c['table_header_bg'] }};
+            color: {{ $c['table_header_text'] }};
             font-size: 9px;
             text-align: left;
             padding: 7px 8px;
@@ -291,8 +291,8 @@
                 position: sticky;
                 top: 0;
                 z-index: 20;
-                background: #064e3b;
-                color: #ffffff;
+                background: {{ $c['toolbar_bg'] }};
+                color: {{ $c['header_text'] }};
                 padding: 12px 20px;
                 box-shadow: 0 8px 24px rgba(6, 78, 59, 0.18);
             }
@@ -333,13 +333,13 @@
                 font-weight: 600;
                 text-decoration: none;
                 cursor: pointer;
-                color: #064e3b;
-                background: #ecfdf5;
+                color: {{ $c['title'] }};
+                background: {{ $c['highlight_bg'] }};
             }
 
             .actions .primary {
-                color: #064e3b;
-                background: #6ee7b7;
+                color: {{ $c['title'] }};
+                background: {{ $c['button'] }};
             }
 
             .page {

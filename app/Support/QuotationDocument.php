@@ -17,11 +17,18 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class QuotationDocument
 {
+    use UsesDocumentAppearance;
+
     public function __construct(
         private readonly Quotation $quotation,
         private readonly ?Company $company,
         private readonly ?User $user,
     ) {}
+
+    protected function documentAppearanceKey(): string
+    {
+        return 'quotation';
+    }
 
     public static function for(Quotation $quotation, ?User $user = null): self
     {
@@ -73,6 +80,7 @@ class QuotationDocument
                 : null,
             'lineItems' => $this->lineItemRows(),
             'total' => $this->money($this->quotation->total()),
+            'colors' => $this->cssColors($mode),
         ];
     }
 
@@ -141,11 +149,11 @@ class QuotationDocument
         }
         $headerTable->addCell($logoPath ? 5600 : 7000)->addText(
             $this->companyName(),
-            ['bold' => true, 'size' => 11, 'color' => '065F46'],
+            ['bold' => true, 'size' => 11, 'color' => $this->wordColor('brand')],
         );
         $headerTable->addCell(3800, ['valign' => 'center'])->addText(
             'Quotation',
-            ['bold' => true, 'size' => 11, 'color' => '047857'],
+            ['bold' => true, 'size' => 11, 'color' => $this->wordColor('brand_mid')],
             ['alignment' => Jc::END],
         );
 
@@ -156,15 +164,15 @@ class QuotationDocument
             ['alignment' => Jc::CENTER],
         );
 
-        $section->addText('Quotation', ['bold' => true, 'size' => 26, 'color' => '064E3B']);
-        $section->addText($this->quotation->title, ['bold' => true, 'size' => 16, 'color' => '065F46']);
+        $section->addText('Quotation', ['bold' => true, 'size' => 26, 'color' => $this->wordColor('title')]);
+        $section->addText($this->quotation->title, ['bold' => true, 'size' => 16, 'color' => $this->wordColor('brand')]);
         $section->addText(
             $this->quotation->quotation_number.' · '.Quotation::statusLabel($this->quotation->status),
             ['size' => 11, 'color' => '4B5563'],
         );
 
         $section->addTextBreak(1);
-        $section->addText('Contractor', ['bold' => true, 'size' => 13, 'color' => '065F46']);
+        $section->addText('Contractor', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
         $contractor = $this->contractorPayload();
         $this->addMetaTable($section, [
             ['Contractor', $contractor['company'] ?: $contractor['name'] ?: '—'],
@@ -174,7 +182,7 @@ class QuotationDocument
             ['Address', $contractor['address'] ?: '—'],
         ]);
 
-        $section->addText('Project information', ['bold' => true, 'size' => 13, 'color' => '065F46']);
+        $section->addText('Project information', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
         $project = $this->quotation->project;
         if (! $project) {
             $section->addText('No project linked.', ['italic' => true, 'size' => 10, 'color' => '6B7280']);
@@ -193,16 +201,16 @@ class QuotationDocument
             ]);
         }
 
-        $section->addText('Quoted items', ['bold' => true, 'size' => 13, 'color' => '065F46']);
+        $section->addText('Quoted items', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
         $table = $section->addTable('quoteTable');
         $table->addRow(360);
         foreach ([['Description', 6200], ['Qty', 1400], ['Unit price', 1800], ['Extended', 1800]] as [$heading, $width]) {
-            $table->addCell($width, ['bgColor' => '065F46', 'valign' => 'center'])
-                ->addText($heading, ['bold' => true, 'color' => 'FFFFFF', 'size' => 9]);
+            $table->addCell($width, ['bgColor' => $this->wordColor('table_header_bg'), 'valign' => 'center'])
+                ->addText($heading, ['bold' => true, 'color' => $this->wordColor('table_header_text'), 'size' => 9]);
         }
 
         foreach ($this->lineItemRows() as $index => $item) {
-            $bg = $index % 2 === 1 ? 'F0FDF4' : 'FFFFFF';
+            $bg = $index % 2 === 1 ? $this->wordColor('row_alt') : 'FFFFFF';
             $table->addRow();
             $table->addCell(6200, ['bgColor' => $bg])->addText($item['description'], ['size' => 9]);
             $table->addCell(1400, ['bgColor' => $bg])->addText($item['quantity'], ['size' => 9], ['alignment' => Jc::END]);
@@ -212,13 +220,13 @@ class QuotationDocument
 
         $section->addText(
             'Total  '.$this->money($this->quotation->total()),
-            ['bold' => true, 'size' => 12, 'color' => '065F46'],
+            ['bold' => true, 'size' => 12, 'color' => $this->wordColor('brand')],
             ['alignment' => Jc::END],
         );
 
         if (filled($this->quotation->notes)) {
             $section->addTextBreak(1);
-            $section->addText('Notes', ['bold' => true, 'size' => 13, 'color' => '065F46']);
+            $section->addText('Notes', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
             $section->addText((string) $this->quotation->notes, ['size' => 11, 'color' => '111827']);
         }
 

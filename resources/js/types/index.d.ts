@@ -66,6 +66,7 @@ export type PageProps<
             createUsers: boolean;
             updateUsers: boolean;
             viewUserActivity: boolean;
+            manageDocumentColors: boolean;
             viewCompany: boolean;
             manageAccess: boolean;
             manageNotifications: boolean;

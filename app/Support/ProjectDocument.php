@@ -20,12 +20,19 @@ use Throwable;
 
 class ProjectDocument
 {
+    use UsesDocumentAppearance;
+
     public function __construct(
         private readonly Project $project,
         private readonly ?Company $company,
         private readonly ?User $user,
         private readonly bool $showSensitiveFields,
     ) {}
+
+    protected function documentAppearanceKey(): string
+    {
+        return 'project';
+    }
 
     public static function for(Project $project, ?User $user = null): self
     {
@@ -88,6 +95,7 @@ class ProjectDocument
             'internalNotes' => $this->showSensitiveFields
                 ? $this->plainText($this->project->internal_notes)
                 : null,
+            'colors' => $this->cssColors($mode),
         ];
     }
 
@@ -136,7 +144,7 @@ class ProjectDocument
             'cellMargin' => 70,
             'alignment' => Jc::START,
         ], [
-            'bgColor' => '065F46',
+            'bgColor' => $this->wordColor('table_header_bg'),
         ]);
 
         $section = $phpWord->addSection([
@@ -158,11 +166,11 @@ class ProjectDocument
         }
         $headerTable->addCell($logoPath ? 5600 : 7000)->addText(
             $this->companyName(),
-            ['bold' => true, 'size' => 11, 'color' => '065F46'],
+            ['bold' => true, 'size' => 11, 'color' => $this->wordColor('brand')],
         );
         $headerTable->addCell(3800, ['valign' => 'center'])->addText(
             'Project',
-            ['bold' => true, 'size' => 11, 'color' => '047857'],
+            ['bold' => true, 'size' => 11, 'color' => $this->wordColor('brand_mid')],
             ['alignment' => Jc::END],
         );
 
@@ -180,7 +188,7 @@ class ProjectDocument
 
         $section->addText(
             'Project',
-            ['bold' => true, 'size' => 26, 'color' => '064E3B'],
+            ['bold' => true, 'size' => 26, 'color' => $this->wordColor('title')],
         );
         $section->addText(
             'Generated '.$this->generatedAtLabel(),
@@ -196,16 +204,16 @@ class ProjectDocument
             [$this->project->status?->name ?: 'Not set', 'Status'],
             [(string) $this->project->scopes->count(), 'Scopes'],
         ] as [$value, $label]) {
-            $cell = $stats->addCell(3600, ['bgColor' => 'ECFDF5', 'borderSize' => 6, 'borderColor' => 'A7F3D0']);
-            $cell->addText((string) $value, ['bold' => true, 'size' => 12, 'color' => '065F46']);
-            $cell->addText($label, ['size' => 8, 'color' => '047857']);
+            $cell = $stats->addCell(3600, ['bgColor' => $this->wordColor('highlight_bg'), 'borderSize' => 6, 'borderColor' => $this->wordColor('highlight_border')]);
+            $cell->addText((string) $value, ['bold' => true, 'size' => 12, 'color' => $this->wordColor('brand')]);
+            $cell->addText($label, ['size' => 8, 'color' => $this->wordColor('brand_mid')]);
         }
 
         $section->addTextBreak(1);
-        $section->addText('Project information', ['bold' => true, 'size' => 13, 'color' => '065F46']);
+        $section->addText('Project information', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
         $section->addText(
             $this->project->name,
-            ['bold' => true, 'size' => 18, 'color' => '064E3B'],
+            ['bold' => true, 'size' => 18, 'color' => $this->wordColor('title')],
         );
         $projectAddress = $this->projectAddress();
         $section->addText(
@@ -229,7 +237,7 @@ class ProjectDocument
 
         $this->addMetaTable($section, $detailRows);
 
-        $section->addText('Revisions', ['bold' => true, 'size' => 13, 'color' => '065F46']);
+        $section->addText('Revisions', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
         $revisions = $this->revisionRows();
         if ($revisions === []) {
             $section->addText('No revisions added yet.', ['italic' => true, 'size' => 10, 'color' => '6B7280']);
@@ -237,12 +245,12 @@ class ProjectDocument
             $table = $section->addTable('projectMetaTable');
             $table->addRow(360);
             foreach ([['Revision', 1800], ['Date', 2200], ['Updated by', 2800], ['Notes', 4000]] as [$heading, $width]) {
-                $table->addCell($width, ['bgColor' => '065F46', 'valign' => 'center'])
-                    ->addText($heading, ['bold' => true, 'color' => 'FFFFFF', 'size' => 9]);
+                $table->addCell($width, ['bgColor' => $this->wordColor('table_header_bg'), 'valign' => 'center'])
+                    ->addText($heading, ['bold' => true, 'color' => $this->wordColor('table_header_text'), 'size' => 9]);
             }
 
             foreach ($revisions as $index => $revision) {
-                $bg = $index % 2 === 1 ? 'F0FDF4' : 'FFFFFF';
+                $bg = $index % 2 === 1 ? $this->wordColor('row_alt') : 'FFFFFF';
                 $table->addRow();
                 $table->addCell(1800, ['bgColor' => $bg])->addText($revision['number'], ['size' => 9]);
                 $table->addCell(2200, ['bgColor' => $bg])->addText($revision['date'], ['size' => 9]);
@@ -254,7 +262,7 @@ class ProjectDocument
         $section->addTextBreak(1);
         $contractors = $this->contractorRows();
 
-        $section->addText('Contractors', ['bold' => true, 'size' => 13, 'color' => '065F46']);
+        $section->addText('Contractors', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
 
         if ($contractors === []) {
             $section->addText('No contractors added yet.', ['italic' => true, 'size' => 10, 'color' => '6B7280']);
@@ -269,12 +277,12 @@ class ProjectDocument
             ]);
         }
 
-        $section->addText('Scope of work', ['bold' => true, 'size' => 13, 'color' => '065F46']);
+        $section->addText('Scope of work', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
         if ($this->project->scopes->isEmpty()) {
             $section->addText('No scopes added yet.', ['italic' => true, 'color' => '6B7280']);
         } else {
             foreach ($this->scopeRows() as $scope) {
-                $section->addText($scope['name'] ?: 'Scope', ['bold' => true, 'size' => 12, 'color' => '064E3B']);
+                $section->addText($scope['name'] ?: 'Scope', ['bold' => true, 'size' => 12, 'color' => $this->wordColor('title')]);
                 if ($this->displayHtml($scope['rawNotes'])) {
                     $this->addHtml($section, $scope['rawNotes']);
                 } else {
@@ -285,13 +293,13 @@ class ProjectDocument
         }
 
         if ($this->plainText($this->project->public_notes)) {
-            $section->addText('Project notes', ['bold' => true, 'size' => 13, 'color' => '065F46']);
+            $section->addText('Project notes', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
             $section->addText((string) $this->project->public_notes, ['size' => 10, 'color' => '111827']);
             $section->addTextBreak(1);
         }
 
         if ($this->showSensitiveFields && $this->plainText($this->project->internal_notes)) {
-            $section->addText('Internal notes', ['bold' => true, 'size' => 13, 'color' => '065F46']);
+            $section->addText('Internal notes', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
             $section->addText((string) $this->project->internal_notes, ['size' => 10, 'color' => '111827']);
         }
 

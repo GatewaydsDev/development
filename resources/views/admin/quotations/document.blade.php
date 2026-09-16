@@ -16,44 +16,44 @@
         }
         .toolbar { display: none; }
         .page { background: #ffffff; }
-        .hero { background: #065f46; color: #ffffff; padding: 22px 24px 20px; }
+        .hero { background: {{ $c['header_bg'] }}; color: {{ $c['header_text'] }}; padding: 22px 24px 20px; }
         .hero-table { width: 100%; border-collapse: collapse; }
         .hero-table td { vertical-align: middle; }
         .logo { max-height: 64px; max-width: 64px; display: block; background: #ffffff; padding: 2px; border-radius: 999px; }
-        .eyebrow { margin: 0 0 4px; font-size: 10px; letter-spacing: 1.6px; text-transform: uppercase; color: #a7f3d0; }
+        .eyebrow { margin: 0 0 4px; font-size: 10px; letter-spacing: 1.6px; text-transform: uppercase; color: {{ $c['header_muted'] }}; }
         .hero h1 { margin: 0; font-size: 26px; line-height: 1.15; }
-        .hero-meta { margin: 6px 0 0; font-size: 11px; color: #d1fae5; }
+        .hero-meta { margin: 6px 0 0; font-size: 11px; color: {{ $c['header_soft'] }}; }
         .hero-right { text-align: right; }
-        .hero-year { margin: 0; font-size: 22px; font-weight: 700; color: #ecfdf5; }
-        .hero-label { margin: 4px 0 0; font-size: 10px; letter-spacing: 1.4px; text-transform: uppercase; color: #a7f3d0; }
-        .accent { height: 6px; background: #10b981; }
+        .hero-year { margin: 0; font-size: 22px; font-weight: 700; color: {{ $c['header_year'] }}; }
+        .hero-label { margin: 4px 0 0; font-size: 10px; letter-spacing: 1.4px; text-transform: uppercase; color: {{ $c['header_muted'] }}; }
+        .accent { height: 6px; background: {{ $c['accent'] }}; }
         .body { padding: 18px 24px 22px; }
         .stats { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
-        .stats td { width: 33.33%; padding: 10px 12px; background: #ecfdf5; border: 1px solid #a7f3d0; vertical-align: top; }
-        .stat-value { display: block; font-size: 14px; font-weight: 700; color: #065f46; }
-        .stat-label { display: block; margin-top: 3px; font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: #047857; }
+        .stats td { width: 33.33%; padding: 10px 12px; background: {{ $c['highlight_bg'] }}; border: 1px solid {{ $c['highlight_border'] }}; vertical-align: top; }
+        .stat-value { display: block; font-size: 14px; font-weight: 700; color: {{ $c['brand'] }}; }
+        .stat-label { display: block; margin-top: 3px; font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: {{ $c['brand_mid'] }}; }
         .meta { width: 100%; border-collapse: collapse; margin-bottom: 18px; }
         .meta td { width: 50%; padding: 10px 12px; background: #f9fafb; border: 1px solid #e5e7eb; vertical-align: top; }
         .meta-label { display: block; font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: #6b7280; }
         .meta-value { display: block; margin-top: 4px; font-size: 12px; color: #111827; }
-        .document-title { margin: 0 0 8px; font-size: 22px; line-height: 1.2; color: #064e3b; }
-        .section-title { margin: 20px 0 10px; font-size: 11px; letter-spacing: 1.3px; text-transform: uppercase; color: #065f46; }
+        .document-title { margin: 0 0 8px; font-size: 22px; line-height: 1.2; color: {{ $c['title'] }}; }
+        .section-title { margin: 20px 0 10px; font-size: 11px; letter-spacing: 1.3px; text-transform: uppercase; color: {{ $c['brand'] }}; }
         .muted { margin: 0; color: #6b7280; font-size: 11px; font-style: italic; }
         .notes { font-size: 11px; line-height: 1.55; white-space: pre-wrap; }
         .pricing { width: 100%; border-collapse: collapse; margin-top: 6px; }
-        .pricing th { background: #065f46; color: #ffffff; font-size: 9px; text-align: left; padding: 7px 8px; }
+        .pricing th { background: {{ $c['table_header_bg'] }}; color: {{ $c['table_header_text'] }}; font-size: 9px; text-align: left; padding: 7px 8px; }
         .pricing th.amount, .pricing td.amount { text-align: right; white-space: nowrap; }
         .pricing td { border: 1px solid #d1d5db; padding: 7px 8px; font-size: 10px; vertical-align: top; }
-        .total { margin: 8px 0 0; text-align: right; font-size: 13px; font-weight: 700; color: #065f46; }
+        .total { margin: 8px 0 0; text-align: right; font-size: 13px; font-weight: 700; color: {{ $c['brand'] }}; }
         .footnote { margin-top: 18px; padding-top: 10px; border-top: 1px solid #d1d5db; font-size: 9px; color: #6b7280; }
         @media screen {
             @if ($mode === 'print')
-            .toolbar { display: block; position: sticky; top: 0; z-index: 20; background: #064e3b; color: #ecfdf5; }
+            .toolbar { display: block; position: sticky; top: 0; z-index: 20; background: {{ $c['toolbar_bg'] }}; color: {{ $c['header_text'] }}; }
             .toolbar-inner { max-width: 820px; margin: 0 auto; padding: 12px 16px; display: flex; justify-content: space-between; gap: 12px; align-items: center; }
             .toolbar strong { display: block; font-size: 15px; }
             .actions { display: flex; flex-wrap: wrap; gap: 8px; }
-            .actions a, .actions button { appearance: none; border: 0; border-radius: 999px; padding: 9px 14px; font: inherit; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; color: #064e3b; background: #ecfdf5; }
-            .actions .primary { background: #6ee7b7; }
+            .actions a, .actions button { appearance: none; border: 0; border-radius: 999px; padding: 9px 14px; font: inherit; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; color: {{ $c['title'] }}; background: {{ $c['highlight_bg'] }}; }
+            .actions .primary { background: {{ $c['button'] }}; }
             .page { max-width: 820px; margin: 24px auto 40px; overflow: hidden; border-radius: 20px; box-shadow: 0 24px 60px rgba(15, 23, 42, 0.14); }
             @endif
         }

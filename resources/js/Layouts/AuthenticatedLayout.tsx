@@ -33,6 +33,7 @@ import {
     ListIcon,
     MailOpenIcon,
     PackageIcon,
+    PaletteIcon,
     PlusCircleIcon,
     ShieldIcon,
     SlidersHorizontalIcon,
@@ -228,6 +229,7 @@ export default function Authenticated({
     const canViewUsers = Boolean(auth.can?.viewUsers);
     const canCreateUsers = Boolean(auth.can?.createUsers);
     const canViewUserActivity = Boolean(auth.can?.viewUserActivity);
+    const canManageDocumentColors = Boolean(auth.can?.manageDocumentColors);
     const canManageAccess = Boolean(auth.can?.manageAccess);
     const canManageNotifications = Boolean(auth.can?.manageNotifications);
     const canViewCompany = Boolean(auth.can?.viewCompany);
@@ -263,7 +265,8 @@ export default function Authenticated({
         canOpenContractors ||
         canOpenEmployees ||
         canManageNotifications;
-    const canOpenWorkspace = canManageOwnAccount || canViewCompany;
+    const canOpenWorkspace =
+        canManageOwnAccount || canViewCompany || canManageDocumentColors;
     const canOpenSecurity =
         canManageUsers || canManageAccess || canViewUserActivity;
     const canOpenAdministration =
@@ -664,6 +667,22 @@ export default function Authenticated({
                                                                 >
                                                                     <Building2Icon className="size-4" />
                                                                     Company
+                                                                </Link>
+                                                            </DropdownMenuItem>
+                                                        )}
+                                                        {canManageDocumentColors && (
+                                                            <DropdownMenuItem
+                                                                asChild
+                                                            >
+                                                                <Link
+                                                                    href={route(
+                                                                        'admin.document-settings.edit',
+                                                                    )}
+                                                                    className="flex items-center gap-2"
+                                                                >
+                                                                    <PaletteIcon className="size-4" />
+                                                                    Document
+                                                                    colors
                                                                 </Link>
                                                             </DropdownMenuItem>
                                                         )}
@@ -1161,6 +1180,22 @@ export default function Authenticated({
                                                     <span className="inline-flex items-center gap-2">
                                                         <Building2Icon className="size-4" />
                                                         Company
+                                                    </span>
+                                                </ResponsiveNavLink>
+                                            )}
+                                            {canManageDocumentColors && (
+                                                <ResponsiveNavLink
+                                                    href={route(
+                                                        'admin.document-settings.edit',
+                                                    )}
+                                                    active={route().current(
+                                                        'admin.document-settings.*',
+                                                    )}
+                                                    className="ps-10"
+                                                >
+                                                    <span className="inline-flex items-center gap-2">
+                                                        <PaletteIcon className="size-4" />
+                                                        Document colors
                                                     </span>
                                                 </ResponsiveNavLink>
                                             )}

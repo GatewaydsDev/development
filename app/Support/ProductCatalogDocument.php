@@ -16,6 +16,8 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class ProductCatalogDocument
 {
+    use UsesDocumentAppearance;
+
     /**
      * @param  Collection<int, Product>  $products
      */
@@ -27,6 +29,11 @@ class ProductCatalogDocument
         private readonly int|string|null $typeId = null,
         private readonly ?string $typeName = null,
     ) {}
+
+    protected function documentAppearanceKey(): string
+    {
+        return 'catalog';
+    }
 
     /**
      * @return array<string, mixed>
@@ -61,6 +68,7 @@ class ProductCatalogDocument
             'pdfUrl' => route('admin.products.export.pdf', $this->query()),
             'wordUrl' => route('admin.products.export.word', $this->query()),
             'indexUrl' => route('admin.products.index', $this->query()),
+            'colors' => $this->cssColors($mode),
         ];
     }
 
@@ -109,7 +117,7 @@ class ProductCatalogDocument
             'cellMargin' => 70,
             'alignment' => Jc::START,
         ], [
-            'bgColor' => '065F46',
+            'bgColor' => $this->wordColor('table_header_bg'),
         ]);
 
         $section = $phpWord->addSection([
@@ -131,11 +139,11 @@ class ProductCatalogDocument
         }
         $headerTable->addCell($logoPath ? 9400 : 11000)->addText(
             $this->companyName(),
-            ['bold' => true, 'size' => 11, 'color' => '065F46'],
+            ['bold' => true, 'size' => 11, 'color' => $this->wordColor('brand')],
         );
         $headerTable->addCell(6000, ['valign' => 'center'])->addText(
             now()->year.' Product Catalog',
-            ['bold' => true, 'size' => 11, 'color' => '047857'],
+            ['bold' => true, 'size' => 11, 'color' => $this->wordColor('brand_mid')],
             ['alignment' => Jc::END],
         );
 
@@ -153,7 +161,7 @@ class ProductCatalogDocument
 
         $section->addText(
             now()->year.' Product Catalog',
-            ['bold' => true, 'size' => 26, 'color' => '064E3B'],
+            ['bold' => true, 'size' => 26, 'color' => $this->wordColor('title')],
         );
         $section->addText(
             'Secure openings directory  ·  Generated '.$this->generatedAtLabel(),
@@ -164,7 +172,7 @@ class ProductCatalogDocument
         if ($filters !== []) {
             $section->addText(
                 implode('  ·  ', $filters),
-                ['size' => 10, 'color' => '047857', 'italic' => true],
+                ['size' => 10, 'color' => $this->wordColor('brand_mid'), 'italic' => true],
             );
         }
 
@@ -178,9 +186,9 @@ class ProductCatalogDocument
             [$this->products->where('kind', Product::KIND_WINDOW)->count(), 'Windows'],
             [$this->products->where('kind', Product::KIND_PART)->count(), 'Parts'],
         ] as [$count, $label]) {
-            $cell = $stats->addCell(2880, ['bgColor' => 'ECFDF5', 'borderSize' => 6, 'borderColor' => 'A7F3D0']);
-            $cell->addText((string) $count, ['bold' => true, 'size' => 18, 'color' => '065F46']);
-            $cell->addText($label, ['size' => 9, 'color' => '047857']);
+            $cell = $stats->addCell(2880, ['bgColor' => $this->wordColor('highlight_bg'), 'borderSize' => 6, 'borderColor' => $this->wordColor('highlight_border')]);
+            $cell->addText((string) $count, ['bold' => true, 'size' => 18, 'color' => $this->wordColor('brand')]);
+            $cell->addText($label, ['size' => 9, 'color' => $this->wordColor('brand_mid')]);
         }
 
         $section->addTextBreak(1);
@@ -193,18 +201,18 @@ class ProductCatalogDocument
         foreach ($this->groupedRows() as $group) {
             $section->addText(
                 $group['label'],
-                ['bold' => true, 'size' => 13, 'color' => '065F46'],
+                ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')],
             );
 
             $table = $section->addTable('catalogTable');
             $table->addRow(360);
             foreach (['#', 'Model', 'Code', 'Manufacturer', 'Configuration', 'Door handing', 'Price', 'State tax', 'Linked'] as $heading) {
-                $table->addCell($heading === 'Model' ? 2800 : 1500, ['bgColor' => '065F46', 'valign' => 'center'])
-                    ->addText($heading, ['bold' => true, 'color' => 'FFFFFF', 'size' => 8]);
+                $table->addCell($heading === 'Model' ? 2800 : 1500, ['bgColor' => $this->wordColor('table_header_bg'), 'valign' => 'center'])
+                    ->addText($heading, ['bold' => true, 'color' => $this->wordColor('table_header_text'), 'size' => 8]);
             }
 
             foreach ($group['rows'] as $row) {
-                $bg = $index % 2 === 0 ? 'F0FDF4' : 'FFFFFF';
+                $bg = $index % 2 === 0 ? $this->wordColor('row_alt') : 'FFFFFF';
                 $table->addRow();
                 foreach ([
                     (string) $index,

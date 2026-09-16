@@ -22,11 +22,18 @@ use Throwable;
 
 class BidDocument
 {
+    use UsesDocumentAppearance;
+
     public function __construct(
         private readonly Bid $bid,
         private readonly ?Company $company,
         private readonly ?User $user,
     ) {}
+
+    protected function documentAppearanceKey(): string
+    {
+        return 'bid';
+    }
 
     public static function for(Bid $bid, ?User $user = null): self
     {
@@ -87,6 +94,7 @@ class BidDocument
             'showShippingHandling' => $totals['shipping_handling'] > 0,
             'bidTotal' => $this->money($totals['bid_total']),
             'scopeTotal' => $this->money($totals['bid_total']),
+            'colors' => $this->cssColors($mode),
         ];
     }
 
@@ -137,7 +145,7 @@ class BidDocument
             'cellMargin' => 70,
             'alignment' => Jc::START,
         ], [
-            'bgColor' => '065F46',
+            'bgColor' => $this->wordColor('table_header_bg'),
         ]);
 
         $section = $phpWord->addSection([
@@ -159,11 +167,11 @@ class BidDocument
         }
         $headerTable->addCell($logoPath ? 5600 : 7000)->addText(
             $this->companyName(),
-            ['bold' => true, 'size' => 11, 'color' => '065F46'],
+            ['bold' => true, 'size' => 11, 'color' => $this->wordColor('brand')],
         );
         $headerTable->addCell(3800, ['valign' => 'center'])->addText(
             'Bid',
-            ['bold' => true, 'size' => 11, 'color' => '047857'],
+            ['bold' => true, 'size' => 11, 'color' => $this->wordColor('brand_mid')],
             ['alignment' => Jc::END],
         );
 
@@ -185,12 +193,12 @@ class BidDocument
 
         $section->addText(
             'Gateway Door Systems',
-            ['bold' => true, 'size' => 12, 'color' => '065F46'],
+            ['bold' => true, 'size' => 12, 'color' => $this->wordColor('brand')],
             ['alignment' => Jc::CENTER],
         );
         $section->addText(
             'Bid',
-            ['bold' => true, 'size' => 26, 'color' => '064E3B'],
+            ['bold' => true, 'size' => 26, 'color' => $this->wordColor('title')],
         );
         $section->addText(
             'Generated '.$this->generatedAtLabel(),
@@ -205,16 +213,16 @@ class BidDocument
             [$this->bid->project?->project_number ?: '—', 'Project number'],
             [(string) $this->bid->scopes->count(), 'Scopes'],
         ] as [$value, $label]) {
-            $cell = $stats->addCell(5400, ['bgColor' => 'ECFDF5', 'borderSize' => 6, 'borderColor' => 'A7F3D0']);
-            $cell->addText((string) $value, ['bold' => true, 'size' => 12, 'color' => '065F46']);
-            $cell->addText($label, ['size' => 8, 'color' => '047857']);
+            $cell = $stats->addCell(5400, ['bgColor' => $this->wordColor('highlight_bg'), 'borderSize' => 6, 'borderColor' => $this->wordColor('highlight_border')]);
+            $cell->addText((string) $value, ['bold' => true, 'size' => 12, 'color' => $this->wordColor('brand')]);
+            $cell->addText($label, ['size' => 8, 'color' => $this->wordColor('brand_mid')]);
         }
 
         $section->addTextBreak(1);
-        $section->addText('Project information', ['bold' => true, 'size' => 13, 'color' => '065F46']);
+        $section->addText('Project information', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
         $section->addText(
             $projectName,
-            ['bold' => true, 'size' => 18, 'color' => '064E3B'],
+            ['bold' => true, 'size' => 18, 'color' => $this->wordColor('title')],
         );
         $projectAddress = $this->projectAddress();
         $section->addText(
@@ -228,15 +236,15 @@ class BidDocument
         if ($revisions !== []) {
             $revisionColumns = $this->visibleRevisionColumns($revisions);
             $section->addTextBreak(1);
-            $section->addText('Bid revisions', ['bold' => true, 'size' => 13, 'color' => '065F46']);
+            $section->addText('Bid revisions', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
             $table = $section->addTable('bidTable');
             $table->addRow(360);
             foreach ($revisionColumns as $column) {
-                $table->addCell($column['width'], ['bgColor' => '065F46', 'valign' => 'center'])
-                    ->addText($column['label'], ['bold' => true, 'color' => 'FFFFFF', 'size' => 9]);
+                $table->addCell($column['width'], ['bgColor' => $this->wordColor('table_header_bg'), 'valign' => 'center'])
+                    ->addText($column['label'], ['bold' => true, 'color' => $this->wordColor('table_header_text'), 'size' => 9]);
             }
             foreach ($revisions as $index => $revision) {
-                $bg = $index % 2 === 1 ? 'F0FDF4' : 'FFFFFF';
+                $bg = $index % 2 === 1 ? $this->wordColor('row_alt') : 'FFFFFF';
                 $table->addRow();
                 foreach ($revisionColumns as $column) {
                     $table->addCell($column['width'], ['bgColor' => $bg])
@@ -249,7 +257,7 @@ class BidDocument
 
         $contractors = $this->contractorRows();
 
-        $section->addText('Contractors', ['bold' => true, 'size' => 13, 'color' => '065F46']);
+        $section->addText('Contractors', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
 
         if ($contractors === []) {
             $section->addText('No contractors added yet.', ['italic' => true, 'size' => 10, 'color' => '6B7280']);
@@ -264,7 +272,7 @@ class BidDocument
             ], fn (array $row): bool => $this->hasPrintValue($row[1]))));
         }
 
-        $section->addText('Scope of work', ['bold' => true, 'size' => 13, 'color' => '065F46']);
+        $section->addText('Scope of work', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
         if ($this->displayHtml($this->bid->scope_of_work_text)) {
             $this->addHtml($section, $this->bid->scope_of_work_text);
         }
@@ -273,7 +281,7 @@ class BidDocument
             $section->addText('No scopes added yet.', ['italic' => true, 'color' => '6B7280']);
         } else {
             foreach ($this->scopeRows() as $scope) {
-                $section->addText($scope['name'] ?: 'Scope', ['bold' => true, 'size' => 12, 'color' => '064E3B']);
+                $section->addText($scope['name'] ?: 'Scope', ['bold' => true, 'size' => 12, 'color' => $this->wordColor('title')]);
                 if ($this->displayHtml($scope['rawNotations'])) {
                     $this->addHtml($section, $scope['rawNotations']);
                 }
@@ -284,12 +292,12 @@ class BidDocument
                     $table = $section->addTable('bidTable');
                     $table->addRow(360);
                     foreach ($scope['columns'] as $column) {
-                        $table->addCell($column['width'], ['bgColor' => '065F46', 'valign' => 'center'])
-                            ->addText($column['word_label'], ['bold' => true, 'color' => 'FFFFFF', 'size' => 9]);
+                        $table->addCell($column['width'], ['bgColor' => $this->wordColor('table_header_bg'), 'valign' => 'center'])
+                            ->addText($column['word_label'], ['bold' => true, 'color' => $this->wordColor('table_header_text'), 'size' => 9]);
                     }
 
                     foreach ($scope['items'] as $index => $item) {
-                        $bg = $index % 2 === 1 ? 'F0FDF4' : 'FFFFFF';
+                        $bg = $index % 2 === 1 ? $this->wordColor('row_alt') : 'FFFFFF';
                         $table->addRow();
                         foreach ($scope['columns'] as $column) {
                             $cell = $table->addCell($column['width'], ['bgColor' => $bg]);
@@ -313,7 +321,7 @@ class BidDocument
 
         if ($this->displayHtml($this->bid->notes)) {
             $section->addTextBreak(1);
-            $section->addText('Shipping and handling exclusions/adjustments', ['bold' => true, 'size' => 13, 'color' => '065F46']);
+            $section->addText('Shipping and handling exclusions/adjustments', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
             $this->addHtml($section, $this->bid->notes);
         }
 
@@ -340,7 +348,7 @@ class BidDocument
      */
     private function addTotalsTable(Section $section, array $totals): void
     {
-        $section->addText('Totals', ['bold' => true, 'size' => 13, 'color' => '065F46']);
+        $section->addText('Totals', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
 
         $table = $section->addTable(['borderSize' => 0, 'cellMargin' => 80]);
         $rows = [
@@ -355,10 +363,10 @@ class BidDocument
 
         foreach ($rows as [$label, $value, $emphasis]) {
             $table->addRow();
-            $table->addCell(7200, ['bgColor' => $emphasis ? 'ECFDF5' : 'F9FAFB', 'borderSize' => 4, 'borderColor' => 'D1D5DB'])
-                ->addText($label, ['bold' => $emphasis, 'size' => 10, 'color' => $emphasis ? '065F46' : '374151']);
-            $table->addCell(3600, ['bgColor' => $emphasis ? 'ECFDF5' : 'F9FAFB', 'borderSize' => 4, 'borderColor' => 'D1D5DB'])
-                ->addText($value, ['bold' => true, 'size' => 11, 'color' => '065F46'], ['alignment' => Jc::END]);
+            $table->addCell(7200, ['bgColor' => $emphasis ? $this->wordColor('highlight_bg') : 'F9FAFB', 'borderSize' => 4, 'borderColor' => 'D1D5DB'])
+                ->addText($label, ['bold' => $emphasis, 'size' => 10, 'color' => $emphasis ? $this->wordColor('brand') : '374151']);
+            $table->addCell(3600, ['bgColor' => $emphasis ? $this->wordColor('highlight_bg') : 'F9FAFB', 'borderSize' => 4, 'borderColor' => 'D1D5DB'])
+                ->addText($value, ['bold' => true, 'size' => 11, 'color' => $this->wordColor('brand')], ['alignment' => Jc::END]);
         }
     }
 
@@ -390,7 +398,7 @@ class BidDocument
 
     private function addAuthorizationSignatures(Section $section): void
     {
-        $section->addText('Authorization', ['bold' => true, 'size' => 13, 'color' => '065F46']);
+        $section->addText('Authorization', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
         $section->addText(
             'This proposal is submitted by '.$this->companyName().'. Acceptance below confirms the scope and pricing in this document.',
             ['size' => 10, 'color' => '374151'],
@@ -423,7 +431,7 @@ class BidDocument
     ): void {
         $blankLine = str_repeat('_', 28);
 
-        $cell->addText($heading, ['bold' => true, 'size' => 12, 'color' => '065F46']);
+        $cell->addText($heading, ['bold' => true, 'size' => 12, 'color' => $this->wordColor('brand')]);
         $this->addSignatureField($cell, 'Company', $company ?: $blankLine);
         $this->addSignatureField($cell, 'Authorized representative', $representative ?: $blankLine);
         $this->addSignatureField($cell, 'Signature', $blankLine);

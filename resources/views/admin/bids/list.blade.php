@@ -30,8 +30,8 @@
         }
 
         .hero {
-            background: #065f46;
-            color: #ffffff;
+            background: {{ $c['header_bg'] }};
+            color: {{ $c['header_text'] }};
             padding: 22px 24px 20px;
         }
 
@@ -58,7 +58,7 @@
             font-size: 10px;
             letter-spacing: 1.6px;
             text-transform: uppercase;
-            color: #a7f3d0;
+            color: {{ $c['header_muted'] }};
         }
 
         .hero h1 {
@@ -71,7 +71,7 @@
         .hero-meta {
             margin: 6px 0 0;
             font-size: 11px;
-            color: #d1fae5;
+            color: {{ $c['header_soft'] }};
         }
 
         .hero-right {
@@ -83,7 +83,7 @@
             font-size: 28px;
             font-weight: 700;
             line-height: 1;
-            color: #ecfdf5;
+            color: {{ $c['header_year'] }};
         }
 
         .hero-label {
@@ -91,12 +91,12 @@
             font-size: 10px;
             letter-spacing: 1.4px;
             text-transform: uppercase;
-            color: #a7f3d0;
+            color: {{ $c['header_muted'] }};
         }
 
         .accent {
             height: 6px;
-            background: #10b981;
+            background: {{ $c['accent'] }};
         }
 
         .body {
@@ -112,15 +112,15 @@
         .stats td {
             width: 33.33%;
             padding: 10px 12px;
-            background: #ecfdf5;
-            border: 1px solid #a7f3d0;
+            background: {{ $c['highlight_bg'] }};
+            border: 1px solid {{ $c['highlight_border'] }};
         }
 
         .stat-value {
             display: block;
             font-size: 20px;
             font-weight: 700;
-            color: #065f46;
+            color: {{ $c['brand'] }};
             line-height: 1.1;
         }
 
@@ -130,23 +130,23 @@
             font-size: 10px;
             letter-spacing: 0.8px;
             text-transform: uppercase;
-            color: #047857;
+            color: {{ $c['brand_mid'] }};
         }
 
         .filters {
             margin: 0 0 16px;
             font-size: 11px;
-            color: #047857;
+            color: {{ $c['brand_mid'] }};
         }
 
         .group-title {
             margin: 18px 0 8px;
             padding-bottom: 4px;
-            border-bottom: 2px solid #065f46;
+            border-bottom: 2px solid {{ $c['brand'] }};
             font-size: 13px;
             letter-spacing: 0.4px;
             text-transform: uppercase;
-            color: #065f46;
+            color: {{ $c['brand'] }};
         }
 
         .catalog {
@@ -155,8 +155,8 @@
         }
 
         .catalog th {
-            background: #065f46;
-            color: #ffffff;
+            background: {{ $c['table_header_bg'] }};
+            color: {{ $c['table_header_text'] }};
             font-size: 9px;
             letter-spacing: 0.7px;
             text-transform: uppercase;
@@ -172,12 +172,12 @@
         }
 
         .catalog tr:nth-child(even) td {
-            background: #f0fdf4;
+            background: {{ $c['row_alt'] }};
         }
 
         .name {
             font-weight: 700;
-            color: #064e3b;
+            color: {{ $c['title'] }};
         }
 
         .muted {
@@ -210,8 +210,8 @@
                 position: sticky;
                 top: 0;
                 z-index: 20;
-                background: #064e3b;
-                color: #ffffff;
+                background: {{ $c['toolbar_bg'] }};
+                color: {{ $c['header_text'] }};
                 padding: 12px 20px;
                 box-shadow: 0 8px 24px rgba(6, 78, 59, 0.18);
             }
@@ -252,13 +252,13 @@
                 font-weight: 600;
                 text-decoration: none;
                 cursor: pointer;
-                color: #064e3b;
-                background: #ecfdf5;
+                color: {{ $c['title'] }};
+                background: {{ $c['highlight_bg'] }};
             }
 
             .actions .primary {
-                color: #064e3b;
-                background: #6ee7b7;
+                color: {{ $c['title'] }};
+                background: {{ $c['button'] }};
             }
 
             .page {

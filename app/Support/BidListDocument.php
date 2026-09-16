@@ -16,6 +16,8 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class BidListDocument
 {
+    use UsesDocumentAppearance;
+
     /**
      * @param  Collection<int, Bid>  $bids
      */
@@ -25,6 +27,11 @@ class BidListDocument
         private readonly ?User $user,
         private readonly string $search = '',
     ) {}
+
+    protected function documentAppearanceKey(): string
+    {
+        return 'bid_list';
+    }
 
     /**
      * @return array<string, mixed>
@@ -55,6 +62,7 @@ class BidListDocument
             'pdfUrl' => route('admin.bids.list.export.pdf', $this->query()),
             'wordUrl' => route('admin.bids.list.export.word', $this->query()),
             'indexUrl' => route('admin.bids.index', $this->query()),
+            'colors' => $this->cssColors($mode),
         ];
     }
 
@@ -103,7 +111,7 @@ class BidListDocument
             'cellMargin' => 80,
             'alignment' => Jc::START,
         ], [
-            'bgColor' => '065F46',
+            'bgColor' => $this->wordColor('table_header_bg'),
         ]);
 
         $section = $phpWord->addSection([
@@ -125,11 +133,11 @@ class BidListDocument
         }
         $headerTable->addCell($logoPath ? 9400 : 11000)->addText(
             $this->companyName(),
-            ['bold' => true, 'size' => 11, 'color' => '065F46'],
+            ['bold' => true, 'size' => 11, 'color' => $this->wordColor('brand')],
         );
         $headerTable->addCell(6000, ['valign' => 'center'])->addText(
             now()->year.' Bid Directory',
-            ['bold' => true, 'size' => 11, 'color' => '047857'],
+            ['bold' => true, 'size' => 11, 'color' => $this->wordColor('brand_mid')],
             ['alignment' => Jc::END],
         );
 
@@ -147,7 +155,7 @@ class BidListDocument
 
         $section->addText(
             now()->year.' Bid Directory',
-            ['bold' => true, 'size' => 26, 'color' => '064E3B'],
+            ['bold' => true, 'size' => 26, 'color' => $this->wordColor('title')],
         );
         $section->addText(
             'Bids, stages, and pricing  ·  Generated '.$this->generatedAtLabel(),
@@ -157,7 +165,7 @@ class BidListDocument
         if ($this->search !== '') {
             $section->addText(
                 'Search: '.$this->search,
-                ['size' => 10, 'color' => '047857', 'italic' => true],
+                ['size' => 10, 'color' => $this->wordColor('brand_mid'), 'italic' => true],
             );
         }
 
@@ -174,9 +182,9 @@ class BidListDocument
             [$withPricingCount, 'With pricing'],
             [$this->bids->count() - $withPricingCount, 'Without pricing'],
         ] as [$count, $label]) {
-            $cell = $stats->addCell(4800, ['bgColor' => 'ECFDF5', 'borderSize' => 6, 'borderColor' => 'A7F3D0']);
-            $cell->addText((string) $count, ['bold' => true, 'size' => 18, 'color' => '065F46']);
-            $cell->addText($label, ['size' => 9, 'color' => '047857']);
+            $cell = $stats->addCell(4800, ['bgColor' => $this->wordColor('highlight_bg'), 'borderSize' => 6, 'borderColor' => $this->wordColor('highlight_border')]);
+            $cell->addText((string) $count, ['bold' => true, 'size' => 18, 'color' => $this->wordColor('brand')]);
+            $cell->addText($label, ['size' => 9, 'color' => $this->wordColor('brand_mid')]);
         }
 
         $section->addTextBreak(1);
@@ -189,7 +197,7 @@ class BidListDocument
         foreach ($this->groupedRows() as $group) {
             $section->addText(
                 $group['label'],
-                ['bold' => true, 'size' => 13, 'color' => '065F46'],
+                ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')],
             );
 
             $table = $section->addTable('bidListTable');
@@ -204,19 +212,19 @@ class BidListDocument
             ];
 
             foreach ($headings as [$heading, $width]) {
-                $table->addCell($width, ['bgColor' => '065F46', 'valign' => 'center'])
-                    ->addText($heading, ['bold' => true, 'color' => 'FFFFFF', 'size' => 8]);
+                $table->addCell($width, ['bgColor' => $this->wordColor('table_header_bg'), 'valign' => 'center'])
+                    ->addText($heading, ['bold' => true, 'color' => $this->wordColor('table_header_text'), 'size' => 8]);
             }
 
             foreach ($group['rows'] as $row) {
-                $bg = $index % 2 === 0 ? 'F0FDF4' : 'FFFFFF';
+                $bg = $index % 2 === 0 ? $this->wordColor('row_alt') : 'FFFFFF';
                 $table->addRow();
 
                 $table->addCell(700, ['bgColor' => $bg, 'valign' => 'center'])
                     ->addText((string) $index, ['size' => 9, 'color' => '111827']);
 
                 $projectCell = $table->addCell(3600, ['bgColor' => $bg, 'valign' => 'center']);
-                $projectCell->addText($row['name'], ['size' => 10, 'color' => '064E3B', 'bold' => true]);
+                $projectCell->addText($row['name'], ['size' => 10, 'color' => $this->wordColor('title'), 'bold' => true]);
                 $projectCell->addText($row['project_number'], ['size' => 8, 'color' => '6B7280']);
 
                 $table->addCell(3600, ['bgColor' => $bg, 'valign' => 'center'])

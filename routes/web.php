@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\BidController;
 use App\Http\Controllers\Admin\CompanyController;
 use App\Http\Controllers\Admin\ContactController;
 use App\Http\Controllers\Admin\ContractorController;
+use App\Http\Controllers\Admin\DocumentSettingController;
 use App\Http\Controllers\Admin\EmployeeController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ProfessionController;
@@ -143,6 +144,10 @@ Route::middleware(['auth', 'prevent-back-history'])
             ->name('users.update');
         Route::get('/user-activities', [UserActivityController::class, 'index'])
             ->name('user-activities.index');
+        Route::get('/document-settings', [DocumentSettingController::class, 'edit'])
+            ->name('document-settings.edit');
+        Route::patch('/document-settings', [DocumentSettingController::class, 'update'])
+            ->name('document-settings.update');
 
         Route::get('/account', [AccountController::class, 'edit'])
             ->name('account.edit');
