@@ -9,9 +9,21 @@ class MicrosoftGraphMailService
 {
     private function getAccessToken(): string
     {
-        $tenantId = config('services.microsoft.tenant_id');
-        $clientId = config('services.microsoft.client_id');
-        $clientSecret = config('services.microsoft.client_secret');
+        $tenantId = trim((string) config('services.microsoft.tenant_id'));
+        $clientId = trim((string) config('services.microsoft.client_id'));
+        $clientSecret = trim((string) config('services.microsoft.client_secret'));
+
+        if ($tenantId === '' || $clientId === '' || $clientSecret === '') {
+            throw new RuntimeException(
+                'Microsoft Graph is missing MICROSOFT_TENANT_ID, MICROSOFT_CLIENT_ID, or MICROSOFT_CLIENT_SECRET.'
+            );
+        }
+
+        if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $clientSecret) === 1) {
+            throw new RuntimeException(
+                'MICROSOFT_CLIENT_SECRET is the Secret ID. Use the Secret Value from Azure (it usually contains ~).'
+            );
+        }
 
         $response = Http::asForm()->post(
             "https://login.microsoftonline.com/{$tenantId}/oauth2/v2.0/token",
