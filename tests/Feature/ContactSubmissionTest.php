@@ -1,17 +1,40 @@
 <?php
 
-use App\Mail\ContactSubmissionReceived;
 use App\Models\Company;
 use App\Models\ContactSubmission;
 use App\Models\User;
 use App\Models\UserLevel;
 use App\Notifications\NewContactSubmissionNotification;
+use App\Services\MicrosoftGraphMailService;
 use App\Services\TwilioSmsService;
-use Illuminate\Support\Facades\Mail;
 use Inertia\Testing\AssertableInertia as Assert;
 
+function fakeMicrosoftGraphMail(): MicrosoftGraphMailService
+{
+    $fake = new class extends MicrosoftGraphMailService
+    {
+        /**
+         * @var array<int, array{to: string, subject: string, html: string, replyTo: ?string}>
+         */
+        public array $messages = [];
+
+        public function send(
+            string $to,
+            string $subject,
+            string $html,
+            ?string $replyTo = null
+        ): void {
+            $this->messages[] = compact('to', 'subject', 'html', 'replyTo');
+        }
+    };
+
+    app()->instance(MicrosoftGraphMailService::class, $fake);
+
+    return $fake;
+}
+
 test('contact form submissions are saved before notifications are sent', function () {
-    Mail::fake();
+    $mail = fakeMicrosoftGraphMail();
 
     config(['contact.recipient' => 'leads@gatewaydoors.test']);
 
@@ -46,26 +69,18 @@ test('contact form submissions are saved before notifications are sent', functio
         ->and($submission->ip_address)->toBe('203.0.113.10')
         ->and($submission->user_agent)->toBe('Gateway Browser');
 
-    Mail::assertSent(ContactSubmissionReceived::class, function (
-        ContactSubmissionReceived $mail
-    ) use ($submission): bool {
-        $envelope = $mail->envelope();
-        $content = $mail->content();
-
-        return $mail->hasTo('leads@gatewaydoors.test')
-            && $mail->submission->is($submission)
-            && $envelope->tags === ['contact-request']
-            && $envelope->metadata['email_type'] === 'contact-request'
-            && $envelope->metadata['submission_id'] === (string) $submission->id
-            && array_key_exists('sender', $envelope->metadata)
-            && array_key_exists('source', $envelope->metadata)
-            && $content->view === 'emails.contact-submission'
-            && $content->text === 'emails.contact-submission-text';
-    });
+    expect($mail->messages)->toHaveCount(1)
+        ->and($mail->messages[0]['to'])->toBe('leads@gatewaydoors.test')
+        ->and($mail->messages[0]['replyTo'])->toBe('jane@example.com')
+        ->and($mail->messages[0]['subject'])->toBe(
+            'New secure door contact request from Jane Builder',
+        )
+        ->and($mail->messages[0]['html'])->toContain('Jane Builder')
+        ->and($mail->messages[0]['html'])->toContain('We need a secure specialty door installation.');
 });
 
 test('contact notifications fall back to the active company email', function () {
-    Mail::fake();
+    $mail = fakeMicrosoftGraphMail();
 
     config(['contact.recipient' => null]);
 
@@ -89,15 +104,40 @@ test('contact notifications fall back to the active company email', function () 
         ->assertRedirect()
         ->assertSessionHas('contact.success', true);
 
-    Mail::assertSent(ContactSubmissionReceived::class, function (
-        ContactSubmissionReceived $mail
-    ): bool {
-        return $mail->hasTo('office@gatewaydoors.test');
-    });
+    expect($mail->messages)->toHaveCount(1)
+        ->and($mail->messages[0]['to'])->toBe('office@gatewaydoors.test')
+        ->and($mail->messages[0]['replyTo'])->toBe('alex@example.com');
+});
+
+test('contact emails fall back to the microsoft mailbox when no company email is set', function () {
+    $mail = fakeMicrosoftGraphMail();
+
+    config([
+        'contact.recipient' => null,
+        'services.microsoft.mail_from' => 'sales@gateway-ds.com',
+    ]);
+
+    $this
+        ->post(route('contact.store'), [
+            'name' => 'Riley Buyer',
+            'email' => 'riley@example.com',
+            'phone_number' => '',
+            'organization' => '',
+            'project_type' => '',
+            'message' => 'Please contact me about a door project.',
+            'source_url' => 'https://gatewaydoors.test/',
+            'website' => '',
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('contact.success', true);
+
+    expect($mail->messages)->toHaveCount(1)
+        ->and($mail->messages[0]['to'])->toBe('sales@gateway-ds.com')
+        ->and($mail->messages[0]['replyTo'])->toBe('riley@example.com');
 });
 
 test('contact emails prefer the active company email over configured fallback', function () {
-    Mail::fake();
+    $mail = fakeMicrosoftGraphMail();
 
     config(['contact.recipient' => 'fallback@gatewaydoors.test']);
 
@@ -122,16 +162,13 @@ test('contact emails prefer the active company email over configured fallback', 
         ->assertSessionHas('contact.success', true)
         ->assertSessionHas('contact.status', 'Your message has been sent to Gateway Door Systems.');
 
-    Mail::assertSent(ContactSubmissionReceived::class, function (
-        ContactSubmissionReceived $mail
-    ): bool {
-        return $mail->hasTo('company@gatewaydoors.test')
-            && ! $mail->hasTo('fallback@gatewaydoors.test');
-    });
+    expect($mail->messages)->toHaveCount(1)
+        ->and($mail->messages[0]['to'])->toBe('company@gatewaydoors.test')
+        ->and($mail->messages[0]['replyTo'])->toBe('taylor@example.com');
 });
 
 test('contact form submissions create dashboard notifications for super admins', function () {
-    Mail::fake();
+    fakeMicrosoftGraphMail();
 
     $superAdminLevel = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
     $superAdmin = User::factory()->create([
@@ -163,7 +200,7 @@ test('contact form submissions create dashboard notifications for super admins',
 });
 
 test('validated contact form submissions send sms notifications', function () {
-    Mail::fake();
+    fakeMicrosoftGraphMail();
     config([
         'contact.recipient' => 'leads@gatewaydoors.test',
         'services.twilio.to' => '+15551234567',
@@ -205,8 +242,6 @@ test('validated contact form submissions send sms notifications', function () {
 });
 
 test('users can mark their contact notifications as read', function () {
-    Mail::fake();
-
     $superAdminLevel = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
     $superAdmin = User::factory()->create([
         'level_id' => $superAdminLevel->id,
@@ -233,8 +268,6 @@ test('users can mark their contact notifications as read', function () {
 });
 
 test('users can list open update and delete their notifications', function () {
-    Mail::fake();
-
     $superAdminLevel = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
     $superAdmin = User::factory()->create([
         'level_id' => $superAdminLevel->id,
@@ -283,8 +316,6 @@ test('users can list open update and delete their notifications', function () {
 });
 
 test('notification center access can be granted to a user level', function () {
-    Mail::fake();
-
     $level = UserLevel::firstOrCreate(['name' => 'Notification Manager']);
     $level->forceFill([
         'permissions' => [

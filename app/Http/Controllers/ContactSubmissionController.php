@@ -7,18 +7,21 @@ use App\Models\Company;
 use App\Models\ContactSubmission;
 use App\Models\User;
 use App\Notifications\NewContactSubmissionNotification;
+use App\Services\MicrosoftGraphMailService;
 use App\Services\TwilioSmsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
 class ContactSubmissionController extends Controller
 {
-    public function store(Request $request, TwilioSmsService $sms): RedirectResponse
-    {
+    public function store(
+        Request $request,
+        TwilioSmsService $sms,
+        MicrosoftGraphMailService $mail,
+    ): RedirectResponse {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255'],
@@ -47,7 +50,14 @@ class ContactSubmissionController extends Controller
         $recipient = $this->notificationRecipient();
 
         try {
-            Mail::to($recipient)->send(new ContactSubmissionReceived($submission));
+            $message = new ContactSubmissionReceived($submission);
+
+            $mail->send(
+                $recipient,
+                (string) $message->envelope()->subject,
+                $message->render(),
+                $submission->email,
+            );
 
             $submission->forceFill([
                 'emailed_at' => now(),
@@ -81,6 +91,12 @@ class ContactSubmissionController extends Controller
 
         if (is_string($configuredRecipient) && $configuredRecipient !== '') {
             return $configuredRecipient;
+        }
+
+        $microsoftMailbox = config('services.microsoft.mail_from');
+
+        if (is_string($microsoftMailbox) && $microsoftMailbox !== '') {
+            return $microsoftMailbox;
         }
 
         return config('mail.from.address');

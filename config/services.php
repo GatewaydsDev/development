@@ -50,4 +50,16 @@ return [
         'to' => env('TWILIO_TO'),
     ],
 
+    'microsoft' => [
+        'tenant_id' => env('MICROSOFT_TENANT_ID'),
+        'client_id' => env('MICROSOFT_CLIENT_ID'),
+        'client_secret' => env('MICROSOFT_CLIENT_SECRET', env('Entra_ID')),
+        'client_secret_id' => env('MICROSOFT_CLIENT_SECRET_ID', env('Entra_SECRET_ID')),
+        'mail_from' => env('MICROSOFT_MAIL_FROM', 'sales@gateway-ds.com'),
+        'mail_from_name' => env(
+            'MICROSOFT_MAIL_FROM_NAME',
+            'Gateway Door Systems'
+        ),
+    ],
+
 ];
