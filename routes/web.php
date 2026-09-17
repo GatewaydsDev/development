@@ -246,6 +246,8 @@ Route::middleware(['auth', 'prevent-back-history'])
             ->name('bid-text-templates.import');
         Route::patch('/bid-text-templates/{bidTextTemplate}', [BidCatalogController::class, 'updateTextTemplate'])
             ->name('bid-text-templates.update');
+        Route::post('/bid-text-fields', [BidCatalogController::class, 'storeTextField'])
+            ->name('bid-text-fields.store');
 
         Route::get('/quotations', [QuotationController::class, 'index'])
             ->middleware('can:view-quotations')

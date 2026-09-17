@@ -23,8 +23,6 @@ import { toast } from 'sonner';
 import {
     DEFAULT_SCOPE_TEXT_BODY,
     DEFAULT_SHIPPING_TEXT_BODY,
-    fillBidTextPlaceholders,
-    htmlHasPlaceholders,
     isEmptyHtml,
 } from '../bidText';
 import type {
@@ -54,16 +52,16 @@ const copyFor = (purpose: BidReusableTextPurpose) => {
     if (purpose === 'shipping') {
         return {
             kind: 'shipping',
-            heading: 'Shipping and handling exclusions/adjustments',
+            heading: 'Shipping & handling, basis & qualification and more',
             description:
-                'Pick a saved page to insert it, the same way Word templates work. Create new adds another reusable page. Saving the bid stores this wording on the bid.',
+                'This is a customized notes section, not a fixed list of fields. Use it for the full wording this bid needs — shipping, handling, basis & qualification, exclusions, adjustments, lead times, or any other terms that do not belong on a product line. Pick a saved page to insert it, or write your own. Saving the bid stores this wording on the bid.',
             selectLabel: 'Saved shipping and handling texts',
             selectPlaceholder: 'Type to search or add shipping and handling…',
             selectId: 'bid-shipping-text-template',
-            editorLabel: 'Shipping and handling text',
+            editorLabel: 'Custom text and descriptions',
             editorId: 'bid-shipping-text',
             editorPlaceholder:
-                'Write shipping, handling, exclusions, or adjustments, or click a saved card to start…',
+                'Write shipping, handling, basis & qualification, exclusions, or any other notes…',
             saveTitle: 'Save reusable shipping and handling text',
             importTitle: 'Import shipping and handling text',
             emptySave: 'Enter shipping and handling text before saving it.',
@@ -117,6 +115,7 @@ function placeholderValues(
     project: BidProjectOption | undefined,
     company: BidCompanyOption | undefined,
     scopes: BidFormData['scopes'],
+    customFields: Array<{ key: string; value?: string | null }> = [],
 ): Record<string, string> {
     const scopeLines = scopes
         .map((scope) => {
@@ -141,6 +140,15 @@ function placeholderValues(
         .filter(Boolean);
 
     return {
+        ...Object.fromEntries(
+            customFields
+                .filter(
+                    (field) =>
+                        field.key.trim() !== '' &&
+                        (field.value ?? '').trim() !== '',
+                )
+                .map((field) => [field.key, field.value ?? '']),
+        ),
         project_name: project?.name ?? '',
         project_number: project?.project_number ?? '',
         customer_name: project?.contractor_contact_name ?? '',
@@ -191,36 +199,26 @@ export default function BidApplicationTextSection({
     const importInputRef = useRef<HTMLInputElement>(null);
 
     const values = useMemo(
-        () => placeholderValues(project, options.company, scopes),
-        [project, options.company, scopes],
+        () =>
+            placeholderValues(
+                project,
+                options.company,
+                scopes,
+                options.textFields ?? [],
+            ),
+        [project, options.company, scopes, options.textFields],
     );
 
     useEffect(() => {
         setSelectedId(templateId);
     }, [templateId]);
 
-    useEffect(() => {
-        const current = value;
-
-        if (!htmlHasPlaceholders(current)) {
-            return;
-        }
-
-        const filled = fillBidTextPlaceholders(current, values);
-
-        if (filled !== current) {
-            onChange(filled);
-        }
-        // Fill leftover fields when the project changes, not while typing.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [project?.id]);
-
     const selectedTemplate = templates.find(
         (template) => String(template.id) === selectedId,
     );
 
     const insertTemplate = (template: BidTextTemplateOption) => {
-        onChange(fillBidTextPlaceholders(template.body, values));
+        onChange(template.body);
         onTemplateIdChange(String(template.id));
         setSelectedId(String(template.id));
         setPendingReplace(null);
@@ -295,12 +293,7 @@ export default function BidApplicationTextSection({
                             setSelectedId(String(created.id));
 
                             if (insertAfterSave && created.body) {
-                                onChange(
-                                    fillBidTextPlaceholders(
-                                        created.body,
-                                        values,
-                                    ),
-                                );
+                                onChange(created.body);
                                 toast.success(
                                     `Created and inserted “${created.name}”.`,
                                 );
@@ -383,7 +376,7 @@ export default function BidApplicationTextSection({
                     const imported = flash?.[copy.importedText];
 
                     if (imported) {
-                        onChange(fillBidTextPlaceholders(imported, values));
+                        onChange(imported);
                     }
 
                     const importedTemplateId = flash?.[copy.importedTemplateId];
@@ -558,6 +551,8 @@ export default function BidApplicationTextSection({
                     onChange={onChange}
                     error={error}
                     placeholder={copy.editorPlaceholder}
+                    placeholderFields={options.textFields ?? []}
+                    placeholderValues={values}
                 />
                 <InputError message={error} />
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

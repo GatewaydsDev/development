@@ -69,6 +69,7 @@ class HandleInertiaRequests extends Middleware
                 'importedScopeTextTemplateId' => $request->session()->get('imported_scope_text_template_id'),
                 'importedShippingText' => $request->session()->get('imported_shipping_text'),
                 'importedShippingTextTemplateId' => $request->session()->get('imported_shipping_text_template_id'),
+                'createdTextField' => $request->session()->get('created_text_field'),
             ],
             'companyPhoneNumber' => $company?->contact_phone_number,
             'session' => [

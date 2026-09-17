@@ -18,8 +18,46 @@ export const BID_TEXT_PLACEHOLDERS = [
 export type BidTextPlaceholderKey =
     (typeof BID_TEXT_PLACEHOLDERS)[number]['key'];
 
+export type BidTextPlaceholder = {
+    key: string;
+    label: string;
+};
+
 export const placeholderToken = (key: BidTextPlaceholderKey | string) =>
     `{{${key}}}`;
+
+export const slugifyPlaceholderKey = (label: string): string =>
+    label
+        .normalize('NFKD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .slice(0, 64);
+
+export const reservedPlaceholderKeys = new Set(
+    BID_TEXT_PLACEHOLDERS.map((field) => field.key),
+);
+
+export const mergeBidTextPlaceholders = (
+    custom: Array<{ key: string; name?: string; label?: string }> = [],
+): BidTextPlaceholder[] => {
+    const builtIn: BidTextPlaceholder[] = BID_TEXT_PLACEHOLDERS.map(
+        (field) => ({
+            key: field.key,
+            label: field.label,
+        }),
+    );
+    const seen = new Set(builtIn.map((field) => field.key));
+    const extras = custom
+        .filter((field) => field.key !== '' && !seen.has(field.key))
+        .map((field) => ({
+            key: field.key,
+            label: field.label || field.name || field.key,
+        }));
+
+    return [...builtIn, ...extras];
+};
 
 export const DEFAULT_SCOPE_TEXT_BODY =
     '<p>This proposal covers the scope of work for <strong>{{project_name}}</strong> at {{project_address}}.</p><p>{{scope_of_work}}</p>';

@@ -713,7 +713,7 @@
             </div>
 
             @if ($notes)
-                <h2 class="section-title">Shipping and handling exclusions/adjustments</h2>
+                <h2 class="section-title">Shipping &amp; handling, basis &amp; qualification and more</h2>
                 <div class="rich-text">{!! $notes !!}</div>
             @endif
 

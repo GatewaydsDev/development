@@ -316,7 +316,7 @@ class BidDocument
 
         if ($this->displayHtml($this->bid->notes)) {
             $section->addTextBreak(1);
-            $section->addText('Shipping and handling exclusions/adjustments', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
+            $section->addText('Shipping & handling, basis & qualification and more', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
             $this->addHtml($section, $this->bid->notes);
         }
 

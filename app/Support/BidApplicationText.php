@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\BidTextField;
 use App\Models\Company;
 use App\Models\Project;
 use Illuminate\Http\UploadedFile;
@@ -130,6 +131,7 @@ class BidApplicationText
         $contact = $contractor?->primaryContact();
 
         return [
+            ...BidTextField::replacementValues(),
             'project_name' => (string) $project->name,
             'project_number' => (string) ($project->project_number ?? ''),
             'customer_name' => (string) ($contact?->name ?? ''),

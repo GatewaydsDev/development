@@ -264,7 +264,14 @@ export default function Show({ bid, options }: ShowProps) {
                                 )}
                             </div>
                                 <p className="mt-4 text-sm font-medium text-foreground">
-                                    Shipping and handling exclusions/adjustments
+                                    Shipping & handling, basis & qualification
+                                    and more
+                                </p>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                    Customized notes for shipping, handling,
+                                    basis & qualification, exclusions,
+                                    adjustments, and any other terms that do
+                                    not belong on a product line.
                                 </p>
                             {bid.notes ? (
                                 <div
@@ -275,7 +282,7 @@ export default function Show({ bid, options }: ShowProps) {
                                 />
                             ) : (
                                 <p className="mt-2 text-sm text-muted-foreground">
-                                    No shipping and handling text yet.
+                                    No shipping & handling notes yet.
                                 </p>
                             )}
                         </CardContent>

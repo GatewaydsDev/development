@@ -907,7 +907,7 @@ class BidImportedHtml
             $extra['font-size'] = $htmlSizes[$size];
         }
 
-        $allowed = ['href', 'style', 'colspan', 'rowspan'];
+        $allowed = ['href', 'style', 'colspan', 'rowspan', 'data-bid-field'];
         $attributes = [];
 
         foreach ($element->attributes ?? [] as $attribute) {

@@ -13,6 +13,7 @@ use App\Models\BidScopeProduct;
 use App\Models\BidScopeTitle;
 use App\Models\BidStage;
 use App\Models\BidStageType;
+use App\Models\BidTextField;
 use App\Models\BidTextTemplate;
 use App\Models\Company;
 use App\Models\Product;
@@ -1033,6 +1034,16 @@ class BidController extends Controller
                     'id' => $template->id,
                     'name' => $template->name,
                     'body' => $template->body,
+                ])
+                ->all(),
+            'textFields' => BidTextField::query()
+                ->orderBy('name')
+                ->get(['id', 'key', 'name', 'value'])
+                ->map(fn (BidTextField $field): array => [
+                    'id' => $field->id,
+                    'key' => $field->key,
+                    'name' => $field->name,
+                    'value' => $field->value,
                 ])
                 ->all(),
             'company' => [

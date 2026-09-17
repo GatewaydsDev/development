@@ -115,5 +115,11 @@ export type PageProps<
         importedScopeTextTemplateId?: number | null;
         importedShippingText?: string | null;
         importedShippingTextTemplateId?: number | null;
+        createdTextField?: {
+            id: number;
+            key: string;
+            name: string;
+            value: string;
+        } | null;
     };
 };

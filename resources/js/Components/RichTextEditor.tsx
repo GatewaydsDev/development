@@ -33,7 +33,6 @@ import {
     AlignLeftIcon,
     AlignRightIcon,
     BoldIcon,
-    BracesIcon,
     CodeIcon,
     Columns3Icon,
     Heading1Icon,
@@ -60,12 +59,16 @@ import {
     UnderlineIcon,
     Undo2Icon,
 } from 'lucide-react';
-import { type ReactNode, useEffect, useReducer, useRef } from 'react';
+import InsertBidTextFieldMenu from '@/Components/InsertBidTextFieldMenu';
 import {
-    BID_TEXT_PLACEHOLDERS,
+    BidTextFieldExtension,
+    BidTextFieldValuesContext,
+} from '@/Components/bidTextFieldExtension';
+import { type ReactNode, useEffect, useMemo, useReducer, useRef } from 'react';
+import {
     isEmptyHtml,
+    mergeBidTextPlaceholders,
     placeholderToken,
-    type BidTextPlaceholderKey,
 } from '@/Pages/Admin/Bids/bidText';
 
 type LayoutColor = {
@@ -220,6 +223,8 @@ type RichTextEditorProps = {
     id?: string;
     compact?: boolean;
     showPlaceholders?: boolean;
+    placeholderFields?: Array<{ key: string; name?: string; label?: string }>;
+    placeholderValues?: Record<string, string>;
 };
 
 export default function RichTextEditor({
@@ -230,6 +235,8 @@ export default function RichTextEditor({
     id,
     compact = false,
     showPlaceholders = true,
+    placeholderFields = [],
+    placeholderValues = {},
 }: RichTextEditorProps) {
     const ignoreToolbarRefresh = useRef(false);
     const [, refreshToolbar] = useReducer((tick: number) => tick + 1, 0);
@@ -245,6 +252,7 @@ export default function RichTextEditor({
             ImportedTextStyles,
             ImportedBlockStyles,
             ...richTextLayoutExtensions,
+            BidTextFieldExtension,
             Highlight.configure({ multicolor: true }),
             Subscript,
             Superscript,
@@ -306,7 +314,12 @@ export default function RichTextEditor({
         editor.commands.setContent(incoming, false);
     }, [editor, value]);
 
-    const insertPlaceholder = (key: BidTextPlaceholderKey) => {
+    const insertableFields = useMemo(
+        () => mergeBidTextPlaceholders(placeholderFields),
+        [placeholderFields],
+    );
+
+    const insertPlaceholder = (key: string) => {
         editor?.chain().focus().insertContent(placeholderToken(key)).run();
     };
 
@@ -442,6 +455,7 @@ export default function RichTextEditor({
     };
 
     return (
+        <BidTextFieldValuesContext.Provider value={placeholderValues}>
         <div
             className={cn(
                 'overflow-visible rounded-md border bg-background',
@@ -920,40 +934,16 @@ export default function RichTextEditor({
                 {showPlaceholders ? (
                     <>
                         <Separator orientation="vertical" className="mx-1 h-6" />
-                        <ToolbarMenu
+                        <InsertBidTextFieldMenu
                             onOpenChange={handleMenuOpenChange}
-                            contentClassName="max-h-80 overflow-y-auto"
-                            trigger={
-                                <Button type="button" variant="outline" size="sm">
-                                    <BracesIcon />
-                                    Insert field
-                                </Button>
-                            }
-                        >
-                            <DropdownMenuLabel>
-                                Filled from the selected project
-                            </DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuGroup>
-                                {BID_TEXT_PLACEHOLDERS.map((field) => (
-                                    <DropdownMenuItem
-                                        key={field.key}
-                                        onClick={() =>
-                                            insertPlaceholder(field.key)
-                                        }
-                                    >
-                                        {field.label}
-                                        <span className="ml-auto text-xs text-muted-foreground">
-                                            {placeholderToken(field.key)}
-                                        </span>
-                                    </DropdownMenuItem>
-                                ))}
-                            </DropdownMenuGroup>
-                        </ToolbarMenu>
+                            fields={insertableFields}
+                            onInsert={insertPlaceholder}
+                        />
                     </>
                 ) : null}
             </div>
             <EditorContent editor={editor} />
         </div>
+        </BidTextFieldValuesContext.Provider>
     );
 }

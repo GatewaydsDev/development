@@ -3,6 +3,7 @@
 use App\Models\Bid;
 use App\Models\BidPricingStatus;
 use App\Models\BidStageType;
+use App\Models\BidTextField;
 use App\Models\BidTextTemplate;
 use App\Models\Contractor;
 use App\Models\Product;
@@ -1001,6 +1002,48 @@ test('shipping and handling text can be stored on a bid', function () {
 
     expect($bid->bid_shipping_text_template_id)->toBe($template->id);
     expect($bid->notes)->toContain('Harbor Freight Project');
+});
+
+test('custom insert fields can be created and filled on a bid', function () {
+    $admin = bidAdmin();
+    $project = bidProject($admin, 'Custom Field Project');
+
+    $this->actingAs($admin)
+        ->from(route('admin.bids.create'))
+        ->post(route('admin.bid-text-fields.store'), [
+            'name' => 'Warranty period',
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertSessionHas('success', 'Insert field added successfully.')
+        ->assertSessionHas('created_text_field', fn ($field) => ($field['key'] ?? null) === 'warranty_period');
+
+    expect(BidTextField::query()->where('key', 'warranty_period')->value('name'))
+        ->toBe('Warranty period');
+
+    $this->actingAs($admin)
+        ->post(route('admin.bids.store'), [
+            'project_id' => $project->id,
+            'notes' => '<p>Coverage: {{warranty_period}} for {{project_name}}.</p>',
+            'scopes' => [],
+        ])
+        ->assertSessionHasNoErrors();
+
+    $bid = Bid::query()->where('project_id', $project->id)->firstOrFail();
+
+    expect($bid->notes)->toContain('Custom Field Project');
+    expect($bid->notes)->toContain('{{warranty_period}}');
+});
+
+test('reserved insert fields cannot be created', function () {
+    $admin = bidAdmin();
+
+    $this->actingAs($admin)
+        ->post(route('admin.bid-text-fields.store'), [
+            'name' => 'Project name',
+        ])
+        ->assertSessionHasErrors('name');
+
+    expect(BidTextField::query()->count())->toBe(0);
 });
 
 test('a text file can be imported and saved as reusable scope text', function () {

@@ -83,7 +83,7 @@ const schema = z.object({
     quotation_id: z.string(),
     notes: z
         .string()
-        .max(250000, 'Shipping and handling exclusions/adjustments must be 250,000 characters or less.'),
+        .max(250000, 'Shipping & handling, basis & qualification and more must be 250,000 characters or less.'),
     bid_shipping_text_template_id: z.string(),
     bid_scope_text_template_id: z.string(),
     scope_of_work_text: z
@@ -295,7 +295,6 @@ export default function BidForm({
     } = useFieldArray({ control, name: 'stages' });
     const {
         fields: scopeFields,
-        append: appendScope,
         remove: removeScope,
         replace: replaceScopes,
     } = useFieldArray({ control, name: 'scopes' });
@@ -945,7 +944,7 @@ export default function BidForm({
                     <p className="text-sm text-muted-foreground">
                         {selectedProjectScopes.length > 0
                             ? 'Start with predefined scope wording, then add or remove service and product lines from the selected project.'
-                            : 'A scope is ready below. Use Add scope under the last card if you need another.'}
+                            : 'A scope is ready below. Use Add item under the last product line if you need another.'}
                     </p>
                 </div>
 
@@ -970,16 +969,6 @@ export default function BidForm({
                             onRemove={() => removeScope(index)}
                         />
                     ))}
-                    <div className="flex">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => appendScope(blankScope())}
-                        >
-                            <PlusIcon className="size-4" />
-                            Add scope
-                        </Button>
-                    </div>
                 </div>
 
                 <BidApplicationTextSection
@@ -1015,20 +1004,20 @@ export default function BidForm({
             <div className="sticky bottom-24 z-10 mr-4 flex min-w-0 flex-col gap-3 rounded-xl border border-emerald-200 bg-background/95 px-4 py-3 shadow-lg backdrop-blur lg:bottom-4 lg:mr-20 sm:flex-row sm:items-center sm:justify-between dark:border-emerald-900/70">
                 <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        Latest revision total
-                    </p>
-                    <p className="text-xl font-semibold text-emerald-700 dark:text-emerald-300">
-                        {formatMoney(latestTotal)}
-                    </p>
-                </div>
-                <div className="sm:text-right">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                         Combined price
                     </p>
                     <p className="text-xl font-semibold text-emerald-700 dark:text-emerald-300">
                         {combinedPriceValue
                             ? formatMoney(combinedPriceValue)
                             : '—'}
+                    </p>
+                </div>
+                <div className="sm:text-right">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Latest revision total
+                    </p>
+                    <p className="text-xl font-semibold text-emerald-700 dark:text-emerald-300">
+                        {formatMoney(latestTotal)}
                     </p>
                 </div>
             </div>

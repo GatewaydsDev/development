@@ -82,6 +82,13 @@ export type BidQuotationOption = {
     line_items: BidQuotationLineOption[];
 };
 
+export type BidTextFieldOption = {
+    id: number;
+    key: string;
+    name: string;
+    value?: string | null;
+};
+
 export type BidOptions = {
     projects: BidProjectOption[];
     stageTypes: BidCatalogOption[];
@@ -91,6 +98,7 @@ export type BidOptions = {
     pricingStatuses: BidCatalogOption[];
     scopeTextTemplates: BidTextTemplateOption[];
     shippingTextTemplates: BidTextTemplateOption[];
+    textFields?: BidTextFieldOption[];
     company?: BidCompanyOption;
     can: BidCapabilities;
     quotations?: BidQuotationOption[];

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\BidPricingStatus;
 use App\Models\BidStageType;
+use App\Models\BidTextField;
 use App\Models\BidTextTemplate;
 use App\Models\ProjectScopeType;
 use App\Support\BidAccess;
@@ -59,6 +60,69 @@ class BidCatalogController extends Controller
         BidPricingStatus::create(['name' => $name]);
 
         return back()->with('success', 'Pricing status added successfully.');
+    }
+
+    public function storeTextField(Request $request): RedirectResponse
+    {
+        $this->authorizeCatalog($request);
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'value' => ['nullable', 'string', 'max:5000'],
+        ]);
+
+        $name = trim($validated['name']);
+        $value = trim((string) ($validated['value'] ?? ''));
+        $key = BidTextField::keyFromName($name);
+
+        if ($key === '') {
+            throw ValidationException::withMessages([
+                'name' => 'Use letters or numbers in the field name.',
+            ]);
+        }
+
+        if (BidTextField::isReservedKey($key)) {
+            throw ValidationException::withMessages([
+                'name' => 'That field is already in the list. Search for it instead of adding it again.',
+            ]);
+        }
+
+        $reservedLabel = collect(BidApplicationText::PLACEHOLDERS)
+            ->contains(fn (string $label): bool => mb_strtolower($label) === mb_strtolower($name));
+
+        if ($reservedLabel) {
+            throw ValidationException::withMessages([
+                'name' => 'That field is already in the list. Search for it instead of adding it again.',
+            ]);
+        }
+
+        $field = BidTextField::query()->where('key', $key)->first();
+        $created = $field === null;
+
+        if ($field) {
+            $field->update([
+                'name' => $name,
+                'value' => $value,
+            ]);
+        } else {
+            $field = BidTextField::create([
+                'key' => $key,
+                'name' => $name,
+                'value' => $value,
+            ]);
+        }
+
+        return back()->with([
+            'success' => $created
+                ? 'Insert field added successfully.'
+                : 'Insert field updated successfully.',
+            'created_text_field' => [
+                'id' => $field->id,
+                'key' => $field->key,
+                'name' => $field->name,
+                'value' => $field->value,
+            ],
+        ]);
     }
 
     public function storeTextTemplate(Request $request): RedirectResponse
