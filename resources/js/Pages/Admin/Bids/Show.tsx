@@ -1,4 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import DirectoryFieldLabel from '@/Components/DirectoryFieldLabel';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import {
@@ -23,6 +24,7 @@ import {
     formatMoney,
     lineCombinedPrice,
     lineExtendedAmount,
+    scopeProductDescription,
     type BidOptions,
     type BidPayload,
 } from './types';
@@ -372,8 +374,8 @@ export default function Show({ bid, options }: ShowProps) {
                         <CardHeader>
                             <CardTitle>Scope of work</CardTitle>
                             <CardDescription>
-                                Start with predefined scope wording, then add
-                                or remove service and product lines.
+                                Custom product descriptions and pricing for each
+                                location on this bid.
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="flex flex-col gap-3">
@@ -395,158 +397,145 @@ export default function Show({ bid, options }: ShowProps) {
                                             {scope.name}
                                         </p>
                                         {scope.products?.length > 0 ? (
-                                            <div className="overflow-x-auto overscroll-x-contain rounded-lg border border-border">
-                                                <table className="w-max min-w-full text-sm">
-                                                    <thead>
-                                                        <tr className="border-b border-border text-left text-muted-foreground">
-                                                            <th className="py-2 pr-3 font-medium">
-                                                                Location
-                                                            </th>
-                                                            <th className="py-2 pr-3 font-medium">
-                                                                Service
-                                                            </th>
-                                                            <th className="min-w-40 py-2 pr-3 font-medium">
-                                                                Product
-                                                            </th>
-                                                            <th className="py-2 pr-3 text-right font-medium">
-                                                                Qty
-                                                            </th>
-                                                            <th className="py-2 pr-3 text-right font-medium">
-                                                                Unit value
-                                                            </th>
-                                                            <th className="py-2 pr-3 text-right font-medium">
-                                                                Allocated IFH
-                                                            </th>
-                                                            <th className="py-2 pr-3 text-right font-medium">
-                                                                Combined price
-                                                            </th>
-                                                            <th className="py-2 text-right font-medium">
-                                                                Total
-                                                            </th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {scope.products.map(
-                                                            (
+                                            <div className="flex flex-col gap-3">
+                                                <div className="hidden gap-3 border-b border-border pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground xl:grid xl:grid-cols-[minmax(7rem,0.8fr)_minmax(0,1.5fr)_4.5rem_minmax(7rem,0.9fr)_minmax(8.5rem,1fr)_minmax(8.5rem,1fr)_minmax(7.5rem,0.9fr)]">
+                                                    <div>Location of the service</div>
+                                                    <div>Product Description</div>
+                                                    <div className="text-right">Qty</div>
+                                                    <div className="text-right">
+                                                        Material Unit Price
+                                                    </div>
+                                                    <div className="text-right">
+                                                        Allocated Install / Freight / Handling
+                                                    </div>
+                                                    <div className="text-right">
+                                                        Combined Installed Unit Price
+                                                    </div>
+                                                    <div className="text-right">
+                                                        Building Total
+                                                    </div>
+                                                </div>
+                                                {scope.products.map(
+                                                    (
+                                                        product,
+                                                        productIndex,
+                                                    ) => {
+                                                        const combined =
+                                                            lineCombinedPrice(
                                                                 product,
-                                                                productIndex,
+                                                            );
+                                                        const extended =
+                                                            lineExtendedAmount(
+                                                                product,
+                                                            );
+
+                                                        return (
+                                                            <div
+                                                                key={
+                                                                    product.id ??
+                                                                    productIndex
+                                                                }
+                                                                className="grid grid-cols-1 gap-3 rounded-lg border border-border p-3 md:grid-cols-2 xl:grid-cols-[minmax(7rem,0.8fr)_minmax(0,1.5fr)_4.5rem_minmax(7rem,0.9fr)_minmax(8.5rem,1fr)_minmax(8.5rem,1fr)_minmax(7.5rem,0.9fr)] xl:items-start xl:border-0 xl:p-0"
+                                                            >
+                                                                <p className="min-w-0 break-words text-sm text-foreground md:col-span-2 xl:col-span-1">
+                                                                    <DirectoryFieldLabel hideFrom="xl">
+                                                                        Location of the service
+                                                                    </DirectoryFieldLabel>
+                                                                    {product.location ||
+                                                                        '—'}
+                                                                </p>
+                                                                <p className="min-w-0 whitespace-pre-wrap break-words text-sm text-foreground md:col-span-2 xl:col-span-1">
+                                                                    <DirectoryFieldLabel hideFrom="xl">
+                                                                        Product Description
+                                                                    </DirectoryFieldLabel>
+                                                                    {scopeProductDescription(
+                                                                        product,
+                                                                    ) || '—'}
+                                                                </p>
+                                                                <p className="text-sm text-muted-foreground xl:text-right xl:tabular-nums">
+                                                                    <DirectoryFieldLabel hideFrom="xl">
+                                                                        Qty
+                                                                    </DirectoryFieldLabel>
+                                                                    {product.quantity ??
+                                                                        '—'}
+                                                                </p>
+                                                                <p className="text-sm text-muted-foreground xl:text-right xl:tabular-nums">
+                                                                    <DirectoryFieldLabel hideFrom="xl">
+                                                                        Material Unit Price
+                                                                    </DirectoryFieldLabel>
+                                                                    {product.unit_bid
+                                                                        ? formatMoney(
+                                                                              product.unit_bid,
+                                                                          )
+                                                                        : '—'}
+                                                                </p>
+                                                                <p className="text-sm text-muted-foreground xl:text-right xl:tabular-nums">
+                                                                    <DirectoryFieldLabel hideFrom="xl">
+                                                                        Allocated Install / Freight / Handling
+                                                                    </DirectoryFieldLabel>
+                                                                    {product.allocated_handling
+                                                                        ? formatMoney(
+                                                                              product.allocated_handling,
+                                                                          )
+                                                                        : '—'}
+                                                                </p>
+                                                                <p className="text-sm text-muted-foreground xl:text-right xl:tabular-nums">
+                                                                    <DirectoryFieldLabel hideFrom="xl">
+                                                                        Combined Installed Unit Price
+                                                                    </DirectoryFieldLabel>
+                                                                    {combined
+                                                                        ? formatMoney(
+                                                                              combined,
+                                                                          )
+                                                                        : '—'}
+                                                                </p>
+                                                                <p className="text-sm font-medium xl:text-right xl:tabular-nums">
+                                                                    <DirectoryFieldLabel hideFrom="xl">
+                                                                        Building Total
+                                                                    </DirectoryFieldLabel>
+                                                                    {extended
+                                                                        ? formatMoney(
+                                                                              extended,
+                                                                          )
+                                                                        : '—'}
+                                                                </p>
+                                                            </div>
+                                                        );
+                                                    },
+                                                )}
+                                                <p className="text-right text-sm font-semibold text-foreground">
+                                                    Scope total{' '}
+                                                    {formatMoney(
+                                                        scope.products.reduce(
+                                                            (
+                                                                sum,
+                                                                product,
                                                             ) => {
-                                                                const combined =
-                                                                    lineCombinedPrice(
-                                                                        product,
-                                                                    );
                                                                 const extended =
-                                                                    lineExtendedAmount(
-                                                                        product,
+                                                                    Number(
+                                                                        lineExtendedAmount(
+                                                                            product,
+                                                                        ) || 0,
                                                                     );
 
                                                                 return (
-                                                                <tr
-                                                                    key={
-                                                                        product.id ??
-                                                                        productIndex
-                                                                    }
-                                                                    className="border-b border-border last:border-0"
-                                                                >
-                                                                    <td className="py-2 pr-3">
-                                                                        {product.location ||
-                                                                            '—'}
-                                                                    </td>
-                                                                    <td className="py-2 pr-3">
-                                                                        {product.service_name ||
-                                                                            '—'}
-                                                                    </td>
-                                                                    <td className="max-w-56 py-2 pr-3 break-words">
-                                                                        {product.abbreviation
-                                                                            ? `${product.abbreviation} — ${product.name || product.description}`
-                                                                            : product.name ||
-                                                                              product.description ||
-                                                                              '—'}
-                                                                    </td>
-                                                                    <td className="py-2 pr-3 text-right tabular-nums">
-                                                                        {product.quantity ??
-                                                                            '—'}
-                                                                    </td>
-                                                                    <td className="py-2 pr-3 text-right tabular-nums">
-                                                                        {product.unit_bid
-                                                                            ? formatMoney(
-                                                                                  product.unit_bid,
-                                                                              )
-                                                                            : '—'}
-                                                                    </td>
-                                                                    <td className="py-2 pr-3 text-right tabular-nums">
-                                                                        {product.allocated_handling
-                                                                            ? formatMoney(
-                                                                                  product.allocated_handling,
-                                                                              )
-                                                                            : '—'}
-                                                                    </td>
-                                                                    <td className="py-2 pr-3 text-right tabular-nums">
-                                                                        {combined
-                                                                            ? formatMoney(
-                                                                                  combined,
-                                                                              )
-                                                                            : '—'}
-                                                                    </td>
-                                                                    <td className="py-2 text-right tabular-nums">
-                                                                        {extended
-                                                                            ? formatMoney(
-                                                                                  extended,
-                                                                              )
-                                                                            : '—'}
-                                                                    </td>
-                                                                </tr>
+                                                                    sum +
+                                                                    (Number.isFinite(
+                                                                        extended,
+                                                                    )
+                                                                        ? extended
+                                                                        : 0)
                                                                 );
                                                             },
-                                                        )}
-                                                    </tbody>
-                                                    <tfoot>
-                                                        <tr>
-                                                            <td
-                                                                colSpan={6}
-                                                                className="pt-3 text-right font-medium text-foreground"
-                                                            >
-                                                                Scope total
-                                                            </td>
-                                                            <td
-                                                                colSpan={2}
-                                                                className="pt-3 text-right font-medium tabular-nums text-foreground"
-                                                            >
-                                                                {formatMoney(
-                                                                    scope.products.reduce(
-                                                                        (
-                                                                            sum,
-                                                                            product,
-                                                                        ) => {
-                                                                            const extended =
-                                                                                Number(
-                                                                                    lineExtendedAmount(
-                                                                                        product,
-                                                                                    ) ||
-                                                                                        0,
-                                                                                );
-
-                                                                            return (
-                                                                                sum +
-                                                                                (Number.isFinite(
-                                                                                    extended,
-                                                                                )
-                                                                                    ? extended
-                                                                                    : 0)
-                                                                            );
-                                                                        },
-                                                                        0,
-                                                                    ) ||
-                                                                        scope.extended,
-                                                                )}
-                                                            </td>
-                                                        </tr>
-                                                    </tfoot>
-                                                </table>
+                                                            0,
+                                                        ) ||
+                                                            scope.extended,
+                                                    )}
+                                                </p>
                                             </div>
                                         ) : (
                                             <p className="text-sm text-muted-foreground">
-                                                No service and product
+                                                No items added yet.
                                             </p>
                                         )}
                                     </div>

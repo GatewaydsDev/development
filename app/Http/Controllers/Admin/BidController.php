@@ -296,20 +296,22 @@ class BidController extends Controller
             'scopes.*.extended' => ['nullable', 'numeric', 'min:0'],
             'scopes.*.products' => ['array'],
             'scopes.*.products.*.product_id' => [
-                'required',
+                'nullable',
                 'integer',
                 Rule::exists(Product::class, 'id'),
             ],
             'scopes.*.products.*.service_id' => [
-                'required',
+                'nullable',
                 'integer',
                 Rule::exists(Service::class, 'id'),
             ],
             'scopes.*.products.*.location' => ['nullable', 'string', 'max:255'],
+            'scopes.*.products.*.description' => ['nullable', 'string', 'max:2000'],
             'scopes.*.products.*.quantity' => ['nullable', 'numeric', 'min:0'],
             'scopes.*.products.*.unit_bid' => ['nullable', 'numeric', 'min:0'],
             'scopes.*.products.*.extended' => ['nullable', 'numeric', 'min:0'],
             'scopes.*.products.*.allocated_handling' => ['nullable', 'numeric', 'min:0'],
+            'scopes.*.products.*.combined_price' => ['nullable', 'numeric', 'min:0'],
             'pricings' => ['array'],
             'pricings.*.name' => ['required', 'string', 'max:255'],
             'pricings.*.revision_date' => ['nullable', 'date'],
@@ -442,25 +444,38 @@ class BidController extends Controller
             ]);
 
             foreach ($lines as $productIndex => $item) {
-                $catalogProduct = Product::query()->find($item['product_id']);
-                $service = Service::query()->find($item['service_id']);
+                $catalogProduct = filled($item['product_id'] ?? null)
+                    ? Product::query()->find($item['product_id'])
+                    : null;
+                $service = filled($item['service_id'] ?? null)
+                    ? Service::query()->find($item['service_id'])
+                    : null;
                 $quantity = $this->nullableDecimal($item['quantity'] ?? null);
                 $unitBid = $this->nullableDecimal($item['unit_bid'] ?? null);
+                $allocated = $this->nullableDecimal($item['allocated_handling'] ?? null);
+                $combined = $this->combinedPriceAmount($unitBid, $allocated)
+                    ?? $this->nullableDecimal($item['combined_price'] ?? null);
 
                 BidScopeProduct::query()->create([
                     'bid_scope_id' => $record->id,
-                    'product_id' => $item['product_id'],
-                    'service_id' => $item['service_id'],
+                    'product_id' => filled($item['product_id'] ?? null) ? $item['product_id'] : null,
+                    'service_id' => filled($item['service_id'] ?? null) ? $item['service_id'] : null,
                     'location' => filled($item['location'] ?? null) ? trim((string) $item['location']) : null,
-                    'description' => $this->scopeLineDescription($catalogProduct, $service),
+                    'description' => $this->scopeLineDescription(
+                        $item['description'] ?? null,
+                        $catalogProduct,
+                        $service,
+                    ),
                     'quantity' => $quantity,
                     'unit_bid' => $unitBid,
                     'extended' => $this->scopeExtendedAmount(
                         $item['quantity'] ?? null,
                         $item['unit_bid'] ?? null,
                         $item['allocated_handling'] ?? null,
+                        $combined,
                     ),
-                    'allocated_handling' => $this->nullableDecimal($item['allocated_handling'] ?? null),
+                    'allocated_handling' => $allocated,
+                    'combined_price' => $combined,
                     'sort_order' => $productIndex,
                 ]);
             }
@@ -585,7 +600,19 @@ class BidController extends Controller
      */
     private function scopeProductLines(array $scope): array
     {
-        $lines = array_values($scope['products'] ?? []);
+        $lines = array_values(array_filter(
+            $scope['products'] ?? [],
+            function (array $item): bool {
+                return filled($item['description'] ?? null)
+                    || filled($item['product_id'] ?? null)
+                    || filled($item['service_id'] ?? null)
+                    || filled($item['location'] ?? null)
+                    || filled($item['quantity'] ?? null)
+                    || filled($item['unit_bid'] ?? null)
+                    || filled($item['allocated_handling'] ?? null)
+                    || filled($item['combined_price'] ?? null);
+            },
+        ));
 
         if (count($lines) === 1) {
             if (($lines[0]['quantity'] ?? null) === null || ($lines[0]['quantity'] ?? '') === '') {
@@ -619,6 +646,7 @@ class BidController extends Controller
                 $item['quantity'] ?? null,
                 $item['unit_bid'] ?? null,
                 $item['allocated_handling'] ?? null,
+                $item['combined_price'] ?? null,
             );
 
             if ($quantity !== null) {
@@ -654,23 +682,24 @@ class BidController extends Controller
         return number_format((float) $value, 2, '.', '');
     }
 
-    private function scopeExtendedAmount(mixed $quantity, mixed $unitBid, mixed $allocatedHandling = null): ?string
+    private function scopeExtendedAmount(mixed $quantity, mixed $unitBid, mixed $allocatedHandling = null, mixed $combinedPrice = null): ?string
     {
+        $combined = $this->combinedPriceAmount($unitBid, $allocatedHandling)
+            ?? ($combinedPrice !== null && $combinedPrice !== ''
+                ? number_format((float) $combinedPrice, 2, '.', '')
+                : null);
+
+        if ($combined === null) {
+            return null;
+        }
+
         $hasQuantity = $quantity !== null && $quantity !== '';
-        $hasUnit = $unitBid !== null && $unitBid !== '';
-        $hasAllocated = $allocatedHandling !== null && $allocatedHandling !== '';
 
-        if ($hasQuantity && $hasUnit) {
-            $allocated = $hasAllocated ? (float) $allocatedHandling : 0.0;
-
-            return number_format((float) $quantity * (float) $unitBid + $allocated, 2, '.', '');
+        if ($hasQuantity) {
+            return number_format((float) $quantity * (float) $combined, 2, '.', '');
         }
 
-        if ($hasAllocated) {
-            return number_format((float) $allocatedHandling, 2, '.', '');
-        }
-
-        return null;
+        return $combined;
     }
 
     private function plainScopeNotations(mixed $notations): string
@@ -682,14 +711,20 @@ class BidController extends Controller
         return trim(html_entity_decode(strip_tags($notations), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
     }
 
-    private function scopeLineDescription(?Product $product, ?Service $service): ?string
+    private function scopeLineDescription(mixed $description, ?Product $product, ?Service $service): string
     {
+        $typed = trim((string) $description);
+
+        if ($typed !== '') {
+            return $typed;
+        }
+
         $parts = array_values(array_filter([
             $product?->name,
             $service?->name,
         ], fn (?string $value): bool => filled($value)));
 
-        return $parts === [] ? null : implode(' — ', $parts);
+        return $parts === [] ? 'Item' : implode(' — ', $parts);
     }
 
     /**
@@ -808,8 +843,10 @@ class BidController extends Controller
                                 $product->quantity,
                                 $product->unit_bid,
                                 $product->allocated_handling,
+                                $product->combined_price,
                             ) ?? $product->extended,
                             'allocated_handling' => $product->allocated_handling,
+                            'combined_price' => $product->combined_price,
                         ])
                         ->values()
                         ->all(),
@@ -915,7 +952,14 @@ class BidController extends Controller
         $lines = collect($validated['scopes'] ?? [])
             ->flatMap(fn (array $scope): array => $scope['products'] ?? [])
             ->filter(function (array $line): bool {
-                return filled($line['product_id'] ?? null) || filled($line['service_id'] ?? null);
+                return filled($line['description'] ?? null)
+                    || filled($line['product_id'] ?? null)
+                    || filled($line['service_id'] ?? null)
+                    || filled($line['location'] ?? null)
+                    || filled($line['quantity'] ?? null)
+                    || filled($line['unit_bid'] ?? null)
+                    || filled($line['allocated_handling'] ?? null)
+                    || filled($line['combined_price'] ?? null);
             })
             ->values();
 
@@ -929,11 +973,14 @@ class BidController extends Controller
                 $line['quantity'] ?? null,
                 $line['unit_bid'] ?? null,
                 $line['allocated_handling'] ?? null,
+                $line['combined_price'] ?? null,
             );
-            $combined = $this->combinedPriceAmount(
-                $line['unit_bid'] ?? null,
-                $line['allocated_handling'] ?? null,
-            );
+            $combined = filled($line['combined_price'] ?? null)
+                ? $this->nullableDecimal($line['combined_price'])
+                : $this->combinedPriceAmount(
+                    $line['unit_bid'] ?? null,
+                    $line['allocated_handling'] ?? null,
+                );
 
             if ($lineQuantity !== null) {
                 $quantity += (float) $lineQuantity;

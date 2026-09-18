@@ -68,6 +68,21 @@ const nameSchema = z
     .min(1, 'Enter a name.')
     .max(255, 'Name must be 255 characters or less.');
 
+const optionMatchesQuery = (option: CreatableOption, query: string) => {
+    const queryValue = query.trim().toLowerCase();
+
+    if (queryValue === '') {
+        return false;
+    }
+
+    const abbreviation = (option.abbreviation ?? '').trim().toLowerCase();
+
+    return (
+        option.name.toLowerCase() === queryValue ||
+        (abbreviation !== '' && abbreviation === queryValue)
+    );
+};
+
 export default function CreatableSelect({
     id,
     label,
@@ -122,15 +137,11 @@ export default function CreatableSelect({
 
     const normalizedQuery = query.trim();
     const selectedName = selectedLabel;
-    const exactMatch = options.find((option) => {
-        const queryValue = normalizedQuery.toLowerCase();
-
-        return (
-            option.name.toLowerCase() === queryValue ||
-            (option.abbreviation ?? '').toLowerCase() === queryValue
-        );
-    });
+    const exactMatch = options.find((option) =>
+        optionMatchesQuery(option, normalizedQuery),
+    );
     const exactMatchAlreadyAdded =
+        normalizedQuery !== '' &&
         exactMatch !== undefined &&
         disabledIds.includes(String(exactMatch.id)) &&
         String(exactMatch.id) !== value;
@@ -298,14 +309,9 @@ export default function CreatableSelect({
             return;
         }
 
-        const existing = options.find((option) => {
-            const createdName = parsed.data.toLowerCase();
-
-            return (
-                option.name.toLowerCase() === createdName ||
-                (option.abbreviation ?? '').toLowerCase() === createdName
-            );
-        });
+        const existing = options.find((option) =>
+            optionMatchesQuery(option, parsed.data),
+        );
 
         if (existing) {
             choose(existing);
@@ -417,15 +423,9 @@ export default function CreatableSelect({
                                         ...(catalog?.products ?? []),
                                         ...(catalog?.parts ?? []),
                                     ];
-                            const created = list.find((option) => {
-                                const createdName = pendingName.toLowerCase();
-
-                                return (
-                                    option.name.toLowerCase() === createdName ||
-                                    (option.abbreviation ?? '').toLowerCase() ===
-                                        createdName
-                                );
-                            });
+                            const created = list.find((option) =>
+                                optionMatchesQuery(option, pendingName),
+                            );
 
                             if (created) {
                                 onChange(String(created.id), created);
@@ -695,7 +695,7 @@ export default function CreatableSelect({
                         ) : null}
                         {filtered.length === 0 && !canCreate ? (
                             <p className="px-3 py-2 text-sm text-muted-foreground">
-                                {exactMatchAlreadyAdded
+                                {hasTyped && exactMatchAlreadyAdded
                                     ? 'This item is already added.'
                                     : 'No matches found.'}
                             </p>
@@ -706,7 +706,7 @@ export default function CreatableSelect({
             <InputError
                 message={
                     error ||
-                    (exactMatchAlreadyAdded
+                    (hasTyped && exactMatchAlreadyAdded
                         ? 'This item is already added.'
                         : undefined)
                 }

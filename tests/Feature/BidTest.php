@@ -224,7 +224,107 @@ test('a bid stores quantity unit bid and computed extended', function () {
     expect($bid->latestTotal())->toBe(2500.0);
 });
 
-test('a bid total amount is quantity times unit plus allocated', function () {
+test('a bid stores a custom product description without a catalog product', function () {
+    $admin = bidAdmin();
+    $project = bidProject($admin);
+    $stage = BidStageType::query()->where('name', 'Preliminary Bid')->firstOrFail();
+    $title = bidScopeType('RF Doors');
+
+    $this->actingAs($admin)
+        ->post(route('admin.bids.store'), [
+            'project_id' => $project->id,
+            'stages' => [
+                [
+                    'stage_type_id' => $stage->id,
+                    'stage_date' => '2026-09-01',
+                    'notes' => '',
+                ],
+            ],
+            'scopes' => [
+                [
+                    'title_id' => $title->id,
+                    'notations' => '',
+                    'products' => [
+                        [
+                            'description' => '8x8 RF shielded blast door, LH, honeycomb core',
+                            'location' => 'Bldg 19',
+                            'quantity' => '2',
+                            'unit_bid' => '1250',
+                            'allocated_handling' => '150',
+                        ],
+                    ],
+                ],
+            ],
+        ])
+        ->assertSessionHasNoErrors();
+
+    $bid = Bid::query()
+        ->where('project_id', $project->id)
+        ->with('scopes.products')
+        ->firstOrFail();
+
+    $line = $bid->scopes->first()?->products->first();
+
+    expect($line?->product_id)->toBeNull();
+    expect($line?->service_id)->toBeNull();
+    expect($line?->description)->toBe('8x8 RF shielded blast door, LH, honeycomb core');
+    expect($line?->location)->toBe('Bldg 19');
+    expect((float) $line?->quantity)->toBe(2.0);
+    expect((float) $line?->unit_bid)->toBe(1250.0);
+    expect((float) $line?->allocated_handling)->toBe(150.0);
+    expect((float) $line?->combined_price)->toBe(1400.0);
+    expect((float) $line?->extended)->toBe(2800.0);
+});
+
+test('a bid building total is combined installed unit price times quantity', function () {
+    $admin = bidAdmin();
+    $project = bidProject($admin);
+    $stage = BidStageType::query()->where('name', 'Preliminary Bid')->firstOrFail();
+    $title = bidScopeType('RF Doors');
+
+    $this->actingAs($admin)
+        ->post(route('admin.bids.store'), [
+            'project_id' => $project->id,
+            'stages' => [
+                [
+                    'stage_type_id' => $stage->id,
+                    'stage_date' => '2026-09-01',
+                    'notes' => '',
+                ],
+            ],
+            'scopes' => [
+                [
+                    'title_id' => $title->id,
+                    'notations' => '',
+                    'products' => [
+                        [
+                            'description' => 'Custom RF door, LH, honeycomb core',
+                            'location' => 'Bldg 19',
+                            'quantity' => '2',
+                            'unit_bid' => '1250',
+                            'allocated_handling' => '150',
+                            'combined_price' => '1400',
+                        ],
+                    ],
+                ],
+            ],
+        ])
+        ->assertSessionHasNoErrors();
+
+    $bid = Bid::query()
+        ->where('project_id', $project->id)
+        ->with('scopes.products')
+        ->firstOrFail();
+
+    $line = $bid->scopes->first()?->products->first();
+
+    expect((float) $line?->combined_price)->toBe(1400.0);
+    expect((float) $line?->extended)->toBe(2800.0);
+    expect((float) $bid->scopes->first()?->extended)->toBe(2800.0);
+    expect($bid->latestTotal())->toBe(2800.0);
+});
+
+test('a bid combined installed unit price is material plus allocated', function () {
     $admin = bidAdmin();
     $project = bidProject($admin);
     $stage = BidStageType::query()->where('name', 'Preliminary Bid')->firstOrFail();
@@ -271,9 +371,10 @@ test('a bid total amount is quantity times unit plus allocated', function () {
     expect((float) $line?->quantity)->toBe(2.0);
     expect((float) $line?->unit_bid)->toBe(1250.0);
     expect((float) $line?->allocated_handling)->toBe(100.0);
-    expect((float) $line?->extended)->toBe(2600.0);
-    expect((float) $bid->scopes->first()?->extended)->toBe(2600.0);
-    expect($bid->latestTotal())->toBe(2600.0);
+    expect((float) $line?->combined_price)->toBe(1350.0);
+    expect((float) $line?->extended)->toBe(2700.0);
+    expect((float) $bid->scopes->first()?->extended)->toBe(2700.0);
+    expect($bid->latestTotal())->toBe(2700.0);
 });
 
 test('project and bid scope dropdowns share the same catalog', function () {
@@ -1467,12 +1568,11 @@ test('a bid can be printed and exported as pdf or word', function () {
         ->assertSee('Furnish and install RF doors for Harbor Print Package.', false)
         ->assertSee('RF Doors', false)
         ->assertDontSee('Location', false)
-        ->assertSee('Service', false)
-        ->assertSee('Product', false)
+        ->assertSee('Product Description', false)
         ->assertSee('Qty', false)
-        ->assertSee('Unit value', false)
-        ->assertSee('Combined price', false)
-        ->assertSee('Total', false)
+        ->assertSee('Material Unit Price', false)
+        ->assertSee('Combined Installed Unit Price', false)
+        ->assertSee('Building Total', false)
         ->assertDontSee('Include frames and hardware', false)
         ->assertSee('Assembly w/ vision glazing', false)
         ->assertSee('RF door leaf', false)
@@ -1545,7 +1645,7 @@ test('printed scope tables omit the empty information placeholder', function () 
         ->get(route('admin.bids.print', $bid))
         ->assertOk()
         ->assertSee('RF door leaf', false)
-        ->assertSee('Service', false)
+        ->assertSee('Product Description', false)
         ->assertDontSee('Location', false)
         ->assertDontSee('No information added', false);
 });

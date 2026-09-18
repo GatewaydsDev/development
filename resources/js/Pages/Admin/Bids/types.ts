@@ -143,6 +143,7 @@ export type BidScopeProductPayload = {
     unit_bid?: string | number | null;
     extended?: string | number | null;
     allocated_handling?: string | number | null;
+    combined_price?: string | number | null;
 };
 
 export type BidScopePayload = {
@@ -237,10 +238,12 @@ export type BidScopeProductFormData = {
     product_id: string;
     service_id: string;
     location: string;
+    description: string;
     quantity: string;
     unit_bid: string;
     extended: string;
     allocated_handling: string;
+    combined_price: string;
 };
 
 export type BidScopeFormData = {
@@ -321,11 +324,45 @@ export const blankScopeProduct = (): BidScopeProductFormData => ({
     product_id: '',
     service_id: '',
     location: '',
+    description: '',
     quantity: '',
     unit_bid: '',
     extended: '',
     allocated_handling: '',
+    combined_price: '',
 });
+
+export const scopeProductDescription = (
+    product: Pick<
+        BidScopeProductPayload,
+        'description' | 'name' | 'service_name'
+    >,
+) => {
+    const typed = (product.description ?? '').trim();
+
+    if (typed !== '') {
+        return typed;
+    }
+
+    const name = (product.name ?? '').trim();
+    const service = (product.service_name ?? '').trim();
+
+    if (name && service) {
+        return `${name} — ${service}`;
+    }
+
+    return name || service;
+};
+
+export const hasScopeLineValues = (line: BidScopeProductFormData) =>
+    line.description.trim() !== '' ||
+    line.product_id.trim() !== '' ||
+    line.service_id.trim() !== '' ||
+    line.location.trim() !== '' ||
+    line.quantity.trim() !== '' ||
+    line.unit_bid.trim() !== '' ||
+    line.allocated_handling.trim() !== '' ||
+    line.combined_price.trim() !== '';
 
 export const blankScope = (): BidScopeFormData => ({
     title_id: '',
@@ -363,50 +400,48 @@ export const scopeExtendedAmount = (
     quantity: string,
     unitBid: string,
     allocatedHandling: string = '',
+    combinedPrice: string = '',
 ) => {
+    const combined =
+        combinedPrice.trim() !== ''
+            ? combinedPrice
+            : combinedPriceAmount(unitBid, allocatedHandling);
+
+    if (combined === '') {
+        return '';
+    }
+
+    const price = Number(combined);
     const hasQty = quantity.trim() !== '';
-    const hasUnit = unitBid.trim() !== '';
-    const hasAllocated = allocatedHandling.trim() !== '';
     const qty = hasQty ? Number(quantity) : 0;
-    const unit = hasUnit ? Number(unitBid) : 0;
-    const allocated = hasAllocated ? Number(allocatedHandling) : 0;
+
+    if (!Number.isFinite(price)) {
+        return '';
+    }
 
     if (hasQty && !Number.isFinite(qty)) {
         return '';
     }
 
-    if (hasUnit && !Number.isFinite(unit)) {
-        return '';
+    if (hasQty) {
+        return (Math.round(qty * price * 100) / 100).toFixed(2);
     }
 
-    if (hasAllocated && !Number.isFinite(allocated)) {
-        return '';
-    }
-
-    if (hasQty && hasUnit) {
-        return (
-            Math.round((qty * unit + (hasAllocated ? allocated : 0)) * 100) /
-            100
-        ).toFixed(2);
-    }
-
-    if (hasAllocated) {
-        return (Math.round(allocated * 100) / 100).toFixed(2);
-    }
-
-    return '';
+    return (Math.round(price * 100) / 100).toFixed(2);
 };
 
 export const lineExtendedAmount = (line: {
     quantity?: string | number | null;
     unit_bid?: string | number | null;
     allocated_handling?: string | number | null;
+    combined_price?: string | number | null;
     extended?: string | number | null;
 }) =>
     scopeExtendedAmount(
         String(line.quantity ?? ''),
         String(line.unit_bid ?? ''),
         String(line.allocated_handling ?? ''),
+        String(line.combined_price ?? ''),
     ) ||
     (line.extended === null || line.extended === undefined
         ? ''
@@ -415,18 +450,30 @@ export const lineExtendedAmount = (line: {
 export const lineCombinedPrice = (line: {
     unit_bid?: string | number | null;
     allocated_handling?: string | number | null;
-}) =>
-    combinedPriceAmount(
+    combined_price?: string | number | null;
+}) => {
+    const stored = String(line.combined_price ?? '').trim();
+
+    if (stored !== '') {
+        const amount = Number(stored);
+
+        return Number.isFinite(amount)
+            ? (Math.round(amount * 100) / 100).toFixed(2)
+            : '';
+    }
+
+    return combinedPriceAmount(
         String(line.unit_bid ?? ''),
         String(line.allocated_handling ?? ''),
     );
+};
 
 export const scopesTotalAmount = (scopes: BidScopeFormData[] = []) =>
     scopes.reduce((sum, scope) => {
         return (
             sum +
             (scope.products ?? []).reduce((lineSum, line) => {
-                if (line.product_id.trim() === '' && line.service_id.trim() === '') {
+                if (!hasScopeLineValues(line)) {
                     return lineSum;
                 }
 
@@ -435,6 +482,7 @@ export const scopesTotalAmount = (scopes: BidScopeFormData[] = []) =>
                         line.quantity,
                         line.unit_bid,
                         line.allocated_handling,
+                        line.combined_price,
                     ) ||
                         line.extended ||
                         0,
@@ -452,14 +500,11 @@ export const scopesCombinedPriceAmount = (
 
     scopes.forEach((scope) => {
         (scope.products ?? []).forEach((line) => {
-            if (line.product_id.trim() === '' && line.service_id.trim() === '') {
+            if (!hasScopeLineValues(line)) {
                 return;
             }
 
-            const price = combinedPriceAmount(
-                line.unit_bid,
-                line.allocated_handling,
-            );
+            const price = lineCombinedPrice(line);
 
             if (price !== '') {
                 prices.add(price);
@@ -652,6 +697,7 @@ export const scopesFromProject = (
     project?: BidProjectOption,
     titles: BidCatalogOption[] = [],
     products: BidCatalogOption[] = [],
+    services: BidCatalogOption[] = [],
 ): BidScopeFormData[] => {
     const projectScopes = project?.scopes ?? [];
 
@@ -664,18 +710,29 @@ export const scopesFromProject = (
         const matchedTitle = titles.find(
             (title) => title.name.toLowerCase() === titleName.toLowerCase(),
         );
+        const productName =
+            products.find(
+                (item) => String(item.id) === String(scope.product_id ?? ''),
+            )?.name ?? '';
+        const serviceName =
+            services.find(
+                (item) => String(item.id) === String(scope.service_id ?? ''),
+            )?.name ?? '';
+        const description = [productName, serviceName]
+            .filter(Boolean)
+            .join(' — ');
         const lines =
-            scope.product_id || scope.service_id
+            description !== ''
                 ? [
                       {
+                          ...blankScopeProduct(),
                           product_id: scope.product_id
                               ? String(scope.product_id)
                               : '',
                           service_id: scope.service_id
                               ? String(scope.service_id)
                               : '',
-                          location: '',
-                          allocated_handling: '',
+                          description,
                           ...lineAmountsForProduct(
                               scope.product_id ? String(scope.product_id) : '',
                               products,
@@ -781,6 +838,8 @@ export const bidToFormData = (bid?: BidPayload): BidFormData => ({
                                         ? String(product.service_id)
                                         : '',
                                     location: product.location ?? '',
+                                    description:
+                                        scopeProductDescription(product),
                                     quantity:
                                         decimalString(product.quantity) ||
                                         fallback.quantity,
@@ -793,6 +852,15 @@ export const bidToFormData = (bid?: BidPayload): BidFormData => ({
                                     allocated_handling: decimalString(
                                         product.allocated_handling,
                                     ),
+                                    combined_price:
+                                        decimalString(product.combined_price) ||
+                                        combinedPriceAmount(
+                                            decimalString(product.unit_bid) ||
+                                                fallback.unit_bid,
+                                            decimalString(
+                                                product.allocated_handling,
+                                            ),
+                                        ),
                                 };
                             })
                           : [blankScopeProduct()],

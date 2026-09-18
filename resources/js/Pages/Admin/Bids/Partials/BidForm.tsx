@@ -21,7 +21,6 @@ import {
     FieldErrors,
     FieldPath,
     PathValue,
-    UseFormSetValue,
     useFieldArray,
     useForm,
     useWatch,
@@ -38,7 +37,6 @@ import {
     blankScopeProduct,
     blankStage,
     formatMoney,
-    lineAmountsForProduct,
     scopeExtendedAmount,
     combinedPriceAmount,
     pricingFromQuotation,
@@ -125,10 +123,18 @@ const schema = z.object({
                         .string()
                         .trim()
                         .max(255, 'Location must be 255 characters or less.'),
+                    description: z
+                        .string()
+                        .trim()
+                        .max(
+                            2000,
+                            'Product description must be 2,000 characters or less.',
+                        ),
                     quantity: optionalMoneySchema,
                     unit_bid: optionalMoneySchema,
                     extended: optionalMoneySchema,
                     allocated_handling: optionalMoneySchema,
+                    combined_price: optionalMoneySchema,
                 }),
             ),
         }),
@@ -151,14 +157,14 @@ const schema = z.object({
 }).superRefine((values, context) => {
     values.scopes.forEach((scope, scopeIndex) => {
         scope.products.forEach((product, productIndex) => {
-            const productId = product.product_id.trim();
-            const serviceId = product.service_id.trim();
+            const hasValues =
+                product.location.trim() !== '' ||
+                product.quantity.trim() !== '' ||
+                product.unit_bid.trim() !== '' ||
+                product.allocated_handling.trim() !== '' ||
+                product.combined_price.trim() !== '';
 
-            if (productId === '' && serviceId === '') {
-                return;
-            }
-
-            if (productId === '') {
+            if (product.description.trim() === '' && hasValues) {
                 context.addIssue({
                     code: 'custom',
                     path: [
@@ -166,23 +172,9 @@ const schema = z.object({
                         scopeIndex,
                         'products',
                         productIndex,
-                        'product_id',
+                        'description',
                     ],
-                    message: 'Select a product.',
-                });
-            }
-
-            if (serviceId === '') {
-                context.addIssue({
-                    code: 'custom',
-                    path: [
-                        'scopes',
-                        scopeIndex,
-                        'products',
-                        productIndex,
-                        'service_id',
-                    ],
-                    message: 'Select a service.',
+                    message: 'Enter a product description.',
                 });
             }
         });
@@ -438,12 +430,19 @@ export default function BidForm({
                         products: scope.products
                             .filter(
                                 (product) =>
-                                    product.product_id.trim() !== '' ||
-                                    product.service_id.trim() !== '',
+                                    product.description.trim() !== '' ||
+                                    product.location.trim() !== '' ||
+                                    product.quantity.trim() !== '' ||
+                                product.unit_bid.trim() !== '' ||
+                                product.allocated_handling.trim() !== '' ||
+                                product.combined_price.trim() !== '',
                             )
                             .map((product) => ({
                                 ...product,
+                                product_id: product.product_id.trim() || null,
+                                service_id: product.service_id.trim() || null,
                                 location: product.location.trim() || null,
+                                description: product.description.trim() || null,
                                 quantity: inputToDecimal(product.quantity) || null,
                                 unit_bid: inputToDecimal(product.unit_bid) || null,
                                 extended:
@@ -452,11 +451,22 @@ export default function BidForm({
                                             product.quantity,
                                             product.unit_bid,
                                             product.allocated_handling,
+                                            combinedPriceAmount(
+                                                product.unit_bid,
+                                                product.allocated_handling,
+                                            ),
                                         ),
                                     ) || null,
                                 allocated_handling:
                                     inputToDecimal(product.allocated_handling) ||
                                     null,
+                                combined_price:
+                                    inputToDecimal(
+                                        combinedPriceAmount(
+                                            product.unit_bid,
+                                            product.allocated_handling,
+                                        ),
+                                    ) || null,
                             })),
                     })),
                 pricings: values.pricings
@@ -567,6 +577,7 @@ export default function BidForm({
                                             project,
                                             options.scopeTitles,
                                             options.products,
+                                            options.services,
                                         ),
                                     );
 
@@ -963,8 +974,8 @@ export default function BidForm({
                     </h3>
                     <p className="text-sm text-muted-foreground">
                         {selectedProjectScopes.length > 0
-                            ? 'Start with predefined scope wording, then add or remove service and product lines from the selected project.'
-                            : 'A scope is ready below. Use Add item under the last product line if you need another.'}
+                            ? 'Start with predefined scope wording, then add a custom product description and pricing for each location.'
+                            : 'A scope is ready below. Use Add item under the last line if you need another.'}
                     </p>
                 </div>
 
@@ -976,7 +987,6 @@ export default function BidForm({
                             data={data}
                             index={index}
                             options={options}
-                            projectState={selectedProject?.site_state}
                             validationErrors={validationErrors}
                             inputClassName={inputClassName}
                             locked={
@@ -985,7 +995,6 @@ export default function BidForm({
                             }
                             canRemove={scopeFields.length > 1}
                             onChange={setData}
-                            setValue={setValue}
                             onRemove={() => removeScope(index)}
                         />
                     ))}
@@ -1058,20 +1067,17 @@ function ScopeWorkCard({
     data,
     index,
     options,
-    projectState,
     validationErrors,
     inputClassName,
     locked,
     canRemove,
     onChange,
-    setValue,
     onRemove,
 }: {
     control: Control<BidFormData>;
     data: BidFormData;
     index: number;
     options: BidOptions;
-    projectState?: string | null;
     validationErrors: FieldErrors<BidFormData>;
     inputClassName: string;
     locked: boolean;
@@ -1080,7 +1086,6 @@ function ScopeWorkCard({
         field: Field,
         value: PathValue<BidFormData, Field>,
     ) => void;
-    setValue: UseFormSetValue<BidFormData>;
     onRemove: () => void;
 }) {
     const { fields, append, remove } = useFieldArray({
@@ -1095,8 +1100,7 @@ function ScopeWorkCard({
         )?.name ||
         '';
     const hasEmptyLine = (scope?.products ?? []).some(
-        (item) =>
-            item.product_id.trim() === '' && item.service_id.trim() === '',
+        (item) => item.description.trim() === '',
     );
     const canAddProduct = !hasEmptyLine;
     const setLineAmount = (
@@ -1111,25 +1115,27 @@ function ScopeWorkCard({
             field === 'allocated_handling'
                 ? value
                 : (line?.allocated_handling ?? '');
+        const combined = combinedPriceAmount(unitBid, allocated);
 
         onChange(`scopes.${index}.products.${productIndex}.${field}`, value);
         onChange(
+            `scopes.${index}.products.${productIndex}.combined_price`,
+            combined,
+        );
+        onChange(
             `scopes.${index}.products.${productIndex}.extended`,
-            scopeExtendedAmount(quantity, unitBid, allocated),
+            scopeExtendedAmount(quantity, unitBid, allocated, combined),
         );
     };
 
     return (
         <div className="flex flex-col gap-4 overflow-visible rounded-lg border border-emerald-200 bg-background p-4 dark:border-emerald-900/70">
-            <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">
-                Scope {index + 1}
-            </p>
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto]">
                 {locked || scope?.scope_type ? (
                     <div className="flex flex-col gap-2">
                         <InputLabel
                             htmlFor={`bid-scope-title-${index}`}
-                            value="Scope"
+                            value="Project pre defined scope of work"
                             className="text-emerald-700 dark:text-emerald-300"
                         />
                         <TextInput
@@ -1143,7 +1149,7 @@ function ScopeWorkCard({
                 ) : (
                     <CreatableSelect
                         id={`bid-scope-title-${index}`}
-                        label="Scope type"
+                        label="Project pre defined scope of work"
                         value={scope?.title_id ?? ''}
                         options={options.scopeTitles}
                         createRoute={route('admin.project-scope-types.store')}
@@ -1174,13 +1180,10 @@ function ScopeWorkCard({
             </div>
 
             <div className="flex flex-col gap-3">
-                <InputLabel
-                    value="Service and product"
-                    className="text-emerald-700 dark:text-emerald-300"
-                />
                 {fields.map((productField, productIndex) => {
                     const line = scope?.products?.[productIndex];
-                    const currentProductId = line?.product_id ?? '';
+                    const moneyLabelClass =
+                        'text-emerald-700 dark:text-emerald-300 leading-tight';
 
                     return (
                     <Card
@@ -1194,7 +1197,7 @@ function ScopeWorkCard({
                                     Line {productIndex + 1}
                                 </CardTitle>
                                 <CardDescription>
-                                    Location, service, product, and pricing for this item.
+                                    Location of the service, product description, and pricing for this custom item.
                                 </CardDescription>
                             </div>
                             <Button
@@ -1207,10 +1210,11 @@ function ScopeWorkCard({
                             </Button>
                         </CardHeader>
                         <CardContent className="flex flex-col gap-4">
+                        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(10rem,16rem)_minmax(0,1fr)]">
                         <div className="flex flex-col gap-2">
                             <InputLabel
                                 htmlFor={`bid-scope-location-${index}-${productIndex}`}
-                                value="Location"
+                                value="Location of the service"
                                 className="text-emerald-700 dark:text-emerald-300"
                             />
                             <TextInput
@@ -1232,79 +1236,43 @@ function ScopeWorkCard({
                                 )}
                             />
                         </div>
-                        <div className="grid gap-4">
-                        <CreatableSelect
-                            id={`bid-scope-service-${index}-${productIndex}`}
-                            label="Service"
-                            compact
-                            value={line?.service_id ?? ''}
-                            options={options.services ?? []}
-                            createRoute={route('admin.services.store')}
-                            catalogKey="services"
-                            entityLabel="service"
-                            placeholder="Assembly w/ vision glazing"
-                            error={errorMessage(
-                                validationErrors,
-                                `scopes.${index}.products.${productIndex}.service_id`,
-                            )}
-                            onChange={(serviceId) =>
-                                onChange(
-                                    `scopes.${index}.products.${productIndex}.service_id`,
-                                    serviceId,
-                                )
-                            }
-                        />
-                        <CreatableSelect
-                            id={`bid-scope-product-${index}-${productIndex}`}
-                            label="Product"
-                            compact
-                            wrapOptions
-                            menuMinWidth={560}
-                            value={currentProductId}
-                            options={options.products}
-                            createRoute={route('admin.products.catalog')}
-                            catalogKey="products"
-                            entityLabel="product"
-                            createExtras={{ kind: 'door' }}
-                            placeholder="8x8 blast door"
-                            error={errorMessage(
-                                validationErrors,
-                                `scopes.${index}.products.${productIndex}.product_id`,
-                            )}
-                            onChange={(productId) => {
-                                const amounts = lineAmountsForProduct(
-                                    productId,
-                                    options.products,
-                                    projectState,
-                                    line,
-                                );
-
-                                setValue(
-                                    `scopes.${index}.products.${productIndex}`,
-                                    {
-                                        product_id: productId,
-                                        service_id: line?.service_id ?? '',
-                                        location: line?.location ?? '',
-                                        allocated_handling:
-                                            line?.allocated_handling ?? '',
-                                        quantity: amounts.quantity,
-                                        unit_bid: amounts.unit_bid,
-                                        extended: amounts.extended,
-                                    },
-                                    {
-                                        shouldDirty: true,
-                                        shouldValidate: true,
-                                    },
-                                );
-                            }}
-                        />
+                        <div className="flex min-w-0 flex-col gap-2">
+                            <InputLabel
+                                htmlFor={`bid-scope-description-${index}-${productIndex}`}
+                                value="Product Description"
+                                className="text-emerald-700 dark:text-emerald-300"
+                            />
+                            <textarea
+                                id={`bid-scope-description-${index}-${productIndex}`}
+                                value={line?.description ?? ''}
+                                rows={3}
+                                maxLength={2000}
+                                spellCheck
+                                autoCorrect="on"
+                                autoCapitalize="sentences"
+                                placeholder="Custom door, handing, size, and finish for this customer"
+                                className="min-h-[5.5rem] w-full resize-y rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                                onChange={(event) =>
+                                    onChange(
+                                        `scopes.${index}.products.${productIndex}.description`,
+                                        event.target.value,
+                                    )
+                                }
+                            />
+                            <InputError
+                                message={errorMessage(
+                                    validationErrors,
+                                    `scopes.${index}.products.${productIndex}.description`,
+                                )}
+                            />
                         </div>
-                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
-                        <div className="flex flex-col gap-2">
+                        </div>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[5.75rem_minmax(8.5rem,1fr)_minmax(10.5rem,1.2fr)_minmax(9.5rem,1fr)_minmax(8.5rem,1fr)] xl:items-end">
+                        <div className="flex min-w-0 flex-col gap-1">
                             <InputLabel
                                 htmlFor={`bid-scope-quantity-${index}-${productIndex}`}
                                 value="Qty"
-                                className="text-emerald-700 dark:text-emerald-300"
+                                className={moneyLabelClass}
                             />
                             <MaskedDecimalInput
                                 id={`bid-scope-quantity-${index}-${productIndex}`}
@@ -1323,11 +1291,11 @@ function ScopeWorkCard({
                                 )}
                             />
                         </div>
-                        <div className="flex flex-col gap-2">
+                        <div className="flex min-w-0 flex-col gap-1">
                             <InputLabel
                                 htmlFor={`bid-scope-unit-${index}-${productIndex}`}
-                                value="Unit value"
-                                className="text-emerald-700 dark:text-emerald-300"
+                                value="Material Unit Price"
+                                className={moneyLabelClass}
                             />
                             <MaskedDecimalInput
                                 id={`bid-scope-unit-${index}-${productIndex}`}
@@ -1346,15 +1314,12 @@ function ScopeWorkCard({
                                 )}
                             />
                         </div>
-                        <div className="flex flex-col gap-2">
+                        <div className="flex min-w-0 flex-col gap-1 sm:col-span-2 xl:col-span-1">
                             <InputLabel
                                 htmlFor={`bid-scope-allocated-${index}-${productIndex}`}
-                                value="Allocated IFH"
-                                className="text-emerald-700 dark:text-emerald-300"
+                                value="Allocated Install / Freight / Handling"
+                                className={moneyLabelClass}
                             />
-                            <p className="sr-only">
-                                Allocated Install / Freight / Handling
-                            </p>
                             <MaskedDecimalInput
                                 id={`bid-scope-allocated-${index}-${productIndex}`}
                                 prefix="$"
@@ -1376,11 +1341,11 @@ function ScopeWorkCard({
                                 )}
                             />
                         </div>
-                        <div className="flex flex-col gap-2">
+                        <div className="flex min-w-0 flex-col gap-1">
                             <InputLabel
                                 htmlFor={`bid-scope-combined-${index}-${productIndex}`}
-                                value="Combined price"
-                                className="text-emerald-700 dark:text-emerald-300"
+                                value="Combined Installed Unit Price"
+                                className={moneyLabelClass}
                             />
                             <MaskedDecimalInput
                                 id={`bid-scope-combined-${index}-${productIndex}`}
@@ -1390,18 +1355,20 @@ function ScopeWorkCard({
                                     combinedPriceAmount(
                                         line?.unit_bid ?? '',
                                         line?.allocated_handling ?? '',
-                                    ) || ''
+                                    ) ||
+                                    line?.combined_price ||
+                                    ''
                                 }
                                 className={inputClassName}
                                 placeholder="0.00"
                                 onChange={() => undefined}
                             />
                         </div>
-                        <div className="flex flex-col gap-2">
+                        <div className="flex min-w-0 flex-col gap-1">
                             <InputLabel
                                 htmlFor={`bid-scope-extended-${index}-${productIndex}`}
-                                value="Total"
-                                className="text-emerald-700 dark:text-emerald-300"
+                                value="Building Total"
+                                className={moneyLabelClass}
                             />
                             <MaskedDecimalInput
                                 id={`bid-scope-extended-${index}-${productIndex}`}
@@ -1412,6 +1379,12 @@ function ScopeWorkCard({
                                         line?.quantity ?? '',
                                         line?.unit_bid ?? '',
                                         line?.allocated_handling ?? '',
+                                        combinedPriceAmount(
+                                            line?.unit_bid ?? '',
+                                            line?.allocated_handling ?? '',
+                                        ) ||
+                                            line?.combined_price ||
+                                            '',
                                     ) ||
                                     line?.extended ||
                                     ''

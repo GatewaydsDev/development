@@ -282,7 +282,7 @@ class BidDocument
                 $section->addText($scope['name'] ?: 'Scope', ['bold' => true, 'size' => 12, 'color' => $this->wordColor('title')]);
 
                 if ($scope['items'] === []) {
-                    $section->addText('No service and product', ['italic' => true, 'size' => 10, 'color' => '6B7280']);
+                    $section->addText('No items added yet.', ['italic' => true, 'size' => 10, 'color' => '6B7280']);
                 } else {
                     $table = $section->addTable('bidTable');
                     $table->addRow(360);
@@ -488,6 +488,7 @@ class BidDocument
         $projectState = $this->bid->project?->site_state;
         $productSubtotal = 0.0;
         $shippingHandling = 0.0;
+        $bidTotal = 0.0;
 
         foreach ($this->bid->scopes as $scope) {
             $lines = $scope->products;
@@ -503,6 +504,10 @@ class BidDocument
                 if ($amounts['shipping'] !== null) {
                     $shippingHandling += $amounts['shipping'];
                 }
+
+                if ($amounts['extended'] !== null) {
+                    $bidTotal += $amounts['extended'];
+                }
             }
         }
 
@@ -512,7 +517,7 @@ class BidDocument
         return [
             'product_subtotal' => $productSubtotal,
             'shipping_handling' => $shippingHandling,
-            'bid_total' => round($productSubtotal + $shippingHandling, 2),
+            'bid_total' => round($bidTotal, 2),
         ];
     }
 
@@ -524,6 +529,7 @@ class BidDocument
         $quantity = $line->quantity === null ? null : (float) $line->quantity;
         $unit = $line->unit_bid === null ? null : (float) $line->unit_bid;
         $allocated = $line->allocated_handling === null ? null : (float) $line->allocated_handling;
+        $combinedStored = $line->combined_price === null ? null : (float) $line->combined_price;
 
         if ($quantity === null && $unit === null) {
             if ($lineCount === 1) {
@@ -539,13 +545,14 @@ class BidDocument
             ? round($quantity * $unit, 2)
             : null;
         $shipping = $allocated;
-        $combined = ($unit !== null || $allocated !== null)
-            ? round(($unit ?? 0) + ($allocated ?? 0), 2)
-            : null;
-        $extended = $product !== null
-            ? round($product + ($allocated ?? 0), 2)
-            : ($allocated !== null
-                ? $allocated
+        $combined = $combinedStored
+            ?? (($unit !== null || $allocated !== null)
+                ? round(($unit ?? 0) + ($allocated ?? 0), 2)
+                : null);
+        $extended = $combined !== null && $quantity !== null
+            ? round($quantity * $combined, 2)
+            : ($combined !== null
+                ? $combined
                 : ($line->extended === null ? null : (float) $line->extended));
 
         return [
@@ -560,7 +567,7 @@ class BidDocument
     }
 
     /**
-     * @return list<array{name: ?string, notations: ?string, rawNotations: ?string, product_subtotal: string, shipping_handling: ?string, total: string, columns: list<array{key: string, label: string, word_label: string, width: int, amount: bool}>, items: list<array{location: string, service: string, product: string, quantity: string, unit_bid: string, allocated_handling: string, combined_price: string, extended: string}>}>
+     * @return list<array{name: ?string, notations: ?string, rawNotations: ?string, product_subtotal: string, shipping_handling: ?string, total: string, columns: list<array{key: string, label: string, word_label: string, width: int, amount: bool}>, items: list<array{location: string, description: string, quantity: string, unit_bid: string, allocated_handling: string, combined_price: string, extended: string}>}>
      */
     private function scopeRows(): array
     {
@@ -587,8 +594,7 @@ class BidDocument
 
                         return [
                             'location' => filled($line->location) ? (string) $line->location : '',
-                            'service' => $line->service?->name ?: '',
-                            'product' => $this->productLabel($line),
+                            'description' => $this->productLabel($line),
                             'quantity' => $amounts['quantity'] === null ? '' : $this->quantity($amounts['quantity']),
                             'unit_bid' => $amounts['unit'] === null ? '' : $this->money($amounts['unit']),
                             'allocated_handling' => $amounts['allocated'] === null ? '' : $this->money($amounts['allocated']),
@@ -623,14 +629,13 @@ class BidDocument
     private function pricingColumns(): array
     {
         return [
-            ['key' => 'location', 'label' => 'Location', 'word_label' => 'Location', 'width' => 1300, 'amount' => false],
-            ['key' => 'service', 'label' => 'Service', 'word_label' => 'Service', 'width' => 1700, 'amount' => false],
-            ['key' => 'product', 'label' => 'Product', 'word_label' => 'Product', 'width' => 2000, 'amount' => false],
-            ['key' => 'quantity', 'label' => 'Qty', 'word_label' => 'Qty', 'width' => 800, 'amount' => true],
-            ['key' => 'unit_bid', 'label' => 'Unit value', 'word_label' => 'Unit value', 'width' => 1200, 'amount' => true],
-            ['key' => 'allocated_handling', 'label' => 'Allocated install / freight / handling', 'word_label' => 'Allocated IFH', 'width' => 1400, 'amount' => true],
-            ['key' => 'combined_price', 'label' => 'Combined price', 'word_label' => 'Combined', 'width' => 1200, 'amount' => true],
-            ['key' => 'extended', 'label' => 'Total', 'word_label' => 'Total', 'width' => 1200, 'amount' => true],
+            ['key' => 'location', 'label' => 'Location of the service', 'word_label' => 'Location', 'width' => 1300, 'amount' => false],
+            ['key' => 'description', 'label' => 'Product Description', 'word_label' => 'Product Description', 'width' => 2800, 'amount' => false],
+            ['key' => 'quantity', 'label' => 'Qty', 'word_label' => 'Qty', 'width' => 700, 'amount' => true],
+            ['key' => 'unit_bid', 'label' => 'Material Unit Price', 'word_label' => 'Material', 'width' => 1300, 'amount' => true],
+            ['key' => 'allocated_handling', 'label' => 'Allocated Install / Freight / Handling', 'word_label' => 'Allocated IFH', 'width' => 1500, 'amount' => true],
+            ['key' => 'combined_price', 'label' => 'Combined Installed Unit Price', 'word_label' => 'Combined', 'width' => 1400, 'amount' => true],
+            ['key' => 'extended', 'label' => 'Building Total', 'word_label' => 'Bldg Total', 'width' => 1300, 'amount' => true],
         ];
     }
 
@@ -667,13 +672,17 @@ class BidDocument
 
     private function productLabel(BidScopeProduct $line): string
     {
+        if (filled($line->description)) {
+            return (string) $line->description;
+        }
+
         $product = $line->product;
 
         if ($product?->abbreviation) {
-            return $product->abbreviation.' — '.($product->name ?: $line->description ?: '—');
+            return $product->abbreviation.' — '.($product->name ?: '—');
         }
 
-        return $product?->name ?: $line->description ?: '—';
+        return $product?->name ?: $line->service?->name ?: '—';
     }
 
     private function displayHtml(?string $value): ?string

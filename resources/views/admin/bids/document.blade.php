@@ -677,7 +677,7 @@
                             </tr>
                         </table>
                     @else
-                        <p class="muted">No service and product</p>
+                        <p class="muted">No items added yet.</p>
                     @endif
                 </div>
             @empty

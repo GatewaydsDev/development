@@ -154,9 +154,15 @@ function placeholderValues(
         .filter(Boolean);
 
     const lines = scopes.flatMap((scope) =>
-        (scope.products ?? []).filter(
-            (line) =>
-                line.product_id.trim() !== '' || line.service_id.trim() !== '',
+        (scope.products ?? []).filter((line) =>
+            line.description.trim() !== '' ||
+            line.product_id.trim() !== '' ||
+            line.service_id.trim() !== '' ||
+            line.location.trim() !== '' ||
+            line.quantity.trim() !== '' ||
+            line.unit_bid.trim() !== '' ||
+            line.allocated_handling.trim() !== '' ||
+            line.combined_price.trim() !== '',
         ),
     );
     const quantity = lines.reduce((sum, line) => {

@@ -17,6 +17,7 @@ class BidScopeProduct extends Model
         'unit_bid',
         'extended',
         'allocated_handling',
+        'combined_price',
         'sort_order',
     ];
 
@@ -27,21 +28,23 @@ class BidScopeProduct extends Model
             'unit_bid' => 'decimal:2',
             'extended' => 'decimal:2',
             'allocated_handling' => 'decimal:2',
+            'combined_price' => 'decimal:2',
         ];
     }
 
     public function extendedAmount(): float
     {
         $hasQuantity = $this->quantity !== null;
-        $hasUnit = $this->unit_bid !== null;
-        $allocated = (float) ($this->allocated_handling ?? 0);
+        $combined = $this->combined_price !== null
+            ? (float) $this->combined_price
+            : (($this->unit_bid !== null || $this->allocated_handling !== null)
+                ? (float) ($this->unit_bid ?? 0) + (float) ($this->allocated_handling ?? 0)
+                : null);
 
-        if ($hasQuantity && $hasUnit) {
-            return round((float) $this->quantity * (float) $this->unit_bid + $allocated, 2);
-        }
-
-        if ($this->allocated_handling !== null) {
-            return round($allocated, 2);
+        if ($combined !== null) {
+            return $hasQuantity
+                ? round((float) $this->quantity * $combined, 2)
+                : round($combined, 2);
         }
 
         if ($this->extended !== null) {
