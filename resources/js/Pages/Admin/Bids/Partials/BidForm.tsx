@@ -508,6 +508,26 @@ export default function BidForm({
 
     const inputClassName =
         'h-11 w-full border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring';
+    const extraFieldValues = useMemo(() => {
+        const assignee = (options.assignees ?? []).find(
+            (item) => String(item.id) === (data.assigned_to ?? ''),
+        );
+        const quotation = quotations.find(
+            (item) => String(item.id) === (data.quotation_id ?? ''),
+        );
+
+        return {
+            authorized_representative: assignee?.name ?? '',
+            quotation_number: quotation
+                ? `${quotation.quotation_number} — ${quotation.title}`
+                : '',
+        };
+    }, [
+        options.assignees,
+        quotations,
+        data.assigned_to,
+        data.quotation_id,
+    ]);
     const latestTotal = scopesTotalAmount(data.scopes ?? []);
     const combinedPriceValue = scopesCombinedPriceAmount(data.scopes ?? []);
     const selectedProjectScopes = selectedProject?.scopes ?? [];
@@ -977,6 +997,7 @@ export default function BidForm({
                     options={options}
                     project={selectedProject}
                     scopes={data.scopes ?? []}
+                    extraFieldValues={extraFieldValues}
                     value={data.scope_of_work_text ?? ''}
                     templateId={data.bid_scope_text_template_id ?? ''}
                     error={errorMessage(validationErrors, 'scope_of_work_text')}
@@ -992,6 +1013,7 @@ export default function BidForm({
                 options={options}
                 project={selectedProject}
                 scopes={data.scopes ?? []}
+                extraFieldValues={extraFieldValues}
                 value={data.notes ?? ''}
                 templateId={data.bid_shipping_text_template_id ?? ''}
                 error={errorMessage(validationErrors, 'notes')}

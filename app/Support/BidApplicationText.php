@@ -16,6 +16,10 @@ class BidApplicationText
      * @var array<string, string>
      */
     public const PLACEHOLDERS = [
+        'combined_price' => 'Combined price',
+        'latest_revision_total' => 'Latest revision total',
+        'item_quantity' => 'Item quantity',
+        'item_count' => 'Item count',
         'project_name' => 'Project name',
         'project_number' => 'Project number',
         'customer_name' => 'Contractor contact',
@@ -31,6 +35,8 @@ class BidApplicationText
         'company_email' => 'Company email',
         'company_address' => 'Company address',
         'today' => 'Today\'s date',
+        'authorized_representative' => 'Authorized representative',
+        'quotation_number' => 'Source quotation',
     ];
 
     /**
@@ -91,9 +97,10 @@ class BidApplicationText
 
     /**
      * @param  array<int, string>|null  $scopeLines
+     * @param  array<string, string>  $screen
      * @return array<string, string>
      */
-    public static function valuesFor(Project $project, ?Company $company, ?array $scopeLines = null): array
+    public static function valuesFor(Project $project, ?Company $company, ?array $scopeLines = null, array $screen = []): array
     {
         $project->loadMissing(['contractors.contacts', 'scopes.product', 'scopes.service']);
 
@@ -130,8 +137,7 @@ class BidApplicationText
         $contractor = $project->contractors->first();
         $contact = $contractor?->primaryContact();
 
-        return [
-            ...BidTextField::replacementValues(),
+        $base = [
             'project_name' => (string) $project->name,
             'project_number' => (string) ($project->project_number ?? ''),
             'customer_name' => (string) ($contact?->name ?? ''),
@@ -157,6 +163,10 @@ class BidApplicationText
                 : '',
             'today' => now()->format('F j, Y'),
         ];
+
+        $merged = array_merge($base, array_filter($screen, fn ($value) => is_string($value) && trim($value) !== ''));
+
+        return array_merge(BidTextField::aliasedValues($merged), $merged);
     }
 
     public static function formatAddress(

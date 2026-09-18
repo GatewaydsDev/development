@@ -86,6 +86,7 @@ export type BidTextFieldOption = {
     id: number;
     key: string;
     name: string;
+    source?: string | null;
     value?: string | null;
 };
 

@@ -901,8 +901,108 @@ class BidController extends Controller
                 $project,
                 $company,
                 $scopeLines !== [] ? $scopeLines : null,
+                $this->screenFieldValues($validated),
             ),
         );
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     * @return array<string, string>
+     */
+    private function screenFieldValues(array $validated): array
+    {
+        $lines = collect($validated['scopes'] ?? [])
+            ->flatMap(fn (array $scope): array => $scope['products'] ?? [])
+            ->filter(function (array $line): bool {
+                return filled($line['product_id'] ?? null) || filled($line['service_id'] ?? null);
+            })
+            ->values();
+
+        $quantity = 0.0;
+        $extended = 0.0;
+        $combinedPrices = [];
+
+        foreach ($lines as $line) {
+            $lineQuantity = $this->nullableDecimal($line['quantity'] ?? null);
+            $extendedAmount = $this->scopeExtendedAmount(
+                $line['quantity'] ?? null,
+                $line['unit_bid'] ?? null,
+                $line['allocated_handling'] ?? null,
+            );
+            $combined = $this->combinedPriceAmount(
+                $line['unit_bid'] ?? null,
+                $line['allocated_handling'] ?? null,
+            );
+
+            if ($lineQuantity !== null) {
+                $quantity += (float) $lineQuantity;
+            }
+
+            if ($extendedAmount !== null) {
+                $extended += (float) $extendedAmount;
+            }
+
+            if ($combined !== null) {
+                $combinedPrices[$combined] = true;
+            }
+        }
+
+        $assigneeName = '';
+        if (filled($validated['assigned_to'] ?? null)) {
+            $assigneeName = (string) User::query()->find($validated['assigned_to'])?->name;
+        }
+
+        $quotationNumber = '';
+        if (filled($validated['quotation_id'] ?? null)) {
+            $quotation = Quotation::query()->find($validated['quotation_id']);
+            $quotationNumber = trim(implode(' — ', array_filter([
+                $quotation?->quotation_number,
+                $quotation?->title,
+            ])));
+        }
+
+        $itemCount = $lines->count();
+
+        return array_filter([
+            'combined_price' => count($combinedPrices) === 1
+                ? $this->formatUsd((float) array_key_first($combinedPrices))
+                : '',
+            'latest_revision_total' => $extended > 0 ? $this->formatUsd($extended) : '',
+            'item_quantity' => $quantity > 0 ? $this->formatQuantity($quantity) : '',
+            'item_count' => $itemCount > 0 ? (string) $itemCount : '',
+            'authorized_representative' => $assigneeName,
+            'quotation_number' => $quotationNumber,
+        ], fn (string $value): bool => $value !== '');
+    }
+
+    private function combinedPriceAmount(mixed $unitBid, mixed $allocatedHandling = null): ?string
+    {
+        $hasUnit = $unitBid !== null && $unitBid !== '';
+        $hasAllocated = $allocatedHandling !== null && $allocatedHandling !== '';
+
+        if (! $hasUnit && ! $hasAllocated) {
+            return null;
+        }
+
+        return number_format(
+            ($hasUnit ? (float) $unitBid : 0.0) + ($hasAllocated ? (float) $allocatedHandling : 0.0),
+            2,
+            '.',
+            '',
+        );
+    }
+
+    private function formatUsd(float $amount): string
+    {
+        return '$'.number_format($amount, 2, '.', ',');
+    }
+
+    private function formatQuantity(float $amount): string
+    {
+        return $amount == floor($amount)
+            ? (string) (int) $amount
+            : number_format($amount, 2, '.', '');
     }
 
     /**
@@ -1038,11 +1138,12 @@ class BidController extends Controller
                 ->all(),
             'textFields' => BidTextField::query()
                 ->orderBy('name')
-                ->get(['id', 'key', 'name', 'value'])
+                ->get(['id', 'key', 'name', 'source', 'value'])
                 ->map(fn (BidTextField $field): array => [
                     'id' => $field->id,
                     'key' => $field->key,
                     'name' => $field->name,
+                    'source' => $field->source,
                     'value' => $field->value,
                 ])
                 ->all(),

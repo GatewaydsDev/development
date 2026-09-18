@@ -12,6 +12,7 @@ class BidTextField extends Model
         'uuid',
         'key',
         'name',
+        'source',
         'value',
     ];
 
@@ -34,17 +35,34 @@ class BidTextField extends Model
     }
 
     /**
+     * @param  array<string, string>  $values
+     * @return array<string, string>
+     */
+    public static function aliasedValues(array $values): array
+    {
+        return static::query()
+            ->orderBy('name')
+            ->get(['key', 'source', 'value'])
+            ->mapWithKeys(function (self $field) use ($values): array {
+                $source = trim((string) $field->source);
+
+                if ($source !== '' && isset($values[$source]) && trim((string) $values[$source]) !== '') {
+                    return [$field->key => (string) $values[$source]];
+                }
+
+                $static = trim((string) $field->value);
+
+                return $static !== '' ? [$field->key => $static] : [];
+            })
+            ->filter()
+            ->all();
+    }
+
+    /**
      * @return array<string, string>
      */
     public static function replacementValues(): array
     {
-        return static::query()
-            ->orderBy('name')
-            ->get(['key', 'value'])
-            ->filter(fn (self $field): bool => trim((string) $field->value) !== '')
-            ->mapWithKeys(fn (self $field): array => [
-                $field->key => (string) $field->value,
-            ])
-            ->all();
+        return static::aliasedValues([]);
     }
 }

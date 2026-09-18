@@ -119,7 +119,8 @@ export type PageProps<
             id: number;
             key: string;
             name: string;
-            value: string;
+            source?: string | null;
+            value?: string | null;
         } | null;
     };
 };

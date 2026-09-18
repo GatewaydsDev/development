@@ -25,12 +25,16 @@ import {
     DEFAULT_SHIPPING_TEXT_BODY,
     isEmptyHtml,
 } from '../bidText';
-import type {
-    BidCompanyOption,
-    BidFormData,
-    BidOptions,
-    BidProjectOption,
-    BidTextTemplateOption,
+import {
+    formatMoney,
+    scopesCombinedPriceAmount,
+    scopesTotalAmount,
+    type BidCompanyOption,
+    type BidFormData,
+    type BidOptions,
+    type BidProjectOption,
+    type BidTextFieldOption,
+    type BidTextTemplateOption,
 } from '../types';
 
 type BidReusableTextPurpose = 'scope' | 'shipping';
@@ -39,6 +43,7 @@ type BidApplicationTextSectionProps = {
     options: BidOptions;
     project?: BidProjectOption;
     scopes: BidFormData['scopes'];
+    extraFieldValues?: Record<string, string>;
     value: string;
     templateId: string;
     error?: string;
@@ -111,11 +116,20 @@ const todayLabel = () =>
         year: 'numeric',
     }).format(new Date());
 
+const formatQuantity = (value: number) => {
+    if (!Number.isFinite(value) || value === 0) {
+        return '';
+    }
+
+    return Number.isInteger(value) ? String(value) : value.toFixed(2);
+};
+
 function placeholderValues(
     project: BidProjectOption | undefined,
     company: BidCompanyOption | undefined,
     scopes: BidFormData['scopes'],
-    customFields: Array<{ key: string; value?: string | null }> = [],
+    customFields: BidTextFieldOption[] = [],
+    extraFieldValues: Record<string, string> = {},
 ): Record<string, string> {
     const scopeLines = scopes
         .map((scope) => {
@@ -139,16 +153,21 @@ function placeholderValues(
         })
         .filter(Boolean);
 
-    return {
-        ...Object.fromEntries(
-            customFields
-                .filter(
-                    (field) =>
-                        field.key.trim() !== '' &&
-                        (field.value ?? '').trim() !== '',
-                )
-                .map((field) => [field.key, field.value ?? '']),
+    const lines = scopes.flatMap((scope) =>
+        (scope.products ?? []).filter(
+            (line) =>
+                line.product_id.trim() !== '' || line.service_id.trim() !== '',
         ),
+    );
+    const quantity = lines.reduce((sum, line) => {
+        const amount = Number(line.quantity);
+
+        return sum + (Number.isFinite(amount) ? amount : 0);
+    }, 0);
+    const latestTotal = scopesTotalAmount(scopes);
+    const combinedPrice = scopesCombinedPriceAmount(scopes);
+
+    const screenValues: Record<string, string> = {
         project_name: project?.name ?? '',
         project_number: project?.project_number ?? '',
         customer_name: project?.contractor_contact_name ?? '',
@@ -165,6 +184,32 @@ function placeholderValues(
         company_email: company?.email ?? '',
         company_address: company?.address ?? '',
         today: todayLabel(),
+        combined_price: combinedPrice ? formatMoney(combinedPrice) : '',
+        latest_revision_total: latestTotal ? formatMoney(latestTotal) : '',
+        item_quantity: formatQuantity(quantity),
+        item_count: lines.length > 0 ? String(lines.length) : '',
+        ...extraFieldValues,
+    };
+
+    const customValues = Object.fromEntries(
+        customFields
+            .map((field) => {
+                if (field.source && (screenValues[field.source] ?? '') !== '') {
+                    return [field.key, screenValues[field.source]];
+                }
+
+                if ((field.value ?? '').trim() !== '') {
+                    return [field.key, field.value ?? ''];
+                }
+
+                return null;
+            })
+            .filter((entry): entry is [string, string] => entry !== null),
+    );
+
+    return {
+        ...customValues,
+        ...screenValues,
     };
 }
 
@@ -172,6 +217,7 @@ export default function BidApplicationTextSection({
     options,
     project,
     scopes,
+    extraFieldValues = {},
     value,
     templateId,
     error,
@@ -205,8 +251,15 @@ export default function BidApplicationTextSection({
                 options.company,
                 scopes,
                 options.textFields ?? [],
+                extraFieldValues,
             ),
-        [project, options.company, scopes, options.textFields],
+        [
+            project,
+            options.company,
+            scopes,
+            options.textFields,
+            extraFieldValues,
+        ],
     );
 
     useEffect(() => {

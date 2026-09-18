@@ -65,6 +65,7 @@ import {
     BidTextFieldValuesContext,
 } from '@/Components/bidTextFieldExtension';
 import { type ReactNode, useEffect, useMemo, useReducer, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     isEmptyHtml,
     mergeBidTextPlaceholders,
@@ -223,7 +224,12 @@ type RichTextEditorProps = {
     id?: string;
     compact?: boolean;
     showPlaceholders?: boolean;
-    placeholderFields?: Array<{ key: string; name?: string; label?: string }>;
+    placeholderFields?: Array<{
+        key: string;
+        name?: string;
+        label?: string;
+        source?: string | null;
+    }>;
     placeholderValues?: Record<string, string>;
 };
 
@@ -238,6 +244,8 @@ export default function RichTextEditor({
     placeholderFields = [],
     placeholderValues = {},
 }: RichTextEditorProps) {
+    const { i18n } = useTranslation();
+    const documentLang = i18n.language?.startsWith('es') ? 'es' : 'en-US';
     const ignoreToolbarRefresh = useRef(false);
     const [, refreshToolbar] = useReducer((tick: number) => tick + 1, 0);
     const editor = useEditor({
@@ -278,6 +286,10 @@ export default function RichTextEditor({
                     'rich-text-content px-4 py-3 focus:outline-none',
                     compact ? 'min-h-32' : 'min-h-64',
                 ),
+                spellcheck: 'true',
+                autocorrect: 'on',
+                autocapitalize: 'sentences',
+                lang: documentLang,
             },
         },
         onUpdate: ({ editor: current }) => {
@@ -313,6 +325,18 @@ export default function RichTextEditor({
 
         editor.commands.setContent(incoming, false);
     }, [editor, value]);
+
+    useEffect(() => {
+        if (!editor) {
+            return;
+        }
+
+        const dom = editor.view.dom;
+        dom.setAttribute('spellcheck', 'true');
+        dom.setAttribute('autocorrect', 'on');
+        dom.setAttribute('autocapitalize', 'sentences');
+        dom.setAttribute('lang', documentLang);
+    }, [documentLang, editor]);
 
     const insertableFields = useMemo(
         () => mergeBidTextPlaceholders(placeholderFields),
@@ -456,6 +480,7 @@ export default function RichTextEditor({
 
     return (
         <BidTextFieldValuesContext.Provider value={placeholderValues}>
+        <div className="flex flex-col gap-2">
         <div
             className={cn(
                 'overflow-visible rounded-md border bg-background',
@@ -937,12 +962,18 @@ export default function RichTextEditor({
                         <InsertBidTextFieldMenu
                             onOpenChange={handleMenuOpenChange}
                             fields={insertableFields}
+                            values={placeholderValues}
                             onInsert={insertPlaceholder}
                         />
                     </>
                 ) : null}
             </div>
             <EditorContent editor={editor} />
+        </div>
+        <p className="text-xs text-muted-foreground">
+            Misspelled words are underlined. Right-click a word to see
+            suggested corrections.
+        </p>
         </div>
         </BidTextFieldValuesContext.Provider>
     );

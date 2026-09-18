@@ -1008,30 +1008,49 @@ test('custom insert fields can be created and filled on a bid', function () {
     $admin = bidAdmin();
     $project = bidProject($admin, 'Custom Field Project');
 
+    $title = bidScopeType('RF Doors');
+    $door = Product::create(['name' => 'RF door leaf', 'kind' => Product::KIND_DOOR]);
+    $service = bidService();
+
     $this->actingAs($admin)
         ->from(route('admin.bids.create'))
         ->post(route('admin.bid-text-fields.store'), [
-            'name' => 'Warranty period',
+            'name' => 'Doors total',
+            'source' => 'latest_revision_total',
         ])
         ->assertSessionHasNoErrors()
         ->assertSessionHas('success', 'Insert field added successfully.')
-        ->assertSessionHas('created_text_field', fn ($field) => ($field['key'] ?? null) === 'warranty_period');
+        ->assertSessionHas('created_text_field', fn ($field) => ($field['key'] ?? null) === 'doors_total');
 
-    expect(BidTextField::query()->where('key', 'warranty_period')->value('name'))
-        ->toBe('Warranty period');
+    expect(BidTextField::query()->where('key', 'doors_total')->value('source'))
+        ->toBe('latest_revision_total');
 
     $this->actingAs($admin)
         ->post(route('admin.bids.store'), [
             'project_id' => $project->id,
-            'notes' => '<p>Coverage: {{warranty_period}} for {{project_name}}.</p>',
-            'scopes' => [],
+            'notes' => '<p>Coverage: {{doors_total}} for {{item_quantity}} items, {{latest_revision_total}}.</p>',
+            'scopes' => [
+                [
+                    'title_id' => $title->id,
+                    'notations' => '',
+                    'products' => [
+                        [
+                            'product_id' => $door->id,
+                            'service_id' => $service->id,
+                            'quantity' => '4',
+                            'unit_bid' => '1250',
+                        ],
+                    ],
+                ],
+            ],
         ])
         ->assertSessionHasNoErrors();
 
     $bid = Bid::query()->where('project_id', $project->id)->firstOrFail();
 
-    expect($bid->notes)->toContain('Custom Field Project');
-    expect($bid->notes)->toContain('{{warranty_period}}');
+    expect($bid->notes)->toContain('$5,000.00');
+    expect($bid->notes)->toContain('4 items');
+    expect($bid->notes)->not->toContain('{{doors_total}}');
 });
 
 test('reserved insert fields cannot be created', function () {
@@ -1040,6 +1059,7 @@ test('reserved insert fields cannot be created', function () {
     $this->actingAs($admin)
         ->post(route('admin.bid-text-fields.store'), [
             'name' => 'Project name',
+            'source' => 'today',
         ])
         ->assertSessionHasErrors('name');
 

@@ -35,10 +35,20 @@ export default forwardRef<
         }
     };
 
+    const inputType = type ?? 'text';
+    const enableSpellcheck =
+        props.spellCheck ??
+        !['email', 'password', 'url', 'tel', 'number', 'date'].includes(
+            inputType,
+        );
+
     return (
         <input
             {...props}
-            type={type}
+            type={inputType}
+            spellCheck={enableSpellcheck}
+            autoCorrect={enableSpellcheck ? 'on' : 'off'}
+            autoCapitalize={enableSpellcheck ? 'sentences' : 'off'}
             className={
                 'rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 ' +
                 className

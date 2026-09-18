@@ -68,10 +68,12 @@ class BidCatalogController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'source' => ['required', 'string', Rule::in(array_keys(BidApplicationText::PLACEHOLDERS))],
             'value' => ['nullable', 'string', 'max:5000'],
         ]);
 
         $name = trim($validated['name']);
+        $source = trim($validated['source']);
         $value = trim((string) ($validated['value'] ?? ''));
         $key = BidTextField::keyFromName($name);
 
@@ -102,12 +104,14 @@ class BidCatalogController extends Controller
         if ($field) {
             $field->update([
                 'name' => $name,
+                'source' => $source,
                 'value' => $value,
             ]);
         } else {
             $field = BidTextField::create([
                 'key' => $key,
                 'name' => $name,
+                'source' => $source,
                 'value' => $value,
             ]);
         }
@@ -120,6 +124,7 @@ class BidCatalogController extends Controller
                 'id' => $field->id,
                 'key' => $field->key,
                 'name' => $field->name,
+                'source' => $field->source,
                 'value' => $field->value,
             ],
         ]);
