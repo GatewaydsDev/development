@@ -27,6 +27,8 @@ import { FormEvent, useEffect, useState } from 'react';
 import {
     formatMoney,
     type BidOptions,
+    type BidPayload,
+    type BidScopePayload,
     type BidsPaginator,
 } from './types';
 
@@ -48,9 +50,14 @@ export default function Index({ filters, options, bids }: IndexProps) {
             return;
         }
 
-        document
-            .getElementById(`bid-row-${highlightedBidId}`)
-            ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const rows = document.querySelectorAll<HTMLElement>(
+            `[data-bid-row="${highlightedBidId}"]`,
+        );
+        const visibleRow =
+            Array.from(rows).find((row) => row.offsetParent !== null) ??
+            rows[0];
+
+        visibleRow?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, [highlightedBidId]);
 
     const submit = (event: FormEvent) => {
@@ -70,8 +77,7 @@ export default function Index({ filters, options, bids }: IndexProps) {
         search: search || undefined,
     };
 
-    const bidRowGridClassName =
-        'lg:grid-cols-[minmax(12rem,1.2fr)_minmax(8rem,0.8fr)_minmax(10rem,1fr)_7rem_auto]';
+    const bidDirectoryColumns = 'grid-cols-5';
 
     return (
         <AuthenticatedLayout
@@ -195,194 +201,127 @@ export default function Index({ filters, options, bids }: IndexProps) {
 
                         <CardContent>
                             <div className="overflow-x-auto rounded-lg border border-border">
-                                <div className={cn('hidden items-center gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:grid', bidRowGridClassName)}>
-                                    <div>Project</div>
-                                    <div>Stage</div>
-                                    <div>Scope</div>
-                                    <div>Pricing</div>
-                                    <div className="text-right">Actions</div>
-                                </div>
-
                                 {bids.data.length > 0 ? (
-                                    bids.data.map((bid) => (
+                                    <>
+                                        <div className="lg:hidden">
+                                            {bids.data.map((bid) => (
+                                                <div
+                                                    data-bid-row={bid.id}
+                                                    key={bid.id}
+                                                    className={cn(
+                                                        'grid gap-3 border-b border-border px-4 py-4 last:border-b-0',
+                                                        highlightedBidId ===
+                                                            bid.id &&
+                                                            'bg-emerald-50 dark:bg-emerald-950/30',
+                                                    )}
+                                                >
+                                                    <BidProjectCell bid={bid} />
+                                                    <div className="min-w-0">
+                                                        <DirectoryFieldLabel>
+                                                            Stage
+                                                        </DirectoryFieldLabel>
+                                                        <BidStageCell
+                                                            stage={
+                                                                bid.current_stage
+                                                            }
+                                                        />
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <DirectoryFieldLabel>
+                                                            Scope
+                                                        </DirectoryFieldLabel>
+                                                        <BidScopeCell
+                                                            scopes={bid.scopes}
+                                                        />
+                                                    </div>
+                                                    <div className="font-medium tabular-nums text-foreground">
+                                                        <DirectoryFieldLabel>
+                                                            Pricing
+                                                        </DirectoryFieldLabel>
+                                                        {formatMoney(
+                                                            bid.latest_total,
+                                                        )}
+                                                    </div>
+                                                    <div className="flex min-w-0 flex-col gap-1">
+                                                        <DirectoryFieldLabel>
+                                                            Actions
+                                                        </DirectoryFieldLabel>
+                                                        <BidDirectoryActions
+                                                            bidId={bid.id}
+                                                            canUpdate={
+                                                                options.can
+                                                                    .update
+                                                            }
+                                                        />
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+
                                         <div
-                                            id={`bid-row-${bid.id}`}
-                                            key={bid.id}
                                             className={cn(
-                                                'grid gap-3 border-b border-border px-4 py-4 last:border-b-0 lg:min-h-20 lg:items-center lg:gap-4',
-                                                bidRowGridClassName,
-                                                highlightedBidId === bid.id &&
-                                                    'bg-emerald-50 dark:bg-emerald-950/30',
+                                                'hidden w-full lg:grid',
+                                                bidDirectoryColumns,
                                             )}
                                         >
-                                            <div className="min-w-0">
-                                                <DirectoryFieldLabel>Project</DirectoryFieldLabel>
-                                                <p className="truncate font-medium text-foreground">
-                                                    {bid.project?.name ||
-                                                        'Untitled project'}
-                                                </p>
-                                                <p className="truncate text-sm text-muted-foreground">
-                                                    {bid.project
-                                                        ?.project_number ||
-                                                        'No project number'}
-                                                </p>
-                                                {(bid.project?.contractors
-                                                    ?.length ?? 0) > 0 && (
-                                                    <p className="truncate text-sm text-muted-foreground">
-                                                        Contractor
-                                                        {(bid.project
-                                                            ?.contractors
-                                                            ?.length ?? 0) > 1
-                                                            ? 's'
-                                                            : ''}
-                                                        :{' '}
-                                                        {bid.project?.contractors
-                                                            ?.map(
-                                                                (contractor) =>
-                                                                    contractor.name,
-                                                            )
-                                                            .join(', ')}
-                                                    </p>
+                                            <div
+                                                className={cn(
+                                                    'col-span-5 grid grid-cols-subgrid items-center gap-x-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground',
                                                 )}
+                                            >
+                                                <div>Project</div>
+                                                <div>Stage</div>
+                                                <div>Scope</div>
+                                                <div>Pricing</div>
+                                                <div>Actions</div>
                                             </div>
-                                            <div>
-                                                <DirectoryFieldLabel>Stage</DirectoryFieldLabel>
-                                                {bid.current_stage ? (
-                                                    <Badge variant="outline">
-                                                        {bid.current_stage}
-                                                    </Badge>
-                                                ) : (
-                                                    <span className="text-sm text-muted-foreground">
-                                                        No stage
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <div className="min-w-0">
-                                                <DirectoryFieldLabel>Scope</DirectoryFieldLabel>
-                                                <div className="flex flex-wrap gap-1">
-                                                {bid.scopes?.length > 0 ? (
-                                                    bid.scopes
-                                                        .slice(0, 2)
-                                                        .map((scope) => (
-                                                            <Badge
-                                                                key={scope.id}
-                                                                variant="outline"
-                                                            >
-                                                                {scope.name}
-                                                            </Badge>
-                                                        ))
-                                                ) : (
-                                                    <span className="text-sm text-muted-foreground">
-                                                        None
-                                                    </span>
-                                                )}
-                                                {bid.scopes?.length > 2 && (
-                                                    <Badge variant="outline">
-                                                        +{bid.scopes.length - 2}
-                                                    </Badge>
-                                                )}
+                                            {bids.data.map((bid) => (
+                                                <div
+                                                    data-bid-row={bid.id}
+                                                    key={bid.id}
+                                                    className={cn(
+                                                        'col-span-5 grid grid-cols-subgrid items-center gap-x-4 border-b border-border px-4 py-4 last:border-b-0',
+                                                        highlightedBidId ===
+                                                            bid.id &&
+                                                            'bg-emerald-50 dark:bg-emerald-950/30',
+                                                    )}
+                                                >
+                                                    <div className="min-w-0">
+                                                        <BidProjectCell
+                                                            bid={bid}
+                                                            hideLabel
+                                                        />
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <BidStageCell
+                                                            stage={
+                                                                bid.current_stage
+                                                            }
+                                                        />
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <BidScopeCell
+                                                            scopes={bid.scopes}
+                                                        />
+                                                    </div>
+                                                    <div className="min-w-0 font-medium tabular-nums text-foreground">
+                                                        {formatMoney(
+                                                            bid.latest_total,
+                                                        )}
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <BidDirectoryActions
+                                                            bidId={bid.id}
+                                                            canUpdate={
+                                                                options.can
+                                                                    .update
+                                                            }
+                                                        />
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            <div className="font-medium text-foreground">
-                                                <DirectoryFieldLabel>Pricing</DirectoryFieldLabel>
-                                                {formatMoney(bid.latest_total)}
-                                            </div>
-                                            <div className="flex min-w-0 flex-col gap-1 md:items-end">
-                                                <DirectoryFieldLabel>Actions</DirectoryFieldLabel>
-                                                <div className="flex flex-wrap gap-1 md:justify-end">
-                                                <ActionHint hint="Print this bid">
-                                                    <Button
-                                                        variant="outline"
-                                                        size="icon-xs"
-                                                        asChild
-                                                    >
-                                                        <a
-                                                            href={route(
-                                                                'admin.bids.print',
-                                                                bid.id,
-                                                            )}
-                                                            target="_blank"
-                                                            rel="noreferrer"
-                                                            aria-label="Print this bid"
-                                                        >
-                                                            <PrinterIcon className="size-3.5" />
-                                                        </a>
-                                                    </Button>
-                                                </ActionHint>
-                                                <ActionHint hint="Download as PDF">
-                                                    <Button
-                                                        variant="outline"
-                                                        size="icon-xs"
-                                                        asChild
-                                                    >
-                                                        <a
-                                                            href={route(
-                                                                'admin.bids.export.pdf',
-                                                                bid.id,
-                                                            )}
-                                                            aria-label="Download as PDF"
-                                                        >
-                                                            <FileTextIcon className="size-3.5" />
-                                                        </a>
-                                                    </Button>
-                                                </ActionHint>
-                                                <ActionHint hint="Download as Word">
-                                                    <Button
-                                                        variant="outline"
-                                                        size="icon-xs"
-                                                        asChild
-                                                    >
-                                                        <a
-                                                            href={route(
-                                                                'admin.bids.export.word',
-                                                                bid.id,
-                                                            )}
-                                                            aria-label="Download as Word"
-                                                        >
-                                                            <FileTypeIcon className="size-3.5" />
-                                                        </a>
-                                                    </Button>
-                                                </ActionHint>
-                                                <ActionHint hint="View bid details">
-                                                    <Button
-                                                        variant="outline"
-                                                        size="icon-xs"
-                                                        asChild
-                                                    >
-                                                        <Link
-                                                            href={route(
-                                                                'admin.bids.show',
-                                                                bid.id,
-                                                            )}
-                                                            aria-label="View bid details"
-                                                        >
-                                                            <EyeIcon className="size-3.5" />
-                                                        </Link>
-                                                    </Button>
-                                                </ActionHint>
-                                                {options.can.update && (
-                                                    <ActionHint hint="Edit this bid">
-                                                        <Button
-                                                            variant="outline"
-                                                            size="icon-xs"
-                                                            asChild
-                                                        >
-                                                            <Link
-                                                                href={route(
-                                                                    'admin.bids.edit',
-                                                                    bid.id,
-                                                                )}
-                                                                aria-label="Edit this bid"
-                                                            >
-                                                                <EditIcon className="size-3.5" />
-                                                            </Link>
-                                                        </Button>
-                                                    </ActionHint>
-                                                )}
-                                                </div>
-                                            </div>
+                                            ))}
                                         </div>
-                                    ))
+                                    </>
                                 ) : (
                                     <div className="px-4 py-10 text-center text-sm text-muted-foreground">
                                         No bids found.
@@ -396,5 +335,144 @@ export default function Index({ filters, options, bids }: IndexProps) {
                 </div>
             </div>
         </AuthenticatedLayout>
+    );
+}
+
+function BidProjectCell({
+    bid,
+    hideLabel = false,
+}: {
+    bid: BidPayload;
+    hideLabel?: boolean;
+}) {
+    const contractors = bid.project?.contractors ?? [];
+
+    return (
+        <div className="min-w-0">
+            {hideLabel ? null : (
+                <DirectoryFieldLabel>Project</DirectoryFieldLabel>
+            )}
+            <p className="truncate font-medium text-foreground">
+                {bid.project?.name || 'Untitled project'}
+            </p>
+            <p className="truncate text-sm text-muted-foreground">
+                {bid.project?.project_number || 'No project number'}
+            </p>
+            {contractors.length > 0 && (
+                <p className="truncate text-sm text-muted-foreground">
+                    Contractor{contractors.length > 1 ? 's' : ''}:{' '}
+                    {contractors
+                        .map((contractor) => contractor.name)
+                        .join(', ')}
+                </p>
+            )}
+        </div>
+    );
+}
+
+function BidStageCell({ stage }: { stage?: string | null }) {
+    if (!stage) {
+        return (
+            <span className="text-sm text-muted-foreground">No stage</span>
+        );
+    }
+
+    return (
+        <Badge
+            variant="outline"
+            className="h-auto min-h-5 max-w-full min-w-0 shrink whitespace-normal break-words text-left"
+        >
+            {stage}
+        </Badge>
+    );
+}
+
+function BidScopeCell({ scopes = [] }: { scopes?: BidScopePayload[] }) {
+    if (scopes.length === 0) {
+        return <span className="text-sm text-muted-foreground">None</span>;
+    }
+
+    return (
+        <div className="flex min-w-0 flex-wrap gap-1">
+            {scopes.slice(0, 2).map((scope) => (
+                <Badge
+                    key={scope.id}
+                    variant="outline"
+                    className="h-auto min-h-5 max-w-full min-w-0 shrink whitespace-normal break-words"
+                >
+                    {scope.name}
+                </Badge>
+            ))}
+            {scopes.length > 2 && (
+                <Badge variant="outline">+{scopes.length - 2}</Badge>
+            )}
+        </div>
+    );
+}
+
+function BidDirectoryActions({
+    bidId,
+    canUpdate,
+}: {
+    bidId: number;
+    canUpdate: boolean;
+}) {
+    return (
+        <div className="flex flex-nowrap gap-1">
+            <ActionHint hint="Print this bid">
+                <Button variant="outline" size="icon-xs" asChild>
+                    <a
+                        href={route('admin.bids.print', bidId)}
+                        target="_blank"
+                        rel="noreferrer"
+                        aria-label="Print this bid"
+                    >
+                        <PrinterIcon className="size-3.5" />
+                    </a>
+                </Button>
+            </ActionHint>
+            <ActionHint hint="Download as PDF">
+                <Button variant="outline" size="icon-xs" asChild>
+                    <a
+                        href={route('admin.bids.export.pdf', bidId)}
+                        aria-label="Download as PDF"
+                    >
+                        <FileTextIcon className="size-3.5" />
+                    </a>
+                </Button>
+            </ActionHint>
+            <ActionHint hint="Download as Word">
+                <Button variant="outline" size="icon-xs" asChild>
+                    <a
+                        href={route('admin.bids.export.word', bidId)}
+                        aria-label="Download as Word"
+                    >
+                        <FileTypeIcon className="size-3.5" />
+                    </a>
+                </Button>
+            </ActionHint>
+            <ActionHint hint="View bid details">
+                <Button variant="outline" size="icon-xs" asChild>
+                    <Link
+                        href={route('admin.bids.show', bidId)}
+                        aria-label="View bid details"
+                    >
+                        <EyeIcon className="size-3.5" />
+                    </Link>
+                </Button>
+            </ActionHint>
+            {canUpdate && (
+                <ActionHint hint="Edit this bid">
+                    <Button variant="outline" size="icon-xs" asChild>
+                        <Link
+                            href={route('admin.bids.edit', bidId)}
+                            aria-label="Edit this bid"
+                        >
+                            <EditIcon className="size-3.5" />
+                        </Link>
+                    </Button>
+                </ActionHint>
+            )}
+        </div>
     );
 }
