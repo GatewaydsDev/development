@@ -28,7 +28,10 @@ import {
 import {
     formatMoney,
     scopesCombinedPriceAmount,
+    scopesInstallationAmount,
+    scopesMaterialsAmount,
     scopesTotalAmount,
+    scopesUniqueLineAmount,
     type BidCompanyOption,
     type BidFormData,
     type BidOptions,
@@ -172,6 +175,18 @@ function placeholderValues(
     }, 0);
     const latestTotal = scopesTotalAmount(scopes);
     const combinedPrice = scopesCombinedPriceAmount(scopes);
+    const materials = scopesMaterialsAmount(scopes);
+    const installation = scopesInstallationAmount(scopes);
+    const materialUnitPrice = scopesUniqueLineAmount(
+        scopes,
+        (line) => line.unit_bid,
+    );
+    const allocatedHandling = scopesUniqueLineAmount(
+        scopes,
+        (line) => line.allocated_handling,
+    );
+    const grandTotal = latestTotal ? formatMoney(latestTotal) : '';
+    const installationTotal = installation ? formatMoney(installation) : '';
 
     const screenValues: Record<string, string> = {
         project_name: project?.name ?? '',
@@ -190,8 +205,19 @@ function placeholderValues(
         company_email: company?.email ?? '',
         company_address: company?.address ?? '',
         today: todayLabel(),
+        materials: materials ? formatMoney(materials) : '',
+        allocation_install: installationTotal,
+        installation: installationTotal,
+        grand_total: grandTotal,
+        building_total: grandTotal,
         combined_price: combinedPrice ? formatMoney(combinedPrice) : '',
-        latest_revision_total: latestTotal ? formatMoney(latestTotal) : '',
+        latest_revision_total: grandTotal,
+        material_unit_price: materialUnitPrice
+            ? formatMoney(materialUnitPrice)
+            : '',
+        allocated_handling: allocatedHandling
+            ? formatMoney(allocatedHandling)
+            : '',
         item_quantity: formatQuantity(quantity),
         item_count: lines.length > 0 ? String(lines.length) : '',
         ...extraFieldValues,

@@ -515,6 +515,117 @@ export const scopesCombinedPriceAmount = (
     return prices.size === 1 ? [...prices][0] : '';
 };
 
+export const lineMaterialsAmount = (line: {
+    quantity?: string | number | null;
+    unit_bid?: string | number | null;
+}) => {
+    const quantity = String(line.quantity ?? '').trim();
+    const unitBid = String(line.unit_bid ?? '').trim();
+    const qty = quantity === '' ? null : Number(quantity);
+    const unit = unitBid === '' ? null : Number(unitBid);
+
+    if (unit === null || !Number.isFinite(unit)) {
+        return '';
+    }
+
+    if (qty === null) {
+        return moneyAmount(unit);
+    }
+
+    if (!Number.isFinite(qty)) {
+        return '';
+    }
+
+    return moneyAmount(qty * unit);
+};
+
+export const lineInstallationAmount = (line: {
+    quantity?: string | number | null;
+    allocated_handling?: string | number | null;
+}) => {
+    const quantity = String(line.quantity ?? '').trim();
+    const allocatedRaw = String(line.allocated_handling ?? '').trim();
+    const qty = quantity === '' ? null : Number(quantity);
+    const allocated = allocatedRaw === '' ? null : Number(allocatedRaw);
+
+    if (allocated === null || !Number.isFinite(allocated)) {
+        return '';
+    }
+
+    if (qty === null) {
+        return moneyAmount(allocated);
+    }
+
+    if (!Number.isFinite(qty)) {
+        return '';
+    }
+
+    return moneyAmount(qty * allocated);
+};
+
+export const scopesMaterialsAmount = (scopes: BidScopeFormData[] = []) =>
+    scopes.reduce((sum, scope) => {
+        return (
+            sum +
+            (scope.products ?? []).reduce((lineSum, line) => {
+                if (!hasScopeLineValues(line)) {
+                    return lineSum;
+                }
+
+                const amount = Number(lineMaterialsAmount(line));
+
+                return lineSum + (Number.isFinite(amount) ? amount : 0);
+            }, 0)
+        );
+    }, 0);
+
+export const scopesInstallationAmount = (scopes: BidScopeFormData[] = []) =>
+    scopes.reduce((sum, scope) => {
+        return (
+            sum +
+            (scope.products ?? []).reduce((lineSum, line) => {
+                if (!hasScopeLineValues(line)) {
+                    return lineSum;
+                }
+
+                const amount = Number(lineInstallationAmount(line));
+
+                return lineSum + (Number.isFinite(amount) ? amount : 0);
+            }, 0)
+        );
+    }, 0);
+
+export const scopesUniqueLineAmount = (
+    scopes: BidScopeFormData[] = [],
+    pick: (line: BidScopeProductFormData) => string,
+) => {
+    const prices = new Set<string>();
+
+    scopes.forEach((scope) => {
+        (scope.products ?? []).forEach((line) => {
+            if (!hasScopeLineValues(line)) {
+                return;
+            }
+
+            const raw = pick(line).trim();
+
+            if (raw === '') {
+                return;
+            }
+
+            const amount = Number(raw);
+
+            if (!Number.isFinite(amount)) {
+                return;
+            }
+
+            prices.add(moneyAmount(amount));
+        });
+    });
+
+    return prices.size === 1 ? [...prices][0] : '';
+};
+
 export const combinedPriceAmountFromBid = (bid?: BidPayload | null) => {
     const prices = new Set<string>();
 

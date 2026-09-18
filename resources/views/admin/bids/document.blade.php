@@ -281,10 +281,18 @@
             color: {{ $c['brand'] }};
         }
 
+        .totals-table tr.spacer td {
+            border: 0;
+            height: 10px;
+            padding: 0;
+            background: transparent;
+        }
+
         .totals-table tr.grand td {
             background: {{ $c['highlight_bg'] }};
             font-weight: 700;
             color: {{ $c['title'] }};
+            border-color: {{ $c['brand'] }};
         }
 
         .totals-table .note {
@@ -293,12 +301,6 @@
             font-size: 9px;
             font-weight: 400;
             color: #6b7280;
-        }
-
-        .scope-totals {
-            margin-top: 8px;
-            margin-left: auto;
-            max-width: 360px;
         }
 
         .rich-text {
@@ -660,22 +662,6 @@
                                 @endforeach
                             </tbody>
                         </table>
-                        <table class="totals-table scope-totals">
-                            <tr>
-                                <td>Product / work subtotal</td>
-                                <td class="amount">{{ $scope['product_subtotal'] }}</td>
-                            </tr>
-                            @if ($scope['shipping_handling'])
-                                <tr>
-                                    <td>Allocated install / freight / handling</td>
-                                    <td class="amount">{{ $scope['shipping_handling'] }}</td>
-                                </tr>
-                            @endif
-                            <tr class="grand">
-                                <td>Scope total</td>
-                                <td class="amount">{{ $scope['total'] }}</td>
-                            </tr>
-                        </table>
                     @else
                         <p class="muted">No items added yet.</p>
                     @endif
@@ -685,27 +671,28 @@
             @endforelse
             @if (count($scopes) > 0)
                 <div class="totals">
-                    <h2 class="section-title" style="margin-top: 0;">Bid totals</h2>
+                    <h2 class="section-title" style="margin-top: 0;">Totals</h2>
                     <table class="totals-table">
                         <tr>
                             <td>
-                                Product / work subtotal
-                                <span class="note">Qty × unit value</span>
+                                Materials
+                                <span class="note">Qty × Material Unit Price</span>
                             </td>
-                            <td class="amount">{{ $productSubtotal }}</td>
+                            <td class="amount">{{ $materialsTotal }}</td>
                         </tr>
-                        @if ($showShippingHandling)
-                            <tr>
-                                <td>
-                                    Allocated install / freight / handling
-                                    <span class="note">Sum of shipping and handling on each line</span>
-                                </td>
-                                <td class="amount">{{ $shippingHandlingTotal }}</td>
-                            </tr>
-                        @endif
+                        <tr>
+                            <td>
+                                Installation
+                                <span class="note">Qty × Allocated Install / Freight / Handling</span>
+                            </td>
+                            <td class="amount">{{ $installationTotal }}</td>
+                        </tr>
+                        <tr class="spacer">
+                            <td colspan="2"></td>
+                        </tr>
                         <tr class="grand">
-                            <td>Bid total</td>
-                            <td class="amount">{{ $bidTotal }}</td>
+                            <td>Grand total</td>
+                            <td class="amount">{{ $grandTotal }}</td>
                         </tr>
                     </table>
                 </div>

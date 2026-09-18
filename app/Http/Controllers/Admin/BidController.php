@@ -965,10 +965,16 @@ class BidController extends Controller
 
         $quantity = 0.0;
         $extended = 0.0;
+        $materials = 0.0;
+        $installation = 0.0;
         $combinedPrices = [];
+        $unitPrices = [];
+        $allocatedPrices = [];
 
         foreach ($lines as $line) {
             $lineQuantity = $this->nullableDecimal($line['quantity'] ?? null);
+            $unitBid = $this->nullableDecimal($line['unit_bid'] ?? null);
+            $allocated = $this->nullableDecimal($line['allocated_handling'] ?? null);
             $extendedAmount = $this->scopeExtendedAmount(
                 $line['quantity'] ?? null,
                 $line['unit_bid'] ?? null,
@@ -988,6 +994,20 @@ class BidController extends Controller
 
             if ($extendedAmount !== null) {
                 $extended += (float) $extendedAmount;
+            }
+
+            if ($unitBid !== null) {
+                $unitPrices[$unitBid] = true;
+                $materials += $lineQuantity !== null
+                    ? (float) $lineQuantity * (float) $unitBid
+                    : (float) $unitBid;
+            }
+
+            if ($allocated !== null) {
+                $allocatedPrices[$allocated] = true;
+                $installation += $lineQuantity !== null
+                    ? (float) $lineQuantity * (float) $allocated
+                    : (float) $allocated;
             }
 
             if ($combined !== null) {
@@ -1011,11 +1031,25 @@ class BidController extends Controller
 
         $itemCount = $lines->count();
 
+        $grandTotal = $extended > 0 ? $this->formatUsd($extended) : '';
+        $installationTotal = $installation > 0 ? $this->formatUsd($installation) : '';
+
         return array_filter([
+            'materials' => $materials > 0 ? $this->formatUsd($materials) : '',
+            'allocation_install' => $installationTotal,
+            'installation' => $installationTotal,
+            'grand_total' => $grandTotal,
+            'building_total' => $grandTotal,
             'combined_price' => count($combinedPrices) === 1
                 ? $this->formatUsd((float) array_key_first($combinedPrices))
                 : '',
-            'latest_revision_total' => $extended > 0 ? $this->formatUsd($extended) : '',
+            'latest_revision_total' => $grandTotal,
+            'material_unit_price' => count($unitPrices) === 1
+                ? $this->formatUsd((float) array_key_first($unitPrices))
+                : '',
+            'allocated_handling' => count($allocatedPrices) === 1
+                ? $this->formatUsd((float) array_key_first($allocatedPrices))
+                : '',
             'item_quantity' => $quantity > 0 ? $this->formatQuantity($quantity) : '',
             'item_count' => $itemCount > 0 ? (string) $itemCount : '',
             'authorized_representative' => $assigneeName,

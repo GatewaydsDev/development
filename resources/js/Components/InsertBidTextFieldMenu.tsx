@@ -270,7 +270,7 @@ export default function InsertBidTextFieldMenu({
                                         openCreate(query);
                                     }
                                 }}
-                                placeholder="Search Combined price, project name…"
+                                placeholder="Search Allocation/install, Materials, project name…"
                                 className="h-9 w-full rounded-md border border-border bg-background pr-3 pl-8 text-sm outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
                             />
                         </label>
@@ -338,8 +338,9 @@ export default function InsertBidTextFieldMenu({
                         <AlertDialogTitle>Link this field</AlertDialogTitle>
                         <AlertDialogDescription>
                             Choose which value on this bid screen it should
-                            show. Combined price, latest revision total, and
-                            item quantity update as you edit the lines.
+                            show. Allocation/install, Materials, Combined
+                            installed unit price, and Grand total update as
+                            you edit the lines.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <form className="flex flex-col gap-4" onSubmit={addField}>
@@ -359,7 +360,7 @@ export default function InsertBidTextFieldMenu({
                                         setSourceKey(suggestedFieldSource(next));
                                     }
                                 }}
-                                placeholder="Combined price"
+                                placeholder="Allocation/install"
                             />
                         </div>
                         <div className="flex flex-col gap-2">
@@ -373,7 +374,7 @@ export default function InsertBidTextFieldMenu({
                                 onChange={(event) =>
                                     setSourceQuery(event.target.value)
                                 }
-                                placeholder="Search Combined price, item quantity…"
+                                placeholder="Search Allocation/install, Materials…"
                                 className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
                             />
                             <div className="max-h-56 overflow-y-auto rounded-md border border-border">

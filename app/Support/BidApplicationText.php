@@ -16,8 +16,15 @@ class BidApplicationText
      * @var array<string, string>
      */
     public const PLACEHOLDERS = [
-        'combined_price' => 'Combined price',
+        'materials' => 'Materials',
+        'allocation_install' => 'Allocation/install',
+        'installation' => 'Installation',
+        'grand_total' => 'Grand total',
+        'building_total' => 'Building total',
+        'combined_price' => 'Combined installed unit price',
         'latest_revision_total' => 'Latest revision total',
+        'material_unit_price' => 'Material unit price',
+        'allocated_handling' => 'Allocated install / freight / handling',
         'item_quantity' => 'Item quantity',
         'item_count' => 'Item count',
         'project_name' => 'Project name',

@@ -87,11 +87,15 @@ class BidDocument
             'notes' => $this->displayHtml($this->bid->notes),
             'scopeOfWorkText' => $this->displayHtml($this->bid->scope_of_work_text),
             'scopes' => $this->scopeRows(),
-            'productSubtotal' => $this->money($totals['product_subtotal']),
-            'shippingHandlingTotal' => $this->money($totals['shipping_handling']),
-            'showShippingHandling' => $totals['shipping_handling'] > 0,
-            'bidTotal' => $this->money($totals['bid_total']),
-            'scopeTotal' => $this->money($totals['bid_total']),
+            'materialsTotal' => $this->money($totals['materials']),
+            'installationTotal' => $this->money($totals['installation']),
+            'showInstallation' => $totals['installation'] > 0,
+            'grandTotal' => $this->money($totals['grand_total']),
+            'productSubtotal' => $this->money($totals['materials']),
+            'shippingHandlingTotal' => $this->money($totals['installation']),
+            'showShippingHandling' => $totals['installation'] > 0,
+            'bidTotal' => $this->money($totals['grand_total']),
+            'scopeTotal' => $this->money($totals['grand_total']),
             'colors' => $this->cssColors($mode),
         ];
     }
@@ -334,30 +338,33 @@ class BidDocument
     }
 
     /**
-     * @param  array{product_subtotal: float, shipping_handling: float, bid_total: float}  $totals
+     * @param  array{materials: float, installation: float, grand_total: float}  $totals
      */
     private function addTotalsTable(Section $section, array $totals): void
     {
         $section->addText('Totals', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
 
-        $table = $section->addTable(['borderSize' => 0, 'cellMargin' => 80]);
-        $rows = [
-            ['Product / work subtotal', $this->money($totals['product_subtotal']), false],
-        ];
-
-        if ($totals['shipping_handling'] > 0) {
-            $rows[] = ['Allocated install / freight / handling', $this->money($totals['shipping_handling']), false];
-        }
-
-        $rows[] = ['Bid total', $this->money($totals['bid_total']), true];
-
-        foreach ($rows as [$label, $value, $emphasis]) {
-            $table->addRow();
-            $table->addCell(7200, ['bgColor' => $emphasis ? $this->wordColor('highlight_bg') : 'F9FAFB', 'borderSize' => 4, 'borderColor' => 'D1D5DB'])
-                ->addText($label, ['bold' => $emphasis, 'size' => 10, 'color' => $emphasis ? $this->wordColor('brand') : '374151']);
-            $table->addCell(3600, ['bgColor' => $emphasis ? $this->wordColor('highlight_bg') : 'F9FAFB', 'borderSize' => 4, 'borderColor' => 'D1D5DB'])
+        $detail = $section->addTable(['borderSize' => 0, 'cellMargin' => 80]);
+        foreach ([
+            ['Materials', $this->money($totals['materials']), 'Qty × Material Unit Price'],
+            ['Installation', $this->money($totals['installation']), 'Qty × Allocated Install / Freight / Handling'],
+        ] as [$label, $value, $note]) {
+            $detail->addRow();
+            $labelCell = $detail->addCell(7200, ['bgColor' => 'F9FAFB', 'borderSize' => 4, 'borderColor' => 'D1D5DB']);
+            $labelCell->addText($label, ['size' => 10, 'color' => '374151']);
+            $labelCell->addText($note, ['size' => 8, 'color' => '6B7280']);
+            $detail->addCell(3600, ['bgColor' => 'F9FAFB', 'borderSize' => 4, 'borderColor' => 'D1D5DB'])
                 ->addText($value, ['bold' => true, 'size' => 11, 'color' => $this->wordColor('brand')], ['alignment' => Jc::END]);
         }
+
+        $section->addTextBreak(1);
+
+        $grand = $section->addTable(['borderSize' => 0, 'cellMargin' => 80]);
+        $grand->addRow();
+        $grand->addCell(7200, ['bgColor' => $this->wordColor('highlight_bg'), 'borderSize' => 6, 'borderColor' => $this->wordColor('brand')])
+            ->addText('Grand total', ['bold' => true, 'size' => 11, 'color' => $this->wordColor('brand')]);
+        $grand->addCell(3600, ['bgColor' => $this->wordColor('highlight_bg'), 'borderSize' => 6, 'borderColor' => $this->wordColor('brand')])
+            ->addText($this->money($totals['grand_total']), ['bold' => true, 'size' => 12, 'color' => $this->wordColor('brand')], ['alignment' => Jc::END]);
     }
 
     /**
@@ -480,15 +487,15 @@ class BidDocument
     }
 
     /**
-     * @return array{product_subtotal: float, shipping_handling: float, bid_total: float}
+     * @return array{materials: float, installation: float, grand_total: float}
      */
     private function totalsBreakdown(): array
     {
         $this->bid->loadMissing(['scopes.products.product']);
         $projectState = $this->bid->project?->site_state;
-        $productSubtotal = 0.0;
-        $shippingHandling = 0.0;
-        $bidTotal = 0.0;
+        $materials = 0.0;
+        $installation = 0.0;
+        $grandTotal = 0.0;
 
         foreach ($this->bid->scopes as $scope) {
             $lines = $scope->products;
@@ -497,32 +504,32 @@ class BidDocument
             foreach ($lines as $line) {
                 $amounts = $this->resolvedLineAmounts($line, $scope, $lineCount, $projectState);
 
-                if ($amounts['product'] !== null) {
-                    $productSubtotal += $amounts['product'];
+                if ($amounts['materials'] !== null) {
+                    $materials += $amounts['materials'];
                 }
 
-                if ($amounts['shipping'] !== null) {
-                    $shippingHandling += $amounts['shipping'];
+                if ($amounts['installation'] !== null) {
+                    $installation += $amounts['installation'];
                 }
 
                 if ($amounts['extended'] !== null) {
-                    $bidTotal += $amounts['extended'];
+                    $grandTotal += $amounts['extended'];
                 }
             }
         }
 
-        $productSubtotal = round($productSubtotal, 2);
-        $shippingHandling = round($shippingHandling, 2);
+        $materials = round($materials, 2);
+        $installation = round($installation, 2);
 
         return [
-            'product_subtotal' => $productSubtotal,
-            'shipping_handling' => $shippingHandling,
-            'bid_total' => round($bidTotal, 2),
+            'materials' => $materials,
+            'installation' => $installation,
+            'grand_total' => round($grandTotal > 0 ? $grandTotal : $materials + $installation, 2),
         ];
     }
 
     /**
-     * @return array{quantity: ?float, unit: ?float, allocated: ?float, product: ?float, shipping: ?float, combined: ?float, extended: ?float}
+     * @return array{quantity: ?float, unit: ?float, allocated: ?float, materials: ?float, installation: ?float, product: ?float, shipping: ?float, combined: ?float, extended: ?float}
      */
     private function resolvedLineAmounts(BidScopeProduct $line, BidScope $scope, int $lineCount, ?string $projectState): array
     {
@@ -541,10 +548,12 @@ class BidDocument
             }
         }
 
-        $product = $quantity !== null && $unit !== null
+        $materials = $quantity !== null && $unit !== null
             ? round($quantity * $unit, 2)
-            : null;
-        $shipping = $allocated;
+            : ($unit !== null ? round($unit, 2) : null);
+        $installation = $quantity !== null && $allocated !== null
+            ? round($quantity * $allocated, 2)
+            : $allocated;
         $combined = $combinedStored
             ?? (($unit !== null || $allocated !== null)
                 ? round(($unit ?? 0) + ($allocated ?? 0), 2)
@@ -559,15 +568,17 @@ class BidDocument
             'quantity' => $quantity,
             'unit' => $unit,
             'allocated' => $allocated,
-            'product' => $product,
-            'shipping' => $shipping,
+            'materials' => $materials,
+            'installation' => $installation,
+            'product' => $materials,
+            'shipping' => $installation,
             'combined' => $combined,
             'extended' => $extended,
         ];
     }
 
     /**
-     * @return list<array{name: ?string, notations: ?string, rawNotations: ?string, product_subtotal: string, shipping_handling: ?string, total: string, columns: list<array{key: string, label: string, word_label: string, width: int, amount: bool}>, items: list<array{location: string, description: string, quantity: string, unit_bid: string, allocated_handling: string, combined_price: string, extended: string}>}>
+     * @return list<array{name: ?string, notations: ?string, rawNotations: ?string, materials: string, installation: string, grand_total: string, product_subtotal: string, shipping_handling: ?string, total: string, columns: list<array{key: string, label: string, word_label: string, width: int, amount: bool}>, items: list<array{location: string, description: string, quantity: string, unit_bid: string, allocated_handling: string, combined_price: string, extended: string}>}>
      */
     private function scopeRows(): array
     {
@@ -577,19 +588,24 @@ class BidDocument
             ->map(function (BidScope $scope) use ($projectState): array {
                 $lines = $scope->products;
                 $lineCount = $lines->count();
-                $productSubtotal = 0.0;
-                $shippingHandling = 0.0;
+                $materials = 0.0;
+                $installation = 0.0;
+                $grandTotal = 0.0;
 
                 $items = $lines
-                    ->map(function (BidScopeProduct $line) use ($scope, $lineCount, $projectState, &$productSubtotal, &$shippingHandling): array {
+                    ->map(function (BidScopeProduct $line) use ($scope, $lineCount, $projectState, &$materials, &$installation, &$grandTotal): array {
                         $amounts = $this->resolvedLineAmounts($line, $scope, $lineCount, $projectState);
 
-                        if ($amounts['product'] !== null) {
-                            $productSubtotal += $amounts['product'];
+                        if ($amounts['materials'] !== null) {
+                            $materials += $amounts['materials'];
                         }
 
-                        if ($amounts['shipping'] !== null) {
-                            $shippingHandling += $amounts['shipping'];
+                        if ($amounts['installation'] !== null) {
+                            $installation += $amounts['installation'];
+                        }
+
+                        if ($amounts['extended'] !== null) {
+                            $grandTotal += $amounts['extended'];
                         }
 
                         return [
@@ -605,16 +621,20 @@ class BidDocument
                     ->values()
                     ->all();
 
-                $productSubtotal = round($productSubtotal, 2);
-                $shippingHandling = round($shippingHandling, 2);
+                $materials = round($materials, 2);
+                $installation = round($installation, 2);
+                $grandTotal = round($grandTotal > 0 ? $grandTotal : $materials + $installation, 2);
 
                 return [
                     'name' => $scope->title?->name,
                     'notations' => $this->displayHtml($scope->notations),
                     'rawNotations' => $scope->notations,
-                    'product_subtotal' => $this->money($productSubtotal),
-                    'shipping_handling' => $shippingHandling > 0 ? $this->money($shippingHandling) : null,
-                    'total' => $this->money($productSubtotal + $shippingHandling),
+                    'materials' => $this->money($materials),
+                    'installation' => $this->money($installation),
+                    'grand_total' => $this->money($grandTotal),
+                    'product_subtotal' => $this->money($materials),
+                    'shipping_handling' => $installation > 0 ? $this->money($installation) : null,
+                    'total' => $this->money($grandTotal),
                     'columns' => $this->visiblePricingColumns($items),
                     'items' => $items,
                 ];

@@ -1154,12 +1154,61 @@ test('custom insert fields can be created and filled on a bid', function () {
     expect($bid->notes)->not->toContain('{{doors_total}}');
 });
 
+test('amount insert fields fill materials allocation and grand total', function () {
+    $admin = bidAdmin();
+    $project = bidProject($admin, 'Amount Fields Project');
+    $title = bidScopeType('RF Doors');
+    $door = Product::create(['name' => 'RF door leaf', 'kind' => Product::KIND_DOOR]);
+    $service = bidService();
+
+    $this->actingAs($admin)
+        ->post(route('admin.bids.store'), [
+            'project_id' => $project->id,
+            'notes' => '<p>Materials {{materials}}. Allocation/install {{allocation_install}}. Installation {{installation}}. Grand {{grand_total}}. Building {{building_total}}. Unit {{material_unit_price}}. Allocated {{allocated_handling}}. Combined {{combined_price}}.</p>',
+            'scopes' => [
+                [
+                    'title_id' => $title->id,
+                    'notations' => '',
+                    'products' => [
+                        [
+                            'product_id' => $door->id,
+                            'service_id' => $service->id,
+                            'quantity' => '2',
+                            'unit_bid' => '1250',
+                            'allocated_handling' => '150',
+                        ],
+                    ],
+                ],
+            ],
+        ])
+        ->assertSessionHasNoErrors();
+
+    $bid = Bid::query()->where('project_id', $project->id)->firstOrFail();
+
+    expect($bid->notes)->toContain('$2,500.00');
+    expect($bid->notes)->toContain('$300.00');
+    expect($bid->notes)->toContain('$2,800.00');
+    expect($bid->notes)->toContain('$1,250.00');
+    expect($bid->notes)->toContain('$150.00');
+    expect($bid->notes)->toContain('$1,400.00');
+    expect($bid->notes)->not->toContain('{{allocation_install}}');
+    expect($bid->notes)->not->toContain('{{materials}}');
+    expect($bid->notes)->not->toContain('{{grand_total}}');
+});
+
 test('reserved insert fields cannot be created', function () {
     $admin = bidAdmin();
 
     $this->actingAs($admin)
         ->post(route('admin.bid-text-fields.store'), [
             'name' => 'Project name',
+            'source' => 'today',
+        ])
+        ->assertSessionHasErrors('name');
+
+    $this->actingAs($admin)
+        ->post(route('admin.bid-text-fields.store'), [
+            'name' => 'Allocation/install',
             'source' => 'today',
         ])
         ->assertSessionHasErrors('name');
@@ -1542,6 +1591,7 @@ test('a bid can be printed and exported as pdf or word', function () {
                             'service_id' => $service->id,
                             'quantity' => '2',
                             'unit_bid' => '1250',
+                            'allocated_handling' => '150',
                         ],
                     ],
                 ],
@@ -1577,8 +1627,16 @@ test('a bid can be printed and exported as pdf or word', function () {
         ->assertSee('Assembly w/ vision glazing', false)
         ->assertSee('RF door leaf', false)
         ->assertSee('$1,250.00', false)
+        ->assertSee('$150.00', false)
+        ->assertSee('$1,400.00', false)
         ->assertSee('$2,500.00', false)
-        ->assertSee('Bid total', false)
+        ->assertSee('$300.00', false)
+        ->assertSee('$2,800.00', false)
+        ->assertSee('Materials', false)
+        ->assertSee('Installation', false)
+        ->assertSee('Grand total', false)
+        ->assertDontSee('Product / work subtotal', false)
+        ->assertDontSee('Bid total', false)
         ->assertSee('Owner review draft', false)
         ->assertSee('Submitted by', false)
         ->assertSee('Authorized representative', false)

@@ -1,12 +1,47 @@
 export const BID_TEXT_PLACEHOLDERS = [
     {
+        key: 'materials',
+        label: 'Materials',
+        group: 'Totals on this bid',
+    },
+    {
+        key: 'allocation_install',
+        label: 'Allocation/install',
+        group: 'Totals on this bid',
+    },
+    {
+        key: 'installation',
+        label: 'Installation',
+        group: 'Totals on this bid',
+    },
+    {
+        key: 'grand_total',
+        label: 'Grand total',
+        group: 'Totals on this bid',
+    },
+    {
+        key: 'building_total',
+        label: 'Building total',
+        group: 'Totals on this bid',
+    },
+    {
         key: 'combined_price',
-        label: 'Combined price',
+        label: 'Combined installed unit price',
         group: 'Totals on this bid',
     },
     {
         key: 'latest_revision_total',
         label: 'Latest revision total',
+        group: 'Totals on this bid',
+    },
+    {
+        key: 'material_unit_price',
+        label: 'Material unit price',
+        group: 'Totals on this bid',
+    },
+    {
+        key: 'allocated_handling',
+        label: 'Allocated install / freight / handling',
         group: 'Totals on this bid',
     },
     {
