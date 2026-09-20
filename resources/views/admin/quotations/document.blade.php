@@ -39,13 +39,65 @@
         .document-title { margin: 0 0 8px; font-size: 22px; line-height: 1.2; color: {{ $c['title'] }}; }
         .section-title { margin: 20px 0 10px; font-size: 11px; letter-spacing: 1.3px; text-transform: uppercase; color: {{ $c['brand'] }}; }
         .muted { margin: 0; color: #6b7280; font-size: 11px; font-style: italic; }
-        .notes { font-size: 11px; line-height: 1.55; white-space: pre-wrap; }
+        .quote-proposal { padding: 16px 0 20px; }
+        .rich-text { font-size: 11px; line-height: 1.55; color: #111827; }
+        .rich-text p, .rich-text ul, .rich-text ol, .rich-text blockquote, .rich-text h1, .rich-text h2, .rich-text h3, .rich-text h4 { margin: 0 0 8px; }
+        .rich-text p[style*="border"] { box-sizing: border-box; }
+        .rich-text p:last-child, .rich-text ul:last-child, .rich-text ol:last-child { margin-bottom: 0; }
+        .rich-text h1 { font-size: 16px; }
+        .rich-text h2 { font-size: 14px; }
+        .rich-text h3, .rich-text h4 { font-size: 12px; }
+        .rich-text ul { padding-left: 18px; list-style: disc; }
+        .rich-text ol { padding-left: 18px; list-style: decimal; }
+        .rich-text table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+        .rich-text th, .rich-text td { border: 1px solid #d1d5db; padding: 6px 8px; font-size: 10px; }
         .pricing { width: 100%; border-collapse: collapse; margin-top: 6px; }
         .pricing th { background: {{ $c['table_header_bg'] }}; color: {{ $c['table_header_text'] }}; font-size: 9px; text-align: left; padding: 7px 8px; }
         .pricing th.amount, .pricing td.amount { text-align: right; white-space: nowrap; }
         .pricing td { border: 1px solid #d1d5db; padding: 7px 8px; font-size: 10px; vertical-align: top; }
         .total { margin: 8px 0 0; text-align: right; font-size: 13px; font-weight: 700; color: {{ $c['brand'] }}; }
         .footnote { margin-top: 18px; padding-top: 10px; border-top: 1px solid #d1d5db; font-size: 9px; color: #6b7280; }
+        .authorization-intro { margin: 0 0 12px; font-size: 11px; line-height: 1.5; color: #374151; }
+        .signature-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 12px 0;
+            margin: 0 -12px 8px;
+        }
+        .signature-col {
+            width: 50%;
+            vertical-align: top;
+            background: #f9fafb;
+            border: 1px solid #d1d5db;
+            padding: 14px 16px;
+        }
+        .signature-heading {
+            margin: 0 0 12px;
+            font-size: 13px;
+            font-weight: 700;
+            color: {{ $c['brand'] }};
+        }
+        .signature-field { margin: 0 0 12px; }
+        .signature-field:last-child { margin-bottom: 0; }
+        .signature-value {
+            display: block;
+            margin-top: 4px;
+            min-height: 18px;
+            font-size: 12px;
+            color: #111827;
+        }
+        .signature-line {
+            display: block;
+            margin-top: 18px;
+            border-bottom: 1px solid #111827;
+            min-height: 22px;
+        }
+        .signature-image {
+            display: block;
+            margin-top: 6px;
+            max-height: 48px;
+            max-width: 180px;
+        }
         @media screen {
             @if ($mode === 'print')
             .toolbar { display: block; position: sticky; top: 0; z-index: 20; background: {{ $c['toolbar_bg'] }}; color: {{ $c['header_text'] }}; }
@@ -130,36 +182,6 @@
 
             <h1 class="document-title">{{ $title }}</h1>
 
-            <h2 class="section-title">Contractor</h2>
-            <table class="meta">
-                <tr>
-                    <td>
-                        <span class="meta-label">Contractor</span>
-                        <span class="meta-value">{{ $contractor['company'] ?: $contractor['name'] ?: 'Not added yet' }}</span>
-                    </td>
-                    <td>
-                        <span class="meta-label">Contact name</span>
-                        <span class="meta-value">{{ $contractor['name'] ?: 'Not added yet' }}</span>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <span class="meta-label">Email</span>
-                        <span class="meta-value">{{ $contractor['email'] ?: 'Not added yet' }}</span>
-                    </td>
-                    <td>
-                        <span class="meta-label">Phone</span>
-                        <span class="meta-value">{{ $contractor['phone'] ?: 'Not added yet' }}</span>
-                    </td>
-                </tr>
-                <tr>
-                    <td colspan="2">
-                        <span class="meta-label">Address</span>
-                        <span class="meta-value">{{ $contractor['address'] ?: 'Not added yet' }}</span>
-                    </td>
-                </tr>
-            </table>
-
             <h2 class="section-title">Project information</h2>
             @if ($projectName)
                 <table class="meta">
@@ -184,23 +206,88 @@
                 <p class="muted">No project linked.</p>
             @endif
 
-            <h2 class="section-title">Quoted items</h2>
+            @if ($mode !== 'print' && count($revisions) > 0)
+                <h2 class="section-title">Quotation revisions</h2>
+                <table class="pricing">
+                    <thead>
+                        <tr>
+                            @foreach ($revisionColumns as $column)
+                                <th>{{ $column['label'] }}</th>
+                            @endforeach
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($revisions as $revision)
+                            <tr>
+                                @foreach ($revisionColumns as $column)
+                                    <td>{{ $revision[$column['key']] }}</td>
+                                @endforeach
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            @endif
+
+            <h2 class="section-title">Contractor</h2>
+            <table class="meta">
+                <tr>
+                    <td>
+                        <span class="meta-label">Contractor</span>
+                        <span class="meta-value">{{ $contractor['company'] ?: 'Not added yet' }}</span>
+                    </td>
+                    <td>
+                        <span class="meta-label">Address</span>
+                        <span class="meta-value">{{ $contractor['address'] ?: 'Not added yet' }}</span>
+                    </td>
+                </tr>
+            </table>
+            @forelse ($contacts as $contact)
+                <table class="meta">
+                    <tr>
+                        <td>
+                            <span class="meta-label">Contact{{ $contact['is_primary'] ? ' (primary)' : '' }}</span>
+                            <span class="meta-value">{{ $contact['name'] ?: 'Not added yet' }}{{ $contact['title'] ? ' · '.$contact['title'] : '' }}</span>
+                        </td>
+                        <td>
+                            <span class="meta-label">Email</span>
+                            <span class="meta-value">{{ $contact['email'] ?: 'Not added yet' }}</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="2">
+                            <span class="meta-label">Phone</span>
+                            <span class="meta-value">{{ $contact['phone'] ?: 'Not added yet' }}</span>
+                        </td>
+                    </tr>
+                </table>
+            @empty
+                <p class="muted">No contacts selected.</p>
+            @endforelse
+
+            @if ($notes)
+                <div class="quote-proposal">
+                    <h2 class="section-title">Quote proposal based</h2>
+                    <div class="rich-text">{!! $notes !!}</div>
+                </div>
+            @endif
+
+            <h2 class="section-title">Base Bid</h2>
             <table class="pricing">
                 <thead>
                     <tr>
-                        <th>Description</th>
                         <th class="amount">Qty</th>
-                        <th class="amount">Unit price</th>
-                        <th class="amount">Extended</th>
+                        <th>Size</th>
+                        <th>Description</th>
+                        <th class="amount">Price</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse ($lineItems as $item)
                         <tr>
-                            <td>{{ $item['description'] }}</td>
                             <td class="amount">{{ $item['quantity'] }}</td>
+                            <td>{{ $item['size'] }}</td>
+                            <td>{{ $item['description'] }}</td>
                             <td class="amount">{{ $item['unit_price'] }}</td>
-                            <td class="amount">{{ $item['extended'] }}</td>
                         </tr>
                     @empty
                         <tr>
@@ -211,10 +298,90 @@
             </table>
             <p class="total">Total {{ $total }}</p>
 
-            @if ($notes)
-                <h2 class="section-title">Notes</h2>
-                <p class="notes">{{ $notes }}</p>
+            @if ($pricingBasis)
+                <div class="quote-proposal">
+                    <h2 class="section-title">Pricing Basis</h2>
+                    <div class="rich-text">{!! $pricingBasis !!}</div>
+                </div>
             @endif
+
+            @foreach ($fieldTables as $table)
+                <h2 class="section-title">{{ $table['title'] }}</h2>
+                <table class="pricing">
+                    <tbody>
+                        @forelse ($table['fields'] as $item)
+                            <tr>
+                                <td style="width: 34%; background: #f3f4f6; font-weight: 600;">{{ $item['field'] }}</td>
+                                <td>{{ $item['value'] }}</td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="2" class="muted">No fields added.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            @endforeach
+
+            @if ($pricingConditions)
+                <h2 class="section-title">Pricing, conditions and more</h2>
+                <div class="rich-text">{!! $pricingConditions !!}</div>
+            @endif
+
+            <h2 class="section-title">Authorization</h2>
+            <p class="authorization-intro">
+                This quotation is submitted by {{ $companyName }}. Acceptance below confirms the pricing and conditions in this document.
+            </p>
+            <table class="signature-table">
+                <tr>
+                    <td class="signature-col">
+                        <p class="signature-heading">Submitted by</p>
+                        <div class="signature-field">
+                            <span class="meta-label">Company</span>
+                            <span class="signature-value">{{ $companyName }}</span>
+                        </div>
+                        <div class="signature-field">
+                            <span class="meta-label">Authorized representative</span>
+                            @if ($assigneeName)
+                                <span class="signature-value">{{ $assigneeName }}</span>
+                            @else
+                                <span class="signature-line"></span>
+                            @endif
+                        </div>
+                        <div class="signature-field">
+                            <span class="meta-label">Signature</span>
+                            @if (! empty($signatureSrc))
+                                <img src="{{ $signatureSrc }}" alt="Signature" class="signature-image">
+                            @else
+                                <span class="signature-line"></span>
+                            @endif
+                        </div>
+                        <div class="signature-field">
+                            <span class="meta-label">Date</span>
+                            <span class="signature-value">{{ $signatureDate }}</span>
+                        </div>
+                    </td>
+                    <td class="signature-col">
+                        <p class="signature-heading">Accepted by</p>
+                        <div class="signature-field">
+                            <span class="meta-label">Company</span>
+                            <span class="signature-line"></span>
+                        </div>
+                        <div class="signature-field">
+                            <span class="meta-label">Authorized representative</span>
+                            <span class="signature-line"></span>
+                        </div>
+                        <div class="signature-field">
+                            <span class="meta-label">Signature</span>
+                            <span class="signature-line"></span>
+                        </div>
+                        <div class="signature-field">
+                            <span class="meta-label">Date</span>
+                            <span class="signature-line"></span>
+                        </div>
+                    </td>
+                </tr>
+            </table>
 
             @if ($validUntil)
                 <p class="footnote">This quotation is valid until {{ $validUntil }}.</p>

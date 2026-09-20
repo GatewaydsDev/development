@@ -237,7 +237,7 @@ export default function EmployeeForm({
             <CardContent>
                 <form
                     onSubmit={submit}
-                    className="flex min-w-0 flex-col gap-6 pr-4 pb-28 sm:pr-20 lg:pb-6"
+                    className="flex w-full min-w-0 max-w-full flex-col gap-6 pr-4 pb-28 sm:pr-20 lg:pb-6"
                 >
                     <FormActionFab
                         cancelHref={route('admin.employees.index')}
@@ -441,7 +441,7 @@ export default function EmployeeForm({
                                     return (
                                         <div
                                             key={field.id}
-                                            className="grid gap-4 rounded-lg border border-border bg-background p-4 shadow-sm lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,0.8fr)_auto]"
+                                            className="grid min-w-0 gap-4 rounded-lg border border-border bg-background p-4 shadow-sm xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,0.8fr)_auto]"
                                         >
                                             <ProfessionSelect
                                                 id={`employee-pay-rate-profession-${index}`}

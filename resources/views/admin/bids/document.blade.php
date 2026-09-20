@@ -421,6 +421,13 @@
             min-height: 22px;
         }
 
+        .signature-image {
+            display: block;
+            margin-top: 6px;
+            max-height: 48px;
+            max-width: 180px;
+        }
+
         @media screen {
             @if ($mode === 'print')
             .toolbar {
@@ -726,7 +733,11 @@
                         </div>
                         <div class="signature-field">
                             <span class="meta-label">Signature</span>
-                            <span class="signature-line"></span>
+                            @if (! empty($signatureSrc))
+                                <img src="{{ $signatureSrc }}" alt="Signature" class="signature-image">
+                            @else
+                                <span class="signature-line"></span>
+                            @endif
                         </div>
                         <div class="signature-field">
                             <span class="meta-label">Date</span>

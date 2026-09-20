@@ -430,7 +430,7 @@ export default function ContractorForm({
             <CardContent>
                 <form
                     onSubmit={submit}
-                    className="flex min-w-0 flex-col gap-6 pr-4 pb-28 sm:pr-20 lg:pb-6"
+                    className="flex w-full min-w-0 max-w-full flex-col gap-6 pr-4 pb-28 sm:pr-20 lg:pb-6"
                 >
                     <FormActionFab
                         cancelHref={route('admin.contractors.index')}
@@ -773,7 +773,7 @@ export default function ContractorForm({
                             />
                             <InputError message={errors.city} />
                         </div>
-                        <div className="grid gap-5 md:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)]">
+                        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)]">
                             <div className="flex w-fit flex-col gap-2">
                                 <InputLabel
                                     htmlFor="state"

@@ -116,7 +116,7 @@ export default function PublicLayout({ children }: PropsWithChildren) {
             )}
             <header
                 className={cn(
-                    'sticky top-0 z-50',
+                    'sticky top-0 z-[100]',
                     showingNavigationDropdown &&
                         'flex h-svh flex-col lg:block lg:h-auto',
                 )}
@@ -339,7 +339,7 @@ export default function PublicLayout({ children }: PropsWithChildren) {
             </nav>
             </header>
 
-            <main className="min-w-0 overflow-x-clip">{children}</main>
+            <main className="relative z-0 min-w-0 overflow-x-clip">{children}</main>
 
             <footer className="border-t border-emerald-500/20 bg-gradient-to-br from-emerald-950 via-slate-950 to-background text-white">
                 <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-14 lg:px-8 lg:py-16">

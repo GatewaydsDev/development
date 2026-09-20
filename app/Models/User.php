@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class User extends Authenticatable
@@ -25,6 +26,7 @@ class User extends Authenticatable
         'name',
         'email',
         'avatar',
+        'signature_path',
         'date_of_birth',
         'last_login_at',
         'role',
@@ -40,6 +42,7 @@ class User extends Authenticatable
      */
     protected $appends = [
         'avatar_url',
+        'signature_url',
         'initials',
     ];
 
@@ -79,6 +82,34 @@ class User extends Authenticatable
         }
 
         return asset('storage/'.ltrim($this->avatar, '/'));
+    }
+
+    public function getSignatureUrlAttribute(): ?string
+    {
+        if (! $this->signature_path) {
+            return null;
+        }
+
+        if (Str::startsWith($this->signature_path, ['http://', 'https://'])) {
+            return $this->signature_path;
+        }
+
+        return asset('storage/'.ltrim($this->signature_path, '/'));
+    }
+
+    public function signatureAbsolutePath(): ?string
+    {
+        if (! $this->signature_path) {
+            return null;
+        }
+
+        $disk = Storage::disk('public');
+
+        if (! $disk->exists($this->signature_path)) {
+            return null;
+        }
+
+        return $disk->path($this->signature_path);
     }
 
     public function getInitialsAttribute(): string

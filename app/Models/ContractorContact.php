@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Str;
 
 class ContractorContact extends Model
@@ -37,5 +38,10 @@ class ContractorContact extends Model
     public function contractor(): BelongsTo
     {
         return $this->belongsTo(Contractor::class);
+    }
+
+    public function quotations(): BelongsToMany
+    {
+        return $this->belongsToMany(Quotation::class, 'quotation_contact');
     }
 }

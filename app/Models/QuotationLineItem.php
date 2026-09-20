@@ -11,6 +11,7 @@ class QuotationLineItem extends Model
         'quotation_id',
         'description',
         'quantity',
+        'size',
         'unit_price',
         'extended',
         'sort_order',

@@ -51,6 +51,7 @@ import {
     Redo2Icon,
     RemoveFormattingIcon,
     Rows3Icon,
+    SquareIcon,
     StrikethroughIcon,
     SubscriptIcon,
     SuperscriptIcon,
@@ -389,6 +390,77 @@ export default function RichTextEditor({
             .insertContent(
                 `<table><tbody><tr>${headers}</tr>${emptyRow}${emptyRow}</tbody></table>`,
             )
+            .run();
+    };
+
+    const boxedNoteStyles = {
+        border: '1px solid #111827',
+        backgroundColor: '#ffffff',
+        paddingTop: '12px',
+        paddingBottom: '12px',
+        paddingLeft: '16px',
+        paddingRight: '16px',
+        marginTop: '12px',
+        marginBottom: '12px',
+    };
+
+    const currentParagraphHasBox = () =>
+        Boolean(editor?.getAttributes('paragraph').border);
+
+    const applyBoxedNote = () => {
+        if (!editor) {
+            return;
+        }
+
+        if (currentParagraphHasBox()) {
+            editor
+                .chain()
+                .focus()
+                .updateAttributes('paragraph', {
+                    border: null,
+                    backgroundColor: null,
+                    paddingTop: null,
+                    paddingBottom: null,
+                    paddingLeft: null,
+                    paddingRight: null,
+                    marginTop: null,
+                    marginBottom: null,
+                })
+                .run();
+            return;
+        }
+
+        const isEmpty =
+            editor.state.selection.empty &&
+            editor.state.selection.$from.parent.content.size === 0;
+
+        if (isEmpty) {
+            editor
+                .chain()
+                .focus()
+                .insertContent({
+                    type: 'paragraph',
+                    attrs: boxedNoteStyles,
+                    content: [
+                        {
+                            type: 'text',
+                            text: 'IMPORTANT: ',
+                            marks: [{ type: 'bold' }],
+                        },
+                        {
+                            type: 'text',
+                            text: 'Type your note here.',
+                        },
+                    ],
+                })
+                .run();
+            return;
+        }
+
+        editor
+            .chain()
+            .focus()
+            .updateAttributes('paragraph', boxedNoteStyles)
             .run();
     };
 
@@ -765,6 +837,15 @@ export default function RichTextEditor({
                 >
                     <QuoteIcon />
                 </Toggle>
+                <Toggle
+                    size="sm"
+                    pressed={currentParagraphHasBox()}
+                    onPressedChange={applyBoxedNote}
+                    aria-label="Boxed note"
+                    title="Boxed note"
+                >
+                    <SquareIcon />
+                </Toggle>
                 <Button
                     type="button"
                     variant="ghost"
@@ -869,6 +950,10 @@ export default function RichTextEditor({
                     <DropdownMenuItem onClick={() => insertTable()}>
                         <TableIcon />
                         Table with colored header
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={applyBoxedNote}>
+                        <SquareIcon />
+                        Boxed note
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuLabel>Colored section</DropdownMenuLabel>

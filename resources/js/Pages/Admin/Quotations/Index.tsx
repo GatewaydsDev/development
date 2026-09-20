@@ -2,6 +2,16 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ActionHint from '@/Components/ActionHint';
 import DirectoryFieldLabel from '@/Components/DirectoryFieldLabel';
 import PaginationNav from '@/Components/PaginationNav';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/Components/ui/alert-dialog';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import {
@@ -55,6 +65,8 @@ const statusBadgeClassName = (status?: string | null) => {
 
 export default function Index({ filters, options, quotations }: IndexProps) {
     const [search, setSearch] = useState(filters.search ?? '');
+    const [pendingQuotation, setPendingQuotation] =
+        useState<QuotationPayload | null>(null);
     const highlightedId = filters.highlight ?? null;
 
     useEffect(() => {
@@ -83,20 +95,23 @@ export default function Index({ filters, options, quotations }: IndexProps) {
     const convertToBid = (quotation: QuotationPayload) => {
         if (!quotation.project) {
             window.alert(
-                'Link this quotation to a project before converting it to a bid.',
+                'This quotation needs a project before it can become a bid. Open the quotation, choose a project, then try again.',
             );
             return;
         }
 
-        if (
-            !window.confirm(
-                'Create a bid from this quotation? The quotation stays saved and will be linked to the new bid.',
-            )
-        ) {
+        setPendingQuotation(quotation);
+    };
+
+    const confirmConvertToBid = () => {
+        if (!pendingQuotation) {
             return;
         }
 
-        router.post(route('admin.quotations.convert-to-bid', quotation.id));
+        router.post(
+            route('admin.quotations.convert-to-bid', pendingQuotation.id),
+        );
+        setPendingQuotation(null);
     };
 
     const rowGridClassName =
@@ -361,7 +376,7 @@ export default function Index({ filters, options, quotations }: IndexProps) {
                                                     </ActionHint>
                                                 ) : options.can
                                                       .convert_to_bid ? (
-                                                    <ActionHint hint="Convert to bid">
+                                                    <ActionHint hint="Make this a bid">
                                                         <Button
                                                             variant="outline"
                                                             size="icon-xs"
@@ -370,7 +385,7 @@ export default function Index({ filters, options, quotations }: IndexProps) {
                                                                     quotation,
                                                                 )
                                                             }
-                                                            aria-label="Convert to bid"
+                                                            aria-label="Make this a bid"
                                                         >
                                                             <ClipboardListIcon className="size-3.5" />
                                                         </Button>
@@ -395,6 +410,32 @@ export default function Index({ filters, options, quotations }: IndexProps) {
                     </Card>
                 </div>
             </div>
+
+            <AlertDialog
+                open={pendingQuotation !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setPendingQuotation(null);
+                    }
+                }}
+            >
+                <AlertDialogContent className="border-emerald-200 dark:border-emerald-900/70">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Create this bid?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            “{pendingQuotation?.quotation_number}” is not a bid
+                            yet. Create it from this quotation so it can be
+                            reused later?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>No, go back</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmConvertToBid}>
+                            Yes, create bid
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </AuthenticatedLayout>
     );
 }

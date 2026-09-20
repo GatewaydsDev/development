@@ -181,7 +181,7 @@ export default function Edit({
                     <form
                         id="document-colors-form"
                         onSubmit={submit}
-                        className="grid min-w-0 gap-6 pr-4 pb-28 lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)] sm:pr-20 lg:pb-6"
+                        className="grid w-full min-w-0 max-w-full gap-6 pr-4 pb-28 lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)] sm:pr-20 lg:pb-6"
                     >
                         <Card className="h-fit shadow-sm">
                             <CardHeader>

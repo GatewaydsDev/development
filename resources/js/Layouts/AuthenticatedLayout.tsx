@@ -34,6 +34,7 @@ import {
     MailOpenIcon,
     PackageIcon,
     PaletteIcon,
+    PenLineIcon,
     PlusCircleIcon,
     ShieldIcon,
     SlidersHorizontalIcon,
@@ -265,8 +266,7 @@ export default function Authenticated({
         canOpenContractors ||
         canOpenEmployees ||
         canManageNotifications;
-    const canOpenWorkspace =
-        canManageOwnAccount || canViewCompany || canManageDocumentColors;
+    const canOpenWorkspace = true;
     const canOpenSecurity =
         canManageUsers || canManageAccess || canViewUserActivity;
     const canOpenAdministration =
@@ -449,7 +449,7 @@ export default function Authenticated({
         <div className="min-h-screen bg-muted/30 text-foreground">
             <nav
                 ref={navRef}
-                className="sticky top-0 z-50 border-b border-border bg-background"
+                className="sticky top-0 z-[100] border-b border-border bg-background"
             >
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                     <div className="flex min-w-0 items-center justify-between gap-3 overflow-visible py-2 sm:py-2.5 md:py-3 lg:gap-8">
@@ -640,6 +640,19 @@ export default function Authenticated({
                                                         Company
                                                     </DropdownMenuLabel>
                                                     <DropdownMenuGroup>
+                                                        <DropdownMenuItem
+                                                            asChild
+                                                        >
+                                                            <Link
+                                                                href={route(
+                                                                    'admin.signature.edit',
+                                                                )}
+                                                                className="flex items-center gap-2"
+                                                            >
+                                                                <PenLineIcon className="size-4" />
+                                                                Signature
+                                                            </Link>
+                                                        </DropdownMenuItem>
                                                         {canManageOwnAccount && (
                                                             <DropdownMenuItem
                                                                 asChild
@@ -901,6 +914,13 @@ export default function Authenticated({
                                             Profile
                                         </Dropdown.Link>
                                         <Dropdown.Link
+                                            href={route(
+                                                'admin.signature.edit',
+                                            )}
+                                        >
+                                            Signature
+                                        </Dropdown.Link>
+                                        <Dropdown.Link
                                             href={route('logout')}
                                             method="post"
                                             as="button"
@@ -1151,6 +1171,20 @@ export default function Authenticated({
                                             icon={Building2Icon}
                                             className="ps-6 pe-4"
                                         >
+                                            <ResponsiveNavLink
+                                                href={route(
+                                                    'admin.signature.edit',
+                                                )}
+                                                active={route().current(
+                                                    'admin.signature.edit',
+                                                )}
+                                                className="ps-10"
+                                            >
+                                                <span className="inline-flex items-center gap-2">
+                                                    <PenLineIcon className="size-4" />
+                                                    Signature
+                                                </span>
+                                            </ResponsiveNavLink>
                                             {canManageOwnAccount && (
                                                 <ResponsiveNavLink
                                                     href={route(
@@ -1354,6 +1388,11 @@ export default function Authenticated({
                                 Profile
                             </ResponsiveNavLink>
                             <ResponsiveNavLink
+                                href={route('admin.signature.edit')}
+                            >
+                                Signature
+                            </ResponsiveNavLink>
+                            <ResponsiveNavLink
                                 method="post"
                                 href={route('logout')}
                                 as="button"
@@ -1378,7 +1417,7 @@ export default function Authenticated({
 
             {showCompactTitle && (
                 <div
-                    className="fixed left-0 right-0 z-40 border-b border-border bg-card/95 shadow-sm backdrop-blur"
+                    className="fixed left-0 right-0 z-[90] border-b border-border bg-card/95 shadow-sm backdrop-blur"
                     style={{ top: navHeight }}
                     aria-hidden="true"
                 >
@@ -1390,7 +1429,7 @@ export default function Authenticated({
                 </div>
             )}
 
-            <main className="min-w-0 overflow-x-clip">{children}</main>
+            <main className="relative z-0 min-w-0 overflow-x-clip">{children}</main>
         </div>
     );
 }

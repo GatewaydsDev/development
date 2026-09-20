@@ -84,7 +84,6 @@
   }
   html {
     @apply font-sans;
-    overflow-x: clip;
   }
 
   img,
@@ -686,6 +685,10 @@
 
   .rich-text-content .ProseMirror-focused {
     outline: none;
+  }
+
+  .rich-text-content p[style*="border"] {
+    box-sizing: border-box;
   }
 
   .rich-text-content p.is-editor-empty:first-child::before {

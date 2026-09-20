@@ -683,8 +683,8 @@ export default function BidApplicationTextSection({
         <div
             className={
                 embedded
-                    ? 'flex flex-col gap-4'
-                    : 'flex flex-col gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30'
+                    ? 'flex min-w-0 flex-col gap-4'
+                    : 'flex min-w-0 flex-col gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30'
             }
         >
             {fields}

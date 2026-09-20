@@ -521,7 +521,7 @@ export default function ProjectForm({
                 <CardDescription>{description}</CardDescription>
             </CardHeader>
             <CardContent>
-                <form onSubmit={submit} className="flex min-w-0 flex-col gap-6 pr-4 pb-28 sm:pr-20 lg:pb-6">
+                <form onSubmit={submit} className="flex w-full min-w-0 max-w-full flex-col gap-6 pr-4 pb-28 sm:pr-20 lg:pb-6">
                     <FormActionFab
                         cancelHref={route('admin.projects.index')}
                         saveLabel={submitLabel}
@@ -749,7 +749,7 @@ export default function ProjectForm({
                                         }
                                     />
                                 </div>
-                                <div className="grid gap-5 md:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)]">
+                                <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)]">
                                     <div className="flex w-fit flex-col gap-2">
                                         <InputLabel
                                             htmlFor="site-state"
@@ -960,7 +960,7 @@ export default function ProjectForm({
                                                             )
                                                         }
                                                     />
-                                                    <div className="grid gap-4 md:grid-cols-3">
+                                                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                                                         <div className="flex flex-col gap-2">
                                                             <InputLabel
                                                                 htmlFor={`project-contractor-contact-${index}`}
@@ -1217,7 +1217,7 @@ export default function ProjectForm({
                             </div>
                         )}
 
-                        <div className="grid gap-5 md:grid-cols-3">
+                        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
                             <div className="flex flex-col gap-2">
                                 <InputLabel
                                     htmlFor="estimated-start-date"
@@ -1317,7 +1317,7 @@ export default function ProjectForm({
                                             return (
                                                 <div
                                                     key={field.id}
-                                                    className="grid gap-4 rounded-lg border border-border bg-muted/10 p-4 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,0.9fr)_minmax(0,1.1fr)_minmax(0,1.3fr)_auto]"
+                                                    className="grid min-w-0 gap-4 rounded-lg border border-border bg-muted/10 p-4 xl:grid-cols-[minmax(0,0.7fr)_minmax(0,0.9fr)_minmax(0,1.1fr)_minmax(0,1.3fr)_auto]"
                                                 >
                                                     <div className="flex flex-col gap-2">
                                                         <InputLabel

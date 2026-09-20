@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\ProfessionController;
 use App\Http\Controllers\Admin\ProjectController;
 use App\Http\Controllers\Admin\QuotationController;
 use App\Http\Controllers\Admin\ServiceController;
+use App\Http\Controllers\Admin\SignatureController;
 use App\Http\Controllers\Admin\UserActivityController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\ContactSubmissionController;
@@ -154,6 +155,13 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::patch('/account', [AccountController::class, 'update'])
             ->name('account.update');
 
+        Route::get('/signature', [SignatureController::class, 'edit'])
+            ->name('signature.edit');
+        Route::patch('/signature', [SignatureController::class, 'update'])
+            ->name('signature.update');
+        Route::delete('/signature', [SignatureController::class, 'destroy'])
+            ->name('signature.destroy');
+
         Route::get('/contractors', [ContractorController::class, 'index'])
             ->middleware('can:view-contractors')
             ->name('contractors.index');
@@ -258,6 +266,10 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::post('/quotations', [QuotationController::class, 'store'])
             ->middleware('can:create-quotations')
             ->name('quotations.store');
+        Route::post('/quotation-titles', [QuotationController::class, 'storeTitle'])
+            ->name('quotation-titles.store');
+        Route::post('/quotation-fields', [QuotationController::class, 'storeField'])
+            ->name('quotation-fields.store');
         Route::get('/quotations/{quotation}', [QuotationController::class, 'show'])
             ->middleware('can:view-quotations')
             ->name('quotations.show');

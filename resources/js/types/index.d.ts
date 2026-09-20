@@ -5,6 +5,8 @@ export interface User {
     email_verified_at?: string;
     avatar?: string | null;
     avatar_url?: string | null;
+    signature_path?: string | null;
+    signature_url?: string | null;
     initials?: string;
     level?: {
         id: number;
@@ -115,6 +117,12 @@ export type PageProps<
         importedScopeTextTemplateId?: number | null;
         importedShippingText?: string | null;
         importedShippingTextTemplateId?: number | null;
+        importedQuotationProposalText?: string | null;
+        importedQuotationProposalTextTemplateId?: number | null;
+        importedQuotationPricingText?: string | null;
+        importedQuotationPricingTextTemplateId?: number | null;
+        importedQuotationPricingBasisText?: string | null;
+        importedQuotationPricingBasisTextTemplateId?: number | null;
         createdTextField?: {
             id: number;
             key: string;

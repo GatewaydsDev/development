@@ -543,7 +543,7 @@ export default function BidForm({
     const selectedProjectScopes = selectedProject?.scopes ?? [];
 
     return (
-        <form onSubmit={submit} className="flex min-w-0 flex-col gap-6 pr-4 pb-28 sm:pr-20 lg:pb-6">
+        <form onSubmit={submit} className="flex w-full min-w-0 max-w-full flex-col gap-6 pr-4 pb-28 sm:pr-20 lg:pb-6">
             <Card className="overflow-visible shadow-sm">
                 <CardHeader>
                     <CardTitle>{title}</CardTitle>
@@ -754,7 +754,7 @@ export default function BidForm({
                             return (
                                 <div
                                     key={field.id}
-                                    className="grid gap-4 overflow-visible rounded-lg border border-emerald-200 bg-background p-4 dark:border-emerald-900/70 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,0.9fr)_minmax(0,1.1fr)_minmax(0,1.3fr)_auto]"
+                                    className="grid min-w-0 gap-4 overflow-visible rounded-lg border border-emerald-200 bg-background p-4 dark:border-emerald-900/70 xl:grid-cols-[minmax(0,0.7fr)_minmax(0,0.9fr)_minmax(0,1.1fr)_minmax(0,1.3fr)_auto]"
                                 >
                                     <div className="flex flex-col gap-2">
                                         <InputLabel
@@ -885,7 +885,7 @@ export default function BidForm({
                         return (
                             <div
                                 key={field.id}
-                                className="grid gap-4 overflow-visible rounded-lg border border-emerald-200 bg-background p-4 dark:border-emerald-900/70 lg:grid-cols-[minmax(0,1.3fr)_10rem_minmax(0,1fr)_auto]"
+                                className="grid min-w-0 gap-4 overflow-visible rounded-lg border border-emerald-200 bg-background p-4 dark:border-emerald-900/70 xl:grid-cols-[minmax(0,1.3fr)_10rem_minmax(0,1fr)_auto]"
                             >
                                 <CreatableSelect
                                     id={`bid-stage-${index}`}
@@ -1032,7 +1032,7 @@ export default function BidForm({
                 }
             />
 
-            <div className="sticky bottom-24 z-10 mr-4 flex min-w-0 flex-col gap-3 rounded-xl border border-emerald-200 bg-background/95 px-4 py-3 shadow-lg backdrop-blur lg:bottom-4 lg:mr-20 sm:flex-row sm:items-center sm:justify-between dark:border-emerald-900/70">
+            <div className="sticky bottom-24 z-10 mr-4 flex min-w-0 max-w-full flex-col gap-3 rounded-xl border border-emerald-200 bg-background/95 px-4 py-3 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between lg:bottom-4 lg:mr-20 dark:border-emerald-900/70">
                 <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                         Combined price

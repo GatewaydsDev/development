@@ -190,7 +190,7 @@ export default function Show({ company }: ShowProps) {
                             <form
                                 id="company-profile-form"
                                 onSubmit={submit}
-                                className="flex min-w-0 flex-col gap-6 pr-4 pb-28 sm:pr-20 lg:pb-6"
+                                className="flex w-full min-w-0 max-w-full flex-col gap-6 pr-4 pb-28 sm:pr-20 lg:pb-6"
                             >
                                 <FormActionFab
                                     form="company-profile-form"
@@ -202,7 +202,7 @@ export default function Show({ company }: ShowProps) {
                                     }
                                     disabled={processing}
                                 />
-                                <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                                <div className="grid min-w-0 gap-5 sm:grid-cols-2 xl:grid-cols-3">
                                     <div className="flex flex-col gap-2">
                                         <InputLabel
                                             htmlFor="name"
@@ -332,7 +332,7 @@ export default function Show({ company }: ShowProps) {
                                     </div>
                                 </div>
 
-                                <div className="grid gap-5 md:grid-cols-2">
+                                <div className="grid gap-5 sm:grid-cols-2">
                                     <div className="flex flex-col gap-2">
                                         <InputLabel
                                             htmlFor="phone_number"
@@ -380,7 +380,7 @@ export default function Show({ company }: ShowProps) {
                                     </div>
                                 </div>
 
-                                <div className="grid gap-5 md:grid-cols-2">
+                                <div className="grid gap-5 sm:grid-cols-2">
                                     <div className="flex flex-col gap-2">
                                         <InputLabel
                                             htmlFor="address_line_1"
@@ -426,7 +426,7 @@ export default function Show({ company }: ShowProps) {
                                     </div>
                                 </div>
 
-                                <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_minmax(0,1fr)]">
+                                <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_minmax(0,1fr)]">
                                     <div className="flex flex-col gap-2">
                                         <InputLabel
                                             htmlFor="city"
@@ -525,7 +525,7 @@ export default function Show({ company }: ShowProps) {
                                     </div>
                                 </div>
 
-                                <div className="grid gap-5 md:grid-cols-2">
+                                <div className="grid gap-5 sm:grid-cols-2">
                                     <div className="flex flex-col gap-2">
                                         <InputLabel
                                             htmlFor="website_url"

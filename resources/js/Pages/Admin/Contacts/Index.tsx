@@ -240,7 +240,7 @@ export default function Index({ filters, contacts }: IndexProps) {
                             <CardContent>
                                 <form
                                     onSubmit={handleSubmit(submit)}
-                                    className="grid gap-4 pr-4 pb-28 sm:pr-20 lg:pb-6 md:grid-cols-2"
+                                    className="grid min-w-0 gap-4 pr-4 pb-28 sm:grid-cols-2 sm:pr-20 lg:pb-6"
                                     noValidate
                                 >
                                     <FormActionFab

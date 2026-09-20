@@ -10,6 +10,7 @@ use App\Models\BidTextTemplate;
 use App\Models\ProjectScopeType;
 use App\Support\BidAccess;
 use App\Support\BidApplicationText;
+use App\Support\QuotationAccess;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -172,6 +173,9 @@ class BidCatalogController extends Controller
             return back()->withErrors([
                 'name' => match ($kind) {
                     BidTextTemplate::KIND_SHIPPING => 'Another saved shipping and handling text already uses this name.',
+                    BidTextTemplate::KIND_QUOTATION_PROPOSAL => 'Another saved quotation already uses this name.',
+                    BidTextTemplate::KIND_QUOTATION_PRICING => 'Another saved pricing and conditions text already uses this name.',
+                    BidTextTemplate::KIND_QUOTATION_PRICING_BASIS => 'Another saved pricing basis text already uses this name.',
                     default => 'Another saved scope text already uses this name.',
                 },
             ]);
@@ -250,7 +254,10 @@ class BidCatalogController extends Controller
     private function authorizeCatalog(Request $request): void
     {
         abort_unless(
-            BidAccess::canCreate($request->user()) || BidAccess::canUpdate($request->user()),
+            BidAccess::canCreate($request->user())
+            || BidAccess::canUpdate($request->user())
+            || QuotationAccess::canCreate($request->user())
+            || QuotationAccess::canUpdate($request->user()),
             403,
         );
     }
@@ -290,6 +297,12 @@ class BidCatalogController extends Controller
             $body = match ($kind) {
                 BidTextTemplate::KIND_SHIPPING => BidApplicationText::sanitize(BidTextTemplate::DEFAULT_SHIPPING_BODY)
                     ?: BidTextTemplate::DEFAULT_SHIPPING_BODY,
+                BidTextTemplate::KIND_QUOTATION_PROPOSAL => BidApplicationText::sanitize(BidTextTemplate::DEFAULT_QUOTATION_PROPOSAL_BODY)
+                    ?: BidTextTemplate::DEFAULT_QUOTATION_PROPOSAL_BODY,
+                BidTextTemplate::KIND_QUOTATION_PRICING => BidApplicationText::sanitize(BidTextTemplate::DEFAULT_QUOTATION_PRICING_BODY)
+                    ?: BidTextTemplate::DEFAULT_QUOTATION_PRICING_BODY,
+                BidTextTemplate::KIND_QUOTATION_PRICING_BASIS => BidApplicationText::sanitize(BidTextTemplate::DEFAULT_QUOTATION_PRICING_BASIS_BODY)
+                    ?: BidTextTemplate::DEFAULT_QUOTATION_PRICING_BASIS_BODY,
                 default => BidApplicationText::sanitize(BidTextTemplate::DEFAULT_SCOPE_BODY)
                     ?: BidTextTemplate::DEFAULT_SCOPE_BODY,
             };
@@ -310,6 +323,9 @@ class BidCatalogController extends Controller
 
         return match ($kind) {
             BidTextTemplate::KIND_SHIPPING => "Shipping and handling text {$action} successfully.",
+            BidTextTemplate::KIND_QUOTATION_PROPOSAL => "Quotation text {$action} successfully.",
+            BidTextTemplate::KIND_QUOTATION_PRICING => "Pricing and conditions text {$action} successfully.",
+            BidTextTemplate::KIND_QUOTATION_PRICING_BASIS => "Pricing basis text {$action} successfully.",
             default => "Scope text {$action} successfully.",
         };
     }
@@ -333,6 +349,27 @@ class BidCatalogController extends Controller
                     : 'Shipping and handling text imported. Save it if you want to reuse it on other bids.',
                 'textKey' => 'imported_shipping_text',
                 'idKey' => 'imported_shipping_text_template_id',
+            ],
+            BidTextTemplate::KIND_QUOTATION_PROPOSAL => [
+                'success' => $saved
+                    ? 'Quotation text imported and saved.'
+                    : 'Quotation text imported. Save it if you want to reuse it on other quotations.',
+                'textKey' => 'imported_quotation_proposal_text',
+                'idKey' => 'imported_quotation_proposal_text_template_id',
+            ],
+            BidTextTemplate::KIND_QUOTATION_PRICING => [
+                'success' => $saved
+                    ? 'Pricing and conditions text imported and saved.'
+                    : 'Pricing and conditions text imported. Save it if you want to reuse it on other quotations.',
+                'textKey' => 'imported_quotation_pricing_text',
+                'idKey' => 'imported_quotation_pricing_text_template_id',
+            ],
+            BidTextTemplate::KIND_QUOTATION_PRICING_BASIS => [
+                'success' => $saved
+                    ? 'Pricing basis text imported and saved.'
+                    : 'Pricing basis text imported. Save it if you want to reuse it on other quotations.',
+                'textKey' => 'imported_quotation_pricing_basis_text',
+                'idKey' => 'imported_quotation_pricing_basis_text_template_id',
             ],
             default => [
                 'success' => $saved

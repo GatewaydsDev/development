@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
@@ -28,6 +29,8 @@ class Quotation extends Model
         'quoted_at',
         'valid_until',
         'notes',
+        'pricing_conditions',
+        'pricing_basis',
         'created_by',
     ];
 
@@ -111,19 +114,47 @@ class Quotation extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    public function contacts(): BelongsToMany
+    {
+        return $this->belongsToMany(ContractorContact::class, 'quotation_contact')
+            ->orderByDesc('is_primary')
+            ->orderBy('name');
+    }
+
     public function lineItems(): HasMany
     {
         return $this->hasMany(QuotationLineItem::class)->orderBy('sort_order')->orderBy('id');
     }
 
+    public function revisions(): HasMany
+    {
+        return $this->hasMany(QuotationRevision::class)
+            ->orderByDesc('revision_date')
+            ->orderByDesc('id');
+    }
+
+    public function tables(): HasMany
+    {
+        return $this->hasMany(QuotationTable::class)
+            ->orderBy('sort_order')
+            ->orderBy('id');
+    }
+
+    public function productFields(): HasMany
+    {
+        return $this->hasMany(QuotationProductField::class)
+            ->orderBy('sort_order')
+            ->orderBy('id');
+    }
+
     public function total(): float
     {
         return (float) $this->lineItems->sum(function (QuotationLineItem $item): float {
-            if ($item->extended !== null) {
-                return (float) $item->extended;
+            if ($item->unit_price !== null) {
+                return (float) $item->unit_price;
             }
 
-            return (float) $item->quantity * (float) $item->unit_price;
+            return $item->extended !== null ? (float) $item->extended : 0.0;
         });
     }
 }

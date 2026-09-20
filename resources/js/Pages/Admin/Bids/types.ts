@@ -68,6 +68,7 @@ export type BidCapabilities = {
 export type BidQuotationLineOption = {
     description: string;
     quantity?: string | number | null;
+    size?: string | null;
     unit_price?: string | number | null;
     extended?: string | number | null;
 };
@@ -1058,6 +1059,7 @@ export const pricingFromQuotation = (
                   item.quantity !== null && item.quantity !== undefined && item.quantity !== ''
                       ? `Qty ${item.quantity}`
                       : null,
+                  item.size ? `Size ${item.size}` : null,
                   item.unit_price !== null &&
                   item.unit_price !== undefined &&
                   item.unit_price !== ''

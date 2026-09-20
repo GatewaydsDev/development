@@ -30,6 +30,8 @@ class BidDocument
         private readonly ?User $user,
     ) {}
 
+    private ?string $signatureWordPath = null;
+
     protected function documentAppearanceKey(): string
     {
         return 'bid';
@@ -40,7 +42,7 @@ class BidDocument
         $bid->load([
             'project.contractors.contacts',
             'creator',
-            'assignee:id,name',
+            'assignee:id,name,signature_path',
             'stages.type',
             'scopes.title',
             'scopes.products.product.statePrices.taxState',
@@ -68,6 +70,7 @@ class BidDocument
             'generatedBy' => $this->user?->name,
             'assigneeName' => $this->bid->assignee?->name,
             'signatureDate' => $this->generatedAtLabel(),
+            'signatureSrc' => DocumentSignature::dataUri($this->bid->assignee),
             'companyName' => $this->companyName(),
             'companyAddress' => $this->companyAddress(),
             'companyPhone' => $this->company?->contact_phone_number ?: $this->company?->phone_number,
@@ -334,6 +337,10 @@ class BidDocument
             @unlink($logoPath);
         }
 
+        if ($this->signatureWordPath) {
+            @unlink($this->signatureWordPath);
+        }
+
         return $path;
     }
 
@@ -406,12 +413,15 @@ class BidDocument
         $table->addRow();
         $cellStyle = ['bgColor' => 'F9FAFB', 'borderSize' => 8, 'borderColor' => 'D1D5DB', 'valign' => 'top'];
 
+        $this->signatureWordPath = DocumentSignature::wordPath($this->bid->assignee);
+
         $this->fillSignatureColumn(
             $table->addCell(5400, $cellStyle),
             'Submitted by',
             $this->companyName(),
             $this->bid->assignee?->name,
             $this->generatedAtLabel(),
+            $this->signatureWordPath,
         );
         $this->fillSignatureColumn(
             $table->addCell(5400, $cellStyle),
@@ -425,13 +435,19 @@ class BidDocument
         ?string $company = null,
         ?string $representative = null,
         ?string $date = null,
+        ?string $signaturePath = null,
     ): void {
         $blankLine = str_repeat('_', 28);
 
         $cell->addText($heading, ['bold' => true, 'size' => 12, 'color' => $this->wordColor('brand')]);
         $this->addSignatureField($cell, 'Company', $company ?: $blankLine);
         $this->addSignatureField($cell, 'Authorized representative', $representative ?: $blankLine);
-        $this->addSignatureField($cell, 'Signature', $blankLine);
+        $cell->addText('Signature', ['size' => 8, 'color' => '6B7280']);
+        if ($signaturePath) {
+            DocumentLogo::addWordImage($cell, $signaturePath, 28);
+        } else {
+            $cell->addText($blankLine, ['size' => 11, 'color' => '111827']);
+        }
         $this->addSignatureField($cell, 'Date', $date ?: $blankLine);
     }
 
