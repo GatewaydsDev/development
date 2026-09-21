@@ -792,14 +792,14 @@ export default function QuotationForm({
                                         htmlFor={`line-description-${index}`}
                                         value="Description"
                                     />
-                                    <TextInput
+                                    <textarea
                                         id={`line-description-${index}`}
-                                        type="text"
                                         value={
                                             data.line_items?.[index]
                                                 ?.description ?? ''
                                         }
-                                        className={`${inputClassName} h-12 text-base`}
+                                        rows={3}
+                                        className="min-h-[5.5rem] w-full resize-y rounded-md border border-border bg-background px-3 py-2 text-base text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
                                         placeholder="Door, handing, finish, and other quoted details"
                                         onChange={(event) =>
                                             setValue(
