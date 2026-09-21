@@ -113,6 +113,8 @@ test('an admin can save a quotation for a contractor', function () {
     $this->actingAs($admin)
         ->get(route('admin.quotations.print', $quotation))
         ->assertOk()
+        ->assertSee('class="hero-brand"', false)
+        ->assertSee('<p class="hero-label">Proposal</p>', false)
         ->assertSee('Pricing Basis', false)
         ->assertSee($project->name, false)
         ->assertSee('Authorization', false)

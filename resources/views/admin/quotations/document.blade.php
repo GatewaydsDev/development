@@ -19,7 +19,9 @@
         .hero { background: {{ $c['header_bg'] }}; color: {{ $c['header_text'] }}; padding: 22px 24px 20px; }
         .hero-table { width: 100%; border-collapse: collapse; }
         .hero-table td { vertical-align: middle; }
-        .logo { max-height: 64px; max-width: 64px; display: block; background: #ffffff; padding: 2px; border-radius: 999px; }
+        .logo { max-height: 64px; max-width: 64px; display: block; margin: 0 auto; background: #ffffff; padding: 2px; border-radius: 999px; }
+        .hero-brand { margin-bottom: 14px; text-align: center; }
+        .hero-brand .eyebrow { margin: 8px 0 0; }
         .eyebrow { margin: 0 0 4px; font-size: 10px; letter-spacing: 1.6px; text-transform: uppercase; color: {{ $c['header_muted'] }}; }
         .hero h1 { margin: 0; font-size: 26px; line-height: 1.15; }
         .hero-meta { margin: 6px 0 0; font-size: 11px; color: {{ $c['header_soft'] }}; }
@@ -136,15 +138,15 @@
 
     <div class="page">
         <div class="hero">
+            <div class="hero-brand">
+                @if ($logoPath)
+                    <img class="logo" src="{{ $logoPath }}" alt="{{ $companyName }}">
+                @endif
+                <p class="eyebrow">Gateway Door Systems</p>
+            </div>
             <table class="hero-table">
                 <tr>
                     <td>
-                        @if ($logoPath)
-                            <img class="logo" src="{{ $logoPath }}" alt="{{ $companyName }}">
-                        @else
-                            <p class="eyebrow">{{ $companyName }}</p>
-                        @endif
-                        <p class="eyebrow" style="margin-top: 10px;">Gateway Door Systems</p>
                         <h1>Quotation</h1>
                         <p class="hero-meta">
                             Generated {{ $generatedAt->format('F j, Y') }}
@@ -155,7 +157,7 @@
                     </td>
                     <td class="hero-right" style="width: 180px;">
                         <p class="hero-year">{{ $year }}</p>
-                        <p class="hero-label">{{ $statusLabel }}</p>
+                        <p class="hero-label">Proposal</p>
                     </td>
                 </tr>
             </table>
