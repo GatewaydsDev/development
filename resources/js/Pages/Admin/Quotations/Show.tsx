@@ -440,7 +440,7 @@ export default function Show({ quotation, options }: ShowProps) {
                         </CardHeader>
                         <CardContent>
                             <div className="overflow-x-auto rounded-lg border border-border">
-                                <div className="hidden grid-cols-[6rem_11rem_minmax(0,2fr)_11rem] gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid">
+                                <div className="hidden grid-cols-[5rem_14rem_minmax(0,2fr)_9rem] gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid">
                                     <div className="text-right">Qty</div>
                                     <div>Size</div>
                                     <div>Description</div>
@@ -449,7 +449,7 @@ export default function Show({ quotation, options }: ShowProps) {
                                 {(quotation.line_items ?? []).map((item) => (
                                     <div
                                         key={item.id ?? item.description}
-                                        className="grid gap-2 border-b border-border px-4 py-3 last:border-b-0 md:grid-cols-[6rem_11rem_minmax(0,2fr)_11rem] md:items-center"
+                                        className="grid gap-2 border-b border-border px-4 py-3 last:border-b-0 md:grid-cols-[5rem_14rem_minmax(0,2fr)_9rem] md:items-center"
                                     >
                                         <p className="text-sm text-muted-foreground md:text-right">
                                             <DirectoryFieldLabel hideFrom="md">
@@ -463,7 +463,7 @@ export default function Show({ quotation, options }: ShowProps) {
                                             </DirectoryFieldLabel>
                                             {item.size || '—'}
                                         </p>
-                                        <p className="font-medium text-foreground">
+                                        <p className="font-medium text-foreground whitespace-pre-line">
                                             <DirectoryFieldLabel hideFrom="md">
                                                 Description
                                             </DirectoryFieldLabel>

@@ -257,7 +257,7 @@ class QuotationDocument
         $section->addText('Base Bid', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
         $table = $section->addTable('quoteTable');
         $table->addRow(360);
-        foreach ([['Qty', 1200], ['Size', 2200], ['Description', 5000], ['Price', 2200]] as [$heading, $width]) {
+        foreach ([['Qty', 1000], ['Size', 2600], ['Description', 5200], ['Price', 1800]] as [$heading, $width]) {
             $table->addCell($width, ['bgColor' => $this->wordColor('table_header_bg'), 'valign' => 'center'])
                 ->addText($heading, ['bold' => true, 'color' => $this->wordColor('table_header_text'), 'size' => 9]);
         }
@@ -265,10 +265,10 @@ class QuotationDocument
         foreach ($this->lineItemRows() as $index => $item) {
             $bg = $index % 2 === 1 ? $this->wordColor('row_alt') : 'FFFFFF';
             $table->addRow();
-            $table->addCell(1200, ['bgColor' => $bg])->addText($item['quantity'], ['size' => 9], ['alignment' => Jc::END]);
-            $table->addCell(2200, ['bgColor' => $bg])->addText($item['size'], ['size' => 9]);
-            $table->addCell(5000, ['bgColor' => $bg])->addText($item['description'], ['size' => 9]);
-            $table->addCell(2200, ['bgColor' => $bg])->addText($item['unit_price'], ['size' => 9], ['alignment' => Jc::END]);
+            $table->addCell(1000, ['bgColor' => $bg])->addText($item['quantity'], ['size' => 9], ['alignment' => Jc::END]);
+            $table->addCell(2600, ['bgColor' => $bg])->addText($item['size'], ['size' => 9]);
+            $table->addCell(5200, ['bgColor' => $bg])->addText($item['description'], ['size' => 9]);
+            $table->addCell(1800, ['bgColor' => $bg])->addText($item['unit_price'], ['size' => 9], ['alignment' => Jc::END]);
         }
 
         $section->addText(
