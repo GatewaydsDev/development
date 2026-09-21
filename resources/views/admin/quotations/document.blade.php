@@ -277,10 +277,10 @@
             <table class="pricing">
                 <thead>
                     <tr>
-                        <th class="amount">Qty</th>
-                        <th>Size</th>
+                        <th class="amount" style="width: 8%;">Qty</th>
+                        <th style="width: 26%;">Size</th>
                         <th>Description</th>
-                        <th class="amount">Price</th>
+                        <th class="amount" style="width: 14%;">Price</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -288,7 +288,7 @@
                         <tr>
                             <td class="amount">{{ $item['quantity'] }}</td>
                             <td>{{ $item['size'] }}</td>
-                            <td>{{ $item['description'] }}</td>
+                            <td style="white-space: pre-line;">{!! nl2br(e($item['description'])) !!}</td>
                             <td class="amount">{{ $item['unit_price'] }}</td>
                         </tr>
                     @empty
