@@ -15,6 +15,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import { cn } from '@/lib/utils';
 import {
     ClipboardListIcon,
+    DollarSignIcon,
     EditIcon,
     EyeIcon,
     FileTextIcon,
@@ -26,6 +27,7 @@ import {
 import { FormEvent, useEffect, useState } from 'react';
 import {
     formatMoney,
+    type BidListSummary,
     type BidOptions,
     type BidPayload,
     type BidScopePayload,
@@ -38,10 +40,11 @@ type IndexProps = {
         highlight?: number | null;
     };
     options: BidOptions;
+    summary?: BidListSummary;
     bids: BidsPaginator;
 };
 
-export default function Index({ filters, options, bids }: IndexProps) {
+export default function Index({ filters, options, summary, bids }: IndexProps) {
     const [search, setSearch] = useState(filters.search ?? '');
     const highlightedBidId = filters.highlight ?? null;
 
@@ -123,6 +126,22 @@ export default function Index({ filters, options, bids }: IndexProps) {
                             <CardContent>
                                 <p className="text-3xl font-semibold">
                                     {bids.total}
+                                </p>
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <DollarSignIcon className="size-4 text-muted-foreground" />
+                                    Total bid value
+                                </CardTitle>
+                                <CardDescription>
+                                    Combined value of matching bids.
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-3xl font-semibold text-emerald-700 dark:text-emerald-300">
+                                    {summary?.formatted_total_amount ?? formatMoney(0)}
                                 </p>
                             </CardContent>
                         </Card>
@@ -256,6 +275,50 @@ export default function Index({ filters, options, bids }: IndexProps) {
                                                     </div>
                                                 </div>
                                             ))}
+
+                                            {summary && summary.stages.length > 0 && (
+                                                <div className="border-t-2 border-border bg-muted/30 p-4">
+                                                    <div className="mb-3 flex items-center justify-between">
+                                                        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                                            Summary by Bid Stage
+                                                        </h4>
+                                                        <span className="text-xs font-medium text-muted-foreground">
+                                                            {summary.total_count}{' '}
+                                                            {summary.total_count === 1 ? 'bid' : 'bids'}
+                                                        </span>
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        {summary.stages.map((stage) => (
+                                                            <div
+                                                                key={stage.stage}
+                                                                className="flex items-center justify-between rounded-md border border-border/70 bg-card px-3 py-2 text-sm"
+                                                            >
+                                                                <div className="flex items-center gap-2">
+                                                                    <Badge
+                                                                        variant="outline"
+                                                                        className="text-xs font-medium"
+                                                                    >
+                                                                        {stage.stage}
+                                                                    </Badge>
+                                                                    <span className="text-xs text-muted-foreground">
+                                                                        ({stage.count}{' '}
+                                                                        {stage.count === 1 ? 'bid' : 'bids'})
+                                                                    </span>
+                                                                </div>
+                                                                <span className="font-semibold tabular-nums text-foreground">
+                                                                    {stage.formatted_total}
+                                                                </span>
+                                                            </div>
+                                                        ))}
+                                                        <div className="mt-3 flex items-center justify-between border-t border-border pt-2.5 font-bold">
+                                                            <span className="text-foreground">Total</span>
+                                                            <span className="text-base font-bold tabular-nums text-emerald-700 dark:text-emerald-400">
+                                                                {summary.formatted_total_amount}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
 
                                         <div
@@ -320,6 +383,56 @@ export default function Index({ filters, options, bids }: IndexProps) {
                                                     </div>
                                                 </div>
                                             ))}
+
+                                            {summary && summary.stages.length > 0 && (
+                                                <>
+                                                    <div className="col-span-5 flex items-center justify-between border-t-2 border-border bg-muted/60 px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                                        <span>Summary by Bid Stage</span>
+                                                        <span>
+                                                            {summary.total_count}{' '}
+                                                            {summary.total_count === 1 ? 'bid' : 'bids'}{' '}
+                                                            across {summary.stages.length}{' '}
+                                                            {summary.stages.length === 1 ? 'stage' : 'stages'}
+                                                        </span>
+                                                    </div>
+                                                    {summary.stages.map((stage) => (
+                                                        <div
+                                                            key={stage.stage}
+                                                            className="col-span-5 grid grid-cols-subgrid items-center gap-x-4 border-b border-border/50 bg-muted/20 px-4 py-2.5 text-sm"
+                                                        >
+                                                            <div className="col-span-2 flex items-center gap-2">
+                                                                <Badge
+                                                                    variant="outline"
+                                                                    className="font-medium"
+                                                                >
+                                                                    {stage.stage}
+                                                                </Badge>
+                                                            </div>
+                                                            <div className="min-w-0 text-sm text-muted-foreground">
+                                                                {stage.count}{' '}
+                                                                {stage.count === 1 ? 'bid' : 'bids'}
+                                                            </div>
+                                                            <div className="min-w-0 font-semibold tabular-nums text-foreground">
+                                                                {stage.formatted_total}
+                                                            </div>
+                                                            <div />
+                                                        </div>
+                                                    ))}
+                                                    <div className="col-span-5 grid grid-cols-subgrid items-center gap-x-4 bg-muted/50 px-4 py-3 font-semibold">
+                                                        <div className="col-span-2 font-bold text-foreground">
+                                                            Total
+                                                        </div>
+                                                        <div className="min-w-0 text-sm font-semibold text-muted-foreground">
+                                                            {summary.total_count}{' '}
+                                                            {summary.total_count === 1 ? 'bid' : 'bids'}
+                                                        </div>
+                                                        <div className="min-w-0 text-base font-bold tabular-nums text-emerald-700 dark:text-emerald-400">
+                                                            {summary.formatted_total_amount}
+                                                        </div>
+                                                        <div />
+                                                    </div>
+                                                </>
+                                            )}
                                         </div>
                                     </>
                                 ) : (

@@ -297,6 +297,20 @@ export type BidsPaginator = {
     }>;
 };
 
+export type BidStageSummary = {
+    stage: string;
+    count: number;
+    total_amount: number;
+    formatted_total: string;
+};
+
+export type BidListSummary = {
+    stages: BidStageSummary[];
+    total_count: number;
+    total_amount: number;
+    formatted_total_amount: string;
+};
+
 export const formatMoney = (value?: string | number | null) => {
     const amount = Number(value ?? 0);
 

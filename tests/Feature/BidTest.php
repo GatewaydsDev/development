@@ -1804,3 +1804,74 @@ test('a bid can be deleted', function () {
 
     expect(Bid::query()->whereKey($bid->id)->exists())->toBeFalse();
 });
+
+test('the bids index page includes a summarization of all bids ordered by bid stage', function () {
+    $admin = bidAdmin();
+    $stageEstimating = BidStageType::create(['name' => 'Estimating']);
+    $stageWon = BidStageType::create(['name' => 'Won']);
+    $stageDraft = BidStageType::create(['name' => 'Draft']);
+    $scopeTitle = \App\Models\BidScopeTitle::create(['name' => 'Doors']);
+
+    $project1 = bidProject($admin, 'Project 1');
+    $bid1 = Bid::create([
+        'project_id' => $project1->id,
+        'created_by' => $admin->id,
+    ]);
+    $bid1->stages()->create([
+        'bid_stage_type_id' => $stageWon->id,
+        'stage_date' => '2026-03-01',
+    ]);
+    $bid1->scopes()->create([
+        'bid_scope_title_id' => $scopeTitle->id,
+        'extended' => 5000.00,
+    ]);
+
+    $project2 = bidProject($admin, 'Project 2');
+    $bid2 = Bid::create([
+        'project_id' => $project2->id,
+        'created_by' => $admin->id,
+    ]);
+    $bid2->stages()->create([
+        'bid_stage_type_id' => $stageDraft->id,
+        'stage_date' => '2026-03-02',
+    ]);
+    $bid2->scopes()->create([
+        'bid_scope_title_id' => $scopeTitle->id,
+        'extended' => 3000.00,
+    ]);
+
+    $project3 = bidProject($admin, 'Project 3');
+    $bid3 = Bid::create([
+        'project_id' => $project3->id,
+        'created_by' => $admin->id,
+    ]);
+    $bid3->stages()->create([
+        'bid_stage_type_id' => $stageDraft->id,
+        'stage_date' => '2026-03-03',
+    ]);
+    $bid3->scopes()->create([
+        'bid_scope_title_id' => $scopeTitle->id,
+        'extended' => 2000.00,
+    ]);
+
+    $response = $this->actingAs($admin)
+        ->get(route('admin.bids.index'));
+
+    $response->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Admin/Bids/Index')
+            ->has('summary')
+            ->where('summary.total_count', 3)
+            ->where('summary.total_amount', 10000)
+            ->where('summary.formatted_total_amount', '$10,000.00')
+            ->has('summary.stages', 2)
+            ->where('summary.stages.0.stage', 'Draft')
+            ->where('summary.stages.0.count', 2)
+            ->where('summary.stages.0.total_amount', 5000)
+            ->where('summary.stages.0.formatted_total', '$5,000.00')
+            ->where('summary.stages.1.stage', 'Won')
+            ->where('summary.stages.1.count', 1)
+            ->where('summary.stages.1.total_amount', 5000)
+            ->where('summary.stages.1.formatted_total', '$5,000.00')
+        );
+});

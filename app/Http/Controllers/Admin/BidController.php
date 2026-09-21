@@ -34,6 +34,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -50,6 +51,7 @@ class BidController extends Controller
 
         $search = (string) $request->query('search', '');
         $highlight = (int) $request->query('highlight', 0);
+        $listingQuery = $this->bidListingQuery($request);
 
         return Inertia::render('Admin/Bids/Index', [
             'filters' => [
@@ -57,7 +59,8 @@ class BidController extends Controller
                 'highlight' => $highlight > 0 ? $highlight : null,
             ],
             'options' => $this->options($request->user()),
-            'bids' => $this->bidListingQuery($request)
+            'summary' => $this->bidStageSummary($listingQuery),
+            'bids' => (clone $listingQuery)
                 ->when($highlight > 0, function ($query) use ($highlight): void {
                     $query->orderByRaw('CASE WHEN id = ? THEN 0 ELSE 1 END', [$highlight]);
                 })
@@ -1328,5 +1331,50 @@ class BidController extends Controller
                         });
                 });
             });
+    }
+    /**
+     * @param  Builder<Bid>  $query
+     * @return array{stages: list<array{stage: string, count: int, total_amount: float, formatted_total: string}>, total_count: int, total_amount: float, formatted_total_amount: string}
+     */
+    private function bidStageSummary(Builder $query): array
+    {
+        $allBids = (clone $query)->get();
+
+        $stageGroups = $allBids
+            ->groupBy(fn (Bid $bid): string => $bid->stages->last()?->type?->name ?: 'No stage');
+
+        $sortedKeys = $stageGroups->keys()->sort(function (string $a, string $b): int {
+            if ($a === 'No stage') {
+                return 1;
+            }
+            if ($b === 'No stage') {
+                return -1;
+            }
+
+            return strnatcasecmp($a, $b);
+        });
+
+        $stages = $sortedKeys->map(function (string $stageName) use ($stageGroups): array {
+            /** @var Collection<int, Bid> $groupBids */
+            $groupBids = $stageGroups->get($stageName, collect());
+            $count = $groupBids->count();
+            $totalAmount = round((float) $groupBids->sum(fn (Bid $bid): float => $bid->latestTotal()), 2);
+
+            return [
+                'stage' => $stageName,
+                'count' => $count,
+                'total_amount' => $totalAmount,
+                'formatted_total' => '$'.number_format($totalAmount, 2),
+            ];
+        })->values()->all();
+
+        $overallTotalAmount = round((float) $allBids->sum(fn (Bid $bid): float => $bid->latestTotal()), 2);
+
+        return [
+            'stages' => $stages,
+            'total_count' => $allBids->count(),
+            'total_amount' => $overallTotalAmount,
+            'formatted_total_amount' => '$'.number_format($overallTotalAmount, 2),
+        ];
     }
 }
