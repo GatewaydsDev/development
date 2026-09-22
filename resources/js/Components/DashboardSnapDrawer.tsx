@@ -42,7 +42,7 @@ import {
     ZapIcon,
     type LucideIcon,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 type ShortcutCategory = 'all' | 'create' | 'work' | 'directory' | 'workspace';
 
@@ -73,6 +73,7 @@ export default function DashboardSnapDrawer({
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] =
         useState<ShortcutCategory>('all');
+    const searchInputRef = useRef<HTMLInputElement>(null);
 
     const canManageUsers = Boolean(auth?.can?.manageUsers);
     const canViewUsers = Boolean(auth?.can?.viewUsers);
@@ -506,6 +507,18 @@ export default function DashboardSnapDrawer({
         setOpen(true);
     }, []);
 
+    // Auto-focus search input when drawer opens
+    useEffect(() => {
+        if (open) {
+            const timer = setTimeout(() => {
+                searchInputRef.current?.focus();
+            }, 100);
+            return () => clearTimeout(timer);
+        } else {
+            setSearchQuery('');
+        }
+    }, [open]);
+
     // Listen for custom event trigger
     useEffect(() => {
         const handleCustomOpen = () => {
@@ -610,23 +623,32 @@ export default function DashboardSnapDrawer({
 
                         {/* Search bar */}
                         <div className="relative mt-3">
-                            <SearchIcon className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                            <SearchIcon className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-emerald-600 dark:text-emerald-400 pointer-events-none" />
                             <input
+                                ref={searchInputRef}
                                 type="text"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 placeholder="Search shortcuts, quotes, bids, team..."
-                                className="w-full rounded-xl border border-border bg-background py-2 pl-9 pr-9 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600"
-                                autoFocus={false}
+                                className="w-full rounded-xl border border-border bg-background py-2.5 pl-10 pr-10 text-sm font-medium text-foreground shadow-xs placeholder:text-muted-foreground focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-border dark:bg-muted/40 dark:focus:border-emerald-400"
+                                aria-label="Search shortcuts"
                             />
-                            {searchQuery && (
+                            {searchQuery ? (
                                 <button
                                     type="button"
-                                    onClick={() => setSearchQuery('')}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground hover:text-foreground"
+                                    onClick={() => {
+                                        setSearchQuery('');
+                                        searchInputRef.current?.focus();
+                                    }}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                    aria-label="Clear search"
                                 >
                                     <XIcon className="size-3.5" />
                                 </button>
+                            ) : (
+                                <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 hidden sm:inline-flex items-center rounded border border-border bg-muted/50 px-1.5 py-0.5 text-[10px] font-mono font-medium text-muted-foreground">
+                                    ⌘K
+                                </kbd>
                             )}
                         </div>
 

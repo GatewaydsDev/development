@@ -452,7 +452,7 @@ export default function Authenticated({
         <div className="min-h-screen bg-muted/30 text-foreground">
             <nav
                 ref={navRef}
-                className="sticky top-0 z-[100] border-b border-border bg-background"
+                className="sticky top-0 z-40 border-b border-border bg-background"
             >
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                     <div className="flex min-w-0 items-center justify-between gap-3 overflow-visible py-2 sm:py-2.5 md:py-3 lg:gap-8">
@@ -1464,7 +1464,7 @@ export default function Authenticated({
 
             {showCompactTitle && (
                 <div
-                    className="fixed left-0 right-0 z-[90] border-b border-border bg-card/95 shadow-sm backdrop-blur"
+                    className="fixed left-0 right-0 z-30 border-b border-border bg-card/95 shadow-sm backdrop-blur"
                     style={{ top: navHeight }}
                     aria-hidden="true"
                 >
