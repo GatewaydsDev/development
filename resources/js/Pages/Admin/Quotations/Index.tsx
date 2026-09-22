@@ -115,7 +115,7 @@ export default function Index({ filters, options, quotations }: IndexProps) {
     };
 
     const rowGridClassName =
-        'lg:grid-cols-[minmax(9rem,0.9fr)_minmax(12rem,1.2fr)_minmax(10rem,1fr)_7rem_7rem_auto]';
+        'lg:grid-cols-[minmax(9.5rem,1fr)_minmax(11rem,1.2fr)_minmax(11rem,1.2fr)_7rem_7.5rem_minmax(12.5rem,auto)]';
 
     return (
         <AuthenticatedLayout
@@ -201,205 +201,231 @@ export default function Index({ filters, options, quotations }: IndexProps) {
 
                         <CardContent>
                             <div className="overflow-x-auto rounded-lg border border-border">
-                                <div
-                                    className={cn(
-                                        'hidden items-center gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:grid',
-                                        rowGridClassName,
-                                    )}
-                                >
-                                    <div>Number</div>
-                                    <div>Contractor</div>
-                                    <div>Project</div>
-                                    <div>Status</div>
-                                    <div>Total</div>
-                                    <div className="text-right">Actions</div>
-                                </div>
+                                <div className="min-w-full lg:min-w-[62rem]">
+                                    <div
+                                        className={cn(
+                                            'hidden items-center gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:grid',
+                                            rowGridClassName,
+                                        )}
+                                    >
+                                        <div>Number</div>
+                                        <div>Contractor</div>
+                                        <div>Project</div>
+                                        <div>Status</div>
+                                        <div className="lg:text-right">Total</div>
+                                        <div className="lg:text-right">Actions</div>
+                                    </div>
 
-                                {quotations.data.length > 0 ? (
-                                    quotations.data.map((quotation) => (
-                                        <div
-                                            id={`quotation-row-${quotation.id}`}
-                                            key={quotation.id}
-                                            className={cn(
-                                                'grid gap-3 border-b border-border px-4 py-4 last:border-b-0 lg:items-center lg:gap-4',
-                                                rowGridClassName,
-                                                highlightedId === quotation.id &&
-                                                    'bg-emerald-50 dark:bg-emerald-950/30',
-                                            )}
-                                        >
-                                            <div className="min-w-0">
-                                                <DirectoryFieldLabel>Number</DirectoryFieldLabel>
-                                                <p className="font-medium text-foreground">
-                                                    {quotation.quotation_number}
-                                                </p>
-                                                <p className="truncate text-sm text-muted-foreground">
-                                                    {quotation.title}
-                                                </p>
-                                            </div>
-                                            <div className="min-w-0 text-sm text-muted-foreground">
-                                                <DirectoryFieldLabel>Contractor</DirectoryFieldLabel>
-                                                {quotation.contractor?.name ||
-                                                    '—'}
-                                            </div>
-                                            <div className="min-w-0 text-sm text-muted-foreground">
-                                                <DirectoryFieldLabel>Project</DirectoryFieldLabel>
-                                                {quotation.project
-                                                    ? `${quotation.project.project_number ? `${quotation.project.project_number} · ` : ''}${quotation.project.name}`
-                                                    : 'No project'}
-                                            </div>
-                                            <div>
-                                                <DirectoryFieldLabel>Status</DirectoryFieldLabel>
-                                                <Badge
-                                                    variant="outline"
-                                                    className={statusBadgeClassName(
-                                                        quotation.status,
-                                                    )}
-                                                >
-                                                    {quotation.status_label}
-                                                </Badge>
-                                            </div>
-                                            <div className="font-medium text-foreground">
-                                                <DirectoryFieldLabel>Total</DirectoryFieldLabel>
-                                                {formatMoney(quotation.total)}
-                                            </div>
-                                            <div className="flex min-w-0 flex-col gap-1 md:items-end">
-                                                <DirectoryFieldLabel>Actions</DirectoryFieldLabel>
-                                                <div className="flex flex-wrap gap-1 md:justify-end">
-                                                <ActionHint hint="Print this quotation">
-                                                    <Button
-                                                        variant="outline"
-                                                        size="icon-xs"
-                                                        asChild
-                                                    >
-                                                        <a
-                                                            href={route(
-                                                                'admin.quotations.print',
-                                                                quotation.id,
-                                                            )}
-                                                            target="_blank"
-                                                            rel="noreferrer"
-                                                            aria-label="Print this quotation"
-                                                        >
-                                                            <PrinterIcon className="size-3.5" />
-                                                        </a>
-                                                    </Button>
-                                                </ActionHint>
-                                                <ActionHint hint="Download as PDF">
-                                                    <Button
-                                                        variant="outline"
-                                                        size="icon-xs"
-                                                        asChild
-                                                    >
-                                                        <a
-                                                            href={route(
-                                                                'admin.quotations.export.pdf',
-                                                                quotation.id,
-                                                            )}
-                                                            aria-label="Download as PDF"
-                                                        >
-                                                            <FileTextIcon className="size-3.5" />
-                                                        </a>
-                                                    </Button>
-                                                </ActionHint>
-                                                <ActionHint hint="Download as Word">
-                                                    <Button
-                                                        variant="outline"
-                                                        size="icon-xs"
-                                                        asChild
-                                                    >
-                                                        <a
-                                                            href={route(
-                                                                'admin.quotations.export.word',
-                                                                quotation.id,
-                                                            )}
-                                                            aria-label="Download as Word"
-                                                        >
-                                                            <FileTypeIcon className="size-3.5" />
-                                                        </a>
-                                                    </Button>
-                                                </ActionHint>
-                                                <ActionHint hint="View quotation details">
-                                                    <Button
-                                                        variant="outline"
-                                                        size="icon-xs"
-                                                        asChild
-                                                    >
-                                                        <Link
-                                                            href={route(
-                                                                'admin.quotations.show',
-                                                                quotation.id,
-                                                            )}
-                                                            aria-label="View quotation details"
-                                                        >
-                                                            <EyeIcon className="size-3.5" />
-                                                        </Link>
-                                                    </Button>
-                                                </ActionHint>
-                                                {options.can.update && (
-                                                    <ActionHint hint="Edit this quotation">
-                                                        <Button
-                                                            variant="outline"
-                                                            size="icon-xs"
-                                                            asChild
-                                                        >
-                                                            <Link
-                                                                href={route(
-                                                                    'admin.quotations.edit',
-                                                                    quotation.id,
-                                                                )}
-                                                                aria-label="Edit this quotation"
-                                                            >
-                                                                <EditIcon className="size-3.5" />
-                                                            </Link>
-                                                        </Button>
-                                                    </ActionHint>
+                                    {quotations.data.length > 0 ? (
+                                        quotations.data.map((quotation) => (
+                                            <div
+                                                id={`quotation-row-${quotation.id}`}
+                                                key={quotation.id}
+                                                className={cn(
+                                                    'grid gap-3 border-b border-border px-4 py-3.5 transition-colors hover:bg-muted/40 last:border-b-0 lg:items-center lg:gap-4',
+                                                    rowGridClassName,
+                                                    highlightedId === quotation.id &&
+                                                        'bg-emerald-50 dark:bg-emerald-950/30',
                                                 )}
-                                                {quotation.converted_bid ? (
-                                                    <ActionHint hint="Open converted bid">
-                                                        <Button
-                                                            variant="outline"
-                                                            size="icon-xs"
-                                                            asChild
+                                            >
+                                                <div className="min-w-0">
+                                                    <DirectoryFieldLabel>Number</DirectoryFieldLabel>
+                                                    <p className="font-semibold text-foreground">
+                                                        {quotation.quotation_number}
+                                                    </p>
+                                                    {quotation.title ? (
+                                                        <p
+                                                            className="truncate text-xs text-muted-foreground"
+                                                            title={quotation.title}
                                                         >
-                                                            <Link
-                                                                href={route(
-                                                                    'admin.bids.show',
-                                                                    quotation
-                                                                        .converted_bid
-                                                                        .id,
-                                                                )}
-                                                                aria-label="Open converted bid"
+                                                            {quotation.title}
+                                                        </p>
+                                                    ) : null}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <DirectoryFieldLabel>Contractor</DirectoryFieldLabel>
+                                                    <p className="truncate font-medium text-foreground">
+                                                        {quotation.contractor?.name || '—'}
+                                                    </p>
+                                                    {quotation.contractor?.contact_name ? (
+                                                        <p className="truncate text-xs text-muted-foreground">
+                                                            {quotation.contractor.contact_name}
+                                                        </p>
+                                                    ) : null}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <DirectoryFieldLabel>Project</DirectoryFieldLabel>
+                                                    {quotation.project ? (
+                                                        <>
+                                                            <p className="truncate font-medium text-foreground">
+                                                                {quotation.project.name}
+                                                            </p>
+                                                            {quotation.project.project_number ? (
+                                                                <p className="truncate text-xs text-muted-foreground">
+                                                                    #{quotation.project.project_number}
+                                                                </p>
+                                                            ) : null}
+                                                        </>
+                                                    ) : (
+                                                        <span className="text-sm text-muted-foreground">
+                                                            No project
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <DirectoryFieldLabel>Status</DirectoryFieldLabel>
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={statusBadgeClassName(
+                                                            quotation.status,
+                                                        )}
+                                                    >
+                                                        {quotation.status_label}
+                                                    </Badge>
+                                                </div>
+                                                <div className="min-w-0 font-semibold tabular-nums text-foreground lg:text-right">
+                                                    <DirectoryFieldLabel>Total</DirectoryFieldLabel>
+                                                    {formatMoney(quotation.total)}
+                                                </div>
+                                                <div className="flex min-w-0 flex-col gap-1 lg:items-end">
+                                                    <DirectoryFieldLabel>Actions</DirectoryFieldLabel>
+                                                    <div className="flex flex-wrap items-center gap-1.5 lg:justify-end">
+                                                        <ActionHint hint="Print this quotation">
+                                                            <Button
+                                                                variant="outline"
+                                                                size="icon-xs"
+                                                                asChild
                                                             >
-                                                                <ClipboardListIcon className="size-3.5" />
-                                                            </Link>
-                                                        </Button>
-                                                    </ActionHint>
-                                                ) : options.can
-                                                      .convert_to_bid ? (
-                                                    <ActionHint hint="Make this a bid">
-                                                        <Button
-                                                            variant="outline"
-                                                            size="icon-xs"
-                                                            onClick={() =>
-                                                                convertToBid(
-                                                                    quotation,
-                                                                )
-                                                            }
-                                                            aria-label="Make this a bid"
-                                                        >
-                                                            <ClipboardListIcon className="size-3.5" />
-                                                        </Button>
-                                                    </ActionHint>
-                                                ) : null}
+                                                                <a
+                                                                    href={route(
+                                                                        'admin.quotations.print',
+                                                                        quotation.id,
+                                                                    )}
+                                                                    target="_blank"
+                                                                    rel="noreferrer"
+                                                                    aria-label="Print this quotation"
+                                                                >
+                                                                    <PrinterIcon className="size-3.5" />
+                                                                </a>
+                                                            </Button>
+                                                        </ActionHint>
+                                                        <ActionHint hint="Download as PDF">
+                                                            <Button
+                                                                variant="outline"
+                                                                size="icon-xs"
+                                                                asChild
+                                                            >
+                                                                <a
+                                                                    href={route(
+                                                                        'admin.quotations.export.pdf',
+                                                                        quotation.id,
+                                                                    )}
+                                                                    aria-label="Download as PDF"
+                                                                >
+                                                                    <FileTextIcon className="size-3.5" />
+                                                                </a>
+                                                            </Button>
+                                                        </ActionHint>
+                                                        <ActionHint hint="Download as Word">
+                                                            <Button
+                                                                variant="outline"
+                                                                size="icon-xs"
+                                                                asChild
+                                                            >
+                                                                <a
+                                                                    href={route(
+                                                                        'admin.quotations.export.word',
+                                                                        quotation.id,
+                                                                    )}
+                                                                    aria-label="Download as Word"
+                                                                >
+                                                                    <FileTypeIcon className="size-3.5" />
+                                                                </a>
+                                                            </Button>
+                                                        </ActionHint>
+                                                        <ActionHint hint="View quotation details">
+                                                            <Button
+                                                                variant="outline"
+                                                                size="icon-xs"
+                                                                asChild
+                                                            >
+                                                                <Link
+                                                                    href={route(
+                                                                        'admin.quotations.show',
+                                                                        quotation.id,
+                                                                    )}
+                                                                    aria-label="View quotation details"
+                                                                >
+                                                                    <EyeIcon className="size-3.5" />
+                                                                </Link>
+                                                            </Button>
+                                                        </ActionHint>
+                                                        {options.can.update && (
+                                                            <ActionHint hint="Edit this quotation">
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="icon-xs"
+                                                                    asChild
+                                                                >
+                                                                    <Link
+                                                                        href={route(
+                                                                            'admin.quotations.edit',
+                                                                            quotation.id,
+                                                                        )}
+                                                                        aria-label="Edit this quotation"
+                                                                    >
+                                                                        <EditIcon className="size-3.5" />
+                                                                    </Link>
+                                                                </Button>
+                                                            </ActionHint>
+                                                        )}
+                                                        {quotation.converted_bid ? (
+                                                            <ActionHint hint="Open converted bid">
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="icon-xs"
+                                                                    asChild
+                                                                >
+                                                                    <Link
+                                                                        href={route(
+                                                                            'admin.bids.show',
+                                                                            quotation
+                                                                                .converted_bid
+                                                                                .id,
+                                                                        )}
+                                                                        aria-label="Open converted bid"
+                                                                    >
+                                                                        <ClipboardListIcon className="size-3.5" />
+                                                                    </Link>
+                                                                </Button>
+                                                            </ActionHint>
+                                                        ) : options.can
+                                                              .convert_to_bid ? (
+                                                            <ActionHint hint="Make this a bid">
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="icon-xs"
+                                                                    onClick={() =>
+                                                                        convertToBid(
+                                                                            quotation,
+                                                                        )
+                                                                    }
+                                                                    aria-label="Make this a bid"
+                                                                >
+                                                                    <ClipboardListIcon className="size-3.5" />
+                                                                </Button>
+                                                            </ActionHint>
+                                                        ) : null}
+                                                    </div>
                                                 </div>
                                             </div>
+                                        ))
+                                    ) : (
+                                        <div className="px-4 py-10 text-center text-sm text-muted-foreground">
+                                            No quotations found.
                                         </div>
-                                    ))
-                                ) : (
-                                    <div className="px-4 py-10 text-center text-sm text-muted-foreground">
-                                        No quotations found.
-                                    </div>
-                                )}
+                                    )}
+                                </div>
                             </div>
 
                             <PaginationNav
