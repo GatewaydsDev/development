@@ -1,7 +1,7 @@
 import { Button } from '@/Components/ui/button';
 import { cn } from '@/lib/utils';
 import { Link } from '@inertiajs/react';
-import { CheckIcon, MenuIcon, XIcon } from 'lucide-react';
+import { CheckIcon, MenuIcon, PrinterIcon, XIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 type FormActionFabProps = {
@@ -10,6 +10,10 @@ type FormActionFabProps = {
     cancelLabel?: string;
     disabled?: boolean;
     form?: string;
+    printHref?: string;
+    onPrint?: () => void;
+    printLabel?: string;
+    showPrint?: boolean;
 };
 
 export default function FormActionFab({
@@ -18,9 +22,15 @@ export default function FormActionFab({
     cancelLabel = 'Cancel',
     disabled = false,
     form,
+    printHref,
+    onPrint,
+    printLabel = 'Print',
+    showPrint = false,
 }: FormActionFabProps) {
     const [isOpen, setIsOpen] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
+
+    const hasPrint = showPrint || Boolean(printHref) || Boolean(onPrint);
 
     useEffect(() => {
         if (!isOpen) {
@@ -60,7 +70,9 @@ export default function FormActionFab({
                     className={cn(
                         'size-12 rounded-full bg-emerald-600 text-white shadow-lg shadow-emerald-950/20 transition-all duration-300 ease-out hover:bg-emerald-700',
                         isOpen
-                            ? 'scale-100 opacity-100 delay-75'
+                            ? hasPrint
+                                ? 'scale-100 opacity-100 delay-150'
+                                : 'scale-100 opacity-100 delay-75'
                             : 'scale-90 opacity-0 delay-0',
                     )}
                     aria-label={saveLabel}
@@ -68,6 +80,52 @@ export default function FormActionFab({
                 >
                     <CheckIcon className="size-5" />
                 </Button>
+                {hasPrint &&
+                    (printHref ? (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            asChild
+                            className={cn(
+                                'size-12 rounded-full border-sky-200 bg-background text-sky-700 shadow-lg transition-all duration-300 ease-out hover:bg-sky-50 dark:border-sky-900/70 dark:text-sky-300 dark:hover:bg-sky-950/30',
+                                isOpen
+                                    ? 'scale-100 opacity-100 delay-75'
+                                    : 'scale-90 opacity-0 delay-75',
+                            )}
+                        >
+                            <a
+                                href={printHref}
+                                target="_blank"
+                                rel="noreferrer"
+                                aria-label={printLabel}
+                                title={printLabel}
+                            >
+                                <PrinterIcon className="size-5" />
+                            </a>
+                        </Button>
+                    ) : (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                                if (onPrint) {
+                                    onPrint();
+                                } else {
+                                    window.print();
+                                }
+                            }}
+                            className={cn(
+                                'size-12 rounded-full border-sky-200 bg-background text-sky-700 shadow-lg transition-all duration-300 ease-out hover:bg-sky-50 dark:border-sky-900/70 dark:text-sky-300 dark:hover:bg-sky-950/30',
+                                isOpen
+                                    ? 'scale-100 opacity-100 delay-75'
+                                    : 'scale-90 opacity-0 delay-75',
+                            )}
+                            aria-label={printLabel}
+                            title={printLabel}
+                        >
+                            <PrinterIcon className="size-5" />
+                        </Button>
+                    ))}
                 <Button
                     type="button"
                     variant="outline"
@@ -75,8 +133,10 @@ export default function FormActionFab({
                     className={cn(
                         'size-12 rounded-full border-rose-200 bg-background text-rose-700 shadow-lg transition-all duration-300 ease-out hover:bg-rose-50 dark:border-rose-900/70 dark:text-rose-300 dark:hover:bg-rose-950/30',
                         isOpen
-                            ? 'scale-100 opacity-100'
-                            : 'scale-90 opacity-0 delay-75',
+                            ? 'scale-100 opacity-100 delay-0'
+                            : hasPrint
+                              ? 'scale-90 opacity-0 delay-150'
+                              : 'scale-90 opacity-0 delay-75',
                     )}
                 >
                     <Link

@@ -244,6 +244,13 @@ export default function QuotationForm({
                 cancelHref={route('admin.quotations.index')}
                 saveLabel={quotation ? 'Save quotation' : 'Add quotation'}
                 disabled={isSubmitting}
+                printHref={
+                    quotation
+                        ? route('admin.quotations.print', quotation.id)
+                        : undefined
+                }
+                printLabel={quotation ? 'Print quotation' : 'Print'}
+                showPrint={true}
             />
 
             <Card className="shadow-sm">

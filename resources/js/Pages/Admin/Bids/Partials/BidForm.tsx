@@ -1055,8 +1055,15 @@ export default function BidForm({
 
             <FormActionFab
                 cancelHref={route('admin.bids.index')}
-                saveLabel="Save bid"
+                saveLabel={bid ? 'Save bid' : 'Add bid'}
                 disabled={isSubmitting}
+                printHref={
+                    bid
+                        ? route('admin.bids.print', bid.id)
+                        : undefined
+                }
+                printLabel={bid ? 'Print bid' : 'Print'}
+                showPrint={true}
             />
         </form>
     );
