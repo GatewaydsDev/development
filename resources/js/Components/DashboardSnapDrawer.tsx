@@ -563,15 +563,15 @@ export default function DashboardSnapDrawer({
                         type="button"
                         onClick={handleOpenDrawer}
                         className={cn(
-                            'fixed bottom-6 left-6 z-40 group flex items-center gap-2.5 rounded-full border border-emerald-500/40 bg-emerald-700 dark:bg-emerald-800 text-white px-4 py-2.5 shadow-xl shadow-emerald-950/30 transition-all duration-300 hover:scale-105 hover:bg-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2 focus:ring-offset-background',
+                            'fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-[max(0.75rem,env(safe-area-inset-left))] z-40 group flex items-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-700 dark:bg-emerald-800 text-white px-3 py-2 sm:px-4 sm:py-2.5 shadow-xl shadow-emerald-950/30 transition-all duration-300 hover:scale-105 hover:bg-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2 focus:ring-offset-background landscape:bottom-3 landscape:left-3 landscape:px-2.5 landscape:py-1.5 landscape:gap-1.5',
                         )}
                         aria-label="Open Dashboard Shortcuts Menu (⌘K)"
                     >
-                        <div className="flex size-7 items-center justify-center rounded-full bg-white/20 text-white transition group-hover:rotate-12">
-                            <ZapIcon className="size-4 fill-current" />
+                        <div className="flex size-6 sm:size-7 landscape:size-5 items-center justify-center rounded-full bg-white/20 text-white transition group-hover:rotate-12">
+                            <ZapIcon className="size-3.5 sm:size-4 landscape:size-3 fill-current" />
                         </div>
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold tracking-wide">
+                        <div className="flex items-center gap-1.5 sm:gap-2">
+                            <span className="text-xs sm:text-sm font-semibold tracking-wide">
                                 Shortcuts
                             </span>
                             <span className="hidden sm:inline-flex items-center rounded bg-white/20 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-50">
@@ -582,26 +582,26 @@ export default function DashboardSnapDrawer({
                 </DrawerTrigger>
             )}
 
-            <DrawerContent className="fixed inset-y-0 left-0 z-50 flex h-full w-full max-w-md sm:max-w-lg md:max-w-xl flex-col border-r border-border bg-card text-card-foreground shadow-2xl focus:outline-none">
+            <DrawerContent className="fixed inset-y-0 left-0 z-50 flex h-full w-full max-w-sm sm:max-w-md md:max-w-xl flex-col border-r border-border bg-card text-card-foreground shadow-2xl focus:outline-none landscape:max-w-sm">
                 <div className="flex h-full flex-col overflow-hidden">
                     {/* Header */}
-                    <div className="border-b border-border bg-card px-4 pt-6 pb-3 sm:px-6 sm:pt-7 sm:pb-4">
+                    <div className="border-b border-border bg-card px-4 pt-4 pb-2.5 sm:px-6 sm:pt-7 sm:pb-4 landscape:pt-3 landscape:pb-2 landscape:px-3">
                         <DrawerHeader className="p-0 flex flex-row items-center justify-between">
-                            <div className="flex items-center gap-3 text-left">
-                                <div className="flex size-10 items-center justify-center rounded-xl bg-emerald-600/15 text-emerald-600 dark:bg-emerald-400/15 dark:text-emerald-400 shrink-0">
-                                    <SparklesIcon className="size-5" />
+                            <div className="flex items-center gap-2.5 sm:gap-3 text-left">
+                                <div className="flex size-8 sm:size-10 landscape:size-7 items-center justify-center rounded-xl bg-emerald-600/15 text-emerald-600 dark:bg-emerald-400/15 dark:text-emerald-400 shrink-0">
+                                    <SparklesIcon className="size-4 sm:size-5 landscape:size-3.5" />
                                 </div>
                                 <div>
-                                    <DrawerTitle className="text-lg font-bold tracking-tight text-foreground sm:text-xl flex items-center gap-2">
+                                    <DrawerTitle className="text-base font-bold tracking-tight text-foreground sm:text-xl landscape:text-sm flex items-center gap-2">
                                         <span>Shortcuts Menu</span>
                                         <Badge
                                             variant="secondary"
-                                            className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/60"
+                                            className="text-[10px] sm:text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/60"
                                         >
                                             {visibleShortcuts.length} available
                                         </Badge>
                                     </DrawerTitle>
-                                    <DrawerDescription className="text-xs text-muted-foreground">
+                                    <DrawerDescription className="text-[11px] sm:text-xs text-muted-foreground line-clamp-1 landscape:hidden">
                                         Quick jump to dashboard screens, tools, and actions.
                                     </DrawerDescription>
                                 </div>
@@ -612,7 +612,7 @@ export default function DashboardSnapDrawer({
                                     <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="rounded-full size-8 text-muted-foreground hover:text-foreground"
+                                        className="rounded-full size-7 sm:size-8 text-muted-foreground hover:text-foreground"
                                         aria-label="Close shortcuts drawer"
                                     >
                                         <XIcon className="size-4" />
@@ -622,15 +622,15 @@ export default function DashboardSnapDrawer({
                         </DrawerHeader>
 
                         {/* Search bar */}
-                        <div className="relative mt-3">
-                            <SearchIcon className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-emerald-600 dark:text-emerald-400 pointer-events-none" />
+                        <div className="relative mt-2 sm:mt-3 landscape:mt-1.5">
+                            <SearchIcon className="absolute left-3 top-1/2 size-3.5 sm:size-4 -translate-y-1/2 text-emerald-600 dark:text-emerald-400 pointer-events-none" />
                             <input
                                 ref={searchInputRef}
                                 type="text"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 placeholder="Search shortcuts, quotes, bids, team..."
-                                className="w-full rounded-xl border border-border bg-background py-2.5 pl-10 pr-10 text-sm font-medium text-foreground shadow-xs placeholder:text-muted-foreground focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-border dark:bg-muted/40 dark:focus:border-emerald-400"
+                                className="w-full rounded-xl border border-border bg-background py-2 pl-9 pr-9 text-xs sm:py-2.5 sm:pl-10 sm:pr-10 sm:text-sm font-medium text-foreground shadow-xs placeholder:text-muted-foreground focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-border dark:bg-muted/40 dark:focus:border-emerald-400 landscape:py-1.5 landscape:text-xs"
                                 aria-label="Search shortcuts"
                             />
                             {searchQuery ? (
@@ -640,7 +640,7 @@ export default function DashboardSnapDrawer({
                                         setSearchQuery('');
                                         searchInputRef.current?.focus();
                                     }}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
                                     aria-label="Clear search"
                                 >
                                     <XIcon className="size-3.5" />
@@ -654,9 +654,9 @@ export default function DashboardSnapDrawer({
 
                         {/* Quick Add Actions */}
                         {quickActionPills.length > 0 && !searchQuery && (
-                            <div className="mt-2.5 flex items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-                                <div className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground shrink-0 pr-0.5">
-                                    <ZapIcon className="size-3 text-emerald-600 dark:text-emerald-400" />
+                            <div className="mt-2 sm:mt-2.5 landscape:mt-1.5 flex items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                                <div className="flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-muted-foreground shrink-0 pr-0.5">
+                                    <ZapIcon className="size-2.5 sm:size-3 text-emerald-600 dark:text-emerald-400" />
                                     <span>Quick Add:</span>
                                 </div>
                                 <div className="flex items-center gap-1.5 flex-nowrap shrink-0">
@@ -665,10 +665,10 @@ export default function DashboardSnapDrawer({
                                             key={action.id}
                                             href={action.href}
                                             onClick={() => setOpen(false)}
-                                            className="group inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-emerald-500/30 bg-emerald-50/80 dark:bg-emerald-950/50 px-2.5 py-0.5 text-xs font-medium text-emerald-800 dark:text-emerald-200 transition hover:border-emerald-600 hover:bg-emerald-600 hover:text-white"
+                                            className="group inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-emerald-500/30 bg-emerald-50/80 dark:bg-emerald-950/50 px-2 sm:px-2.5 py-0.5 text-[11px] sm:text-xs font-medium text-emerald-800 dark:text-emerald-200 transition hover:border-emerald-600 hover:bg-emerald-600 hover:text-white"
                                         >
                                             {action.isAdd && (
-                                                <PlusIcon className="size-3 transition group-hover:scale-125" />
+                                                <PlusIcon className="size-2.5 sm:size-3 transition group-hover:scale-125" />
                                             )}
                                             <span>{action.label}</span>
                                         </Link>
@@ -678,7 +678,7 @@ export default function DashboardSnapDrawer({
                         )}
 
                         {/* Category Filter Tabs */}
-                        <div className="mt-2.5 flex items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                        <div className="mt-2 sm:mt-2.5 landscape:mt-1.5 flex items-center gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                             {(
                                 [
                                     { id: 'all', label: 'All' },
@@ -715,11 +715,11 @@ export default function DashboardSnapDrawer({
                                     return (
                                         <div
                                             key={item.id}
-                                            className="group relative flex flex-col rounded-xl border border-border bg-background p-3 transition hover:border-emerald-500/50 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/15 hover:shadow-sm"
+                                            className="group relative flex flex-col rounded-xl border border-border bg-background p-2.5 sm:p-3 landscape:p-2 transition hover:border-emerald-500/50 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/15 hover:shadow-sm"
                                         >
-                                            <div className="flex items-start gap-3">
-                                                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground transition group-hover:bg-emerald-600 group-hover:text-white">
-                                                    <Icon className="size-4.5" />
+                                            <div className="flex items-start gap-2.5 sm:gap-3">
+                                                <div className="flex size-8 sm:size-9 landscape:size-7 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground transition group-hover:bg-emerald-600 group-hover:text-white">
+                                                    <Icon className="size-4 sm:size-4.5 landscape:size-3.5" />
                                                 </div>
 
                                                 <div className="flex min-w-0 flex-1 flex-col">
@@ -727,7 +727,7 @@ export default function DashboardSnapDrawer({
                                                         <Link
                                                             href={item.href}
                                                             onClick={() => setOpen(false)}
-                                                            className="truncate text-sm font-semibold text-foreground hover:text-emerald-600 focus:outline-none"
+                                                            className="truncate text-xs sm:text-sm font-semibold text-foreground hover:text-emerald-600 focus:outline-none"
                                                         >
                                                             {item.title}
                                                         </Link>
@@ -740,13 +740,13 @@ export default function DashboardSnapDrawer({
                                                             </Badge>
                                                         )}
                                                     </div>
-                                                    <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">
+                                                    <p className="mt-0.5 text-[11px] sm:text-xs text-muted-foreground line-clamp-1 sm:line-clamp-2">
                                                         {item.description}
                                                     </p>
                                                 </div>
                                             </div>
 
-                                            <div className="mt-2.5 flex items-center justify-between border-t border-border/50 pt-2 text-xs">
+                                            <div className="mt-2 sm:mt-2.5 landscape:mt-1.5 flex items-center justify-between border-t border-border/50 pt-1.5 sm:pt-2 text-[11px] sm:text-xs">
                                                 <Link
                                                     href={item.href}
                                                     onClick={() => setOpen(false)}
@@ -760,7 +760,7 @@ export default function DashboardSnapDrawer({
                                                     <Link
                                                         href={item.quickAddHref}
                                                         onClick={() => setOpen(false)}
-                                                        className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground transition hover:bg-emerald-600 hover:text-white"
+                                                        className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-[10px] sm:text-[11px] font-medium text-muted-foreground transition hover:bg-emerald-600 hover:text-white"
                                                     >
                                                         <PlusIcon className="size-3" />
                                                         <span>{item.quickAddTitle ?? 'Add new'}</span>

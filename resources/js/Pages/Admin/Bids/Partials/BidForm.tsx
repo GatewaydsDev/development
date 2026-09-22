@@ -1033,22 +1033,22 @@ export default function BidForm({
                 }
             />
 
-            <div className="sticky bottom-24 z-10 mr-4 flex min-w-0 max-w-full flex-col gap-3 rounded-xl border border-emerald-200 bg-background/95 px-4 py-3 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between lg:bottom-4 lg:mr-20 dark:border-emerald-900/70">
+            <div className="sticky bottom-20 z-10 mr-16 flex min-w-0 max-w-full flex-row items-center justify-between gap-4 rounded-xl border border-emerald-200 bg-background/95 px-3.5 py-2.5 shadow-lg backdrop-blur sm:mr-20 sm:px-4 sm:py-3 lg:bottom-4 lg:mr-20 landscape:bottom-3 landscape:px-3.5 landscape:py-2 dark:border-emerald-900/70">
                 <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground sm:text-xs">
                         Combined price
                     </p>
-                    <p className="text-xl font-semibold text-emerald-700 dark:text-emerald-300">
+                    <p className="text-base font-semibold text-emerald-700 sm:text-lg lg:text-xl landscape:text-base dark:text-emerald-300">
                         {combinedPriceValue
                             ? formatMoney(combinedPriceValue)
                             : '—'}
                     </p>
                 </div>
-                <div className="sm:text-right">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <div className="text-right">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground sm:text-xs">
                         Latest revision total
                     </p>
-                    <p className="text-xl font-semibold text-emerald-700 dark:text-emerald-300">
+                    <p className="text-base font-semibold text-emerald-700 sm:text-lg lg:text-xl landscape:text-base dark:text-emerald-300">
                         {formatMoney(latestTotal)}
                     </p>
                 </div>
