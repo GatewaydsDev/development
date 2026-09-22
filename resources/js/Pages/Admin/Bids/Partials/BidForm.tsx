@@ -645,7 +645,7 @@ export default function BidForm({
                             </p>
                         ) : null}
                         {quotations.length > 0 ? (
-                            <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_auto] lg:items-end">
+                            <div className="grid min-w-0 w-full gap-5 lg:grid-cols-[minmax(0,1.4fr)_auto] lg:items-end">
                                 <CreatableSelect
                                     id="bid-import-quotation"
                                     label="Import quotation"
@@ -654,6 +654,7 @@ export default function BidForm({
                                     allowCreate={false}
                                     placeholder="Type to find a saved quotation"
                                     hint="The quotation stays in Quotations. Import copies the project and line items onto this bid."
+                                    wrapOptions
                                     onChange={(quotationId) =>
                                         setImportQuotationValue(quotationId)
                                     }
@@ -661,7 +662,7 @@ export default function BidForm({
                                 <Button
                                     type="button"
                                     variant="outline"
-                                    className="h-11"
+                                    className="h-11 w-full lg:w-auto"
                                     onClick={() => {
                                         const quotation = quotations.find(
                                             (item) =>

@@ -54,6 +54,7 @@
         .rich-text table { width: 100%; border-collapse: collapse; margin: 8px 0; }
         .rich-text th, .rich-text td { border: 1px solid #d1d5db; padding: 6px 8px; font-size: 10px; }
         .pricing { width: 100%; border-collapse: collapse; margin-top: 6px; }
+        .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .pricing th { background: {{ $c['table_header_bg'] }}; color: {{ $c['table_header_text'] }}; font-size: 9px; text-align: left; padding: 7px 8px; }
         .pricing th.amount, .pricing td.amount { text-align: right; white-space: nowrap; }
         .pricing td { border: 1px solid #d1d5db; padding: 7px 8px; font-size: 10px; vertical-align: top; }
@@ -110,6 +111,25 @@
             .actions .primary { background: {{ $c['button'] }}; }
             .page { max-width: 820px; margin: 24px auto 40px; overflow: hidden; border-radius: 20px; box-shadow: 0 24px 60px rgba(15, 23, 42, 0.14); }
             @endif
+
+            @media (max-width: 640px) {
+                .toolbar { padding: 10px 14px; }
+                .toolbar-inner { flex-direction: column; align-items: flex-start; gap: 10px; }
+                .actions { width: 100%; }
+                .actions a, .actions button { padding: 7px 12px; font-size: 12px; }
+                .page { margin: 8px auto 20px; border-radius: 12px; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08); }
+                .hero { padding: 16px 14px; }
+                .body { padding: 14px 14px 18px; }
+                .hero h1 { font-size: 20px; }
+                .hero-year { font-size: 18px; }
+                .document-title { font-size: 18px; }
+                .signature-table { display: block; width: 100%; margin: 0 0 8px; border-spacing: 0; }
+                .signature-table tbody, .signature-table tr { display: block; width: 100%; }
+                .signature-col { display: block; width: 100% !important; margin-bottom: 12px; }
+                .stats td, .meta td { display: block; width: 100% !important; }
+                .stats tr td + td, .meta tr td + td { border-top: 0; }
+                .pricing { min-width: 480px; }
+            }
         }
         @media print {
             html, body { background: #ffffff; }
@@ -210,24 +230,26 @@
 
             @if ($mode !== 'print' && count($revisions) > 0)
                 <h2 class="section-title">Quotation revisions</h2>
-                <table class="pricing">
-                    <thead>
-                        <tr>
-                            @foreach ($revisionColumns as $column)
-                                <th>{{ $column['label'] }}</th>
-                            @endforeach
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($revisions as $revision)
+                <div class="table-responsive">
+                    <table class="pricing">
+                        <thead>
                             <tr>
                                 @foreach ($revisionColumns as $column)
-                                    <td>{{ $revision[$column['key']] }}</td>
+                                    <th>{{ $column['label'] }}</th>
                                 @endforeach
                             </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            @foreach ($revisions as $revision)
+                                <tr>
+                                    @foreach ($revisionColumns as $column)
+                                        <td>{{ $revision[$column['key']] }}</td>
+                                    @endforeach
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
             @endif
 
             <h2 class="section-title">Contractor</h2>
@@ -274,30 +296,32 @@
             @endif
 
             <h2 class="section-title">Base Bid</h2>
-            <table class="pricing">
-                <thead>
-                    <tr>
-                        <th class="amount" style="width: 8%;">Qty</th>
-                        <th style="width: 26%;">Size</th>
-                        <th>Description</th>
-                        <th class="amount" style="width: 14%;">Price</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse ($lineItems as $item)
+            <div class="table-responsive">
+                <table class="pricing">
+                    <thead>
                         <tr>
-                            <td class="amount">{{ $item['quantity'] }}</td>
-                            <td>{{ $item['size'] }}</td>
-                            <td style="white-space: pre-line;">{!! nl2br(e($item['description'])) !!}</td>
-                            <td class="amount">{{ $item['unit_price'] }}</td>
+                            <th class="amount" style="width: 8%;">Qty</th>
+                            <th style="width: 26%;">Size</th>
+                            <th>Description</th>
+                            <th class="amount" style="width: 14%;">Price</th>
                         </tr>
-                    @empty
-                        <tr>
-                            <td colspan="4">No line items added.</td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @forelse ($lineItems as $item)
+                            <tr>
+                                <td class="amount">{{ $item['quantity'] }}</td>
+                                <td>{{ $item['size'] }}</td>
+                                <td style="white-space: pre-line;">{!! nl2br(e($item['description'])) !!}</td>
+                                <td class="amount">{{ $item['unit_price'] }}</td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="4">No line items added.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
             <p class="total">Total {{ $total }}</p>
 
             @if ($pricingBasis)
@@ -309,20 +333,22 @@
 
             @foreach ($fieldTables as $table)
                 <h2 class="section-title">{{ $table['title'] }}</h2>
-                <table class="pricing">
-                    <tbody>
-                        @forelse ($table['fields'] as $item)
-                            <tr>
-                                <td style="width: 34%; background: #f3f4f6; font-weight: 600;">{{ $item['field'] }}</td>
-                                <td>{{ $item['value'] }}</td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="2" class="muted">No fields added.</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
+                <div class="table-responsive">
+                    <table class="pricing">
+                        <tbody>
+                            @forelse ($table['fields'] as $item)
+                                <tr>
+                                    <td style="width: 34%; background: #f3f4f6; font-weight: 600;">{{ $item['field'] }}</td>
+                                    <td>{{ $item['value'] }}</td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="2" class="muted">No fields added.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
             @endforeach
 
             @if ($pricingConditions)

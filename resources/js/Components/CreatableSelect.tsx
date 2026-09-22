@@ -477,7 +477,7 @@ export default function CreatableSelect({
     return (
         <div
             ref={containerRef}
-            className={cn('flex flex-col gap-2', stateInitials && 'w-fit')}
+            className={cn('flex flex-col gap-2 min-w-0 w-full', stateInitials && 'w-fit')}
         >
             {label ? (
                 <InputLabel
@@ -487,9 +487,9 @@ export default function CreatableSelect({
                 />
             ) : null}
             {hint ? (
-                <p className="truncate text-sm text-muted-foreground">{hint}</p>
+                <p className="text-sm text-muted-foreground">{hint}</p>
             ) : null}
-            <div className={cn('relative', stateInitials && 'w-fit')}>
+            <div className={cn('relative min-w-0 w-full', stateInitials && 'w-fit')}>
                 <TextInput
                     ref={inputRef}
                     id={id}
@@ -504,7 +504,7 @@ export default function CreatableSelect({
                     size={stateInitials ? 2 : undefined}
                     placeholder={placeholder}
                     className={cn(
-                        'h-11 w-full border-border bg-background pr-10 text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring',
+                        'h-11 w-full min-w-0 border-border bg-background pr-10 text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring',
                         stateInitials && stateInitialsInputClassName,
                     )}
                     onFocus={() => {

@@ -232,6 +232,12 @@
             margin-top: 6px;
         }
 
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
         .pricing th {
             background: {{ $c['table_header_bg'] }};
             color: {{ $c['table_header_text'] }};
@@ -494,6 +500,92 @@
                 box-shadow: 0 24px 60px rgba(15, 23, 42, 0.14);
             }
             @endif
+
+            @media (max-width: 640px) {
+                .toolbar {
+                    padding: 10px 14px;
+                }
+
+                .toolbar-inner {
+                    flex-direction: column;
+                    align-items: flex-start;
+                    gap: 10px;
+                }
+
+                .actions {
+                    width: 100%;
+                }
+
+                .actions a,
+                .actions button {
+                    padding: 7px 12px;
+                    font-size: 12px;
+                }
+
+                .page {
+                    margin: 8px auto 20px;
+                    border-radius: 12px;
+                    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+                }
+
+                .hero {
+                    padding: 16px 14px;
+                }
+
+                .body {
+                    padding: 14px 14px 18px;
+                }
+
+                .hero h1 {
+                    font-size: 20px;
+                }
+
+                .hero-year {
+                    font-size: 18px;
+                }
+
+                .document-title {
+                    font-size: 18px;
+                }
+
+                .signature-table {
+                    display: block;
+                    width: 100%;
+                    margin: 0 0 8px;
+                    border-spacing: 0;
+                }
+
+                .signature-table tbody,
+                .signature-table tr {
+                    display: block;
+                    width: 100%;
+                }
+
+                .signature-col {
+                    display: block;
+                    width: 100% !important;
+                    margin-bottom: 12px;
+                }
+
+                .stats td,
+                .meta td {
+                    display: block;
+                    width: 100% !important;
+                }
+
+                .stats tr td + td,
+                .meta tr td + td {
+                    border-top: 0;
+                }
+
+                .totals {
+                    max-width: 100%;
+                }
+
+                .pricing {
+                    min-width: 580px;
+                }
+            }
         }
 
         @media print {
@@ -583,24 +675,26 @@
 
             @if ($mode !== 'print' && count($revisions) > 0)
                 <h2 class="section-title">Bid revisions</h2>
-                <table class="pricing">
-                    <thead>
-                        <tr>
-                            @foreach ($revisionColumns as $column)
-                                <th>{{ $column['label'] }}</th>
-                            @endforeach
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($revisions as $revision)
+                <div class="table-responsive">
+                    <table class="pricing">
+                        <thead>
                             <tr>
                                 @foreach ($revisionColumns as $column)
-                                    <td>{{ $revision[$column['key']] }}</td>
+                                    <th>{{ $column['label'] }}</th>
                                 @endforeach
                             </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            @foreach ($revisions as $revision)
+                                <tr>
+                                    @foreach ($revisionColumns as $column)
+                                        <td>{{ $revision[$column['key']] }}</td>
+                                    @endforeach
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
             @endif
 
             <h2 class="section-title">Contractors</h2>
@@ -651,24 +745,26 @@
                 <div class="block">
                     <p class="block-title">{{ $scope['name'] ?: 'Scope' }}</p>
                     @if (count($scope['items']) > 0)
-                        <table class="pricing">
-                            <thead>
-                                <tr>
-                                    @foreach ($scope['columns'] as $column)
-                                        <th @class(['amount' => $column['amount']])>{{ $column['label'] }}</th>
-                                    @endforeach
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach ($scope['items'] as $item)
+                        <div class="table-responsive">
+                            <table class="pricing">
+                                <thead>
                                     <tr>
                                         @foreach ($scope['columns'] as $column)
-                                            <td @class(['amount' => $column['amount']])>{{ $item[$column['key']] }}</td>
+                                            <th @class(['amount' => $column['amount']])>{{ $column['label'] }}</th>
                                         @endforeach
                                     </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    @foreach ($scope['items'] as $item)
+                                        <tr>
+                                            @foreach ($scope['columns'] as $column)
+                                                <td @class(['amount' => $column['amount']])>{{ $item[$column['key']] }}</td>
+                                            @endforeach
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
                     @else
                         <p class="muted">No items added yet.</p>
                     @endif
