@@ -22,6 +22,14 @@ export default defineConfig({
                         return 'vendor-inertia';
                     }
 
+                    if (id.includes('@tiptap') || id.includes('prosemirror')) {
+                        return 'vendor-tiptap';
+                    }
+
+                    if (id.includes('@headlessui')) {
+                        return 'vendor-headlessui';
+                    }
+
                     if (id.includes('i18next')) {
                         return 'vendor-i18n';
                     }
