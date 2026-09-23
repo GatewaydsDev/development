@@ -16,6 +16,7 @@ use App\Models\BidStageType;
 use App\Models\BidTextField;
 use App\Models\BidTextTemplate;
 use App\Models\Company;
+use App\Models\PreBid;
 use App\Models\Product;
 use App\Models\Project;
 use App\Models\ProjectScopeType;
@@ -1218,6 +1219,28 @@ class BidController extends Controller
                     'id' => $template->id,
                     'name' => $template->name,
                     'body' => $template->body,
+                ])
+                ->all(),
+            'preBids' => PreBid::query()
+                ->with(['project', 'assignee'])
+                ->orderBy('name')
+                ->get()
+                ->map(fn (PreBid $preBid): array => [
+                    'id' => $preBid->id,
+                    'uuid' => $preBid->uuid,
+                    'name' => $preBid->name,
+                    'project_id' => $preBid->project_id ? (string) $preBid->project_id : '',
+                    'project_name' => $preBid->project?->name,
+                    'assigned_to' => $preBid->assigned_to ? (string) $preBid->assigned_to : '',
+                    'assignee_name' => $preBid->assignee?->name,
+                    'notes' => $preBid->notes ?? '',
+                    'bid_shipping_text_template_id' => $preBid->bid_shipping_text_template_id ? (string) $preBid->bid_shipping_text_template_id : '',
+                    'bid_scope_text_template_id' => $preBid->bid_scope_text_template_id ? (string) $preBid->bid_scope_text_template_id : '',
+                    'scope_of_work_text' => $preBid->scope_of_work_text ?? '',
+                    'scopes' => $preBid->scopes ?? [],
+                    'stages' => $preBid->stages ?? [],
+                    'revisions' => $preBid->revisions ?? [],
+                    'pricings' => $preBid->pricings ?? [],
                 ])
                 ->all(),
             'textFields' => BidTextField::query()

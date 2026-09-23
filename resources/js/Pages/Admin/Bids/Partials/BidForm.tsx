@@ -30,6 +30,7 @@ import { toast } from 'sonner';
 import { z } from 'zod';
 import { type PageProps } from '@/types';
 import BidApplicationTextSection from './BidApplicationTextSection';
+import PreBidSection from './PreBidSection';
 import {
     bidToFormData,
     blankRevision,
@@ -48,6 +49,7 @@ import {
     type BidOptions,
     type BidPayload,
     type BidQuotationOption,
+    type PreBidOption,
 } from '../types';
 
 type BidFormProps = {
@@ -279,17 +281,22 @@ export default function BidForm({
         fields: revisionFields,
         append: appendRevision,
         remove: removeRevision,
+        replace: replaceRevisions,
     } = useFieldArray({ control, name: 'revisions' });
     const {
         fields: stageFields,
         append: appendStage,
         remove: removeStage,
+        replace: replaceStages,
     } = useFieldArray({ control, name: 'stages' });
     const {
         fields: scopeFields,
         remove: removeScope,
         replace: replaceScopes,
     } = useFieldArray({ control, name: 'scopes' });
+
+    const isCreate = !bid;
+    const [selectedPreBidId, setSelectedPreBidId] = useState('');
 
     const data = useWatch({
         control,
@@ -319,6 +326,67 @@ export default function BidForm({
             shouldDirty: true,
             shouldValidate: true,
         });
+    };
+
+    const applyPreBid = (preBid: PreBidOption) => {
+        if (
+            preBid.project_id &&
+            options.projects.some(
+                (p) => String(p.id) === String(preBid.project_id),
+            )
+        ) {
+            setData('project_id', String(preBid.project_id));
+        }
+
+        if (preBid.assigned_to) {
+            setData('assigned_to', String(preBid.assigned_to));
+        }
+
+        if (preBid.notes !== undefined && preBid.notes !== null) {
+            setData('notes', preBid.notes);
+        }
+
+        if (preBid.bid_shipping_text_template_id) {
+            setData(
+                'bid_shipping_text_template_id',
+                String(preBid.bid_shipping_text_template_id),
+            );
+        }
+
+        if (
+            preBid.scope_of_work_text !== undefined &&
+            preBid.scope_of_work_text !== null
+        ) {
+            setData('scope_of_work_text', preBid.scope_of_work_text);
+        }
+
+        if (preBid.bid_scope_text_template_id) {
+            setData(
+                'bid_scope_text_template_id',
+                String(preBid.bid_scope_text_template_id),
+            );
+        }
+
+        if (preBid.scopes && preBid.scopes.length > 0) {
+            replaceScopes(preBid.scopes);
+        }
+
+        if (preBid.stages && preBid.stages.length > 0) {
+            replaceStages(preBid.stages);
+        }
+
+        if (preBid.revisions && preBid.revisions.length > 0) {
+            replaceRevisions(preBid.revisions);
+        }
+
+        if (preBid.pricings && preBid.pricings.length > 0) {
+            setValue('pricings', preBid.pricings, {
+                shouldDirty: true,
+                shouldValidate: true,
+            });
+        }
+
+        toast.success(`Pre-bid “${preBid.name}” applied.`);
     };
 
     const quotations = options.quotations ?? [];
@@ -550,6 +618,18 @@ export default function BidForm({
                     <CardDescription>{description}</CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-6">
+                    {isCreate ? (
+                        <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/20">
+                            <PreBidSection
+                                options={options}
+                                formData={data}
+                                selectedPreBidId={selectedPreBidId}
+                                onSelectPreBidId={setSelectedPreBidId}
+                                onApplyPreBid={applyPreBid}
+                            />
+                        </div>
+                    ) : null}
+
                     <div className="flex flex-col gap-5">
                         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
                             <CreatableSelect

@@ -91,6 +91,24 @@ export type BidTextFieldOption = {
     value?: string | null;
 };
 
+export type PreBidOption = {
+    id: number;
+    uuid?: string;
+    name: string;
+    project_id?: string | null;
+    project_name?: string | null;
+    assigned_to?: string | null;
+    assignee_name?: string | null;
+    notes?: string | null;
+    bid_shipping_text_template_id?: string | null;
+    bid_scope_text_template_id?: string | null;
+    scope_of_work_text?: string | null;
+    scopes?: BidScopeFormData[];
+    stages?: BidStageFormData[];
+    revisions?: BidRevisionFormData[];
+    pricings?: BidPricingFormData[];
+};
+
 export type BidOptions = {
     projects: BidProjectOption[];
     stageTypes: BidCatalogOption[];
@@ -100,6 +118,7 @@ export type BidOptions = {
     pricingStatuses: BidCatalogOption[];
     scopeTextTemplates: BidTextTemplateOption[];
     shippingTextTemplates: BidTextTemplateOption[];
+    preBids?: PreBidOption[];
     textFields?: BidTextFieldOption[];
     company?: BidCompanyOption;
     can: BidCapabilities;

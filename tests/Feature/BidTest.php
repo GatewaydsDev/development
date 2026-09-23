@@ -6,6 +6,7 @@ use App\Models\BidStageType;
 use App\Models\BidTextField;
 use App\Models\BidTextTemplate;
 use App\Models\Contractor;
+use App\Models\PreBid;
 use App\Models\Product;
 use App\Models\Project;
 use App\Models\ProjectScopeType;
@@ -1873,5 +1874,109 @@ test('the bids index page includes a summarization of all bids ordered by bid st
             ->where('summary.stages.1.count', 1)
             ->where('summary.stages.1.total_amount', 5000)
             ->where('summary.stages.1.formatted_total', '$5,000.00')
+        );
+});
+
+test('admins can store and update pre-bids', function () {
+    $admin = bidAdmin();
+    $project = bidProject($admin, 'Hospital Tower');
+
+    $response = $this->actingAs($admin)
+        ->post(route('admin.pre-bids.store'), [
+            'name' => 'Hospital Standard Pre-bid',
+            'project_id' => $project->id,
+            'assigned_to' => $admin->id,
+            'notes' => '<p>Freight included.</p>',
+            'scope_of_work_text' => '<p>Furnish and install doors.</p>',
+            'scopes' => [
+                [
+                    'title_id' => '1',
+                    'scope_type' => 'Doors',
+                    'title_name' => 'Lead-Lined Doors',
+                    'notations' => '<p>Standard lead lining</p>',
+                    'products' => [],
+                ],
+            ],
+            'stages' => [
+                [
+                    'stage_type_id' => '1',
+                    'name' => 'Draft',
+                    'stage_date' => '2026-09-20',
+                    'notes' => 'Preliminary draft',
+                ],
+            ],
+        ]);
+
+    $response->assertRedirect();
+    $response->assertSessionHas('success', 'Pre-bid saved successfully.');
+
+    $this->assertDatabaseHas('pre_bids', [
+        'name' => 'Hospital Standard Pre-bid',
+        'project_id' => $project->id,
+        'assigned_to' => $admin->id,
+    ]);
+
+    $preBid = PreBid::where('name', 'Hospital Standard Pre-bid')->firstOrFail();
+    expect($preBid->scopes)->toHaveCount(1);
+    expect($preBid->stages)->toHaveCount(1);
+
+    // Update the same pre-bid by name
+    $updateResponse = $this->actingAs($admin)
+        ->post(route('admin.pre-bids.store'), [
+            'name' => 'hospital standard pre-bid',
+            'project_id' => $project->id,
+            'assigned_to' => $admin->id,
+            'notes' => '<p>Updated freight included.</p>',
+            'scope_of_work_text' => '<p>Updated scope text.</p>',
+            'scopes' => [],
+        ]);
+
+    $updateResponse->assertRedirect();
+    $updateResponse->assertSessionHas('success', 'Pre-bid updated successfully.');
+
+    $preBid->refresh();
+    expect($preBid->notes)->toContain('Updated freight included');
+});
+
+test('admins can delete pre-bids', function () {
+    $admin = bidAdmin();
+    $preBid = PreBid::create([
+        'name' => 'Pre-bid to remove',
+        'created_by' => $admin->id,
+    ]);
+
+    $response = $this->actingAs($admin)
+        ->delete(route('admin.pre-bids.destroy', $preBid->id));
+
+    $response->assertRedirect();
+    $response->assertSessionHas('success', 'Pre-bid removed successfully.');
+
+    $this->assertDatabaseMissing('pre_bids', [
+        'id' => $preBid->id,
+    ]);
+});
+
+test('pre-bids are provided in options when creating a new bid', function () {
+    $admin = bidAdmin();
+    $project = bidProject($admin, 'Prebid Project');
+    $preBid = PreBid::create([
+        'name' => 'Commercial Entrance Pre-bid',
+        'project_id' => $project->id,
+        'assigned_to' => $admin->id,
+        'created_by' => $admin->id,
+    ]);
+
+    $response = $this->actingAs($admin)
+        ->get(route('admin.bids.create'));
+
+    $response->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Admin/Bids/Create')
+            ->has('options.preBids', fn (Assert $preBids) => $preBids
+                ->where('0.name', 'Commercial Entrance Pre-bid')
+                ->where('0.project_name', 'Prebid Project')
+                ->where('0.assignee_name', $admin->name)
+                ->etc()
+            )
         );
 });

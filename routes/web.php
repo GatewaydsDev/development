@@ -248,6 +248,10 @@ Route::middleware(['auth', 'prevent-back-history'])
             ->name('bid-scopes.store');
         Route::post('/bid-pricing-statuses', [BidCatalogController::class, 'storePricingStatus'])
             ->name('bid-pricing-statuses.store');
+        Route::post('/pre-bids', [BidCatalogController::class, 'storePreBid'])
+            ->name('pre-bids.store');
+        Route::delete('/pre-bids/{preBid}', [BidCatalogController::class, 'destroyPreBid'])
+            ->name('pre-bids.destroy');
         Route::post('/bid-text-templates', [BidCatalogController::class, 'storeTextTemplate'])
             ->name('bid-text-templates.store');
         Route::post('/bid-text-templates/import', [BidCatalogController::class, 'importTextTemplate'])

@@ -7,7 +7,10 @@ use App\Models\BidPricingStatus;
 use App\Models\BidStageType;
 use App\Models\BidTextField;
 use App\Models\BidTextTemplate;
+use App\Models\PreBid;
+use App\Models\Project;
 use App\Models\ProjectScopeType;
+use App\Models\User;
 use App\Support\BidAccess;
 use App\Support\BidApplicationText;
 use App\Support\QuotationAccess;
@@ -61,6 +64,79 @@ class BidCatalogController extends Controller
         BidPricingStatus::create(['name' => $name]);
 
         return back()->with('success', 'Pricing status added successfully.');
+    }
+
+    public function storePreBid(Request $request): RedirectResponse
+    {
+        $this->authorizeCatalog($request);
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'project_id' => ['nullable', 'integer', Rule::exists(Project::class, 'id')],
+            'assigned_to' => ['nullable', 'integer', Rule::exists(User::class, 'id')],
+            'notes' => ['nullable', 'string', 'max:250000'],
+            'bid_shipping_text_template_id' => [
+                'nullable',
+                'integer',
+                Rule::exists(BidTextTemplate::class, 'id')->where(
+                    fn ($query) => $query->where('kind', BidTextTemplate::KIND_SHIPPING)
+                ),
+            ],
+            'bid_scope_text_template_id' => [
+                'nullable',
+                'integer',
+                Rule::exists(BidTextTemplate::class, 'id')->where(
+                    fn ($query) => $query->where('kind', BidTextTemplate::KIND_SCOPE)
+                ),
+            ],
+            'scope_of_work_text' => ['nullable', 'string', 'max:250000'],
+            'scopes' => ['nullable', 'array'],
+            'stages' => ['nullable', 'array'],
+            'revisions' => ['nullable', 'array'],
+            'pricings' => ['nullable', 'array'],
+        ]);
+
+        $name = trim($validated['name']);
+
+        $existing = PreBid::query()
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
+            ->first();
+
+        $attributes = [
+            'project_id' => $validated['project_id'] ?? null,
+            'assigned_to' => $validated['assigned_to'] ?? null,
+            'notes' => BidApplicationText::sanitize($validated['notes'] ?? null),
+            'bid_shipping_text_template_id' => $validated['bid_shipping_text_template_id'] ?? null,
+            'bid_scope_text_template_id' => $validated['bid_scope_text_template_id'] ?? null,
+            'scope_of_work_text' => BidApplicationText::sanitize($validated['scope_of_work_text'] ?? null),
+            'scopes' => $validated['scopes'] ?? null,
+            'stages' => $validated['stages'] ?? null,
+            'revisions' => $validated['revisions'] ?? null,
+            'pricings' => $validated['pricings'] ?? null,
+            'created_by' => $request->user()->id,
+        ];
+
+        if ($existing) {
+            $existing->update($attributes);
+
+            return back()->with('success', 'Pre-bid updated successfully.');
+        }
+
+        PreBid::create([
+            'name' => $name,
+            ...$attributes,
+        ]);
+
+        return back()->with('success', 'Pre-bid saved successfully.');
+    }
+
+    public function destroyPreBid(Request $request, PreBid $preBid): RedirectResponse
+    {
+        $this->authorizeCatalog($request);
+
+        $preBid->delete();
+
+        return back()->with('success', 'Pre-bid removed successfully.');
     }
 
     public function storeTextField(Request $request): RedirectResponse
