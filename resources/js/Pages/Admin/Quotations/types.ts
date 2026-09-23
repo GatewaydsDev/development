@@ -216,6 +216,21 @@ export type QuotationsPaginator = {
     }>;
 };
 
+export type QuotationStatusSummary = {
+    status: string;
+    status_key: string;
+    count: number;
+    total_amount: number;
+    formatted_total: string;
+};
+
+export type QuotationListSummary = {
+    statuses: QuotationStatusSummary[];
+    total_count: number;
+    total_amount: number;
+    formatted_total_amount: string;
+};
+
 export const formatMoney = (value?: string | number | null) => {
     const amount = Number(value ?? 0);
 

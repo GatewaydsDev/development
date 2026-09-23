@@ -408,28 +408,26 @@ export default function Index({ filters, options, summary, bids }: IndexProps) {
                                                                     {stage.stage}
                                                                 </Badge>
                                                             </div>
-                                                            <div className="min-w-0 text-sm text-muted-foreground">
+                                                            <div className="min-w-0 text-right text-sm text-muted-foreground">
                                                                 {stage.count}{' '}
                                                                 {stage.count === 1 ? 'bid' : 'bids'}
                                                             </div>
-                                                            <div className="min-w-0 font-semibold tabular-nums text-foreground">
+                                                            <div className="col-span-2 min-w-0 text-right font-semibold tabular-nums text-foreground">
                                                                 {stage.formatted_total}
                                                             </div>
-                                                            <div />
                                                         </div>
                                                     ))}
                                                     <div className="col-span-5 grid grid-cols-subgrid items-center gap-x-4 bg-muted/50 px-4 py-3 font-semibold">
                                                         <div className="col-span-2 font-bold text-foreground">
                                                             Total
                                                         </div>
-                                                        <div className="min-w-0 text-sm font-semibold text-muted-foreground">
+                                                        <div className="min-w-0 text-right text-sm font-semibold text-muted-foreground">
                                                             {summary.total_count}{' '}
                                                             {summary.total_count === 1 ? 'bid' : 'bids'}
                                                         </div>
-                                                        <div className="min-w-0 text-base font-bold tabular-nums text-emerald-700 dark:text-emerald-400">
+                                                        <div className="col-span-2 min-w-0 text-right text-base font-bold tabular-nums text-emerald-700 dark:text-emerald-400">
                                                             {summary.formatted_total_amount}
                                                         </div>
-                                                        <div />
                                                     </div>
                                                 </>
                                             )}

@@ -22,9 +22,11 @@ use App\Support\BidApplicationText;
 use App\Support\QuotationAccess;
 use App\Support\QuotationDocument;
 use App\Support\QuotationToBid;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -41,6 +43,7 @@ class QuotationController extends Controller
 
         $search = (string) $request->query('search', '');
         $highlight = (int) $request->query('highlight', 0);
+        $listingQuery = $this->listingQuery($search);
 
         return Inertia::render('Admin/Quotations/Index', [
             'filters' => [
@@ -48,7 +51,8 @@ class QuotationController extends Controller
                 'highlight' => $highlight > 0 ? $highlight : null,
             ],
             'options' => $this->options($request->user()),
-            'quotations' => $this->listingQuery($search)
+            'summary' => $this->quotationStatusSummary($listingQuery),
+            'quotations' => (clone $listingQuery)
                 ->when($highlight > 0, function ($query) use ($highlight): void {
                     $query->orderByRaw('CASE WHEN quotations.id = ? THEN 0 ELSE 1 END', [$highlight]);
                 })
@@ -815,6 +819,60 @@ class QuotationController extends Controller
                 ])
                 ->values()
                 ->all(),
+        ];
+    }
+
+    /**
+     * @param  Builder<Quotation>  $query
+     * @return array{statuses: list<array{status: string, status_key: string, count: int, total_amount: float, formatted_total: string}>, total_count: int, total_amount: float, formatted_total_amount: string}
+     */
+    private function quotationStatusSummary(Builder $query): array
+    {
+        $allQuotations = (clone $query)->get();
+
+        $statusGroups = $allQuotations
+            ->groupBy(fn (Quotation $quotation): string => $quotation->status ?: 'draft');
+
+        $orderedStatuses = Quotation::STATUSES;
+        $sortedKeys = $statusGroups->keys()->sort(function (string $a, string $b) use ($orderedStatuses): int {
+            $posA = array_search($a, $orderedStatuses, true);
+            $posB = array_search($b, $orderedStatuses, true);
+
+            if ($posA !== false && $posB !== false) {
+                return $posA <=> $posB;
+            }
+            if ($posA !== false) {
+                return -1;
+            }
+            if ($posB !== false) {
+                return 1;
+            }
+
+            return strnatcasecmp($a, $b);
+        });
+
+        $statuses = $sortedKeys->map(function (string $statusKey) use ($statusGroups): array {
+            /** @var Collection<int, Quotation> $groupQuotations */
+            $groupQuotations = $statusGroups->get($statusKey, collect());
+            $count = $groupQuotations->count();
+            $totalAmount = round((float) $groupQuotations->sum(fn (Quotation $quotation): float => $quotation->total()), 2);
+
+            return [
+                'status' => Quotation::statusLabel($statusKey),
+                'status_key' => $statusKey,
+                'count' => $count,
+                'total_amount' => $totalAmount,
+                'formatted_total' => '$'.number_format($totalAmount, 2),
+            ];
+        })->values()->all();
+
+        $overallTotalAmount = round((float) $allQuotations->sum(fn (Quotation $quotation): float => $quotation->total()), 2);
+
+        return [
+            'statuses' => $statuses,
+            'total_count' => $allQuotations->count(),
+            'total_amount' => $overallTotalAmount,
+            'formatted_total_amount' => '$'.number_format($overallTotalAmount, 2),
         ];
     }
 }

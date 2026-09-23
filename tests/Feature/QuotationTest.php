@@ -600,3 +600,73 @@ test('quotation pages include convert actions', function () {
             ->where('quotation.converted_bid', null)
             ->where('options.can.convert_to_bid', true));
 });
+
+test('quotation list includes status summarization breakdown and totals', function () {
+    $admin = quotationAdmin();
+    $project = quotationProject($admin);
+    $contractorId = $project->contractors()->first()?->id
+        ?? Contractor::query()->firstOrCreate(['name' => 'Harbor Facilities'])->id;
+
+    $q1 = Quotation::create([
+        'contractor_id' => $contractorId,
+        'project_id' => $project->id,
+        'title' => 'Draft quote 1',
+        'status' => 'draft',
+        'quoted_at' => '2026-09-15',
+        'created_by' => $admin->id,
+    ]);
+    $q1->lineItems()->create([
+        'description' => 'Draft Item 1',
+        'unit_price' => 1500.00,
+        'quantity' => 1,
+    ]);
+
+    $q2 = Quotation::create([
+        'contractor_id' => $contractorId,
+        'project_id' => $project->id,
+        'title' => 'Draft quote 2',
+        'status' => 'draft',
+        'quoted_at' => '2026-09-15',
+        'created_by' => $admin->id,
+    ]);
+    $q2->lineItems()->create([
+        'description' => 'Draft Item 2',
+        'unit_price' => 2500.00,
+        'quantity' => 1,
+    ]);
+
+    $q3 = Quotation::create([
+        'contractor_id' => $contractorId,
+        'project_id' => $project->id,
+        'title' => 'Sent quote',
+        'status' => 'sent',
+        'quoted_at' => '2026-09-15',
+        'created_by' => $admin->id,
+    ]);
+    $q3->lineItems()->create([
+        'description' => 'Sent Item',
+        'unit_price' => 4000.00,
+        'quantity' => 1,
+    ]);
+
+    $response = $this->actingAs($admin)
+        ->get(route('admin.quotations.index'));
+
+    $response->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Admin/Quotations/Index')
+            ->has('summary')
+            ->where('summary.total_count', 3)
+            ->where('summary.total_amount', 8000)
+            ->where('summary.formatted_total_amount', '$8,000.00')
+            ->has('summary.statuses', 2)
+            ->where('summary.statuses.0.status', 'Draft')
+            ->where('summary.statuses.0.count', 2)
+            ->where('summary.statuses.0.total_amount', 4000)
+            ->where('summary.statuses.0.formatted_total', '$4,000.00')
+            ->where('summary.statuses.1.status', 'Sent')
+            ->where('summary.statuses.1.count', 1)
+            ->where('summary.statuses.1.total_amount', 4000)
+            ->where('summary.statuses.1.formatted_total', '$4,000.00')
+        );
+});
