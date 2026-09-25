@@ -275,20 +275,21 @@ export default function Index({ filters, users }: IndexProps) {
                                                 <DirectoryFieldLabel hideFrom="xl">
                                                     Actions
                                                 </DirectoryFieldLabel>
-                                                <div className="flex flex-wrap gap-1 md:justify-end">
+                                                <div className="flex flex-wrap gap-1.5 md:justify-end">
                                                 {canManageAccess &&
                                                     user.level && (
                                                         <ActionHint hint="Edit permissions">
                                                             <Button
                                                                 variant="outline"
-                                                                size="icon-xs"
+                                                                size="icon-sm"
+                                                                className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 dark:border-indigo-800/60 dark:text-indigo-400 dark:hover:bg-indigo-950/40"
                                                                 asChild
                                                             >
                                                                 <Link
                                                                     href={`${route('admin.access-control.edit')}?level=${user.level.id}`}
                                                                     aria-label="Edit permissions"
                                                                 >
-                                                                    <SlidersHorizontalIcon className="size-3.5" />
+                                                                    <SlidersHorizontalIcon className="size-4" />
                                                                 </Link>
                                                             </Button>
                                                         </ActionHint>
@@ -298,7 +299,8 @@ export default function Index({ filters, users }: IndexProps) {
                                                     <ActionHint hint="Edit this user">
                                                         <Button
                                                             variant="outline"
-                                                            size="icon-xs"
+                                                            size="icon-sm"
+                                                            className="border-amber-200 text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:border-amber-800/60 dark:text-amber-400 dark:hover:bg-amber-950/40"
                                                             asChild
                                                         >
                                                             <Link
@@ -308,7 +310,7 @@ export default function Index({ filters, users }: IndexProps) {
                                                                 )}
                                                                 aria-label="Edit this user"
                                                             >
-                                                                <EditIcon className="size-3.5" />
+                                                                <EditIcon className="size-4" />
                                                             </Link>
                                                         </Button>
                                                     </ActionHint>

@@ -2,6 +2,16 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ActionHint from '@/Components/ActionHint';
 import DirectoryFieldLabel from '@/Components/DirectoryFieldLabel';
 import PaginationNav from '@/Components/PaginationNav';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/Components/ui/alert-dialog';
 import { Button } from '@/Components/ui/button';
 import {
     Card,
@@ -37,6 +47,10 @@ export default function Index({ filters, services }: IndexProps) {
     const canUpdateServices = Boolean(auth.can?.updateServices);
     const canDeleteServices = Boolean(auth.can?.deleteServices);
     const [search, setSearch] = useState(filters.search ?? '');
+    const [pendingDeleteService, setPendingDeleteService] = useState<{
+        id: number;
+        name: string;
+    } | null>(null);
     const highlightedServiceId = filters.highlight ?? null;
 
     useEffect(() => {
@@ -62,13 +76,10 @@ export default function Index({ filters, services }: IndexProps) {
         );
     };
 
-    const destroyService = (serviceId: number, serviceName: string) => {
-        if (!window.confirm(`Delete service ${serviceName}?`)) {
-            return;
-        }
-
+    const destroyService = (serviceId: number) => {
         router.delete(route('admin.services.destroy', serviceId), {
             preserveScroll: true,
+            onFinish: () => setPendingDeleteService(null),
         });
     };
 
@@ -198,12 +209,13 @@ export default function Index({ filters, services }: IndexProps) {
                                                 <DirectoryFieldLabel hideFrom="md">
                                                     Actions
                                                 </DirectoryFieldLabel>
-                                                <div className="flex flex-wrap justify-end gap-1">
+                                                <div className="flex flex-wrap justify-end gap-1.5">
                                                 {canUpdateServices && (
                                                     <ActionHint hint="Edit this service">
                                                         <Button
                                                             variant="outline"
-                                                            size="icon-xs"
+                                                            size="icon-sm"
+                                                            className="border-amber-200 text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:border-amber-800/60 dark:text-amber-400 dark:hover:bg-amber-950/40"
                                                             asChild
                                                         >
                                                             <Link
@@ -213,7 +225,7 @@ export default function Index({ filters, services }: IndexProps) {
                                                                 )}
                                                                 aria-label="Edit this service"
                                                             >
-                                                                <EditIcon className="size-3.5" />
+                                                                <EditIcon className="size-4" />
                                                             </Link>
                                                         </Button>
                                                     </ActionHint>
@@ -225,17 +237,19 @@ export default function Index({ filters, services }: IndexProps) {
                                                             <Button
                                                                 type="button"
                                                                 variant="outline"
-                                                                size="icon-xs"
+                                                                size="icon-sm"
                                                                 className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
                                                                 onClick={() =>
-                                                                    destroyService(
-                                                                        item.id,
-                                                                        item.name,
+                                                                    setPendingDeleteService(
+                                                                        {
+                                                                            id: item.id,
+                                                                            name: item.name,
+                                                                        },
                                                                     )
                                                                 }
                                                                 aria-label="Delete this service"
                                                             >
-                                                                <Trash2Icon className="size-3.5" />
+                                                                <Trash2Icon className="size-4" />
                                                             </Button>
                                                         </ActionHint>
                                                     )}
@@ -265,6 +279,38 @@ export default function Index({ filters, services }: IndexProps) {
                     </Card>
                 </div>
             </div>
+
+            <AlertDialog
+                open={pendingDeleteService !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setPendingDeleteService(null);
+                    }
+                }}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete service?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete service “{pendingDeleteService?.name}”? This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            type="button"
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={() => {
+                                if (pendingDeleteService) {
+                                    destroyService(pendingDeleteService.id);
+                                }
+                            }}
+                        >
+                            Delete service
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </AuthenticatedLayout>
     );
 }

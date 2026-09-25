@@ -36,6 +36,7 @@ import {
     SearchIcon,
 } from 'lucide-react';
 import { FormEvent, useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import {
     formatMoney,
     type QuotationListSummary,
@@ -102,7 +103,7 @@ export default function Index({
 
     const convertToBid = (quotation: QuotationPayload) => {
         if (!quotation.project) {
-            window.alert(
+            toast.error(
                 'This quotation needs a project before it can become a bid. Open the quotation, choose a project, then try again.',
             );
             return;
@@ -317,7 +318,8 @@ export default function Index({
                                                         <ActionHint hint="Print this quotation">
                                                             <Button
                                                                 variant="outline"
-                                                                size="icon-xs"
+                                                                size="icon-sm"
+                                                                className="border-sky-200 text-sky-600 hover:bg-sky-50 hover:text-sky-700 dark:border-sky-800/60 dark:text-sky-400 dark:hover:bg-sky-950/40"
                                                                 asChild
                                                             >
                                                                 <a
@@ -329,118 +331,124 @@ export default function Index({
                                                                     rel="noreferrer"
                                                                     aria-label="Print this quotation"
                                                                 >
-                                                                <PrinterIcon className="size-3.5" />
-                                                            </a>
-                                                        </Button>
-                                                    </ActionHint>
-                                                    <ActionHint hint="Download as PDF">
-                                                        <Button
-                                                            variant="outline"
-                                                            size="icon-xs"
-                                                            asChild
-                                                        >
-                                                            <a
-                                                                href={route(
-                                                                    'admin.quotations.export.pdf',
-                                                                    quotation.id,
-                                                                )}
-                                                                aria-label="Download as PDF"
-                                                            >
-                                                                <FileTextIcon className="size-3.5" />
-                                                            </a>
-                                                        </Button>
-                                                    </ActionHint>
-                                                    <ActionHint hint="Download as Word">
-                                                        <Button
-                                                            variant="outline"
-                                                            size="icon-xs"
-                                                            asChild
-                                                        >
-                                                            <a
-                                                                href={route(
-                                                                    'admin.quotations.export.word',
-                                                                    quotation.id,
-                                                                )}
-                                                                aria-label="Download as Word"
-                                                            >
-                                                                <FileTypeIcon className="size-3.5" />
-                                                            </a>
-                                                        </Button>
-                                                    </ActionHint>
-                                                    <ActionHint hint="View quotation details">
-                                                        <Button
-                                                            variant="outline"
-                                                            size="icon-xs"
-                                                            asChild
-                                                        >
-                                                            <Link
-                                                                href={route(
-                                                                    'admin.quotations.show',
-                                                                    quotation.id,
-                                                                )}
-                                                                aria-label="View quotation details"
-                                                            >
-                                                                <EyeIcon className="size-3.5" />
-                                                            </Link>
-                                                        </Button>
-                                                    </ActionHint>
-                                                    {options.can.update && (
-                                                        <ActionHint hint="Edit this quotation">
+                                                                    <PrinterIcon className="size-4" />
+                                                                </a>
+                                                            </Button>
+                                                        </ActionHint>
+                                                        <ActionHint hint="Download as PDF">
                                                             <Button
                                                                 variant="outline"
-                                                                size="icon-xs"
+                                                                size="icon-sm"
+                                                                className="border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-800/60 dark:text-rose-400 dark:hover:bg-rose-950/40"
                                                                 asChild
                                                             >
-                                                                <Link
+                                                                <a
                                                                     href={route(
-                                                                        'admin.quotations.edit',
+                                                                        'admin.quotations.export.pdf',
                                                                         quotation.id,
                                                                     )}
-                                                                    aria-label="Edit this quotation"
+                                                                    aria-label="Download as PDF"
                                                                 >
-                                                                    <EditIcon className="size-3.5" />
-                                                                </Link>
+                                                                    <FileTextIcon className="size-4" />
+                                                                </a>
                                                             </Button>
                                                         </ActionHint>
-                                                    )}
-                                                    {quotation.converted_bid ? (
-                                                        <ActionHint hint="Open converted bid">
+                                                        <ActionHint hint="Download as Word">
                                                             <Button
                                                                 variant="outline"
-                                                                size="icon-xs"
+                                                                size="icon-sm"
+                                                                className="border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:border-blue-800/60 dark:text-blue-400 dark:hover:bg-blue-950/40"
+                                                                asChild
+                                                            >
+                                                                <a
+                                                                    href={route(
+                                                                        'admin.quotations.export.word',
+                                                                        quotation.id,
+                                                                    )}
+                                                                    aria-label="Download as Word"
+                                                                >
+                                                                    <FileTypeIcon className="size-4" />
+                                                                </a>
+                                                            </Button>
+                                                        </ActionHint>
+                                                        <ActionHint hint="View quotation details">
+                                                            <Button
+                                                                variant="outline"
+                                                                size="icon-sm"
+                                                                className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 dark:border-indigo-800/60 dark:text-indigo-400 dark:hover:bg-indigo-950/40"
                                                                 asChild
                                                             >
                                                                 <Link
                                                                     href={route(
-                                                                        'admin.bids.show',
-                                                                        quotation
-                                                                            .converted_bid
-                                                                            .id,
+                                                                        'admin.quotations.show',
+                                                                        quotation.id,
                                                                     )}
-                                                                    aria-label="Open converted bid"
+                                                                    aria-label="View quotation details"
                                                                 >
-                                                                    <ClipboardListIcon className="size-3.5" />
+                                                                    <EyeIcon className="size-4" />
                                                                 </Link>
                                                             </Button>
                                                         </ActionHint>
-                                                    ) : options.can
-                                                          .convert_to_bid ? (
-                                                        <ActionHint hint="Make this a bid">
-                                                            <Button
-                                                                variant="outline"
-                                                                size="icon-xs"
-                                                                onClick={() =>
-                                                                    convertToBid(
-                                                                        quotation,
-                                                                    )
-                                                                }
-                                                                aria-label="Make this a bid"
-                                                            >
-                                                                <ClipboardListIcon className="size-3.5" />
-                                                            </Button>
-                                                        </ActionHint>
-                                                    ) : null}
-                                                </div>
+                                                        {options.can.update && (
+                                                            <ActionHint hint="Edit this quotation">
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="icon-sm"
+                                                                    className="border-amber-200 text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:border-amber-800/60 dark:text-amber-400 dark:hover:bg-amber-950/40"
+                                                                    asChild
+                                                                >
+                                                                    <Link
+                                                                        href={route(
+                                                                            'admin.quotations.edit',
+                                                                            quotation.id,
+                                                                        )}
+                                                                        aria-label="Edit this quotation"
+                                                                    >
+                                                                        <EditIcon className="size-4" />
+                                                                    </Link>
+                                                                </Button>
+                                                            </ActionHint>
+                                                        )}
+                                                        {quotation.converted_bid ? (
+                                                            <ActionHint hint="Open converted bid">
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="icon-sm"
+                                                                    className="border-teal-200 text-teal-600 hover:bg-teal-50 hover:text-teal-700 dark:border-teal-800/60 dark:text-teal-400 dark:hover:bg-teal-950/40"
+                                                                    asChild
+                                                                >
+                                                                    <Link
+                                                                        href={route(
+                                                                            'admin.bids.show',
+                                                                            quotation
+                                                                                .converted_bid
+                                                                                .id,
+                                                                        )}
+                                                                        aria-label="Open converted bid"
+                                                                    >
+                                                                        <ClipboardListIcon className="size-4" />
+                                                                    </Link>
+                                                                </Button>
+                                                            </ActionHint>
+                                                        ) : options.can
+                                                              .convert_to_bid ? (
+                                                            <ActionHint hint="Make this a bid">
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="icon-sm"
+                                                                    className="border-teal-200 text-teal-600 hover:bg-teal-50 hover:text-teal-700 dark:border-teal-800/60 dark:text-teal-400 dark:hover:bg-teal-950/40"
+                                                                    onClick={() =>
+                                                                        convertToBid(
+                                                                            quotation,
+                                                                        )
+                                                                    }
+                                                                    aria-label="Make this a bid"
+                                                                >
+                                                                    <ClipboardListIcon className="size-4" />
+                                                                </Button>
+                                                            </ActionHint>
+                                                        ) : null}
+                                                    </div>
                                             </div>
                                         </div>
                                     ))

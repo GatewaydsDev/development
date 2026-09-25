@@ -4,6 +4,7 @@ import DirectoryFieldLabel from '@/Components/DirectoryFieldLabel';
 import PaginationNav from '@/Components/PaginationNav';
 import {
     AlertDialog,
+    AlertDialogAction,
     AlertDialogCancel,
     AlertDialogContent,
     AlertDialogDescription,
@@ -95,6 +96,10 @@ export default function Index({ filters, employees }: IndexProps) {
     const [search, setSearch] = useState(filters.search ?? '');
     const [selectedRatesEmployee, setSelectedRatesEmployee] =
         useState<EmployeePayload | null>(null);
+    const [pendingDeleteEmployee, setPendingDeleteEmployee] = useState<{
+        id: number;
+        name: string;
+    } | null>(null);
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
@@ -109,13 +114,10 @@ export default function Index({ filters, employees }: IndexProps) {
         );
     };
 
-    const destroyEmployee = (employeeId: number, employeeName: string) => {
-        if (!window.confirm(`Delete employee record for ${employeeName}?`)) {
-            return;
-        }
-
+    const destroyEmployee = (employeeId: number) => {
         router.delete(route('admin.employees.destroy', employeeId), {
             preserveScroll: true,
+            onFinish: () => setPendingDeleteEmployee(null),
         });
     };
 
@@ -267,14 +269,15 @@ export default function Index({ filters, employees }: IndexProps) {
                                             </div>
                                             <div className="flex min-w-0 flex-col gap-1 md:items-end">
                                                 <DirectoryFieldLabel>Actions</DirectoryFieldLabel>
-                                                <div className="flex flex-wrap gap-1 md:justify-end">
+                                                <div className="flex flex-wrap gap-1.5 md:justify-end">
                                                 <ActionHint
                                                     hint={`Pay rates (${employee.pay_rates.length})`}
                                                 >
                                                     <Button
                                                         type="button"
                                                         variant="outline"
-                                                        size="icon-xs"
+                                                        size="icon-sm"
+                                                        className="border-emerald-200 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:border-emerald-800/60 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
                                                         onClick={() =>
                                                             setSelectedRatesEmployee(
                                                                 employee,
@@ -282,14 +285,15 @@ export default function Index({ filters, employees }: IndexProps) {
                                                         }
                                                         aria-label={`Pay rates (${employee.pay_rates.length})`}
                                                     >
-                                                        <DollarSignIcon className="size-3.5" />
+                                                        <DollarSignIcon className="size-4" />
                                                     </Button>
                                                 </ActionHint>
                                                 {canUpdateEmployees && (
                                                     <ActionHint hint="Edit this employee">
                                                         <Button
                                                             variant="outline"
-                                                            size="icon-xs"
+                                                            size="icon-sm"
+                                                            className="border-amber-200 text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:border-amber-800/60 dark:text-amber-400 dark:hover:bg-amber-950/40"
                                                             asChild
                                                         >
                                                             <Link
@@ -299,7 +303,7 @@ export default function Index({ filters, employees }: IndexProps) {
                                                                 )}
                                                                 aria-label="Edit this employee"
                                                             >
-                                                                <EditIcon className="size-3.5" />
+                                                                <EditIcon className="size-4" />
                                                             </Link>
                                                         </Button>
                                                     </ActionHint>
@@ -309,17 +313,19 @@ export default function Index({ filters, employees }: IndexProps) {
                                                         <Button
                                                             type="button"
                                                             variant="outline"
-                                                            size="icon-xs"
+                                                            size="icon-sm"
                                                             className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
                                                             onClick={() =>
-                                                                destroyEmployee(
-                                                                    employee.id,
-                                                                    employee.full_name,
+                                                                setPendingDeleteEmployee(
+                                                                    {
+                                                                        id: employee.id,
+                                                                        name: employee.full_name,
+                                                                    },
                                                                 )
                                                             }
                                                             aria-label="Delete this employee"
                                                         >
-                                                            <Trash2Icon className="size-3.5" />
+                                                            <Trash2Icon className="size-4" />
                                                         </Button>
                                                     </ActionHint>
                                                 )}
@@ -414,6 +420,38 @@ export default function Index({ filters, employees }: IndexProps) {
 
                     <AlertDialogFooter>
                         <AlertDialogCancel>Close</AlertDialogCancel>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog
+                open={pendingDeleteEmployee !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setPendingDeleteEmployee(null);
+                    }
+                }}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete employee?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete employee record for “{pendingDeleteEmployee?.name}”? This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            type="button"
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={() => {
+                                if (pendingDeleteEmployee) {
+                                    destroyEmployee(pendingDeleteEmployee.id);
+                                }
+                            }}
+                        >
+                            Delete employee
+                        </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>

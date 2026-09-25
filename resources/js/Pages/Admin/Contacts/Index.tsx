@@ -6,6 +6,16 @@ import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PhoneInput from '@/Components/PhoneInput';
 import TextInput from '@/Components/TextInput';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/Components/ui/alert-dialog';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import {
@@ -92,6 +102,8 @@ export default function Index({ filters, contacts }: IndexProps) {
     const [editingId, setEditingId] = useState<number | null>(null);
     const [formOpen, setFormOpen] = useState(false);
     const [processing, setProcessing] = useState(false);
+    const [pendingDeleteContact, setPendingDeleteContact] =
+        useState<Contact | null>(null);
 
     const {
         control,
@@ -175,12 +187,9 @@ export default function Index({ filters, contacts }: IndexProps) {
     };
 
     const destroyContact = (contact: Contact) => {
-        if (!window.confirm(`Delete contact ${contact.name}?`)) {
-            return;
-        }
-
         router.delete(route('admin.contacts.destroy', contact.id), {
             preserveScroll: true,
+            onFinish: () => setPendingDeleteContact(null),
         });
     };
 
@@ -472,33 +481,34 @@ export default function Index({ filters, contacts }: IndexProps) {
                                             </div>
                                             <div className="flex min-w-0 flex-col gap-1 md:items-end">
                                                 <DirectoryFieldLabel>Actions</DirectoryFieldLabel>
-                                                <div className="flex flex-wrap gap-1 md:justify-end">
+                                                <div className="flex flex-wrap gap-1.5 md:justify-end">
                                                 <ActionHint hint="Edit this contact">
                                                     <Button
                                                         variant="outline"
-                                                        size="icon-xs"
+                                                        size="icon-sm"
+                                                        className="border-amber-200 text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:border-amber-800/60 dark:text-amber-400 dark:hover:bg-amber-950/40"
                                                         onClick={() =>
                                                             openEdit(contact)
                                                         }
                                                         aria-label="Edit this contact"
                                                     >
-                                                        <EditIcon className="size-3.5" />
+                                                        <EditIcon className="size-4" />
                                                     </Button>
                                                 </ActionHint>
                                                 <ActionHint hint="Delete this contact">
                                                     <Button
                                                         type="button"
                                                         variant="outline"
-                                                        size="icon-xs"
+                                                        size="icon-sm"
                                                         className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
                                                         onClick={() =>
-                                                            destroyContact(
+                                                            setPendingDeleteContact(
                                                                 contact,
                                                             )
                                                         }
                                                         aria-label="Delete this contact"
                                                     >
-                                                        <Trash2Icon className="size-3.5" />
+                                                        <Trash2Icon className="size-4" />
                                                     </Button>
                                                 </ActionHint>
                                                 </div>
@@ -527,6 +537,38 @@ export default function Index({ filters, contacts }: IndexProps) {
                     </Card>
                 </div>
             </div>
+
+            <AlertDialog
+                open={pendingDeleteContact !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setPendingDeleteContact(null);
+                    }
+                }}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete contact?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete contact “{pendingDeleteContact?.name}”? This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            type="button"
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={() => {
+                                if (pendingDeleteContact) {
+                                    destroyContact(pendingDeleteContact);
+                                }
+                            }}
+                        >
+                            Delete contact
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </AuthenticatedLayout>
     );
 }

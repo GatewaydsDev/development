@@ -2,6 +2,16 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ActionHint from '@/Components/ActionHint';
 import DirectoryFieldLabel from '@/Components/DirectoryFieldLabel';
 import PaginationNav from '@/Components/PaginationNav';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/Components/ui/alert-dialog';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import {
@@ -39,6 +49,10 @@ export default function Index({ filters, contractors }: IndexProps) {
     const canUpdateContractors = Boolean(auth.can?.updateContractors);
     const canDeleteContractors = Boolean(auth.can?.deleteContractors);
     const [search, setSearch] = useState(filters.search ?? '');
+    const [pendingDeleteContractor, setPendingDeleteContractor] = useState<{
+        id: number;
+        name: string;
+    } | null>(null);
     const highlightedContractorId = filters.highlight ?? null;
 
     useEffect(() => {
@@ -64,13 +78,10 @@ export default function Index({ filters, contractors }: IndexProps) {
         );
     };
 
-    const destroyContractor = (contractorId: number, contractorName: string) => {
-        if (!window.confirm(`Delete contractor record for ${contractorName}?`)) {
-            return;
-        }
-
+    const destroyContractor = (contractorId: number) => {
         router.delete(route('admin.contractors.destroy', contractorId), {
             preserveScroll: true,
+            onFinish: () => setPendingDeleteContractor(null),
         });
     };
 
@@ -242,12 +253,13 @@ export default function Index({ filters, contractors }: IndexProps) {
                                                 </div>
                                                 <div className="flex min-w-0 flex-col gap-1 md:items-end">
                                                     <DirectoryFieldLabel>Actions</DirectoryFieldLabel>
-                                                    <div className="flex flex-wrap gap-1 md:justify-end">
+                                                    <div className="flex flex-wrap gap-1.5 md:justify-end">
                                                     {canUpdateContractors && (
                                                         <ActionHint hint="Edit this contractor">
                                                             <Button
                                                                 variant="outline"
-                                                                size="icon-xs"
+                                                                size="icon-sm"
+                                                                className="border-amber-200 text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:border-amber-800/60 dark:text-amber-400 dark:hover:bg-amber-950/40"
                                                                 asChild
                                                             >
                                                                 <Link
@@ -257,7 +269,7 @@ export default function Index({ filters, contractors }: IndexProps) {
                                                                     )}
                                                                     aria-label="Edit this contractor"
                                                                 >
-                                                                    <EditIcon className="size-3.5" />
+                                                                    <EditIcon className="size-4" />
                                                                 </Link>
                                                             </Button>
                                                         </ActionHint>
@@ -269,17 +281,19 @@ export default function Index({ filters, contractors }: IndexProps) {
                                                                 <Button
                                                                     type="button"
                                                                     variant="outline"
-                                                                    size="icon-xs"
+                                                                    size="icon-sm"
                                                                     className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
                                                                     onClick={() =>
-                                                                        destroyContractor(
-                                                                            contractor.id,
-                                                                            contractor.name,
+                                                                        setPendingDeleteContractor(
+                                                                            {
+                                                                                id: contractor.id,
+                                                                                name: contractor.name,
+                                                                            },
                                                                         )
                                                                     }
                                                                     aria-label="Delete this contractor"
                                                                 >
-                                                                    <Trash2Icon className="size-3.5" />
+                                                                    <Trash2Icon className="size-4" />
                                                                 </Button>
                                                             </ActionHint>
                                                         )}
@@ -310,6 +324,38 @@ export default function Index({ filters, contractors }: IndexProps) {
                     </Card>
                 </div>
             </div>
+
+            <AlertDialog
+                open={pendingDeleteContractor !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setPendingDeleteContractor(null);
+                    }
+                }}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete contractor?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete contractor record for “{pendingDeleteContractor?.name}”? This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            type="button"
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={() => {
+                                if (pendingDeleteContractor) {
+                                    destroyContractor(pendingDeleteContractor.id);
+                                }
+                            }}
+                        >
+                            Delete contractor
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </AuthenticatedLayout>
     );
 }

@@ -529,57 +529,82 @@ function BidDirectoryActions({
     canUpdate: boolean;
 }) {
     return (
-        <div className="flex flex-nowrap gap-1">
+        <div className="flex flex-nowrap gap-1.5">
             <ActionHint hint="Print this bid">
-                <Button variant="outline" size="icon-xs" asChild>
+                <Button
+                    variant="outline"
+                    size="icon-sm"
+                    className="border-sky-200 text-sky-600 hover:bg-sky-50 hover:text-sky-700 dark:border-sky-800/60 dark:text-sky-400 dark:hover:bg-sky-950/40"
+                    asChild
+                >
                     <a
                         href={route('admin.bids.print', bidId)}
                         target="_blank"
                         rel="noreferrer"
                         aria-label="Print this bid"
                     >
-                        <PrinterIcon className="size-3.5" />
+                        <PrinterIcon className="size-4" />
                     </a>
                 </Button>
             </ActionHint>
             <ActionHint hint="Download as PDF">
-                <Button variant="outline" size="icon-xs" asChild>
+                <Button
+                    variant="outline"
+                    size="icon-sm"
+                    className="border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-800/60 dark:text-rose-400 dark:hover:bg-rose-950/40"
+                    asChild
+                >
                     <a
                         href={route('admin.bids.export.pdf', bidId)}
                         aria-label="Download as PDF"
                     >
-                        <FileTextIcon className="size-3.5" />
+                        <FileTextIcon className="size-4" />
                     </a>
                 </Button>
             </ActionHint>
             <ActionHint hint="Download as Word">
-                <Button variant="outline" size="icon-xs" asChild>
+                <Button
+                    variant="outline"
+                    size="icon-sm"
+                    className="border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:border-blue-800/60 dark:text-blue-400 dark:hover:bg-blue-950/40"
+                    asChild
+                >
                     <a
                         href={route('admin.bids.export.word', bidId)}
                         aria-label="Download as Word"
                     >
-                        <FileTypeIcon className="size-3.5" />
+                        <FileTypeIcon className="size-4" />
                     </a>
                 </Button>
             </ActionHint>
             <ActionHint hint="View bid details">
-                <Button variant="outline" size="icon-xs" asChild>
+                <Button
+                    variant="outline"
+                    size="icon-sm"
+                    className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 dark:border-indigo-800/60 dark:text-indigo-400 dark:hover:bg-indigo-950/40"
+                    asChild
+                >
                     <Link
                         href={route('admin.bids.show', bidId)}
                         aria-label="View bid details"
                     >
-                        <EyeIcon className="size-3.5" />
+                        <EyeIcon className="size-4" />
                     </Link>
                 </Button>
             </ActionHint>
             {canUpdate && (
                 <ActionHint hint="Edit this bid">
-                    <Button variant="outline" size="icon-xs" asChild>
+                    <Button
+                        variant="outline"
+                        size="icon-sm"
+                        className="border-amber-200 text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:border-amber-800/60 dark:text-amber-400 dark:hover:bg-amber-950/40"
+                        asChild
+                    >
                         <Link
                             href={route('admin.bids.edit', bidId)}
                             aria-label="Edit this bid"
                         >
-                            <EditIcon className="size-3.5" />
+                            <EditIcon className="size-4" />
                         </Link>
                     </Button>
                 </ActionHint>

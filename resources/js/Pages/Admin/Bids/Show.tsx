@@ -1,5 +1,15 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import DirectoryFieldLabel from '@/Components/DirectoryFieldLabel';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/Components/ui/alert-dialog';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import {
@@ -10,6 +20,7 @@ import {
     CardTitle,
 } from '@/Components/ui/card';
 import { Head, Link, router } from '@inertiajs/react';
+import { useState } from 'react';
 import {
     ClipboardListIcon,
     EditIcon,
@@ -55,11 +66,8 @@ function DetailItem({
 
 export default function Show({ bid, options }: ShowProps) {
     const combinedPrice = combinedPriceAmountFromBid(bid);
+    const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const removeBid = () => {
-        if (!window.confirm('Remove this bid? This cannot be undone.')) {
-            return;
-        }
-
         router.delete(route('admin.bids.destroy', bid.id));
     };
 
@@ -139,7 +147,10 @@ export default function Show({ bid, options }: ShowProps) {
                             </Button>
                         ) : null}
                         {options.can.delete && (
-                            <Button variant="outline" onClick={removeBid}>
+                            <Button
+                                variant="outline"
+                                onClick={() => setIsDeleteOpen(true)}
+                            >
                                 <TrashIcon className="size-4" />
                                 Remove
                             </Button>
@@ -549,6 +560,27 @@ export default function Show({ bid, options }: ShowProps) {
                     </Card>
                 </div>
             </div>
+
+            <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Remove bid?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to remove this bid{bid.project?.name ? ` for “${bid.project.name}”` : ''}? This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            type="button"
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={removeBid}
+                        >
+                            Remove bid
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </AuthenticatedLayout>
     );
 }

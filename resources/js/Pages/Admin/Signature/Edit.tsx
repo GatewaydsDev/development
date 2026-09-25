@@ -2,6 +2,16 @@ import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import SignaturePad from '@/Components/SignaturePad';
 import TextInput from '@/Components/TextInput';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/Components/ui/alert-dialog';
 import { Button } from '@/Components/ui/button';
 import {
     Card,
@@ -34,6 +44,7 @@ export default function Edit({ signature }: EditProps) {
     const [displayName, setDisplayName] = useState(signature.name);
     const [selectedStyle, setSelectedStyle] = useState<string | null>(null);
     const [fontsReady, setFontsReady] = useState(false);
+    const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const { data, setData, errors, processing, patch, delete: destroy } =
         useForm<{
             signature: string;
@@ -100,15 +111,9 @@ export default function Edit({ signature }: EditProps) {
     };
 
     const removeSignature = () => {
-        if (
-            !window.confirm(
-                'Remove your saved signature? Documents will show a blank signature line until you save a new one.',
-            )
-        ) {
-            return;
-        }
-
-        destroy(route('admin.signature.destroy'));
+        destroy(route('admin.signature.destroy'), {
+            onFinish: () => setIsDeleteOpen(false),
+        });
     };
 
     return (
@@ -344,7 +349,7 @@ export default function Edit({ signature }: EditProps) {
                                             type="button"
                                             variant="outline"
                                             className="border-destructive/30 text-destructive hover:bg-destructive/10"
-                                            onClick={removeSignature}
+                                            onClick={() => setIsDeleteOpen(true)}
                                         >
                                             Remove signature
                                         </Button>
@@ -355,6 +360,27 @@ export default function Edit({ signature }: EditProps) {
                     </Card>
                 </div>
             </div>
+
+            <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Remove saved signature?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to remove your saved signature? Documents will show a blank signature line until you save a new one.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            type="button"
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={removeSignature}
+                        >
+                            Remove signature
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </AuthenticatedLayout>
     );
 }

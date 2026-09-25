@@ -1,4 +1,14 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/Components/ui/alert-dialog';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import {
@@ -9,6 +19,7 @@ import {
     CardTitle,
 } from '@/Components/ui/card';
 import { Head, Link, router } from '@inertiajs/react';
+import { useState } from 'react';
 import { EditIcon, FileTextIcon, PackageIcon, TrashIcon } from 'lucide-react';
 import {
     applyMarkup,
@@ -59,11 +70,8 @@ export default function Show({ product, options }: ShowProps) {
     const sellTotal = applyTaxTotal(sellPrice, taxRate);
     const minSellTax = applyTax(minSellPrice, taxRate);
     const minSellTotal = applyTaxTotal(minSellPrice, taxRate);
+    const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const removeProduct = () => {
-        if (!window.confirm('Remove this product? This cannot be undone.')) {
-            return;
-        }
-
         router.delete(route('admin.products.destroy', product.id));
     };
 
@@ -108,7 +116,10 @@ export default function Show({ product, options }: ShowProps) {
                             </Button>
                         )}
                         {options.can.delete && (
-                            <Button variant="outline" onClick={removeProduct}>
+                            <Button
+                                variant="outline"
+                                onClick={() => setIsDeleteOpen(true)}
+                            >
                                 <TrashIcon className="size-4" />
                                 Remove
                             </Button>
@@ -683,6 +694,27 @@ export default function Show({ product, options }: ShowProps) {
                     </Card>
                 </div>
             </div>
+
+            <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Remove product?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to remove product “{product.name}”? This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            type="button"
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={removeProduct}
+                        >
+                            Remove product
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </AuthenticatedLayout>
     );
 }

@@ -4,6 +4,16 @@ import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import MaskedDecimalInput from '@/Components/MaskedDecimalInput';
 import TextInput from '@/Components/TextInput';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/Components/ui/alert-dialog';
 import { Button } from '@/Components/ui/button';
 import {
     Card,
@@ -297,6 +307,13 @@ export default function BidForm({
 
     const isCreate = !bid;
     const [selectedPreBidId, setSelectedPreBidId] = useState('');
+    const [pendingDelete, setPendingDelete] = useState<{
+        type: 'revision' | 'stage' | 'scope';
+        index: number;
+        name?: string;
+    } | null>(null);
+    const [pendingImportQuotation, setPendingImportQuotation] =
+        useState<BidQuotationOption | null>(null);
 
     const data = useWatch({
         control,
@@ -395,7 +412,7 @@ export default function BidForm({
     );
     const autoImported = useRef(false);
 
-    const applyQuotation = (quotation: BidQuotationOption, confirmReplace = true) => {
+    const applyQuotation = (quotation: BidQuotationOption) => {
         if (!quotation.project_id) {
             toast.error(
                 'Link this quotation to a project before importing it onto a bid.',
@@ -404,20 +421,6 @@ export default function BidForm({
         }
 
         const current = getValues();
-        const replacingProject =
-            current.project_id !== '' &&
-            current.project_id !== String(quotation.project_id);
-
-        if (
-            confirmReplace &&
-            (replacingProject || current.scope_of_work_text.trim() !== '') &&
-            !window.confirm(
-                'Import this quotation onto the bid form? The quotation stays saved. Project and quoted items on this form will be replaced.',
-            )
-        ) {
-            return false;
-        }
-
         const project = options.projects.find(
             (item) => item.id === quotation.project_id,
         );
@@ -448,6 +451,36 @@ export default function BidForm({
         return true;
     };
 
+    const handleImportQuotationClick = () => {
+        const quotation = quotations.find(
+            (item) => String(item.id) === importQuotationValue,
+        );
+
+        if (!quotation) {
+            toast.error('Select a quotation to import.');
+            return;
+        }
+
+        if (!quotation.project_id) {
+            toast.error(
+                'Link this quotation to a project before importing it onto a bid.',
+            );
+            return;
+        }
+
+        const current = getValues();
+        const replacingProject =
+            current.project_id !== '' &&
+            current.project_id !== String(quotation.project_id);
+
+        if (replacingProject || current.scope_of_work_text.trim() !== '') {
+            setPendingImportQuotation(quotation);
+            return;
+        }
+
+        applyQuotation(quotation);
+    };
+
     useEffect(() => {
         if (autoImported.current || !importQuotationId) {
             return;
@@ -461,7 +494,7 @@ export default function BidForm({
 
         autoImported.current = true;
         setImportQuotationValue(String(quotation.id));
-        applyQuotation(quotation, false);
+        applyQuotation(quotation);
     }, [importQuotationId, quotations]);
 
     const submit = handleSubmit(
@@ -743,22 +776,7 @@ export default function BidForm({
                                     type="button"
                                     variant="outline"
                                     className="h-11 w-full lg:w-auto"
-                                    onClick={() => {
-                                        const quotation = quotations.find(
-                                            (item) =>
-                                                String(item.id) ===
-                                                importQuotationValue,
-                                        );
-
-                                        if (!quotation) {
-                                            toast.error(
-                                                'Select a quotation to import.',
-                                            );
-                                            return;
-                                        }
-
-                                        applyQuotation(quotation);
-                                    }}
+                                    onClick={handleImportQuotationClick}
                                 >
                                     <FileUpIcon className="size-4" />
                                     Import quotation
@@ -921,7 +939,13 @@ export default function BidForm({
                                             variant="outline"
                                             aria-label={`Remove revision ${index + 1}`}
                                             onClick={() =>
-                                                removeRevision(index)
+                                                setPendingDelete({
+                                                    type: 'revision',
+                                                    index,
+                                                    name: revision?.number
+                                                        ? `Revision ${revision.number}`
+                                                        : undefined,
+                                                })
                                             }
                                         >
                                             <Trash2Icon className="size-4" />
@@ -1037,7 +1061,21 @@ export default function BidForm({
                                         type="button"
                                         variant="outline"
                                         aria-label={`Remove stage ${index + 1}`}
-                                        onClick={() => removeStage(index)}
+                                        onClick={() => {
+                                            const stageName =
+                                                options.stageTypes.find(
+                                                    (type) =>
+                                                        String(type.id) ===
+                                                        data.stages?.[index]
+                                                            ?.stage_type_id,
+                                                )?.name;
+
+                                            setPendingDelete({
+                                                type: 'stage',
+                                                index,
+                                                name: stageName,
+                                            });
+                                        }}
                                     >
                                         <Trash2Icon className="size-4" />
                                     </Button>
@@ -1061,24 +1099,41 @@ export default function BidForm({
                 </div>
 
                 <div className="flex flex-col gap-4">
-                    {scopeFields.map((field, index) => (
-                        <ScopeWorkCard
-                            key={field.id}
-                            control={control}
-                            data={data}
-                            index={index}
-                            options={options}
-                            validationErrors={validationErrors}
-                            inputClassName={inputClassName}
-                            locked={
-                                selectedProjectScopes.length > 0 &&
-                                index < selectedProjectScopes.length
-                            }
-                            canRemove={scopeFields.length > 1}
-                            onChange={setData}
-                            onRemove={() => removeScope(index)}
-                        />
-                    ))}
+                    {scopeFields.map((field, index) => {
+                        const scope = data.scopes?.[index];
+                        const scopeName =
+                            scope?.title_name ||
+                            options.scopeTitles.find(
+                                (title) =>
+                                    String(title.id) ===
+                                    (scope?.title_id ?? ''),
+                            )?.name;
+
+                        return (
+                            <ScopeWorkCard
+                                key={field.id}
+                                control={control}
+                                data={data}
+                                index={index}
+                                options={options}
+                                validationErrors={validationErrors}
+                                inputClassName={inputClassName}
+                                locked={
+                                    selectedProjectScopes.length > 0 &&
+                                    index < selectedProjectScopes.length
+                                }
+                                canRemove={scopeFields.length > 1}
+                                onChange={setData}
+                                onRemove={() =>
+                                    setPendingDelete({
+                                        type: 'scope',
+                                        index,
+                                        name: scopeName,
+                                    })
+                                }
+                            />
+                        );
+                    })}
                 </div>
 
                 <BidApplicationTextSection
@@ -1146,6 +1201,101 @@ export default function BidForm({
                 printLabel={bid ? 'Print bid' : 'Print'}
                 showPrint={true}
             />
+
+            {/* Delete confirmation dialog */}
+            <AlertDialog
+                open={pendingDelete !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setPendingDelete(null);
+                    }
+                }}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            {pendingDelete?.type === 'revision'
+                                ? 'Remove revision?'
+                                : pendingDelete?.type === 'stage'
+                                  ? 'Remove stage?'
+                                  : pendingDelete?.type === 'scope'
+                                    ? 'Remove scope?'
+                                    : 'Remove item?'}
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {pendingDelete?.type === 'revision'
+                                ? `Are you sure you want to remove ${pendingDelete.name ? pendingDelete.name : `revision ${pendingDelete.index + 1}`}? This action cannot be undone.`
+                                : pendingDelete?.type === 'stage'
+                                  ? `Are you sure you want to remove ${pendingDelete.name ? `the “${pendingDelete.name}” stage` : `stage ${pendingDelete.index + 1}`}? This action cannot be undone.`
+                                  : pendingDelete?.type === 'scope'
+                                    ? `Are you sure you want to remove ${pendingDelete.name ? `the “${pendingDelete.name}” scope` : `scope ${pendingDelete.index + 1}`}? All line items within this scope will also be removed.`
+                                    : 'Are you sure you want to remove this item? This action cannot be undone.'}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel type="button">
+                            Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            type="button"
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={() => {
+                                if (pendingDelete?.type === 'revision') {
+                                    removeRevision(pendingDelete.index);
+                                } else if (pendingDelete?.type === 'stage') {
+                                    removeStage(pendingDelete.index);
+                                } else if (pendingDelete?.type === 'scope') {
+                                    removeScope(pendingDelete.index);
+                                }
+                                setPendingDelete(null);
+                            }}
+                        >
+                            {pendingDelete?.type === 'revision'
+                                ? 'Remove revision'
+                                : pendingDelete?.type === 'stage'
+                                  ? 'Remove stage'
+                                  : pendingDelete?.type === 'scope'
+                                    ? 'Remove scope'
+                                    : 'Remove'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Import quotation confirmation */}
+            <AlertDialog
+                open={pendingImportQuotation !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setPendingImportQuotation(null);
+                    }
+                }}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Import this quotation?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Import “{pendingImportQuotation?.quotation_number}” onto the bid form? The quotation stays saved. Project and quoted items on this form will be replaced.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel type="button">
+                            Keep current bid
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            type="button"
+                            onClick={() => {
+                                if (pendingImportQuotation) {
+                                    applyQuotation(pendingImportQuotation);
+                                    setPendingImportQuotation(null);
+                                }
+                            }}
+                        >
+                            Import quotation
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </form>
     );
 }
@@ -1180,6 +1330,8 @@ function ScopeWorkCard({
         control,
         name: `scopes.${index}.products`,
     });
+    const [pendingDeleteProductIndex, setPendingDeleteProductIndex] =
+        useState<number | null>(null);
     const scope = data.scopes?.[index];
     const titleName =
         scope?.title_name ||
@@ -1292,7 +1444,9 @@ function ScopeWorkCard({
                                 type="button"
                                 variant="outline"
                                 aria-label={`Remove line ${productIndex + 1}`}
-                                onClick={() => remove(productIndex)}
+                                onClick={() =>
+                                    setPendingDeleteProductIndex(productIndex)
+                                }
                             >
                                 <Trash2Icon className="size-4" />
                             </Button>
@@ -1500,6 +1654,47 @@ function ScopeWorkCard({
                     </Button>
                 </div>
             </div>
+
+            <AlertDialog
+                open={pendingDeleteProductIndex !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setPendingDeleteProductIndex(null);
+                    }
+                }}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Remove line item?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to remove line{' '}
+                            {(pendingDeleteProductIndex ?? 0) + 1}
+                            {scope?.products?.[pendingDeleteProductIndex ?? 0]
+                                ?.location
+                                ? ` (${scope.products[pendingDeleteProductIndex ?? 0].location})`
+                                : ''}
+                            ? This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel type="button">
+                            Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            type="button"
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={() => {
+                                if (pendingDeleteProductIndex !== null) {
+                                    remove(pendingDeleteProductIndex);
+                                    setPendingDeleteProductIndex(null);
+                                }
+                            }}
+                        >
+                            Remove line item
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

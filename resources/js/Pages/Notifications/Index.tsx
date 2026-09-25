@@ -179,12 +179,13 @@ export default function Index({ notifications, unreadCount }: IndexProps) {
                                                         )}
                                                     </TableCell>
                                                     <TableCell className="text-right">
-                                                        <div className="flex flex-wrap gap-1 md:justify-end">
+                                                        <div className="flex flex-wrap gap-1.5 md:justify-end">
                                                             <ActionHint hint="View notification">
                                                                 <Button
                                                                     asChild
                                                                     variant="outline"
-                                                                    size="icon-xs"
+                                                                    size="icon-sm"
+                                                                    className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 dark:border-indigo-800/60 dark:text-indigo-400 dark:hover:bg-indigo-950/40"
                                                                 >
                                                                     <Link
                                                                         href={route(
@@ -193,7 +194,7 @@ export default function Index({ notifications, unreadCount }: IndexProps) {
                                                                         )}
                                                                         aria-label="View notification"
                                                                     >
-                                                                        <EyeIcon className="size-3.5" />
+                                                                        <EyeIcon className="size-4" />
                                                                     </Link>
                                                                 </Button>
                                                             </ActionHint>
@@ -201,7 +202,7 @@ export default function Index({ notifications, unreadCount }: IndexProps) {
                                                                 <Button
                                                                     asChild
                                                                     variant="outline"
-                                                                    size="icon-xs"
+                                                                    size="icon-sm"
                                                                     className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
                                                                 >
                                                                     <Link
@@ -213,7 +214,7 @@ export default function Index({ notifications, unreadCount }: IndexProps) {
                                                                         as="button"
                                                                         aria-label="Delete notification"
                                                                     >
-                                                                        <Trash2Icon className="size-3.5" />
+                                                                        <Trash2Icon className="size-4" />
                                                                     </Link>
                                                                 </Button>
                                                             </ActionHint>

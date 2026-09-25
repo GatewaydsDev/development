@@ -21,6 +21,7 @@ import {
 } from '@/Components/ui/card';
 import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
+import { toast } from 'sonner';
 import {
     ClipboardListIcon,
     EditIcon,
@@ -67,6 +68,7 @@ function DetailItem({
 
 export default function Show({ quotation, options }: ShowProps) {
     const [isConvertOpen, setIsConvertOpen] = useState(false);
+    const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const pricingBasisHtml = !isEmptyHtml(quotation.pricing_basis)
         ? fillQuotationPlaceholders(
               quotation.pricing_basis ?? '',
@@ -78,16 +80,12 @@ export default function Show({ quotation, options }: ShowProps) {
           )
         : '';
     const removeQuotation = () => {
-        if (!window.confirm('Remove this quotation? This cannot be undone.')) {
-            return;
-        }
-
         router.delete(route('admin.quotations.destroy', quotation.id));
     };
 
     const convertToBid = () => {
         if (!quotation.project) {
-            window.alert(
+            toast.error(
                 'This quotation needs a project before it can become a bid. Open the quotation, choose a project, then try again.',
             );
             return;
@@ -210,7 +208,10 @@ export default function Show({ quotation, options }: ShowProps) {
                             </Button>
                         )}
                         {options.can.delete && (
-                            <Button variant="outline" onClick={removeQuotation}>
+                            <Button
+                                variant="outline"
+                                onClick={() => setIsDeleteOpen(true)}
+                            >
                                 <TrashIcon className="size-4" />
                                 Remove
                             </Button>
@@ -688,6 +689,27 @@ export default function Show({ quotation, options }: ShowProps) {
                         <AlertDialogCancel>No, go back</AlertDialogCancel>
                         <AlertDialogAction onClick={confirmConvertToBid}>
                             Yes, create bid
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Remove quotation?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to remove quotation “{quotation.quotation_number}”? This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            type="button"
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={removeQuotation}
+                        >
+                            Remove quotation
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

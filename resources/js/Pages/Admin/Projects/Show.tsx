@@ -1,5 +1,15 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ActionHint from '@/Components/ActionHint';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/Components/ui/alert-dialog';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import {
@@ -10,6 +20,7 @@ import {
     CardTitle,
 } from '@/Components/ui/card';
 import { Head, Link, router } from '@inertiajs/react';
+import { useState } from 'react';
 import { formatCurrency } from '@/lib/money';
 import {
     BriefcaseIcon,
@@ -53,11 +64,8 @@ function DetailItem({
 }
 
 export default function Show({ project, options }: ShowProps) {
+    const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const removeProject = () => {
-        if (!window.confirm('Remove this project? This cannot be undone.')) {
-            return;
-        }
-
         router.delete(route('admin.projects.destroy', project.id));
     };
 
@@ -154,7 +162,7 @@ export default function Show({ project, options }: ShowProps) {
                                 <Button
                                     type="button"
                                     variant="destructive"
-                                    onClick={removeProject}
+                                    onClick={() => setIsDeleteOpen(true)}
                                     aria-label="Remove this project"
                                 >
                                     <TrashIcon className="size-4" />
@@ -436,6 +444,27 @@ export default function Show({ project, options }: ShowProps) {
                     </Card>
                 </div>
             </div>
+
+            <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Remove project?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to remove project “{project.name}”? This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            type="button"
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={removeProject}
+                        >
+                            Remove project
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </AuthenticatedLayout>
     );
 }

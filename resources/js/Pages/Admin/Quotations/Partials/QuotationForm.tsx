@@ -8,6 +8,16 @@ import QuotationProductFieldsSection, {
     fieldTablesForSubmit,
 } from './QuotationProductFieldsSection';
 import QuotationReusableTextSection from './QuotationReusableTextSection';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/Components/ui/alert-dialog';
 import { Button } from '@/Components/ui/button';
 import {
     Card,
@@ -20,7 +30,7 @@ import {
 import { zodResolver } from '@hookform/resolvers/zod';
 import { router, usePage } from '@inertiajs/react';
 import { PlusIcon, Trash2Icon } from 'lucide-react';
-import { FormEventHandler, useMemo } from 'react';
+import { FormEventHandler, useMemo, useState } from 'react';
 import {
     FieldErrors,
     useFieldArray,
@@ -191,6 +201,14 @@ export default function QuotationForm({
         control,
         name: 'revisions',
     });
+    const [pendingDeleteRevision, setPendingDeleteRevision] = useState<{
+        index: number;
+        name?: string;
+    } | null>(null);
+    const [pendingDeleteLineItem, setPendingDeleteLineItem] = useState<{
+        index: number;
+        description?: string;
+    } | null>(null);
     const data = useWatch({
         control,
         defaultValue: defaultValues,
@@ -667,7 +685,12 @@ export default function QuotationForm({
                                             variant="outline"
                                             aria-label={`Remove revision ${index + 1}`}
                                             onClick={() =>
-                                                removeRevision(index)
+                                                setPendingDeleteRevision({
+                                                    index,
+                                                    name: revision?.number
+                                                        ? `Revision ${revision.number}`
+                                                        : undefined,
+                                                })
                                             }
                                         >
                                             <Trash2Icon className="size-4" />
@@ -788,7 +811,14 @@ export default function QuotationForm({
                                         size="icon"
                                         className="h-12 w-12 border-destructive/30 text-destructive hover:bg-destructive/10"
                                         disabled={fields.length === 1}
-                                        onClick={() => remove(index)}
+                                        onClick={() =>
+                                            setPendingDeleteLineItem({
+                                                index,
+                                                description:
+                                                    data.line_items?.[index]
+                                                        ?.description,
+                                            })
+                                        }
                                         aria-label="Remove item"
                                     >
                                         <Trash2Icon className="size-4" />
@@ -868,6 +898,76 @@ export default function QuotationForm({
                     }
                 />
             </section>
+
+            <AlertDialog
+                open={pendingDeleteRevision !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setPendingDeleteRevision(null);
+                    }
+                }}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Remove revision?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to remove {pendingDeleteRevision?.name ? pendingDeleteRevision.name : `revision ${(pendingDeleteRevision?.index ?? 0) + 1}`}? This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            type="button"
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={() => {
+                                if (pendingDeleteRevision !== null) {
+                                    removeRevision(pendingDeleteRevision.index);
+                                    setPendingDeleteRevision(null);
+                                }
+                            }}
+                        >
+                            Remove revision
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog
+                open={pendingDeleteLineItem !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setPendingDeleteLineItem(null);
+                    }
+                }}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Remove line item?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to remove line {(pendingDeleteLineItem?.index ?? 0) + 1}
+                            {pendingDeleteLineItem?.description
+                                ? ` (${pendingDeleteLineItem.description})`
+                                : ''}
+                            ? This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            type="button"
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={() => {
+                                if (pendingDeleteLineItem !== null) {
+                                    remove(pendingDeleteLineItem.index);
+                                    setPendingDeleteLineItem(null);
+                                }
+                            }}
+                        >
+                            Remove line item
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </form>
     );
 }
