@@ -8,11 +8,7 @@ import { PageProps } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import {
     ActivityIcon,
-    ArrowRightIcon,
-    BellIcon,
-    BriefcaseIcon,
     Building2Icon,
-    ChevronRightIcon,
     ClipboardListIcon,
     ClockIcon,
     FileSpreadsheetIcon,
@@ -26,16 +22,13 @@ import {
     PaletteIcon,
     PanelLeftCloseIcon,
     PanelLeftOpenIcon,
-    PenLineIcon,
-    PlusIcon,
     ShieldCheckIcon,
-    ShieldIcon,
     UserCogIcon,
     UsersIcon,
     WrenchIcon,
     type LucideIcon,
 } from 'lucide-react';
-import { ReactNode } from 'react';
+
 
 type NavItem = {
     title: string;
@@ -74,13 +67,11 @@ const formatLastLogin = (value?: string | null) => {
 export default function DashboardSidebar({
     className,
     onNavigate,
-    activeKey = 'dashboard',
     onToggleCollapse,
     collapsed = false,
 }: {
     className?: string;
     onNavigate?: () => void;
-    activeKey?: string;
     onToggleCollapse?: () => void;
     collapsed?: boolean;
 }) {
@@ -88,7 +79,7 @@ export default function DashboardSidebar({
     const user = auth.user;
     const can = auth.can ?? {};
 
-    const canViewProjects = Boolean(can.viewProjects);
+
     const canViewBids = Boolean(can.viewBids);
     const canViewQuotations = Boolean(can.viewQuotations);
     const canViewProducts = Boolean(can.viewProducts);
@@ -101,12 +92,12 @@ export default function DashboardSidebar({
     const canViewCompany = Boolean(can.viewCompany);
     const canManageDocumentColors = Boolean(can.manageDocumentColors);
 
-    const isRouteActive = (key: string, patterns: string | string[]) => {
-        if (activeKey) return activeKey === key;
+    const isRouteActive = (patterns: string | string[]) => {
         if (Array.isArray(patterns)) {
-            return patterns.some((pattern) => route().current(pattern));
+            return patterns.some((pattern) => Boolean(route().current(pattern)));
         }
-        return route().current(patterns);
+
+        return Boolean(route().current(patterns));
     };
 
     const navigationGroups: NavGroup[] = [
@@ -117,7 +108,7 @@ export default function DashboardSidebar({
                     title: 'Dashboard & Projects',
                     href: route('dashboard'),
                     icon: LayoutDashboardIcon,
-                    active: isRouteActive('dashboard', ['dashboard', 'admin.projects.*']),
+                    active: isRouteActive(['dashboard', 'admin.projects.*']),
                 },
                 ...(canViewBids
                     ? [
@@ -125,7 +116,7 @@ export default function DashboardSidebar({
                               title: 'Bids',
                               href: route('admin.bids.index'),
                               icon: ClipboardListIcon,
-                              active: isRouteActive('bids', 'admin.bids.*'),
+                              active: isRouteActive('admin.bids.*'),
                           },
                       ]
                     : []),
@@ -135,7 +126,7 @@ export default function DashboardSidebar({
                               title: 'Quotations',
                               href: route('admin.quotations.index'),
                               icon: FileSpreadsheetIcon,
-                              active: isRouteActive('quotations', 'admin.quotations.*'),
+                              active: isRouteActive('admin.quotations.*'),
                           },
                       ]
                     : []),
@@ -150,7 +141,7 @@ export default function DashboardSidebar({
                               title: 'Products',
                               href: route('admin.products.index'),
                               icon: PackageIcon,
-                              active: isRouteActive('products', 'admin.products.*'),
+                              active: isRouteActive('admin.products.*'),
                           },
                       ]
                     : []),
@@ -160,7 +151,7 @@ export default function DashboardSidebar({
                               title: 'Services',
                               href: route('admin.services.index'),
                               icon: WrenchIcon,
-                              active: isRouteActive('services', 'admin.services.*'),
+                              active: isRouteActive('admin.services.*'),
                           },
                       ]
                     : []),
@@ -170,7 +161,7 @@ export default function DashboardSidebar({
                               title: 'Contractors',
                               href: route('admin.contractors.index'),
                               icon: HardHatIcon,
-                              active: isRouteActive('contractors', 'admin.contractors.*'),
+                              active: isRouteActive('admin.contractors.*'),
                           },
                       ]
                     : []),
@@ -178,7 +169,7 @@ export default function DashboardSidebar({
                     title: 'Contacts',
                     href: route('admin.contacts.index'),
                     icon: IdCardIcon,
-                    active: isRouteActive('contacts', 'admin.contacts.*'),
+                    active: isRouteActive('admin.contacts.*'),
                 },
                 ...(canViewEmployees
                     ? [
@@ -186,7 +177,7 @@ export default function DashboardSidebar({
                               title: 'Employees',
                               href: route('admin.employees.index'),
                               icon: UsersIcon,
-                              active: isRouteActive('employees', 'admin.employees.*'),
+                              active: isRouteActive('admin.employees.*'),
                           },
                       ]
                     : []),
@@ -207,7 +198,7 @@ export default function DashboardSidebar({
                                         title: 'User Management',
                                         href: route('admin.users.index'),
                                         icon: UserCogIcon,
-                                        active: isRouteActive('users', 'admin.users.*'),
+                                        active: isRouteActive('admin.users.*'),
                                     },
                                 ]
                               : []),
@@ -217,7 +208,7 @@ export default function DashboardSidebar({
                                         title: 'Access Control',
                                         href: route('admin.access-control.edit'),
                                         icon: LockKeyholeIcon,
-                                        active: isRouteActive('access-control', 'admin.access-control.*'),
+                                        active: isRouteActive('admin.access-control.*'),
                                     },
                                 ]
                               : []),
@@ -229,7 +220,7 @@ export default function DashboardSidebar({
                                             'admin.user-activities.index',
                                         ),
                                         icon: ActivityIcon,
-                                        active: isRouteActive('user-activities', 'admin.user-activities.*'),
+                                        active: isRouteActive('admin.user-activities.*'),
                                     },
                                 ]
                               : []),
@@ -239,7 +230,7 @@ export default function DashboardSidebar({
                                         title: 'Company Settings',
                                         href: route('admin.company.show'),
                                         icon: Building2Icon,
-                                        active: isRouteActive('company', 'admin.company.*'),
+                                        active: isRouteActive('admin.company.*'),
                                     },
                                 ]
                               : []),
@@ -251,7 +242,7 @@ export default function DashboardSidebar({
                                             'admin.document-settings.edit',
                                         ),
                                         icon: PaletteIcon,
-                                        active: isRouteActive('document-settings', 'admin.document-settings.*'),
+                                        active: isRouteActive('admin.document-settings.*'),
                                     },
                                 ]
                               : []),
@@ -446,8 +437,11 @@ export default function DashboardSidebar({
                     variant="ghost"
                     size="sm"
                     className={cn(
-                        'w-full text-xs text-muted-foreground hover:text-foreground',
+                        'w-full text-xs',
                         collapsed ? 'justify-center px-0' : 'justify-start',
+                        isRouteActive('profile.*')
+                            ? 'bg-emerald-600 text-white hover:bg-emerald-700 hover:text-white'
+                            : 'text-muted-foreground hover:text-foreground',
                     )}
                 >
                     <Link
@@ -456,7 +450,11 @@ export default function DashboardSidebar({
                         title={collapsed ? 'Account & Profile' : undefined}
                     >
                         <UserCogIcon
-                            className={cn('size-3.5', !collapsed && 'mr-2')}
+                            className={cn(
+                                'size-3.5',
+                                !collapsed && 'mr-2',
+                                isRouteActive('profile.*') && 'text-white',
+                            )}
                         />
                         {!collapsed && 'Account & Profile'}
                     </Link>
