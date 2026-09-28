@@ -10,6 +10,14 @@ import {
     CardHeader,
     CardTitle,
 } from '@/Components/ui/card';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/Components/ui/table';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { cn } from '@/lib/utils';
 import { PageProps } from '@/types';
@@ -89,6 +97,21 @@ type DashboardProps = {
         totalProjects: number;
         activeProjects: number;
     } | null;
+    summary?: WorkspaceSummary | null;
+};
+
+type QuotationStatusTotal = {
+    status: string;
+    label: string;
+    total: string;
+};
+
+type WorkspaceSummary = {
+    projects: string | null;
+    activeProjects: string | null;
+    bids: string | null;
+    quotations: string | null;
+    quotationStatuses: QuotationStatusTotal[];
 };
 
 const statusBadgeClassName = (status?: string | null) => {
@@ -165,11 +188,122 @@ function ScopeLocationCell({
     );
 }
 
+function WorkspaceSummaryTable({ summary }: { summary: WorkspaceSummary }) {
+    const rows: Array<{
+        key: string;
+        label: string;
+        total: string;
+        href?: string;
+        nested?: boolean;
+    }> = [];
+
+    if (summary.projects !== null) {
+        rows.push({
+            key: 'projects',
+            label: 'Projects',
+            total: summary.projects,
+            href: route('admin.projects.index'),
+        });
+    }
+
+    if (summary.activeProjects !== null) {
+        rows.push({
+            key: 'active-projects',
+            label: 'Active projects',
+            total: summary.activeProjects,
+        });
+    }
+
+    if (summary.bids !== null) {
+        rows.push({
+            key: 'bids',
+            label: 'Bids',
+            total: summary.bids,
+            href: route('admin.bids.index'),
+        });
+    }
+
+    if (summary.quotations !== null) {
+        rows.push({
+            key: 'quotations',
+            label: 'Quotations',
+            total: summary.quotations,
+            href: route('admin.quotations.index'),
+        });
+
+        summary.quotationStatuses.forEach((status) => {
+            rows.push({
+                key: `quotation-${status.status}`,
+                label: status.label,
+                total: status.total,
+                nested: true,
+            });
+        });
+    }
+
+    return (
+        <Card className="shadow-sm">
+            <CardHeader>
+                <CardTitle className="text-lg font-bold sm:text-xl">
+                    Summary
+                </CardTitle>
+                <CardDescription>
+                    Dollar totals for projects, bids, and quotations.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="overflow-hidden rounded-xl border border-border">
+                    <Table className="table-fixed">
+                        <TableHeader>
+                            <TableRow className="bg-muted/50 hover:bg-muted/50">
+                                <TableHead className="w-[70%] px-4 text-xs font-semibold uppercase tracking-wider">
+                                    Record
+                                </TableHead>
+                                <TableHead className="w-[30%] px-4 text-right text-xs font-semibold uppercase tracking-wider">
+                                    Total
+                                </TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {rows.map((row) => (
+                                <TableRow key={row.key}>
+                                    <TableCell
+                                        className={cn(
+                                            'px-4 text-sm text-foreground',
+                                            row.nested &&
+                                                'pl-8 text-muted-foreground',
+                                        )}
+                                    >
+                                        {row.href ? (
+                                            <Link
+                                                href={row.href}
+                                                className="font-medium hover:text-emerald-600 hover:underline"
+                                            >
+                                                {row.label}
+                                            </Link>
+                                        ) : (
+                                            row.label
+                                        )}
+                                    </TableCell>
+                                    <TableCell className="px-4 text-right text-sm font-semibold tabular-nums text-foreground">
+                                        {row.total}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
 export default function Dashboard({
     filters = {},
     options,
     projects,
     stats,
+    summary,
 }: DashboardProps) {
     const { auth } = usePage<PageProps>().props;
     const can = auth.can ?? {};
@@ -246,6 +380,7 @@ export default function Dashboard({
                     {/* Main Content (Projects Directory) */}
                     <div className="flex min-w-0 flex-1 flex-col gap-6">
                             {canViewProjects && projects ? (
+                                <>
                                 <Card className="shadow-sm">
                                     <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                                         <div>
@@ -674,6 +809,10 @@ export default function Dashboard({
                                         />
                                     </CardContent>
                                 </Card>
+                                {summary && (
+                                    <WorkspaceSummaryTable summary={summary} />
+                                )}
+                                </>
                             ) : (
                                 /* Fallback if user doesn't have project permission */
                                 <Card className="shadow-sm">

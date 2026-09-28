@@ -3,8 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Admin\ProjectController;
+use App\Models\Bid;
 use App\Models\Project;
+use App\Models\Quotation;
+use App\Support\BidAccess;
 use App\Support\ProjectAccess;
+use App\Support\QuotationAccess;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -29,6 +33,56 @@ class DashboardController extends Controller
                 ->count(),
         ];
 
+        $money = fn (float $amount): string => '$'.number_format($amount, 2);
+
+        $canViewBudgets = $user && ProjectAccess::canViewSensitiveFields($user);
+        $summary = [
+            'projects' => $canViewBudgets
+                ? $money(round((float) Project::query()->sum('budget_amount'), 2))
+                : null,
+            'activeProjects' => $canViewBudgets
+                ? $money(round((float) Project::query()
+                    ->whereHas('status', fn ($query) => $query->whereNotIn('slug', ['completed', 'cancelled']))
+                    ->sum('budget_amount'), 2))
+                : null,
+            'bids' => null,
+            'quotations' => null,
+            'quotationStatuses' => [],
+        ];
+
+        if ($user && BidAccess::canView($user)) {
+            $bidTotal = Bid::query()
+                ->with('scopes.products')
+                ->get()
+                ->sum(fn (Bid $bid): float => $bid->latestTotal());
+
+            $summary['bids'] = $money(round((float) $bidTotal, 2));
+        }
+
+        if ($user && QuotationAccess::canView($user)) {
+            $quotations = Quotation::query()->with('lineItems')->get();
+            $quotationTotal = $quotations->sum(fn (Quotation $quotation): float => $quotation->total());
+            $quotationsByStatus = $quotations->groupBy(
+                fn (Quotation $quotation): string => $quotation->status ?: 'draft',
+            );
+
+            $summary['quotations'] = $money(round((float) $quotationTotal, 2));
+            $summary['quotationStatuses'] = collect(Quotation::STATUSES)
+                ->map(function (string $status) use ($money, $quotationsByStatus): array {
+                    $statusTotal = $quotationsByStatus
+                        ->get($status, collect())
+                        ->sum(fn (Quotation $quotation): float => $quotation->total());
+
+                    return [
+                        'status' => $status,
+                        'label' => Quotation::statusLabel($status),
+                        'total' => $money(round((float) $statusTotal, 2)),
+                    ];
+                })
+                ->values()
+                ->all();
+        }
+
         if ($canViewProjects) {
             $options = $projectController->options($user);
             $projects = $projectController->projectListingQuery($request)
@@ -50,6 +104,7 @@ class DashboardController extends Controller
             'options' => $options,
             'projects' => $projects,
             'stats' => $stats,
+            'summary' => $canViewProjects ? $summary : null,
         ]);
     }
 }
