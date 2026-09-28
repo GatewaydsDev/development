@@ -2,7 +2,8 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "build": "tsc && vite build",
+        "build": "NODE_OPTIONS=--max-old-space-size=2048 vite build",
+        "typecheck": "tsc --noEmit",
         "dev": "vite"
     },
     "devDependencies": {
