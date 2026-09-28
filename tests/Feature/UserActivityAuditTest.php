@@ -25,6 +25,20 @@ test('successful logins update last login time and create an activity record', f
     ]);
 });
 
+test('dashboard receives authenticated user with last login at', function () {
+    $user = User::factory()->create([
+        'last_login_at' => now()->subDay(),
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Dashboard')
+            ->has('auth.user.last_login_at')
+        );
+});
+
 test('authenticated page access is logged', function () {
     $user = User::factory()->create();
 

@@ -289,7 +289,7 @@ class ProjectController extends Controller
         abort_unless(ProjectAccess::canView($request->user()), 403);
     }
 
-    private function projectListingQuery(Request $request): Builder
+    public function projectListingQuery(Request $request): Builder
     {
         $search = (string) $request->query('search', '');
         $status = (int) $request->query('status', 0);
@@ -716,7 +716,7 @@ class ProjectController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function projectPayload(Project $project, User $user, bool $summary = false): array
+    public function projectPayload(Project $project, User $user, bool $summary = false): array
     {
         $payload = [
             'id' => $project->id,
@@ -863,7 +863,7 @@ class ProjectController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function options(User $user, ?Project $project = null): array
+    public function options(User $user, ?Project $project = null): array
     {
         return [
             'statuses' => ProjectStatus::query()

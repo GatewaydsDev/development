@@ -8,6 +8,7 @@ export interface User {
     signature_path?: string | null;
     signature_url?: string | null;
     initials?: string;
+    last_login_at?: string | null;
     level?: {
         id: number;
         name: string;

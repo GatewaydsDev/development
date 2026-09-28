@@ -1,390 +1,729 @@
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import ActionHint from '@/Components/ActionHint';
+import DirectoryFieldLabel from '@/Components/DirectoryFieldLabel';
+import PaginationNav from '@/Components/PaginationNav';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import {
     Card,
-    CardAction,
     CardContent,
     CardDescription,
-    CardFooter,
     CardHeader,
     CardTitle,
 } from '@/Components/ui/card';
-import { Separator } from '@/Components/ui/separator';
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { cn } from '@/lib/utils';
 import { PageProps } from '@/types';
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     ArrowRightIcon,
-    Building2Icon,
-    CheckCircle2Icon,
-    ClipboardCheckIcon,
-    LayoutDashboardIcon,
-    LockKeyholeIcon,
+    BriefcaseIcon,
+    ClipboardListIcon,
+    EditIcon,
+    EyeIcon,
+    FileSpreadsheetIcon,
+    FileTextIcon,
+    FileTypeIcon,
+    FilterIcon,
+    PlusIcon,
+    PrinterIcon,
+    SearchIcon,
     ShieldCheckIcon,
-    SparklesIcon,
-    UserCogIcon,
-    UserPlusIcon,
-    UsersIcon,
+    XIcon,
 } from 'lucide-react';
+import { FormEvent, useEffect, useState } from 'react';
+import {
+    type ProjectOptions,
+    type ProjectsPaginator,
+} from './Admin/Projects/types';
 
-type QuickAction = {
-    title: string;
-    description: string;
-    href: string;
-    icon: typeof LayoutDashboardIcon;
+type DashboardProps = {
+    filters?: {
+        search?: string;
+        status?: string;
+        highlight?: number | null;
+    };
+    options?: ProjectOptions | null;
+    projects?: ProjectsPaginator | null;
+    stats?: {
+        totalProjects: number;
+        activeProjects: number;
+    } | null;
 };
 
-function PermissionCard({
-    label,
-    enabled,
-}: {
-    label: string;
-    enabled: boolean;
-}) {
-    return (
-        <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-background p-3">
-            <span className="text-sm font-medium text-foreground">{label}</span>
-            <Badge variant={enabled ? 'secondary' : 'outline'}>
-                {enabled ? 'Enabled' : 'Limited'}
-            </Badge>
-        </div>
-    );
-}
+const statusBadgeClassName = (status?: string | null) => {
+    const colors: Record<string, string> = {
+        lead: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/70 dark:bg-sky-950/40 dark:text-sky-300',
+        quoted: 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-900/70 dark:bg-indigo-950/40 dark:text-indigo-300',
+        approved: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/40 dark:text-emerald-300',
+        scheduled: 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/70 dark:bg-blue-950/40 dark:text-blue-300',
+        in_progress: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/70 dark:bg-amber-950/40 dark:text-amber-300',
+        completed: 'border-green-200 bg-green-50 text-green-700 dark:border-green-900/70 dark:bg-green-950/40 dark:text-green-300',
+        invoiced: 'border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-900/70 dark:bg-purple-950/40 dark:text-purple-300',
+        cancelled: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/70 dark:bg-rose-950/40 dark:text-rose-300',
+    };
 
-export default function Dashboard() {
+    return colors[status ?? ''] ?? 'border-border bg-muted text-foreground';
+};
+
+const priorityBadgeClassName = (priority?: string | null) => {
+    const colors: Record<string, string> = {
+        urgent: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/70 dark:bg-rose-950/40 dark:text-rose-300',
+        high: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/70 dark:bg-amber-950/40 dark:text-amber-300',
+        medium: 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/70 dark:bg-blue-950/40 dark:text-blue-300',
+        low: 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300',
+    };
+
+    return colors[priority ?? ''] ?? 'border-border bg-muted text-foreground';
+};
+
+export default function Dashboard({
+    filters = {},
+    options,
+    projects,
+    stats,
+}: DashboardProps) {
     const { auth } = usePage<PageProps>().props;
-    const user = auth.user;
-    const canManageUsers = Boolean(auth.can?.manageUsers);
-    const canViewUsers = Boolean(auth.can?.viewUsers);
-    const canCreateUsers = Boolean(auth.can?.createUsers);
-    const canManageAccess = Boolean(auth.can?.manageAccess);
-    const canViewCompany = Boolean(auth.can?.viewCompany);
+    const can = auth.can ?? {};
 
-    const quickActions: QuickAction[] = [
-        ...(canViewUsers
-            ? [
-                  {
-                      title: 'Review users',
-                      description: 'Search the directory and check team access.',
-                      href: route('admin.users.index'),
-                      icon: UsersIcon,
-                  },
-              ]
-            : []),
-        ...(canCreateUsers
-            ? [
-                  {
-                      title: 'Invite teammate',
-                      description: 'Create a new user with the right access level.',
-                      href: route('admin.users.create'),
-                      icon: UserPlusIcon,
-                  },
-              ]
-            : []),
-        ...(canManageAccess
-            ? [
-                  {
-                      title: 'Tune permissions',
-                      description: 'Adjust user-level gates and protected actions.',
-                      href: route('admin.access-control.edit'),
-                      icon: LockKeyholeIcon,
-                  },
-              ]
-            : []),
-        ...(canViewCompany
-            ? [
-                  {
-                      title: 'Company profile',
-                      description: 'Keep public company details and contacts fresh.',
-                      href: route('admin.company.show'),
-                      icon: Building2Icon,
-                  },
-              ]
-            : []),
-    ];
+    const canViewProjects = Boolean(can.viewProjects);
+    const canCreateProjects = Boolean(can.createProjects);
+    const canUpdateProjects = Boolean(can.updateProjects);
+    const canCreateBids = Boolean(can.createBids);
 
-    const displayLevel = user.level?.name ?? 'Standard access';
-    const hasAdminAccess =
-        canManageUsers || canViewUsers || canCreateUsers || canManageAccess;
+    const [search, setSearch] = useState(filters.search ?? '');
+    const [status, setStatus] = useState(filters.status ?? '');
+
+    useEffect(() => {
+        setSearch(filters.search ?? '');
+        setStatus(filters.status ?? '');
+    }, [filters.search, filters.status]);
+
+    const handleSearch = (event: FormEvent) => {
+        event.preventDefault();
+        router.get(
+            route('dashboard'),
+            {
+                search: search || undefined,
+                status: status || undefined,
+            },
+            {
+                preserveState: true,
+                replace: true,
+                preserveScroll: true,
+            },
+        );
+    };
+
+    const handleClearFilters = () => {
+        setSearch('');
+        setStatus('');
+        router.get(
+            route('dashboard'),
+            {},
+            {
+                preserveState: true,
+                replace: true,
+                preserveScroll: true,
+            },
+        );
+    };
+
+    const hasActiveFilters = Boolean(filters.search || filters.status);
 
     return (
         <AuthenticatedLayout>
             <Head title="Dashboard" />
 
-            <div className="py-6 sm:py-8">
-                <div className="mx-auto flex max-w-[96rem] flex-col gap-6 px-4 sm:px-6 lg:px-8">
-                    <Card className="relative shadow-sm">
-                        <div className="absolute inset-x-0 top-0 h-1 bg-primary" />
-                        <CardHeader className="gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
-                            <div className="flex flex-col gap-4">
+            <div className="flex flex-1 min-w-0 flex-col gap-6 p-4 sm:p-6 lg:p-8">
+                {/* Dashboard Header & Toolbar */}
+                <div className="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-center gap-2.5">
+                            <h1 className="text-lg font-bold tracking-tight text-foreground sm:text-xl">
+                                Dashboard
+                            </h1>
+                            {stats && (
                                 <Badge
                                     variant="secondary"
-                                    className="w-fit"
+                                    className="gap-1.5 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 font-medium text-xs"
                                 >
-                                    <SparklesIcon data-icon="inline-start" />
-                                    Signed in
+                                    <BriefcaseIcon className="size-3 text-emerald-600 dark:text-emerald-400" />
+                                    <span>
+                                        <strong className="font-semibold">{stats.activeProjects}</strong> active / {stats.totalProjects} total projects
+                                    </span>
                                 </Badge>
-                                <div className="max-w-3xl">
-                                    <CardTitle className="text-3xl font-semibold tracking-tight sm:text-4xl">
-                                        Welcome back, {user.name}
-                                    </CardTitle>
-                                    <CardDescription className="mt-3 text-base">
-                                        Your Gateway workspace is ready. Jump
-                                        into administration tasks, review
-                                        company details, or keep your profile up
-                                        to date.
-                                    </CardDescription>
-                                </div>
-                            </div>
-                            <CardAction className="static col-auto row-auto self-auto justify-self-auto">
-                                <div className="flex flex-col gap-2 sm:flex-row">
-                                    <Button asChild size="lg">
-                                        <Link href={route('profile.edit')}>
-                                            <UserCogIcon data-icon="inline-start" />
-                                            Edit profile
-                                        </Link>
-                                    </Button>
-                                    <Button asChild variant="outline" size="lg">
-                                        <Link href={route('home')}>
-                                            View site
-                                            <ArrowRightIcon data-icon="inline-end" />
-                                        </Link>
-                                    </Button>
-                                </div>
-                            </CardAction>
-                        </CardHeader>
-                    </Card>
+                            )}
+                        </div>
 
-                    <div className="grid gap-4 md:grid-cols-3">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <CheckCircle2Icon className="size-4 text-muted-foreground" />
-                                    Session status
-                                </CardTitle>
-                                <CardDescription>
-                                    Your secure session is active.
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-3xl font-semibold">
-                                    Online
-                                </p>
-                            </CardContent>
-                        </Card>
-
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <ShieldCheckIcon className="size-4 text-muted-foreground" />
-                                    Access level
-                                </CardTitle>
-                                <CardDescription>
-                                    Current role assigned to your account.
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-3xl font-semibold">
-                                    {displayLevel}
-                                </p>
-                            </CardContent>
-                        </Card>
-
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <LayoutDashboardIcon className="size-4 text-muted-foreground" />
-                                    Workspace
-                                </CardTitle>
-                                <CardDescription>
-                                    Available dashboard tools.
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-3xl font-semibold">
-                                    {quickActions.length || 1}
-                                </p>
-                            </CardContent>
-                        </Card>
+                        <div className="flex flex-wrap items-center gap-2">
+                            {canCreateProjects && (
+                                <Button
+                                    asChild
+                                    size="sm"
+                                    className="bg-emerald-600 text-white hover:bg-emerald-700"
+                                >
+                                    <Link href={route('admin.projects.create')}>
+                                        <PlusIcon className="mr-1.5 size-4" />
+                                        Add project
+                                    </Link>
+                                </Button>
+                            )}
+                            {canCreateBids && (
+                                <Button asChild variant="outline" size="sm">
+                                    <Link href={route('admin.bids.create')}>
+                                        <ClipboardListIcon className="mr-1.5 size-4" />
+                                        Add bid
+                                    </Link>
+                                </Button>
+                            )}
+                        </div>
                     </div>
 
-                    <div className="grid gap-6 xl:grid-cols-[1.4fr_0.9fr]">
-                        <Card className="shadow-sm">
-                            <CardHeader className="gap-4 sm:grid-cols-[1fr_auto] sm:items-start">
-                                <div>
-                                    <CardTitle>Quick actions</CardTitle>
-                                    <CardDescription>
-                                        Start with the tools your account can
-                                        access.
-                                    </CardDescription>
-                                </div>
-                                <Badge variant="outline">
-                                    {hasAdminAccess
-                                        ? 'Administration ready'
-                                        : 'Personal workspace'}
-                                </Badge>
-                            </CardHeader>
-                            <CardContent>
-                                {quickActions.length > 0 ? (
-                                    <div className="grid gap-3 md:grid-cols-2">
-                                        {quickActions.map((action) => {
-                                            const Icon = action.icon;
+                    {/* Main Content (Projects Directory) */}
+                    <div className="flex min-w-0 flex-1 flex-col gap-6">
+                            {canViewProjects && projects ? (
+                                <Card className="shadow-sm">
+                                    <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                                        <div>
+                                            <CardTitle className="text-lg font-bold sm:text-xl">
+                                                Projects Directory
+                                            </CardTitle>
+                                            <CardDescription>
+                                                Manage, search, and view all
+                                                project records and scopes.
+                                            </CardDescription>
+                                        </div>
 
-                                            return (
-                                                <Link
-                                                    key={action.title}
-                                                    href={action.href}
-                                                    className="group rounded-xl border border-border bg-background p-4 transition hover:bg-muted/50"
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            {canCreateProjects && (
+                                                <Button
+                                                    asChild
+                                                    size="sm"
+                                                    className="bg-emerald-600 text-white hover:bg-emerald-700"
                                                 >
-                                                    <div className="flex items-start gap-3">
-                                                        <div className="rounded-lg bg-muted p-2 text-muted-foreground transition group-hover:text-foreground">
-                                                            <Icon className="size-5" />
-                                                        </div>
-                                                        <div className="flex flex-1 flex-col gap-1">
-                                                            <span className="font-semibold text-foreground">
-                                                                {action.title}
-                                                            </span>
-                                                            <span className="text-sm text-muted-foreground">
-                                                                {
-                                                                    action.description
+                                                    <Link
+                                                        href={route(
+                                                            'admin.projects.create',
+                                                        )}
+                                                    >
+                                                        <PlusIcon className="mr-1.5 size-3.5" />
+                                                        New project
+                                                    </Link>
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </CardHeader>
+
+                                    <CardContent className="flex flex-col gap-4">
+                                        {/* Filter and Search Bar */}
+                                        <form
+                                            onSubmit={handleSearch}
+                                            className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_200px_auto] lg:items-center"
+                                        >
+                                            <div className="relative">
+                                                <SearchIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                                                <input
+                                                    type="search"
+                                                    value={search}
+                                                    onChange={(e) =>
+                                                        setSearch(
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    placeholder="Search project name, #, contractor, or location..."
+                                                    className="h-10 w-full rounded-lg border border-border bg-background pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                                                />
+                                            </div>
+
+                                            {options?.statuses && (
+                                                <select
+                                                    value={status}
+                                                    onChange={(e) => {
+                                                        const newStatus =
+                                                            e.target.value;
+                                                        setStatus(newStatus);
+                                                        router.get(
+                                                            route('dashboard'),
+                                                            {
+                                                                search:
+                                                                    search ||
+                                                                    undefined,
+                                                                status:
+                                                                    newStatus ||
+                                                                    undefined,
+                                                            },
+                                                            {
+                                                                preserveState: true,
+                                                                replace: true,
+                                                                preserveScroll: true,
+                                                            },
+                                                        );
+                                                    }}
+                                                    className="h-10 rounded-lg border border-border bg-background px-3 text-sm text-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
+                                                >
+                                                    <option value="">
+                                                        All project statuses
+                                                    </option>
+                                                    {options.statuses.map(
+                                                        (statusOption) => (
+                                                            <option
+                                                                key={
+                                                                    statusOption.id
                                                                 }
-                                                            </span>
-                                                        </div>
-                                                        <ArrowRightIcon className="size-4 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-foreground" />
+                                                                value={
+                                                                    statusOption.id
+                                                                }
+                                                            >
+                                                                {
+                                                                    statusOption.name
+                                                                }
+                                                            </option>
+                                                        ),
+                                                    )}
+                                                </select>
+                                            )}
+
+                                            <div className="flex items-center gap-2">
+                                                <Button
+                                                    type="submit"
+                                                    variant="secondary"
+                                                    size="sm"
+                                                    className="h-10 px-4"
+                                                >
+                                                    <FilterIcon className="mr-1.5 size-3.5" />
+                                                    Filter
+                                                </Button>
+
+                                                {hasActiveFilters && (
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={
+                                                            handleClearFilters
+                                                        }
+                                                        className="h-10 text-xs text-muted-foreground hover:text-foreground"
+                                                    >
+                                                        <XIcon className="mr-1 size-3.5" />
+                                                        Clear
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        </form>
+
+                                        {/* Projects Table / Responsive Mobile Cards */}
+                                        <div className="overflow-hidden rounded-xl border border-border bg-background">
+                                            {/* Table Headers for lg+ */}
+                                            <div className="hidden border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground xl:grid xl:grid-cols-[1.2fr_1.1fr_1.2fr_120px_100px_auto] xl:items-center xl:gap-4">
+                                                <div>Project info</div>
+                                                <div>Contractor</div>
+                                                <div>Scopes & Location</div>
+                                                <div>Status</div>
+                                                <div>Priority</div>
+                                                <div className="text-right">
+                                                    Actions
+                                                </div>
+                                            </div>
+
+                                            {/* Project Items */}
+                                            <div className="divide-y divide-border">
+                                                {projects.data.length > 0 ? (
+                                                    projects.data.map(
+                                                        (project) => (
+                                                            <div
+                                                                key={project.id}
+                                                                className={cn(
+                                                                    'grid gap-3 p-4 transition hover:bg-muted/30 xl:grid-cols-[1.2fr_1.1fr_1.2fr_120px_100px_auto] xl:items-center xl:gap-4',
+                                                                    filters.highlight ===
+                                                                        project.id &&
+                                                                        'bg-emerald-50/70 dark:bg-emerald-950/40',
+                                                                )}
+                                                            >
+                                                                {/* Column 1: Project Info */}
+                                                                <div className="min-w-0">
+                                                                    <div className="flex flex-wrap items-center gap-2">
+                                                                        <Badge
+                                                                            variant="outline"
+                                                                            className="font-mono text-xs font-bold text-emerald-700 dark:text-emerald-300"
+                                                                        >
+                                                                            {
+                                                                                project.project_number
+                                                                            }
+                                                                        </Badge>
+                                                                        <Link
+                                                                            href={route(
+                                                                                'admin.projects.show',
+                                                                                project.id,
+                                                                            )}
+                                                                            className="truncate font-semibold text-foreground hover:text-emerald-600 hover:underline"
+                                                                        >
+                                                                            {
+                                                                                project.name
+                                                                            }
+                                                                        </Link>
+                                                                    </div>
+                                                                    {project.service_type && (
+                                                                        <p className="mt-1 truncate text-xs text-muted-foreground">
+                                                                            {
+                                                                                project.service_type
+                                                                            }
+                                                                        </p>
+                                                                    )}
+                                                                </div>
+
+                                                                {/* Column 2: Contractor */}
+                                                                <div className="min-w-0 text-sm text-muted-foreground">
+                                                                    <DirectoryFieldLabel hideFrom="xl">
+                                                                        Contractor
+                                                                    </DirectoryFieldLabel>
+                                                                    {project
+                                                                        .contractors
+                                                                        .length >
+                                                                    0 ? (
+                                                                        <div className="flex flex-col">
+                                                                            <p className="truncate font-medium text-foreground">
+                                                                                {
+                                                                                    project
+                                                                                        .contractors[0]
+                                                                                        .name
+                                                                                }
+                                                                            </p>
+                                                                            {project
+                                                                                .contractors[0]
+                                                                                .contact_name && (
+                                                                                <p className="truncate text-xs text-muted-foreground">
+                                                                                    {
+                                                                                        project
+                                                                                            .contractors[0]
+                                                                                            .contact_name
+                                                                                    }
+                                                                                </p>
+                                                                            )}
+                                                                        </div>
+                                                                    ) : (
+                                                                        <span className="text-xs text-muted-foreground">
+                                                                            No contractor
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+
+                                                                {/* Column 3: Scopes & Address */}
+                                                                <div className="min-w-0">
+                                                                    <DirectoryFieldLabel hideFrom="xl">
+                                                                        Scope & Site
+                                                                    </DirectoryFieldLabel>
+                                                                    {project.scopes &&
+                                                                    project
+                                                                        .scopes
+                                                                        .length >
+                                                                        0 ? (
+                                                                        <div className="flex flex-wrap gap-1">
+                                                                            {project.scopes
+                                                                                .slice(
+                                                                                    0,
+                                                                                    2,
+                                                                                )
+                                                                                .map(
+                                                                                    (
+                                                                                        scope,
+                                                                                        idx,
+                                                                                    ) => (
+                                                                                        <Badge
+                                                                                            key={
+                                                                                                idx
+                                                                                            }
+                                                                                            variant="secondary"
+                                                                                            className="text-[10px]"
+                                                                                        >
+                                                                                            {
+                                                                                                scope.type
+                                                                                            }
+                                                                                        </Badge>
+                                                                                    ),
+                                                                                )}
+                                                                            {project
+                                                                                .scopes
+                                                                                .length >
+                                                                                2 && (
+                                                                                <Badge
+                                                                                    variant="outline"
+                                                                                    className="text-[10px]"
+                                                                                >
+                                                                                    +
+                                                                                    {project
+                                                                                        .scopes
+                                                                                        .length -
+                                                                                        2}
+                                                                                </Badge>
+                                                                            )}
+                                                                        </div>
+                                                                    ) : project.bid_scopes &&
+                                                                      project
+                                                                          .bid_scopes
+                                                                          .length >
+                                                                          0 ? (
+                                                                        <div className="flex flex-wrap gap-1">
+                                                                            {project.bid_scopes
+                                                                                .slice(
+                                                                                    0,
+                                                                                    2,
+                                                                                )
+                                                                                .map(
+                                                                                    (
+                                                                                        scope,
+                                                                                    ) => (
+                                                                                        <Badge
+                                                                                            key={
+                                                                                                scope.id
+                                                                                            }
+                                                                                            variant="outline"
+                                                                                            className="text-[10px]"
+                                                                                        >
+                                                                                            {
+                                                                                                scope.name
+                                                                                            }
+                                                                                        </Badge>
+                                                                                    ),
+                                                                                )}
+                                                                        </div>
+                                                                    ) : project.site_address_line_1 ? (
+                                                                        <p className="truncate text-xs text-muted-foreground">
+                                                                            {
+                                                                                project.site_address_line_1
+                                                                            }
+                                                                            {project.site_city
+                                                                                ? `, ${project.site_city}`
+                                                                                : ''}
+                                                                        </p>
+                                                                    ) : (
+                                                                        <span className="text-xs text-muted-foreground">
+                                                                            No scope details
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+
+                                                                {/* Column 4: Status */}
+                                                                <div>
+                                                                    <DirectoryFieldLabel hideFrom="xl">
+                                                                        Status
+                                                                    </DirectoryFieldLabel>
+                                                                    <Badge
+                                                                        variant="outline"
+                                                                        className={cn(
+                                                                            'text-xs font-semibold',
+                                                                            statusBadgeClassName(
+                                                                                project.status_slug,
+                                                                            ),
+                                                                        )}
+                                                                    >
+                                                                        {project.status ||
+                                                                            'Lead'}
+                                                                    </Badge>
+                                                                </div>
+
+                                                                {/* Column 5: Priority */}
+                                                                <div>
+                                                                    <DirectoryFieldLabel hideFrom="xl">
+                                                                        Priority
+                                                                    </DirectoryFieldLabel>
+                                                                    <Badge
+                                                                        variant="outline"
+                                                                        className={cn(
+                                                                            'text-[11px] capitalize',
+                                                                            priorityBadgeClassName(
+                                                                                project.priority,
+                                                                            ),
+                                                                        )}
+                                                                    >
+                                                                        {project.priority ||
+                                                                            'Normal'}
+                                                                    </Badge>
+                                                                </div>
+
+                                                                {/* Column 6: Action Buttons */}
+                                                                <div>
+                                                                    <DirectoryFieldLabel hideFrom="xl">
+                                                                        Actions
+                                                                    </DirectoryFieldLabel>
+                                                                    <div className="flex flex-wrap items-center gap-1.5 md:justify-end">
+                                                                        <ActionHint hint="Print project">
+                                                                            <Button
+                                                                                variant="outline"
+                                                                                size="icon-sm"
+                                                                                className="border-sky-200 text-sky-600 hover:bg-sky-50 hover:text-sky-700 dark:border-sky-800/60 dark:text-sky-400 dark:hover:bg-sky-950/40"
+                                                                                asChild
+                                                                            >
+                                                                                <a
+                                                                                    href={route(
+                                                                                        'admin.projects.document.print',
+                                                                                        project.id,
+                                                                                    )}
+                                                                                    target="_blank"
+                                                                                    rel="noreferrer"
+                                                                                    aria-label="Print project"
+                                                                                >
+                                                                                    <PrinterIcon className="size-4" />
+                                                                                </a>
+                                                                            </Button>
+                                                                        </ActionHint>
+
+                                                                        <ActionHint hint="Download PDF">
+                                                                            <Button
+                                                                                variant="outline"
+                                                                                size="icon-sm"
+                                                                                className="border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-800/60 dark:text-rose-400 dark:hover:bg-rose-950/40"
+                                                                                asChild
+                                                                            >
+                                                                                <a
+                                                                                    href={route(
+                                                                                        'admin.projects.export.pdf',
+                                                                                        project.id,
+                                                                                    )}
+                                                                                    aria-label="Download as PDF"
+                                                                                >
+                                                                                    <FileTextIcon className="size-4" />
+                                                                                </a>
+                                                                            </Button>
+                                                                        </ActionHint>
+
+                                                                        <ActionHint hint="Download Word">
+                                                                            <Button
+                                                                                variant="outline"
+                                                                                size="icon-sm"
+                                                                                className="border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:border-blue-800/60 dark:text-blue-400 dark:hover:bg-blue-950/40"
+                                                                                asChild
+                                                                            >
+                                                                                <a
+                                                                                    href={route(
+                                                                                        'admin.projects.export.word',
+                                                                                        project.id,
+                                                                                    )}
+                                                                                    aria-label="Download as Word"
+                                                                                >
+                                                                                    <FileTypeIcon className="size-4" />
+                                                                                </a>
+                                                                            </Button>
+                                                                        </ActionHint>
+
+                                                                        <ActionHint hint="View project details">
+                                                                            <Button
+                                                                                variant="outline"
+                                                                                size="icon-sm"
+                                                                                className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 dark:border-indigo-800/60 dark:text-indigo-400 dark:hover:bg-indigo-950/40"
+                                                                                asChild
+                                                                            >
+                                                                                <Link
+                                                                                    href={route(
+                                                                                        'admin.projects.show',
+                                                                                        project.id,
+                                                                                    )}
+                                                                                    aria-label="View project details"
+                                                                                >
+                                                                                    <EyeIcon className="size-4" />
+                                                                                </Link>
+                                                                            </Button>
+                                                                        </ActionHint>
+
+                                                                        {canUpdateProjects && (
+                                                                            <ActionHint hint="Edit project">
+                                                                                <Button
+                                                                                    variant="outline"
+                                                                                    size="icon-sm"
+                                                                                    className="border-amber-200 text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:border-amber-800/60 dark:text-amber-400 dark:hover:bg-amber-950/40"
+                                                                                    asChild
+                                                                                >
+                                                                                    <Link
+                                                                                        href={route(
+                                                                                            'admin.projects.edit',
+                                                                                            project.id,
+                                                                                        )}
+                                                                                        aria-label="Edit this project"
+                                                                                    >
+                                                                                        <EditIcon className="size-4" />
+                                                                                    </Link>
+                                                                                </Button>
+                                                                            </ActionHint>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        ),
+                                                    )
+                                                ) : (
+                                                    <div className="flex flex-col items-center justify-center p-12 text-center">
+                                                        <BriefcaseIcon className="size-10 text-muted-foreground/60" />
+                                                        <p className="mt-3 font-semibold text-foreground">
+                                                            No projects found
+                                                        </p>
+                                                        <p className="mt-1 text-sm text-muted-foreground">
+                                                            {hasActiveFilters
+                                                                ? 'Try adjusting your search query or status filter.'
+                                                                : 'Create your first project to get started.'}
+                                                        </p>
+                                                        {hasActiveFilters && (
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={
+                                                                    handleClearFilters
+                                                                }
+                                                                className="mt-4"
+                                                            >
+                                                                Reset filters
+                                                            </Button>
+                                                        )}
                                                     </div>
-                                                </Link>
-                                            );
-                                        })}
-                                    </div>
-                                ) : (
-                                    <div className="rounded-xl border border-dashed border-border bg-background p-6">
-                                        <div className="flex flex-col gap-3">
-                                            <div className="flex size-10 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                                                <UserCogIcon className="size-5" />
+                                                )}
                                             </div>
-                                            <div>
-                                                <h3 className="font-semibold text-foreground">
-                                                    Your account is ready
-                                                </h3>
-                                                <p className="mt-1 text-sm text-muted-foreground">
-                                                    You do not have additional
-                                                    administration tools yet,
-                                                    but you can keep your
-                                                    profile information updated.
-                                                </p>
-                                            </div>
+                                        </div>
+
+                                        {/* Pagination Nav */}
+                                        <PaginationNav
+                                            paginator={projects}
+                                            itemLabel="projects"
+                                        />
+                                    </CardContent>
+                                </Card>
+                            ) : (
+                                /* Fallback if user doesn't have project permission */
+                                <Card className="shadow-sm">
+                                    <CardHeader>
+                                        <CardTitle>
+                                            Personal Workspace
+                                        </CardTitle>
+                                        <CardDescription>
+                                            You are signed in to Gateway. You
+                                            can manage your profile or review
+                                            account settings below.
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="flex flex-col gap-4">
+                                        <div className="rounded-xl border border-dashed border-border p-6 text-center">
+                                            <ShieldCheckIcon className="mx-auto size-10 text-muted-foreground" />
+                                            <h3 className="mt-3 font-semibold text-foreground">
+                                                Workspace Ready
+                                            </h3>
+                                            <p className="mt-1 text-sm text-muted-foreground">
+                                                Contact your administrator if
+                                                you need access to projects,
+                                                bids, or directory tools.
+                                            </p>
                                             <Button
                                                 asChild
+                                                className="mt-4"
                                                 variant="outline"
-                                                className="w-fit"
                                             >
                                                 <Link
                                                     href={route('profile.edit')}
                                                 >
-                                                    Open profile
-                                                    <ArrowRightIcon data-icon="inline-end" />
+                                                    Open profile settings
+                                                    <ArrowRightIcon className="ml-1.5 size-4" />
                                                 </Link>
                                             </Button>
                                         </div>
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-
-                        <Card className="shadow-sm">
-                            <CardHeader>
-                                <CardTitle>Access snapshot</CardTitle>
-                                <CardDescription>
-                                    A quick view of your current permissions.
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="flex flex-col gap-3">
-                                <PermissionCard
-                                    label="View company profile"
-                                    enabled={canViewCompany}
-                                />
-                                <PermissionCard
-                                    label="View user directory"
-                                    enabled={canViewUsers}
-                                />
-                                <PermissionCard
-                                    label="Create new users"
-                                    enabled={canCreateUsers}
-                                />
-                                <PermissionCard
-                                    label="Manage access control"
-                                    enabled={canManageAccess}
-                                />
-                            </CardContent>
-                            <CardFooter className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                <div>
-                                    <p className="font-medium text-foreground">
-                                        Account email
-                                    </p>
-                                    <p className="text-sm text-muted-foreground">
-                                        {user.email}
-                                    </p>
-                                </div>
-                                <Badge variant="outline">{displayLevel}</Badge>
-                            </CardFooter>
-                        </Card>
+                                    </CardContent>
+                                </Card>
+                            )}
                     </div>
-
-                    <Card className="shadow-sm">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <ClipboardCheckIcon className="size-5 text-muted-foreground" />
-                                Today&apos;s checklist
-                            </CardTitle>
-                            <CardDescription>
-                                Keep the workspace accurate and easy for the
-                                team to use.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="grid gap-4 lg:grid-cols-3">
-                                <div className="flex flex-col gap-2">
-                                    <Badge variant="secondary" className="w-fit">
-                                        01
-                                    </Badge>
-                                    <h3 className="font-semibold text-foreground">
-                                        Confirm company details
-                                    </h3>
-                                    <p className="text-sm text-muted-foreground">
-                                        Review phone, email, and public contact
-                                        information.
-                                    </p>
-                                </div>
-                                <Separator className="lg:hidden" />
-                                <div className="flex flex-col gap-2">
-                                    <Badge variant="secondary" className="w-fit">
-                                        02
-                                    </Badge>
-                                    <h3 className="font-semibold text-foreground">
-                                        Check team access
-                                    </h3>
-                                    <p className="text-sm text-muted-foreground">
-                                        Make sure each teammate has the right
-                                        user level.
-                                    </p>
-                                </div>
-                                <Separator className="lg:hidden" />
-                                <div className="flex flex-col gap-2">
-                                    <Badge variant="secondary" className="w-fit">
-                                        03
-                                    </Badge>
-                                    <h3 className="font-semibold text-foreground">
-                                        Keep your profile current
-                                    </h3>
-                                    <p className="text-sm text-muted-foreground">
-                                        Update your name or email before
-                                        coordinating with the team.
-                                    </p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
             </div>
         </AuthenticatedLayout>
     );

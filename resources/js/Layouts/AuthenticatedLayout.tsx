@@ -1,4 +1,5 @@
 import ApplicationLogo from '@/Components/ApplicationLogo';
+import DashboardSidebar from '@/Components/DashboardSidebar';
 import DashboardSnapDrawer from '@/Components/DashboardSnapDrawer';
 import Dropdown from '@/Components/Dropdown';
 import NavLink from '@/Components/NavLink';
@@ -464,19 +465,6 @@ export default function Authenticated({
                             </div>
 
                             <div className="hidden gap-6 lg:-my-px lg:ms-8 lg:flex lg:items-center">
-                                <button
-                                    type="button"
-                                    onClick={() => openSnapDrawer()}
-                                    className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-50/80 px-2.5 py-1 text-xs font-semibold text-emerald-800 shadow-xs transition hover:bg-emerald-600 hover:text-white dark:bg-emerald-950/40 dark:text-emerald-200 dark:hover:bg-emerald-600"
-                                    title="Open shortcuts drawer (⌘K)"
-                                >
-                                    <ZapIcon className="size-3.5 text-emerald-600 dark:text-emerald-400 group-hover:text-white" />
-                                    <span>Shortcuts</span>
-                                    <kbd className="rounded bg-emerald-200/50 px-1 py-0.2 text-[10px] font-bold dark:bg-emerald-900/60">
-                                        ⌘K
-                                    </kbd>
-                                </button>
-
                                 <NavLink
                                     href={route('home')}
                                     active={route().current('home')}
@@ -802,20 +790,6 @@ export default function Authenticated({
                         </div>
 
                         <div className="hidden gap-2 lg:ms-6 lg:flex lg:items-center lg:gap-4">
-                            <button
-                                type="button"
-                                onClick={() => openSnapDrawer()}
-                                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-muted-foreground shadow-sm transition hover:border-emerald-500/40 hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
-                                title="Dashboard shortcuts (⌘K)"
-                                aria-label="Open shortcuts drawer"
-                            >
-                                <ZapIcon className="size-3.5 text-emerald-600 dark:text-emerald-400" />
-                                <span className="hidden xl:inline">Shortcuts</span>
-                                <kbd className="hidden rounded bg-muted px-1 text-[10px] font-semibold text-muted-foreground sm:inline-block">
-                                    ⌘K
-                                </kbd>
-                            </button>
-
                             <ThemeModeToggle />
 
                             {canManageNotifications && (
@@ -1012,23 +986,6 @@ export default function Authenticated({
                     }
                 >
                     <div className="flex flex-col gap-1 pb-3 pt-2">
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setShowingNavigationDropdown(false);
-                                openSnapDrawer();
-                            }}
-                            className="mx-4 mb-2 flex items-center justify-between rounded-lg border border-emerald-500/30 bg-emerald-50/50 px-3 py-2 text-left text-sm font-semibold text-emerald-900 transition hover:bg-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-200"
-                        >
-                            <span className="inline-flex items-center gap-2">
-                                <ZapIcon className="size-4 text-emerald-600 dark:text-emerald-400" />
-                                Shortcuts Drawer
-                            </span>
-                            <Badge variant="secondary" className="text-[10px]">
-                                ⌘K
-                            </Badge>
-                        </button>
-
                         <ResponsiveNavLink
                             href={route('home')}
                             active={route().current('home')}
@@ -1451,34 +1408,44 @@ export default function Authenticated({
                 </div>
             </nav>
 
-            {header && (
-                <header
-                    ref={headerRef}
-                    className="border-b border-border bg-card shadow-sm"
-                >
-                    <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
-                        {header}
-                    </div>
-                </header>
-            )}
+            <div className="flex min-h-[calc(100vh-4rem)] flex-col lg:flex-row">
+                {/* Left-docked Persistent Sidebar */}
+                <DashboardSidebar
+                    className="w-full shrink-0 rounded-none border-y-0 border-l-0 border-r border-border bg-card p-4 sm:p-5 shadow-none lg:w-72 xl:w-80 lg:sticky lg:top-16 lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto"
+                />
 
-            {showCompactTitle && (
-                <div
-                    className="fixed left-0 right-0 z-30 border-b border-border bg-card/95 shadow-sm backdrop-blur"
-                    style={{ top: navHeight }}
-                    aria-hidden="true"
-                >
-                    <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
-                        <p className="truncate text-lg font-semibold leading-tight text-emerald-700 dark:text-emerald-300">
-                            {compactTitle}
-                        </p>
-                    </div>
+                {/* Main Content Area */}
+                <div className="flex min-w-0 flex-1 flex-col">
+                    {header && (
+                        <header
+                            ref={headerRef}
+                            className="border-b border-border bg-card shadow-sm"
+                        >
+                            <div className="mx-auto max-w-[96rem] px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
+                                {header}
+                            </div>
+                        </header>
+                    )}
+
+                    {showCompactTitle && (
+                        <div
+                            className="fixed left-0 right-0 z-30 border-b border-border bg-card/95 shadow-sm backdrop-blur lg:left-72 xl:left-80"
+                            style={{ top: navHeight }}
+                            aria-hidden="true"
+                        >
+                            <div className="mx-auto max-w-[96rem] px-4 py-3 sm:px-6 lg:px-8">
+                                <p className="truncate text-lg font-semibold leading-tight text-emerald-700 dark:text-emerald-300">
+                                    {compactTitle}
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    <main className="relative z-0 min-w-0 flex-1 overflow-x-clip">{children}</main>
                 </div>
-            )}
+            </div>
 
-            <main className="relative z-0 min-w-0 overflow-x-clip">{children}</main>
-
-            <DashboardSnapDrawer />
+            <DashboardSnapDrawer showFloatingTrigger={false} />
         </div>
     );
 }

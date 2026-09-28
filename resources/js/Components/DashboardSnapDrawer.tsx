@@ -66,7 +66,7 @@ type DashboardSnapDrawerProps = {
 };
 
 export default function DashboardSnapDrawer({
-    showFloatingTrigger = true,
+    showFloatingTrigger = false,
 }: DashboardSnapDrawerProps) {
     const { auth } = usePage<PageProps>().props;
     const [open, setOpen] = useState(false);
