@@ -1,6 +1,5 @@
 import DashboardSidebar from '@/Components/DashboardSidebar';
 import DashboardSnapDrawer from '@/Components/DashboardSnapDrawer';
-import Dropdown from '@/Components/Dropdown';
 import NavLink from '@/Components/NavLink';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
 import ThemeModeToggle from '@/Components/ThemeModeToggle';
@@ -928,49 +927,6 @@ export default function Authenticated({
                                 </DropdownMenuContent>
                             </DropdownMenu>
                             )}
-
-                            <div className="relative ms-3">
-                                <Dropdown>
-                                    <Dropdown.Trigger>
-                                        <span className="inline-flex rounded-full">
-                                            <button
-                                                type="button"
-                                                className="inline-flex items-center gap-1 rounded-full p-0.5 text-muted-foreground transition duration-150 ease-in-out hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
-                                                aria-label="Open user menu"
-                                            >
-                                                <UserAvatar
-                                                    name={user.name}
-                                                    avatarUrl={user.avatar_url}
-                                                    initials={user.initials}
-                                                />
-                                                <ChevronDownIcon className="size-4" />
-                                            </button>
-                                        </span>
-                                    </Dropdown.Trigger>
-
-                                    <Dropdown.Content>
-                                        <Dropdown.Link
-                                            href={route('profile.edit')}
-                                        >
-                                            Profile
-                                        </Dropdown.Link>
-                                        <Dropdown.Link
-                                            href={route(
-                                                'admin.signature.edit',
-                                            )}
-                                        >
-                                            Signature
-                                        </Dropdown.Link>
-                                        <Dropdown.Link
-                                            href={route('logout')}
-                                            method="post"
-                                            as="button"
-                                        >
-                                            Log Out
-                                        </Dropdown.Link>
-                                    </Dropdown.Content>
-                                </Dropdown>
-                            </div>
                         </div>
 
                         <div className="-me-2 flex items-center lg:hidden">

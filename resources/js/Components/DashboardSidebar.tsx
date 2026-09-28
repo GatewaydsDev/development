@@ -1,5 +1,3 @@
-import ApplicationLogo from '@/Components/ApplicationLogo';
-import ThemeModeToggle from '@/Components/ThemeModeToggle';
 import UserAvatar from '@/Components/UserAvatar';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
@@ -267,17 +265,23 @@ export default function DashboardSidebar({
                 <div
                     className={cn(
                         'flex items-center border-b border-border pb-4',
-                        collapsed ? 'justify-center' : 'justify-between gap-3',
+                        collapsed ? 'justify-center' : 'gap-3',
                     )}
                 >
                     <Link
                         href={route('dashboard')}
                         onClick={onNavigate}
-                        className="flex items-center gap-2.5 transition hover:opacity-90"
+                        className={cn(
+                            'flex items-center transition hover:opacity-90',
+                            collapsed ? 'justify-center' : 'gap-2.5',
+                        )}
                         title={collapsed ? 'Gateway Workspace' : undefined}
                     >
-                        <ApplicationLogo className="size-8 shrink-0 text-primary" />
-                        {!collapsed && (
+                        {collapsed ? (
+                            <span className="text-sm font-bold tracking-tight text-foreground">
+                                G
+                            </span>
+                        ) : (
                             <div className="flex flex-col">
                                 <span className="text-base font-bold tracking-tight text-foreground">
                                     Gateway
@@ -288,11 +292,6 @@ export default function DashboardSidebar({
                             </div>
                         )}
                     </Link>
-                    {!collapsed && (
-                        <div className="flex items-center gap-1">
-                            <ThemeModeToggle />
-                        </div>
-                    )}
                 </div>
 
                 {/* Logged User Info Card */}
@@ -424,13 +423,6 @@ export default function DashboardSidebar({
 
             {/* Bottom Actions & User Account */}
             <div className="sticky bottom-0 mt-6 flex flex-col gap-2 border-t border-border bg-card pt-4">
-                {/* Theme toggle (only surfaced here when collapsed) */}
-                {collapsed && (
-                    <div className="flex justify-center">
-                        <ThemeModeToggle />
-                    </div>
-                )}
-
                 {/* Profile Link */}
                 <Button
                     asChild
