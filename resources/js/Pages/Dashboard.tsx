@@ -17,7 +17,6 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     ArrowRightIcon,
     BriefcaseIcon,
-    ClipboardListIcon,
     EditIcon,
     EyeIcon,
     FileTextIcon,
@@ -178,7 +177,6 @@ export default function Dashboard({
     const canViewProjects = Boolean(can.viewProjects);
     const canCreateProjects = Boolean(can.createProjects);
     const canUpdateProjects = Boolean(can.updateProjects);
-    const canCreateBids = Boolean(can.createBids);
 
     const [search, setSearch] = useState(filters.search ?? '');
     const [status, setStatus] = useState(filters.status ?? '');
@@ -226,7 +224,7 @@ export default function Dashboard({
 
             <div className="flex flex-1 min-w-0 flex-col gap-6 p-4 sm:p-6 lg:p-8">
                 {/* Dashboard Header & Toolbar */}
-                <div className="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 shadow-sm sm:flex-row sm:items-center">
                         <div className="flex items-center gap-2.5">
                             <h1 className="text-lg font-bold tracking-tight text-foreground sm:text-xl">
                                 Dashboard
@@ -241,29 +239,6 @@ export default function Dashboard({
                                         <strong className="font-semibold">{stats.activeProjects}</strong> active / {stats.totalProjects} total projects
                                     </span>
                                 </Badge>
-                            )}
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-2">
-                            {canCreateProjects && (
-                                <Button
-                                    asChild
-                                    size="sm"
-                                    className="bg-emerald-600 text-white hover:bg-emerald-700"
-                                >
-                                    <Link href={route('admin.projects.create')}>
-                                        <PlusIcon className="mr-1.5 size-4" />
-                                        Add project
-                                    </Link>
-                                </Button>
-                            )}
-                            {canCreateBids && (
-                                <Button asChild variant="outline" size="sm">
-                                    <Link href={route('admin.bids.create')}>
-                                        <ClipboardListIcon className="mr-1.5 size-4" />
-                                        Add bid
-                                    </Link>
-                                </Button>
                             )}
                         </div>
                     </div>
