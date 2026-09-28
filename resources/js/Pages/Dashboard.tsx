@@ -188,6 +188,51 @@ function ScopeLocationCell({
     );
 }
 
+const summaryRowTones = {
+    emerald: {
+        row: 'bg-emerald-50 text-emerald-950 hover:bg-emerald-100/80 dark:bg-emerald-950/40 dark:text-emerald-100 dark:hover:bg-emerald-950/60',
+        accent: 'border-l-4 border-l-emerald-500',
+    },
+    teal: {
+        row: 'bg-teal-50 text-teal-950 hover:bg-teal-100/80 dark:bg-teal-950/40 dark:text-teal-100 dark:hover:bg-teal-950/60',
+        accent: 'border-l-4 border-l-teal-500',
+    },
+    sky: {
+        row: 'bg-sky-50 text-sky-950 hover:bg-sky-100/80 dark:bg-sky-950/40 dark:text-sky-100 dark:hover:bg-sky-950/60',
+        accent: 'border-l-4 border-l-sky-500',
+    },
+    violet: {
+        row: 'bg-violet-50 text-violet-950 hover:bg-violet-100/80 dark:bg-violet-950/40 dark:text-violet-100 dark:hover:bg-violet-950/60',
+        accent: 'border-l-4 border-l-violet-500',
+    },
+    slate: {
+        row: 'bg-slate-50 text-slate-800 hover:bg-slate-100/80 dark:bg-slate-900/50 dark:text-slate-100 dark:hover:bg-slate-900/70',
+        accent: 'border-l-4 border-l-slate-400',
+    },
+    cyan: {
+        row: 'bg-cyan-50 text-cyan-950 hover:bg-cyan-100/80 dark:bg-cyan-950/40 dark:text-cyan-100 dark:hover:bg-cyan-950/60',
+        accent: 'border-l-4 border-l-cyan-500',
+    },
+    amber: {
+        row: 'bg-amber-50 text-amber-950 hover:bg-amber-100/80 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-950/60',
+        accent: 'border-l-4 border-l-amber-500',
+    },
+    rose: {
+        row: 'bg-rose-50 text-rose-950 hover:bg-rose-100/80 dark:bg-rose-950/40 dark:text-rose-100 dark:hover:bg-rose-950/60',
+        accent: 'border-l-4 border-l-rose-500',
+    },
+} as const;
+
+type SummaryRowTone = keyof typeof summaryRowTones;
+
+const quotationStatusTones: Record<string, SummaryRowTone> = {
+    draft: 'slate',
+    sent: 'cyan',
+    accepted: 'teal',
+    expired: 'amber',
+    declined: 'rose',
+};
+
 function WorkspaceSummaryTable({ summary }: { summary: WorkspaceSummary }) {
     const rows: Array<{
         key: string;
@@ -195,6 +240,7 @@ function WorkspaceSummaryTable({ summary }: { summary: WorkspaceSummary }) {
         total: string;
         href?: string;
         nested?: boolean;
+        tone: SummaryRowTone;
     }> = [];
 
     if (summary.projects !== null) {
@@ -203,6 +249,7 @@ function WorkspaceSummaryTable({ summary }: { summary: WorkspaceSummary }) {
             label: 'Projects',
             total: summary.projects,
             href: route('admin.projects.index'),
+            tone: 'emerald',
         });
     }
 
@@ -211,6 +258,7 @@ function WorkspaceSummaryTable({ summary }: { summary: WorkspaceSummary }) {
             key: 'active-projects',
             label: 'Active projects',
             total: summary.activeProjects,
+            tone: 'teal',
         });
     }
 
@@ -220,6 +268,7 @@ function WorkspaceSummaryTable({ summary }: { summary: WorkspaceSummary }) {
             label: 'Bids',
             total: summary.bids,
             href: route('admin.bids.index'),
+            tone: 'sky',
         });
     }
 
@@ -229,6 +278,7 @@ function WorkspaceSummaryTable({ summary }: { summary: WorkspaceSummary }) {
             label: 'Quotations',
             total: summary.quotations,
             href: route('admin.quotations.index'),
+            tone: 'violet',
         });
 
         summary.quotationStatuses.forEach((status) => {
@@ -237,6 +287,7 @@ function WorkspaceSummaryTable({ summary }: { summary: WorkspaceSummary }) {
                 label: status.label,
                 total: status.total,
                 nested: true,
+                tone: quotationStatusTones[status.status] ?? 'violet',
             });
         });
     }
@@ -266,18 +317,21 @@ function WorkspaceSummaryTable({ summary }: { summary: WorkspaceSummary }) {
                         </TableHeader>
                         <TableBody>
                             {rows.map((row) => (
-                                <TableRow key={row.key}>
+                                <TableRow
+                                    key={row.key}
+                                    className={summaryRowTones[row.tone].row}
+                                >
                                     <TableCell
                                         className={cn(
-                                            'px-4 text-sm text-foreground',
-                                            row.nested &&
-                                                'pl-8 text-muted-foreground',
+                                            'px-4 text-sm',
+                                            summaryRowTones[row.tone].accent,
+                                            row.nested && 'pl-8',
                                         )}
                                     >
                                         {row.href ? (
                                             <Link
                                                 href={row.href}
-                                                className="font-medium hover:text-emerald-600 hover:underline"
+                                                className="font-medium underline-offset-2 hover:underline"
                                             >
                                                 {row.label}
                                             </Link>
@@ -285,7 +339,7 @@ function WorkspaceSummaryTable({ summary }: { summary: WorkspaceSummary }) {
                                             row.label
                                         )}
                                     </TableCell>
-                                    <TableCell className="px-4 text-right text-sm font-semibold tabular-nums text-foreground">
+                                    <TableCell className="px-4 text-right text-sm font-semibold tabular-nums">
                                         {row.total}
                                     </TableCell>
                                 </TableRow>
