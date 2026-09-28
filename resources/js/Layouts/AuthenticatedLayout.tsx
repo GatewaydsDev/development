@@ -1,4 +1,3 @@
-import ApplicationLogo from '@/Components/ApplicationLogo';
 import DashboardSidebar from '@/Components/DashboardSidebar';
 import DashboardSnapDrawer from '@/Components/DashboardSnapDrawer';
 import Dropdown from '@/Components/Dropdown';
@@ -19,7 +18,7 @@ import {
     DropdownMenuSubTrigger,
     DropdownMenuTrigger,
 } from '@/Components/ui/dropdown-menu';
-import { openSnapDrawer } from '@/lib/shortcuts';
+
 import { PageProps } from '@/types';
 import { Link, router, usePage } from '@inertiajs/react';
 import { toast } from 'sonner';
@@ -45,7 +44,6 @@ import {
     UserPlusIcon,
     UsersIcon,
     WrenchIcon,
-    ZapIcon,
     type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -284,6 +282,25 @@ export default function Authenticated({
 
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
         useState(false);
+    const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+        if (typeof window === 'undefined') {
+            return false;
+        }
+
+        return window.localStorage.getItem('sidebarCollapsed') === '1';
+    });
+
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        window.localStorage.setItem(
+            'sidebarCollapsed',
+            sidebarCollapsed ? '1' : '0',
+        );
+    }, [sidebarCollapsed]);
+
     const navRef = useRef<HTMLElement>(null);
     const headerRef = useRef<HTMLElement>(null);
     const [navHeight, setNavHeight] = useState(0);
@@ -451,20 +468,40 @@ export default function Authenticated({
 
     return (
         <div className="min-h-screen bg-muted/30 text-foreground">
-            <nav
-                ref={navRef}
-                className="sticky top-0 z-40 border-b border-border bg-background"
+            {/* Full-height sidebar covering the whole left side (desktop) */}
+            <DashboardSidebar
+                collapsed={sidebarCollapsed}
+                onToggleCollapse={() =>
+                    setSidebarCollapsed((value) => !value)
+                }
+                className={cn(
+                    'hidden shrink-0 rounded-none border-y-0 border-l-0 border-r border-border bg-card shadow-none transition-all duration-300 lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex lg:overflow-y-auto',
+                    sidebarCollapsed ? 'lg:w-16' : 'lg:w-72 xl:w-80',
+                )}
+            />
+
+            <div
+                className={cn(
+                    'flex min-h-screen flex-col transition-all duration-300',
+                    sidebarCollapsed ? 'lg:pl-16' : 'lg:pl-72 xl:pl-80',
+                )}
             >
+                <nav
+                    ref={navRef}
+                    className="sticky top-0 z-30 border-b border-border bg-background"
+                >
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                     <div className="flex min-w-0 items-center justify-between gap-3 overflow-visible py-2 sm:py-2.5 md:py-3 lg:gap-8">
-                        <div className="flex">
-                            <div className="flex shrink-0 items-center">
-                                <Link href="/" className="shrink-0">
-                                    <ApplicationLogo className="block size-12 sm:size-16 md:size-20 lg:size-24" />
-                                </Link>
-                            </div>
+                        <div className="flex min-w-0 items-center gap-2">
+                            {/* Mobile: brand (sidebar is off-canvas here) */}
+                            <Link
+                                href={route('dashboard')}
+                                className="text-base font-bold tracking-tight text-foreground lg:hidden"
+                            >
+                                Gateway
+                            </Link>
 
-                            <div className="hidden gap-6 lg:-my-px lg:ms-8 lg:flex lg:items-center">
+                            <div className="hidden gap-6 lg:-my-px lg:flex lg:items-center">
                                 <NavLink
                                     href={route('home')}
                                     active={route().current('home')}
@@ -1408,12 +1445,6 @@ export default function Authenticated({
                 </div>
             </nav>
 
-            <div className="flex min-h-[calc(100vh-4rem)] flex-col lg:flex-row">
-                {/* Left-docked Persistent Sidebar */}
-                <DashboardSidebar
-                    className="w-full shrink-0 rounded-none border-y-0 border-l-0 border-r border-border bg-card p-4 sm:p-5 shadow-none lg:w-72 xl:w-80 lg:sticky lg:top-16 lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto"
-                />
-
                 {/* Main Content Area */}
                 <div className="flex min-w-0 flex-1 flex-col">
                     {header && (
@@ -1429,7 +1460,12 @@ export default function Authenticated({
 
                     {showCompactTitle && (
                         <div
-                            className="fixed left-0 right-0 z-30 border-b border-border bg-card/95 shadow-sm backdrop-blur lg:left-72 xl:left-80"
+                            className={cn(
+                                'fixed left-0 right-0 z-30 border-b border-border bg-card/95 shadow-sm backdrop-blur transition-all duration-300',
+                                sidebarCollapsed
+                                    ? 'lg:left-16'
+                                    : 'lg:left-72 xl:left-80',
+                            )}
                             style={{ top: navHeight }}
                             aria-hidden="true"
                         >
