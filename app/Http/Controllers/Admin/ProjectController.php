@@ -732,6 +732,12 @@ class ProjectController extends Controller
             'estimated_end_date' => $project->estimated_end_date?->toDateString(),
             'completed_at' => $project->completed_at?->toDateString(),
             'public_notes' => $summary ? null : $project->public_notes,
+            'site_address_line_1' => $project->site_address_line_1,
+            'site_address_line_2' => $project->site_address_line_2,
+            'site_city' => $project->site_city,
+            'site_state' => $project->site_state,
+            'site_postal_code' => $project->site_postal_code,
+            'site_country' => $project->site_country,
             'contractors' => $project->contractors
                 ->map(fn (Contractor $contractor): array => [
                     'id' => $contractor->id,
@@ -807,12 +813,6 @@ class ProjectController extends Controller
         if (! $summary) {
             $payload = [
                 ...$payload,
-                'site_address_line_1' => $project->site_address_line_1,
-                'site_address_line_2' => $project->site_address_line_2,
-                'site_city' => $project->site_city,
-                'site_state' => $project->site_state,
-                'site_postal_code' => $project->site_postal_code,
-                'site_country' => $project->site_country,
                 'creator' => $project->creator
                     ? [
                         'id' => $project->creator->id,

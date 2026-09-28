@@ -20,7 +20,6 @@ import {
     ClipboardListIcon,
     EditIcon,
     EyeIcon,
-    FileSpreadsheetIcon,
     FileTextIcon,
     FileTypeIcon,
     FilterIcon,
@@ -33,8 +32,51 @@ import {
 import { FormEvent, useEffect, useState } from 'react';
 import {
     type ProjectOptions,
+    type ProjectPayload,
     type ProjectsPaginator,
+    scopeTypeLabel,
 } from './Admin/Projects/types';
+
+const projectListGridClassName =
+    'xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,1.5fr)_7.75rem_6.75rem_12.75rem] xl:items-start xl:gap-4';
+
+function projectLocationLines(project: ProjectPayload): string[] {
+    const locality = [
+        project.site_city?.trim(),
+        [project.site_state?.trim(), project.site_postal_code?.trim()]
+            .filter(Boolean)
+            .join(' '),
+    ]
+        .filter(Boolean)
+        .join(', ');
+
+    const country = project.site_country?.trim() ?? '';
+    const hideCountry = /^(us|usa|united states)$/i.test(country);
+
+    return [
+        project.site_address_line_1?.trim(),
+        project.site_address_line_2?.trim(),
+        locality,
+        hideCountry ? '' : country,
+    ].filter((line): line is string => Boolean(line));
+}
+
+function projectScopeLabels(
+    project: ProjectPayload,
+    scopeTypes: ProjectOptions['scopeTypes'] | undefined,
+): string[] {
+    const scopes = (project.scopes ?? [])
+        .map((scope) => scopeTypeLabel(scope.type, scopeTypes))
+        .filter((label) => label !== 'Not set');
+
+    if (scopes.length > 0) {
+        return scopes;
+    }
+
+    return (project.bid_scopes ?? [])
+        .map((scope) => scope.name.trim())
+        .filter(Boolean);
+}
 
 type DashboardProps = {
     filters?: {
@@ -75,6 +117,54 @@ const priorityBadgeClassName = (priority?: string | null) => {
 
     return colors[priority ?? ''] ?? 'border-border bg-muted text-foreground';
 };
+
+function ScopeLocationCell({
+    project,
+    scopeTypes,
+}: {
+    project: ProjectPayload;
+    scopeTypes?: ProjectOptions['scopeTypes'];
+}) {
+    const scopes = projectScopeLabels(project, scopeTypes);
+    const locationLines = projectLocationLines(project);
+
+    if (scopes.length === 0 && locationLines.length === 0) {
+        return (
+            <span className="text-xs text-muted-foreground">
+                No scope details
+            </span>
+        );
+    }
+
+    return (
+        <div className="flex min-w-0 flex-col gap-1.5">
+            {scopes.length > 0 && (
+                <ul className="flex min-w-0 flex-col gap-1">
+                    {scopes.map((scope, index) => (
+                        <li
+                            key={`${scope}-${index}`}
+                            className="break-words text-xs leading-snug text-foreground"
+                        >
+                            {scope}
+                        </li>
+                    ))}
+                </ul>
+            )}
+            {locationLines.length > 0 && (
+                <div className="flex min-w-0 flex-col">
+                    {locationLines.map((line, index) => (
+                        <p
+                            key={`${line}-${index}`}
+                            className="break-words text-xs leading-snug text-muted-foreground"
+                        >
+                            {line}
+                        </p>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
 
 export default function Dashboard({
     filters = {},
@@ -311,9 +401,15 @@ export default function Dashboard({
                                         </form>
 
                                         {/* Projects Table / Responsive Mobile Cards */}
-                                        <div className="overflow-hidden rounded-xl border border-border bg-background">
+                                        <div className="overflow-x-auto rounded-xl border border-border bg-background">
+                                            <div className="xl:min-w-[72rem]">
                                             {/* Table Headers for lg+ */}
-                                            <div className="hidden border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground xl:grid xl:grid-cols-[1.2fr_1.1fr_1.2fr_120px_100px_auto] xl:items-center xl:gap-4">
+                                            <div
+                                                className={cn(
+                                                    'hidden border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground xl:grid',
+                                                    projectListGridClassName,
+                                                )}
+                                            >
                                                 <div>Project info</div>
                                                 <div>Contractor</div>
                                                 <div>Scopes & Location</div>
@@ -332,37 +428,36 @@ export default function Dashboard({
                                                             <div
                                                                 key={project.id}
                                                                 className={cn(
-                                                                    'grid gap-3 p-4 transition hover:bg-muted/30 xl:grid-cols-[1.2fr_1.1fr_1.2fr_120px_100px_auto] xl:items-center xl:gap-4',
+                                                                    'grid gap-3 p-4 transition hover:bg-muted/30 xl:grid',
+                                                                    projectListGridClassName,
                                                                     filters.highlight ===
                                                                         project.id &&
                                                                         'bg-emerald-50/70 dark:bg-emerald-950/40',
                                                                 )}
                                                             >
                                                                 {/* Column 1: Project Info */}
-                                                                <div className="min-w-0">
-                                                                    <div className="flex flex-wrap items-center gap-2">
-                                                                        <Badge
-                                                                            variant="outline"
-                                                                            className="font-mono text-xs font-bold text-emerald-700 dark:text-emerald-300"
-                                                                        >
-                                                                            {
-                                                                                project.project_number
-                                                                            }
-                                                                        </Badge>
-                                                                        <Link
-                                                                            href={route(
-                                                                                'admin.projects.show',
-                                                                                project.id,
-                                                                            )}
-                                                                            className="truncate font-semibold text-foreground hover:text-emerald-600 hover:underline"
-                                                                        >
-                                                                            {
-                                                                                project.name
-                                                                            }
-                                                                        </Link>
-                                                                    </div>
+                                                                <div className="flex min-w-0 flex-col gap-1">
+                                                                    <Badge
+                                                                        variant="outline"
+                                                                        className="w-fit max-w-full whitespace-normal break-words font-mono text-xs font-bold text-emerald-700 dark:text-emerald-300"
+                                                                    >
+                                                                        {
+                                                                            project.project_number
+                                                                        }
+                                                                    </Badge>
+                                                                    <Link
+                                                                        href={route(
+                                                                            'admin.projects.show',
+                                                                            project.id,
+                                                                        )}
+                                                                        className="break-words font-semibold leading-snug text-foreground hover:text-emerald-600 hover:underline"
+                                                                    >
+                                                                        {
+                                                                            project.name
+                                                                        }
+                                                                    </Link>
                                                                     {project.service_type && (
-                                                                        <p className="mt-1 truncate text-xs text-muted-foreground">
+                                                                        <p className="break-words text-xs leading-snug text-muted-foreground">
                                                                             {
                                                                                 project.service_type
                                                                             }
@@ -379,8 +474,8 @@ export default function Dashboard({
                                                                         .contractors
                                                                         .length >
                                                                     0 ? (
-                                                                        <div className="flex flex-col">
-                                                                            <p className="truncate font-medium text-foreground">
+                                                                        <div className="flex flex-col gap-0.5">
+                                                                            <p className="break-words font-medium leading-snug text-foreground">
                                                                                 {
                                                                                     project
                                                                                         .contractors[0]
@@ -390,7 +485,7 @@ export default function Dashboard({
                                                                             {project
                                                                                 .contractors[0]
                                                                                 .contact_name && (
-                                                                                <p className="truncate text-xs text-muted-foreground">
+                                                                                <p className="break-words text-xs leading-snug text-muted-foreground">
                                                                                     {
                                                                                         project
                                                                                             .contractors[0]
@@ -411,105 +506,25 @@ export default function Dashboard({
                                                                     <DirectoryFieldLabel hideFrom="xl">
                                                                         Scope & Site
                                                                     </DirectoryFieldLabel>
-                                                                    {project.scopes &&
-                                                                    project
-                                                                        .scopes
-                                                                        .length >
-                                                                        0 ? (
-                                                                        <div className="flex flex-wrap gap-1">
-                                                                            {project.scopes
-                                                                                .slice(
-                                                                                    0,
-                                                                                    2,
-                                                                                )
-                                                                                .map(
-                                                                                    (
-                                                                                        scope,
-                                                                                        idx,
-                                                                                    ) => (
-                                                                                        <Badge
-                                                                                            key={
-                                                                                                idx
-                                                                                            }
-                                                                                            variant="secondary"
-                                                                                            className="text-[10px]"
-                                                                                        >
-                                                                                            {
-                                                                                                scope.type
-                                                                                            }
-                                                                                        </Badge>
-                                                                                    ),
-                                                                                )}
-                                                                            {project
-                                                                                .scopes
-                                                                                .length >
-                                                                                2 && (
-                                                                                <Badge
-                                                                                    variant="outline"
-                                                                                    className="text-[10px]"
-                                                                                >
-                                                                                    +
-                                                                                    {project
-                                                                                        .scopes
-                                                                                        .length -
-                                                                                        2}
-                                                                                </Badge>
-                                                                            )}
-                                                                        </div>
-                                                                    ) : project.bid_scopes &&
-                                                                      project
-                                                                          .bid_scopes
-                                                                          .length >
-                                                                          0 ? (
-                                                                        <div className="flex flex-wrap gap-1">
-                                                                            {project.bid_scopes
-                                                                                .slice(
-                                                                                    0,
-                                                                                    2,
-                                                                                )
-                                                                                .map(
-                                                                                    (
-                                                                                        scope,
-                                                                                    ) => (
-                                                                                        <Badge
-                                                                                            key={
-                                                                                                scope.id
-                                                                                            }
-                                                                                            variant="outline"
-                                                                                            className="text-[10px]"
-                                                                                        >
-                                                                                            {
-                                                                                                scope.name
-                                                                                            }
-                                                                                        </Badge>
-                                                                                    ),
-                                                                                )}
-                                                                        </div>
-                                                                    ) : project.site_address_line_1 ? (
-                                                                        <p className="truncate text-xs text-muted-foreground">
-                                                                            {
-                                                                                project.site_address_line_1
-                                                                            }
-                                                                            {project.site_city
-                                                                                ? `, ${project.site_city}`
-                                                                                : ''}
-                                                                        </p>
-                                                                    ) : (
-                                                                        <span className="text-xs text-muted-foreground">
-                                                                            No scope details
-                                                                        </span>
-                                                                    )}
+                                                                    <ScopeLocationCell
+                                                                        project={
+                                                                            project
+                                                                        }
+                                                                        scopeTypes={
+                                                                            options?.scopeTypes
+                                                                        }
+                                                                    />
                                                                 </div>
 
                                                                 {/* Column 4: Status */}
-                                                                <div>
+                                                                <div className="min-w-0">
                                                                     <DirectoryFieldLabel hideFrom="xl">
                                                                         Status
                                                                     </DirectoryFieldLabel>
                                                                     <Badge
                                                                         variant="outline"
                                                                         className={cn(
-                                                                            'text-xs font-semibold',
+                                                                            'h-auto max-w-full whitespace-normal break-words py-1 text-xs font-semibold leading-snug',
                                                                             statusBadgeClassName(
                                                                                 project.status_slug,
                                                                             ),
@@ -521,14 +536,14 @@ export default function Dashboard({
                                                                 </div>
 
                                                                 {/* Column 5: Priority */}
-                                                                <div>
+                                                                <div className="min-w-0">
                                                                     <DirectoryFieldLabel hideFrom="xl">
                                                                         Priority
                                                                     </DirectoryFieldLabel>
                                                                     <Badge
                                                                         variant="outline"
                                                                         className={cn(
-                                                                            'text-[11px] capitalize',
+                                                                            'h-auto max-w-full whitespace-normal break-words py-1 text-[11px] capitalize leading-snug',
                                                                             priorityBadgeClassName(
                                                                                 project.priority,
                                                                             ),
@@ -540,11 +555,11 @@ export default function Dashboard({
                                                                 </div>
 
                                                                 {/* Column 6: Action Buttons */}
-                                                                <div>
+                                                                <div className="min-w-0">
                                                                     <DirectoryFieldLabel hideFrom="xl">
                                                                         Actions
                                                                     </DirectoryFieldLabel>
-                                                                    <div className="flex flex-wrap items-center gap-1.5 md:justify-end">
+                                                                    <div className="flex flex-wrap items-center gap-1.5 xl:flex-nowrap xl:justify-end">
                                                                         <ActionHint hint="Print project">
                                                                             <Button
                                                                                 variant="outline"
@@ -674,6 +689,7 @@ export default function Dashboard({
                                                     </div>
                                                 )}
                                             </div>
+                                        </div>
                                         </div>
 
                                         {/* Pagination Nav */}
