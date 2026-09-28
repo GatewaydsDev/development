@@ -93,7 +93,7 @@ export default function Index({ filters, options, projects }: IndexProps) {
     };
 
     const projectRowGridClassName =
-        'w-full xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1.2fr)_7.5rem_minmax(0,1fr)_minmax(0,8.5rem)_10.5rem]';
+        'w-full xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1.2fr)_7.5rem_minmax(0,1fr)_minmax(0,8.5rem)_13.5rem]';
 
     return (
         <AuthenticatedLayout
@@ -404,11 +404,11 @@ export default function Index({ filters, options, projects }: IndexProps) {
                                                         'Not set'}
                                                 </Badge>
                                             </div>
-                                            <div className="flex min-w-0 flex-col gap-1 md:items-end">
+                                            <div className="flex shrink-0 flex-col gap-1 md:items-end">
                                                 <DirectoryFieldLabel hideFrom="xl">
                                                     Actions
                                                 </DirectoryFieldLabel>
-                                                <div className="flex flex-wrap gap-1.5 md:justify-end">
+                                                <div className="flex flex-nowrap items-center justify-end gap-1.5 [&>*]:shrink-0">
                                                 <ActionHint hint="Print this project">
                                                     <Button
                                                         variant="outline"

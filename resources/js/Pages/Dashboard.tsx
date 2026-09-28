@@ -45,7 +45,7 @@ import {
 } from './Admin/Projects/types';
 
 const projectListGridClassName =
-    'xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,1.5fr)_7.75rem_6.75rem_12.75rem] xl:items-start xl:gap-4';
+    'xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,1.5fr)_7.75rem_6.75rem_13.5rem] xl:items-start xl:gap-4';
 
 function projectLocationLines(project: ProjectPayload): string[] {
     const locality = [
@@ -719,11 +719,11 @@ export default function Dashboard({
                                                                 </div>
 
                                                                 {/* Column 6: Action Buttons */}
-                                                                <div className="min-w-0">
+                                                                <div className="shrink-0">
                                                                     <DirectoryFieldLabel hideFrom="xl">
                                                                         Actions
                                                                     </DirectoryFieldLabel>
-                                                                    <div className="flex flex-wrap items-center gap-1.5 xl:flex-nowrap xl:justify-end">
+                                                                    <div className="flex flex-nowrap items-center justify-end gap-1.5 [&>*]:shrink-0">
                                                                         <ActionHint hint="Print project">
                                                                             <Button
                                                                                 variant="outline"

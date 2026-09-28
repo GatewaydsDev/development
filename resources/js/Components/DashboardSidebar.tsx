@@ -1,3 +1,4 @@
+import ApplicationLogo from '@/Components/ApplicationLogo';
 import UserAvatar from '@/Components/UserAvatar';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
@@ -277,11 +278,13 @@ export default function DashboardSidebar({
                         )}
                         title={collapsed ? 'Gateway Workspace' : undefined}
                     >
-                        {collapsed ? (
-                            <span className="text-sm font-bold tracking-tight text-foreground">
-                                G
-                            </span>
-                        ) : (
+                        <ApplicationLogo
+                            className={cn(
+                                'bg-background',
+                                collapsed ? 'size-12' : 'size-16',
+                            )}
+                        />
+                        {!collapsed && (
                             <div className="flex flex-col">
                                 <span className="text-base font-bold tracking-tight text-foreground">
                                     Gateway
