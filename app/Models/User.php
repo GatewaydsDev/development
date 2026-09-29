@@ -27,6 +27,7 @@ class User extends Authenticatable
         'email',
         'avatar',
         'signature_path',
+        'dashboard_theme',
         'date_of_birth',
         'last_login_at',
         'role',

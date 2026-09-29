@@ -1,4 +1,5 @@
 import '../css/app.css';
+import '../css/dashboard-theme-overrides.css';
 import './i18n';
 
 import { ThemeProvider } from '@/Components/ThemeProvider';

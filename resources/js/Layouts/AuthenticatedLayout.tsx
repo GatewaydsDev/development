@@ -50,6 +50,7 @@ import {
     PropsWithChildren,
     ReactNode,
     useEffect,
+    useLayoutEffect,
     useRef,
     useState,
 } from 'react';
@@ -288,6 +289,15 @@ export default function Authenticated({
 
         return window.localStorage.getItem('sidebarCollapsed') === '1';
     });
+
+    useLayoutEffect(() => {
+        document.documentElement.dataset.dashboardTheme =
+            user.dashboard_theme || 'gateway';
+
+        return () => {
+            document.documentElement.dataset.dashboardTheme = 'gateway';
+        };
+    }, [user.dashboard_theme]);
 
     useEffect(() => {
         if (typeof window === 'undefined') {

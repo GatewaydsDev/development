@@ -9,6 +9,7 @@ export interface User {
     signature_url?: string | null;
     initials?: string;
     last_login_at?: string | null;
+    dashboard_theme?: string | null;
     level?: {
         id: number;
         name: string;

@@ -304,17 +304,17 @@ export default function DashboardSidebar({
                             name={user.name}
                             avatarUrl={user.avatar_url}
                             initials={user.initials}
-                            className="size-10 ring-2 ring-emerald-500/30"
+                            className="size-10 ring-2 dash-ring"
                         />
                     </div>
                 ) : (
-                    <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3.5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
+                    <div className="dash-soft dash-border rounded-xl border p-3.5">
                         <div className="flex items-start gap-3">
                             <UserAvatar
                                 name={user.name}
                                 avatarUrl={user.avatar_url}
                                 initials={user.initials}
-                                className="size-10 ring-2 ring-emerald-500/30"
+                                className="size-10 ring-2 dash-ring"
                             />
                             <div className="min-w-0 flex-1">
                                 <p className="truncate text-sm font-semibold text-foreground">
@@ -326,9 +326,9 @@ export default function DashboardSidebar({
                                 <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                                     <Badge
                                         variant="outline"
-                                        className="border-emerald-300 bg-white/80 text-[10px] text-emerald-800 dark:border-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200"
+                                        className="dash-border dash-text border bg-white/80 text-[10px] dark:bg-background/70"
                                     >
-                                        <ShieldCheckIcon className="mr-1 size-3 text-emerald-600 dark:text-emerald-400" />
+                                        <ShieldCheckIcon className="dash-icon mr-1 size-3" />
                                         {displayLevel}
                                     </Badge>
                                 </div>
@@ -336,13 +336,13 @@ export default function DashboardSidebar({
                         </div>
 
                         {/* Last Login Info Box */}
-                        <div className="mt-3 flex items-center gap-1.5 rounded-lg border border-emerald-200/80 bg-white/70 px-2.5 py-1.5 text-xs text-muted-foreground dark:border-emerald-900/40 dark:bg-background/60">
-                            <ClockIcon className="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                        <div className="dash-border mt-3 flex items-center gap-1.5 rounded-lg border bg-white/70 px-2.5 py-1.5 text-xs text-muted-foreground dark:bg-background/60">
+                            <ClockIcon className="dash-icon size-3.5 shrink-0" />
                             <div className="min-w-0 flex-1 truncate">
                                 <span className="font-medium text-foreground">
                                     Last login:
                                 </span>{' '}
-                                <span className="text-emerald-700 dark:text-emerald-300 font-semibold">
+                                <span className="dash-text font-semibold">
                                     {formatLastLogin(user.last_login_at)}
                                 </span>
                             </div>
@@ -378,7 +378,7 @@ export default function DashboardSidebar({
                                                     ? 'justify-center px-0'
                                                     : 'justify-between px-2.5',
                                                 isActive
-                                                    ? 'bg-emerald-600 text-white shadow-sm hover:bg-emerald-700'
+                                                    ? 'dash-accent shadow-sm'
                                                     : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                                             )}
                                         >
@@ -435,7 +435,7 @@ export default function DashboardSidebar({
                         'w-full text-xs',
                         collapsed ? 'justify-center px-0' : 'justify-start',
                         isRouteActive('profile.*')
-                            ? 'bg-emerald-600 text-white hover:bg-emerald-700 hover:text-white'
+                            ? 'dash-accent'
                             : 'text-muted-foreground hover:text-foreground',
                     )}
                 >
@@ -452,6 +452,34 @@ export default function DashboardSidebar({
                             )}
                         />
                         {!collapsed && 'Account & Profile'}
+                    </Link>
+                </Button>
+
+                <Button
+                    asChild
+                    variant="ghost"
+                    size="sm"
+                    className={cn(
+                        'w-full text-xs',
+                        collapsed ? 'justify-center px-0' : 'justify-start',
+                        isRouteActive('appearance.edit')
+                            ? 'dash-accent'
+                            : 'text-muted-foreground hover:text-foreground',
+                    )}
+                >
+                    <Link
+                        href={route('appearance.edit')}
+                        onClick={onNavigate}
+                        title={collapsed ? 'Themes' : undefined}
+                    >
+                        <PaletteIcon
+                            className={cn(
+                                'size-3.5',
+                                !collapsed && 'mr-2',
+                                isRouteActive('appearance.edit') && 'text-white',
+                            )}
+                        />
+                        {!collapsed && 'Themes'}
                     </Link>
                 </Button>
 

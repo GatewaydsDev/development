@@ -5,6 +5,24 @@
 @tailwind components;
 @tailwind utilities;
 
+@property --floating-gear-delay {
+  syntax: "<time>";
+  inherits: true;
+  initial-value: 0ms;
+}
+
+@property --gear-offset {
+  syntax: "<angle>";
+  inherits: true;
+  initial-value: 0deg;
+}
+
+@property --gear-turns {
+  syntax: "<angle>";
+  inherits: true;
+  initial-value: 1080deg;
+}
+
 @layer base {
   :root {
     --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
@@ -434,6 +452,7 @@
   }
 
   .floating-site-gears {
+    --floating-gear-delay: 0ms;
     pointer-events: none;
     position: fixed;
     right: 1.25rem;
@@ -443,10 +462,12 @@
     height: 3rem;
     opacity: 0;
     animation: floating-site-gears-fade 7.2s ease both;
-    animation-delay: var(--floating-gear-delay, 0ms);
+    animation-delay: var(--floating-gear-delay);
   }
 
   .floating-site-gear {
+    --gear-offset: 0deg;
+    --gear-turns: 1080deg;
     position: absolute;
   }
 
@@ -480,7 +501,7 @@
     filter: drop-shadow(0 0 10px rgba(52, 211, 153, 0.45));
     transform-origin: center;
     animation: floating-site-gear-mesh 7.2s linear both;
-    animation-delay: var(--floating-gear-delay, 0ms);
+    animation-delay: var(--floating-gear-delay);
   }
 
   .floating-site-gear__mark circle:nth-of-type(1) {
@@ -511,11 +532,11 @@
 
   @keyframes floating-site-gear-mesh {
     from {
-      rotate: var(--gear-offset, 0deg);
+      rotate: var(--gear-offset);
     }
 
     to {
-      rotate: calc(var(--gear-offset, 0deg) + var(--gear-turns, 1080deg));
+      rotate: calc(var(--gear-offset) + var(--gear-turns));
     }
   }
 
@@ -698,4 +719,171 @@
     content: attr(data-placeholder);
     pointer-events: none;
   }
+}
+
+:root,
+html[data-dashboard-theme='gateway'] {
+  --dashboard-accent: #059669;
+  --dashboard-accent-hover: #047857;
+  --dashboard-accent-soft: rgb(236 253 245 / 0.72);
+  --dashboard-accent-border: #a7f3d0;
+  --dashboard-accent-text: #065f46;
+  --dashboard-accent-icon: #059669;
+}
+
+html.dark[data-dashboard-theme='gateway'] {
+  --dashboard-accent-soft: rgb(6 78 59 / 0.45);
+  --dashboard-accent-border: rgb(6 78 59 / 0.7);
+  --dashboard-accent-text: #a7f3d0;
+  --dashboard-accent-icon: #34d399;
+}
+
+html[data-dashboard-theme='ocean'] {
+  --dashboard-accent: #0284c7;
+  --dashboard-accent-hover: #0369a1;
+  --dashboard-accent-soft: rgb(240 249 255 / 0.8);
+  --dashboard-accent-border: #bae6fd;
+  --dashboard-accent-text: #075985;
+  --dashboard-accent-icon: #0284c7;
+}
+
+html.dark[data-dashboard-theme='ocean'] {
+  --dashboard-accent-soft: rgb(8 47 73 / 0.55);
+  --dashboard-accent-border: rgb(12 74 110 / 0.8);
+  --dashboard-accent-text: #bae6fd;
+  --dashboard-accent-icon: #38bdf8;
+}
+
+html[data-dashboard-theme='teal'] {
+  --dashboard-accent: #0d9488;
+  --dashboard-accent-hover: #0f766e;
+  --dashboard-accent-soft: rgb(240 253 250 / 0.82);
+  --dashboard-accent-border: #99f6e4;
+  --dashboard-accent-text: #115e59;
+  --dashboard-accent-icon: #0d9488;
+}
+
+html.dark[data-dashboard-theme='teal'] {
+  --dashboard-accent-soft: rgb(4 47 46 / 0.5);
+  --dashboard-accent-border: rgb(19 78 74 / 0.75);
+  --dashboard-accent-text: #99f6e4;
+  --dashboard-accent-icon: #2dd4bf;
+}
+
+html[data-dashboard-theme='violet'] {
+  --dashboard-accent: #7c3aed;
+  --dashboard-accent-hover: #6d28d9;
+  --dashboard-accent-soft: rgb(245 243 255 / 0.82);
+  --dashboard-accent-border: #ddd6fe;
+  --dashboard-accent-text: #5b21b6;
+  --dashboard-accent-icon: #7c3aed;
+}
+
+html.dark[data-dashboard-theme='violet'] {
+  --dashboard-accent-soft: rgb(46 16 101 / 0.5);
+  --dashboard-accent-border: rgb(76 29 149 / 0.75);
+  --dashboard-accent-text: #ddd6fe;
+  --dashboard-accent-icon: #c4b5fd;
+}
+
+html[data-dashboard-theme='sunset'] {
+  --dashboard-accent: #ea580c;
+  --dashboard-accent-hover: #c2410c;
+  --dashboard-accent-soft: rgb(255 247 237 / 0.86);
+  --dashboard-accent-border: #fed7aa;
+  --dashboard-accent-text: #9a3412;
+  --dashboard-accent-icon: #ea580c;
+}
+
+html.dark[data-dashboard-theme='sunset'] {
+  --dashboard-accent-soft: rgb(67 20 7 / 0.5);
+  --dashboard-accent-border: rgb(124 45 18 / 0.75);
+  --dashboard-accent-text: #fed7aa;
+  --dashboard-accent-icon: #fb923c;
+}
+
+html[data-dashboard-theme='amber'] {
+  --dashboard-accent: #d97706;
+  --dashboard-accent-hover: #b45309;
+  --dashboard-accent-soft: rgb(255 251 235 / 0.9);
+  --dashboard-accent-border: #fde68a;
+  --dashboard-accent-text: #92400e;
+  --dashboard-accent-icon: #d97706;
+}
+
+html.dark[data-dashboard-theme='amber'] {
+  --dashboard-accent-soft: rgb(69 26 3 / 0.5);
+  --dashboard-accent-border: rgb(120 53 15 / 0.75);
+  --dashboard-accent-text: #fde68a;
+  --dashboard-accent-icon: #fbbf24;
+}
+
+html[data-dashboard-theme='rose'] {
+  --dashboard-accent: #e11d48;
+  --dashboard-accent-hover: #be123c;
+  --dashboard-accent-soft: rgb(255 241 242 / 0.84);
+  --dashboard-accent-border: #fecdd3;
+  --dashboard-accent-text: #9f1239;
+  --dashboard-accent-icon: #e11d48;
+}
+
+html.dark[data-dashboard-theme='rose'] {
+  --dashboard-accent-soft: rgb(76 5 25 / 0.5);
+  --dashboard-accent-border: rgb(136 19 55 / 0.75);
+  --dashboard-accent-text: #fecdd3;
+  --dashboard-accent-icon: #fb7185;
+}
+
+html[data-dashboard-theme='slate'] {
+  --dashboard-accent: #334155;
+  --dashboard-accent-hover: #1e293b;
+  --dashboard-accent-soft: rgb(248 250 252 / 0.9);
+  --dashboard-accent-border: #cbd5e1;
+  --dashboard-accent-text: #1e293b;
+  --dashboard-accent-icon: #475569;
+}
+
+html.dark[data-dashboard-theme='slate'] {
+  --dashboard-accent: #cbd5e1;
+  --dashboard-accent-hover: #e2e8f0;
+  --dashboard-accent-soft: rgb(15 23 42 / 0.72);
+  --dashboard-accent-border: rgb(51 65 85 / 0.85);
+  --dashboard-accent-text: #e2e8f0;
+  --dashboard-accent-icon: #cbd5e1;
+}
+
+.dash-accent {
+  background-color: var(--dashboard-accent);
+  color: #fff;
+}
+
+.dash-accent:hover {
+  background-color: var(--dashboard-accent-hover);
+  color: #fff;
+}
+
+html.dark[data-dashboard-theme='slate'] .dash-accent,
+html.dark[data-dashboard-theme='slate'] .dash-accent:hover {
+  color: #0f172a;
+}
+
+.dash-soft {
+  background-color: var(--dashboard-accent-soft);
+  border-color: var(--dashboard-accent-border);
+}
+
+.dash-text {
+  color: var(--dashboard-accent-text);
+}
+
+.dash-icon {
+  color: var(--dashboard-accent-icon);
+}
+
+.dash-border {
+  border-color: var(--dashboard-accent-border);
+}
+
+.dash-ring {
+  --tw-ring-color: color-mix(in srgb, var(--dashboard-accent) 35%, transparent);
 }

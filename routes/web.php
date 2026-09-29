@@ -19,6 +19,7 @@ use App\Http\Controllers\Admin\UserActivityController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\ContactSubmissionController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DashboardThemeController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SeoController;
@@ -83,6 +84,11 @@ Route::post('/contact', [ContactSubmissionController::class, 'store'])
 Route::get('/dashboard', DashboardController::class)
     ->middleware(['auth', 'verified', 'prevent-back-history', 'can:view-dashboard'])
     ->name('dashboard');
+
+Route::middleware(['auth', 'verified', 'prevent-back-history'])->group(function () {
+    Route::get('/appearance', [DashboardThemeController::class, 'edit'])->name('appearance.edit');
+    Route::patch('/appearance', [DashboardThemeController::class, 'update'])->name('appearance.update');
+});
 
 Route::middleware(['auth', 'prevent-back-history', 'can:manage-profile'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

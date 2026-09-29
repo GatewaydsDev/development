@@ -420,9 +420,9 @@ export default function Dashboard({
                             {stats && (
                                 <Badge
                                     variant="secondary"
-                                    className="gap-1.5 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 font-medium text-xs"
+                                    className="dash-soft dash-text dash-border gap-1.5 border font-medium text-xs"
                                 >
-                                    <BriefcaseIcon className="size-3 text-emerald-600 dark:text-emerald-400" />
+                                    <BriefcaseIcon className="dash-icon size-3" />
                                     <span>
                                         <strong className="font-semibold">{stats.activeProjects}</strong> active / {stats.totalProjects} total projects
                                     </span>
@@ -452,7 +452,7 @@ export default function Dashboard({
                                                 <Button
                                                     asChild
                                                     size="sm"
-                                                    className="bg-emerald-600 text-white hover:bg-emerald-700"
+                                                    className="dash-accent"
                                                 >
                                                     <Link
                                                         href={route(
@@ -614,7 +614,7 @@ export default function Dashboard({
                                                                             'admin.projects.show',
                                                                             project.id,
                                                                         )}
-                                                                        className="break-words font-semibold leading-snug text-foreground hover:text-emerald-600 hover:underline"
+                                                                        className="break-words font-semibold leading-snug text-foreground hover:text-[var(--dashboard-accent)] hover:underline"
                                                                     >
                                                                         {
                                                                             project.name
