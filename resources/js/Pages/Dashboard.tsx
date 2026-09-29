@@ -449,17 +449,13 @@ export default function Dashboard({
 
                                         <div className="flex flex-wrap items-center gap-2">
                                             {canCreateProjects && (
-                                                <Button
-                                                    asChild
-                                                    size="sm"
-                                                    className="dash-accent"
-                                                >
+                                                <Button asChild>
                                                     <Link
                                                         href={route(
                                                             'admin.projects.create',
                                                         )}
                                                     >
-                                                        <PlusIcon className="mr-1.5 size-3.5" />
+                                                        <PlusIcon className="size-4" />
                                                         New project
                                                     </Link>
                                                 </Button>
