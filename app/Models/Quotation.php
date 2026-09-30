@@ -10,6 +10,8 @@ use Illuminate\Support\Str;
 
 class Quotation extends Model
 {
+    public const DEFAULT_PROPOSAL_TITLE = 'Quote proposal based';
+
     public const STATUSES = [
         'draft',
         'sent',
@@ -29,6 +31,7 @@ class Quotation extends Model
         'quoted_at',
         'valid_until',
         'notes',
+        'proposal_title',
         'pricing_conditions',
         'pricing_basis',
         'created_by',
@@ -75,6 +78,13 @@ class Quotation extends Model
             ->max();
 
         return $prefix.str_pad((string) (($latest ?: 0) + 1), 4, '0', STR_PAD_LEFT);
+    }
+
+    public function proposalTitle(): string
+    {
+        $title = trim((string) ($this->proposal_title ?? ''));
+
+        return $title !== '' ? $title : self::DEFAULT_PROPOSAL_TITLE;
     }
 
     public static function statusLabel(string $status): string

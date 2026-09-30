@@ -424,7 +424,8 @@ export default function Show({ quotation, options }: ShowProps) {
                             {!isEmptyHtml(quotation.notes) ? (
                                 <div className="py-6">
                                     <h3 className="text-base font-semibold text-foreground">
-                                        Quote proposal based
+                                        {quotation.proposal_title ||
+                                            'Quote proposal based'}
                                     </h3>
                                     <div
                                         className="rich-text-content mt-3 text-sm text-foreground"

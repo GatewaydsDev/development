@@ -82,6 +82,7 @@ test('an admin can save a quotation for a contractor', function () {
             'quoted_at' => '2026-09-15',
             'valid_until' => '2026-10-15',
             'notes' => 'Includes hardware.',
+            'proposal_title' => 'Site conditions',
             'pricing_conditions' => '<p>Net 30. Freight excluded.</p>',
             'pricing_basis' => '<p>Based on {{project_name}} and {{base_bid_total}}.</p>',
             'line_items' => [
@@ -108,13 +109,15 @@ test('an admin can save a quotation for a contractor', function () {
         ->and($quotation->pricing_conditions)->toContain('Net 30')
         ->and($quotation->pricing_conditions)->toContain('<p>')
         ->and($quotation->pricing_basis)->toContain('{{project_name}}')
-        ->and($quotation->pricing_basis)->toContain('{{base_bid_total}}');
+        ->and($quotation->pricing_basis)->toContain('{{base_bid_total}}')
+        ->and($quotation->proposal_title)->toBe('Site conditions');
 
     $this->actingAs($admin)
         ->get(route('admin.quotations.print', $quotation))
         ->assertOk()
         ->assertSee('class="hero-brand"', false)
         ->assertSee('<p class="hero-label">Proposal</p>', false)
+        ->assertSee('Site conditions', false)
         ->assertSee('Pricing Basis', false)
         ->assertSee($project->name, false)
         ->assertSee('Authorization', false)

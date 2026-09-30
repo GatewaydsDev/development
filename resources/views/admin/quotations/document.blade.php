@@ -290,7 +290,7 @@
 
             @if ($notes)
                 <div class="quote-proposal">
-                    <h2 class="section-title">Quote proposal based</h2>
+                    <h2 class="section-title">{{ $proposalTitle }}</h2>
                     <div class="rich-text">{!! $notes !!}</div>
                 </div>
             @endif

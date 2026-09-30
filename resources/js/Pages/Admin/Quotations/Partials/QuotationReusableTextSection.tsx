@@ -31,6 +31,9 @@ type QuotationReusableTextSectionProps = {
     options: QuotationOptions;
     value: string;
     error?: string;
+    title?: string;
+    titleError?: string;
+    onTitleChange?: (title: string) => void;
     purpose: QuotationReusableTextPurpose;
     showPlaceholders?: boolean;
     placeholderFields?: Array<{
@@ -122,6 +125,9 @@ export default function QuotationReusableTextSection({
     options,
     value,
     error,
+    title,
+    titleError,
+    onTitleChange,
     purpose,
     showPlaceholders = false,
     placeholderFields = [],
@@ -325,10 +331,29 @@ export default function QuotationReusableTextSection({
 
     return (
         <div className="flex min-w-0 flex-col gap-4">
-            <div>
-                <h3 className="text-base font-semibold text-foreground">
-                    {copy.heading}
-                </h3>
+            <div className="flex flex-col gap-2">
+                {onTitleChange ? (
+                    <>
+                        <InputLabel
+                            htmlFor={`${copy.editorId}-title`}
+                            value="Title"
+                            className="text-emerald-700 dark:text-emerald-300"
+                        />
+                        <TextInput
+                            id={`${copy.editorId}-title`}
+                            value={title ?? copy.heading}
+                            className="h-11 border-border bg-background text-base font-semibold text-foreground"
+                            onChange={(event) =>
+                                onTitleChange(event.target.value)
+                            }
+                        />
+                        <InputError message={titleError} />
+                    </>
+                ) : (
+                    <h3 className="text-base font-semibold text-foreground">
+                        {copy.heading}
+                    </h3>
+                )}
                 <p className="text-sm text-muted-foreground">
                     {copy.description}
                 </p>

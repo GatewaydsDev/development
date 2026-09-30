@@ -59,6 +59,8 @@ export type QuotationRevisionFormData = {
     user_name: string;
 };
 
+export const DEFAULT_PROPOSAL_TITLE = 'Quote proposal based';
+
 export type QuotationFormData = {
     quotation_number: string;
     project_id: string;
@@ -70,6 +72,7 @@ export type QuotationFormData = {
     quoted_at: string;
     valid_until: string;
     notes: string;
+    proposal_title: string;
     pricing_conditions: string;
     pricing_basis: string;
     line_items: QuotationLineItemFormData[];
@@ -171,6 +174,7 @@ export type QuotationPayload = {
     quoted_at: string | null;
     valid_until: string | null;
     notes: string | null;
+    proposal_title?: string | null;
     pricing_conditions?: string | null;
     pricing_basis?: string | null;
     created_by_name?: string | null;
@@ -350,6 +354,8 @@ export const quotationToFormData = (
     quoted_at: quotation?.quoted_at ?? '',
     valid_until: quotation?.valid_until ?? '',
     notes: quotation?.notes ?? '',
+    proposal_title:
+        quotation?.proposal_title?.trim() || DEFAULT_PROPOSAL_TITLE,
     pricing_conditions: quotation?.pricing_conditions ?? '',
     pricing_basis: quotation?.pricing_basis ?? '',
     line_items:

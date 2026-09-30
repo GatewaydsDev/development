@@ -72,6 +72,7 @@ class QuotationDocument
             'quotedAt' => $this->quotation->quoted_at?->format('F j, Y'),
             'validUntil' => $this->quotation->valid_until?->format('F j, Y'),
             'notes' => $this->displayHtml($this->quotation->notes),
+            'proposalTitle' => $this->quotation->proposalTitle(),
             'pricingConditions' => $this->displayHtml($this->quotation->pricing_conditions),
             'pricingBasis' => $this->displayHtml($this->quotation->pricing_basis, fill: true),
             'contractor' => $contractor,
@@ -251,7 +252,7 @@ class QuotationDocument
 
         if ($this->displayHtml($this->quotation->notes)) {
             $section->addTextBreak(1);
-            $section->addText('Quote proposal based', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
+            $section->addText($this->quotation->proposalTitle(), ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
             $this->addHtml($section, $this->quotation->notes);
             $section->addTextBreak(1);
         }

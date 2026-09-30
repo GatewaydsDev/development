@@ -78,6 +78,10 @@ const schema = z.object({
     quoted_at: z.string(),
     valid_until: z.string(),
     notes: z.string().max(250000),
+    proposal_title: z
+        .string()
+        .trim()
+        .max(255, 'The title must be 255 characters or less.'),
     pricing_conditions: z.string().max(250000),
     pricing_basis: z.string().max(250000),
     line_items: z.array(
@@ -996,6 +1000,13 @@ export default function QuotationForm({
                     options={options}
                     value={data.notes}
                     error={errorMessage(validationErrors, 'notes')}
+                    title={data.proposal_title}
+                    titleError={errorMessage(validationErrors, 'proposal_title')}
+                    onTitleChange={(title) =>
+                        setValue('proposal_title', title, {
+                            shouldValidate: true,
+                        })
+                    }
                     onChange={(html) => setValue('notes', html)}
                 />
             </section>

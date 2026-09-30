@@ -39,6 +39,8 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 class QuotationController extends Controller
 {
     private ?bool $contractorsHaveRole = null;
+
+    private ?bool $quotationsHaveProposalTitle = null;
     public function index(Request $request): Response
     {
         abort_unless(QuotationAccess::canView($request->user()), 403);
@@ -130,6 +132,7 @@ class QuotationController extends Controller
                 'quoted_at' => $validated['quoted_at'] ?? null,
                 'valid_until' => $validated['valid_until'] ?? null,
                 'notes' => $validated['notes'] ?? null,
+                ...$this->proposalTitleAttributes($validated),
                 'pricing_conditions' => $validated['pricing_conditions'] ?? null,
                 'pricing_basis' => $validated['pricing_basis'] ?? null,
                 'created_by' => $request->user()?->id,
@@ -231,6 +234,7 @@ class QuotationController extends Controller
                 'quoted_at' => $validated['quoted_at'] ?? null,
                 'valid_until' => $validated['valid_until'] ?? null,
                 'notes' => $validated['notes'] ?? null,
+                ...$this->proposalTitleAttributes($validated),
                 'pricing_conditions' => $validated['pricing_conditions'] ?? null,
                 'pricing_basis' => $validated['pricing_basis'] ?? null,
             ]);
@@ -275,6 +279,7 @@ class QuotationController extends Controller
             'quoted_at' => ['nullable', 'date'],
             'valid_until' => ['nullable', 'date', 'after_or_equal:quoted_at'],
             'notes' => ['nullable', 'string', 'max:250000'],
+            'proposal_title' => ['nullable', 'string', 'max:255'],
             'pricing_conditions' => ['nullable', 'string', 'max:250000'],
             'pricing_basis' => ['nullable', 'string', 'max:250000'],
             'contact_ids' => ['nullable', 'array'],
@@ -331,6 +336,7 @@ class QuotationController extends Controller
         $validated['title'] = $catalogTitle->name;
 
         $validated['notes'] = $this->sanitizedHtml($validated['notes'] ?? null);
+        $validated['proposal_title'] = $this->proposalTitleValue($validated['proposal_title'] ?? null);
         $validated['pricing_conditions'] = $this->sanitizedHtml($validated['pricing_conditions'] ?? null);
         $validated['pricing_basis'] = $this->sanitizedHtml($validated['pricing_basis'] ?? null);
 
@@ -592,6 +598,7 @@ class QuotationController extends Controller
             'quoted_at' => $quotation->quoted_at?->toDateString(),
             'valid_until' => $quotation->valid_until?->toDateString(),
             'notes' => $this->sanitizedHtml($quotation->notes),
+            'proposal_title' => $quotation->proposalTitle(),
             'pricing_conditions' => $this->sanitizedHtml($quotation->pricing_conditions),
             'pricing_basis' => $this->sanitizedHtml($quotation->pricing_basis),
             'created_by_name' => $quotation->creator?->name,
@@ -744,8 +751,34 @@ class QuotationController extends Controller
     }
 
     /**
-     * @return array{id: int, name: ?string, title: ?string, email: ?string, phone_number: ?string, is_primary: bool}
+     * @param  array<string, mixed>  $validated
+     * @return array<string, string>
      */
+    private function proposalTitleAttributes(array $validated): array
+    {
+        if (! $this->quotationsHaveProposalTitle()) {
+            return [];
+        }
+
+        return [
+            'proposal_title' => $this->proposalTitleValue(
+                is_string($validated['proposal_title'] ?? null) ? $validated['proposal_title'] : null,
+            ),
+        ];
+    }
+
+    private function proposalTitleValue(?string $title): string
+    {
+        $title = trim((string) $title);
+
+        return $title !== '' ? $title : Quotation::DEFAULT_PROPOSAL_TITLE;
+    }
+
+    private function quotationsHaveProposalTitle(): bool
+    {
+        return $this->quotationsHaveProposalTitle ??= Schema::hasColumn('quotations', 'proposal_title');
+    }
+
     /**
      * @return list<string>
      */
