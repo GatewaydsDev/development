@@ -64,7 +64,7 @@ export type ContractorContactFormData = {
 
 export type ContractorFormData = {
     name: string;
-    role: string;
+    role: 'contractor' | 'owner';
     website: string;
     address_line_1: string;
     address_line_2: string;

@@ -451,7 +451,12 @@ export default function ContractorForm({
                                 value={data.role}
                                 className={inputClassName}
                                 onChange={(event) =>
-                                    setData('role', event.target.value)
+                                    setData(
+                                        'role',
+                                        event.target.value === 'owner'
+                                            ? 'owner'
+                                            : 'contractor',
+                                    )
                                 }
                             >
                                 <option value="contractor">Contractor</option>
