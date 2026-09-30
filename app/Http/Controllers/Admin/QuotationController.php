@@ -28,6 +28,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -37,6 +38,7 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class QuotationController extends Controller
 {
+    private ?bool $contractorsHaveRole = null;
     public function index(Request $request): Response
     {
         abort_unless(QuotationAccess::canView($request->user()), 403);
@@ -581,8 +583,8 @@ class QuotationController extends Controller
             'contractor' => $contractor ? [
                 'id' => $contractor->id,
                 'name' => $contractor->name,
-                'role' => $contractor->role ?: Contractor::ROLE_CONTRACTOR,
-                'role_label' => Contractor::roleLabel($contractor->role),
+                'role' => $this->contractorRole($contractor),
+                'role_label' => Contractor::roleLabel($this->contractorRole($contractor)),
                 'contact_name' => $contact?->name,
                 'email' => $contact?->email,
                 'phone_number' => $contact?->phone_number,
@@ -727,6 +729,38 @@ class QuotationController extends Controller
     /**
      * @return array{id: int, name: ?string, title: ?string, email: ?string, phone_number: ?string, is_primary: bool}
      */
+    /**
+     * @return list<string>
+     */
+    private function contractorColumns(): array
+    {
+        $columns = ['id', 'name'];
+
+        if ($this->contractorsHaveRole()) {
+            $columns[] = 'role';
+        }
+
+        return $columns;
+    }
+
+    private function contractorsHaveRole(): bool
+    {
+        return $this->contractorsHaveRole ??= Schema::hasColumn('contractors', 'role');
+    }
+
+    private function contractorRole(Contractor $contractor): string
+    {
+        if (! $this->contractorsHaveRole()) {
+            return Contractor::ROLE_CONTRACTOR;
+        }
+
+        $role = $contractor->role;
+
+        return in_array($role, Contractor::ROLES, true)
+            ? $role
+            : Contractor::ROLE_CONTRACTOR;
+    }
+
     private function contactPayload(ContractorContact $contact): array
     {
         return [
@@ -797,12 +831,12 @@ class QuotationController extends Controller
             'contractors' => Contractor::query()
                 ->with('contacts')
                 ->orderBy('name')
-                ->get(['id', 'name', 'role'])
+                ->get($this->contractorColumns())
                 ->map(fn (Contractor $contractor): array => [
                     'id' => $contractor->id,
                     'name' => $contractor->name,
-                    'role' => $contractor->role ?: Contractor::ROLE_CONTRACTOR,
-                    'role_label' => Contractor::roleLabel($contractor->role),
+                    'role' => $this->contractorRole($contractor),
+                    'role_label' => Contractor::roleLabel($this->contractorRole($contractor)),
                     'contacts' => $contractor->contacts
                         ->map(fn (ContractorContact $contact): array => $this->contactPayload($contact))
                         ->values()
