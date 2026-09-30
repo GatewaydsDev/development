@@ -30,7 +30,7 @@ import {
 import { zodResolver } from '@hookform/resolvers/zod';
 import { router, usePage } from '@inertiajs/react';
 import { PlusIcon, Trash2Icon } from 'lucide-react';
-import { FormEventHandler, useMemo, useState } from 'react';
+import { FormEventHandler, useEffect, useMemo, useState } from 'react';
 import {
     FieldErrors,
     useFieldArray,
@@ -43,6 +43,7 @@ import {
     blankRevision,
     emptyLineItem,
     formatMoney,
+    quotationDocumentHref,
     quotationInsertValues,
     quotationToFormData,
     QUOTATION_INSERT_FIELDS,
@@ -58,6 +59,7 @@ type QuotationFormProps = {
     description: string;
     options: QuotationOptions;
     quotation?: QuotationPayload;
+    onProposalTitleChange?: (title: string) => void;
 };
 
 const optionalDateSchema = z
@@ -195,6 +197,7 @@ export default function QuotationForm({
     description,
     options,
     quotation,
+    onProposalTitleChange,
 }: QuotationFormProps) {
     const { auth } = usePage<PageProps>().props;
     const currentUserId = auth.user?.id ? String(auth.user.id) : '';
@@ -248,6 +251,10 @@ export default function QuotationForm({
         control,
         defaultValue: defaultValues,
     }) as QuotationFormData;
+
+    useEffect(() => {
+        onProposalTitleChange?.(data.proposal_title ?? '');
+    }, [data.proposal_title, onProposalTitleChange]);
 
     const allContractors = options.contractors ?? [];
     const selectedContractor = allContractors.find(
@@ -400,7 +407,11 @@ export default function QuotationForm({
                 disabled={isSubmitting}
                 printHref={
                     quotation
-                        ? route('admin.quotations.print', quotation.id)
+                        ? quotationDocumentHref(
+                              'admin.quotations.print',
+                              quotation.id,
+                              data.proposal_title,
+                          )
                         : undefined
                 }
                 printLabel={quotation ? 'Print quotation' : 'Print'}

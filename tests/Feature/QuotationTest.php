@@ -124,6 +124,42 @@ test('an admin can save a quotation for a contractor', function () {
         ->assertSee('Submitted by', false)
         ->assertSee('Accepted by', false);
 
+    $this->actingAs($admin)
+        ->get(route('admin.quotations.print', [
+            'quotation' => $quotation,
+            'proposal_title' => 'Updated proposal heading',
+        ]))
+        ->assertOk()
+        ->assertSee('Updated proposal heading', false)
+        ->assertDontSee('Site conditions', false);
+
+    $this->actingAs($admin)
+        ->patch(route('admin.quotations.update', $quotation), [
+            'contractor_id' => $contractorId,
+            'project_id' => $project->id,
+            'title' => 'Harbor RF quote',
+            'status' => 'sent',
+            'notes' => 'Includes hardware.',
+            'proposal_title' => 'Saved heading',
+            'line_items' => [
+                [
+                    'description' => 'RF door leaf',
+                    'quantity' => '2',
+                    'size' => '3x7',
+                    'unit_price' => '1250',
+                ],
+            ],
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect($quotation->fresh()->proposal_title)->toBe('Saved heading');
+
+    $this->actingAs($admin)
+        ->get(route('admin.quotations.print', $quotation))
+        ->assertOk()
+        ->assertSee('Saved heading', false)
+        ->assertDontSee('Quote proposal based', false);
+
     expect(QuotationTitle::query()->where('name', 'Harbor RF quote')->exists())->toBeTrue();
 });
 

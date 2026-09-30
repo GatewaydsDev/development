@@ -32,6 +32,8 @@ class QuotationDocument
 
     private ?string $signatureWordPath = null;
 
+    private ?string $proposalTitleOverride = null;
+
     protected function documentAppearanceKey(): string
     {
         return 'quotation';
@@ -42,6 +44,19 @@ class QuotationDocument
         $quotation->load(['contractor.contacts', 'contacts', 'project', 'lineItems', 'creator', 'revisions.user', 'tables.fields.field', 'tables.fields.product']);
 
         return new self($quotation, DocumentLogo::company(), $user);
+    }
+
+    public function withProposalTitle(mixed $title): self
+    {
+        $title = trim((string) $title);
+        $this->proposalTitleOverride = $title !== '' ? mb_substr($title, 0, 255) : null;
+
+        return $this;
+    }
+
+    private function proposalHeading(): string
+    {
+        return $this->proposalTitleOverride ?? $this->quotation->proposalTitle();
     }
 
     /**
@@ -72,7 +87,7 @@ class QuotationDocument
             'quotedAt' => $this->quotation->quoted_at?->format('F j, Y'),
             'validUntil' => $this->quotation->valid_until?->format('F j, Y'),
             'notes' => $this->displayHtml($this->quotation->notes),
-            'proposalTitle' => $this->quotation->proposalTitle(),
+            'proposalTitle' => $this->proposalHeading(),
             'pricingConditions' => $this->displayHtml($this->quotation->pricing_conditions),
             'pricingBasis' => $this->displayHtml($this->quotation->pricing_basis, fill: true),
             'contractor' => $contractor,
@@ -252,7 +267,7 @@ class QuotationDocument
 
         if ($this->displayHtml($this->quotation->notes)) {
             $section->addTextBreak(1);
-            $section->addText($this->quotation->proposalTitle(), ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
+            $section->addText($this->proposalHeading(), ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
             $this->addHtml($section, $this->quotation->notes);
             $section->addTextBreak(1);
         }

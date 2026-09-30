@@ -2,8 +2,14 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Button } from '@/Components/ui/button';
 import { Head, Link } from '@inertiajs/react';
 import { EyeIcon, FileTextIcon, PrinterIcon } from 'lucide-react';
+import { useState } from 'react';
 import QuotationForm from './Partials/QuotationForm';
-import type { QuotationOptions, QuotationPayload } from './types';
+import {
+    DEFAULT_PROPOSAL_TITLE,
+    quotationDocumentHref,
+    type QuotationOptions,
+    type QuotationPayload,
+} from './types';
 
 type EditProps = {
     quotation: QuotationPayload;
@@ -11,6 +17,10 @@ type EditProps = {
 };
 
 export default function Edit({ quotation, options }: EditProps) {
+    const [proposalTitle, setProposalTitle] = useState(
+        quotation.proposal_title?.trim() || DEFAULT_PROPOSAL_TITLE,
+    );
+
     return (
         <AuthenticatedLayout
             header={
@@ -38,9 +48,10 @@ export default function Edit({ quotation, options }: EditProps) {
                     <div className="flex flex-wrap items-center gap-2">
                         <Button variant="outline" asChild>
                             <a
-                                href={route(
+                                href={quotationDocumentHref(
                                     'admin.quotations.print',
                                     quotation.id,
+                                    proposalTitle,
                                 )}
                                 target="_blank"
                                 rel="noreferrer"
@@ -51,9 +62,10 @@ export default function Edit({ quotation, options }: EditProps) {
                         </Button>
                         <Button variant="outline" asChild>
                             <a
-                                href={route(
+                                href={quotationDocumentHref(
                                     'admin.quotations.export.pdf',
                                     quotation.id,
+                                    proposalTitle,
                                 )}
                             >
                                 <FileTextIcon className="size-4" />
@@ -82,6 +94,7 @@ export default function Edit({ quotation, options }: EditProps) {
                     <QuotationForm
                         action={route('admin.quotations.update', quotation.id)}
                         method="patch"
+                        onProposalTitleChange={setProposalTitle}
                         title="Quotation information"
                         description="Update the project, contractor, contacts, and quoted items. Previous versions stay in the quotation history as saved records."
                         options={options}

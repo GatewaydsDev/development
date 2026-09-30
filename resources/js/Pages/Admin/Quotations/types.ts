@@ -61,6 +61,22 @@ export type QuotationRevisionFormData = {
 
 export const DEFAULT_PROPOSAL_TITLE = 'Quote proposal based';
 
+export const quotationDocumentHref = (
+    name:
+        | 'admin.quotations.print'
+        | 'admin.quotations.export.pdf'
+        | 'admin.quotations.export.word',
+    quotationId: number,
+    proposalTitle?: string | null,
+) => {
+    const title = proposalTitle?.trim();
+
+    return route(name, {
+        quotation: quotationId,
+        ...(title ? { proposal_title: title } : {}),
+    });
+};
+
 export type QuotationFormData = {
     quotation_number: string;
     project_id: string;

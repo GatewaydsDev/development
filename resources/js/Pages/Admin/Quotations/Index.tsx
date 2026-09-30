@@ -39,6 +39,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
     formatMoney,
+    quotationDocumentHref,
     type QuotationListSummary,
     type QuotationOptions,
     type QuotationPayload,
@@ -327,9 +328,10 @@ export default function Index({
                                                                 asChild
                                                             >
                                                                 <a
-                                                                    href={route(
+                                                                    href={quotationDocumentHref(
                                                                         'admin.quotations.print',
                                                                         quotation.id,
+                                                                        quotation.proposal_title,
                                                                     )}
                                                                     target="_blank"
                                                                     rel="noreferrer"
@@ -347,9 +349,10 @@ export default function Index({
                                                                 asChild
                                                             >
                                                                 <a
-                                                                    href={route(
+                                                                    href={quotationDocumentHref(
                                                                         'admin.quotations.export.pdf',
                                                                         quotation.id,
+                                                                        quotation.proposal_title,
                                                                     )}
                                                                     aria-label="Download as PDF"
                                                                 >
@@ -365,9 +368,10 @@ export default function Index({
                                                                 asChild
                                                             >
                                                                 <a
-                                                                    href={route(
+                                                                    href={quotationDocumentHref(
                                                                         'admin.quotations.export.word',
                                                                         quotation.id,
+                                                                        quotation.proposal_title,
                                                                     )}
                                                                     aria-label="Download as Word"
                                                                 >

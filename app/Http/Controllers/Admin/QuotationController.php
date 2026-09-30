@@ -31,7 +31,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
-use Illuminate\View\View;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -183,28 +182,30 @@ class QuotationController extends Controller
             ->with('success', 'Your bid is ready. Review the details, then save when everything looks good. The quotation is still on file and linked to this bid.');
     }
 
-    public function print(Request $request, Quotation $quotation): View
+    public function print(Request $request, Quotation $quotation): HttpResponse
     {
         abort_unless(QuotationAccess::canView($request->user()), 403);
 
-        return view(
-            'admin.quotations.document',
-            QuotationDocument::for($quotation, $request->user())->viewData(mode: 'print'),
-        );
+        return response()
+            ->view(
+                'admin.quotations.document',
+                $this->quotationDocument($request, $quotation)->viewData(mode: 'print'),
+            )
+            ->header('Cache-Control', 'private, no-store, no-cache, must-revalidate');
     }
 
     public function exportPdf(Request $request, Quotation $quotation): HttpResponse
     {
         abort_unless(QuotationAccess::canView($request->user()), 403);
 
-        return QuotationDocument::for($quotation, $request->user())->pdfResponse();
+        return $this->quotationDocument($request, $quotation)->pdfResponse();
     }
 
     public function exportWord(Request $request, Quotation $quotation): BinaryFileResponse
     {
         abort_unless(QuotationAccess::canView($request->user()), 403);
 
-        return QuotationDocument::for($quotation, $request->user())->wordResponse();
+        return $this->quotationDocument($request, $quotation)->wordResponse();
     }
 
     public function edit(Request $request, Quotation $quotation): Response
@@ -748,6 +749,12 @@ class QuotationController extends Controller
         return $sanitized && ! BidApplicationText::isEmpty($sanitized)
             ? $sanitized
             : null;
+    }
+
+    private function quotationDocument(Request $request, Quotation $quotation): QuotationDocument
+    {
+        return QuotationDocument::for($quotation, $request->user())
+            ->withProposalTitle($request->query('proposal_title'));
     }
 
     /**

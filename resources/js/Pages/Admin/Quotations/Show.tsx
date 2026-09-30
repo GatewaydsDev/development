@@ -36,6 +36,7 @@ import { isEmptyHtml } from '@/Pages/Admin/Bids/bidText';
 import {
     fillQuotationPlaceholders,
     formatMoney,
+    quotationDocumentHref,
     quotationInsertValues,
     quotationToFormData,
     type QuotationOptions,
@@ -128,9 +129,10 @@ export default function Show({ quotation, options }: ShowProps) {
                     <div className="flex flex-wrap gap-2">
                         <Button variant="outline" asChild>
                             <a
-                                href={route(
+                                href={quotationDocumentHref(
                                     'admin.quotations.print',
                                     quotation.id,
+                                    quotation.proposal_title,
                                 )}
                                 target="_blank"
                                 rel="noreferrer"
@@ -141,9 +143,10 @@ export default function Show({ quotation, options }: ShowProps) {
                         </Button>
                         <Button variant="outline" asChild>
                             <a
-                                href={route(
+                                href={quotationDocumentHref(
                                     'admin.quotations.export.pdf',
                                     quotation.id,
+                                    quotation.proposal_title,
                                 )}
                             >
                                 <FileTextIcon className="size-4" />
@@ -152,9 +155,10 @@ export default function Show({ quotation, options }: ShowProps) {
                         </Button>
                         <Button variant="outline" asChild>
                             <a
-                                href={route(
+                                href={quotationDocumentHref(
                                     'admin.quotations.export.word',
                                     quotation.id,
+                                    quotation.proposal_title,
                                 )}
                             >
                                 <FileTextIcon className="size-4" />
