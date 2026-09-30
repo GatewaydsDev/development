@@ -196,9 +196,25 @@ test('the project form can still create a contractor by name only', function () 
             'name' => 'Quick Add GC',
         ])
         ->assertSessionHasNoErrors()
-        ->assertSessionHas('success', 'Contractor added successfully.');
+        ->assertSessionHas('success', 'Contractor created successfully.');
 
     expect(Contractor::query()->where('name', 'Quick Add GC')->exists())->toBeTrue();
+    expect(Contractor::query()->where('name', 'Quick Add GC')->value('role'))->toBe('contractor');
+});
+
+test('a quotation can add the owner of the project by name', function () {
+    $admin = contractorAdmin();
+
+    $this->actingAs($admin)
+        ->from(route('admin.quotations.create'))
+        ->post(route('admin.contractors.store'), [
+            'name' => 'Harbor Owner LLC',
+            'role' => 'owner',
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertSessionHas('success', 'Owner added successfully.');
+
+    expect(Contractor::query()->where('name', 'Harbor Owner LLC')->value('role'))->toBe('owner');
 });
 
 test('the project form can create a contractor with phone and email', function () {

@@ -27,6 +27,7 @@ import { z } from 'zod';
 export type ContractorOption = {
     id: number;
     name: string;
+    role?: string | null;
     contact_name?: string | null;
     email?: string | null;
     phone_number?: string | null;
@@ -94,6 +95,9 @@ export default function ContractorSelect({
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [pendingCreateName, setPendingCreateName] = useState('');
+    const [pendingCreateRole, setPendingCreateRole] = useState<
+        'contractor' | 'owner'
+    >('contractor');
     const [pendingCreateEmail, setPendingCreateEmail] = useState('');
     const [pendingCreatePhone, setPendingCreatePhone] = useState('');
 
@@ -178,6 +182,7 @@ export default function ContractorSelect({
         }
 
         setPendingCreateName(parsed.data);
+        setPendingCreateRole('contractor');
         setPendingCreateEmail(contactEmail);
         setPendingCreatePhone(contactPhone);
         setIsDialogOpen(true);
@@ -265,6 +270,7 @@ export default function ContractorSelect({
             route('admin.contractors.store'),
             {
                 name: contractorName,
+                role: pendingCreateRole,
                 email: pendingCreateEmail.trim(),
                 phone_number: pendingCreatePhone.trim(),
             },
@@ -483,6 +489,9 @@ export default function ContractorSelect({
                                 >
                                     <span className="min-w-0 truncate">
                                         {contractor.name}
+                                        {contractor.role === 'owner'
+                                            ? ' · Owner'
+                                            : ''}
                                         {isDisabled
                                             ? ' (already added)'
                                             : ''}
@@ -551,7 +560,10 @@ export default function ContractorSelect({
             {selectedContractor ? (
                 <Badge variant="outline" className="w-fit">
                     <HammerIcon className="size-3" />
-                    Using saved contractor: {selectedContractor.name}
+                    {selectedContractor.role === 'owner'
+                        ? 'Using saved owner'
+                        : 'Using saved contractor'}
+                    : {selectedContractor.name}
                 </Badge>
             ) : null}
             <p className="text-xs text-muted-foreground">
@@ -566,6 +578,7 @@ export default function ContractorSelect({
 
                     if (!open && !isSaving) {
                         setPendingCreateName('');
+                        setPendingCreateRole('contractor');
                         setPendingCreateEmail('');
                         setPendingCreatePhone('');
                         setQuery(selectedName);
@@ -578,13 +591,38 @@ export default function ContractorSelect({
                             <SparklesIcon className="size-5" />
                         </div>
                         <AlertDialogTitle>
-                            Create this contractor?
+                            {pendingCreateRole === 'owner'
+                                ? 'Create this owner?'
+                                : 'Create this contractor?'}
                         </AlertDialogTitle>
                         <AlertDialogDescription>
-                            “{pendingCreateName}” is not in the list yet. Create
-                            it so it can be reused on other projects?
+                            “{pendingCreateName}” is not in the list yet. Choose
+                            whether this is a contractor or the owner of the
+                            project, then save it so it can be reused.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                        <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm">
+                            <input
+                                type="radio"
+                                name="new-contractor-role"
+                                checked={pendingCreateRole === 'contractor'}
+                                onChange={() =>
+                                    setPendingCreateRole('contractor')
+                                }
+                            />
+                            Contractor
+                        </label>
+                        <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm">
+                            <input
+                                type="radio"
+                                name="new-contractor-role"
+                                checked={pendingCreateRole === 'owner'}
+                                onChange={() => setPendingCreateRole('owner')}
+                            />
+                            Owner of the project
+                        </label>
+                    </div>
                     <AlertDialogFooter>
                         <AlertDialogCancel disabled={isSaving}>
                             No, go back
@@ -596,7 +634,11 @@ export default function ContractorSelect({
                                 confirmCreateContractor();
                             }}
                         >
-                            {isSaving ? 'Saving...' : 'Yes, create contractor'}
+                            {isSaving
+                                ? 'Saving...'
+                                : pendingCreateRole === 'owner'
+                                  ? 'Yes, create owner'
+                                  : 'Yes, create contractor'}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

@@ -16,6 +16,8 @@ export type ContractorPayload = {
     id: number;
     uuid: string;
     name: string;
+    role?: string | null;
+    role_label?: string | null;
     website: string | null;
     address_line_1: string | null;
     address_line_2: string | null;
@@ -62,6 +64,7 @@ export type ContractorContactFormData = {
 
 export type ContractorFormData = {
     name: string;
+    role: string;
     website: string;
     address_line_1: string;
     address_line_2: string;
@@ -75,6 +78,7 @@ export type ContractorFormData = {
 
 export type ContractorOptions = {
     phoneTypes: string[];
+    roles?: Array<{ id: string; name: string }>;
 };
 
 export function phoneTypeLabel(value?: string | null) {
@@ -102,6 +106,7 @@ export function contractorToFormData(
 ): ContractorFormData {
     return {
         name: contractor?.name ?? '',
+        role: contractor?.role === 'owner' ? 'owner' : 'contractor',
         website: contractor?.website ?? '',
         address_line_1: contractor?.address_line_1 ?? '',
         address_line_2: contractor?.address_line_2 ?? '',

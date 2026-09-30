@@ -234,7 +234,7 @@ export default function Index({
                                         )}
                                     >
                                         <div>Number</div>
-                                        <div>Contractor</div>
+                                        <div>Quoted for</div>
                                         <div>Project</div>
                                         <div>Status</div>
                                         <div className="lg:text-right">Total</div>
@@ -268,7 +268,11 @@ export default function Index({
                                                     ) : null}
                                                 </div>
                                                 <div className="min-w-0">
-                                                    <DirectoryFieldLabel>Contractor</DirectoryFieldLabel>
+                                                    <DirectoryFieldLabel>
+                                                        {quotation.contractor
+                                                            ?.role_label ||
+                                                            'Contractor'}
+                                                    </DirectoryFieldLabel>
                                                     <p className="truncate font-medium text-foreground">
                                                         {quotation.contractor?.name || '—'}
                                                     </p>

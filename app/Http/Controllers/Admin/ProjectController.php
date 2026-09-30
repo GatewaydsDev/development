@@ -742,6 +742,7 @@ class ProjectController extends Controller
                 ->map(fn (Contractor $contractor): array => [
                     'id' => $contractor->id,
                     'name' => $contractor->name,
+                    'role' => $contractor->role ?: Contractor::ROLE_CONTRACTOR,
                     'contact_name' => $contractor->contact_name,
                     'email' => $contractor->email,
                     'phone_number' => $contractor->phone_number,
@@ -915,6 +916,7 @@ class ProjectController extends Controller
                 ->map(fn (Contractor $contractor): array => [
                     'id' => $contractor->id,
                     'name' => $contractor->name,
+                    'role' => $contractor->role ?: Contractor::ROLE_CONTRACTOR,
                     'contact_name' => $contractor->contact_name,
                     'email' => $contractor->email,
                     'phone_number' => $contractor->phone_number,

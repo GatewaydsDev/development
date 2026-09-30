@@ -581,6 +581,8 @@ class QuotationController extends Controller
             'contractor' => $contractor ? [
                 'id' => $contractor->id,
                 'name' => $contractor->name,
+                'role' => $contractor->role ?: Contractor::ROLE_CONTRACTOR,
+                'role_label' => Contractor::roleLabel($contractor->role),
                 'contact_name' => $contact?->name,
                 'email' => $contact?->email,
                 'phone_number' => $contact?->phone_number,
@@ -795,10 +797,12 @@ class QuotationController extends Controller
             'contractors' => Contractor::query()
                 ->with('contacts')
                 ->orderBy('name')
-                ->get(['id', 'name'])
+                ->get(['id', 'name', 'role'])
                 ->map(fn (Contractor $contractor): array => [
                     'id' => $contractor->id,
                     'name' => $contractor->name,
+                    'role' => $contractor->role ?: Contractor::ROLE_CONTRACTOR,
+                    'role_label' => Contractor::roleLabel($contractor->role),
                     'contacts' => $contractor->contacts
                         ->map(fn (ContractorContact $contact): array => $this->contactPayload($contact))
                         ->values()

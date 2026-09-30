@@ -70,7 +70,10 @@ const optionalDateSchema = z
 const schema = z.object({
     quotation_number: z.string(),
     project_id: z.string(),
-    contractor_id: z.string().trim().min(1, 'Select a contractor.'),
+    contractor_id: z
+        .string()
+        .trim()
+        .min(1, 'Select a contractor or the owner of the project.'),
     contact_ids: z.array(z.string()),
     title_id: z.string(),
     title: z.string().trim().min(1, 'Select or add a quotation title.').max(255),
@@ -209,14 +212,30 @@ export default function QuotationForm({
         index: number;
         description?: string;
     } | null>(null);
+    const [partyRole, setPartyRole] = useState<'contractor' | 'owner'>(() => {
+        const selected = (options.contractors ?? []).find(
+            (contractor) =>
+                String(contractor.id) === defaultValues.contractor_id,
+        );
+
+        return selected?.role === 'owner' ? 'owner' : 'contractor';
+    });
+    const [newPartyName, setNewPartyName] = useState('');
+    const [partyError, setPartyError] = useState('');
+    const [addingParty, setAddingParty] = useState(false);
     const data = useWatch({
         control,
         defaultValue: defaultValues,
     }) as QuotationFormData;
 
-    const contractorOptions = options.contractors ?? [];
-    const selectedContractor = contractorOptions.find(
+    const allContractors = options.contractors ?? [];
+    const selectedContractor = allContractors.find(
         (contractor) => String(contractor.id) === data.contractor_id,
+    );
+    const contractorOptions = allContractors.filter(
+        (contractor) =>
+            (contractor.role === 'owner' ? 'owner' : 'contractor') ===
+            partyRole,
     );
     const contractorContacts = selectedContractor?.contacts ?? [];
 
@@ -321,10 +340,61 @@ export default function QuotationForm({
                         />
                     </div>
 
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-2 sm:col-span-2">
+                        <InputLabel
+                            value="Quoted for"
+                            className="text-emerald-700 dark:text-emerald-300"
+                        />
+                        <div className="grid grid-cols-2 gap-2">
+                            <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm">
+                                <input
+                                    type="radio"
+                                    name="quotation-party-role"
+                                    checked={partyRole === 'contractor'}
+                                    onChange={() => {
+                                        setPartyRole('contractor');
+                                        setPartyError('');
+                                        if (
+                                            selectedContractor?.role === 'owner'
+                                        ) {
+                                            setValue('contractor_id', '', {
+                                                shouldValidate: true,
+                                            });
+                                            setValue('contact_ids', []);
+                                        }
+                                    }}
+                                />
+                                Contractor
+                            </label>
+                            <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm">
+                                <input
+                                    type="radio"
+                                    name="quotation-party-role"
+                                    checked={partyRole === 'owner'}
+                                    onChange={() => {
+                                        setPartyRole('owner');
+                                        setPartyError('');
+                                        if (
+                                            selectedContractor &&
+                                            selectedContractor.role !== 'owner'
+                                        ) {
+                                            setValue('contractor_id', '', {
+                                                shouldValidate: true,
+                                            });
+                                            setValue('contact_ids', []);
+                                        }
+                                    }}
+                                />
+                                Owner of the project
+                            </label>
+                        </div>
                         <InputLabel
                             htmlFor="contractor_id"
-                            value="Contractor"
+                            value={
+                                partyRole === 'owner'
+                                    ? 'Owner name'
+                                    : 'Contractor name'
+                            }
                             className="text-emerald-700 dark:text-emerald-300"
                         />
                         <select
@@ -347,7 +417,11 @@ export default function QuotationForm({
                             }}
                             className={`${inputClassName} min-w-0 max-w-full`}
                         >
-                            <option value="">Select a contractor</option>
+                            <option value="">
+                                {partyRole === 'owner'
+                                    ? 'Select an owner'
+                                    : 'Select a contractor'}
+                            </option>
                             {contractorOptions.map((contractor) => (
                                 <option
                                     key={contractor.id}
@@ -357,11 +431,104 @@ export default function QuotationForm({
                                 </option>
                             ))}
                         </select>
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                            <TextInput
+                                value={newPartyName}
+                                placeholder={
+                                    partyRole === 'owner'
+                                        ? 'New owner name'
+                                        : 'New contractor name'
+                                }
+                                className={inputClassName}
+                                onChange={(event) => {
+                                    setNewPartyName(event.target.value);
+                                    setPartyError('');
+                                }}
+                            />
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="h-11 shrink-0"
+                                disabled={
+                                    addingParty || newPartyName.trim() === ''
+                                }
+                                onClick={() => {
+                                    const name = newPartyName.trim();
+
+                                    if (name === '') {
+                                        return;
+                                    }
+
+                                    setAddingParty(true);
+                                    setPartyError('');
+                                    router.post(
+                                        route('admin.contractors.store'),
+                                        { name, role: partyRole },
+                                        {
+                                            preserveScroll: true,
+                                            preserveState: true,
+                                            onSuccess: (page) => {
+                                                const contractors =
+                                                    (
+                                                        page.props
+                                                            .options as QuotationOptions
+                                                    )?.contractors ?? [];
+                                                const created =
+                                                    contractors.find(
+                                                        (contractor) =>
+                                                            contractor.name.toLowerCase() ===
+                                                                name.toLowerCase() &&
+                                                            (contractor.role ===
+                                                            'owner'
+                                                                ? 'owner'
+                                                                : 'contractor') ===
+                                                                partyRole,
+                                                    );
+
+                                                if (!created) {
+                                                    return;
+                                                }
+
+                                                setValue(
+                                                    'contractor_id',
+                                                    String(created.id),
+                                                    { shouldValidate: true },
+                                                );
+                                                setValue(
+                                                    'contact_ids',
+                                                    defaultContactIds(created),
+                                                );
+                                                setNewPartyName('');
+                                            },
+                                            onError: (errors) => {
+                                                setPartyError(
+                                                    String(
+                                                        errors.name ||
+                                                            'That name could not be added.',
+                                                    ),
+                                                );
+                                            },
+                                            onFinish: () =>
+                                                setAddingParty(false),
+                                        },
+                                    );
+                                }}
+                            >
+                                {addingParty
+                                    ? 'Adding...'
+                                    : partyRole === 'owner'
+                                      ? 'Add owner'
+                                      : 'Add contractor'}
+                            </Button>
+                        </div>
                         <InputError
-                            message={errorMessage(
-                                validationErrors,
-                                'contractor_id',
-                            )}
+                            message={
+                                partyError ||
+                                errorMessage(
+                                    validationErrors,
+                                    'contractor_id',
+                                )
+                            }
                         />
                     </div>
 
@@ -371,16 +538,26 @@ export default function QuotationForm({
                             className="text-emerald-700 dark:text-emerald-300"
                         />
                         <p className="text-sm text-muted-foreground">
-                            Every contact for this contractor is listed. Check
-                            the ones that should appear on the quotation.
+                            Every contact for this{' '}
+                            {partyRole === 'owner' ? 'owner' : 'contractor'} is
+                            listed. Check the ones that should appear on the
+                            quotation.
                         </p>
                         {!data.contractor_id ? (
                             <p className="rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
-                                Select a contractor to see their contacts.
+                                Select a{' '}
+                                {partyRole === 'owner'
+                                    ? 'owner'
+                                    : 'contractor'}{' '}
+                                to see their contacts.
                             </p>
                         ) : contractorContacts.length === 0 ? (
                             <p className="rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
-                                This contractor has no contacts yet.
+                                This{' '}
+                                {partyRole === 'owner'
+                                    ? 'owner'
+                                    : 'contractor'}{' '}
+                                has no contacts yet.
                             </p>
                         ) : (
                             <div className="grid gap-2 sm:grid-cols-2">

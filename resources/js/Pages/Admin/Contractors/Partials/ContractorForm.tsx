@@ -110,10 +110,11 @@ function contractorSchema(phoneTypes: string[]) {
 
     return z
         .object({
+            role: z.enum(['contractor', 'owner']),
             name: z
                 .string()
                 .trim()
-                .min(1, 'Enter the contractor name.')
+                .min(1, 'Enter a name.')
                 .max(255),
             website: z.string().trim().max(255),
             address_line_1: z.string().trim().max(255),
@@ -439,10 +440,39 @@ export default function ContractorForm({
                     />
 
                     <section className="grid gap-5 md:grid-cols-2">
+                        <div className="flex flex-col gap-2 md:col-span-2">
+                            <InputLabel
+                                htmlFor="contractor-role"
+                                value="Who is this?"
+                                className={labelClassName}
+                            />
+                            <select
+                                id="contractor-role"
+                                value={data.role}
+                                className={inputClassName}
+                                onChange={(event) =>
+                                    setData('role', event.target.value)
+                                }
+                            >
+                                <option value="contractor">Contractor</option>
+                                <option value="owner">
+                                    Owner of the project
+                                </option>
+                            </select>
+                            <p className="text-sm text-muted-foreground">
+                                Choose owner when the quotation or project is
+                                for the owner instead of a contractor.
+                            </p>
+                            <InputError message={errors.role} />
+                        </div>
                         <div className="flex flex-col gap-2">
                             <InputLabel
                                 htmlFor="contractor-name"
-                                value="Company name"
+                                value={
+                                    data.role === 'owner'
+                                        ? 'Owner name'
+                                        : 'Contractor name'
+                                }
                                 className={labelClassName}
                             />
                             <TextInput

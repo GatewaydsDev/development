@@ -362,13 +362,17 @@ export default function Show({ quotation, options }: ShowProps) {
                     <Card>
                         <CardHeader>
                             <CardTitle className="text-base font-semibold text-foreground">
-                                Contractor
+                                {quotation.contractor?.role_label ||
+                                    'Contractor'}
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="flex flex-col gap-4">
                             <dl className="grid gap-4 md:grid-cols-2">
                                 <DetailItem
-                                    label="Contractor"
+                                    label={
+                                        quotation.contractor?.role_label ||
+                                        'Contractor'
+                                    }
                                     value={quotation.contractor?.name}
                                 />
                             </dl>

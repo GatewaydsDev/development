@@ -252,11 +252,11 @@
                 </div>
             @endif
 
-            <h2 class="section-title">Contractor</h2>
+            <h2 class="section-title">{{ $contractor['role_label'] ?? 'Contractor' }}</h2>
             <table class="meta">
                 <tr>
                     <td>
-                        <span class="meta-label">Contractor</span>
+                        <span class="meta-label">{{ $contractor['role_label'] ?? 'Contractor' }}</span>
                         <span class="meta-value">{{ $contractor['company'] ?: 'Not added yet' }}</span>
                     </td>
                     <td>

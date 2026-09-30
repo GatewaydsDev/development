@@ -200,6 +200,13 @@ export default function Index({ filters, contractors }: IndexProps) {
                                                     <p className="font-medium text-foreground">
                                                         {contractor.name}
                                                     </p>
+                                                    {contractor.role ===
+                                                    'owner' ? (
+                                                        <p className="text-xs text-muted-foreground">
+                                                            Owner of the
+                                                            project
+                                                        </p>
+                                                    ) : null}
                                                     <p className="text-sm text-muted-foreground">
                                                         {primaryContact?.email ||
                                                             contractor.website ||

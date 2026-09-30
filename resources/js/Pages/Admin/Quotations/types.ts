@@ -80,6 +80,8 @@ export type QuotationFormData = {
 export type QuotationContractorOption = {
     id: number;
     name: string;
+    role?: string | null;
+    role_label?: string | null;
     contacts?: QuotationContactOption[];
 };
 
@@ -179,6 +181,8 @@ export type QuotationPayload = {
     contractor: {
         id: number;
         name: string | null;
+        role?: string | null;
+        role_label?: string | null;
         contact_name?: string | null;
         email: string | null;
         phone_number: string | null;
@@ -414,7 +418,7 @@ export const fillQuotationPlaceholders = (
     html: string,
     values: Record<string, string>,
 ) =>
-    html.replace(/\{\{\s*([a-z0-9_]+)\s*\}\}/gi, (match, key: string) => {
+    html.replace(/\{\{\s*([a-z0-9_]+)\s*}}/gi, (match, key: string) => {
         const value = values[key.toLowerCase()] ?? '';
 
         return value.trim() === '' ? match : value;

@@ -9,6 +9,15 @@ use Illuminate\Support\Str;
 
 class Contractor extends Model
 {
+    public const ROLE_CONTRACTOR = 'contractor';
+
+    public const ROLE_OWNER = 'owner';
+
+    public const ROLES = [
+        self::ROLE_CONTRACTOR,
+        self::ROLE_OWNER,
+    ];
+
     public const PHONE_TYPES = [
         'office',
         'mobile',
@@ -20,6 +29,7 @@ class Contractor extends Model
     protected $fillable = [
         'uuid',
         'name',
+        'role',
         'website',
         'address_line_1',
         'address_line_2',
@@ -35,6 +45,13 @@ class Contractor extends Model
         static::creating(function (Contractor $contractor): void {
             $contractor->uuid ??= (string) Str::uuid();
         });
+    }
+
+    public static function roleLabel(?string $role): string
+    {
+        return $role === self::ROLE_OWNER
+            ? 'Owner of the project'
+            : 'Contractor';
     }
 
     public function contacts(): HasMany

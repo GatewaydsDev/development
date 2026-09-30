@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Company;
+use App\Models\Contractor;
 use App\Models\Quotation;
 use App\Models\QuotationLineItem;
 use App\Models\User;
@@ -228,10 +229,11 @@ class QuotationDocument
             $section->addTextBreak(1);
         }
 
-        $section->addText('Contractor', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
         $contractor = $this->contractorPayload();
+        $partyLabel = $contractor['role_label'];
+        $section->addText($partyLabel, ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
         $this->addMetaTable($section, [
-            ['Contractor', $contractor['company'] ?: '—'],
+            [$partyLabel, $contractor['company'] ?: '—'],
             ['Address', $contractor['address'] ?: '—'],
         ]);
         $contacts = $this->contactRows();
@@ -480,16 +482,19 @@ class QuotationDocument
     }
 
     /**
-     * @return array{name: ?string, company: ?string, email: ?string, phone: ?string, address: ?string}
+     * @return array{name: ?string, company: ?string, email: ?string, phone: ?string, address: ?string, role: string, role_label: string}
      */
     private function contractorPayload(): array
     {
         $contractor = $this->quotation->contractor;
         $contact = $this->quotation->contacts->first() ?? $contractor?->primaryContact();
+        $role = $contractor?->role ?: Contractor::ROLE_CONTRACTOR;
 
         return [
             'name' => $contact?->name ?: $contractor?->contact_name,
             'company' => $contractor?->name,
+            'role' => $role,
+            'role_label' => Contractor::roleLabel($role),
             'email' => $contact?->email ?: $contractor?->email,
             'phone' => $contact?->phone_number ?: $contractor?->phone_number,
             'address' => $contractor

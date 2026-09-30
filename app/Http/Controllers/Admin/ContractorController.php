@@ -8,6 +8,7 @@ use App\Models\ContractorContact;
 use App\Support\ContractorAccess;
 use App\Support\PostalCode;
 use App\Support\ProjectAccess;
+use App\Support\QuotationAccess;
 use App\Support\StateInitials;
 use Closure;
 use Illuminate\Http\JsonResponse;
@@ -95,7 +96,7 @@ class ContractorController extends Controller
 
         return redirect()
             ->route('admin.contractors.index', ['highlight' => $contractor->id])
-            ->with('success', 'Contractor created successfully.');
+            ->with('success', $this->savedMessage($contractor->role, created: true));
     }
 
     public function edit(Request $request, Contractor $contractor): Response
@@ -130,7 +131,7 @@ class ContractorController extends Controller
 
         return redirect()
             ->route('admin.contractors.index', ['highlight' => $contractor->id])
-            ->with('success', 'Contractor updated successfully.');
+            ->with('success', $this->savedMessage($contractor->role, created: false));
     }
 
     public function destroy(Request $request, Contractor $contractor): RedirectResponse
@@ -188,17 +189,21 @@ class ContractorController extends Controller
         abort_unless(
             ProjectAccess::canCreate($request->user())
             || ProjectAccess::canUpdate($request->user())
-            || ContractorAccess::canCreate($request->user()),
+            || ContractorAccess::canCreate($request->user())
+            || QuotationAccess::canCreate($request->user())
+            || QuotationAccess::canUpdate($request->user()),
             403,
         );
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'role' => ['nullable', 'string', Rule::in(Contractor::ROLES)],
             'email' => ['nullable', 'email', 'max:255'],
             'phone_number' => ['nullable', 'string', 'max:50'],
         ]);
 
         $name = trim($validated['name']);
+        $role = $validated['role'] ?? Contractor::ROLE_CONTRACTOR;
         $email = trim((string) ($validated['email'] ?? ''));
         $phoneNumber = trim((string) ($validated['phone_number'] ?? ''));
         $existing = Contractor::query()
@@ -206,12 +211,19 @@ class ContractorController extends Controller
             ->first();
 
         if ($existing) {
-            return back()->with('success', 'Contractor already exists.');
+            if ($existing->role !== $role) {
+                throw ValidationException::withMessages([
+                    'name' => 'That name is already saved as a '.strtolower(Contractor::roleLabel($existing->role)).'.',
+                ]);
+            }
+
+            return back()->with('success', Contractor::roleLabel($existing->role).' already exists.');
         }
 
-        DB::transaction(function () use ($name, $email, $phoneNumber): void {
+        DB::transaction(function () use ($name, $role, $email, $phoneNumber): void {
             $contractor = Contractor::create([
                 'name' => $name,
+                'role' => $role,
             ]);
 
             if ($email !== '' || $phoneNumber !== '') {
@@ -224,7 +236,7 @@ class ContractorController extends Controller
             }
         });
 
-        return back()->with('success', 'Contractor added successfully.');
+        return back()->with('success', $this->savedMessage($role, created: true));
     }
 
     /**
@@ -237,6 +249,7 @@ class ContractorController extends Controller
 
         return $request->validate([
             'name' => ['required', 'string', 'max:255', $this->uniqueContractorNameRule($contractor)],
+            'role' => ['nullable', 'string', Rule::in(Contractor::ROLES)],
             'website' => ['nullable', 'string', 'max:255'],
             'address_line_1' => ['nullable', 'string', 'max:255'],
             'address_line_2' => ['nullable', 'string', 'max:255'],
@@ -348,6 +361,7 @@ class ContractorController extends Controller
     {
         return [
             'name' => $validated['name'],
+            'role' => $validated['role'] ?? Contractor::ROLE_CONTRACTOR,
             'website' => $validated['website'] ?? null,
             'address_line_1' => $validated['address_line_1'] ?? null,
             'address_line_2' => $validated['address_line_2'] ?? null,
@@ -407,6 +421,8 @@ class ContractorController extends Controller
             'id' => $contractor->id,
             'uuid' => $contractor->uuid,
             'name' => $contractor->name,
+            'role' => $contractor->role ?: Contractor::ROLE_CONTRACTOR,
+            'role_label' => Contractor::roleLabel($contractor->role),
             'website' => $contractor->website,
             'address_line_1' => $contractor->address_line_1,
             'address_line_2' => $contractor->address_line_2,
@@ -444,6 +460,26 @@ class ContractorController extends Controller
     {
         return [
             'phoneTypes' => Contractor::PHONE_TYPES,
+            'roles' => collect(Contractor::ROLES)
+                ->map(fn (string $role): array => [
+                    'id' => $role,
+                    'name' => Contractor::roleLabel($role),
+                ])
+                ->values()
+                ->all(),
         ];
+    }
+
+    private function savedMessage(string $role, bool $created): string
+    {
+        if ($role === Contractor::ROLE_OWNER) {
+            return $created
+                ? 'Owner added successfully.'
+                : 'Owner updated successfully.';
+        }
+
+        return $created
+            ? 'Contractor created successfully.'
+            : 'Contractor updated successfully.';
     }
 }
