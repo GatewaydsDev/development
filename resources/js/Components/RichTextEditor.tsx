@@ -79,6 +79,17 @@ type LayoutColor = {
     text: string;
 };
 
+const TEXT_COLORS = [
+    { label: 'Black', value: '#111111' },
+    { label: 'Gray', value: '#6B7280' },
+    { label: 'Navy', value: '#1F4E79' },
+    { label: 'Gateway green', value: '#047857' },
+    { label: 'Gold', value: '#A16207' },
+    { label: 'Red', value: '#9B1C1C' },
+    { label: 'Sky', value: '#0369A1' },
+    { label: 'White', value: '#FFFFFF' },
+];
+
 const LAYOUT_COLORS: LayoutColor[] = [
     { label: 'Navy', value: '#1F4E79', text: '#FFFFFF' },
     { label: 'Gateway green', value: '#047857', text: '#FFFFFF' },
@@ -89,21 +100,6 @@ const LAYOUT_COLORS: LayoutColor[] = [
     { label: 'Sand', value: '#F3E8C8', text: '#111111' },
     { label: 'Light gray', value: '#E2E8F0', text: '#111111' },
 ];
-
-function contrastingText(hex: string): string {
-    const value = hex.replace('#', '');
-
-    if (value.length < 6) {
-        return '#111111';
-    }
-
-    const red = Number.parseInt(value.slice(0, 2), 16);
-    const green = Number.parseInt(value.slice(2, 4), 16);
-    const blue = Number.parseInt(value.slice(4, 6), 16);
-    const luminance = (0.299 * red + 0.587 * green + 0.114 * blue) / 255;
-
-    return luminance > 0.62 ? '#111111' : '#FFFFFF';
-}
 
 function currentBlockType(
     editor: Editor,
@@ -692,27 +688,82 @@ export default function RichTextEditor({
                 >
                     <StrikethroughIcon />
                 </Toggle>
-                <label
-                    className="inline-flex size-7 cursor-pointer items-center justify-center rounded-lg hover:bg-muted"
-                    title="Text color"
+                <ToolbarMenu
+                    onOpenChange={handleMenuOpenChange}
+                    trigger={
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            title="Text color"
+                            aria-label="Text color"
+                        >
+                            <span className="flex flex-col items-center leading-none">
+                                <span className="text-sm font-semibold">A</span>
+                                <span
+                                    className="mt-0.5 h-1 w-3.5 rounded-sm border border-black/10"
+                                    style={{
+                                        backgroundColor:
+                                            (editor?.getAttributes('textStyle')
+                                                .color as string | undefined) ||
+                                            '#111111',
+                                    }}
+                                />
+                            </span>
+                        </Button>
+                    }
                 >
-                    <input
-                        type="color"
-                        className="size-4 cursor-pointer border-0 bg-transparent p-0"
-                        value={
-                            (editor?.getAttributes('textStyle').color as
-                                | string
-                                | undefined) || '#171717'
+                    <DropdownMenuLabel>Text color</DropdownMenuLabel>
+                    {TEXT_COLORS.map((swatch) => (
+                        <DropdownMenuItem
+                            key={swatch.value}
+                            onClick={() =>
+                                editor
+                                    ?.chain()
+                                    .focus()
+                                    .setColor(swatch.value)
+                                    .run()
+                            }
+                        >
+                            <span
+                                className="size-4 rounded-sm border border-border"
+                                style={{ backgroundColor: swatch.value }}
+                            />
+                            {swatch.label}
+                        </DropdownMenuItem>
+                    ))}
+                    <DropdownMenuSeparator />
+                    <div
+                        className="flex items-center gap-2 px-2 py-1.5 text-sm"
+                        onMouseDown={(event) => event.stopPropagation()}
+                    >
+                        <span>Custom</span>
+                        <input
+                            type="color"
+                            aria-label="Custom text color"
+                            className="size-7 cursor-pointer border-0 bg-transparent p-0"
+                            value={
+                                (editor?.getAttributes('textStyle').color as
+                                    | string
+                                    | undefined) || '#111111'
+                            }
+                            onChange={(event) =>
+                                editor
+                                    ?.chain()
+                                    .focus()
+                                    .setColor(event.target.value)
+                                    .run()
+                            }
+                        />
+                    </div>
+                    <DropdownMenuItem
+                        onClick={() =>
+                            editor?.chain().focus().unsetColor().run()
                         }
-                        onChange={(event) =>
-                            editor
-                                ?.chain()
-                                .focus()
-                                .setColor(event.target.value)
-                                .run()
-                        }
-                    />
-                </label>
+                    >
+                        Default color
+                    </DropdownMenuItem>
+                </ToolbarMenu>
                 <ToolbarMenu
                     onOpenChange={handleMenuOpenChange}
                     trigger={
