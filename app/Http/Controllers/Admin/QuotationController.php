@@ -284,8 +284,8 @@ class QuotationController extends Controller
                     fn ($query) => $query->where('contractor_id', $request->integer('contractor_id')),
                 ),
             ],
-            'line_items' => ['required', 'array', 'min:1'],
-            'line_items.*.description' => ['required', 'string', 'max:255'],
+            'line_items' => ['nullable', 'array'],
+            'line_items.*.description' => ['nullable', 'string', 'max:255'],
             'line_items.*.quantity' => ['nullable', 'numeric', 'min:0'],
             'line_items.*.size' => ['nullable', 'string', 'max:255'],
             'line_items.*.unit_price' => ['nullable', 'numeric'],
@@ -334,23 +334,40 @@ class QuotationController extends Controller
         $validated['pricing_conditions'] = $this->sanitizedHtml($validated['pricing_conditions'] ?? null);
         $validated['pricing_basis'] = $this->sanitizedHtml($validated['pricing_basis'] ?? null);
 
-        $validated['line_items'] = collect($validated['line_items'])
+        $validated['line_items'] = collect($validated['line_items'] ?? [])
             ->values()
-            ->map(function (array $item, int $index): array {
+            ->map(function (array $item, int $index): ?array {
+                $description = trim((string) ($item['description'] ?? ''));
                 $quantity = $item['quantity'] ?? null;
+                $size = filled($item['size'] ?? null) ? trim((string) $item['size']) : null;
                 $unitPrice = $item['unit_price'] ?? null;
-                $extended = $unitPrice !== null
-                    ? round((float) $unitPrice, 2)
-                    : null;
+                $hasBaseBid = filled($quantity) && filled($size) && filled($unitPrice);
+
+                if ($hasBaseBid && $description === '') {
+                    throw ValidationException::withMessages([
+                        "line_items.{$index}.description" => 'Enter a description.',
+                    ]);
+                }
+
+                if ($description === '') {
+                    return null;
+                }
 
                 return [
-                    'description' => $item['description'],
+                    'description' => $description,
                     'quantity' => $quantity,
-                    'size' => filled($item['size'] ?? null) ? trim((string) $item['size']) : null,
+                    'size' => $size,
                     'unit_price' => $unitPrice,
-                    'extended' => $extended,
+                    'extended' => $unitPrice !== null ? round((float) $unitPrice, 2) : null,
                     'sort_order' => $index,
                 ];
+            })
+            ->filter()
+            ->values()
+            ->map(function (array $item, int $index): array {
+                $item['sort_order'] = $index;
+
+                return $item;
             })
             ->all();
 

@@ -124,6 +124,53 @@ test('an admin can save a quotation for a contractor', function () {
     expect(QuotationTitle::query()->where('name', 'Harbor RF quote')->exists())->toBeTrue();
 });
 
+test('a base bid description is required only when qty size and price are set', function () {
+    $admin = quotationAdmin();
+    $project = quotationProject($admin, 'Optional Base Bid');
+    $contractorId = $project->contractors()->first()?->id;
+
+    $this->actingAs($admin)
+        ->post(route('admin.quotations.store'), [
+            'contractor_id' => $contractorId,
+            'project_id' => $project->id,
+            'title' => 'Quote without a base bid',
+            'status' => 'draft',
+            'line_items' => [
+                [
+                    'description' => '',
+                    'quantity' => '1',
+                    'size' => '',
+                    'unit_price' => '',
+                ],
+            ],
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect();
+
+    $quotation = Quotation::query()->where('title', 'Quote without a base bid')->firstOrFail();
+
+    expect($quotation->lineItems)->toHaveCount(0);
+
+    $this->actingAs($admin)
+        ->post(route('admin.quotations.store'), [
+            'contractor_id' => $contractorId,
+            'project_id' => $project->id,
+            'title' => 'Quote missing description',
+            'status' => 'draft',
+            'line_items' => [
+                [
+                    'description' => '',
+                    'quantity' => '2',
+                    'size' => '3x7',
+                    'unit_price' => '1250',
+                ],
+            ],
+        ])
+        ->assertSessionHasErrors('line_items.0.description');
+
+    expect(Quotation::query()->where('title', 'Quote missing description')->exists())->toBeFalse();
+});
+
 test('an admin can add a reusable quotation title', function () {
     $admin = quotationAdmin();
 

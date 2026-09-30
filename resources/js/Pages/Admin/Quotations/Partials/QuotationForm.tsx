@@ -80,20 +80,14 @@ const schema = z.object({
     notes: z.string().max(250000),
     pricing_conditions: z.string().max(250000),
     pricing_basis: z.string().max(250000),
-    line_items: z
-        .array(
-            z.object({
-                description: z
-                    .string()
-                    .trim()
-                    .min(1, 'Enter a description.')
-                    .max(255),
-                quantity: z.string(),
-                size: z.string().max(255),
-                unit_price: z.string(),
-            }),
-        )
-        .min(1, 'Add at least one quoted item.'),
+    line_items: z.array(
+        z.object({
+            description: z.string().trim().max(255),
+            quantity: z.string(),
+            size: z.string().max(255),
+            unit_price: z.string(),
+        }),
+    ),
     revisions: z.array(
         z.object({
             id: z.string(),
@@ -122,6 +116,19 @@ const schema = z.object({
     ),
 }).superRefine((values, context) => {
     const seenRevisions = new Map<string, number>();
+
+    values.line_items.forEach((item, index) => {
+        if (
+            lineItemIsBaseBid(item) &&
+            item.description.trim() === ''
+        ) {
+            context.addIssue({
+                code: 'custom',
+                path: ['line_items', index, 'description'],
+                message: 'Enter a description.',
+            });
+        }
+    });
 
     values.revisions.forEach((revision, index) => {
         const number = revision.number.trim().toLowerCase();
@@ -160,6 +167,18 @@ function errorMessage(
     }
 
     return (current as { message?: string } | undefined)?.message;
+}
+
+function lineItemIsBaseBid(item: {
+    quantity: string;
+    size: string;
+    unit_price: string;
+}) {
+    return (
+        item.quantity.trim() !== '' &&
+        item.size.trim() !== '' &&
+        item.unit_price.trim() !== ''
+    );
 }
 
 const inputClassName =
@@ -261,6 +280,11 @@ export default function QuotationForm({
                 ...values,
                 revisions: values.revisions.filter(
                     (revision) => revision.number.trim() !== '',
+                ),
+                line_items: values.line_items.filter(
+                    (item) =>
+                        item.description.trim() !== '' ||
+                        lineItemIsBaseBid(item),
                 ),
                 field_tables: fieldTablesForSubmit(values.field_tables),
             },

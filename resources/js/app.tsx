@@ -5,6 +5,7 @@ import './i18n';
 import { ThemeProvider } from '@/Components/ThemeProvider';
 import { Toaster } from '@/Components/ui/sonner';
 import { TooltipProvider } from '@/Components/ui/tooltip';
+import { requestValidationScroll } from '@/lib/scrollToValidationError';
 import { createInertiaApp, router } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot } from 'react-dom/client';
@@ -80,6 +81,18 @@ window.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
         checkProtectedSession();
     }
+});
+
+document.addEventListener(
+    'submit',
+    () => {
+        requestValidationScroll();
+    },
+    true,
+);
+
+router.on('invalid', () => {
+    requestValidationScroll();
 });
 
 createInertiaApp({
