@@ -70,10 +70,7 @@ const optionalDateSchema = z
 const schema = z.object({
     quotation_number: z.string(),
     project_id: z.string(),
-    contractor_id: z
-        .string()
-        .trim()
-        .min(1, 'Select a contractor or the owner of the project.'),
+    contractor_id: z.string(),
     contact_ids: z.array(z.string()),
     title_id: z.string(),
     title: z.string().trim().min(1, 'Select or add a quotation title.').max(255),
@@ -186,6 +183,7 @@ export default function QuotationForm({
         handleSubmit,
         setValue,
         setError,
+        clearErrors,
         control,
         formState: { errors: validationErrors, isSubmitting },
     } = useForm<QuotationFormData>({
@@ -256,24 +254,115 @@ export default function QuotationForm({
         return sum + (Number.isFinite(unitPrice) ? unitPrice : 0);
     }, 0);
 
-    const submit: FormEventHandler = handleSubmit((values) => {
-        router[method](action, {
-            ...values,
-            revisions: values.revisions.filter(
-                (revision) => revision.number.trim() !== '',
-            ),
-            field_tables: fieldTablesForSubmit(values.field_tables),
-        }, {
-            onError: (serverErrors: Record<string, string>) => {
-                Object.entries(serverErrors).forEach(([field, message]) => {
-                    setError(field as keyof QuotationFormData, {
-                        type: 'server',
-                        message: String(message),
-                    });
-                });
+    const postQuotation = (values: QuotationFormData) => {
+        router[method](
+            action,
+            {
+                ...values,
+                revisions: values.revisions.filter(
+                    (revision) => revision.number.trim() !== '',
+                ),
+                field_tables: fieldTablesForSubmit(values.field_tables),
             },
-        });
-    });
+            {
+                onError: (serverErrors: Record<string, string>) => {
+                    Object.entries(serverErrors).forEach(([field, message]) => {
+                        setError(field as keyof QuotationFormData, {
+                            type: 'server',
+                            message: String(message),
+                        });
+                    });
+                },
+            },
+        );
+    };
+
+    const submit: FormEventHandler = (event) => {
+        void handleSubmit((values) => {
+            clearErrors('contractor_id');
+
+            if (partyRole === 'contractor') {
+                if (values.contractor_id.trim() === '') {
+                    setError('contractor_id', {
+                        type: 'manual',
+                        message: 'Select a contractor.',
+                    });
+
+                    return;
+                }
+
+                postQuotation(values);
+
+                return;
+            }
+
+            if (values.contractor_id.trim() !== '') {
+                postQuotation(values);
+
+                return;
+            }
+
+            const ownerName = newPartyName.trim();
+
+            if (ownerName === '') {
+                setError('contractor_id', {
+                    type: 'manual',
+                    message: 'Enter the owner name.',
+                });
+
+                return;
+            }
+
+            setAddingParty(true);
+            setPartyError('');
+            router.post(
+                route('admin.contractors.store'),
+                { name: ownerName, role: 'owner' },
+                {
+                    preserveScroll: true,
+                    preserveState: true,
+                    onSuccess: (page) => {
+                        const contractors =
+                            (page.props.options as QuotationOptions)
+                                ?.contractors ?? [];
+                        const created = contractors.find(
+                            (contractor) =>
+                                contractor.name.toLowerCase() ===
+                                ownerName.toLowerCase(),
+                        );
+
+                        if (!created) {
+                            setPartyError(
+                                'The owner was saved, but it could not be selected. Choose that owner and save the quotation again.',
+                            );
+
+                            return;
+                        }
+
+                        const contactIds = defaultContactIds(created);
+
+                        setValue('contractor_id', String(created.id));
+                        setValue('contact_ids', contactIds);
+                        setNewPartyName('');
+                        postQuotation({
+                            ...values,
+                            contractor_id: String(created.id),
+                            contact_ids: contactIds,
+                        });
+                    },
+                    onError: (errors) => {
+                        setPartyError(
+                            String(
+                                errors.name ||
+                                    'That owner could not be added.',
+                            ),
+                        );
+                    },
+                    onFinish: () => setAddingParty(false),
+                },
+            );
+        })(event);
+    };
 
     return (
         <form onSubmit={submit} className="flex w-full min-w-0 max-w-full flex-col gap-6 pr-4 pb-28 sm:pr-20 lg:pb-6">
@@ -354,12 +443,11 @@ export default function QuotationForm({
                                     onChange={() => {
                                         setPartyRole('contractor');
                                         setPartyError('');
+                                        clearErrors('contractor_id');
                                         if (
                                             selectedContractor?.role === 'owner'
                                         ) {
-                                            setValue('contractor_id', '', {
-                                                shouldValidate: true,
-                                            });
+                                            setValue('contractor_id', '');
                                             setValue('contact_ids', []);
                                         }
                                     }}
@@ -374,13 +462,12 @@ export default function QuotationForm({
                                     onChange={() => {
                                         setPartyRole('owner');
                                         setPartyError('');
+                                        clearErrors('contractor_id');
                                         if (
                                             selectedContractor &&
                                             selectedContractor.role !== 'owner'
                                         ) {
-                                            setValue('contractor_id', '', {
-                                                shouldValidate: true,
-                                            });
+                                            setValue('contractor_id', '');
                                             setValue('contact_ids', []);
                                         }
                                     }}
@@ -407,9 +494,8 @@ export default function QuotationForm({
                                 ).find(
                                     (item) => String(item.id) === contractorId,
                                 );
-                                setValue('contractor_id', contractorId, {
-                                    shouldValidate: true,
-                                });
+                                clearErrors('contractor_id');
+                                setValue('contractor_id', contractorId);
                                 setValue(
                                     'contact_ids',
                                     defaultContactIds(contractor),
