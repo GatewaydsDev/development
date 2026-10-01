@@ -311,7 +311,7 @@
 
         .rich-text {
             font-size: 11px;
-            line-height: 1.55;
+            line-height: 1.5;
             color: #111827;
         }
 
@@ -323,7 +323,7 @@
         .rich-text h2,
         .rich-text h3,
         .rich-text h4 {
-            margin: 0 0 8px;
+            margin: 0 0 12px;
         }
 
         .rich-text p:last-child,
@@ -347,16 +347,18 @@
             list-style: decimal;
         }
 
-        .rich-text [data-image-gallery] { display: flex; align-items: flex-start; width: 100%; margin: 8px 0; }
+        .rich-text [data-image-gallery] { display: flex; align-items: flex-start; width: 100%; margin: 12px 0; }
         .rich-text [data-image-gallery="stack"] { flex-direction: column; }
-        .rich-text [data-image-gallery="row"] > [data-rich-image] { flex: 1 1 0; min-width: 0; }
+        .rich-text [data-image-gallery="row"] > [data-rich-image] { display: flex; flex: 1 1 0; flex-direction: column; align-items: stretch; min-width: 0; max-width: 100%; }
         .rich-text [data-rich-image] img { display: block; width: 100%; max-width: 100%; }
+        .rich-text [data-image-caption] { display: block; box-sizing: border-box; width: 0; min-width: 100%; max-width: 100%; overflow-wrap: anywhere; word-break: break-word; }
+        .rich-text [data-image-caption] p { display: block; width: 100%; max-width: 100%; overflow-wrap: anywhere; word-break: break-word; }
         .rich-text [data-image-caption] p { margin: 4px 0 0; }
 
         .rich-text table {
             width: 100%;
             border-collapse: collapse;
-            margin: 8px 0;
+            margin: 12px 0;
         }
 
         .rich-text th,

@@ -28,8 +28,8 @@ import {
 } from '@/Pages/Admin/Bids/bidText';
 import { PageProps } from '@/types';
 import { router } from '@inertiajs/react';
-import { BracesIcon, PlusIcon, SearchIcon } from 'lucide-react';
-import { FormEvent, useMemo, useState } from 'react';
+import { BracesIcon, ChevronLeftIcon, ChevronRightIcon, PlusIcon, SearchIcon } from 'lucide-react';
+import { ComponentProps, FormEvent, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 export type InsertBidTextFieldOption = {
@@ -40,6 +40,41 @@ export type InsertBidTextFieldOption = {
     sourceLabel?: string;
 };
 
+export type InsertFieldPage = {
+    key: string;
+    label: string;
+    records: Array<{
+        id: number;
+        label: string;
+        hint?: string;
+        fields: Array<{
+            key: string;
+            label: string;
+            value: string;
+        }>;
+    }>;
+};
+
+function FieldMenuItem({
+    onPointerMove,
+    onPointerLeave,
+    ...props
+}: ComponentProps<typeof DropdownMenuItem>) {
+    return (
+        <DropdownMenuItem
+            {...props}
+            onPointerMove={(event) => {
+                event.preventDefault();
+                onPointerMove?.(event);
+            }}
+            onPointerLeave={(event) => {
+                event.preventDefault();
+                onPointerLeave?.(event);
+            }}
+        />
+    );
+}
+
 type InsertBidTextFieldMenuProps = {
     fields: InsertBidTextFieldOption[];
     values?: Record<string, string>;
@@ -49,6 +84,7 @@ type InsertBidTextFieldMenuProps = {
     searchPlaceholder?: string;
     allowCreate?: boolean;
     groupOrder?: readonly string[];
+    pages?: InsertFieldPage[];
 };
 
 export default function InsertBidTextFieldMenu({
@@ -60,15 +96,82 @@ export default function InsertBidTextFieldMenu({
     searchPlaceholder = 'Search Allocation/install, Materials, project name…',
     allowCreate = true,
     groupOrder = BID_TEXT_FIELD_GROUP_ORDER,
+    pages = [],
 }: InsertBidTextFieldMenuProps) {
+    const searchRef = useRef<HTMLInputElement>(null);
     const [query, setQuery] = useState('');
+    const [browsePage, setBrowsePage] = useState<string | null>(null);
+    const [browseRecord, setBrowseRecord] = useState<number | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [fieldName, setFieldName] = useState('');
     const [sourceKey, setSourceKey] = useState('');
     const [sourceQuery, setSourceQuery] = useState('');
 
+    const activePage = pages.find((page) => page.key === browsePage) ?? null;
+    const activeRecord =
+        activePage?.records.find((record) => record.id === browseRecord) ??
+        null;
     const normalizedQuery = query.trim().toLowerCase();
+    const matchingPages = useMemo(() => {
+        if (browsePage) {
+            return [];
+        }
+
+        return pages.filter((page) => {
+            if (normalizedQuery === '') {
+                return true;
+            }
+
+            if (page.label.toLowerCase().includes(normalizedQuery)) {
+                return true;
+            }
+
+            return page.records.some(
+                (record) =>
+                    record.label.toLowerCase().includes(normalizedQuery) ||
+                    (record.hint ?? '').toLowerCase().includes(normalizedQuery) ||
+                    record.fields.some((field) =>
+                        `${field.label} ${field.value}`
+                            .toLowerCase()
+                            .includes(normalizedQuery),
+                    ),
+            );
+        });
+    }, [browsePage, normalizedQuery, pages]);
+    const visibleRecords = useMemo(() => {
+        if (!activePage || activeRecord) {
+            return [];
+        }
+
+        if (normalizedQuery === '') {
+            return activePage.records;
+        }
+
+        return activePage.records.filter(
+            (record) =>
+                record.label.toLowerCase().includes(normalizedQuery) ||
+                (record.hint ?? '').toLowerCase().includes(normalizedQuery) ||
+                record.fields.some((field) =>
+                    `${field.label} ${field.value}`
+                        .toLowerCase()
+                        .includes(normalizedQuery),
+                ),
+        );
+    }, [activePage, activeRecord, normalizedQuery]);
+    const visibleRecordFields = useMemo(() => {
+        if (!activeRecord) {
+            return [];
+        }
+
+        if (normalizedQuery === '') {
+            return activeRecord.fields;
+        }
+
+        return activeRecord.fields.filter((field) =>
+            `${field.label} ${field.value}`.toLowerCase().includes(normalizedQuery),
+        );
+    }, [activeRecord, normalizedQuery]);
     const filtered = useMemo(() => {
         if (normalizedQuery === '') {
             return fields;
@@ -239,6 +342,8 @@ export default function InsertBidTextFieldMenu({
 
                     if (!open) {
                         setQuery('');
+                        setBrowsePage(null);
+                        setBrowseRecord(null);
                     }
                 }}
             >
@@ -252,24 +357,74 @@ export default function InsertBidTextFieldMenu({
                     align="start"
                     collisionPadding={12}
                     className="z-[200] w-96 p-0"
+                    onOpenAutoFocus={(event) => {
+                        event.preventDefault();
+                        requestAnimationFrame(() => searchRef.current?.focus());
+                    }}
                     onCloseAutoFocus={(event) => event.preventDefault()}
+                    onKeyDown={(event) => {
+                        if (event.target === searchRef.current) {
+                            return;
+                        }
+
+                        if (event.key === 'Backspace') {
+                            event.preventDefault();
+                            setQuery((current) => current.slice(0, -1));
+                            searchRef.current?.focus();
+
+                            return;
+                        }
+
+                        if (
+                            event.key.length !== 1 ||
+                            event.metaKey ||
+                            event.ctrlKey ||
+                            event.altKey
+                        ) {
+                            return;
+                        }
+
+                        event.preventDefault();
+                        setQuery((current) => current + event.key);
+                        searchRef.current?.focus();
+                    }}
                 >
                     <div
                         className="sticky top-0 z-10 border-b border-border bg-popover p-2"
                         onKeyDown={(event) => event.stopPropagation()}
+                        onMouseDown={(event) => event.stopPropagation()}
                     >
                         <label className="relative block">
                             <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
                             <input
+                                ref={searchRef}
                                 autoFocus
                                 value={query}
                                 onChange={(event) => setQuery(event.target.value)}
+                                onPointerDown={(event) => {
+                                    event.stopPropagation();
+                                    event.currentTarget.focus();
+                                }}
+                                onMouseDown={(event) => {
+                                    event.stopPropagation();
+                                    event.currentTarget.focus();
+                                }}
                                 onKeyDown={(event) => {
+                                    event.stopPropagation();
+
                                     if (event.key !== 'Enter') {
                                         return;
                                     }
 
                                     event.preventDefault();
+
+                                    if (
+                                        activeRecord &&
+                                        visibleRecordFields.length === 1
+                                    ) {
+                                        onInsert(visibleRecordFields[0].key);
+                                        return;
+                                    }
 
                                     if (exactMatch) {
                                         onInsert(exactMatch.key);
@@ -285,14 +440,94 @@ export default function InsertBidTextFieldMenu({
                                         openCreate(query);
                                     }
                                 }}
-                                placeholder={searchPlaceholder}
+                                placeholder={
+                                    activeRecord
+                                        ? `Search ${activeRecord.label} fields…`
+                                        : activePage
+                                          ? `Search ${activePage.label}…`
+                                          : searchPlaceholder
+                                }
                                 className="h-9 w-full rounded-md border border-border bg-background pr-3 pl-8 text-sm outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
                             />
                         </label>
                     </div>
                     <div className="max-h-80 overflow-y-auto p-1">
-                        <DropdownMenuLabel>{intro}</DropdownMenuLabel>
-                        {groupedFields.length > 0 ? (
+                        {activePage ? (
+                            <FieldMenuItem
+                                onSelect={(event) => {
+                                    event.preventDefault();
+                                    setQuery('');
+
+                                    if (activeRecord) {
+                                        setBrowseRecord(null);
+
+                                        return;
+                                    }
+
+                                    setBrowsePage(null);
+                                }}
+                            >
+                                <ChevronLeftIcon />
+                                {activeRecord
+                                    ? activePage.label
+                                    : 'All fields'}
+                            </FieldMenuItem>
+                        ) : (
+                            <DropdownMenuLabel>{intro}</DropdownMenuLabel>
+                        )}
+                        {activeRecord ? (
+                            visibleRecordFields.length > 0 ? (
+                                <DropdownMenuGroup>
+                                    {visibleRecordFields.map((field) => (
+                                        <FieldMenuItem
+                                            key={field.key}
+                                            onClick={() => onInsert(field.key)}
+                                        >
+                                            <span className="min-w-0 flex-1">
+                                                {field.label}
+                                            </span>
+                                            <span className="ml-auto max-w-40 truncate text-xs text-muted-foreground">
+                                                {field.value ||
+                                                    placeholderToken(field.key)}
+                                            </span>
+                                        </FieldMenuItem>
+                                    ))}
+                                </DropdownMenuGroup>
+                            ) : (
+                                <p className="px-2 py-3 text-sm text-muted-foreground">
+                                    No matching fields on {activeRecord.label}.
+                                </p>
+                            )
+                        ) : activePage ? (
+                            visibleRecords.length > 0 ? (
+                                <DropdownMenuGroup>
+                                    {visibleRecords.map((record) => (
+                                        <FieldMenuItem
+                                            key={record.id}
+                                            onSelect={(event) => {
+                                                event.preventDefault();
+                                                setBrowseRecord(record.id);
+                                                setQuery('');
+                                            }}
+                                        >
+                                            <span className="flex min-w-0 flex-col">
+                                                <span>{record.label}</span>
+                                                {record.hint ? (
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {record.hint}
+                                                    </span>
+                                                ) : null}
+                                            </span>
+                                            <ChevronRightIcon className="ml-auto size-4 text-muted-foreground" />
+                                        </FieldMenuItem>
+                                    ))}
+                                </DropdownMenuGroup>
+                            ) : (
+                                <p className="px-2 py-3 text-sm text-muted-foreground">
+                                    No matching {activePage.label.toLowerCase()}.
+                                </p>
+                            )
+                        ) : groupedFields.length > 0 ? (
                             groupedFields.map(({ group, items }) => (
                                 <div key={group}>
                                     <DropdownMenuSeparator />
@@ -301,7 +536,7 @@ export default function InsertBidTextFieldMenu({
                                     </DropdownMenuLabel>
                                     <DropdownMenuGroup>
                                         {items.map((field) => (
-                                            <DropdownMenuItem
+                                            <FieldMenuItem
                                                 key={field.key}
                                                 onClick={() => onInsert(field.key)}
                                             >
@@ -318,7 +553,7 @@ export default function InsertBidTextFieldMenu({
                                                     {values[field.key] ||
                                                         placeholderToken(field.key)}
                                                 </span>
-                                            </DropdownMenuItem>
+                                            </FieldMenuItem>
                                         ))}
                                     </DropdownMenuGroup>
                                 </div>
@@ -330,16 +565,52 @@ export default function InsertBidTextFieldMenu({
                                     : 'No matching fields.'}
                             </p>
                         )}
+                        {!activePage && matchingPages.length > 0 ? (
+                            <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
+                                    Pages
+                                </DropdownMenuLabel>
+                                <DropdownMenuGroup>
+                                    {matchingPages.map((page) => (
+                                        <FieldMenuItem
+                                            key={page.key}
+                                            onSelect={(event) => {
+                                                event.preventDefault();
+                                                setBrowsePage(page.key);
+                                                setBrowseRecord(null);
+
+                                                if (
+                                                    page.label.toLowerCase() ===
+                                                    normalizedQuery
+                                                ) {
+                                                    setQuery('');
+                                                }
+                                            }}
+                                        >
+                                            <span className="flex min-w-0 flex-col">
+                                                <span>{page.label}</span>
+                                                <span className="text-xs text-muted-foreground">
+                                                    Choose a record, then a
+                                                    field
+                                                </span>
+                                            </span>
+                                            <ChevronRightIcon className="ml-auto size-4 text-muted-foreground" />
+                                        </FieldMenuItem>
+                                    ))}
+                                </DropdownMenuGroup>
+                            </>
+                        ) : null}
                         {canCreate ? (
                             <>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem
+                                <FieldMenuItem
                                     disabled={isSaving}
                                     onSelect={() => openCreate(query)}
                                 >
                                     <PlusIcon />
                                     Add “{query.trim()}” and link it
-                                </DropdownMenuItem>
+                                </FieldMenuItem>
                             </>
                         ) : null}
                     </div>

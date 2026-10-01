@@ -79,6 +79,7 @@ const schema = z.object({
         .max(255, 'The title must be 255 characters or less.'),
     pricing_conditions: z.string().max(250000),
     pricing_basis: z.string().max(250000),
+    include_authorization: z.boolean(),
     line_items: z.array(
         z.object({
             description: z.string().trim().max(255),
@@ -996,6 +997,60 @@ export default function QuotationForm({
                         setValue('pricing_conditions', html)
                     }
                 />
+            </section>
+
+            <section className="flex min-w-0 flex-col gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
+                <div className="flex flex-col gap-1">
+                    <h2 className="text-base font-semibold text-foreground">
+                        Authorization
+                    </h2>
+                    <p className="text-sm text-muted-foreground">
+                        Should this document include an authorization section
+                        for signatures?
+                    </p>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-background p-3 has-[:checked]:border-emerald-300 has-[:checked]:bg-emerald-50/70 dark:has-[:checked]:border-emerald-900 dark:has-[:checked]:bg-emerald-950/30">
+                        <input
+                            type="radio"
+                            name="include_authorization"
+                            className="mt-1"
+                            checked={data.include_authorization}
+                            onChange={() =>
+                                setValue('include_authorization', true)
+                            }
+                        />
+                        <span>
+                            <span className="block text-sm font-medium text-foreground">
+                                Yes
+                            </span>
+                            <span className="mt-1 block text-sm text-muted-foreground">
+                                Print signature lines for the company and the
+                                customer.
+                            </span>
+                        </span>
+                    </label>
+                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-background p-3 has-[:checked]:border-emerald-300 has-[:checked]:bg-emerald-50/70 dark:has-[:checked]:border-emerald-900 dark:has-[:checked]:bg-emerald-950/30">
+                        <input
+                            type="radio"
+                            name="include_authorization"
+                            className="mt-1"
+                            checked={!data.include_authorization}
+                            onChange={() =>
+                                setValue('include_authorization', false)
+                            }
+                        />
+                        <span>
+                            <span className="block text-sm font-medium text-foreground">
+                                No
+                            </span>
+                            <span className="mt-1 block text-sm text-muted-foreground">
+                                Leave the authorization section off this
+                                document.
+                            </span>
+                        </span>
+                    </label>
+                </div>
             </section>
 
             <AlertDialog

@@ -20,9 +20,10 @@ import { FileUpIcon, PlusIcon, SaveIcon } from 'lucide-react';
 import { FormEvent, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { isEmptyHtml } from '@/Pages/Admin/Bids/bidText';
-import type {
-    QuotationOptions,
-    QuotationTextTemplateOption,
+import {
+    quotationInsertPages,
+    type QuotationOptions,
+    type QuotationTextTemplateOption,
 } from '../types';
 
 type QuotationReusableTextPurpose = 'proposal' | 'pricing' | 'pricing_basis';
@@ -79,7 +80,7 @@ const copyFor = (purpose: QuotationReusableTextPurpose) => {
             kind: 'quotation_pricing',
             heading: 'Quotation details',
             description:
-                'Add the rest of this quotation here. Use Insert field for project name, project address, and other saved values so this quote can be reused. Use Pictures to add photos side by side or one under another. Use Layout for a table or a colored section.',
+                'Add the rest of this quotation here. Use Insert field for project name, project address, and other saved values so this quote can be reused. Use Pictures to add photos side by side or one under another. Use Layout for a table or a colored section. Use Insert field to search a page such as Products and drop a live field into the text. Use Check spacing to even out headings, paragraphs, and sections.',
             selectLabel: 'Saved/reusable quotes',
             selectId: 'quotation-pricing-text-template',
             editorLabel: 'Custom text and descriptions',
@@ -443,7 +444,12 @@ export default function QuotationReusableTextSection({
                     }
                     placeholderSearchPlaceholder={
                         purpose === 'pricing'
-                            ? 'Search project name, project address…'
+                            ? 'Search project name, products…'
+                            : undefined
+                    }
+                    placeholderPages={
+                        purpose === 'pricing'
+                            ? quotationInsertPages(options)
                             : undefined
                     }
                     allowCreatePlaceholder={purpose !== 'pricing'}

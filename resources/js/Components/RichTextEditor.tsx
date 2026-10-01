@@ -32,6 +32,7 @@ import {
 } from '@/Components/richTextImportedStyles';
 import {
     AlignCenterIcon,
+    AlignVerticalSpaceAroundIcon,
     AlignJustifyIcon,
     AlignLeftIcon,
     AlignRightIcon,
@@ -150,6 +151,152 @@ const LAYOUT_COLORS: LayoutColor[] = [
     { label: 'Light gray', value: '#E2E8F0', text: '#111111' },
 ];
 
+const DOCUMENT_LINE_HEIGHT = '1.5';
+const DOCUMENT_BLOCK_SPACE = '12px';
+const FOOTNOTE_FONT_SIZE = '10px';
+const FOOTNOTE_COLOR = '#6b7280';
+
+function isFootnoteBlock(attrs: {
+    fontSize?: string | null;
+    color?: string | null;
+}): boolean {
+    return (
+        attrs.fontSize === FOOTNOTE_FONT_SIZE &&
+        attrs.color?.toLowerCase() === FOOTNOTE_COLOR
+    );
+}
+
+function isEmptySpacer(node: {
+    type: { name: string };
+    content: { size: number };
+    attrs: { border?: string | null };
+}): boolean {
+    return (
+        node.type.name === 'paragraph' &&
+        node.content.size === 0 &&
+        !node.attrs.border
+    );
+}
+
+function evenDocumentSpacing(editor: Editor): {
+    changed: boolean;
+    message: string;
+} {
+    let updated = 0;
+    let removed = 0;
+
+    const changed = editor
+        .chain()
+        .focus()
+        .command(({ tr, state }) => {
+            const empties = new Map<
+                number,
+                { count: number; positions: number[] }
+            >();
+
+            state.doc.descendants((node, pos) => {
+                if (
+                    node.type.name === 'table' ||
+                    node.type.name === 'imageGallery' ||
+                    node.type.name === 'richImage'
+                ) {
+                    return false;
+                }
+
+                if (
+                    node.type.name !== 'paragraph' &&
+                    node.type.name !== 'heading' &&
+                    node.type.name !== 'blockquote' &&
+                    node.type.name !== 'listItem'
+                ) {
+                    return;
+                }
+
+                const $pos = state.doc.resolve(pos);
+                const parentName = $pos.parent.type.name;
+                const tight =
+                    node.type.name === 'listItem' ||
+                    parentName === 'listItem' ||
+                    parentName === 'blockquote';
+                const last = $pos.index() === $pos.parent.childCount - 1;
+                const next = {
+                    lineHeight: DOCUMENT_LINE_HEIGHT,
+                    marginTop: '0px',
+                    marginBottom:
+                        tight || last ? '0px' : DOCUMENT_BLOCK_SPACE,
+                };
+
+                if (
+                    node.attrs.lineHeight !== next.lineHeight ||
+                    node.attrs.marginTop !== next.marginTop ||
+                    node.attrs.marginBottom !== next.marginBottom
+                ) {
+                    tr.setNodeMarkup(pos, undefined, {
+                        ...node.attrs,
+                        ...next,
+                    });
+                    updated += 1;
+                }
+
+                if (!isEmptySpacer(node) || $pos.parent.childCount < 2) {
+                    return;
+                }
+
+                const parentDepth = $pos.depth - 1;
+                const parentKey =
+                    parentDepth <= 0 ? 0 : $pos.before(parentDepth);
+                const group = empties.get(parentKey) ?? {
+                    count: $pos.parent.childCount,
+                    positions: [],
+                };
+
+                group.positions.push(pos);
+                empties.set(parentKey, group);
+            });
+
+            const deleteAt: number[] = [];
+
+            empties.forEach((group) => {
+                if (group.count - group.positions.length < 1) {
+                    return;
+                }
+
+                deleteAt.push(...group.positions);
+            });
+
+            deleteAt
+                .sort((left, right) => right - left)
+                .forEach((pos) => {
+                    const mapped = tr.mapping.map(pos);
+                    const current = tr.doc.nodeAt(mapped);
+
+                    if (!current || !isEmptySpacer(current)) {
+                        return;
+                    }
+
+                    tr.delete(mapped, mapped + current.nodeSize);
+                    removed += 1;
+                });
+
+            return updated > 0 || removed > 0;
+        })
+        .run();
+
+    if (!changed) {
+        return {
+            changed: false,
+            message:
+                'Spacing is already even across headings, paragraphs, and sections.',
+        };
+    }
+
+    return {
+        changed: true,
+        message:
+            'Spacing is even. Headings, paragraphs, and sections now use the same space.',
+    };
+}
+
 function applyBlockStyle(
     editor: Editor,
     attrs: Record<string, string | null>,
@@ -174,6 +321,47 @@ function applyBlockStyle(
                 tr.setNodeMarkup(pos, undefined, {
                     ...node.attrs,
                     ...attrs,
+                });
+                changed = true;
+            });
+
+            return changed;
+        })
+        .run();
+}
+
+function applyFootnote(editor: Editor) {
+    const { from, to } = editor.state.selection;
+    const active =
+        editor.isActive('paragraph') &&
+        isFootnoteBlock(editor.getAttributes('paragraph'));
+
+    editor
+        .chain()
+        .focus()
+        .command(({ tr, state }) => {
+            let changed = false;
+
+            state.doc.nodesBetween(from, to, (node, pos) => {
+                if (
+                    node.type.name !== 'paragraph' &&
+                    node.type.name !== 'heading' &&
+                    node.type.name !== 'listItem'
+                ) {
+                    return;
+                }
+
+                const type =
+                    node.type.name === 'heading'
+                        ? state.schema.nodes.paragraph
+                        : undefined;
+
+                tr.setNodeMarkup(pos, type, {
+                    ...node.attrs,
+                    ...(node.type.name === 'heading' ? { level: undefined } : {}),
+                    fontSize: active ? null : FOOTNOTE_FONT_SIZE,
+                    color: active ? null : FOOTNOTE_COLOR,
+                    lineHeight: active ? null : '1.4',
                 });
                 changed = true;
             });
@@ -316,6 +504,20 @@ type RichTextEditorProps = {
     placeholderSearchPlaceholder?: string;
     allowCreatePlaceholder?: boolean;
     placeholderGroupOrder?: readonly string[];
+    placeholderPages?: Array<{
+        key: string;
+        label: string;
+        records: Array<{
+            id: number;
+            label: string;
+            hint?: string;
+            fields: Array<{
+                key: string;
+                label: string;
+                value: string;
+            }>;
+        }>;
+    }>;
 };
 
 export default function RichTextEditor({
@@ -333,6 +535,7 @@ export default function RichTextEditor({
     placeholderSearchPlaceholder,
     allowCreatePlaceholder = true,
     placeholderGroupOrder,
+    placeholderPages = [],
 }: RichTextEditorProps) {
     const { i18n } = useTranslation();
     const documentLang = i18n.language?.startsWith('es') ? 'es' : 'en-US';
@@ -919,6 +1122,18 @@ export default function RichTextEditor({
                     commandsPinned ? { top: commandsOffset } : undefined
                 }
                 onMouseDown={(event) => {
+                    const target = event.target;
+
+                    if (
+                        target instanceof HTMLInputElement ||
+                        target instanceof HTMLTextAreaElement ||
+                        target instanceof HTMLSelectElement
+                    ) {
+                        pinCommands();
+
+                        return;
+                    }
+
                     event.preventDefault();
                     pinCommands();
                 }}
@@ -958,6 +1173,13 @@ export default function RichTextEditor({
                                 <Heading4Icon />
                             ) : editor?.isActive('blockquote') ? (
                                 <QuoteIcon />
+                            ) : editor?.isActive('paragraph') &&
+                              isFootnoteBlock(
+                                  editor.getAttributes('paragraph'),
+                              ) ? (
+                                <span className="text-[10px] font-semibold leading-none">
+                                    Fn
+                                </span>
                             ) : (
                                 <PilcrowIcon />
                             )}
@@ -1030,6 +1252,14 @@ export default function RichTextEditor({
                         >
                             <QuoteIcon />
                             Quote
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                            onClick={() => editor && applyFootnote(editor)}
+                        >
+                            <span className="w-4 text-center text-[10px] font-semibold leading-none text-muted-foreground">
+                                Fn
+                            </span>
+                            Footnote
                         </DropdownMenuItem>
                     </DropdownMenuGroup>
                     <DropdownMenuSeparator />
@@ -1122,6 +1352,30 @@ export default function RichTextEditor({
                         </DropdownMenuSubContent>
                     </DropdownMenuSub>
                 </ToolbarMenu>
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                        if (!editor) {
+                            return;
+                        }
+
+                        const result = evenDocumentSpacing(editor);
+
+                        if (result.changed) {
+                            toast.success(result.message);
+
+                            return;
+                        }
+
+                        toast.message(result.message);
+                    }}
+                    title="Check the whole document and make the space between headings, paragraphs, and sections equal"
+                >
+                    <AlignVerticalSpaceAroundIcon />
+                    Check spacing
+                </Button>
                 <Toggle
                     size="sm"
                     pressed={Boolean(editor?.isActive('bold'))}
@@ -1852,6 +2106,7 @@ export default function RichTextEditor({
                             searchPlaceholder={placeholderSearchPlaceholder}
                             allowCreate={allowCreatePlaceholder}
                             groupOrder={placeholderGroupOrder}
+                            pages={placeholderPages}
                         />
                     </>
                 ) : null}

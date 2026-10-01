@@ -584,6 +584,7 @@ export default function Show({ quotation, options }: ShowProps) {
                         </Card>
                     ) : null}
 
+                    {quotation.include_authorization !== false ? (
                     <Card>
                         <CardHeader>
                             <CardTitle className="text-base font-semibold text-foreground">
@@ -684,6 +685,7 @@ export default function Show({ quotation, options }: ShowProps) {
                             </div>
                         </CardContent>
                     </Card>
+                    ) : null}
 
                 </div>
             </div>

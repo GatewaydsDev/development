@@ -40,6 +40,8 @@ class QuotationController extends Controller
     private ?bool $contractorsHaveRole = null;
 
     private ?bool $quotationsHaveProposalTitle = null;
+
+    private ?bool $quotationsHaveAuthorization = null;
     public function index(Request $request): Response
     {
         abort_unless(QuotationAccess::canView($request->user()), 403);
@@ -134,6 +136,7 @@ class QuotationController extends Controller
                 ...$this->proposalTitleAttributes($validated),
                 'pricing_conditions' => $validated['pricing_conditions'] ?? null,
                 'pricing_basis' => $validated['pricing_basis'] ?? null,
+                ...$this->authorizationAttributes($validated),
                 'created_by' => $request->user()?->id,
             ]);
 
@@ -238,6 +241,7 @@ class QuotationController extends Controller
                 ...$this->proposalTitleAttributes($validated),
                 'pricing_conditions' => $validated['pricing_conditions'] ?? null,
                 'pricing_basis' => $validated['pricing_basis'] ?? null,
+                ...$this->authorizationAttributes($validated, $quotation),
             ]);
 
             $this->syncLineItems($quotation, $validated['line_items']);
@@ -283,6 +287,7 @@ class QuotationController extends Controller
             'proposal_title' => ['nullable', 'string', 'max:255'],
             'pricing_conditions' => ['nullable', 'string', 'max:250000'],
             'pricing_basis' => ['nullable', 'string', 'max:250000'],
+            'include_authorization' => ['sometimes', 'boolean'],
             'contact_ids' => ['nullable', 'array'],
             'contact_ids.*' => [
                 'integer',
@@ -602,6 +607,7 @@ class QuotationController extends Controller
             'proposal_title' => $quotation->proposalTitle(),
             'pricing_conditions' => $this->sanitizedHtml($quotation->pricing_conditions),
             'pricing_basis' => $this->sanitizedHtml($quotation->pricing_basis),
+            'include_authorization' => (bool) ($quotation->include_authorization ?? true),
             'created_by_name' => $quotation->creator?->name,
             'signature_url' => $quotation->creator?->signature_url,
             'total' => $quotation->total(),
@@ -784,6 +790,30 @@ class QuotationController extends Controller
     private function quotationsHaveProposalTitle(): bool
     {
         return $this->quotationsHaveProposalTitle ??= Schema::hasColumn('quotations', 'proposal_title');
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     * @return array<string, bool>
+     */
+    private function authorizationAttributes(array $validated, ?Quotation $quotation = null): array
+    {
+        if (! $this->quotationsHaveAuthorization()) {
+            return [];
+        }
+
+        $include = array_key_exists('include_authorization', $validated)
+            ? (bool) $validated['include_authorization']
+            : (bool) ($quotation?->include_authorization ?? true);
+
+        return [
+            'include_authorization' => $include,
+        ];
+    }
+
+    private function quotationsHaveAuthorization(): bool
+    {
+        return $this->quotationsHaveAuthorization ??= Schema::hasColumn('quotations', 'include_authorization');
     }
 
     /**

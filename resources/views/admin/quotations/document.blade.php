@@ -32,6 +32,8 @@
         .body { padding: 18px 24px 22px; }
         .stats { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
         .stats td { width: 33.33%; padding: 10px 12px; background: {{ $c['highlight_bg'] }}; border: 1px solid {{ $c['highlight_border'] }}; vertical-align: top; }
+        .stats.two td { width: 50%; }
+        .stats.one td { width: 100%; }
         .stat-value { display: block; font-size: 14px; font-weight: 700; color: {{ $c['brand'] }}; }
         .stat-label { display: block; margin-top: 3px; font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: {{ $c['brand_mid'] }}; }
         .meta { width: 100%; border-collapse: collapse; margin-bottom: 18px; }
@@ -42,8 +44,8 @@
         .section-title { margin: 20px 0 10px; font-size: 11px; letter-spacing: 1.3px; text-transform: uppercase; color: {{ $c['brand'] }}; }
         .muted { margin: 0; color: #6b7280; font-size: 11px; font-style: italic; }
         .quote-proposal { padding: 16px 0 20px; }
-        .rich-text { font-size: 11px; line-height: 1.55; color: #111827; }
-        .rich-text p, .rich-text ul, .rich-text ol, .rich-text blockquote, .rich-text h1, .rich-text h2, .rich-text h3, .rich-text h4 { margin: 0 0 8px; }
+        .rich-text { font-size: 11px; line-height: 1.5; color: #111827; }
+        .rich-text p, .rich-text ul, .rich-text ol, .rich-text blockquote, .rich-text h1, .rich-text h2, .rich-text h3, .rich-text h4 { margin: 0 0 12px; }
         .rich-text p[style*="border"] { box-sizing: border-box; }
         .rich-text p:last-child, .rich-text ul:last-child, .rich-text ol:last-child { margin-bottom: 0; }
         .rich-text h1 { font-size: 16px; }
@@ -53,18 +55,20 @@
         .rich-text blockquote { margin-left: 0; padding-left: 8px; border-left: 3px solid #d1d5db; }
         .rich-text ul { padding-left: 18px; list-style: disc; }
         .rich-text ol { padding-left: 18px; list-style: decimal; }
-        .rich-text div[data-colored-section] { border-radius: 4px; }
-        .rich-text [data-image-gallery] { display: flex; align-items: flex-start; width: 100%; margin: 8px 0; }
+        .rich-text div[data-colored-section] { border-radius: 4px; margin: 12px 0; }
+        .rich-text [data-image-gallery] { display: flex; align-items: flex-start; width: 100%; margin: 12px 0; }
         .rich-text [data-image-gallery="stack"] { flex-direction: column; }
-        .rich-text [data-image-gallery="row"] > [data-rich-image] { flex: 1 1 0; min-width: 0; }
+        .rich-text [data-image-gallery="row"] > [data-rich-image] { display: flex; flex: 1 1 0; flex-direction: column; align-items: stretch; min-width: 0; max-width: 100%; }
         .rich-text [data-rich-image] img { display: block; width: 100%; max-width: 100%; }
+        .rich-text [data-image-caption] { display: block; box-sizing: border-box; width: 0; min-width: 100%; max-width: 100%; overflow-wrap: anywhere; word-break: break-word; }
+        .rich-text [data-image-caption] p { display: block; width: 100%; max-width: 100%; overflow-wrap: anywhere; word-break: break-word; }
         .rich-text [data-image-caption] p { margin: 4px 0 0; }
         .rich-text div[data-colored-section] p,
         .rich-text div[data-colored-section] h1,
         .rich-text div[data-colored-section] h2,
         .rich-text div[data-colored-section] h3,
         .rich-text div[data-colored-section] h4 { color: inherit; }
-        .rich-text table { width: 100%; border-collapse: collapse; margin: 8px 0; table-layout: fixed; }
+        .rich-text table { width: 100%; border-collapse: collapse; margin: 12px 0; table-layout: fixed; }
         .rich-text th, .rich-text td { border: 1px solid #d1d5db; padding: 6px 8px; font-size: 10px; vertical-align: middle; text-align: left; }
         .rich-text tr[style*="height"] > th, .rich-text tr[style*="height"] > td { height: inherit; }
         .rich-text th p, .rich-text td p { margin: 0; }
@@ -202,47 +206,43 @@
         <div class="accent"></div>
 
         <div class="body">
-            <table class="stats">
+            <table class="stats {{ $statColumns === 1 ? 'one' : ($statColumns === 2 ? 'two' : '') }}">
                 <tr>
                     <td>
                         <span class="stat-value">{{ $quotationNumber ?: '—' }}</span>
                         <span class="stat-label">Quotation number</span>
                     </td>
-                    <td>
-                        <span class="stat-value">{{ $total }}</span>
-                        <span class="stat-label">Total</span>
-                    </td>
-                    <td>
-                        <span class="stat-value">{{ $quotedAt ?: '—' }}</span>
-                        <span class="stat-label">Quoted on</span>
-                    </td>
+                    @if ($hasTotal)
+                        <td>
+                            <span class="stat-value">{{ $total }}</span>
+                            <span class="stat-label">Total</span>
+                        </td>
+                    @endif
+                    @if ($quotedAt)
+                        <td>
+                            <span class="stat-value">{{ $quotedAt }}</span>
+                            <span class="stat-label">Quoted on</span>
+                        </td>
+                    @endif
                 </tr>
             </table>
 
             <h1 class="document-title">{{ $title }}</h1>
 
-            <h2 class="section-title">Project information</h2>
-            @if ($projectName)
+            @if (count($projectFields) > 0)
+                <h2 class="section-title">Project information</h2>
                 <table class="meta">
-                    <tr>
-                        <td>
-                            <span class="meta-label">Project name</span>
-                            <span class="meta-value">{{ $projectName }}</span>
-                        </td>
-                        <td>
-                            <span class="meta-label">Project number</span>
-                            <span class="meta-value">{{ $projectNumber ?: 'Not added yet' }}</span>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td colspan="2">
-                            <span class="meta-label">Site address</span>
-                            <span class="meta-value">{{ $projectAddress ?: 'Not added yet' }}</span>
-                        </td>
-                    </tr>
+                    @foreach (array_chunk($projectFields, 2) as $pair)
+                        <tr>
+                            @foreach ($pair as $field)
+                                <td @if (count($pair) === 1) colspan="2" @endif>
+                                    <span class="meta-label">{{ $field[0] }}</span>
+                                    <span class="meta-value">{{ $field[1] }}</span>
+                                </td>
+                            @endforeach
+                        </tr>
+                    @endforeach
                 </table>
-            @else
-                <p class="muted">No project linked.</p>
             @endif
 
             @if ($mode !== 'print' && count($revisions) > 0)
@@ -269,41 +269,37 @@
                 </div>
             @endif
 
-            <h2 class="section-title">{{ $contractor['role_label'] ?? 'Contractor' }}</h2>
-            <table class="meta">
-                <tr>
-                    <td>
-                        <span class="meta-label">{{ $contractor['role_label'] ?? 'Contractor' }}</span>
-                        <span class="meta-value">{{ $contractor['company'] ?: 'Not added yet' }}</span>
-                    </td>
-                    <td>
-                        <span class="meta-label">Address</span>
-                        <span class="meta-value">{{ $contractor['address'] ?: 'Not added yet' }}</span>
-                    </td>
-                </tr>
-            </table>
-            @forelse ($contacts as $contact)
-                <table class="meta">
-                    <tr>
-                        <td>
-                            <span class="meta-label">Contact{{ $contact['is_primary'] ? ' (primary)' : '' }}</span>
-                            <span class="meta-value">{{ $contact['name'] ?: 'Not added yet' }}{{ $contact['title'] ? ' · '.$contact['title'] : '' }}</span>
-                        </td>
-                        <td>
-                            <span class="meta-label">Email</span>
-                            <span class="meta-value">{{ $contact['email'] ?: 'Not added yet' }}</span>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td colspan="2">
-                            <span class="meta-label">Phone</span>
-                            <span class="meta-value">{{ $contact['phone'] ?: 'Not added yet' }}</span>
-                        </td>
-                    </tr>
-                </table>
-            @empty
-                <p class="muted">No contacts selected.</p>
-            @endforelse
+            @if ($contractorSection)
+                <h2 class="section-title">{{ $contractorSection['label'] }}</h2>
+                @if (count($contractorSection['fields']) > 0)
+                    <table class="meta">
+                        @foreach (array_chunk($contractorSection['fields'], 2) as $pair)
+                            <tr>
+                                @foreach ($pair as $field)
+                                    <td @if (count($pair) === 1) colspan="2" @endif>
+                                        <span class="meta-label">{{ $field[0] }}</span>
+                                        <span class="meta-value">{{ $field[1] }}</span>
+                                    </td>
+                                @endforeach
+                            </tr>
+                        @endforeach
+                    </table>
+                @endif
+                @foreach ($contractorSection['contacts'] as $contactFields)
+                    <table class="meta">
+                        @foreach (array_chunk($contactFields, 2) as $pair)
+                            <tr>
+                                @foreach ($pair as $field)
+                                    <td @if (count($pair) === 1) colspan="2" @endif>
+                                        <span class="meta-label">{{ $field[0] }}</span>
+                                        <span class="meta-value">{{ $field[1] }}</span>
+                                    </td>
+                                @endforeach
+                            </tr>
+                        @endforeach
+                    </table>
+                @endforeach
+            @endif
 
             @if ($notes)
                 <div class="quote-proposal">
@@ -320,29 +316,28 @@
             @endif
 
             @foreach ($fieldTables as $table)
-                <h2 class="section-title">{{ $table['title'] }}</h2>
-                <div class="table-responsive">
-                    <table class="pricing">
-                        <tbody>
-                            @forelse ($table['fields'] as $item)
-                                <tr>
-                                    <td style="width: 34%; background: #f3f4f6; font-weight: 600;">{{ $item['field'] }}</td>
-                                    <td>{{ $item['value'] }}</td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="2" class="muted">No fields added.</td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
+                @if (count($table['fields']) > 0)
+                    <h2 class="section-title">{{ $table['title'] }}</h2>
+                    <div class="table-responsive">
+                        <table class="pricing">
+                            <tbody>
+                                @foreach ($table['fields'] as $item)
+                                    <tr>
+                                        <td style="width: 34%; background: #f3f4f6; font-weight: 600;">{{ $item['field'] }}</td>
+                                        <td>{{ $item['value'] }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @endif
             @endforeach
 
             @if ($pricingConditions)
                 <div class="rich-text">{!! $pricingConditions !!}</div>
             @endif
 
+            @if ($includeAuthorization)
             <h2 class="section-title">Authorization</h2>
             <p class="authorization-intro">
                 This quotation is submitted by {{ $companyName }}. Acceptance below confirms the pricing and conditions in this document.
@@ -397,6 +392,7 @@
                     </td>
                 </tr>
             </table>
+            @endif
 
             @if ($validUntil)
                 <p class="footnote">This quotation is valid until {{ $validUntil }}.</p>

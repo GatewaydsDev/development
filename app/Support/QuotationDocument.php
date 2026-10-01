@@ -4,7 +4,9 @@ namespace App\Support;
 
 use App\Models\Company;
 use App\Models\Contractor;
+use App\Models\Product;
 use App\Models\Quotation;
+use App\Models\QuotationField;
 use App\Models\QuotationLineItem;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -119,6 +121,7 @@ class QuotationDocument
         $this->imageMode = $mode;
         $contractor = $this->contractorPayload();
         $project = $this->quotation->project;
+        $total = $this->quotation->total();
 
         return [
             'mode' => $mode,
@@ -157,15 +160,20 @@ class QuotationDocument
                     $project->site_country,
                 ) ?: null)
                 : null,
+            'projectFields' => $this->projectPrintFields(),
+            'contractorSection' => $this->contractorPrintSection(),
             'lineItems' => $this->lineItemRows(),
             'fieldTables' => $this->fieldTableRows(),
             'productFields' => $this->productFieldRows(),
             'revisions' => $revisions = $this->revisionRows(),
             'revisionColumns' => $this->visibleRevisionColumns($revisions),
-            'total' => $this->money($this->quotation->total()),
+            'total' => $this->money($total),
+            'hasTotal' => $total > 0,
+            'statColumns' => 1 + ($total > 0 ? 1 : 0) + ($this->quotation->quoted_at ? 1 : 0),
             'assigneeName' => $this->representative()?->name,
             'signatureDate' => $this->quotation->quoted_at?->format('F j, Y') ?: now()->format('F j, Y'),
             'signatureSrc' => DocumentSignature::dataUri($this->representative()),
+            'includeAuthorization' => (bool) ($this->quotation->include_authorization ?? true),
             'colors' => $this->cssColors($mode),
         ];
     }
@@ -257,24 +265,11 @@ class QuotationDocument
             ['size' => 11, 'color' => '4B5563'],
         );
 
-        $section->addTextBreak(1);
-        $section->addText('Project information', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
-        $project = $this->quotation->project;
-        if (! $project) {
-            $section->addText('No project linked.', ['italic' => true, 'size' => 10, 'color' => '6B7280']);
-        } else {
-            $this->addMetaTable($section, [
-                ['Project name', $project->name ?: '—'],
-                ['Project number', $project->project_number ?: '—'],
-                ['Site address', BidApplicationText::formatAddress(
-                    $project->site_address_line_1,
-                    $project->site_address_line_2,
-                    $project->site_city,
-                    $project->site_state,
-                    $project->site_postal_code,
-                    $project->site_country,
-                ) ?: '—'],
-            ]);
+        $projectFields = $this->projectPrintFields();
+        if ($projectFields !== []) {
+            $section->addTextBreak(1);
+            $section->addText('Project information', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
+            $this->addMetaTable($section, $projectFields);
         }
 
         $revisions = $this->revisionRows();
@@ -298,24 +293,15 @@ class QuotationDocument
             $section->addTextBreak(1);
         }
 
-        $contractor = $this->contractorPayload();
-        $partyLabel = $contractor['role_label'];
-        $section->addText($partyLabel, ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
-        $this->addMetaTable($section, [
-            [$partyLabel, $contractor['company'] ?: '—'],
-            ['Address', $contractor['address'] ?: '—'],
-        ]);
-        $contacts = $this->contactRows();
-        if ($contacts === []) {
-            $section->addText('No contacts selected.', ['italic' => true, 'size' => 10, 'color' => '6B7280']);
-        }
-        foreach ($contacts as $contact) {
-            $this->addMetaTable($section, [
-                ['Contact'.(($contact['is_primary'] ?? false) ? ' (primary)' : ''), $contact['name'] ?: '—'],
-                ['Title', $contact['title'] ?: '—'],
-                ['Email', $contact['email'] ?: '—'],
-                ['Phone', $contact['phone'] ?: '—'],
-            ]);
+        $contractorSection = $this->contractorPrintSection();
+        if ($contractorSection !== null) {
+            $section->addText($contractorSection['label'], ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
+            if ($contractorSection['fields'] !== []) {
+                $this->addMetaTable($section, $contractorSection['fields']);
+            }
+            foreach ($contractorSection['contacts'] as $contactFields) {
+                $this->addMetaTable($section, $contactFields);
+            }
         }
 
         if ($this->displayHtml($this->quotation->notes)) {
@@ -335,6 +321,10 @@ class QuotationDocument
         }
 
         foreach ($this->fieldTableRows() as $fieldTable) {
+            if ($fieldTable['fields'] === []) {
+                continue;
+            }
+
             $section->addText($fieldTable['title'], ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
             $table = $section->addTable('quoteTable');
             foreach ($fieldTable['fields'] as $index => $item) {
@@ -355,7 +345,9 @@ class QuotationDocument
             ));
         }
 
-        $this->addAuthorizationSignatures($section);
+        if ($this->quotation->include_authorization ?? true) {
+            $this->addAuthorizationSignatures($section);
+        }
 
         $temp = tempnam(sys_get_temp_dir(), 'gds-quote-');
         $path = $temp.'.docx';
@@ -440,6 +432,90 @@ class QuotationDocument
         ));
     }
 
+    /**
+     * @return list<array{0: string, 1: string}>
+     */
+    private function projectPrintFields(): array
+    {
+        $project = $this->quotation->project;
+
+        if (! $project || ! $this->hasPrintValue($project->name)) {
+            return [];
+        }
+
+        return $this->filledPairs([
+            ['Project name', $project->name],
+            ['Project number', $project->project_number],
+            ['Site address', BidApplicationText::formatAddress(
+                $project->site_address_line_1,
+                $project->site_address_line_2,
+                $project->site_city,
+                $project->site_state,
+                $project->site_postal_code,
+                $project->site_country,
+            )],
+        ]);
+    }
+
+    /**
+     * @return array{label: string, fields: list<array{0: string, 1: string}>, contacts: list<list<array{0: string, 1: string}>>}|null
+     */
+    private function contractorPrintSection(): ?array
+    {
+        $contractor = $this->contractorPayload();
+        $fields = $this->filledPairs([
+            [$contractor['role_label'], $contractor['company']],
+            ['Address', $contractor['address']],
+        ]);
+        $contacts = [];
+
+        foreach ($this->contactRows() as $contact) {
+            $name = trim((string) ($contact['name'] ?? ''));
+            $title = trim((string) ($contact['title'] ?? ''));
+            $contactFields = $this->filledPairs([
+                [
+                    'Contact'.(! empty($contact['is_primary']) ? ' (primary)' : ''),
+                    trim($name.($title !== '' ? ' · '.$title : '')),
+                ],
+                ['Email', $contact['email'] ?? null],
+                ['Phone', $contact['phone'] ?? null],
+            ]);
+
+            if ($contactFields !== []) {
+                $contacts[] = $contactFields;
+            }
+        }
+
+        if ($fields === [] && $contacts === []) {
+            return null;
+        }
+
+        return [
+            'label' => $contractor['role_label'],
+            'fields' => $fields,
+            'contacts' => $contacts,
+        ];
+    }
+
+    /**
+     * @param  list<array{0: string, 1: mixed}>  $pairs
+     * @return list<array{0: string, 1: string}>
+     */
+    private function filledPairs(array $pairs): array
+    {
+        $filled = [];
+
+        foreach ($pairs as [$label, $value]) {
+            if (! $this->hasPrintValue($value)) {
+                continue;
+            }
+
+            $filled[] = [$label, trim((string) $value)];
+        }
+
+        return $filled;
+    }
+
     private function hasPrintValue(mixed $value): bool
     {
         if ($value === null) {
@@ -474,12 +550,14 @@ class QuotationDocument
                 'title' => filled($table->title) ? (string) $table->title : 'Table',
                 'fields' => $table->fields
                     ->map(fn ($item): array => [
-                        'field' => $item->field?->name ?: '—',
-                        'value' => filled($item->value) ? (string) $item->value : '—',
+                        'field' => $item->field?->name ?: '',
+                        'value' => filled($item->value) ? (string) $item->value : '',
                     ])
+                    ->filter(fn (array $item): bool => $this->hasPrintValue($item['value']))
                     ->values()
                     ->all(),
             ])
+            ->filter(fn (array $table): bool => $table['fields'] !== [])
             ->values()
             ->all();
 
@@ -506,9 +584,10 @@ class QuotationDocument
 
         return $this->quotation->productFields
             ->map(fn ($item): array => [
-                'field' => $item->field?->name ?: '—',
-                'value' => filled($item->value) ? (string) $item->value : '—',
+                'field' => $item->field?->name ?: '',
+                'value' => filled($item->value) ? (string) $item->value : '',
             ])
+            ->filter(fn (array $item): bool => $this->hasPrintValue($item['value']))
             ->values()
             ->all();
     }
@@ -711,7 +790,51 @@ class QuotationDocument
             'company_email' => $this->company?->email ?: '',
             'company_address' => $this->companyAddress() ?: '',
             'today' => now()->format('F j, Y'),
+            ...$this->productInsertValues(),
         ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function productInsertValues(): array
+    {
+        $html = implode(' ', array_filter([
+            $this->quotation->pricing_conditions,
+            $this->quotation->notes,
+            $this->quotation->pricing_basis,
+        ]));
+
+        preg_match_all('/product_(\d+)_[a-z0-9_]+/i', $html, $matches);
+        $ids = collect($matches[1] ?? [])
+            ->map(fn (mixed $id): int => (int) $id)
+            ->unique()
+            ->filter()
+            ->values();
+
+        if ($ids->isEmpty()) {
+            return [];
+        }
+
+        $values = [];
+
+        Product::query()
+            ->with([
+                'manufacturer',
+                'configurations',
+                'handings',
+                'constructions',
+                'glassType',
+                'glazingType',
+                'seal',
+            ])
+            ->whereIn('id', $ids)
+            ->get()
+            ->each(function (Product $product) use (&$values): void {
+                $values = array_merge($values, QuotationField::insertValues($product));
+            });
+
+        return $values;
     }
 
     private function quantity(mixed $amount): string

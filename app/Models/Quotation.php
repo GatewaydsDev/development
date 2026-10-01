@@ -34,6 +34,7 @@ class Quotation extends Model
         'proposal_title',
         'pricing_conditions',
         'pricing_basis',
+        'include_authorization',
         'created_by',
     ];
 
@@ -42,6 +43,7 @@ class Quotation extends Model
         return [
             'quoted_at' => 'date',
             'valid_until' => 'date',
+            'include_authorization' => 'boolean',
         ];
     }
 

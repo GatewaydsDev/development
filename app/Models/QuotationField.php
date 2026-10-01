@@ -115,6 +115,9 @@ class QuotationField extends Model
             'Handing / swing' => $handing,
             'Door handing' => $handing,
             'Construction' => $product->constructions->pluck('name')->filter()->implode(', '),
+            'Price' => $product->price === null
+                ? null
+                : '$'.number_format((float) $product->price, 2),
         ];
 
         return collect($values)
@@ -130,5 +133,24 @@ class QuotationField extends Model
         return collect(static::specificationsFromProduct($product))
             ->filter(fn (string $value): bool => $value !== '')
             ->all();
+    }
+
+    public static function insertToken(int $productId, string $label): string
+    {
+        return 'product_'.$productId.'_'.Str::slug($label, '_');
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function insertValues(Product $product): array
+    {
+        $values = [];
+
+        foreach (static::specificationsFromProduct($product) as $label => $value) {
+            $values[static::insertToken($product->id, $label)] = $value;
+        }
+
+        return $values;
     }
 }

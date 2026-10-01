@@ -91,6 +91,7 @@ export type QuotationFormData = {
     proposal_title: string;
     pricing_conditions: string;
     pricing_basis: string;
+    include_authorization: boolean;
     line_items: QuotationLineItemFormData[];
     revisions: QuotationRevisionFormData[];
     field_tables: QuotationFieldTableFormData[];
@@ -194,6 +195,7 @@ export type QuotationPayload = {
     proposal_title?: string | null;
     pricing_conditions?: string | null;
     pricing_basis?: string | null;
+    include_authorization?: boolean;
     created_by_name?: string | null;
     signature_url?: string | null;
     total: number;
@@ -356,6 +358,7 @@ export const quotationToFormData = (
               : [],
     )}${quotation?.pricing_conditions ?? ''}`,
     pricing_basis: quotation?.pricing_basis ?? '',
+    include_authorization: quotation?.include_authorization !== false,
     line_items:
         quotation?.line_items && quotation.line_items.length > 0
             ? quotation.line_items.map((item) => ({
@@ -382,6 +385,59 @@ export const quotationToFormData = (
         })) ?? [],
     field_tables: [],
 });
+
+export type QuotationInsertPage = {
+    key: string;
+    label: string;
+    records: Array<{
+        id: number;
+        label: string;
+        hint?: string;
+        fields: Array<{
+            key: string;
+            label: string;
+            value: string;
+        }>;
+    }>;
+};
+
+const productFieldKey = (label: string) =>
+    label
+        .normalize('NFKD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .slice(0, 64);
+
+export const quotationInsertPages = (
+    options?: QuotationOptions,
+): QuotationInsertPage[] => {
+    const products = options?.products ?? [];
+
+    if (products.length === 0) {
+        return [];
+    }
+
+    return [
+        {
+            key: 'products',
+            label: 'Products',
+            records: products.map((product) => ({
+                id: product.id,
+                label: product.name,
+                hint: product.abbreviation || product.kind || undefined,
+                fields: Object.entries(product.fields ?? {}).map(
+                    ([label, value]) => ({
+                        key: `product_${product.id}_${productFieldKey(label)}`,
+                        label,
+                        value,
+                    }),
+                ),
+            })),
+        },
+    ];
+};
 
 export const QUOTATION_INSERT_FIELDS = [
     { key: 'project_name', label: 'Project name', group: 'Project' },
@@ -491,6 +547,14 @@ export const quotationInsertValues = (
         company_phone: options?.company?.phone || '',
         company_email: options?.company?.email || '',
         company_address: options?.company?.address || '',
+        ...Object.fromEntries(
+            (options?.products ?? []).flatMap((product) =>
+                Object.entries(product.fields ?? {}).map(([label, value]) => [
+                    `product_${product.id}_${productFieldKey(label)}`,
+                    value,
+                ]),
+            ),
+        ),
         today: new Intl.DateTimeFormat('en-US', {
             month: 'long',
             day: 'numeric',

@@ -121,9 +121,25 @@ test('an admin can save a quotation for a contractor', function () {
         ->assertSee('Pricing Basis', false)
         ->assertDontSee('Base Bid', false)
         ->assertSee($project->name, false)
+        ->assertSee('Harbor Facilities', false)
+        ->assertDontSee('Not added yet', false)
+        ->assertDontSee('No contacts selected', false)
+        ->assertDontSee('No project linked', false)
         ->assertSee('Authorization', false)
         ->assertSee('Submitted by', false)
-        ->assertSee('Accepted by', false);
+        ->assertSee('Accepted by', false)
+        ->assertSee('>Total<', false);
+
+    $quotation->update(['include_authorization' => false]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.quotations.print', $quotation))
+        ->assertOk()
+        ->assertDontSee('Authorization', false)
+        ->assertDontSee('Submitted by', false)
+        ->assertDontSee('Accepted by', false);
+
+    $quotation->update(['include_authorization' => true]);
 
     $this->actingAs($admin)
         ->get(route('admin.quotations.print', [
@@ -190,6 +206,13 @@ test('a base bid description is required only when qty size and price are set', 
     $quotation = Quotation::query()->where('title', 'Quote without a base bid')->firstOrFail();
 
     expect($quotation->lineItems)->toHaveCount(0);
+
+    $this->actingAs($admin)
+        ->get(route('admin.quotations.print', $quotation))
+        ->assertOk()
+        ->assertDontSee('>Total<', false)
+        ->assertSee('Quotation number', false)
+        ->assertSee('Quoted on', false);
 
     $this->actingAs($admin)
         ->post(route('admin.quotations.store'), [
@@ -756,4 +779,24 @@ test('quotation list includes status summarization breakdown and totals', functi
             ->where('summary.statuses.1.total_amount', 4000)
             ->where('summary.statuses.1.formatted_total', '$4,000.00')
         );
+});
+
+test('a quotation print fills a product field inserted in the text', function () {
+    $admin = quotationAdmin();
+    $product = Product::create([
+        'name' => 'Shielded leaf',
+        'kind' => Product::KIND_DOOR,
+        'stc_rating' => '52',
+    ]);
+    $token = QuotationField::insertToken($product->id, 'STC rating');
+    $quotation = makeQuotation($admin, null, [
+        'title' => 'Product field quote',
+        'pricing_conditions' => '<p>Acoustic rating {{'.$token.'}}</p>',
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.quotations.print', $quotation))
+        ->assertOk()
+        ->assertSee('52', false)
+        ->assertDontSee('{{'.$token.'}}', false);
 });
