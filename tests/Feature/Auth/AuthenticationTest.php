@@ -22,6 +22,24 @@ test('users can authenticate using the login screen', function () {
     $response->assertRedirect(route('dashboard', absolute: false));
 });
 
+test('an inertia login keeps the session for the next page', function () {
+    $user = User::factory()->create();
+
+    $response = $this->post('/login', [
+        'email' => $user->email,
+        'password' => 'password',
+    ], [
+        'X-Inertia' => 'true',
+        'X-Requested-With' => 'XMLHttpRequest',
+    ]);
+
+    $this->assertAuthenticated();
+    $response->assertStatus(409);
+    expect($response->headers->get('X-Inertia-Location'))->toContain('/dashboard');
+
+    $this->get('/dashboard')->assertOk();
+});
+
 test('users can not authenticate with invalid password', function () {
     $user = User::factory()->create();
 
