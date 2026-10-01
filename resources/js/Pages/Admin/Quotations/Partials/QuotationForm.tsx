@@ -26,7 +26,7 @@ import {
 import { zodResolver } from '@hookform/resolvers/zod';
 import { router, usePage } from '@inertiajs/react';
 import { PlusIcon, Trash2Icon } from 'lucide-react';
-import { FormEventHandler, useMemo, useState } from 'react';
+import { type DragEvent, FormEventHandler, useMemo, useState } from 'react';
 import {
     FieldErrors,
     useFieldArray,
@@ -167,6 +167,28 @@ function errorMessage(
     }
 
     return (current as { message?: string } | undefined)?.message;
+}
+
+function dragHasPicture(dataTransfer: DataTransfer | null): boolean {
+    if (!dataTransfer) {
+        return false;
+    }
+
+    const types = Array.from(dataTransfer.types);
+
+    return (
+        types.includes('Files') ||
+        types.includes('application/x-moz-file') ||
+        dataTransfer.files.length > 0
+    );
+}
+
+function blockPictureDropSubmit(event: DragEvent<HTMLFormElement>) {
+    if (!dragHasPicture(event.dataTransfer)) {
+        return;
+    }
+
+    event.preventDefault();
 }
 
 function lineItemIsBaseBid(item: {
@@ -376,7 +398,13 @@ export default function QuotationForm({
     };
 
     return (
-        <form onSubmit={submit} className="flex w-full min-w-0 max-w-full flex-col gap-6 pr-4 pb-28 sm:pr-20 lg:pb-6">
+        <form
+            onSubmit={submit}
+            onDragEnter={blockPictureDropSubmit}
+            onDragOver={blockPictureDropSubmit}
+            onDrop={blockPictureDropSubmit}
+            className="flex w-full min-w-0 max-w-full flex-col gap-6 pr-4 pb-28 sm:pr-20 lg:pb-6"
+        >
             <FormActionFab
                 cancelHref={route('admin.quotations.index')}
                 saveLabel={quotation ? 'Save quotation' : 'Add quotation'}

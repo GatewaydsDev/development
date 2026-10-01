@@ -91,7 +91,6 @@ import {
 import { toast } from 'sonner';
 import {
     type ChangeEvent,
-    type DragEvent as ReactDragEvent,
     type FocusEvent as ReactFocusEvent,
     type ReactNode,
     useEffect,
@@ -547,7 +546,9 @@ export default function RichTextEditor({
     const [commandsOffset, setCommandsOffset] = useState(0);
     const [uploadingPictures, setUploadingPictures] = useState(false);
     const [pictureDropActive, setPictureDropActive] = useState(false);
-    const pictureDragDepth = useRef(0);
+    const placeDroppedPicturesRef = useRef<
+        (files: File[], x: number, y: number) => void
+    >(() => {});
     const [pictureFieldsFocused, setPictureFieldsFocused] = useState(false);
     const pictureInputRef = useRef<HTMLInputElement>(null);
     const replaceInputRef = useRef<HTMLInputElement>(null);
@@ -1033,24 +1034,6 @@ export default function RichTextEditor({
         return uploaded;
     };
 
-    const dragCarriesFiles = (dataTransfer: DataTransfer | null) =>
-        Boolean(
-            dataTransfer &&
-                Array.from(dataTransfer.types).includes('Files'),
-        );
-
-    const droppedPictures = (dataTransfer: DataTransfer | null) => {
-        if (!dataTransfer) {
-            return [];
-        }
-
-        return Array.from(dataTransfer.files).filter((file) =>
-            ['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(
-                file.type,
-            ),
-        );
-    };
-
     const placeUploadedPictures = async (
         files: File[],
         options: {
@@ -1151,60 +1134,116 @@ export default function RichTextEditor({
         });
     };
 
-    const onPictureDragEnter = (event: ReactDragEvent<HTMLDivElement>) => {
-        if (!dragCarriesFiles(event.dataTransfer)) {
-            return;
-        }
-
-        event.preventDefault();
-        pictureDragDepth.current += 1;
-        setPictureDropActive(true);
+    placeDroppedPicturesRef.current = (files, x, y) => {
+        void placeUploadedPictures(files, { dropX: x, dropY: y });
     };
 
-    const onPictureDragOver = (event: ReactDragEvent<HTMLDivElement>) => {
-        if (!dragCarriesFiles(event.dataTransfer)) {
+    useEffect(() => {
+        const frame = editorFrameRef.current;
+        const form = frame?.closest('form');
+
+        if (!frame || !form) {
             return;
         }
 
-        event.preventDefault();
-        event.dataTransfer.dropEffect = 'copy';
-    };
+        const carriesFiles = (dataTransfer: DataTransfer | null) => {
+            if (!dataTransfer) {
+                return false;
+            }
 
-    const onPictureDragLeave = (event: ReactDragEvent<HTMLDivElement>) => {
-        if (!dragCarriesFiles(event.dataTransfer)) {
-            return;
-        }
+            const types = Array.from(dataTransfer.types);
 
-        pictureDragDepth.current = Math.max(0, pictureDragDepth.current - 1);
+            return (
+                types.includes('Files') ||
+                types.includes('application/x-moz-file') ||
+                dataTransfer.files.length > 0
+            );
+        };
 
-        if (pictureDragDepth.current === 0) {
+        const pictureFiles = (dataTransfer: DataTransfer | null) =>
+            Array.from(dataTransfer?.files ?? []).filter((file) =>
+                ['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(
+                    file.type,
+                ),
+            );
+
+        const onDragOver = (event: DragEvent) => {
+            if (!carriesFiles(event.dataTransfer)) {
+                return;
+            }
+
+            event.preventDefault();
+
+            if (event.dataTransfer) {
+                event.dataTransfer.dropEffect = 'copy';
+            }
+
+            const target = event.target;
+            setPictureDropActive(
+                target instanceof Node && frame.contains(target),
+            );
+        };
+
+        const onDragLeave = (event: DragEvent) => {
+            const next = event.relatedTarget;
+
+            if (next instanceof Node && form.contains(next)) {
+                return;
+            }
+
             setPictureDropActive(false);
-        }
-    };
+        };
 
-    const onPictureDrop = (event: ReactDragEvent<HTMLDivElement>) => {
-        if (!dragCarriesFiles(event.dataTransfer)) {
-            return;
-        }
+        const onDrop = (event: DragEvent) => {
+            if (!carriesFiles(event.dataTransfer)) {
+                return;
+            }
 
-        event.preventDefault();
-        event.stopPropagation();
-        pictureDragDepth.current = 0;
-        setPictureDropActive(false);
+            event.preventDefault();
+            event.stopPropagation();
+            setPictureDropActive(false);
 
-        const files = droppedPictures(event.dataTransfer);
+            const target = event.target;
+            const frames = Array.from(
+                form.querySelectorAll('[data-rich-text-frame]'),
+            );
+            const hit =
+                target instanceof Element
+                    ? target.closest('[data-rich-text-frame]')
+                    : null;
+            const shouldInsert = hit
+                ? hit === frame
+                : frames[0] === frame;
 
-        if (files.length === 0) {
-            toast.error('Drop a JPEG, PNG, GIF, or WebP picture.');
+            if (!shouldInsert) {
+                return;
+            }
 
-            return;
-        }
+            const files = pictureFiles(event.dataTransfer);
 
-        void placeUploadedPictures(files, {
-            dropX: event.clientX,
-            dropY: event.clientY,
-        });
-    };
+            if (files.length === 0) {
+                toast.error('Drop a JPEG, PNG, GIF, or WebP picture.');
+
+                return;
+            }
+
+            placeDroppedPicturesRef.current(
+                files,
+                event.clientX,
+                event.clientY,
+            );
+        };
+
+        form.addEventListener('dragover', onDragOver, true);
+        form.addEventListener('dragleave', onDragLeave, true);
+        form.addEventListener('drop', onDrop, true);
+
+        return () => {
+            form.removeEventListener('dragover', onDragOver, true);
+            form.removeEventListener('dragleave', onDragLeave, true);
+            form.removeEventListener('drop', onDrop, true);
+        };
+    }, [editor]);
 
     const pictureHeight = editingPicture?.node.attrs.height
         ? Number(editingPicture.node.attrs.height)
@@ -1215,15 +1254,12 @@ export default function RichTextEditor({
         <div className="flex flex-col gap-2">
         <div
             ref={editorFrameRef}
+            data-rich-text-frame
             className={cn(
                 'relative overflow-visible rounded-md border bg-background',
                 error ? 'border-destructive' : 'border-border',
                 pictureDropActive && 'border-emerald-600 ring-2 ring-emerald-600/40',
             )}
-            onDragEnterCapture={onPictureDragEnter}
-            onDragOverCapture={onPictureDragOver}
-            onDragLeaveCapture={onPictureDragLeave}
-            onDropCapture={onPictureDrop}
             onFocus={pinCommands}
             onBlur={(event: ReactFocusEvent<HTMLDivElement>) => {
                 const next = event.relatedTarget;
