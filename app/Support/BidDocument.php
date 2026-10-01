@@ -32,6 +32,8 @@ class BidDocument
 
     private ?string $signatureWordPath = null;
 
+    private string $imageMode = 'print';
+
     protected function documentAppearanceKey(): string
     {
         return 'bid';
@@ -59,6 +61,7 @@ class BidDocument
      */
     public function viewData(string $mode = 'print'): array
     {
+        $this->imageMode = $mode;
         $project = $this->bid->project;
         $totals = $this->totalsBreakdown();
         $projectAddress = $this->projectAddress();
@@ -490,7 +493,10 @@ class BidDocument
 
     private function htmlForWord(?string $html): ?string
     {
+        $previousMode = $this->imageMode;
+        $this->imageMode = 'word';
         $display = $this->displayHtml($html);
+        $this->imageMode = $previousMode;
 
         if ($display === null) {
             return null;
@@ -731,7 +737,9 @@ class BidDocument
             return '<p>'.nl2br(e(trim($value)), false).'</p>';
         }
 
-        return BidApplicationText::sanitize($value);
+        $sanitized = BidApplicationText::sanitize($value);
+
+        return $sanitized ? EditorImage::forDocument($sanitized, $this->imageMode) : null;
     }
 
     private function latestTotal(): float

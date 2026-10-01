@@ -904,13 +904,31 @@ class QuotationController extends Controller
             'projects' => Project::query()
                 ->with('contractors:id')
                 ->orderByDesc('id')
-                ->get(['id', 'name', 'project_number'])
+                ->get([
+                    'id',
+                    'name',
+                    'project_number',
+                    'site_address_line_1',
+                    'site_address_line_2',
+                    'site_city',
+                    'site_state',
+                    'site_postal_code',
+                    'site_country',
+                ])
                 ->map(fn (Project $project): array => [
                     'id' => $project->id,
                     'name' => $project->name,
                     'project_number' => $project->project_number,
                     'contractor_ids' => $project->contractors->pluck('id')->all(),
                     'label' => trim(($project->project_number ? $project->project_number.' · ' : '').$project->name),
+                    'site_address' => BidApplicationText::formatAddress(
+                        $project->site_address_line_1,
+                        $project->site_address_line_2,
+                        $project->site_city,
+                        $project->site_state,
+                        $project->site_postal_code,
+                        $project->site_country,
+                    ) ?: null,
                 ])
                 ->values()
                 ->all(),

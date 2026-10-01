@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\CompanyController;
 use App\Http\Controllers\Admin\ContactController;
 use App\Http\Controllers\Admin\ContractorController;
 use App\Http\Controllers\Admin\DocumentSettingController;
+use App\Http\Controllers\Admin\EditorImageController;
 use App\Http\Controllers\Admin\EmployeeController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ProfessionController;
@@ -422,6 +423,9 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::delete('/projects/{project}', [ProjectController::class, 'destroy'])
             ->middleware('can:delete-projects')
             ->name('projects.destroy');
+
+        Route::post('/editor-images', [EditorImageController::class, 'store'])
+            ->name('editor-images.store');
     });
 
 Route::middleware(['auth', 'prevent-back-history', 'can:manage-access'])

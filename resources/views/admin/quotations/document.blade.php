@@ -48,11 +48,28 @@
         .rich-text p:last-child, .rich-text ul:last-child, .rich-text ol:last-child { margin-bottom: 0; }
         .rich-text h1 { font-size: 16px; }
         .rich-text h2 { font-size: 14px; }
-        .rich-text h3, .rich-text h4 { font-size: 12px; }
+        .rich-text h3 { font-size: 12px; }
+        .rich-text h4 { font-size: 11px; }
+        .rich-text blockquote { margin-left: 0; padding-left: 8px; border-left: 3px solid #d1d5db; }
         .rich-text ul { padding-left: 18px; list-style: disc; }
         .rich-text ol { padding-left: 18px; list-style: decimal; }
-        .rich-text table { width: 100%; border-collapse: collapse; margin: 8px 0; }
-        .rich-text th, .rich-text td { border: 1px solid #d1d5db; padding: 6px 8px; font-size: 10px; }
+        .rich-text div[data-colored-section] { border-radius: 4px; }
+        .rich-text [data-image-gallery] { display: flex; align-items: flex-start; width: 100%; margin: 8px 0; }
+        .rich-text [data-image-gallery="stack"] { flex-direction: column; }
+        .rich-text [data-image-gallery="row"] > [data-rich-image] { flex: 1 1 0; min-width: 0; }
+        .rich-text [data-rich-image] img { display: block; width: 100%; max-width: 100%; }
+        .rich-text [data-image-caption] p { margin: 4px 0 0; }
+        .rich-text div[data-colored-section] p,
+        .rich-text div[data-colored-section] h1,
+        .rich-text div[data-colored-section] h2,
+        .rich-text div[data-colored-section] h3,
+        .rich-text div[data-colored-section] h4 { color: inherit; }
+        .rich-text table { width: 100%; border-collapse: collapse; margin: 8px 0; table-layout: fixed; }
+        .rich-text th, .rich-text td { border: 1px solid #d1d5db; padding: 6px 8px; font-size: 10px; vertical-align: middle; text-align: left; }
+        .rich-text tr[style*="height"] > th, .rich-text tr[style*="height"] > td { height: inherit; }
+        .rich-text th p, .rich-text td p { margin: 0; }
+        .rich-text td { background: #ffffff; color: #111827; }
+        .rich-text tr:nth-child(even of tr:has(td)) td { background: #f3f4f6; }
         .pricing { width: 100%; border-collapse: collapse; margin-top: 6px; }
         .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .pricing th { background: {{ $c['table_header_bg'] }}; color: {{ $c['table_header_text'] }}; font-size: 9px; text-align: left; padding: 7px 8px; }
@@ -295,35 +312,6 @@
                 </div>
             @endif
 
-            <h2 class="section-title">Base Bid</h2>
-            <div class="table-responsive">
-                <table class="pricing">
-                    <thead>
-                        <tr>
-                            <th class="amount" style="width: 8%;">Qty</th>
-                            <th style="width: 26%;">Size</th>
-                            <th>Description</th>
-                            <th class="amount" style="width: 14%;">Price</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse ($lineItems as $item)
-                            <tr>
-                                <td class="amount">{{ $item['quantity'] }}</td>
-                                <td>{{ $item['size'] }}</td>
-                                <td style="white-space: pre-line;">{!! nl2br(e($item['description'])) !!}</td>
-                                <td class="amount">{{ $item['unit_price'] }}</td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="4">No line items added.</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-            <p class="total">Total {{ $total }}</p>
-
             @if ($pricingBasis)
                 <div class="quote-proposal">
                     <h2 class="section-title">Pricing Basis</h2>
@@ -352,7 +340,6 @@
             @endforeach
 
             @if ($pricingConditions)
-                <h2 class="section-title">Pricing, conditions and more</h2>
                 <div class="rich-text">{!! $pricingConditions !!}</div>
             @endif
 

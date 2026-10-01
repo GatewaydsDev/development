@@ -45,6 +45,10 @@ type InsertBidTextFieldMenuProps = {
     values?: Record<string, string>;
     onInsert: (key: string) => void;
     onOpenChange?: (open: boolean) => void;
+    intro?: string;
+    searchPlaceholder?: string;
+    allowCreate?: boolean;
+    groupOrder?: readonly string[];
 };
 
 export default function InsertBidTextFieldMenu({
@@ -52,6 +56,10 @@ export default function InsertBidTextFieldMenu({
     values = {},
     onInsert,
     onOpenChange,
+    intro = 'Insert a live value from this bid',
+    searchPlaceholder = 'Search Allocation/install, Materials, project name…',
+    allowCreate = true,
+    groupOrder = BID_TEXT_FIELD_GROUP_ORDER,
 }: InsertBidTextFieldMenuProps) {
     const [query, setQuery] = useState('');
     const [isSaving, setIsSaving] = useState(false);
@@ -84,12 +92,18 @@ export default function InsertBidTextFieldMenu({
             groups.set(group, items);
         });
 
-        return BID_TEXT_FIELD_GROUP_ORDER.flatMap((group) => {
+        const ordered = groupOrder.flatMap((group) => {
             const items = groups.get(group);
 
             return items && items.length > 0 ? [{ group, items }] : [];
         });
-    }, [filtered]);
+        const known = new Set<string>(groupOrder);
+        const extra = [...groups.keys()]
+            .filter((group) => !known.has(group))
+            .map((group) => ({ group, items: groups.get(group) ?? [] }));
+
+        return [...ordered, ...extra];
+    }, [filtered, groupOrder]);
 
     const exactMatch = fields.find((field) => {
         const queryValue = normalizedQuery;
@@ -102,6 +116,7 @@ export default function InsertBidTextFieldMenu({
 
     const draftedKey = slugifyPlaceholderKey(query);
     const canCreate =
+        allowCreate &&
         query.trim() !== '' &&
         draftedKey !== '' &&
         exactMatch === undefined &&
@@ -270,15 +285,13 @@ export default function InsertBidTextFieldMenu({
                                         openCreate(query);
                                     }
                                 }}
-                                placeholder="Search Allocation/install, Materials, project name…"
+                                placeholder={searchPlaceholder}
                                 className="h-9 w-full rounded-md border border-border bg-background pr-3 pl-8 text-sm outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
                             />
                         </label>
                     </div>
                     <div className="max-h-80 overflow-y-auto p-1">
-                        <DropdownMenuLabel>
-                            Insert a live value from this bid
-                        </DropdownMenuLabel>
+                        <DropdownMenuLabel>{intro}</DropdownMenuLabel>
                         {groupedFields.length > 0 ? (
                             groupedFields.map(({ group, items }) => (
                                 <div key={group}>
@@ -312,8 +325,9 @@ export default function InsertBidTextFieldMenu({
                             ))
                         ) : (
                             <p className="px-2 py-3 text-sm text-muted-foreground">
-                                No matching fields. Add one and link it to a
-                                value on this bid.
+                                {allowCreate
+                                    ? 'No matching fields. Add one and link it to a value on this bid.'
+                                    : 'No matching fields.'}
                             </p>
                         )}
                         {canCreate ? (

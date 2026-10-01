@@ -119,6 +119,7 @@ test('an admin can save a quotation for a contractor', function () {
         ->assertSee('<p class="hero-label">Proposal</p>', false)
         ->assertSee('Site conditions', false)
         ->assertSee('Pricing Basis', false)
+        ->assertDontSee('Base Bid', false)
         ->assertSee($project->name, false)
         ->assertSee('Authorization', false)
         ->assertSee('Submitted by', false)

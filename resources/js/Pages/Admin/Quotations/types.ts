@@ -110,6 +110,7 @@ export type QuotationProjectOption = {
     project_number: string | null;
     contractor_ids?: number[];
     label: string;
+    site_address?: string | null;
 };
 
 export type QuotationStatusOption = {
@@ -283,73 +284,43 @@ export const blankRevision = (
     user_name: userName,
 });
 
-export const emptyProductField = (): QuotationProductFieldFormData => ({
-    product_id: '',
-    field_id: '',
-    field: '',
-    value: '',
-});
+const escapeHtml = (value: string) =>
+    value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
 
-export const emptyFieldTable = (): QuotationFieldTableFormData => ({
-    title: '',
-    fields: [],
-});
+export const fieldTablesToHtml = (
+    tables: QuotationFieldTablePayload[],
+): string =>
+    tables
+        .map((table) => {
+            const title = (table.title ?? '').trim();
+            const rows = (table.fields ?? [])
+                .filter(
+                    (field) =>
+                        (field.field ?? '').trim() !== '' ||
+                        (field.value ?? '').trim() !== '',
+                )
+                .map(
+                    (field) =>
+                        `<tr><td><p>${escapeHtml(field.field ?? '')}</p></td><td><p>${escapeHtml(field.value ?? '')}</p></td></tr>`,
+                )
+                .join('');
 
-export const valueFromProduct = (
-    product: QuotationProductOption | undefined,
-    fieldName: string,
-): string => {
-    if (!product || fieldName.trim() === '') {
-        return '';
-    }
+            if (title === '' && rows === '') {
+                return '';
+            }
 
-    return product.fields?.[fieldName] ?? '';
-};
+            const heading = title !== '' ? `<h2>${escapeHtml(title)}</h2>` : '';
+            const tableHtml =
+                rows !== '' ? `<table><tbody>${rows}</tbody></table>` : '';
 
-export type SelectableQuoteField = {
-    name: string;
-    value: string;
-};
-
-export const selectableFieldsForProduct = (
-    product: QuotationProductOption | undefined,
-    catalog: QuotationFieldOption[] = [],
-): SelectableQuoteField[] => {
-    const seen = new Set<string>();
-    const rows: SelectableQuoteField[] = [];
-
-    const add = (name: string, value = '') => {
-        const key = name.trim().toLowerCase();
-
-        if (key === '' || seen.has(key)) {
-            return;
-        }
-
-        seen.add(key);
-        rows.push({ name, value });
-    };
-
-    Object.entries(product?.fields ?? {}).forEach(([name, value]) => {
-        if (value.trim() !== '') {
-            add(name, value);
-        }
-    });
-
-    catalog.forEach((field) => {
-        add(field.name, valueFromProduct(product, field.name));
-    });
-
-    return rows;
-};
-
-const mapFieldPayload = (
-    item: QuotationProductFieldPayload,
-): QuotationProductFieldFormData => ({
-    product_id: item.product_id ? String(item.product_id) : '',
-    field_id: item.field_id ? String(item.field_id) : '',
-    field: item.field ?? '',
-    value: item.value ?? '',
-});
+            return `${heading}${tableHtml}`;
+        })
+        .filter(Boolean)
+        .join('');
 
 export const quotationToFormData = (
     quotation?: QuotationPayload,
@@ -372,7 +343,18 @@ export const quotationToFormData = (
     notes: quotation?.notes ?? '',
     proposal_title:
         quotation?.proposal_title?.trim() || DEFAULT_PROPOSAL_TITLE,
-    pricing_conditions: quotation?.pricing_conditions ?? '',
+    pricing_conditions: `${fieldTablesToHtml(
+        quotation?.field_tables && quotation.field_tables.length > 0
+            ? quotation.field_tables
+            : quotation?.product_fields && quotation.product_fields.length > 0
+              ? [
+                    {
+                        title: '',
+                        fields: quotation.product_fields,
+                    },
+                ]
+              : [],
+    )}${quotation?.pricing_conditions ?? ''}`,
     pricing_basis: quotation?.pricing_basis ?? '',
     line_items:
         quotation?.line_items && quotation.line_items.length > 0
@@ -398,42 +380,29 @@ export const quotationToFormData = (
             user_id: revision.user_id ? String(revision.user_id) : '',
             user_name: revision.user?.name ?? '',
         })) ?? [],
-    field_tables:
-        quotation?.field_tables && quotation.field_tables.length > 0
-            ? quotation.field_tables.map((table) => ({
-                  title: table.title ?? '',
-                  fields: (table.fields ?? []).map(mapFieldPayload),
-              }))
-            : quotation?.product_fields && quotation.product_fields.length > 0
-              ? [
-                    {
-                        title: '',
-                        fields: quotation.product_fields.map(mapFieldPayload),
-                    },
-                ]
-              : [],
+    field_tables: [],
 });
 
 export const QUOTATION_INSERT_FIELDS = [
-    { key: 'quotation_number', label: 'Quotation number' },
-    { key: 'quotation_title', label: 'Quotation title' },
-    { key: 'quoted_on', label: 'Quoted on' },
-    { key: 'valid_until', label: 'Valid until' },
-    { key: 'base_bid_total', label: 'Base Bid total' },
-    { key: 'item_count', label: 'Item count' },
-    { key: 'item_quantity', label: 'Item quantity' },
-    { key: 'project_name', label: 'Project name' },
-    { key: 'project_number', label: 'Project number' },
-    { key: 'project_address', label: 'Project address' },
-    { key: 'customer_company', label: 'Contractor company' },
-    { key: 'customer_name', label: 'Contractor contact' },
-    { key: 'contractor_email', label: 'Contractor email' },
-    { key: 'contractor_phone', label: 'Contractor phone' },
-    { key: 'latest_revision', label: 'Latest revision' },
-    { key: 'company_name', label: 'Company name' },
-    { key: 'company_phone', label: 'Company phone' },
-    { key: 'company_email', label: 'Company email' },
-    { key: 'today', label: "Today's date" },
+    { key: 'project_name', label: 'Project name', group: 'Project' },
+    { key: 'project_number', label: 'Project number', group: 'Project' },
+    { key: 'project_address', label: 'Project address', group: 'Project' },
+    { key: 'customer_company', label: 'Contractor company', group: 'Contractor' },
+    { key: 'customer_name', label: 'Contractor contact', group: 'Contractor' },
+    { key: 'contractor_email', label: 'Contractor email', group: 'Contractor' },
+    { key: 'contractor_phone', label: 'Contractor phone', group: 'Contractor' },
+    { key: 'quotation_number', label: 'Quotation number', group: 'Quotation' },
+    { key: 'quotation_title', label: 'Quotation title', group: 'Quotation' },
+    { key: 'quoted_on', label: 'Quoted on', group: 'Quotation' },
+    { key: 'valid_until', label: 'Valid until', group: 'Quotation' },
+    { key: 'base_bid_total', label: 'Base Bid total', group: 'Quotation' },
+    { key: 'item_count', label: 'Item count', group: 'Quotation' },
+    { key: 'item_quantity', label: 'Item quantity', group: 'Quotation' },
+    { key: 'latest_revision', label: 'Latest revision', group: 'Quotation' },
+    { key: 'company_name', label: 'Company name', group: 'Company' },
+    { key: 'company_phone', label: 'Company phone', group: 'Company' },
+    { key: 'company_email', label: 'Company email', group: 'Company' },
+    { key: 'today', label: "Today's date", group: 'Quotation' },
 ] as const;
 
 export const fillQuotationPlaceholders = (
@@ -503,8 +472,10 @@ export const quotationInsertValues = (
             project?.project_number ||
             quotation?.project?.project_number ||
             '',
-        project_address: quotation?.project?.site_address || '',
-        site_address: quotation?.project?.site_address || '',
+        project_address:
+            project?.site_address || quotation?.project?.site_address || '',
+        site_address:
+            project?.site_address || quotation?.project?.site_address || '',
         customer_company: contractor?.name || quotation?.contractor?.name || '',
         customer_name:
             contact?.name || quotation?.contacts?.[0]?.name || '',

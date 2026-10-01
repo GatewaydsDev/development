@@ -2,11 +2,7 @@ import CreatableSelect from '@/Components/CreatableSelect';
 import FormActionFab from '@/Components/FormActionFab';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
-import MaskedDecimalInput from '@/Components/MaskedDecimalInput';
 import TextInput from '@/Components/TextInput';
-import QuotationProductFieldsSection, {
-    fieldTablesForSubmit,
-} from './QuotationProductFieldsSection';
 import QuotationReusableTextSection from './QuotationReusableTextSection';
 import {
     AlertDialog,
@@ -30,7 +26,7 @@ import {
 import { zodResolver } from '@hookform/resolvers/zod';
 import { router, usePage } from '@inertiajs/react';
 import { PlusIcon, Trash2Icon } from 'lucide-react';
-import { FormEventHandler, useEffect, useMemo, useState } from 'react';
+import { FormEventHandler, useMemo, useState } from 'react';
 import {
     FieldErrors,
     useFieldArray,
@@ -41,8 +37,6 @@ import { z } from 'zod';
 import { type PageProps } from '@/types';
 import {
     blankRevision,
-    emptyLineItem,
-    formatMoney,
     quotationDocumentHref,
     quotationInsertValues,
     quotationToFormData,
@@ -59,7 +53,6 @@ type QuotationFormProps = {
     description: string;
     options: QuotationOptions;
     quotation?: QuotationPayload;
-    onProposalTitleChange?: (title: string) => void;
 };
 
 const optionalDateSchema = z
@@ -197,7 +190,6 @@ export default function QuotationForm({
     description,
     options,
     quotation,
-    onProposalTitleChange,
 }: QuotationFormProps) {
     const { auth } = usePage<PageProps>().props;
     const currentUserId = auth.user?.id ? String(auth.user.id) : '';
@@ -216,10 +208,6 @@ export default function QuotationForm({
         resolver: zodResolver(schema),
         defaultValues,
     });
-    const { fields, append, remove } = useFieldArray({
-        control,
-        name: 'line_items',
-    });
     const {
         fields: revisionFields,
         append: appendRevision,
@@ -231,10 +219,6 @@ export default function QuotationForm({
     const [pendingDeleteRevision, setPendingDeleteRevision] = useState<{
         index: number;
         name?: string;
-    } | null>(null);
-    const [pendingDeleteLineItem, setPendingDeleteLineItem] = useState<{
-        index: number;
-        description?: string;
     } | null>(null);
     const [partyRole, setPartyRole] = useState<'contractor' | 'owner'>(() => {
         const selected = (options.contractors ?? []).find(
@@ -251,10 +235,6 @@ export default function QuotationForm({
         control,
         defaultValue: defaultValues,
     }) as QuotationFormData;
-
-    useEffect(() => {
-        onProposalTitleChange?.(data.proposal_title ?? '');
-    }, [data.proposal_title, onProposalTitleChange]);
 
     const allContractors = options.contractors ?? [];
     const selectedContractor = allContractors.find(
@@ -278,11 +258,6 @@ export default function QuotationForm({
     };
 
     const insertValues = quotationInsertValues(data, options, quotation);
-    const lineTotal = (data.line_items ?? []).reduce((sum, item) => {
-        const unitPrice = Number(item.unit_price);
-
-        return sum + (Number.isFinite(unitPrice) ? unitPrice : 0);
-    }, 0);
 
     const postQuotation = (values: QuotationFormData) => {
         router[method](
@@ -297,7 +272,7 @@ export default function QuotationForm({
                         item.description.trim() !== '' ||
                         lineItemIsBaseBid(item),
                 ),
-                field_tables: fieldTablesForSubmit(values.field_tables),
+                field_tables: [],
             },
             {
                 onError: (serverErrors: Record<string, string>) => {
@@ -1007,194 +982,6 @@ export default function QuotationForm({
 
             <section className="flex min-w-0 flex-col gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
                 <QuotationReusableTextSection
-                    purpose="proposal"
-                    options={options}
-                    value={data.notes}
-                    error={errorMessage(validationErrors, 'notes')}
-                    title={data.proposal_title}
-                    titleError={errorMessage(validationErrors, 'proposal_title')}
-                    onTitleChange={(title) =>
-                        setValue('proposal_title', title, {
-                            shouldValidate: true,
-                        })
-                    }
-                    onChange={(html) => setValue('notes', html)}
-                />
-            </section>
-
-            <section className="flex min-w-0 flex-col gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <h3 className="text-base font-semibold text-foreground">
-                            Base Bid
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                            Add each line the contractor is being quoted.
-                        </p>
-                    </div>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        className="w-full shrink-0 sm:w-auto"
-                        onClick={() => append(emptyLineItem())}
-                    >
-                        <PlusIcon className="size-4" />
-                        Add item
-                    </Button>
-                </div>
-                {fields.map((field, index) => {
-                    return (
-                            <div
-                                key={field.id}
-                                className="flex min-w-0 flex-col gap-3 rounded-lg border border-emerald-200 bg-background p-4 dark:border-emerald-900/70"
-                            >
-                                <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-[7rem_minmax(12rem,16rem)_minmax(13rem,18rem)_auto] xl:items-end">
-                                    <div className="flex flex-col gap-2">
-                                        <InputLabel
-                                            htmlFor={`line-quantity-${index}`}
-                                            value="Qty"
-                                        />
-                                        <TextInput
-                                            id={`line-quantity-${index}`}
-                                            type="number"
-                                            step="0.01"
-                                            value={
-                                                data.line_items?.[index]
-                                                    ?.quantity ?? ''
-                                            }
-                                            className={inputClassName}
-                                            onChange={(event) =>
-                                                setValue(
-                                                    `line_items.${index}.quantity`,
-                                                    event.target.value,
-                                                )
-                                            }
-                                        />
-                                    </div>
-                                    <div className="flex flex-col gap-2">
-                                        <InputLabel
-                                            htmlFor={`line-size-${index}`}
-                                            value="Size"
-                                        />
-                                        <TextInput
-                                            id={`line-size-${index}`}
-                                            type="text"
-                                            value={
-                                                data.line_items?.[index]
-                                                    ?.size ?? ''
-                                            }
-                                            className={`${inputClassName} h-12 text-base`}
-                                            onChange={(event) =>
-                                                setValue(
-                                                    `line_items.${index}.size`,
-                                                    event.target.value,
-                                                )
-                                            }
-                                        />
-                                    </div>
-                                    <div className="flex flex-col gap-2">
-                                        <InputLabel
-                                            htmlFor={`line-price-${index}`}
-                                            value="Price"
-                                        />
-                                        <MaskedDecimalInput
-                                            id={`line-price-${index}`}
-                                            prefix="$"
-                                            value={
-                                                data.line_items?.[index]
-                                                    ?.unit_price ?? ''
-                                            }
-                                            className={`${inputClassName} h-12 text-base`}
-                                            placeholder="0.00"
-                                            onChange={(value) =>
-                                                setValue(
-                                                    `line_items.${index}.unit_price`,
-                                                    value,
-                                                )
-                                            }
-                                        />
-                                    </div>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="icon"
-                                        className="h-12 w-12 border-destructive/30 text-destructive hover:bg-destructive/10"
-                                        disabled={fields.length === 1}
-                                        onClick={() =>
-                                            setPendingDeleteLineItem({
-                                                index,
-                                                description:
-                                                    data.line_items?.[index]
-                                                        ?.description,
-                                            })
-                                        }
-                                        aria-label="Remove item"
-                                    >
-                                        <Trash2Icon className="size-4" />
-                                    </Button>
-                                </div>
-                                <div className="flex flex-col gap-2">
-                                    <InputLabel
-                                        htmlFor={`line-description-${index}`}
-                                        value="Description"
-                                    />
-                                    <textarea
-                                        id={`line-description-${index}`}
-                                        value={
-                                            data.line_items?.[index]
-                                                ?.description ?? ''
-                                        }
-                                        rows={3}
-                                        className="min-h-[5.5rem] w-full resize-y rounded-md border border-border bg-background px-3 py-2 text-base text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
-                                        placeholder="Door, handing, finish, and other quoted details"
-                                        onChange={(event) =>
-                                            setValue(
-                                                `line_items.${index}.description`,
-                                                event.target.value,
-                                                { shouldValidate: true },
-                                            )
-                                        }
-                                    />
-                                    <InputError
-                                        message={errorMessage(
-                                            validationErrors,
-                                            `line_items.${index}.description`,
-                                        )}
-                                    />
-                                </div>
-                            </div>
-                    );
-                })}
-                <p className="text-right text-sm font-semibold text-emerald-700 dark:text-emerald-300">
-                    Total {formatMoney(lineTotal)}
-                </p>
-                <InputError
-                    message={errorMessage(validationErrors, 'line_items')}
-                />
-            </section>
-
-            <section className="flex min-w-0 flex-col gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
-                <QuotationReusableTextSection
-                    purpose="pricing_basis"
-                    options={options}
-                    value={data.pricing_basis}
-                    error={errorMessage(validationErrors, 'pricing_basis')}
-                    showPlaceholders
-                    placeholderFields={[...QUOTATION_INSERT_FIELDS]}
-                    placeholderValues={insertValues}
-                    onChange={(html) => setValue('pricing_basis', html)}
-                />
-            </section>
-
-            <QuotationProductFieldsSection
-                options={options}
-                tables={data.field_tables ?? []}
-                inputClassName={inputClassName}
-                onChange={(tables) => setValue('field_tables', tables)}
-            />
-
-            <section className="flex min-w-0 flex-col gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
-                <QuotationReusableTextSection
                     purpose="pricing"
                     options={options}
                     value={data.pricing_conditions}
@@ -1202,6 +989,9 @@ export default function QuotationForm({
                         validationErrors,
                         'pricing_conditions',
                     )}
+                    showPlaceholders
+                    placeholderFields={[...QUOTATION_INSERT_FIELDS]}
+                    placeholderValues={insertValues}
                     onChange={(html) =>
                         setValue('pricing_conditions', html)
                     }
@@ -1236,43 +1026,6 @@ export default function QuotationForm({
                             }}
                         >
                             Remove revision
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-
-            <AlertDialog
-                open={pendingDeleteLineItem !== null}
-                onOpenChange={(open) => {
-                    if (!open) {
-                        setPendingDeleteLineItem(null);
-                    }
-                }}
-            >
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Remove line item?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Are you sure you want to remove line {(pendingDeleteLineItem?.index ?? 0) + 1}
-                            {pendingDeleteLineItem?.description
-                                ? ` (${pendingDeleteLineItem.description})`
-                                : ''}
-                            ? This action cannot be undone.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                            type="button"
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            onClick={() => {
-                                if (pendingDeleteLineItem !== null) {
-                                    remove(pendingDeleteLineItem.index);
-                                    setPendingDeleteLineItem(null);
-                                }
-                            }}
-                        >
-                            Remove line item
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

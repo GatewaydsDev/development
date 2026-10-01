@@ -34,6 +34,8 @@ class QuotationDocument
 
     private ?string $proposalTitleOverride = null;
 
+    private string $imageMode = 'print';
+
     protected function documentAppearanceKey(): string
     {
         return 'quotation';
@@ -59,11 +61,62 @@ class QuotationDocument
         return $this->proposalTitleOverride ?? $this->quotation->proposalTitle();
     }
 
+    private function documentTitle(): string
+    {
+        $fromText = $this->quotationTextHeading();
+
+        if ($fromText !== null) {
+            return $fromText;
+        }
+
+        $proposal = $this->proposalTitleOverride;
+
+        if ($proposal === null) {
+            $stored = trim((string) ($this->quotation->proposal_title ?? ''));
+            $proposal = $stored !== '' && mb_strtolower($stored) !== mb_strtolower(Quotation::DEFAULT_PROPOSAL_TITLE)
+                ? $stored
+                : null;
+        }
+
+        if (is_string($proposal) && trim($proposal) !== '') {
+            return trim($proposal);
+        }
+
+        $title = trim((string) $this->quotation->title);
+
+        return $title !== '' ? $title : 'Quotation';
+    }
+
+    private function quotationTextHeading(): ?string
+    {
+        $html = (string) $this->quotation->pricing_conditions;
+
+        if (! preg_match_all('/<h[1-4]\b[^>]*>(.*?)<\/h[1-4]>/is', $html, $matches)) {
+            return null;
+        }
+
+        $company = mb_strtolower($this->companyName());
+
+        foreach ($matches[1] as $inner) {
+            $title = trim(html_entity_decode(strip_tags((string) $inner), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            $title = trim(preg_replace('/\s+/u', ' ', $title) ?? $title);
+
+            if ($title === '' || mb_strtolower($title) === $company) {
+                continue;
+            }
+
+            return $title;
+        }
+
+        return null;
+    }
+
     /**
      * @return array<string, mixed>
      */
     public function viewData(string $mode = 'print'): array
     {
+        $this->imageMode = $mode;
         $contractor = $this->contractorPayload();
         $project = $this->quotation->project;
 
@@ -81,14 +134,14 @@ class QuotationDocument
             'pdfUrl' => route('admin.quotations.export.pdf', $this->quotation),
             'wordUrl' => route('admin.quotations.export.word', $this->quotation),
             'showUrl' => route('admin.quotations.show', $this->quotation),
-            'title' => $this->quotation->title ?: 'Quotation',
+            'title' => $this->documentTitle(),
             'quotationNumber' => $this->quotation->quotation_number,
             'statusLabel' => Quotation::statusLabel($this->quotation->status),
             'quotedAt' => $this->quotation->quoted_at?->format('F j, Y'),
             'validUntil' => $this->quotation->valid_until?->format('F j, Y'),
             'notes' => $this->displayHtml($this->quotation->notes),
             'proposalTitle' => $this->proposalHeading(),
-            'pricingConditions' => $this->displayHtml($this->quotation->pricing_conditions),
+            'pricingConditions' => $this->displayHtml($this->quotation->pricing_conditions, fill: true),
             'pricingBasis' => $this->displayHtml($this->quotation->pricing_basis, fill: true),
             'contractor' => $contractor,
             'contacts' => $this->contactRows(),
@@ -151,7 +204,7 @@ class QuotationDocument
         $phpWord->getDocInfo()
             ->setCreator($this->user?->name ?: $this->companyName())
             ->setCompany($this->companyName())
-            ->setTitle($this->quotation->title.' Quotation')
+            ->setTitle($this->documentTitle().' Quotation')
             ->setSubject('Contractor quotation')
             ->setDescription('Quotation exported from Gateway Door Systems.')
             ->setCategory('Quotation');
@@ -198,7 +251,7 @@ class QuotationDocument
         );
 
         $section->addText('Quotation', ['bold' => true, 'size' => 26, 'color' => $this->wordColor('title')]);
-        $section->addText($this->quotation->title, ['bold' => true, 'size' => 16, 'color' => $this->wordColor('brand')]);
+        $section->addText($this->documentTitle(), ['bold' => true, 'size' => 16, 'color' => $this->wordColor('brand')]);
         $section->addText(
             $this->quotation->quotation_number.' · '.Quotation::statusLabel($this->quotation->status),
             ['size' => 11, 'color' => '4B5563'],
@@ -272,29 +325,6 @@ class QuotationDocument
             $section->addTextBreak(1);
         }
 
-        $section->addText('Base Bid', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
-        $table = $section->addTable('quoteTable');
-        $table->addRow(360);
-        foreach ([['Qty', 1000], ['Size', 2600], ['Description', 5200], ['Price', 1800]] as [$heading, $width]) {
-            $table->addCell($width, ['bgColor' => $this->wordColor('table_header_bg'), 'valign' => 'center'])
-                ->addText($heading, ['bold' => true, 'color' => $this->wordColor('table_header_text'), 'size' => 9]);
-        }
-
-        foreach ($this->lineItemRows() as $index => $item) {
-            $bg = $index % 2 === 1 ? $this->wordColor('row_alt') : 'FFFFFF';
-            $table->addRow();
-            $table->addCell(1000, ['bgColor' => $bg])->addText($item['quantity'], ['size' => 9], ['alignment' => Jc::END]);
-            $table->addCell(2600, ['bgColor' => $bg])->addText($item['size'], ['size' => 9]);
-            $table->addCell(5200, ['bgColor' => $bg])->addText($item['description'], ['size' => 9]);
-            $table->addCell(1800, ['bgColor' => $bg])->addText($item['unit_price'], ['size' => 9], ['alignment' => Jc::END]);
-        }
-
-        $section->addText(
-            'Total  '.$this->money($this->quotation->total()),
-            ['bold' => true, 'size' => 12, 'color' => $this->wordColor('brand')],
-            ['alignment' => Jc::END],
-        );
-
         if ($this->displayHtml($this->quotation->pricing_basis, fill: true)) {
             $section->addTextBreak(1);
             $section->addText('Pricing Basis', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
@@ -317,10 +347,12 @@ class QuotationDocument
             $section->addTextBreak(1);
         }
 
-        if ($this->displayHtml($this->quotation->pricing_conditions)) {
+        if ($this->displayHtml($this->quotation->pricing_conditions, fill: true)) {
             $section->addTextBreak(1);
-            $section->addText('Pricing, conditions and more', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
-            $this->addHtml($section, $this->quotation->pricing_conditions);
+            $this->addHtml($section, BidApplicationText::fill(
+                $this->quotation->pricing_conditions,
+                $this->fieldValues(),
+            ));
         }
 
         $this->addAuthorizationSignatures($section);
@@ -587,7 +619,10 @@ class QuotationDocument
 
     private function htmlForWord(?string $html): ?string
     {
+        $previousMode = $this->imageMode;
+        $this->imageMode = 'word';
         $display = $this->displayHtml($html);
+        $this->imageMode = $previousMode;
 
         if ($display === null) {
             return null;
@@ -619,7 +654,7 @@ class QuotationDocument
             $sanitized = BidApplicationText::fill($sanitized, $this->fieldValues()) ?? $sanitized;
         }
 
-        return $sanitized;
+        return EditorImage::forDocument($sanitized, $this->imageMode);
     }
 
     /**

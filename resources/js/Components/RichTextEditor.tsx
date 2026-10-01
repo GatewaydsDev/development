@@ -6,6 +6,9 @@ import {
     DropdownMenuItem,
     DropdownMenuLabel,
     DropdownMenuSeparator,
+    DropdownMenuSub,
+    DropdownMenuSubContent,
+    DropdownMenuSubTrigger,
     DropdownMenuTrigger,
 } from '@/Components/ui/dropdown-menu';
 import { Separator } from '@/Components/ui/separator';
@@ -38,7 +41,11 @@ import {
     Heading1Icon,
     Heading2Icon,
     Heading3Icon,
+    Heading4Icon,
     HighlighterIcon,
+    ImageIcon,
+    ImagePlusIcon,
+    ImagesIcon,
     ItalicIcon,
     Link2Icon,
     Link2OffIcon,
@@ -65,7 +72,32 @@ import {
     BidTextFieldExtension,
     BidTextFieldValuesContext,
 } from '@/Components/bidTextFieldExtension';
-import { type ReactNode, useEffect, useMemo, useReducer, useRef } from 'react';
+import {
+    currentRichImage,
+    defaultImageAttrs,
+    IMAGE_SIZE_PRESETS,
+    ImageGallery,
+    insertRichImages,
+    matchRichImageSize,
+    removeRichImage,
+    RichImage,
+    setImageGap,
+    setImageGalleryLayout,
+    updateRichImage,
+    type ImageLayout,
+    type RichImageAttrs,
+} from '@/Components/richTextImageExtension';
+import { toast } from 'sonner';
+import {
+    type ChangeEvent,
+    type FocusEvent as ReactFocusEvent,
+    type ReactNode,
+    useEffect,
+    useMemo,
+    useReducer,
+    useRef,
+    useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     isEmptyHtml,
@@ -90,6 +122,23 @@ const TEXT_COLORS = [
     { label: 'White', value: '#FFFFFF' },
 ];
 
+const FONT_SIZES = [10, 12, 14, 16, 18, 20, 24, 28, 32] as const;
+
+const FONT_FAMILIES = [
+    { label: 'Arial', value: 'Arial, Helvetica, sans-serif' },
+    { label: 'Verdana', value: 'Verdana, Geneva, sans-serif' },
+    { label: 'Georgia', value: 'Georgia, serif' },
+    { label: 'Times New Roman', value: "'Times New Roman', Times, serif" },
+    { label: 'Courier New', value: "'Courier New', Courier, monospace" },
+] as const;
+
+const LINE_SPACING = [
+    { label: 'Single', value: '1' },
+    { label: '1.15', value: '1.15' },
+    { label: '1.5', value: '1.5' },
+    { label: 'Double', value: '2' },
+] as const;
+
 const LAYOUT_COLORS: LayoutColor[] = [
     { label: 'Navy', value: '#1F4E79', text: '#FFFFFF' },
     { label: 'Gateway green', value: '#047857', text: '#FFFFFF' },
@@ -100,6 +149,39 @@ const LAYOUT_COLORS: LayoutColor[] = [
     { label: 'Sand', value: '#F3E8C8', text: '#111111' },
     { label: 'Light gray', value: '#E2E8F0', text: '#111111' },
 ];
+
+function applyBlockStyle(
+    editor: Editor,
+    attrs: Record<string, string | null>,
+) {
+    const { from, to } = editor.state.selection;
+
+    editor
+        .chain()
+        .focus()
+        .command(({ tr, state }) => {
+            let changed = false;
+
+            state.doc.nodesBetween(from, to, (node, pos) => {
+                if (
+                    node.type.name !== 'paragraph' &&
+                    node.type.name !== 'heading' &&
+                    node.type.name !== 'listItem'
+                ) {
+                    return;
+                }
+
+                tr.setNodeMarkup(pos, undefined, {
+                    ...node.attrs,
+                    ...attrs,
+                });
+                changed = true;
+            });
+
+            return changed;
+        })
+        .run();
+}
 
 function currentBlockType(
     editor: Editor,
@@ -225,9 +307,15 @@ type RichTextEditorProps = {
         key: string;
         name?: string;
         label?: string;
+        group?: string;
         source?: string | null;
     }>;
     placeholderValues?: Record<string, string>;
+    placeholderCatalog?: 'bid' | 'provided';
+    placeholderIntro?: string;
+    placeholderSearchPlaceholder?: string;
+    allowCreatePlaceholder?: boolean;
+    placeholderGroupOrder?: readonly string[];
 };
 
 export default function RichTextEditor({
@@ -240,10 +328,27 @@ export default function RichTextEditor({
     showPlaceholders = true,
     placeholderFields = [],
     placeholderValues = {},
+    placeholderCatalog = 'bid',
+    placeholderIntro,
+    placeholderSearchPlaceholder,
+    allowCreatePlaceholder = true,
+    placeholderGroupOrder,
 }: RichTextEditorProps) {
     const { i18n } = useTranslation();
     const documentLang = i18n.language?.startsWith('es') ? 'es' : 'en-US';
     const ignoreToolbarRefresh = useRef(false);
+    const editorFrameRef = useRef<HTMLDivElement>(null);
+    const releaseCommandsTimer = useRef<number | null>(null);
+    const [commandsPinned, setCommandsPinned] = useState(false);
+    const [commandsOffset, setCommandsOffset] = useState(0);
+    const [uploadingPictures, setUploadingPictures] = useState(false);
+    const [pictureFieldsFocused, setPictureFieldsFocused] = useState(false);
+    const pictureInputRef = useRef<HTMLInputElement>(null);
+    const replaceInputRef = useRef<HTMLInputElement>(null);
+    const pictureLayout = useRef<ImageLayout>('row');
+    const appendPictures = useRef(false);
+    const cursorBeforePictures = useRef<number | null>(null);
+    const savedImagePos = useRef<number | null>(null);
     const [, refreshToolbar] = useReducer((tick: number) => tick + 1, 0);
     const editor = useEditor({
         extensions: [
@@ -257,6 +362,8 @@ export default function RichTextEditor({
             ImportedTextStyles,
             ImportedBlockStyles,
             ...richTextLayoutExtensions,
+            ImageGallery,
+            RichImage,
             BidTextFieldExtension,
             Highlight.configure({ multicolor: true }),
             Subscript,
@@ -272,7 +379,23 @@ export default function RichTextEditor({
                     target: '_blank',
                 },
             }),
-            Placeholder.configure({ placeholder }),
+            Placeholder.configure({
+                includeChildren: true,
+                showOnlyCurrent: false,
+                placeholder: ({ node, pos, editor: current }) => {
+                    if (node.type.name === 'paragraph' && current) {
+                        const resolved = current.state.doc.resolve(pos);
+
+                        for (let depth = resolved.depth; depth > 0; depth -= 1) {
+                            if (resolved.node(depth).type.name === 'richImage') {
+                                return 'Add text';
+                            }
+                        }
+                    }
+
+                    return current?.isEmpty ? placeholder : '';
+                },
+            }),
         ],
         content: value || '',
         immediatelyRender: false,
@@ -336,8 +459,17 @@ export default function RichTextEditor({
     }, [documentLang, editor]);
 
     const insertableFields = useMemo(
-        () => mergeBidTextPlaceholders(placeholderFields),
-        [placeholderFields],
+        () =>
+            placeholderCatalog === 'provided'
+                ? placeholderFields.map((field) => ({
+                      key: field.key,
+                      label: field.label || field.name || field.key,
+                      group: field.group || 'Quotation',
+                      source: field.source || field.key,
+                      sourceLabel: field.label || field.name || field.key,
+                  }))
+                : mergeBidTextPlaceholders(placeholderFields),
+        [placeholderCatalog, placeholderFields],
     );
 
     const insertPlaceholder = (key: string) => {
@@ -369,16 +501,20 @@ export default function RichTextEditor({
             .run();
     };
 
-    const insertTable = (headerColor: LayoutColor = LAYOUT_COLORS[0]) => {
+    const insertTable = (
+        columns: number,
+        headerColor: LayoutColor = LAYOUT_COLORS[0],
+    ) => {
+        const count = Math.min(6, Math.max(2, columns));
         const headerStyle = `background-color: ${headerColor.value}; color: ${headerColor.text};`;
-        const headers = ['Column 1', 'Column 2', 'Column 3']
-            .map(
-                (label) =>
-                    `<th style="${headerStyle}"><p>${label}</p></th>`,
-            )
-            .join('');
-        const emptyRow =
-            '<tr><td><p><br></p></td><td><p><br></p></td><td><p><br></p></td></tr>';
+        const headers = Array.from({ length: count }, (_, index) => {
+            return `<th style="${headerStyle}"><p>Column ${index + 1}</p></th>`;
+        }).join('');
+        const cells = Array.from(
+            { length: count },
+            () => '<td><p><br></p></td>',
+        ).join('');
+        const emptyRow = `<tr>${cells}</tr>`;
 
         editor
             ?.chain()
@@ -465,31 +601,60 @@ export default function RichTextEditor({
             ?.chain()
             .focus()
             .insertContent({
-                type: 'paragraph',
+                type: 'coloredSection',
                 attrs: {
                     backgroundColor: color.value,
                     color: color.text,
-                    paddingTop: '10px',
-                    paddingBottom: '10px',
-                    paddingLeft: '12px',
-                    paddingRight: '12px',
-                    marginTop: '12px',
-                    marginBottom: '12px',
                 },
                 content: [
                     {
-                        type: 'text',
-                        text: 'Section title',
-                        marks: [
-                            {
-                                type: 'textStyle',
-                                attrs: { color: color.text },
-                            },
+                        type: 'heading',
+                        attrs: { level: 2 },
+                        content: [{ type: 'text', text: 'Section title' }],
+                    },
+                    {
+                        type: 'paragraph',
+                        content: [
+                            { type: 'text', text: 'Write this section here.' },
                         ],
                     },
                 ],
             })
             .run();
+    };
+
+    const recolorColoredSection = (color: LayoutColor) => {
+        editor
+            ?.chain()
+            .focus()
+            .updateAttributes('coloredSection', {
+                backgroundColor: color.value,
+                color: color.text,
+            })
+            .run();
+    };
+
+    const removeColoredSection = () => {
+        if (!editor) {
+            return;
+        }
+
+        const { state } = editor;
+        const { $from } = state.selection;
+
+        for (let depth = $from.depth; depth > 0; depth -= 1) {
+            if ($from.node(depth).type.name !== 'coloredSection') {
+                continue;
+            }
+
+            const from = $from.before(depth);
+            const node = $from.node(depth);
+
+            editor.view.dispatch(state.tr.delete(from, from + node.nodeSize));
+            editor.commands.focus();
+
+            return;
+        }
     };
 
     const insertColoredLine = (color: LayoutColor, thickness = '4px') => {
@@ -538,26 +703,225 @@ export default function RichTextEditor({
             .run();
     };
 
+    const pinCommands = () => {
+        if (releaseCommandsTimer.current !== null) {
+            window.clearTimeout(releaseCommandsTimer.current);
+            releaseCommandsTimer.current = null;
+        }
+
+        setCommandsPinned(true);
+    };
+
+    const scheduleReleaseCommands = () => {
+        if (releaseCommandsTimer.current !== null) {
+            window.clearTimeout(releaseCommandsTimer.current);
+        }
+
+        releaseCommandsTimer.current = window.setTimeout(() => {
+            releaseCommandsTimer.current = null;
+
+            if (ignoreToolbarRefresh.current) {
+                return;
+            }
+
+            const frame = editorFrameRef.current;
+
+            if (frame?.contains(document.activeElement)) {
+                return;
+            }
+
+            setCommandsPinned(false);
+        }, 0);
+    };
+
     const handleMenuOpenChange = (open: boolean) => {
         ignoreToolbarRefresh.current = open;
 
-        if (!open) {
-            refreshToolbar();
+        if (open) {
+            pinCommands();
+            return;
+        }
+
+        refreshToolbar();
+        scheduleReleaseCommands();
+    };
+
+    useEffect(() => {
+        const nav = document.querySelector('nav');
+
+        if (!nav) {
+            return;
+        }
+
+        const updateOffset = () => {
+            setCommandsOffset(Math.ceil(nav.getBoundingClientRect().height));
+        };
+
+        updateOffset();
+        const observer = new ResizeObserver(updateOffset);
+        observer.observe(nav);
+
+        return () => observer.disconnect();
+    }, []);
+
+    useEffect(
+        () => () => {
+            if (releaseCommandsTimer.current !== null) {
+                window.clearTimeout(releaseCommandsTimer.current);
+            }
+        },
+        [],
+    );
+
+    const selectedPicture = currentRichImage(editor, null);
+
+    if (selectedPicture) {
+        savedImagePos.current = selectedPicture.pos;
+    }
+
+    const editingPicture = currentRichImage(editor, savedImagePos.current);
+    const showPictureTools = Boolean(
+        editingPicture && (editor?.isActive('richImage') || pictureFieldsFocused),
+    );
+
+    const uploadEditorImages = async (files: File[]): Promise<RichImageAttrs[]> => {
+        const token = decodeURIComponent(
+            document.cookie
+                .split('; ')
+                .find((row) => row.startsWith('XSRF-TOKEN='))
+                ?.slice('XSRF-TOKEN='.length) ?? '',
+        );
+        const uploaded: RichImageAttrs[] = [];
+
+        for (const file of files) {
+            const body = new FormData();
+            body.append('image', file);
+            const response = await fetch(route('admin.editor-images.store'), {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-XSRF-TOKEN': token,
+                },
+                body,
+            });
+            const payload = (await response.json().catch(() => null)) as {
+                url?: string;
+                message?: string;
+                errors?: { image?: string[] };
+            } | null;
+
+            if (!response.ok || !payload?.url) {
+                throw new Error(
+                    payload?.errors?.image?.[0] ??
+                        payload?.message ??
+                        'Could not add that picture.',
+                );
+            }
+
+            const alt = file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ');
+            uploaded.push(defaultImageAttrs(payload.url, alt));
+        }
+
+        return uploaded;
+    };
+
+    const choosePictures = (layout: ImageLayout, append: boolean) => {
+        pictureLayout.current = layout;
+        appendPictures.current = append;
+        cursorBeforePictures.current = editor?.state.selection.from ?? null;
+        pictureInputRef.current?.click();
+    };
+
+    const onPicturesChosen = async (
+        event: ChangeEvent<HTMLInputElement>,
+        replace: boolean,
+    ) => {
+        const files = Array.from(event.target.files ?? []);
+        event.target.value = '';
+
+        if (!editor || files.length === 0) {
+            return;
+        }
+
+        setUploadingPictures(true);
+
+        try {
+            const images = await uploadEditorImages(files);
+            const cursor = cursorBeforePictures.current;
+
+            if (
+                cursor !== null &&
+                cursor <= editor.state.doc.content.size
+            ) {
+                try {
+                    editor.commands.setTextSelection(cursor);
+                } catch {
+                    // The file dialog can leave the cursor on a picture.
+                }
+            }
+
+            if (replace && images[0]) {
+                updateRichImage(editor, savedImagePos.current, {
+                    src: images[0].src,
+                    alt: images[0].alt,
+                });
+            } else {
+                insertRichImages(
+                    editor,
+                    pictureLayout.current,
+                    images,
+                    appendPictures.current ? savedImagePos.current : null,
+                );
+            }
+        } catch (error) {
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : 'Could not add that picture.',
+            );
+        } finally {
+            setUploadingPictures(false);
         }
     };
+
+    const pictureHeight = editingPicture?.node.attrs.height
+        ? Number(editingPicture.node.attrs.height)
+        : '';
 
     return (
         <BidTextFieldValuesContext.Provider value={placeholderValues}>
         <div className="flex flex-col gap-2">
         <div
+            ref={editorFrameRef}
             className={cn(
                 'overflow-visible rounded-md border bg-background',
                 error ? 'border-destructive' : 'border-border',
             )}
+            onFocus={pinCommands}
+            onBlur={(event: ReactFocusEvent<HTMLDivElement>) => {
+                const next = event.relatedTarget;
+
+                if (next instanceof Node && event.currentTarget.contains(next)) {
+                    return;
+                }
+
+                scheduleReleaseCommands();
+            }}
         >
             <div
-                className="relative z-20 flex flex-wrap items-center gap-1 border-b border-border bg-muted/40 p-2"
-                onMouseDown={(event) => event.preventDefault()}
+                className={cn(
+                    'rich-text-commands z-20 flex flex-wrap items-center gap-1 border-b-2 p-2',
+                    commandsPinned ? 'is-pinned sticky' : 'relative',
+                )}
+                style={
+                    commandsPinned ? { top: commandsOffset } : undefined
+                }
+                onMouseDown={(event) => {
+                    event.preventDefault();
+                    pinCommands();
+                }}
             >
                 <Button
                     type="button"
@@ -590,6 +954,10 @@ export default function RichTextEditor({
                                 <Heading2Icon />
                             ) : editor?.isActive('heading', { level: 3 }) ? (
                                 <Heading3Icon />
+                            ) : editor?.isActive('heading', { level: 4 }) ? (
+                                <Heading4Icon />
+                            ) : editor?.isActive('blockquote') ? (
+                                <QuoteIcon />
                             ) : (
                                 <PilcrowIcon />
                             )}
@@ -606,43 +974,153 @@ export default function RichTextEditor({
                             <PilcrowIcon />
                             Paragraph
                         </DropdownMenuItem>
+                        {([1, 2, 3, 4] as const).map((level) => {
+                            const HeadingIcon = [
+                                Heading1Icon,
+                                Heading2Icon,
+                                Heading3Icon,
+                                Heading4Icon,
+                            ][level - 1];
+
+                            return (
+                                <DropdownMenuItem
+                                    key={level}
+                                    onClick={() => {
+                                        if (!editor) {
+                                            return;
+                                        }
+
+                                        if (
+                                            editor.isActive('heading', {
+                                                level,
+                                            })
+                                        ) {
+                                            editor
+                                                .chain()
+                                                .focus()
+                                                .setParagraph()
+                                                .run();
+
+                                            return;
+                                        }
+
+                                        editor
+                                            .chain()
+                                            .focus()
+                                            .setHeading({ level })
+                                            .updateAttributes('heading', {
+                                                fontSize: null,
+                                            })
+                                            .run();
+                                    }}
+                                >
+                                    <HeadingIcon />
+                                    Heading {level}
+                                </DropdownMenuItem>
+                            );
+                        })}
                         <DropdownMenuItem
                             onClick={() =>
                                 editor
                                     ?.chain()
                                     .focus()
-                                    .toggleHeading({ level: 1 })
+                                    .toggleBlockquote()
                                     .run()
                             }
                         >
-                            <Heading1Icon />
-                            Heading 1
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                            onClick={() =>
-                                editor
-                                    ?.chain()
-                                    .focus()
-                                    .toggleHeading({ level: 2 })
-                                    .run()
-                            }
-                        >
-                            <Heading2Icon />
-                            Heading 2
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                            onClick={() =>
-                                editor
-                                    ?.chain()
-                                    .focus()
-                                    .toggleHeading({ level: 3 })
-                                    .run()
-                            }
-                        >
-                            <Heading3Icon />
-                            Heading 3
+                            <QuoteIcon />
+                            Quote
                         </DropdownMenuItem>
                     </DropdownMenuGroup>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>
+                            Font size
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent>
+                            <DropdownMenuItem
+                                onClick={() =>
+                                    editor &&
+                                    applyBlockStyle(editor, { fontSize: null })
+                                }
+                            >
+                                Default
+                            </DropdownMenuItem>
+                            {FONT_SIZES.map((size) => (
+                                <DropdownMenuItem
+                                    key={size}
+                                    onClick={() =>
+                                        editor &&
+                                        applyBlockStyle(editor, {
+                                            fontSize: `${size}px`,
+                                        })
+                                    }
+                                >
+                                    {size}
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                    <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>Font</DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent>
+                            <DropdownMenuItem
+                                onClick={() =>
+                                    editor &&
+                                    applyBlockStyle(editor, {
+                                        fontFamily: null,
+                                    })
+                                }
+                            >
+                                Default
+                            </DropdownMenuItem>
+                            {FONT_FAMILIES.map((font) => (
+                                <DropdownMenuItem
+                                    key={font.label}
+                                    onClick={() =>
+                                        editor &&
+                                        applyBlockStyle(editor, {
+                                            fontFamily: font.value,
+                                        })
+                                    }
+                                >
+                                    <span style={{ fontFamily: font.value }}>
+                                        {font.label}
+                                    </span>
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                    <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>
+                            Line spacing
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent>
+                            <DropdownMenuItem
+                                onClick={() =>
+                                    editor &&
+                                    applyBlockStyle(editor, {
+                                        lineHeight: null,
+                                    })
+                                }
+                            >
+                                Default
+                            </DropdownMenuItem>
+                            {LINE_SPACING.map((spacing) => (
+                                <DropdownMenuItem
+                                    key={spacing.label}
+                                    onClick={() =>
+                                        editor &&
+                                        applyBlockStyle(editor, {
+                                            lineHeight: spacing.value,
+                                        })
+                                    }
+                                >
+                                    {spacing.label}
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuSubContent>
+                    </DropdownMenuSub>
                 </ToolbarMenu>
                 <Toggle
                     size="sm"
@@ -991,6 +1469,229 @@ export default function RichTextEditor({
                 <ToolbarMenu
                     onOpenChange={handleMenuOpenChange}
                     trigger={
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={uploadingPictures}
+                        >
+                            <ImageIcon />
+                            {uploadingPictures ? 'Adding pictures…' : 'Pictures'}
+                        </Button>
+                    }
+                >
+                    <DropdownMenuLabel>Add pictures</DropdownMenuLabel>
+                    <DropdownMenuItem
+                        onSelect={() => choosePictures('row', false)}
+                    >
+                        <ImagesIcon />
+                        Side by side
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                        onSelect={() => choosePictures('stack', false)}
+                    >
+                        <Rows3Icon />
+                        One under another
+                    </DropdownMenuItem>
+                </ToolbarMenu>
+                {showPictureTools && editingPicture ? (
+                    <>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            title="Place these pictures side by side"
+                            onClick={() =>
+                                editor &&
+                                setImageGalleryLayout(
+                                    editor,
+                                    'row',
+                                    savedImagePos.current,
+                                )
+                            }
+                        >
+                            <Columns3Icon />
+                            Side by side
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            title="Place these pictures one under another"
+                            onClick={() =>
+                                editor &&
+                                setImageGalleryLayout(
+                                    editor,
+                                    'stack',
+                                    savedImagePos.current,
+                                )
+                            }
+                        >
+                            <Rows3Icon />
+                            Stacked
+                        </Button>
+                        {IMAGE_SIZE_PRESETS.map((preset) => (
+                            <Button
+                                key={preset.label}
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                    editor &&
+                                    updateRichImage(editor, savedImagePos.current, {
+                                        width: preset.width,
+                                        height: preset.height,
+                                    })
+                                }
+                            >
+                                {preset.label}
+                            </Button>
+                        ))}
+                        <div
+                            data-picture-fields
+                            className="flex items-center gap-1"
+                            onMouseDown={(event) => event.stopPropagation()}
+                            onFocus={() => setPictureFieldsFocused(true)}
+                            onBlur={(event) => {
+                                const next = event.relatedTarget;
+
+                                if (
+                                    next instanceof Node &&
+                                    event.currentTarget.contains(next)
+                                ) {
+                                    return;
+                                }
+
+                                setPictureFieldsFocused(false);
+                            }}
+                        >
+                            <label className="flex items-center gap-1 text-xs text-muted-foreground">
+                                Space
+                                <input
+                                    type="number"
+                                    min={0}
+                                    max={80}
+                                    className="h-7 w-16 rounded-md border border-border bg-background px-1.5 text-xs text-foreground"
+                                    value={
+                                        Number(
+                                            editor?.getAttributes('imageGallery')
+                                                .gap,
+                                        ) || 16
+                                    }
+                                    aria-label="Space between pictures"
+                                    title="Equal space between pictures"
+                                    onChange={(event) => {
+                                        const gap = Number.parseInt(
+                                            event.target.value,
+                                            10,
+                                        );
+
+                                        if (editor && Number.isFinite(gap)) {
+                                            setImageGap(
+                                                editor,
+                                                gap,
+                                                savedImagePos.current,
+                                            );
+                                        }
+                                    }}
+                                />
+                            </label>
+                            <label className="flex items-center gap-1 text-xs text-muted-foreground">
+                                H
+                                <input
+                                    type="number"
+                                    min={48}
+                                    className="h-7 w-16 rounded-md border border-border bg-background px-1.5 text-xs text-foreground"
+                                    value={pictureHeight}
+                                    placeholder="Auto"
+                                    aria-label="Picture height"
+                                    onChange={(event) => {
+                                        if (!editor) {
+                                            return;
+                                        }
+
+                                        const raw = event.target.value.trim();
+
+                                        if (raw === '') {
+                                            updateRichImage(
+                                                editor,
+                                                savedImagePos.current,
+                                                { height: null },
+                                            );
+
+                                            return;
+                                        }
+
+                                        const height = Number.parseInt(raw, 10);
+
+                                        if (Number.isFinite(height)) {
+                                            updateRichImage(
+                                                editor,
+                                                savedImagePos.current,
+                                                { height },
+                                            );
+                                        }
+                                    }}
+                                />
+                            </label>
+                        </div>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            title="Make every picture in this group this size"
+                            onClick={() =>
+                                editor &&
+                                matchRichImageSize(editor, savedImagePos.current)
+                            }
+                        >
+                            Same size
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            title="Add another picture to this group"
+                            onClick={() => {
+                                const galleryLayout = editor?.getAttributes(
+                                    'imageGallery',
+                                ).layout;
+                                choosePictures(
+                                    galleryLayout === 'stack' ? 'stack' : 'row',
+                                    true,
+                                );
+                            }}
+                        >
+                            <ImagePlusIcon />
+                            Add picture
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            title="Replace this picture"
+                            onClick={() => replaceInputRef.current?.click()}
+                        >
+                            Replace
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            title="Remove this picture"
+                            onClick={() =>
+                                editor &&
+                                removeRichImage(editor, savedImagePos.current)
+                            }
+                        >
+                            <Trash2Icon />
+                            Remove
+                        </Button>
+                    </>
+                ) : null}
+                <ToolbarMenu
+                    onOpenChange={handleMenuOpenChange}
+                    trigger={
                         <Button type="button" variant="outline" size="sm">
                             <TableIcon />
                             Layout
@@ -998,16 +1699,22 @@ export default function RichTextEditor({
                     }
                 >
                     <DropdownMenuLabel>Insert layout blocks</DropdownMenuLabel>
-                    <DropdownMenuItem onClick={() => insertTable()}>
-                        <TableIcon />
-                        Table with colored header
-                    </DropdownMenuItem>
+                    <DropdownMenuLabel>Add a table</DropdownMenuLabel>
+                    {[2, 3, 4, 5, 6].map((columns) => (
+                        <DropdownMenuItem
+                            key={columns}
+                            onClick={() => insertTable(columns)}
+                        >
+                            <TableIcon />
+                            {columns} columns
+                        </DropdownMenuItem>
+                    ))}
                     <DropdownMenuItem onClick={applyBoxedNote}>
                         <SquareIcon />
                         Boxed note
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuLabel>Colored section</DropdownMenuLabel>
+                    <DropdownMenuLabel>Add a colored section</DropdownMenuLabel>
                     <ColorChoices onSelect={insertColoredSection} />
                     <DropdownMenuSeparator />
                     <DropdownMenuLabel>Colored line</DropdownMenuLabel>
@@ -1060,13 +1767,26 @@ export default function RichTextEditor({
                         <Button
                             type="button"
                             variant="ghost"
-                            size="icon-sm"
+                            size="sm"
                             title="Add column"
                             onClick={() =>
                                 editor.chain().focus().addColumnAfter().run()
                             }
                         >
                             <Columns3Icon />
+                            Add column
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            title="Remove column"
+                            onClick={() =>
+                                editor.chain().focus().deleteColumn().run()
+                            }
+                        >
+                            <MinusIcon />
+                            Remove column
                         </Button>
                         <Button
                             type="button"
@@ -1092,6 +1812,34 @@ export default function RichTextEditor({
                         </Button>
                     </>
                 ) : null}
+                {editor?.isActive('coloredSection') ? (
+                    <>
+                        <ToolbarMenu
+                            onOpenChange={handleMenuOpenChange}
+                            trigger={
+                                <Button type="button" variant="ghost" size="sm">
+                                    <PaintBucketIcon />
+                                    Section color
+                                </Button>
+                            }
+                        >
+                            <DropdownMenuLabel>
+                                Section background
+                            </DropdownMenuLabel>
+                            <ColorChoices onSelect={recolorColoredSection} />
+                        </ToolbarMenu>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            title="Remove section"
+                            onClick={removeColoredSection}
+                        >
+                            <Trash2Icon />
+                            Remove section
+                        </Button>
+                    </>
+                ) : null}
                 {showPlaceholders ? (
                     <>
                         <Separator orientation="vertical" className="mx-1 h-6" />
@@ -1100,10 +1848,29 @@ export default function RichTextEditor({
                             fields={insertableFields}
                             values={placeholderValues}
                             onInsert={insertPlaceholder}
+                            intro={placeholderIntro}
+                            searchPlaceholder={placeholderSearchPlaceholder}
+                            allowCreate={allowCreatePlaceholder}
+                            groupOrder={placeholderGroupOrder}
                         />
                     </>
                 ) : null}
             </div>
+            <input
+                ref={pictureInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                multiple
+                className="hidden"
+                onChange={(event) => onPicturesChosen(event, false)}
+            />
+            <input
+                ref={replaceInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                className="hidden"
+                onChange={(event) => onPicturesChosen(event, true)}
+            />
             <EditorContent editor={editor} />
         </div>
         <p className="text-xs text-muted-foreground">

@@ -20,7 +20,7 @@ class BidImportedHtml
         'p', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'strike',
         'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'blockquote',
         'a', 'span', 'div', 'hr', 'sup', 'sub', 'mark', 'pre', 'code',
-        'table', 'thead', 'tbody', 'tr', 'th', 'td', 'font',
+        'table', 'thead', 'tbody', 'tr', 'th', 'td', 'font', 'img',
     ];
 
     /**
@@ -64,8 +64,13 @@ class BidImportedHtml
         'border-style',
         'border-collapse',
         'width',
+        'max-width',
         'min-height',
         'height',
+        'object-fit',
+        'display',
+        'gap',
+        'flex',
         'list-style-type',
         'border-top-color',
         'border-top-width',
@@ -794,6 +799,15 @@ class BidImportedHtml
 
                 self::sanitizeAttributes($child);
 
+                if ($tag === 'div' && (
+                    $child->hasAttribute('data-colored-section')
+                    || $child->hasAttribute('data-image-gallery')
+                    || $child->hasAttribute('data-rich-image')
+                    || $child->hasAttribute('data-image-caption')
+                )) {
+                    continue;
+                }
+
                 if ($tag === 'div') {
                     $hasBlock = false;
 
@@ -907,7 +921,7 @@ class BidImportedHtml
             $extra['font-size'] = $htmlSizes[$size];
         }
 
-        $allowed = ['href', 'style', 'colspan', 'rowspan', 'data-bid-field'];
+        $allowed = ['href', 'style', 'colspan', 'rowspan', 'alt', 'data-bid-field', 'data-colored-section', 'data-image-gallery', 'data-rich-image', 'data-image-caption', 'data-image-gap'];
         $attributes = [];
 
         foreach ($element->attributes ?? [] as $attribute) {
@@ -930,6 +944,14 @@ class BidImportedHtml
 
             if ($lower === 'href') {
                 if (! preg_match('/^(https?:|mailto:|#)/i', $value)) {
+                    $element->removeAttribute($name);
+                }
+
+                continue;
+            }
+
+            if ($lower === 'src') {
+                if (strtolower($element->tagName) !== 'img' || ! EditorImage::isStoredSrc($value)) {
                     $element->removeAttribute($name);
                 }
 

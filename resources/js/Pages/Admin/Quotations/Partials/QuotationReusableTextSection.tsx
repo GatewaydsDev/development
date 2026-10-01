@@ -40,6 +40,7 @@ type QuotationReusableTextSectionProps = {
         key: string;
         name?: string;
         label?: string;
+        group?: string;
         source?: string | null;
     }>;
     placeholderValues?: Record<string, string>;
@@ -76,15 +77,15 @@ const copyFor = (purpose: QuotationReusableTextPurpose) => {
     if (purpose === 'pricing') {
         return {
             kind: 'quotation_pricing',
-            heading: 'Pricing, conditions and more',
+            heading: 'Quotation details',
             description:
-                'Add pricing terms, conditions, exclusions, and any other wording that belongs with this quotation.',
-            selectLabel: 'Saved pricing and conditions texts',
+                'Add the rest of this quotation here. Use Insert field for project name, project address, and other saved values so this quote can be reused. Use Pictures to add photos side by side or one under another. Use Layout for a table or a colored section.',
+            selectLabel: 'Saved/reusable quotes',
             selectId: 'quotation-pricing-text-template',
             editorLabel: 'Custom text and descriptions',
             editorId: 'pricing_conditions',
             editorPlaceholder:
-                'Write pricing, conditions, exclusions, or other terms…',
+                'Add a section, a table, or the rest of the quotation…',
             saveTitle: 'Save reusable pricing and conditions text',
             importTitle: 'Import pricing and conditions text',
             emptySave: 'Enter pricing and conditions text before saving it.',
@@ -432,6 +433,25 @@ export default function QuotationReusableTextSection({
                     error={error}
                     placeholder={copy.editorPlaceholder}
                     showPlaceholders={showPlaceholders}
+                    placeholderCatalog={
+                        purpose === 'pricing' ? 'provided' : 'bid'
+                    }
+                    placeholderIntro={
+                        purpose === 'pricing'
+                            ? 'Insert a value from this quotation'
+                            : undefined
+                    }
+                    placeholderSearchPlaceholder={
+                        purpose === 'pricing'
+                            ? 'Search project name, project address…'
+                            : undefined
+                    }
+                    allowCreatePlaceholder={purpose !== 'pricing'}
+                    placeholderGroupOrder={
+                        purpose === 'pricing'
+                            ? ['Project', 'Contractor', 'Quotation', 'Company']
+                            : undefined
+                    }
                     placeholderFields={placeholderFields}
                     placeholderValues={placeholderValues}
                 />

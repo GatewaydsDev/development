@@ -347,6 +347,12 @@
             list-style: decimal;
         }
 
+        .rich-text [data-image-gallery] { display: flex; align-items: flex-start; width: 100%; margin: 8px 0; }
+        .rich-text [data-image-gallery="stack"] { flex-direction: column; }
+        .rich-text [data-image-gallery="row"] > [data-rich-image] { flex: 1 1 0; min-width: 0; }
+        .rich-text [data-rich-image] img { display: block; width: 100%; max-width: 100%; }
+        .rich-text [data-image-caption] p { margin: 4px 0 0; }
+
         .rich-text table {
             width: 100%;
             border-collapse: collapse;

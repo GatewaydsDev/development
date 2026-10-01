@@ -2,7 +2,6 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Button } from '@/Components/ui/button';
 import { Head, Link } from '@inertiajs/react';
 import { EyeIcon, FileTextIcon, PrinterIcon } from 'lucide-react';
-import { useState } from 'react';
 import QuotationForm from './Partials/QuotationForm';
 import {
     DEFAULT_PROPOSAL_TITLE,
@@ -17,9 +16,8 @@ type EditProps = {
 };
 
 export default function Edit({ quotation, options }: EditProps) {
-    const [proposalTitle, setProposalTitle] = useState(
-        quotation.proposal_title?.trim() || DEFAULT_PROPOSAL_TITLE,
-    );
+    const proposalTitle =
+        quotation.proposal_title?.trim() || DEFAULT_PROPOSAL_TITLE;
 
     return (
         <AuthenticatedLayout
@@ -94,9 +92,8 @@ export default function Edit({ quotation, options }: EditProps) {
                     <QuotationForm
                         action={route('admin.quotations.update', quotation.id)}
                         method="patch"
-                        onProposalTitleChange={setProposalTitle}
                         title="Quotation information"
-                        description="Update the project, contractor, contacts, and quoted items. Previous versions stay in the quotation history as saved records."
+                        description="Update the project, contractor, and contacts. Previous versions stay in the quotation history as saved records."
                         options={options}
                         quotation={quotation}
                     />

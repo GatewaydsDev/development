@@ -99,6 +99,10 @@ class BidApplicationText
 
     public static function isEmpty(?string $html): bool
     {
+        if (preg_match('/<img\b/i', (string) $html) === 1) {
+            return false;
+        }
+
         return trim(html_entity_decode(strip_tags((string) $html), ENT_QUOTES | ENT_HTML5, 'UTF-8')) === '';
     }
 

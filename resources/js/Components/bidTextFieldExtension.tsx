@@ -6,13 +6,14 @@ import {
     type NodeViewProps,
 } from '@tiptap/react';
 import { cn } from '@/lib/utils';
+import { XIcon } from 'lucide-react';
 import { createContext, useContext } from 'react';
 
 export const BidTextFieldValuesContext = createContext<Record<string, string>>(
     {},
 );
 
-function BidTextFieldChip({ node }: NodeViewProps) {
+function BidTextFieldChip({ node, deleteNode }: NodeViewProps) {
     const values = useContext(BidTextFieldValuesContext);
     const key = String(node.attrs.key ?? '');
     const value = (values[key] ?? '').trim();
@@ -21,7 +22,7 @@ function BidTextFieldChip({ node }: NodeViewProps) {
         <NodeViewWrapper
             as="span"
             className={cn(
-                'bid-text-field-chip rounded px-1 font-semibold',
+                'bid-text-field-chip inline-flex items-center gap-1 rounded px-1 font-semibold',
                 value
                     ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200'
                     : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200',
@@ -29,7 +30,22 @@ function BidTextFieldChip({ node }: NodeViewProps) {
             data-bid-field={key}
             title={`{{${key}}}`}
         >
-            {value || `{{${key}}}`}
+            <span>{value || `{{${key}}}`}</span>
+            <button
+                type="button"
+                contentEditable={false}
+                className="inline-flex size-4 items-center justify-center rounded-sm hover:bg-black/10"
+                aria-label={`Remove ${value || key}`}
+                title="Remove field"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    deleteNode();
+                }}
+            >
+                <XIcon className="size-3" />
+            </button>
         </NodeViewWrapper>
     );
 }

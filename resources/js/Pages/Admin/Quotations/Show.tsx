@@ -563,17 +563,21 @@ export default function Show({ quotation, options }: ShowProps) {
 
                     {!isEmptyHtml(quotation.pricing_conditions) ? (
                         <Card>
-                            <CardHeader>
-                                <CardTitle className="text-base font-semibold text-foreground">
-                                    Pricing, conditions and more
-                                </CardTitle>
-                            </CardHeader>
                             <CardContent>
                                 <div
                                     className="rich-text-content text-sm text-foreground"
                                     dangerouslySetInnerHTML={{
-                                        __html:
+                                        __html: fillQuotationPlaceholders(
                                             quotation.pricing_conditions ?? '',
+                                            quotationInsertValues(
+                                                quotationToFormData(
+                                                    quotation,
+                                                    options,
+                                                ),
+                                                options,
+                                                quotation,
+                                            ),
+                                        ),
                                     }}
                                 />
                             </CardContent>
