@@ -91,6 +91,7 @@ import {
 import { toast } from 'sonner';
 import {
     type ChangeEvent,
+    type DragEvent as ReactDragEvent,
     type FocusEvent as ReactFocusEvent,
     type ReactNode,
     useEffect,
@@ -545,6 +546,8 @@ export default function RichTextEditor({
     const [commandsPinned, setCommandsPinned] = useState(false);
     const [commandsOffset, setCommandsOffset] = useState(0);
     const [uploadingPictures, setUploadingPictures] = useState(false);
+    const [pictureDropActive, setPictureDropActive] = useState(false);
+    const pictureDragDepth = useRef(0);
     const [pictureFieldsFocused, setPictureFieldsFocused] = useState(false);
     const pictureInputRef = useRef<HTMLInputElement>(null);
     const replaceInputRef = useRef<HTMLInputElement>(null);
@@ -1030,6 +1033,102 @@ export default function RichTextEditor({
         return uploaded;
     };
 
+    const dragCarriesFiles = (dataTransfer: DataTransfer | null) =>
+        Boolean(
+            dataTransfer &&
+                Array.from(dataTransfer.types).includes('Files'),
+        );
+
+    const droppedPictures = (dataTransfer: DataTransfer | null) => {
+        if (!dataTransfer) {
+            return [];
+        }
+
+        return Array.from(dataTransfer.files).filter((file) =>
+            ['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(
+                file.type,
+            ),
+        );
+    };
+
+    const placeUploadedPictures = async (
+        files: File[],
+        options: {
+            replace?: boolean;
+            layout?: ImageLayout;
+            append?: boolean;
+            cursor?: number | null;
+            dropX?: number;
+            dropY?: number;
+        } = {},
+    ) => {
+        if (!editor || files.length === 0) {
+            return;
+        }
+
+        setUploadingPictures(true);
+
+        try {
+            const images = await uploadEditorImages(files);
+
+            if (options.dropX !== undefined && options.dropY !== undefined) {
+                const coords = editor.view.posAtCoords({
+                    left: options.dropX,
+                    top: options.dropY,
+                });
+
+                if (coords) {
+                    try {
+                        editor.commands.setTextSelection(coords.pos);
+                    } catch {
+                        editor.commands.focus();
+                    }
+                } else {
+                    editor.commands.focus('end');
+                }
+            } else if (
+                options.cursor !== undefined &&
+                options.cursor !== null &&
+                options.cursor <= editor.state.doc.content.size
+            ) {
+                try {
+                    editor.commands.setTextSelection(options.cursor);
+                } catch {
+                    // The file dialog can leave the cursor on a picture.
+                }
+            }
+
+            if (options.replace && images[0]) {
+                updateRichImage(editor, savedImagePos.current, {
+                    src: images[0].src,
+                    alt: images[0].alt,
+                });
+
+                return;
+            }
+
+            const existingLayout = editor.getAttributes('imageGallery').layout;
+            const layout: ImageLayout =
+                options.layout ??
+                (existingLayout === 'stack' ? 'stack' : 'row');
+
+            insertRichImages(
+                editor,
+                layout,
+                images,
+                options.append ? savedImagePos.current : null,
+            );
+        } catch (error) {
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : 'Could not add that picture.',
+            );
+        } finally {
+            setUploadingPictures(false);
+        }
+    };
+
     const choosePictures = (layout: ImageLayout, append: boolean) => {
         pictureLayout.current = layout;
         appendPictures.current = append;
@@ -1044,49 +1143,67 @@ export default function RichTextEditor({
         const files = Array.from(event.target.files ?? []);
         event.target.value = '';
 
-        if (!editor || files.length === 0) {
+        void placeUploadedPictures(files, {
+            replace,
+            layout: pictureLayout.current,
+            append: appendPictures.current,
+            cursor: cursorBeforePictures.current,
+        });
+    };
+
+    const onPictureDragEnter = (event: ReactDragEvent<HTMLDivElement>) => {
+        if (!dragCarriesFiles(event.dataTransfer)) {
             return;
         }
 
-        setUploadingPictures(true);
+        event.preventDefault();
+        pictureDragDepth.current += 1;
+        setPictureDropActive(true);
+    };
 
-        try {
-            const images = await uploadEditorImages(files);
-            const cursor = cursorBeforePictures.current;
-
-            if (
-                cursor !== null &&
-                cursor <= editor.state.doc.content.size
-            ) {
-                try {
-                    editor.commands.setTextSelection(cursor);
-                } catch {
-                    // The file dialog can leave the cursor on a picture.
-                }
-            }
-
-            if (replace && images[0]) {
-                updateRichImage(editor, savedImagePos.current, {
-                    src: images[0].src,
-                    alt: images[0].alt,
-                });
-            } else {
-                insertRichImages(
-                    editor,
-                    pictureLayout.current,
-                    images,
-                    appendPictures.current ? savedImagePos.current : null,
-                );
-            }
-        } catch (error) {
-            toast.error(
-                error instanceof Error
-                    ? error.message
-                    : 'Could not add that picture.',
-            );
-        } finally {
-            setUploadingPictures(false);
+    const onPictureDragOver = (event: ReactDragEvent<HTMLDivElement>) => {
+        if (!dragCarriesFiles(event.dataTransfer)) {
+            return;
         }
+
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'copy';
+    };
+
+    const onPictureDragLeave = (event: ReactDragEvent<HTMLDivElement>) => {
+        if (!dragCarriesFiles(event.dataTransfer)) {
+            return;
+        }
+
+        pictureDragDepth.current = Math.max(0, pictureDragDepth.current - 1);
+
+        if (pictureDragDepth.current === 0) {
+            setPictureDropActive(false);
+        }
+    };
+
+    const onPictureDrop = (event: ReactDragEvent<HTMLDivElement>) => {
+        if (!dragCarriesFiles(event.dataTransfer)) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+        pictureDragDepth.current = 0;
+        setPictureDropActive(false);
+
+        const files = droppedPictures(event.dataTransfer);
+
+        if (files.length === 0) {
+            toast.error('Drop a JPEG, PNG, GIF, or WebP picture.');
+
+            return;
+        }
+
+        void placeUploadedPictures(files, {
+            dropX: event.clientX,
+            dropY: event.clientY,
+        });
     };
 
     const pictureHeight = editingPicture?.node.attrs.height
@@ -1099,9 +1216,14 @@ export default function RichTextEditor({
         <div
             ref={editorFrameRef}
             className={cn(
-                'overflow-visible rounded-md border bg-background',
+                'relative overflow-visible rounded-md border bg-background',
                 error ? 'border-destructive' : 'border-border',
+                pictureDropActive && 'border-emerald-600 ring-2 ring-emerald-600/40',
             )}
+            onDragEnterCapture={onPictureDragEnter}
+            onDragOverCapture={onPictureDragOver}
+            onDragLeaveCapture={onPictureDragLeave}
+            onDropCapture={onPictureDrop}
             onFocus={pinCommands}
             onBlur={(event: ReactFocusEvent<HTMLDivElement>) => {
                 const next = event.relatedTarget;
@@ -2127,10 +2249,18 @@ export default function RichTextEditor({
                 onChange={(event) => onPicturesChosen(event, true)}
             />
             <EditorContent editor={editor} />
+            {pictureDropActive ? (
+                <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-md border-2 border-dashed border-emerald-600 bg-emerald-50/90 text-sm font-medium text-emerald-800 dark:bg-emerald-950/90 dark:text-emerald-100">
+                    <span className="flex items-center gap-2">
+                        <ImageIcon />
+                        Drop pictures here
+                    </span>
+                </div>
+            ) : null}
         </div>
         <p className="text-xs text-muted-foreground">
             Misspelled words are underlined. Right-click a word to see
-            suggested corrections.
+            suggested corrections. Drop pictures onto the text to add them.
         </p>
         </div>
         </BidTextFieldValuesContext.Provider>
