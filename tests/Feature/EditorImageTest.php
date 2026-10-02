@@ -23,8 +23,11 @@ test('an admin can upload a picture for the text editor', function () {
     $response->assertOk();
     $url = $response->json('url');
 
-    expect($url)->toStartWith('/storage/editor-images/');
-    Storage::disk('public')->assertExists(ltrim(str_replace('/storage/', '', (string) $url), '/'));
+    expect($url)->toStartWith('/storage/editor-images/')
+        ->toEndWith('.webp');
+    $relative = ltrim(str_replace('/storage/', '', (string) $url), '/');
+    Storage::disk('public')->assertExists($relative);
+    expect(Storage::disk('public')->get($relative))->toStartWith('RIFF');
 });
 
 test('a guest cannot upload an editor picture', function () {

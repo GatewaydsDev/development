@@ -2,10 +2,26 @@
 
 namespace App\Support;
 
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class EditorImage
 {
+    public static function store(UploadedFile $file): string
+    {
+        $encoded = self::encodeWebp($file);
+
+        if ($encoded === null) {
+            return $file->store('editor-images', 'public');
+        }
+
+        $path = 'editor-images/'.Str::uuid()->toString().'.webp';
+        Storage::disk('public')->put($path, $encoded);
+
+        return $path;
+    }
+
     public static function isStoredSrc(string $src): bool
     {
         return preg_match('#^/storage/editor-images/[A-Za-z0-9][A-Za-z0-9._-]*$#', $src) === 1;
@@ -87,6 +103,86 @@ class EditorImage
         }
 
         return 'data:'.$mime.';base64,'.base64_encode($binary);
+    }
+
+    private static function encodeWebp(UploadedFile $file): ?string
+    {
+        if (! function_exists('imagecreatefromstring') || ! function_exists('imagewebp')) {
+            return null;
+        }
+
+        $binary = file_get_contents($file->getPathname());
+        $source = is_string($binary) ? @imagecreatefromstring($binary) : false;
+
+        if ($source === false) {
+            return null;
+        }
+
+        $longestEdge = 1600;
+        $encoded = null;
+
+        for ($attempt = 0; $attempt < 6; $attempt++) {
+            $encoded = self::renderWebp($source, $longestEdge);
+
+            if ($encoded !== null && strlen($encoded) <= 1_500_000) {
+                break;
+            }
+
+            $longestEdge = (int) round($longestEdge * 0.75);
+        }
+
+        imagedestroy($source);
+
+        return is_string($encoded) && $encoded !== '' ? $encoded : null;
+    }
+
+    private static function renderWebp(\GdImage $source, int $longestEdge): ?string
+    {
+        $width = imagesx($source);
+        $height = imagesy($source);
+        $scale = min(1, $longestEdge / max($width, $height, 1));
+        $targetWidth = max(1, (int) round($width * $scale));
+        $targetHeight = max(1, (int) round($height * $scale));
+        $canvas = imagecreatetruecolor($targetWidth, $targetHeight);
+
+        if ($canvas === false) {
+            return null;
+        }
+
+        imagealphablending($canvas, false);
+        imagesavealpha($canvas, true);
+        $transparent = imagecolorallocatealpha($canvas, 0, 0, 0, 127);
+        imagefilledrectangle($canvas, 0, 0, $targetWidth, $targetHeight, $transparent);
+        imagealphablending($canvas, true);
+        imagecopyresampled(
+            $canvas,
+            $source,
+            0,
+            0,
+            0,
+            0,
+            $targetWidth,
+            $targetHeight,
+            $width,
+            $height,
+        );
+        imagealphablending($canvas, false);
+        imagesavealpha($canvas, true);
+
+        $quality = 80;
+        $encoded = null;
+
+        do {
+            ob_start();
+            imagewebp($canvas, null, $quality);
+            $captured = ob_get_clean();
+            $encoded = is_string($captured) && $captured !== '' ? $captured : null;
+            $quality -= 10;
+        } while ($encoded !== null && strlen($encoded) > 1_500_000 && $quality >= 40);
+
+        imagedestroy($canvas);
+
+        return $encoded;
     }
 
     private static function webpToPng(string $path): ?string

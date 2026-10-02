@@ -39,6 +39,7 @@ import {
     BoldIcon,
     CodeIcon,
     Columns3Icon,
+    EllipsisIcon,
     Heading1Icon,
     Heading2Icon,
     Heading3Icon,
@@ -49,6 +50,7 @@ import {
     ImagesIcon,
     ItalicIcon,
     Link2Icon,
+    LoaderCircleIcon,
     Link2OffIcon,
     ListIcon,
     ListOrderedIcon,
@@ -99,6 +101,7 @@ import {
     useRef,
     useState,
 } from 'react';
+import { createPortal, flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import {
     isEmptyHtml,
@@ -472,7 +475,9 @@ function ToolbarMenu({
         <DropdownMenu modal={false} onOpenChange={onOpenChange}>
             <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
             <DropdownMenuContent
+                side="right"
                 align="start"
+                sideOffset={8}
                 collisionPadding={12}
                 className={cn('z-[200] min-w-48', contentClassName)}
                 onCloseAutoFocus={(event) => event.preventDefault()}
@@ -520,6 +525,98 @@ type RichTextEditorProps = {
     }>;
 };
 
+const EDITOR_PICTURE_TARGET_BYTES = 1_500_000;
+
+function canvasBlob(
+    canvas: HTMLCanvasElement,
+    type: string,
+    quality: number,
+): Promise<Blob | null> {
+    return new Promise((resolve) => {
+        canvas.toBlob((blob) => resolve(blob), type, quality);
+    });
+}
+
+async function prepareEditorPicture(file: File): Promise<File> {
+    if (!file.type.startsWith('image/')) {
+        return file;
+    }
+
+    let bitmap: ImageBitmap;
+
+    try {
+        bitmap = await createImageBitmap(file);
+    } catch {
+        return file;
+    }
+
+    const paint = (longestEdge: number) => {
+        const scale = Math.min(
+            1,
+            longestEdge / Math.max(bitmap.width, bitmap.height, 1),
+        );
+        const width = Math.max(1, Math.round(bitmap.width * scale));
+        const height = Math.max(1, Math.round(bitmap.height * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext('2d');
+
+        if (!context) {
+            return null;
+        }
+
+        context.drawImage(bitmap, 0, 0, width, height);
+
+        return canvas;
+    };
+
+    let longestEdge = 1600;
+    let canvas = paint(longestEdge);
+    let blob: Blob | null = null;
+
+    if (canvas) {
+        for (let attempt = 0; attempt < 6; attempt += 1) {
+            let quality = 0.82;
+            blob = await canvasBlob(canvas, 'image/webp', quality);
+            const type = blob ? 'image/webp' : 'image/jpeg';
+
+            if (!blob) {
+                blob = await canvasBlob(canvas, type, quality);
+            }
+
+            while (blob && blob.size > EDITOR_PICTURE_TARGET_BYTES && quality > 0.4) {
+                quality = Math.round((quality - 0.12) * 100) / 100;
+                blob = await canvasBlob(canvas, type, quality);
+            }
+
+            if (blob && blob.size <= EDITOR_PICTURE_TARGET_BYTES) {
+                break;
+            }
+
+            longestEdge = Math.round(longestEdge * 0.75);
+            canvas = paint(longestEdge);
+
+            if (!canvas) {
+                break;
+            }
+        }
+    }
+
+    bitmap.close();
+
+    if (!blob) {
+        return file;
+    }
+
+    const base = file.name.replace(/\.[^.]+$/, '') || 'picture';
+    const extension = blob.type === 'image/jpeg' ? 'jpg' : 'webp';
+
+    return new File([blob], `${base}.${extension}`, {
+        type: blob.type || 'image/webp',
+    });
+}
+
 export default function RichTextEditor({
     value,
     onChange,
@@ -544,6 +641,14 @@ export default function RichTextEditor({
     const releaseCommandsTimer = useRef<number | null>(null);
     const [commandsPinned, setCommandsPinned] = useState(false);
     const [commandsOffset, setCommandsOffset] = useState(0);
+    const [commandsLeft, setCommandsLeft] = useState(0);
+    const [commandsWide, setCommandsWide] = useState(false);
+    const [commandsInView, setCommandsInView] = useState(false);
+    const [commandHint, setCommandHint] = useState<{
+        text: string;
+        top: number;
+        left: number;
+    } | null>(null);
     const [uploadingPictures, setUploadingPictures] = useState(false);
     const [pictureDropActive, setPictureDropActive] = useState(false);
     const placeDroppedPicturesRef = useRef<
@@ -954,22 +1059,89 @@ export default function RichTextEditor({
     };
 
     useEffect(() => {
-        const nav = document.querySelector('nav');
-
-        if (!nav) {
-            return;
-        }
-
         const updateOffset = () => {
-            setCommandsOffset(Math.ceil(nav.getBoundingClientRect().height));
+            const header = document.querySelector('nav.sticky');
+            const sidebar = document.querySelector('aside');
+            const wide = window.matchMedia('(min-width: 1024px)').matches;
+            const top = header
+                ? Math.ceil(header.getBoundingClientRect().bottom) + 8
+                : 8;
+
+            setCommandsOffset(top);
+            setCommandsWide(wide);
+            setCommandsLeft(
+                wide && sidebar
+                    ? Math.round(sidebar.getBoundingClientRect().right)
+                    : 8,
+            );
         };
 
         updateOffset();
         const observer = new ResizeObserver(updateOffset);
-        observer.observe(nav);
+        const header = document.querySelector('nav.sticky');
+        const sidebar = document.querySelector('aside');
+
+        if (header) {
+            observer.observe(header);
+        }
+
+        if (sidebar) {
+            observer.observe(sidebar);
+        }
+
+        window.addEventListener('resize', updateOffset);
+
+        return () => {
+            observer.disconnect();
+            window.removeEventListener('resize', updateOffset);
+        };
+    }, []);
+
+    useEffect(() => {
+        const frame = editorFrameRef.current;
+
+        if (!frame) {
+            return;
+        }
+
+        const observer = new IntersectionObserver(([entry]) => {
+            setCommandsInView(entry.isIntersecting);
+        });
+
+        observer.observe(frame);
 
         return () => observer.disconnect();
-    }, []);
+    }, [editor]);
+
+    const commandsDocked = commandsWide && (commandsPinned || commandsInView);
+
+    useEffect(() => {
+        const main = document.querySelector('main');
+
+        if (!main || !commandsDocked) {
+            return;
+        }
+
+        const count = Number(main.dataset.commandDocks ?? '0') + 1;
+        main.dataset.commandDocks = String(count);
+        main.classList.add('rich-text-commands-docked');
+
+        return () => {
+            const next = Math.max(
+                0,
+                Number(main.dataset.commandDocks ?? '1') - 1,
+            );
+
+            if (next === 0) {
+                main.classList.remove('rich-text-commands-docked');
+                delete main.dataset.commandDocks;
+
+                return;
+            }
+
+            main.dataset.commandDocks = String(next);
+        };
+    }, [commandsDocked]);
 
     useEffect(
         () => () => {
@@ -1001,8 +1173,9 @@ export default function RichTextEditor({
         const uploaded: RichImageAttrs[] = [];
 
         for (const file of files) {
+            const picture = await prepareEditorPicture(file);
             const body = new FormData();
-            body.append('image', file);
+            body.append('image', picture);
             const response = await fetch(route('admin.editor-images.store'), {
                 method: 'POST',
                 credentials: 'same-origin',
@@ -1049,7 +1222,15 @@ export default function RichTextEditor({
             return;
         }
 
-        setUploadingPictures(true);
+        const started = performance.now();
+        flushSync(() => {
+            setUploadingPictures(true);
+        });
+        await new Promise((resolve) => {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => resolve(undefined));
+            });
+        });
 
         try {
             const images = await uploadEditorImages(files);
@@ -1108,6 +1289,13 @@ export default function RichTextEditor({
                     : 'Could not add that picture.',
             );
         } finally {
+            const elapsed = performance.now() - started;
+            if (elapsed < 900) {
+                await new Promise((resolve) => {
+                    window.setTimeout(resolve, 900 - elapsed);
+                });
+            }
+
             setUploadingPictures(false);
         }
     };
@@ -1161,11 +1349,13 @@ export default function RichTextEditor({
         };
 
         const pictureFiles = (dataTransfer: DataTransfer | null) =>
-            Array.from(dataTransfer?.files ?? []).filter((file) =>
-                ['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(
-                    file.type,
-                ),
-            );
+            Array.from(dataTransfer?.files ?? []).filter((file) => {
+                if (file.type.startsWith('image/')) {
+                    return true;
+                }
+
+                return /\.(jpe?g|png|gif|webp|heic|heif)$/i.test(file.name);
+            });
 
         const onDragOver = (event: DragEvent) => {
             if (!carriesFiles(event.dataTransfer)) {
@@ -1256,7 +1446,7 @@ export default function RichTextEditor({
             ref={editorFrameRef}
             data-rich-text-frame
             className={cn(
-                'relative overflow-visible rounded-md border bg-background',
+                'relative flex items-start overflow-visible rounded-md border bg-background',
                 error ? 'border-destructive' : 'border-border',
                 pictureDropActive && 'border-emerald-600 ring-2 ring-emerald-600/40',
             )}
@@ -1271,13 +1461,24 @@ export default function RichTextEditor({
                 scheduleReleaseCommands();
             }}
         >
+            {(() => {
+                const commandBar = (
             <div
                 className={cn(
-                    'rich-text-commands z-20 flex flex-wrap items-center gap-1 border-b-2 p-2',
-                    commandsPinned ? 'is-pinned sticky' : 'relative',
+                    'rich-text-commands z-30 flex w-[3.25rem] shrink-0 flex-col items-center justify-start gap-0.5 overflow-x-hidden overflow-y-auto border-r-2 p-1',
+                    commandsDocked ? 'is-pinned' : 'absolute inset-y-0 left-0',
                 )}
                 style={
-                    commandsPinned ? { top: commandsOffset } : undefined
+                    commandsDocked
+                        ? {
+                              position: 'fixed',
+                              top: commandsOffset,
+                              bottom: 12,
+                              left: commandsLeft,
+                              height: 'auto',
+                              zIndex: 35,
+                          }
+                        : undefined
                 }
                 onMouseDown={(event) => {
                     const target = event.target;
@@ -1294,7 +1495,45 @@ export default function RichTextEditor({
 
                     event.preventDefault();
                     pinCommands();
+                    setCommandHint(null);
                 }}
+                onScroll={() => setCommandHint(null)}
+                onMouseOver={(event) => {
+                    const target = event.target;
+
+                    if (!(target instanceof Element)) {
+                        return;
+                    }
+
+                    const control = target.closest('button');
+
+                    if (!(control instanceof HTMLElement)) {
+                        setCommandHint(null);
+
+                        return;
+                    }
+
+                    const text =
+                        control.dataset.commandHint ||
+                        control.getAttribute('title') ||
+                        control.getAttribute('aria-label');
+
+                    if (!text) {
+                        setCommandHint(null);
+
+                        return;
+                    }
+
+                    control.dataset.commandHint = text;
+                    control.removeAttribute('title');
+                    const rect = control.getBoundingClientRect();
+                    setCommandHint({
+                        text,
+                        top: rect.top + rect.height / 2,
+                        left: rect.right + 10,
+                    });
+                }}
+                onMouseLeave={() => setCommandHint(null)}
             >
                 <Button
                     type="button"
@@ -1302,7 +1541,7 @@ export default function RichTextEditor({
                     size="icon-sm"
                     disabled={!editor?.can().undo()}
                     onClick={() => editor?.chain().focus().undo().run()}
-                    title="Undo"
+                    title="Undo the last change"
                 >
                     <Undo2Icon />
                 </Button>
@@ -1312,7 +1551,7 @@ export default function RichTextEditor({
                     size="icon-sm"
                     disabled={!editor?.can().redo()}
                     onClick={() => editor?.chain().focus().redo().run()}
-                    title="Redo"
+                    title="Redo the last change"
                 >
                     <Redo2Icon />
                 </Button>
@@ -1320,7 +1559,7 @@ export default function RichTextEditor({
                 <ToolbarMenu
                     onOpenChange={handleMenuOpenChange}
                     trigger={
-                        <Button type="button" variant="ghost" size="sm">
+                        <Button type="button" variant="ghost" size="icon-sm" title="Change the style, heading, font, or line spacing">
                             {editor?.isActive('heading', { level: 1 }) ? (
                                 <Heading1Icon />
                             ) : editor?.isActive('heading', { level: 2 }) ? (
@@ -1341,7 +1580,6 @@ export default function RichTextEditor({
                             ) : (
                                 <PilcrowIcon />
                             )}
-                            Style
                         </Button>
                     }
                 >
@@ -1529,10 +1767,9 @@ export default function RichTextEditor({
 
                         toast.message(result.message);
                     }}
-                    title="Check the whole document and make the space between headings, paragraphs, and sections equal"
+                    title="Even out the space between headings, paragraphs, and sections"
                 >
                     <AlignVerticalSpaceAroundIcon />
-                    Check spacing
                 </Button>
                 <Toggle
                     size="sm"
@@ -1541,7 +1778,7 @@ export default function RichTextEditor({
                         editor?.chain().focus().toggleBold().run()
                     }
                     aria-label="Bold"
-                    title="Bold"
+                    title="Make the selected text bold"
                 >
                     <BoldIcon />
                 </Toggle>
@@ -1552,7 +1789,7 @@ export default function RichTextEditor({
                         editor?.chain().focus().toggleItalic().run()
                     }
                     aria-label="Italic"
-                    title="Italic"
+                    title="Make the selected text italic"
                 >
                     <ItalicIcon />
                 </Toggle>
@@ -1563,7 +1800,7 @@ export default function RichTextEditor({
                         editor?.chain().focus().toggleUnderline().run()
                     }
                     aria-label="Underline"
-                    title="Underline"
+                    title="Underline the selected text"
                 >
                     <UnderlineIcon />
                 </Toggle>
@@ -1574,7 +1811,7 @@ export default function RichTextEditor({
                         editor?.chain().focus().toggleStrike().run()
                     }
                     aria-label="Strikethrough"
-                    title="Strikethrough"
+                    title="Strike through the selected text"
                 >
                     <StrikethroughIcon />
                 </Toggle>
@@ -1585,7 +1822,7 @@ export default function RichTextEditor({
                             type="button"
                             variant="ghost"
                             size="icon-sm"
-                            title="Text color"
+                            title="Change the text color"
                             aria-label="Text color"
                         >
                             <span className="flex flex-col items-center leading-none">
@@ -1663,8 +1900,8 @@ export default function RichTextEditor({
                             size="icon-sm"
                             title={
                                 editor?.isActive('table')
-                                    ? 'Cell fill color'
-                                    : 'Section fill color'
+                                    ? 'Fill this table cell'
+                                    : 'Fill this section with a background color'
                             }
                         >
                             <PaintBucketIcon />
@@ -1693,7 +1930,7 @@ export default function RichTextEditor({
                             .run()
                     }
                     aria-label="Highlight"
-                    title="Highlight"
+                    title="Highlight the selected text"
                 >
                     <HighlighterIcon />
                 </Toggle>
@@ -1705,7 +1942,7 @@ export default function RichTextEditor({
                         editor?.chain().focus().setTextAlign('left').run()
                     }
                     aria-label="Align left"
-                    title="Align left"
+                    title="Align the text to the left"
                 >
                     <AlignLeftIcon />
                 </Toggle>
@@ -1716,7 +1953,7 @@ export default function RichTextEditor({
                         editor?.chain().focus().setTextAlign('center').run()
                     }
                     aria-label="Align center"
-                    title="Align center"
+                    title="Center the text"
                 >
                     <AlignCenterIcon />
                 </Toggle>
@@ -1727,7 +1964,7 @@ export default function RichTextEditor({
                         editor?.chain().focus().setTextAlign('right').run()
                     }
                     aria-label="Align right"
-                    title="Align right"
+                    title="Align the text to the right"
                 >
                     <AlignRightIcon />
                 </Toggle>
@@ -1740,7 +1977,7 @@ export default function RichTextEditor({
                         editor?.chain().focus().setTextAlign('justify').run()
                     }
                     aria-label="Justify"
-                    title="Justify"
+                    title="Justify the text so both edges line up"
                 >
                     <AlignJustifyIcon />
                 </Toggle>
@@ -1752,7 +1989,7 @@ export default function RichTextEditor({
                         editor?.chain().focus().toggleBulletList().run()
                     }
                     aria-label="Bullet list"
-                    title="Bullet list"
+                    title="Turn the text into a bullet list"
                 >
                     <ListIcon />
                 </Toggle>
@@ -1763,7 +2000,7 @@ export default function RichTextEditor({
                         editor?.chain().focus().toggleOrderedList().run()
                     }
                     aria-label="Numbered list"
-                    title="Numbered list"
+                    title="Turn the text into a numbered list"
                 >
                     <ListOrderedIcon />
                 </Toggle>
@@ -1774,7 +2011,7 @@ export default function RichTextEditor({
                         editor?.chain().focus().toggleBlockquote().run()
                     }
                     aria-label="Quote"
-                    title="Quote"
+                    title="Format the text as a quote"
                 >
                     <QuoteIcon />
                 </Toggle>
@@ -1783,7 +2020,7 @@ export default function RichTextEditor({
                     pressed={currentParagraphHasBox()}
                     onPressedChange={applyBoxedNote}
                     aria-label="Boxed note"
-                    title="Boxed note"
+                    title="Put the text in a box"
                 >
                     <SquareIcon />
                 </Toggle>
@@ -1792,7 +2029,7 @@ export default function RichTextEditor({
                     variant="ghost"
                     size="icon-sm"
                     onClick={setLink}
-                    title="Add link"
+                    title="Add a link to the selected text"
                 >
                     <Link2Icon />
                 </Button>
@@ -1804,15 +2041,15 @@ export default function RichTextEditor({
                     onClick={() =>
                         editor?.chain().focus().unsetLink().run()
                     }
-                    title="Remove link"
+                    title="Remove the link"
                 >
                     <Link2OffIcon />
                 </Button>
                 <ToolbarMenu
                     onOpenChange={handleMenuOpenChange}
                     trigger={
-                        <Button type="button" variant="ghost" size="sm">
-                            More
+                        <Button type="button" variant="ghost" size="icon-sm" title="Code, subscript, superscript, and clear formatting">
+                            <EllipsisIcon />
                         </Button>
                     }
                 >
@@ -1886,9 +2123,9 @@ export default function RichTextEditor({
                             variant="outline"
                             size="sm"
                             disabled={uploadingPictures}
+                            title={uploadingPictures ? 'Adding pictures' : 'Add pictures side by side or one under another'}
                         >
                             <ImageIcon />
-                            {uploadingPictures ? 'Adding pictures…' : 'Pictures'}
                         </Button>
                     }
                 >
@@ -1948,6 +2185,7 @@ export default function RichTextEditor({
                                 type="button"
                                 variant="ghost"
                                 size="sm"
+                                title={preset.label}
                                 onClick={() =>
                                     editor &&
                                     updateRichImage(editor, savedImagePos.current, {
@@ -1956,7 +2194,9 @@ export default function RichTextEditor({
                                     })
                                 }
                             >
-                                {preset.label}
+                                <span className="text-[11px] font-semibold leading-none">
+                                    {preset.label.slice(0, 1)}
+                                </span>
                             </Button>
                         ))}
                         <div
@@ -2057,7 +2297,9 @@ export default function RichTextEditor({
                                 matchRichImageSize(editor, savedImagePos.current)
                             }
                         >
-                            Same size
+                            <span className="text-[10px] font-semibold leading-none">
+                                1:1
+                            </span>
                         </Button>
                         <Button
                             type="button"
@@ -2084,7 +2326,9 @@ export default function RichTextEditor({
                             title="Replace this picture"
                             onClick={() => replaceInputRef.current?.click()}
                         >
-                            Replace
+                            <span className="text-[10px] font-semibold leading-none">
+                                New
+                            </span>
                         </Button>
                         <Button
                             type="button"
@@ -2104,9 +2348,8 @@ export default function RichTextEditor({
                 <ToolbarMenu
                     onOpenChange={handleMenuOpenChange}
                     trigger={
-                        <Button type="button" variant="outline" size="sm">
+                        <Button type="button" variant="outline" size="icon-sm" title="Add a table, colored section, or colored line">
                             <TableIcon />
-                            Layout
                         </Button>
                     }
                 >
@@ -2147,8 +2390,8 @@ export default function RichTextEditor({
                         <ToolbarMenu
                             onOpenChange={handleMenuOpenChange}
                             trigger={
-                                <Button type="button" variant="ghost" size="sm">
-                                    Header fill
+                                <Button type="button" variant="ghost" size="icon-sm" title="Header fill">
+                                    <PaintBucketIcon />
                                 </Button>
                             }
                         >
@@ -2229,9 +2472,8 @@ export default function RichTextEditor({
                         <ToolbarMenu
                             onOpenChange={handleMenuOpenChange}
                             trigger={
-                                <Button type="button" variant="ghost" size="sm">
+                                <Button type="button" variant="ghost" size="icon-sm" title="Change this section color">
                                     <PaintBucketIcon />
-                                    Section color
                                 </Button>
                             }
                         >
@@ -2269,6 +2511,38 @@ export default function RichTextEditor({
                     </>
                 ) : null}
             </div>
+                );
+
+                const commandHintPopover = commandHint
+                    ? createPortal(
+                          <div
+                              className="pointer-events-none fixed z-[210] max-w-xs -translate-y-1/2 rounded-md bg-foreground px-3 py-1.5 text-xs text-background shadow-md"
+                              style={{
+                                  top: commandHint.top,
+                                  left: commandHint.left,
+                              }}
+                          >
+                              {commandHint.text}
+                          </div>,
+                          document.body,
+                      )
+                    : null;
+
+                return (
+                    <>
+                        {commandsDocked
+                            ? createPortal(commandBar, document.body)
+                            : commandBar}
+                        {commandHintPopover}
+                    </>
+                );
+            })()}
+            <div
+                className="relative min-w-0 flex-1"
+                style={
+                    commandsDocked ? undefined : { paddingLeft: '3.25rem' }
+                }
+            >
             <input
                 ref={pictureInputRef}
                 type="file"
@@ -2293,6 +2567,22 @@ export default function RichTextEditor({
                     </span>
                 </div>
             ) : null}
+            </div>
+            {uploadingPictures
+                ? createPortal(
+                      <div
+                          className="fixed inset-0 z-[80] flex items-center justify-center bg-background/55"
+                          role="status"
+                          aria-live="polite"
+                      >
+                          <span className="flex items-center gap-3 rounded-full border border-border bg-background px-5 py-3 text-sm font-medium text-foreground shadow-lg">
+                              <LoaderCircleIcon className="size-5 animate-spin" />
+                              Making the picture smaller and saving it…
+                          </span>
+                      </div>,
+                      document.body,
+                  )
+                : null}
         </div>
         <p className="text-xs text-muted-foreground">
             Misspelled words are underlined. Right-click a word to see

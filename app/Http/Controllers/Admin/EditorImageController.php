@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Support\EditorImage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -23,7 +24,7 @@ class EditorImageController extends Controller
             'image' => ['required', 'file', 'image', 'mimes:jpeg,jpg,png,gif,webp', 'max:5120'],
         ]);
 
-        $path = $validated['image']->store('editor-images', 'public');
+        $path = EditorImage::store($validated['image']);
 
         return response()->json([
             'url' => '/storage/'.$path,

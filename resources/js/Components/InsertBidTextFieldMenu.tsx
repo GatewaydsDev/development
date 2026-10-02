@@ -348,9 +348,8 @@ export default function InsertBidTextFieldMenu({
                 }}
             >
                 <DropdownMenuTrigger asChild>
-                    <Button type="button" variant="outline" size="sm">
+                    <Button type="button" variant="outline" size="icon-sm" title="Insert a field that fills in from the project, contractor, or a product">
                         <BracesIcon />
-                        Insert field
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
