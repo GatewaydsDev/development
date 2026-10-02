@@ -453,6 +453,276 @@ export function removeRichImage(
         .run();
 }
 
+function parentAllowsBlocks(node: ProseMirrorNode): boolean {
+    const content = node.type.spec.content;
+
+    return typeof content === 'string' && content.includes('block');
+}
+
+function galleryInsertAt(
+    editor: Editor,
+    galleryPos: number,
+    gallery: ProseMirrorNode,
+    clientX: number,
+    clientY: number,
+): number {
+    const stacked = gallery.attrs.layout === 'stack';
+    let childPos = galleryPos + 1;
+    let insertAt = galleryPos + gallery.nodeSize - 1;
+
+    gallery.forEach((child) => {
+        const dom = editor.view.nodeDOM(childPos);
+        const next = childPos + child.nodeSize;
+
+        if (dom instanceof HTMLElement) {
+            const rect = dom.getBoundingClientRect();
+            const pointer = stacked ? clientY : clientX;
+            const midpoint = stacked
+                ? rect.top + rect.height / 2
+                : rect.left + rect.width / 2;
+
+            if (pointer < midpoint) {
+                insertAt = Math.min(insertAt, childPos);
+            }
+        }
+
+        childPos = next;
+    });
+
+    return insertAt;
+}
+
+type PictureDrop = {
+    at: number;
+    intoGallery: boolean;
+    stacked: boolean;
+};
+
+function resolvePictureDrop(
+    editor: Editor,
+    imagePos: number,
+    clientX: number,
+    clientY: number,
+): PictureDrop | null {
+    const image = editor.state.doc.nodeAt(imagePos);
+    const sourceGallery = galleryAround(editor, imagePos);
+
+    if (!image || image.type.name !== 'richImage' || !sourceGallery) {
+        return null;
+    }
+
+    const found = editor.view.posAtCoords({ left: clientX, top: clientY });
+
+    if (!found) {
+        return null;
+    }
+
+    const doc = editor.state.doc;
+    const pos = Math.max(0, Math.min(found.pos, doc.content.size));
+
+    if (pos > imagePos && pos < imagePos + image.nodeSize) {
+        return null;
+    }
+
+    const $pos = doc.resolve(pos);
+    let destination: PictureDrop | null = null;
+
+    for (let depth = $pos.depth; depth > 0; depth -= 1) {
+        const current = $pos.node(depth);
+
+        if (current.type.name === 'imageGallery') {
+            destination = {
+                at: galleryInsertAt(
+                    editor,
+                    $pos.before(depth),
+                    current,
+                    clientX,
+                    clientY,
+                ),
+                intoGallery: true,
+                stacked: current.attrs.layout === 'stack',
+            };
+            break;
+        }
+
+        if (current.type.name === 'richImage') {
+            continue;
+        }
+
+        const parent = $pos.node(depth - 1);
+
+        if (current.isBlock && parentAllowsBlocks(parent)) {
+            const start = $pos.before(depth);
+            const end = $pos.after(depth);
+
+            destination = {
+                at: pos < start + (end - start) / 2 ? start : end,
+                intoGallery: false,
+                stacked: false,
+            };
+            break;
+        }
+    }
+
+    if (!destination) {
+        return null;
+    }
+
+    const onlyImage = sourceGallery.node.childCount === 1;
+    const removeFrom = onlyImage ? sourceGallery.pos : imagePos;
+    const removeTo = onlyImage
+        ? sourceGallery.pos + sourceGallery.node.nodeSize
+        : imagePos + image.nodeSize;
+
+    if (destination.at >= removeFrom && destination.at <= removeTo) {
+        return null;
+    }
+
+    if (
+        destination.intoGallery &&
+        (destination.at === imagePos ||
+            destination.at === imagePos + image.nodeSize)
+    ) {
+        return null;
+    }
+
+    return destination;
+}
+
+function placePictureDropSlot(
+    slot: HTMLElement,
+    editor: Editor,
+    drop: PictureDrop | null,
+    sourceWidth: number,
+    sourceHeight: number,
+) {
+    const label = slot.querySelector('span');
+
+    if (!drop) {
+        slot.style.display = 'none';
+
+        return;
+    }
+
+    const docSize = editor.state.doc.content.size;
+    const at = Math.max(1, Math.min(drop.at, docSize));
+    let coords: { top: number; left: number };
+
+    try {
+        coords = editor.view.coordsAtPos(at);
+    } catch {
+        slot.hidden = true;
+
+        return;
+    }
+
+    const editorRect = editor.view.dom.getBoundingClientRect();
+    const beside = drop.intoGallery && !drop.stacked;
+    slot.style.display = 'flex';
+    slot.classList.toggle('is-beside', beside);
+
+    if (label) {
+        label.textContent = beside ? 'Here' : 'Place picture here';
+    }
+
+    if (beside) {
+        const next = editor.view.nodeDOM(at);
+        const rect =
+            next instanceof HTMLElement ? next.getBoundingClientRect() : null;
+        const top = rect?.top ?? coords.top;
+        const height = rect?.height ?? Math.max(96, sourceHeight);
+
+        slot.style.top = `${top}px`;
+        slot.style.left = `${(rect?.left ?? coords.left) - 18}px`;
+        slot.style.width = '36px';
+        slot.style.height = `${Math.max(96, height)}px`;
+
+        return;
+    }
+
+    const width = Math.min(
+        Math.max(180, sourceWidth),
+        Math.max(180, editorRect.width - 24),
+    );
+    const height = Math.min(
+        180,
+        Math.max(88, sourceHeight * (width / Math.max(sourceWidth, 1))),
+    );
+    let top = coords.top + 6;
+
+    if (top + height > window.innerHeight - 12) {
+        top = Math.max(12, coords.top - height - 6);
+    }
+
+    slot.style.top = `${top}px`;
+    slot.style.left = `${editorRect.left + 12}px`;
+    slot.style.width = `${width}px`;
+    slot.style.height = `${height}px`;
+}
+
+function moveRichImage(
+    editor: Editor,
+    imagePos: number,
+    clientX: number,
+    clientY: number,
+): boolean {
+    const image = editor.state.doc.nodeAt(imagePos);
+    const sourceGallery = galleryAround(editor, imagePos);
+    const destination = resolvePictureDrop(
+        editor,
+        imagePos,
+        clientX,
+        clientY,
+    );
+
+    if (!image || image.type.name !== 'richImage' || !sourceGallery || !destination) {
+        return false;
+    }
+
+    const onlyImage = sourceGallery.node.childCount === 1;
+    const removeFrom = onlyImage ? sourceGallery.pos : imagePos;
+    const removeTo = onlyImage
+        ? sourceGallery.pos + sourceGallery.node.nodeSize
+        : imagePos + image.nodeSize;
+    const imageCopy = image.copy(image.content);
+    const nodeToInsert = destination.intoGallery
+        ? imageCopy
+        : onlyImage
+          ? sourceGallery.node.copy(sourceGallery.node.content)
+          : editor.schema.nodes.imageGallery.create(
+                {
+                    layout: sourceGallery.node.attrs.layout,
+                    gap: sourceGallery.node.attrs.gap,
+                },
+                imageCopy,
+            );
+
+    const tr = editor.state.tr;
+    let insertedAt: number;
+
+    if (destination.at >= removeTo) {
+        tr.delete(removeFrom, removeTo);
+        insertedAt = tr.mapping.map(destination.at);
+        tr.insert(insertedAt, nodeToInsert);
+    } else {
+        tr.insert(destination.at, nodeToInsert);
+        const from = tr.mapping.map(removeFrom);
+        const to = tr.mapping.map(removeTo);
+        tr.delete(from, to);
+        insertedAt = tr.mapping.map(destination.at, -1);
+    }
+
+    const selectedAt = Math.max(0, Math.min(insertedAt, tr.doc.content.size));
+
+    if (tr.doc.nodeAt(selectedAt)?.type.name === nodeToInsert.type.name) {
+        tr.setSelection(NodeSelection.create(tr.doc, selectedAt));
+    }
+
+    editor.view.dispatch(tr.scrollIntoView());
+
+    return true;
+}
+
 function RichImageView({
     node,
     updateAttributes,
@@ -475,6 +745,90 @@ function RichImageView({
             }
         }
     }
+
+    const startMove = (event: ReactMouseEvent<HTMLImageElement>) => {
+        if (event.button !== 0 || typeof position !== 'number') {
+            return;
+        }
+
+        event.preventDefault();
+        const origin = position;
+        const source = event.currentTarget;
+        const sourceRect = source.getBoundingClientRect();
+        const sourceColumn = source.closest('[data-rich-image]');
+        editor.chain().setNodeSelection(origin).run();
+        const startX = event.clientX;
+        const startY = event.clientY;
+        let dragging = false;
+        const ghost = document.createElement('div');
+        ghost.className = 'rich-image-drag-ghost';
+        const ghostImage = document.createElement('img');
+        ghostImage.src = source.src;
+        ghostImage.alt = '';
+        ghost.appendChild(ghostImage);
+        const slot = document.createElement('div');
+        slot.className = 'rich-image-drop-slot';
+        slot.hidden = true;
+        const slotImage = document.createElement('img');
+        slotImage.src = source.src;
+        slotImage.alt = '';
+        const slotLabel = document.createElement('span');
+        slotLabel.textContent = 'Place picture here';
+        slot.append(slotImage, slotLabel);
+
+        const onMove = (moveEvent: MouseEvent) => {
+            if (
+                !dragging &&
+                Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY) < 6
+            ) {
+                return;
+            }
+
+            if (!dragging) {
+                dragging = true;
+                document.body.append(ghost, slot);
+                document.body.classList.add('is-moving-picture');
+                sourceColumn?.classList.add('is-drag-source');
+            }
+
+            ghost.style.left = `${moveEvent.clientX + 14}px`;
+            ghost.style.top = `${moveEvent.clientY + 14}px`;
+            placePictureDropSlot(
+                slot,
+                editor,
+                resolvePictureDrop(
+                    editor,
+                    origin,
+                    moveEvent.clientX,
+                    moveEvent.clientY,
+                ),
+                sourceRect.width,
+                sourceRect.height,
+            );
+        };
+
+        const onUp = (upEvent: MouseEvent) => {
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onUp);
+            ghost.remove();
+            slot.remove();
+            document.body.classList.remove('is-moving-picture');
+            sourceColumn?.classList.remove('is-drag-source');
+
+            if (!dragging) {
+                return;
+            }
+
+            const current = typeof getPos === 'function' ? getPos() : origin;
+
+            if (typeof current === 'number') {
+                moveRichImage(editor, current, upEvent.clientX, upEvent.clientY);
+            }
+        };
+
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+    };
 
     const startResize = (event: ReactMouseEvent<HTMLButtonElement>) => {
         event.preventDefault();
@@ -522,19 +876,15 @@ function RichImageView({
                     src={String(node.attrs.src ?? '')}
                     alt={String(node.attrs.alt ?? '')}
                     draggable={false}
+                    title="Drag to move this picture"
                     style={{
                         width: '100%',
                         height: height ?? 'auto',
                         objectFit: height ? 'cover' : 'contain',
                         maxWidth: '100%',
+                        cursor: 'grab',
                     }}
-                    onMouseDown={(event) => {
-                        event.preventDefault();
-
-                        if (typeof position === 'number') {
-                            editor.chain().setNodeSelection(position).run();
-                        }
-                    }}
+                    onMouseDown={startMove}
                 />
                 {selected ? (
                     <button
