@@ -21,6 +21,7 @@ use App\Support\PostalCode;
 use App\Support\ProjectAccess;
 use App\Support\ProjectDocument;
 use App\Support\ProjectListDocument;
+use App\Support\ProjectListVersion;
 use App\Support\StateInitials;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
@@ -37,6 +38,15 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class ProjectController extends Controller
 {
+    public function version(Request $request): JsonResponse
+    {
+        $this->authorizeProjectView($request);
+
+        return response()->json([
+            'version' => ProjectListVersion::current(),
+        ]);
+    }
+
     public function index(Request $request): Response
     {
         $this->authorizeProjectView($request);
@@ -53,6 +63,7 @@ class ProjectController extends Controller
                 'highlight' => $highlight > 0 ? $highlight : null,
             ],
             'options' => $this->options($user),
+            'listVersion' => ProjectListVersion::current(),
             'projects' => $this->projectListingQuery($request)
                 ->when($highlight > 0, function ($query) use ($highlight): void {
                     $query->orderByRaw('CASE WHEN id = ? THEN 0 ELSE 1 END', [$highlight]);
@@ -353,7 +364,7 @@ class ProjectController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function validatedProject(Request $request, ?Project $project = null): array
+    public function validatedProject(Request $request, ?Project $project = null): array
     {
         $user = $request->user();
         $isProjectManager = $user->hasUserLevel(UserLevel::PROJECT_MANAGER);
@@ -467,7 +478,7 @@ class ProjectController extends Controller
      * @param  array<string, mixed>  $validated
      * @return array<string, mixed>
      */
-    private function projectAttributes(Request $request, array $validated): array
+    public function projectAttributes(Request $request, array $validated): array
     {
         $user = $request->user();
         $attributes = [
@@ -511,7 +522,7 @@ class ProjectController extends Controller
     /**
      * @param  array<string, mixed>  $validated
      */
-    private function syncProjectRelations(Request $request, Project $project, array $validated): void
+    public function syncProjectRelations(Request $request, Project $project, array $validated): void
     {
         if ($request->user()->hasUserLevel(UserLevel::PROJECT_MANAGER)) {
             return;

@@ -10,7 +10,7 @@ import {
 } from '@/Components/ui/card';
 import { cn } from '@/lib/utils';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { CheckCircle2Icon } from 'lucide-react';
+import { CheckCircle2Icon, SmartphoneIcon } from 'lucide-react';
 import { FormEventHandler } from 'react';
 
 type Permission = {
@@ -25,6 +25,7 @@ type Level = {
     name: string;
     locked: boolean;
     permissions: Record<string, boolean>;
+    mobile_permissions: Record<string, boolean>;
 };
 
 type AccessControlProps = {
@@ -35,6 +36,17 @@ type AccessControlProps = {
 
 type AccessControlForm = {
     levels: Record<string, Record<string, boolean>>;
+    mobile_levels: Record<string, Record<string, boolean>>;
+};
+
+type PermissionMatrixProps = {
+    groupedPermissions: Record<string, Permission[]>;
+    levels: Level[];
+    selectedLevelId?: number | null;
+    scope: string;
+    isDisabled: (level: Level, permission: Permission) => boolean;
+    isChecked: (level: Level, permission: Permission) => boolean;
+    onToggle: (levelId: number, permissionKey: string, checked: boolean) => void;
 };
 
 const permissionGroupStyles: Record<
@@ -102,6 +114,142 @@ function groupStyle(group: string) {
     );
 }
 
+function PermissionMatrix({
+    groupedPermissions,
+    levels,
+    selectedLevelId,
+    scope,
+    isDisabled,
+    isChecked,
+    onToggle,
+}: PermissionMatrixProps) {
+    return (
+        <>
+            {Object.entries(groupedPermissions).map(([group, groupPermissions]) => {
+                const styles = groupStyle(group);
+
+                return (
+                    <div
+                        key={group}
+                        className={cn(
+                            'overflow-hidden rounded-lg border',
+                            styles.panel,
+                        )}
+                    >
+                        <div
+                            className={cn(
+                                'border-b px-4 py-4',
+                                styles.header,
+                            )}
+                        >
+                            <h3
+                                className={cn(
+                                    'text-lg font-bold tracking-wide sm:text-xl',
+                                    styles.title,
+                                )}
+                            >
+                                {group}
+                            </h3>
+                        </div>
+
+                        <div className="overflow-x-auto">
+                            <div className="min-w-[760px]">
+                                <div className="grid grid-cols-[1.4fr_repeat(6,minmax(120px,1fr))] border-b border-border bg-background px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                    <div>Permission</div>
+                                    {levels.map((level) => (
+                                        <div
+                                            key={level.id}
+                                            className={
+                                                'rounded-md px-2 py-1 text-center ' +
+                                                (selectedLevelId === level.id
+                                                    ? 'bg-primary text-primary-foreground'
+                                                    : '')
+                                            }
+                                        >
+                                            {level.name}
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {groupPermissions.map((permission) => (
+                                    <div
+                                        key={permission.key}
+                                        className="grid grid-cols-[1.4fr_repeat(6,minmax(120px,1fr))] items-center border-b border-border px-4 py-4 last:border-b-0"
+                                    >
+                                        <div className="pr-4">
+                                            <div className="flex items-center gap-2">
+                                                <p className="font-medium text-foreground">
+                                                    {permission.name}
+                                                </p>
+                                                <Badge
+                                                    variant="outline"
+                                                    className={styles.badge}
+                                                >
+                                                    {permission.key}
+                                                </Badge>
+                                            </div>
+                                            <p className="mt-1 text-sm text-muted-foreground">
+                                                {permission.description}
+                                            </p>
+                                        </div>
+
+                                        {levels.map((level) => {
+                                            const checked = isChecked(
+                                                level,
+                                                permission,
+                                            );
+                                            const disabled = isDisabled(
+                                                level,
+                                                permission,
+                                            );
+
+                                            return (
+                                                <label
+                                                    key={`${scope}-${level.id}-${permission.key}`}
+                                                    className={
+                                                        'flex justify-center rounded-md py-1 ' +
+                                                        (selectedLevelId ===
+                                                        level.id
+                                                            ? 'bg-muted'
+                                                            : '')
+                                                    }
+                                                >
+                                                    <span className="sr-only">
+                                                        {checked
+                                                            ? 'Deny'
+                                                            : 'Grant'}{' '}
+                                                        {permission.name} for{' '}
+                                                        {level.name} on the{' '}
+                                                        {scope}
+                                                    </span>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={checked}
+                                                        disabled={disabled}
+                                                        onChange={(event) =>
+                                                            onToggle(
+                                                                level.id,
+                                                                permission.key,
+                                                                event.target
+                                                                    .checked,
+                                                            )
+                                                        }
+                                                        className="size-5 rounded border-border text-primary shadow-sm focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+                                                    />
+                                                </label>
+                                            );
+                                        })}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                );
+            })}
+        </>
+    );
+}
+
 export default function Edit({
     permissions,
     levels,
@@ -112,6 +260,13 @@ export default function Edit({
             (currentLevels, level) => ({
                 ...currentLevels,
                 [level.id]: level.permissions,
+            }),
+            {},
+        ),
+        mobile_levels: levels.reduce<Record<string, Record<string, boolean>>>(
+            (currentLevels, level) => ({
+                ...currentLevels,
+                [level.id]: level.mobile_permissions,
             }),
             {},
         ),
@@ -133,10 +288,40 @@ export default function Edit({
         permissionKey: string,
         checked: boolean,
     ) => {
-        setData('levels', {
-            ...data.levels,
+        setData({
+            ...data,
+            levels: {
+                ...data.levels,
+                [levelId]: {
+                    ...data.levels[levelId],
+                    [permissionKey]: checked,
+                },
+            },
+            mobile_levels: checked
+                ? data.mobile_levels
+                : {
+                      ...data.mobile_levels,
+                      [levelId]: {
+                          ...data.mobile_levels[levelId],
+                          [permissionKey]: false,
+                      },
+                  },
+        });
+    };
+
+    const toggleMobilePermission = (
+        levelId: number,
+        permissionKey: string,
+        checked: boolean,
+    ) => {
+        if (!data.levels[levelId]?.[permissionKey]) {
+            return;
+        }
+
+        setData('mobile_levels', {
+            ...data.mobile_levels,
             [levelId]: {
-                ...data.levels[levelId],
+                ...data.mobile_levels[levelId],
                 [permissionKey]: checked,
             },
         });
@@ -197,164 +382,21 @@ export default function Edit({
                             </CardHeader>
 
                             <CardContent className="flex flex-col gap-6">
-                                {Object.entries(groupedPermissions).map(
-                                    ([group, groupPermissions]) => {
-                                        const styles = groupStyle(group);
-
-                                        return (
-                                            <div
-                                                key={group}
-                                                className={cn(
-                                                    'overflow-hidden rounded-lg border',
-                                                    styles.panel,
-                                                )}
-                                            >
-                                                <div
-                                                    className={cn(
-                                                        'border-b px-4 py-4',
-                                                        styles.header,
-                                                    )}
-                                                >
-                                                    <h3
-                                                        className={cn(
-                                                            'text-lg font-bold tracking-wide sm:text-xl',
-                                                            styles.title,
-                                                        )}
-                                                    >
-                                                        {group}
-                                                    </h3>
-                                                </div>
-
-                                                <div className="overflow-x-auto">
-                                                    <div className="min-w-[760px]">
-                                                        <div className="grid grid-cols-[1.4fr_repeat(6,minmax(120px,1fr))] border-b border-border bg-background px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                                        <div>Permission</div>
-                                                        {levels.map(
-                                                            (level) => (
-                                                                <div
-                                                                    key={
-                                                                        level.id
-                                                                    }
-                                                                    className={
-                                                                        'rounded-md px-2 py-1 text-center ' +
-                                                                        (selectedLevelId ===
-                                                                        level.id
-                                                                            ? 'bg-primary text-primary-foreground'
-                                                                            : '')
-                                                                    }
-                                                                >
-                                                                    {
-                                                                        level.name
-                                                                    }
-                                                                </div>
-                                                            ),
-                                                        )}
-                                                    </div>
-
-                                                    {groupPermissions.map(
-                                                        (permission) => (
-                                                            <div
-                                                                key={
-                                                                    permission.key
-                                                                }
-                                                                className="grid grid-cols-[1.4fr_repeat(6,minmax(120px,1fr))] items-center border-b border-border px-4 py-4 last:border-b-0"
-                                                            >
-                                                                <div className="pr-4">
-                                                                    <div className="flex items-center gap-2">
-                                                                        <p className="font-medium text-foreground">
-                                                                            {
-                                                                                permission.name
-                                                                            }
-                                                                        </p>
-                                                                        <Badge
-                                                                            variant="outline"
-                                                                            className={
-                                                                                styles.badge
-                                                                            }
-                                                                        >
-                                                                            {
-                                                                                permission.key
-                                                                            }
-                                                                        </Badge>
-                                                                    </div>
-                                                                    <p className="mt-1 text-sm text-muted-foreground">
-                                                                        {
-                                                                            permission.description
-                                                                        }
-                                                                    </p>
-                                                                </div>
-
-                                                                {levels.map(
-                                                                    (level) => {
-                                                                        const checked =
-                                                                            Boolean(
-                                                                                data
-                                                                                    .levels[
-                                                                                    level
-                                                                                        .id
-                                                                                ]?.[
-                                                                                    permission
-                                                                                        .key
-                                                                                ],
-                                                                            );
-
-                                                                        return (
-                                                                            <label
-                                                                                key={`${level.id}-${permission.key}`}
-                                                                                className={
-                                                                                    'flex justify-center rounded-md py-1 ' +
-                                                                                    (selectedLevelId ===
-                                                                                    level.id
-                                                                                        ? 'bg-muted'
-                                                                                        : '')
-                                                                                }
-                                                                            >
-                                                                                <span className="sr-only">
-                                                                                    {checked
-                                                                                        ? 'Deny'
-                                                                                        : 'Grant'}{' '}
-                                                                                    {
-                                                                                        permission.name
-                                                                                    }{' '}
-                                                                                    for{' '}
-                                                                                    {
-                                                                                        level.name
-                                                                                    }
-                                                                                </span>
-                                                                                <input
-                                                                                    type="checkbox"
-                                                                                    checked={
-                                                                                        checked
-                                                                                    }
-                                                                                    disabled={
-                                                                                        level.locked
-                                                                                    }
-                                                                                    onChange={(
-                                                                                        event,
-                                                                                    ) =>
-                                                                                        togglePermission(
-                                                                                            level.id,
-                                                                                            permission.key,
-                                                                                            event
-                                                                                                .target
-                                                                                                .checked,
-                                                                                        )
-                                                                                    }
-                                                                                    className="size-5 rounded border-border text-primary shadow-sm focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
-                                                                                />
-                                                                            </label>
-                                                                        );
-                                                                    },
-                                                                )}
-                                                            </div>
-                                                        ),
-                                                    )}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    },
-                                )}
+                                <PermissionMatrix
+                                    groupedPermissions={groupedPermissions}
+                                    levels={levels}
+                                    selectedLevelId={selectedLevelId}
+                                    scope="website"
+                                    isDisabled={(level) => level.locked}
+                                    isChecked={(level, permission) =>
+                                        Boolean(
+                                            data.levels[level.id]?.[
+                                                permission.key
+                                            ],
+                                        )
+                                    }
+                                    onToggle={togglePermission}
+                                />
 
                                 <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
                                     <CheckCircle2Icon className="mt-0.5 size-4 shrink-0" />
@@ -362,6 +404,59 @@ export default function Edit({
                                         Changes are applied immediately after
                                         saving. Checked boxes mean the user
                                         level is granted that permission.
+                                    </p>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="mt-6 shadow-sm">
+                            <CardHeader className="gap-4 sm:grid-cols-[1fr_auto] sm:items-center">
+                                <div>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <SmartphoneIcon className="size-5" />
+                                        Mobile application
+                                    </CardTitle>
+                                    <CardDescription>
+                                        Delegate which of the rights above are
+                                        available when this user level signs in
+                                        on the mobile app. A right can only be
+                                        granted here when the level already has
+                                        it on the website. Super Admin remains
+                                        fully checked.
+                                    </CardDescription>
+                                </div>
+                            </CardHeader>
+
+                            <CardContent className="flex flex-col gap-6">
+                                <PermissionMatrix
+                                    groupedPermissions={groupedPermissions}
+                                    levels={levels}
+                                    selectedLevelId={selectedLevelId}
+                                    scope="mobile app"
+                                    isDisabled={(level, permission) =>
+                                        level.locked ||
+                                        !data.levels[level.id]?.[permission.key]
+                                    }
+                                    isChecked={(level, permission) =>
+                                        Boolean(
+                                            data.levels[level.id]?.[
+                                                permission.key
+                                            ] &&
+                                                data.mobile_levels[level.id]?.[
+                                                    permission.key
+                                                ],
+                                        )
+                                    }
+                                    onToggle={toggleMobilePermission}
+                                />
+
+                                <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+                                    <SmartphoneIcon className="mt-0.5 size-4 shrink-0" />
+                                    <p>
+                                        Unchecked boxes hide that route in the
+                                        mobile app. Removing a website
+                                        permission also removes it from the
+                                        mobile app.
                                     </p>
                                 </div>
                             </CardContent>

@@ -11,11 +11,12 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -177,6 +178,19 @@ class User extends Authenticatable
         }
 
         return $this->level?->hasPermission($permission) ?? false;
+    }
+
+    public function hasMobilePermission(string $permission): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        if (! $this->hasPermission($permission)) {
+            return false;
+        }
+
+        return $this->level?->hasMobilePermission($permission) ?? false;
     }
 
     public function sendPasswordResetNotification(#[\SensitiveParameter] $token): void

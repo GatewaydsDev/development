@@ -381,6 +381,9 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::get('/projects', [ProjectController::class, 'index'])
             ->middleware('can:view-projects')
             ->name('projects.index');
+        Route::get('/projects/version', [ProjectController::class, 'version'])
+            ->middleware('can:view-projects')
+            ->name('projects.version');
         Route::get('/projects/print', [ProjectController::class, 'print'])
             ->middleware('can:view-projects')
             ->name('projects.print');

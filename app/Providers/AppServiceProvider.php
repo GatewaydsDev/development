@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Models\UserActivity;
 use App\Models\UserLevel;
 use App\Observers\AuditModelObserver;
+use App\Observers\ProjectObserver;
 use App\Services\UserActivityLogger;
 use App\Support\DocumentAppearance;
 use Illuminate\Auth\Events\Login;
@@ -99,5 +100,7 @@ class AppServiceProvider extends ServiceProvider
         ] as $model) {
             $model::observe(AuditModelObserver::class);
         }
+
+        Project::observe(ProjectObserver::class);
     }
 }

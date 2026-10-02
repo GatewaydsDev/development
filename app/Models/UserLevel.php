@@ -29,12 +29,14 @@ class UserLevel extends Model
         'uuid',
         'name',
         'permissions',
+        'mobile_permissions',
     ];
 
     protected function casts(): array
     {
         return [
             'permissions' => 'array',
+            'mobile_permissions' => 'array',
         ];
     }
 
@@ -79,6 +81,23 @@ class UserLevel extends Model
         }
 
         return in_array($permission, config("access.defaults.{$this->name}", []), true);
+    }
+
+    public function hasMobilePermission(string $permission): bool
+    {
+        if ($this->isSuperAdminLevel()) {
+            return true;
+        }
+
+        if (! $this->hasPermission($permission)) {
+            return false;
+        }
+
+        if (is_array($this->mobile_permissions) && array_key_exists($permission, $this->mobile_permissions)) {
+            return (bool) $this->mobile_permissions[$permission];
+        }
+
+        return true;
     }
 
     /**

@@ -7,6 +7,7 @@ import { PageProps } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import {
     ActivityIcon,
+    BriefcaseIcon,
     Building2Icon,
     ClipboardListIcon,
     ClockIcon,
@@ -79,6 +80,7 @@ export default function DashboardSidebar({
     const can = auth.can ?? {};
 
 
+    const canViewProjects = Boolean(can.viewProjects);
     const canViewBids = Boolean(can.viewBids);
     const canViewQuotations = Boolean(can.viewQuotations);
     const canViewProducts = Boolean(can.viewProducts);
@@ -104,11 +106,21 @@ export default function DashboardSidebar({
             label: 'Main Workspace',
             items: [
                 {
-                    title: 'Dashboard & Projects',
+                    title: 'Dashboard',
                     href: route('dashboard'),
                     icon: LayoutDashboardIcon,
-                    active: isRouteActive(['dashboard', 'admin.projects.*']),
+                    active: isRouteActive('dashboard'),
                 },
+                ...(canViewProjects
+                    ? [
+                          {
+                              title: 'Projects',
+                              href: route('admin.projects.index'),
+                              icon: BriefcaseIcon,
+                              active: isRouteActive('admin.projects.*'),
+                          },
+                      ]
+                    : []),
                 ...(canViewBids
                     ? [
                           {

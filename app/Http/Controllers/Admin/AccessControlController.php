@@ -36,6 +36,12 @@ class AccessControlController extends Controller
                         $permission => $level->hasPermission($permission),
                     ])
                     ->all(),
+                'mobile_permissions' => collect(config('access.permissions', []))
+                    ->keys()
+                    ->mapWithKeys(fn (string $permission): array => [
+                        $permission => $level->hasMobilePermission($permission),
+                    ])
+                    ->all(),
             ])
             ->all();
 
@@ -51,16 +57,22 @@ class AccessControlController extends Controller
         $validated = $request->validate([
             'levels' => ['required', 'array'],
             'levels.*' => ['array'],
+            'mobile_levels' => ['sometimes', 'array'],
+            'mobile_levels.*' => ['array'],
         ]);
 
         $permissionKeys = collect(config('access.permissions', []))->keys();
+        $saveMobile = array_key_exists('mobile_levels', $validated);
 
         UserLevel::query()
             ->get()
-            ->each(function (UserLevel $level) use ($validated, $permissionKeys): void {
+            ->each(function (UserLevel $level) use ($validated, $permissionKeys, $saveMobile): void {
                 if ($level->isSuperAdminLevel()) {
+                    $allGranted = $level->defaultPermissions();
+
                     $level->forceFill([
-                        'permissions' => $level->defaultPermissions(),
+                        'permissions' => $allGranted,
+                        'mobile_permissions' => $allGranted,
                     ])->save();
 
                     return;
@@ -68,16 +80,33 @@ class AccessControlController extends Controller
 
                 $submittedPermissions = $validated['levels'][$level->id] ?? [];
 
-                $level->forceFill([
-                    'permissions' => $permissionKeys
+                $permissions = $permissionKeys
+                    ->mapWithKeys(fn (string $permission): array => [
+                        $permission => filter_var(
+                            $submittedPermissions[$permission] ?? false,
+                            FILTER_VALIDATE_BOOLEAN,
+                        ),
+                    ])
+                    ->all();
+
+                $attributes = [
+                    'permissions' => $permissions,
+                ];
+
+                if ($saveMobile) {
+                    $submittedMobile = $validated['mobile_levels'][$level->id] ?? [];
+
+                    $attributes['mobile_permissions'] = $permissionKeys
                         ->mapWithKeys(fn (string $permission): array => [
-                            $permission => filter_var(
-                                $submittedPermissions[$permission] ?? false,
+                            $permission => ($permissions[$permission] ?? false) && filter_var(
+                                $submittedMobile[$permission] ?? false,
                                 FILTER_VALIDATE_BOOLEAN,
                             ),
                         ])
-                        ->all(),
-                ])->save();
+                        ->all();
+                }
+
+                $level->forceFill($attributes)->save();
             });
 
         return redirect()

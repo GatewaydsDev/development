@@ -1,3 +1,4 @@
+import { useProjectListRefresh } from '@/hooks/useProjectListRefresh';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ActionHint from '@/Components/ActionHint';
 import DirectoryFieldLabel from '@/Components/DirectoryFieldLabel';
@@ -38,6 +39,7 @@ type IndexProps = {
     };
     options: ProjectOptions;
     projects: ProjectsPaginator;
+    listVersion: string;
 };
 
 const statusBadgeClassName = (status?: string | null) => {
@@ -57,7 +59,25 @@ const statusBadgeClassName = (status?: string | null) => {
     );
 };
 
-export default function Index({ filters, options, projects }: IndexProps) {
+const priorityBadgeClassName = (priority?: string | null) => {
+    const colors: Record<string, string> = {
+        urgent: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/70 dark:bg-rose-950/40 dark:text-rose-300',
+        high: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/70 dark:bg-amber-950/40 dark:text-amber-300',
+        normal: 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300',
+        low: 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300',
+    };
+
+    return (
+        colors[priority ?? ''] ?? 'border-border bg-muted text-muted-foreground'
+    );
+};
+
+export default function Index({
+    filters,
+    options,
+    projects,
+    listVersion,
+}: IndexProps) {
     const { auth } = usePage<PageProps>().props;
     const canViewBids = Boolean(auth.can?.viewBids);
     const [search, setSearch] = useState(filters.search ?? '');
@@ -73,6 +93,8 @@ export default function Index({ filters, options, projects }: IndexProps) {
             .getElementById(`project-row-${highlightedProjectId}`)
             ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, [highlightedProjectId]);
+
+    useProjectListRefresh(listVersion, ['projects', 'listVersion']);
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
@@ -93,7 +115,7 @@ export default function Index({ filters, options, projects }: IndexProps) {
     };
 
     const projectRowGridClassName =
-        'w-full xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1.2fr)_7.5rem_minmax(0,1fr)_minmax(0,8.5rem)_13.5rem]';
+        'w-full xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_7rem_minmax(0,0.9fr)_minmax(0,7.5rem)_minmax(0,6.5rem)_12.5rem]';
 
     return (
         <AuthenticatedLayout
@@ -234,7 +256,7 @@ export default function Index({ filters, options, projects }: IndexProps) {
 
                         <CardContent>
                             <div className="overflow-x-auto rounded-lg border border-border">
-                                <div className="xl:min-w-[76rem]">
+                                <div className="xl:min-w-[82rem]">
                                 <div
                                     className={cn(
                                         'hidden items-center gap-6 border-b border-border bg-muted/50 px-5 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground xl:grid',
@@ -246,6 +268,7 @@ export default function Index({ filters, options, projects }: IndexProps) {
                                     <div>Bid/Estimate</div>
                                     <div>Bid scope</div>
                                     <div>Status</div>
+                                    <div>Priority</div>
                                     <div className="text-right">Actions</div>
                                 </div>
 
@@ -402,6 +425,23 @@ export default function Index({ filters, options, projects }: IndexProps) {
                                                 >
                                                     {project.status ||
                                                         'Not set'}
+                                                </Badge>
+                                            </div>
+                                            <div className="min-w-0">
+                                                <DirectoryFieldLabel hideFrom="xl">
+                                                    Priority
+                                                </DirectoryFieldLabel>
+                                                <Badge
+                                                    variant="outline"
+                                                    className={cn(
+                                                        'h-auto max-w-full whitespace-normal break-words py-1 capitalize leading-snug',
+                                                        priorityBadgeClassName(
+                                                            project.priority,
+                                                        ),
+                                                    )}
+                                                >
+                                                    {project.priority ||
+                                                        'Normal'}
                                                 </Badge>
                                             </div>
                                             <div className="flex shrink-0 flex-col gap-1 md:items-end">
