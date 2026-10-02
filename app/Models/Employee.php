@@ -3,7 +3,9 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Str;
 
 class Employee extends Model
@@ -26,6 +28,7 @@ class Employee extends Model
         'department',
         'employment_status',
         'hire_date',
+        'date_of_birth',
         'notes',
     ];
 
@@ -33,6 +36,7 @@ class Employee extends Model
     {
         return [
             'hire_date' => 'date',
+            'date_of_birth' => 'date',
         ];
     }
 
@@ -51,5 +55,30 @@ class Employee extends Model
     public function payRates(): HasMany
     {
         return $this->hasMany(EmployeePayRate::class);
+    }
+
+    public function languagePreference(): HasOne
+    {
+        return $this->hasOne(EmployeeLanguagePreference::class);
+    }
+
+    public function professions(): BelongsToMany
+    {
+        return $this->belongsToMany(Profession::class);
+    }
+
+    public function skills(): BelongsToMany
+    {
+        return $this->belongsToMany(Skill::class);
+    }
+
+    public function projectAssignments(): HasMany
+    {
+        return $this->hasMany(EmployeeProjectAssignment::class);
+    }
+
+    public function skillShifts(): HasMany
+    {
+        return $this->hasMany(EmployeeSkillShift::class);
     }
 }

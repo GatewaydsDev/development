@@ -1,3 +1,4 @@
+import { useProjectListRefresh } from '@/hooks/useProjectListRefresh';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ActionHint from '@/Components/ActionHint';
 import DirectoryFieldLabel from '@/Components/DirectoryFieldLabel';
@@ -54,6 +55,7 @@ type IndexProps = {
     options: QuotationOptions;
     summary?: QuotationListSummary;
     quotations: QuotationsPaginator;
+    listVersion: string;
 };
 
 const statusBadgeClassName = (status?: string | null) => {
@@ -73,6 +75,7 @@ export default function Index({
     options,
     summary,
     quotations,
+    listVersion,
 }: IndexProps) {
     const [search, setSearch] = useState(filters.search ?? '');
     const [pendingQuotation, setPendingQuotation] =
@@ -88,6 +91,12 @@ export default function Index({
             .getElementById(`quotation-row-${highlightedId}`)
             ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, [highlightedId]);
+
+    useProjectListRefresh(
+        listVersion,
+        ['quotations', 'summary', 'listVersion'],
+        'admin.quotations.version',
+    );
 
     const submit = (event: FormEvent) => {
         event.preventDefault();

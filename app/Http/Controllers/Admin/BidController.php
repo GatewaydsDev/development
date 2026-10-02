@@ -28,10 +28,12 @@ use App\Support\BidAccess;
 use App\Support\BidApplicationText;
 use App\Support\BidDocument;
 use App\Support\BidListDocument;
+use App\Support\BidListVersion;
 use App\Support\DocumentLogo;
 use App\Support\QuotationAccess;
 use App\Support\QuotationToBid;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
@@ -69,6 +71,16 @@ class BidController extends Controller
                 ->paginate(10)
                 ->withQueryString()
                 ->through(fn (Bid $bid): array => $this->bidPayload($bid, summary: true)),
+            'listVersion' => BidListVersion::current(),
+        ]);
+    }
+
+    public function version(Request $request): JsonResponse
+    {
+        abort_unless(BidAccess::canView($request->user()), 403);
+
+        return response()->json([
+            'version' => BidListVersion::current(),
         ]);
     }
 
@@ -238,7 +250,7 @@ class BidController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function validatedBid(Request $request, ?Bid $bid = null): array
+    public function validatedBid(Request $request, ?Bid $bid = null): array
     {
         $validated = $request->validate([
             'project_id' => ['required', 'integer', Rule::exists(Project::class, 'id')],
@@ -406,7 +418,7 @@ class BidController extends Controller
     /**
      * @param  array<string, mixed>  $validated
      */
-    private function syncBidRelations(Bid $bid, array $validated, User $user): void
+    public function syncBidRelations(Bid $bid, array $validated, User $user): void
     {
         $this->syncRevisions($bid, $validated['revisions'] ?? [], $user);
 
@@ -734,7 +746,7 @@ class BidController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function bidPayload(Bid $bid, bool $summary = false): array
+    public function bidPayload(Bid $bid, bool $summary = false): array
     {
         $currentStage = $bid->stages->last();
         $bid->loadMissing('quotation', 'assignee:id,name', 'revisions.user:id,name');
@@ -892,7 +904,7 @@ class BidController extends Controller
     /**
      * @param  array<string, mixed>  $validated
      */
-    private function shippingText(array $validated): ?string
+    public function shippingText(array $validated): ?string
     {
         return $this->filledBidHtml($validated, 'notes');
     }
@@ -900,7 +912,7 @@ class BidController extends Controller
     /**
      * @param  array<string, mixed>  $validated
      */
-    private function scopeOfWorkText(array $validated): ?string
+    public function scopeOfWorkText(array $validated): ?string
     {
         return $this->filledBidHtml($validated, 'scope_of_work_text');
     }
@@ -1093,7 +1105,7 @@ class BidController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function options(?User $user): array
+    public function options(?User $user): array
     {
         $company = Company::query()->where('is_active', true)->latest()->first();
 
@@ -1312,7 +1324,7 @@ class BidController extends Controller
         );
     }
 
-    private function bidListingQuery(Request $request): Builder
+    public function bidListingQuery(Request $request): Builder
     {
         $search = (string) $request->query('search', '');
 
@@ -1355,6 +1367,7 @@ class BidController extends Controller
                 });
             });
     }
+
     /**
      * @param  Builder<Bid>  $query
      * @return array{stages: list<array{stage: string, count: int, total_amount: float, formatted_total: string}>, total_count: int, total_amount: float, formatted_total_amount: string}

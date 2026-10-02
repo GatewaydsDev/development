@@ -1,3 +1,4 @@
+import { useProjectListRefresh } from '@/hooks/useProjectListRefresh';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ActionHint from '@/Components/ActionHint';
 import DirectoryFieldLabel from '@/Components/DirectoryFieldLabel';
@@ -42,9 +43,16 @@ type IndexProps = {
     options: BidOptions;
     summary?: BidListSummary;
     bids: BidsPaginator;
+    listVersion: string;
 };
 
-export default function Index({ filters, options, summary, bids }: IndexProps) {
+export default function Index({
+    filters,
+    options,
+    summary,
+    bids,
+    listVersion,
+}: IndexProps) {
     const [search, setSearch] = useState(filters.search ?? '');
     const highlightedBidId = filters.highlight ?? null;
 
@@ -62,6 +70,12 @@ export default function Index({ filters, options, summary, bids }: IndexProps) {
 
         visibleRow?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, [highlightedBidId]);
+
+    useProjectListRefresh(
+        listVersion,
+        ['bids', 'summary', 'listVersion'],
+        'admin.bids.version',
+    );
 
     const submit = (event: FormEvent) => {
         event.preventDefault();

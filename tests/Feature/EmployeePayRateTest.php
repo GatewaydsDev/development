@@ -2,7 +2,12 @@
 
 use App\Models\Employee;
 use App\Models\EmployeePayRate;
+use App\Models\EmployeeSkillShift;
+use App\Models\Language;
 use App\Models\Profession;
+use App\Models\Project;
+use App\Models\ProjectStatus;
+use App\Models\Skill;
 use App\Models\User;
 use App\Models\UserLevel;
 
@@ -142,4 +147,80 @@ test('employee pay rates can be replaced on update', function () {
         ->toBe(2);
     expect($employee->payRates()->where('custom_rate_type', 'Weekend emergency')->exists())
         ->toBeTrue();
+});
+
+test('an employee form stores language projects skills and union shift pay', function () {
+    $admin = employeeAdmin();
+    $language = Language::query()->where('name', 'Spanish')->firstOrFail();
+    $profession = Profession::create(['name' => 'Carpenter']);
+    $skill = Skill::create(['name' => 'Finish carpentry']);
+    $morning = Project::create([
+        'name' => 'Morning Site',
+        'project_status_id' => ProjectStatus::idFor('quoted'),
+        'priority' => 'normal',
+        'created_by' => $admin->id,
+    ]);
+    $afternoon = Project::create([
+        'name' => 'Afternoon Site',
+        'project_status_id' => ProjectStatus::idFor('quoted'),
+        'priority' => 'normal',
+        'created_by' => $admin->id,
+    ]);
+
+    $response = $this
+        ->actingAs($admin)
+        ->post(route('admin.employees.store'), [
+            'first_name' => 'Sam',
+            'last_name' => 'Cole',
+            'email' => 'sam.cole@example.com',
+            'phone_number' => '(555) 222-3333',
+            'job_title' => 'Carpenter',
+            'department' => 'Field',
+            'employment_status' => Employee::STATUS_ACTIVE,
+            'hire_date' => '2026-05-01',
+            'date_of_birth' => '1988-02-02',
+            'language_id' => $language->id,
+            'notes' => '',
+            'profession_ids' => [$profession->id],
+            'skill_ids' => [$skill->id],
+            'project_assignments' => [
+                [
+                    'project_id' => $morning->id,
+                    'work_date' => '2026-10-02',
+                    'notes' => 'Morning',
+                ],
+                [
+                    'project_id' => $afternoon->id,
+                    'work_date' => '2026-10-02',
+                    'notes' => 'Afternoon',
+                ],
+            ],
+            'skill_shifts' => [
+                [
+                    'skill_id' => $skill->id,
+                    'shift_type' => EmployeeSkillShift::SHIFT_COUPLE_HOURS,
+                    'pay_basis' => EmployeeSkillShift::PAY_HOURLY,
+                    'amount' => '48.00',
+                    'is_union_member' => true,
+                    'union_rate' => '61.25',
+                    'notes' => '',
+                ],
+            ],
+            'pay_rates' => [],
+        ]);
+
+    $response
+        ->assertSessionHasNoErrors()
+        ->assertRedirect(route('admin.employees.index'));
+
+    $employee = Employee::query()->where('email', 'sam.cole@example.com')->firstOrFail();
+
+    expect($employee->date_of_birth?->toDateString())->toBe('1988-02-02');
+    expect($employee->languagePreference?->language?->name)->toBe('Spanish');
+    expect($employee->professions)->toHaveCount(1);
+    expect($employee->skills)->toHaveCount(1);
+    expect($employee->projectAssignments)->toHaveCount(2);
+    expect($employee->skillShifts)->toHaveCount(1);
+    expect($employee->skillShifts->first()?->is_union_member)->toBeTrue();
+    expect($employee->skillShifts->first()?->union_rate)->toBe('61.25');
 });

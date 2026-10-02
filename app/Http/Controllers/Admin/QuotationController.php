@@ -21,8 +21,10 @@ use App\Support\BidAccess;
 use App\Support\BidApplicationText;
 use App\Support\QuotationAccess;
 use App\Support\QuotationDocument;
+use App\Support\QuotationListVersion;
 use App\Support\QuotationToBid;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
@@ -42,6 +44,7 @@ class QuotationController extends Controller
     private ?bool $quotationsHaveProposalTitle = null;
 
     private ?bool $quotationsHaveAuthorization = null;
+
     public function index(Request $request): Response
     {
         abort_unless(QuotationAccess::canView($request->user()), 403);
@@ -64,6 +67,16 @@ class QuotationController extends Controller
                 ->paginate(10)
                 ->withQueryString()
                 ->through(fn (Quotation $quotation): array => $this->quotationPayload($quotation, summary: true)),
+            'listVersion' => QuotationListVersion::current(),
+        ]);
+    }
+
+    public function version(Request $request): JsonResponse
+    {
+        abort_unless(QuotationAccess::canView($request->user()), 403);
+
+        return response()->json([
+            'version' => QuotationListVersion::current(),
         ]);
     }
 
@@ -269,7 +282,7 @@ class QuotationController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function validatedQuotation(Request $request, ?Quotation $quotation = null): array
+    public function validatedQuotation(Request $request, ?Quotation $quotation = null): array
     {
         $validated = $request->validate([
             'contractor_id' => ['required', 'integer', 'exists:contractors,id'],
@@ -424,7 +437,7 @@ class QuotationController extends Controller
     /**
      * @param  list<int|string>  $contactIds
      */
-    private function syncContacts(Quotation $quotation, array $contactIds): void
+    public function syncContacts(Quotation $quotation, array $contactIds): void
     {
         $quotation->contacts()->sync(
             collect($contactIds)
@@ -436,7 +449,7 @@ class QuotationController extends Controller
         );
     }
 
-    private function syncLineItems(Quotation $quotation, array $items): void
+    public function syncLineItems(Quotation $quotation, array $items): void
     {
         $quotation->lineItems()->delete();
 
@@ -448,7 +461,7 @@ class QuotationController extends Controller
     /**
      * @param  array<int, array<string, mixed>>  $revisions
      */
-    private function syncRevisions(Quotation $quotation, array $revisions, ?User $user): void
+    public function syncRevisions(Quotation $quotation, array $revisions, ?User $user): void
     {
         $revisions = collect($revisions)
             ->filter(fn (array $revision): bool => filled($revision['number'] ?? null))
@@ -504,7 +517,7 @@ class QuotationController extends Controller
     /**
      * @param  array<int, array<string, mixed>>  $tables
      */
-    private function syncFieldTables(Quotation $quotation, array $tables): void
+    public function syncFieldTables(Quotation $quotation, array $tables): void
     {
         $quotation->productFields()->delete();
         $quotation->tables()->delete();
@@ -556,7 +569,7 @@ class QuotationController extends Controller
             ->all();
     }
 
-    private function listingQuery(string $search)
+    public function listingQuery(string $search)
     {
         return Quotation::query()
             ->with(['contractor.contacts', 'contacts', 'project', 'lineItems', 'convertedBid'])
@@ -582,7 +595,7 @@ class QuotationController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function quotationPayload(Quotation $quotation, bool $summary = false): array
+    public function quotationPayload(Quotation $quotation, bool $summary = false): array
     {
         $quotation->loadMissing(['contractor.contacts', 'contacts', 'project', 'lineItems', 'convertedBid', 'creator:id,name,signature_path', 'revisions.user:id,name', 'tables.fields.field', 'tables.fields.product', 'productFields.field', 'productFields.product']);
 
@@ -767,7 +780,7 @@ class QuotationController extends Controller
      * @param  array<string, mixed>  $validated
      * @return array<string, string>
      */
-    private function proposalTitleAttributes(array $validated): array
+    public function proposalTitleAttributes(array $validated): array
     {
         if (! $this->quotationsHaveProposalTitle()) {
             return [];
@@ -796,7 +809,7 @@ class QuotationController extends Controller
      * @param  array<string, mixed>  $validated
      * @return array<string, bool>
      */
-    private function authorizationAttributes(array $validated, ?Quotation $quotation = null): array
+    public function authorizationAttributes(array $validated, ?Quotation $quotation = null): array
     {
         if (! $this->quotationsHaveAuthorization()) {
             return [];
@@ -863,7 +876,7 @@ class QuotationController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function options(?User $user): array
+    public function options(?User $user): array
     {
         return [
             'can' => [

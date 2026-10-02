@@ -6,6 +6,7 @@ const projectListRefreshInterval = 2_000;
 export function useProjectListRefresh(
     listVersion: string | null | undefined,
     reloadProps: string[],
+    versionRoute = 'admin.projects.version',
 ) {
     const reloadKey = reloadProps.join(',');
 
@@ -19,7 +20,7 @@ export function useProjectListRefresh(
 
         const watch = window.setInterval(async () => {
             try {
-                const response = await fetch(route('admin.projects.version'), {
+                const response = await fetch(route(versionRoute), {
                     headers: {
                         Accept: 'application/json',
                         'X-Requested-With': 'XMLHttpRequest',
@@ -54,5 +55,5 @@ export function useProjectListRefresh(
             stopped = true;
             window.clearInterval(watch);
         };
-    }, [listVersion, reloadKey]);
+    }, [listVersion, reloadKey, versionRoute]);
 }

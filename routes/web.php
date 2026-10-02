@@ -10,12 +10,14 @@ use App\Http\Controllers\Admin\ContractorController;
 use App\Http\Controllers\Admin\DocumentSettingController;
 use App\Http\Controllers\Admin\EditorImageController;
 use App\Http\Controllers\Admin\EmployeeController;
+use App\Http\Controllers\Admin\LanguageController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ProfessionController;
 use App\Http\Controllers\Admin\ProjectController;
 use App\Http\Controllers\Admin\QuotationController;
 use App\Http\Controllers\Admin\ServiceController;
 use App\Http\Controllers\Admin\SignatureController;
+use App\Http\Controllers\Admin\SkillController;
 use App\Http\Controllers\Admin\UserActivityController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\ContactSubmissionController;
@@ -210,10 +212,17 @@ Route::middleware(['auth', 'prevent-back-history'])
             ->name('employees.destroy');
         Route::post('/professions', [ProfessionController::class, 'store'])
             ->name('professions.store');
+        Route::post('/languages', [LanguageController::class, 'store'])
+            ->name('languages.store');
+        Route::post('/skills', [SkillController::class, 'store'])
+            ->name('skills.store');
 
         Route::get('/bids', [BidController::class, 'index'])
             ->middleware('can:view-bids')
             ->name('bids.index');
+        Route::get('/bids/version', [BidController::class, 'version'])
+            ->middleware('can:view-bids')
+            ->name('bids.version');
         Route::get('/bids/create', [BidController::class, 'create'])
             ->middleware('can:create-bids')
             ->name('bids.create');
@@ -272,6 +281,9 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::get('/quotations', [QuotationController::class, 'index'])
             ->middleware('can:view-quotations')
             ->name('quotations.index');
+        Route::get('/quotations/version', [QuotationController::class, 'version'])
+            ->middleware('can:view-quotations')
+            ->name('quotations.version');
         Route::get('/quotations/create', [QuotationController::class, 'create'])
             ->middleware('can:create-quotations')
             ->name('quotations.create');

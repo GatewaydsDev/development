@@ -2,21 +2,33 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link } from '@inertiajs/react';
 import EmployeeForm from './Partials/EmployeeForm';
 import type {
+    EmployeeOptionMap,
     EmployeeRateTypeOptions,
     EmployeeStatusOptions,
-    ProfessionOption,
+    NamedOption,
+    ProjectOption,
 } from './types';
 
 type CreateProps = {
-    professions: ProfessionOption[];
+    professions: NamedOption[];
+    languages: NamedOption[];
+    skills: NamedOption[];
+    projects: ProjectOption[];
     rateTypeOptions: EmployeeRateTypeOptions;
     statusOptions: EmployeeStatusOptions;
+    shiftTypeOptions: EmployeeOptionMap;
+    payBasisOptions: EmployeeOptionMap;
 };
 
 export default function Create({
     professions,
+    languages,
+    skills,
+    projects,
     rateTypeOptions,
     statusOptions,
+    shiftTypeOptions,
+    payBasisOptions,
 }: CreateProps) {
     return (
         <AuthenticatedLayout
@@ -51,10 +63,15 @@ export default function Create({
                         action={route('admin.employees.store')}
                         submitLabel="Create employee"
                         title="Employee information"
-                        description="Create an employee record with contact and role details."
+                        description="Create an employee record with contact details, language, professions, projects, and skill shifts."
                         professions={professions}
+                        languages={languages}
+                        skills={skills}
+                        projects={projects}
                         rateTypeOptions={rateTypeOptions}
                         statusOptions={statusOptions}
+                        shiftTypeOptions={shiftTypeOptions}
+                        payBasisOptions={payBasisOptions}
                     />
                 </div>
             </div>

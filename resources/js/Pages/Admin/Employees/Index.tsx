@@ -35,7 +35,11 @@ import {
     UsersRoundIcon,
 } from 'lucide-react';
 import { FormEvent, useState } from 'react';
-import type { EmployeePayload, EmployeesPaginator } from './types';
+import {
+    formatDisplayDate,
+    type EmployeePayload,
+    type EmployeesPaginator,
+} from './types';
 
 type IndexProps = {
     filters: {
@@ -226,10 +230,26 @@ export default function Index({ filters, employees }: IndexProps) {
                                                 </p>
                                                 <p className="text-sm text-muted-foreground">
                                                     {employee.job_title ||
+                                                        employee.professions[0]
+                                                            ?.name ||
                                                         employee.pay_rates[0]
                                                             ?.profession
                                                             ?.name ||
                                                         employee.uuid}
+                                                </p>
+                                                <p className="mt-1 text-sm text-muted-foreground">
+                                                    {[
+                                                        employee.language?.name,
+                                                        employee.date_of_birth
+                                                            ? `Born ${formatDisplayDate(employee.date_of_birth)}`
+                                                            : null,
+                                                        employee.skills
+                                                            .map((skill) => skill.name)
+                                                            .join(', ') || null,
+                                                    ]
+                                                        .filter(Boolean)
+                                                        .join(' · ') ||
+                                                        'No language or skills yet'}
                                                 </p>
                                             </div>
                                             <div className="min-w-0 text-sm text-muted-foreground">
@@ -250,7 +270,25 @@ export default function Index({ filters, employees }: IndexProps) {
                                                 {employee.hire_date && (
                                                     <span className="block">
                                                         Hired{' '}
-                                                        {employee.hire_date}
+                                                        {formatDisplayDate(
+                                                            employee.hire_date,
+                                                        )}
+                                                    </span>
+                                                )}
+                                                {employee.project_assignments
+                                                    .length > 0 && (
+                                                    <span className="block">
+                                                        {
+                                                            employee
+                                                                .project_assignments
+                                                                .length
+                                                        }{' '}
+                                                        project
+                                                        {employee
+                                                            .project_assignments
+                                                            .length === 1
+                                                            ? ''
+                                                            : 's'}
                                                     </span>
                                                 )}
                                             </div>
@@ -417,6 +455,40 @@ export default function Index({ filters, employees }: IndexProps) {
                             No pay rates have been added for this employee yet.
                         </div>
                     )}
+
+                    {selectedRatesEmployee?.skill_shifts.length ? (
+                        <div className="overflow-x-auto rounded-lg border border-border">
+                            <div className="border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                Skill shifts
+                            </div>
+                            {selectedRatesEmployee.skill_shifts.map((shift) => (
+                                <div
+                                    key={shift.id}
+                                    className="grid gap-2 border-b border-border px-4 py-4 last:border-b-0 lg:grid-cols-[1.2fr_1fr_0.8fr]"
+                                >
+                                    <div>
+                                        <p className="font-medium text-foreground">
+                                            {shift.skill?.name || 'Skill removed'}
+                                        </p>
+                                        <p className="text-sm text-muted-foreground">
+                                            {rateTypeLabel(shift.shift_type)} ·{' '}
+                                            {shift.pay_basis === 'daily'
+                                                ? 'Day payment'
+                                                : 'Hourly payment'}
+                                        </p>
+                                    </div>
+                                    <div className="text-sm text-muted-foreground">
+                                        {shift.is_union_member
+                                            ? `Union ${formatCurrency(shift.union_rate ?? '0')}`
+                                            : 'Not a union member'}
+                                    </div>
+                                    <div className="font-semibold text-foreground">
+                                        {formatCurrency(shift.amount)}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : null}
 
                     <AlertDialogFooter>
                         <AlertDialogCancel>Close</AlertDialogCancel>

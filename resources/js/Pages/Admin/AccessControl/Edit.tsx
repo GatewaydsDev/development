@@ -8,6 +8,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@/Components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/Components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { CheckCircle2Icon, SmartphoneIcon } from 'lucide-react';
@@ -370,97 +371,117 @@ export default function Edit({
                             saveLabel="Save permissions"
                             disabled={processing}
                         />
-                        <Card className="shadow-sm">
-                            <CardHeader className="gap-4 sm:grid-cols-[1fr_auto] sm:items-center">
-                                <div>
-                                    <CardTitle>Permission matrix</CardTitle>
-                                    <CardDescription>
-                                        Grant or deny abilities by user level.
-                                        Super Admin remains fully checked.
-                                    </CardDescription>
-                                </div>
-                            </CardHeader>
+                        <Tabs defaultValue="permissions" className="gap-4">
+                            <TabsList>
+                                <TabsTrigger value="permissions">
+                                    Regular permissions
+                                </TabsTrigger>
+                                <TabsTrigger value="mobile">
+                                    <SmartphoneIcon data-icon="inline-start" />
+                                    Mobile
+                                </TabsTrigger>
+                            </TabsList>
 
-                            <CardContent className="flex flex-col gap-6">
-                                <PermissionMatrix
-                                    groupedPermissions={groupedPermissions}
-                                    levels={levels}
-                                    selectedLevelId={selectedLevelId}
-                                    scope="website"
-                                    isDisabled={(level) => level.locked}
-                                    isChecked={(level, permission) =>
-                                        Boolean(
-                                            data.levels[level.id]?.[
-                                                permission.key
-                                            ],
-                                        )
-                                    }
-                                    onToggle={togglePermission}
-                                />
+                            <TabsContent value="permissions">
+                                <Card className="shadow-sm">
+                                    <CardHeader>
+                                        <CardTitle>Permission matrix</CardTitle>
+                                        <CardDescription>
+                                            Grant or deny abilities by user
+                                            level. Super Admin remains fully
+                                            checked.
+                                        </CardDescription>
+                                    </CardHeader>
 
-                                <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
-                                    <CheckCircle2Icon className="mt-0.5 size-4 shrink-0" />
-                                    <p>
-                                        Changes are applied immediately after
-                                        saving. Checked boxes mean the user
-                                        level is granted that permission.
-                                    </p>
-                                </div>
-                            </CardContent>
-                        </Card>
+                                    <CardContent className="flex flex-col gap-6">
+                                        <PermissionMatrix
+                                            groupedPermissions={
+                                                groupedPermissions
+                                            }
+                                            levels={levels}
+                                            selectedLevelId={selectedLevelId}
+                                            scope="website"
+                                            isDisabled={(level) => level.locked}
+                                            isChecked={(level, permission) =>
+                                                Boolean(
+                                                    data.levels[level.id]?.[
+                                                        permission.key
+                                                    ],
+                                                )
+                                            }
+                                            onToggle={togglePermission}
+                                        />
 
-                        <Card className="mt-6 shadow-sm">
-                            <CardHeader className="gap-4 sm:grid-cols-[1fr_auto] sm:items-center">
-                                <div>
-                                    <CardTitle className="flex items-center gap-2">
-                                        <SmartphoneIcon className="size-5" />
-                                        Mobile application
-                                    </CardTitle>
-                                    <CardDescription>
-                                        Delegate which of the rights above are
-                                        available when this user level signs in
-                                        on the mobile app. A right can only be
-                                        granted here when the level already has
-                                        it on the website. Super Admin remains
-                                        fully checked.
-                                    </CardDescription>
-                                </div>
-                            </CardHeader>
+                                        <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+                                            <CheckCircle2Icon className="mt-0.5 size-4 shrink-0" />
+                                            <p>
+                                                Changes are applied immediately
+                                                after saving. Checked boxes
+                                                mean the user level is granted
+                                                that permission.
+                                            </p>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
 
-                            <CardContent className="flex flex-col gap-6">
-                                <PermissionMatrix
-                                    groupedPermissions={groupedPermissions}
-                                    levels={levels}
-                                    selectedLevelId={selectedLevelId}
-                                    scope="mobile app"
-                                    isDisabled={(level, permission) =>
-                                        level.locked ||
-                                        !data.levels[level.id]?.[permission.key]
-                                    }
-                                    isChecked={(level, permission) =>
-                                        Boolean(
-                                            data.levels[level.id]?.[
-                                                permission.key
-                                            ] &&
-                                                data.mobile_levels[level.id]?.[
+                            <TabsContent value="mobile">
+                                <Card className="shadow-sm">
+                                    <CardHeader>
+                                        <CardTitle>
+                                            Mobile application
+                                        </CardTitle>
+                                        <CardDescription>
+                                            Delegate which of the website
+                                            rights are available when this user
+                                            level signs in on the mobile app. A
+                                            right can only be granted here when
+                                            the level already has it on the
+                                            website. Super Admin remains fully
+                                            checked.
+                                        </CardDescription>
+                                    </CardHeader>
+
+                                    <CardContent className="flex flex-col gap-6">
+                                        <PermissionMatrix
+                                            groupedPermissions={
+                                                groupedPermissions
+                                            }
+                                            levels={levels}
+                                            selectedLevelId={selectedLevelId}
+                                            scope="mobile app"
+                                            isDisabled={(level, permission) =>
+                                                level.locked ||
+                                                !data.levels[level.id]?.[
                                                     permission.key
-                                                ],
-                                        )
-                                    }
-                                    onToggle={toggleMobilePermission}
-                                />
+                                                ]
+                                            }
+                                            isChecked={(level, permission) =>
+                                                Boolean(
+                                                    data.levels[level.id]?.[
+                                                        permission.key
+                                                    ] &&
+                                                        data.mobile_levels[
+                                                            level.id
+                                                        ]?.[permission.key],
+                                                )
+                                            }
+                                            onToggle={toggleMobilePermission}
+                                        />
 
-                                <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
-                                    <SmartphoneIcon className="mt-0.5 size-4 shrink-0" />
-                                    <p>
-                                        Unchecked boxes hide that route in the
-                                        mobile app. Removing a website
-                                        permission also removes it from the
-                                        mobile app.
-                                    </p>
-                                </div>
-                            </CardContent>
-                        </Card>
+                                        <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+                                            <SmartphoneIcon className="mt-0.5 size-4 shrink-0" />
+                                            <p>
+                                                Unchecked boxes hide that route
+                                                in the mobile app. Removing a
+                                                website permission also removes
+                                                it from the mobile app.
+                                            </p>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
+                        </Tabs>
                     </form>
                 </div>
             </div>

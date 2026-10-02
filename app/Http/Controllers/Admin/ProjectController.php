@@ -38,15 +38,6 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class ProjectController extends Controller
 {
-    public function version(Request $request): JsonResponse
-    {
-        $this->authorizeProjectView($request);
-
-        return response()->json([
-            'version' => ProjectListVersion::current(),
-        ]);
-    }
-
     public function index(Request $request): Response
     {
         $this->authorizeProjectView($request);
@@ -63,7 +54,6 @@ class ProjectController extends Controller
                 'highlight' => $highlight > 0 ? $highlight : null,
             ],
             'options' => $this->options($user),
-            'listVersion' => ProjectListVersion::current(),
             'projects' => $this->projectListingQuery($request)
                 ->when($highlight > 0, function ($query) use ($highlight): void {
                     $query->orderByRaw('CASE WHEN id = ? THEN 0 ELSE 1 END', [$highlight]);
@@ -72,6 +62,16 @@ class ProjectController extends Controller
                 ->paginate(10)
                 ->withQueryString()
                 ->through(fn (Project $project): array => $this->projectPayload($project, $user, summary: true)),
+            'listVersion' => ProjectListVersion::current(),
+        ]);
+    }
+
+    public function version(Request $request): JsonResponse
+    {
+        $this->authorizeProjectView($request);
+
+        return response()->json([
+            'version' => ProjectListVersion::current(),
         ]);
     }
 
@@ -375,6 +375,7 @@ class ProjectController extends Controller
         $rules = [
             'status_id' => ['required', 'integer', Rule::exists(ProjectStatus::class, 'id')],
             'priority' => ['required', 'string', Rule::in(Project::PRIORITIES)],
+            'assigned_to' => ['sometimes', 'nullable', 'integer', Rule::exists(User::class, 'id')],
             'estimated_start_date' => ['nullable', 'date'],
             'estimated_end_date' => ['nullable', 'date', 'after_or_equal:estimated_start_date'],
             'completed_at' => ['nullable', 'date'],
@@ -385,7 +386,6 @@ class ProjectController extends Controller
             $rules = [
                 ...$rules,
                 'name' => ['required', 'string', 'max:255', $this->uniqueProjectNameRule($project)],
-                'assigned_to' => ['nullable', 'integer', Rule::exists(User::class, 'id')],
                 'site_address_line_1' => ['nullable', 'string', 'max:255'],
                 'site_address_line_2' => ['nullable', 'string', 'max:255'],
                 'site_city' => ['nullable', 'string', 'max:255'],
@@ -490,6 +490,10 @@ class ProjectController extends Controller
             'public_notes' => $validated['public_notes'] ?? null,
         ];
 
+        if (array_key_exists('assigned_to', $validated)) {
+            $attributes['assigned_to'] = $validated['assigned_to'];
+        }
+
         if (! $user->hasUserLevel(UserLevel::PROJECT_MANAGER)) {
             $primaryScope = collect($validated['scopes'] ?? [])
                 ->first(fn (array $scope): bool => filled($scope['type'] ?? null));
@@ -497,7 +501,6 @@ class ProjectController extends Controller
             $attributes = [
                 ...$attributes,
                 'name' => $validated['name'],
-                'assigned_to' => $validated['assigned_to'] ?? null,
                 'service_type' => $primaryScope['type'] ?? null,
                 'site_address_line_1' => $validated['site_address_line_1'] ?? null,
                 'site_address_line_2' => $validated['site_address_line_2'] ?? null,
@@ -805,6 +808,7 @@ class ProjectController extends Controller
                     ])
                     ->values()
                     ->all(),
+            'assigned_to' => $project->assigned_to,
             'assignee' => $project->assignee
                 ? [
                     'id' => $project->assignee->id,

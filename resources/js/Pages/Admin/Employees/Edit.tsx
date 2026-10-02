@@ -2,24 +2,36 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link } from '@inertiajs/react';
 import EmployeeForm from './Partials/EmployeeForm';
 import type {
+    EmployeeOptionMap,
     EmployeePayload,
     EmployeeRateTypeOptions,
     EmployeeStatusOptions,
-    ProfessionOption,
+    NamedOption,
+    ProjectOption,
 } from './types';
 
 type EditProps = {
     employee: EmployeePayload;
-    professions: ProfessionOption[];
+    professions: NamedOption[];
+    languages: NamedOption[];
+    skills: NamedOption[];
+    projects: ProjectOption[];
     rateTypeOptions: EmployeeRateTypeOptions;
     statusOptions: EmployeeStatusOptions;
+    shiftTypeOptions: EmployeeOptionMap;
+    payBasisOptions: EmployeeOptionMap;
 };
 
 export default function Edit({
     employee,
     professions,
+    languages,
+    skills,
+    projects,
     rateTypeOptions,
     statusOptions,
+    shiftTypeOptions,
+    payBasisOptions,
 }: EditProps) {
     return (
         <AuthenticatedLayout
@@ -55,11 +67,16 @@ export default function Edit({
                         method="patch"
                         submitLabel="Save changes"
                         title={employee.full_name}
-                        description="Update employee contact and role information."
+                        description="Update contact details, language, professions, projects, and skill shifts."
                         employee={employee}
                         professions={professions}
+                        languages={languages}
+                        skills={skills}
+                        projects={projects}
                         rateTypeOptions={rateTypeOptions}
                         statusOptions={statusOptions}
+                        shiftTypeOptions={shiftTypeOptions}
+                        payBasisOptions={payBasisOptions}
                     />
                 </div>
             </div>

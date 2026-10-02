@@ -1,6 +1,8 @@
+import DateMaskInput from '@/Components/DateMaskInput';
 import FormActionFab from '@/Components/FormActionFab';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
+import MoneyInput from '@/Components/MoneyInput';
 import PhoneInput from '@/Components/PhoneInput';
 import ProfessionSelect from '@/Components/ProfessionSelect';
 import TextInput from '@/Components/TextInput';
@@ -27,12 +29,15 @@ import { z } from 'zod';
 import {
     employeeToFormData,
     type EmployeeFormData,
+    type EmployeeOptionMap,
     type EmployeePayRateFormData,
     type EmployeePayload,
     type EmployeeRateTypeOptions,
     type EmployeeStatusOptions,
-    type ProfessionOption,
+    type NamedOption,
+    type ProjectOption,
 } from '../types';
+import EmployeeRelationsFields from './EmployeeRelationsFields';
 
 type EmployeeFormProps = {
     action: string;
@@ -40,15 +45,29 @@ type EmployeeFormProps = {
     submitLabel: string;
     title: string;
     description: string;
-    professions: ProfessionOption[];
+    professions: NamedOption[];
+    languages: NamedOption[];
+    skills: NamedOption[];
+    projects: ProjectOption[];
     rateTypeOptions: EmployeeRateTypeOptions;
     statusOptions: EmployeeStatusOptions;
+    shiftTypeOptions: EmployeeOptionMap;
+    payBasisOptions: EmployeeOptionMap;
     employee?: EmployeePayload;
 };
+
+const isoDate = z
+    .string()
+    .refine(
+        (value) => value === '' || /^\d{4}-\d{2}-\d{2}$/.test(value),
+        'Enter a valid date as MM/DD/YYYY.',
+    );
 
 function employeeSchema(
     statusOptions: EmployeeStatusOptions,
     rateTypeOptions: EmployeeRateTypeOptions,
+    shiftTypeOptions: EmployeeOptionMap,
+    payBasisOptions: EmployeeOptionMap,
 ) {
     return z.object({
         first_name: z.string().trim().min(1, 'Enter the first name.').max(255),
@@ -63,13 +82,94 @@ function employeeSchema(
                 (value) => Object.keys(statusOptions).includes(value),
                 'Select a valid status.',
             ),
-        hire_date: z
-            .string()
-            .refine(
-                (value) => value === '' || !Number.isNaN(Date.parse(value)),
-                'Enter a valid hire date.',
-            ),
+        hire_date: isoDate,
+        date_of_birth: isoDate.refine((value) => {
+            if (value === '') {
+                return true;
+            }
+
+            const date = new Date(`${value}T00:00:00`);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            return date <= today;
+        }, 'Date of birth cannot be in the future.'),
+        language_id: z.string(),
         notes: z.string().trim().max(5000, 'Notes must be 5,000 characters or less.'),
+        professions: z.array(
+            z.object({
+                profession_id: z.string().trim().min(1, 'Select a profession.'),
+            }),
+        ),
+        skills: z.array(
+            z.object({
+                skill_id: z.string().trim().min(1, 'Select a skill.'),
+            }),
+        ),
+        project_assignments: z.array(
+            z.object({
+                project_id: z.string().trim().min(1, 'Select a project.'),
+                work_date: isoDate.refine(
+                    (value) => value !== '',
+                    'Enter the work date.',
+                ),
+                notes: z.string().trim().max(1000),
+            }),
+        ),
+        skill_shifts: z.array(
+            z
+                .object({
+                    skill_id: z.string().trim().min(1, 'Select a skill.'),
+                    shift_type: z
+                        .string()
+                        .refine(
+                            (value) =>
+                                Object.keys(shiftTypeOptions).includes(value),
+                            'Select a shift.',
+                        ),
+                    pay_basis: z
+                        .string()
+                        .refine(
+                            (value) =>
+                                Object.keys(payBasisOptions).includes(value),
+                            'Select hourly or day payment.',
+                        ),
+                    amount: z
+                        .string()
+                        .trim()
+                        .min(1, 'Enter an amount.')
+                        .refine(
+                            (value) =>
+                                !Number.isNaN(Number(value)) &&
+                                Number(value) > 0,
+                            'Enter an amount greater than 0.',
+                        ),
+                    is_union_member: z.boolean(),
+                    union_rate: z.string().trim(),
+                    notes: z.string().trim().max(1000),
+                })
+                .superRefine((value, context) => {
+                    if (value.is_union_member && value.union_rate === '') {
+                        context.addIssue({
+                            code: z.ZodIssueCode.custom,
+                            path: ['union_rate'],
+                            message: 'Enter the union rate.',
+                        });
+                    }
+
+                    if (
+                        value.union_rate !== '' &&
+                        (Number.isNaN(Number(value.union_rate)) ||
+                            Number(value.union_rate) <= 0)
+                    ) {
+                        context.addIssue({
+                            code: z.ZodIssueCode.custom,
+                            path: ['union_rate'],
+                            message: 'Enter a union rate greater than 0.',
+                        });
+                    }
+                }),
+        ),
         pay_rates: z.array(
             z
                 .object({
@@ -110,6 +210,20 @@ function employeeSchema(
                     }
                 }),
         ),
+    }).superRefine((value, context) => {
+        const selectedSkills = new Set(
+            value.skills.map((skill) => skill.skill_id).filter(Boolean),
+        );
+
+        value.skill_shifts.forEach((shift, index) => {
+            if (shift.skill_id && !selectedSkills.has(shift.skill_id)) {
+                context.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: ['skill_shifts', index, 'skill_id'],
+                    message: 'Add this skill before using it on a shift.',
+                });
+            }
+        });
     });
 }
 
@@ -139,14 +253,25 @@ export default function EmployeeForm({
     title,
     description,
     professions,
+    languages,
+    skills,
+    projects,
     rateTypeOptions,
     statusOptions,
+    shiftTypeOptions,
+    payBasisOptions,
     employee,
 }: EmployeeFormProps) {
     const [processing, setProcessing] = useState(false);
     const validationSchema = useMemo(
-        () => employeeSchema(statusOptions, rateTypeOptions),
-        [rateTypeOptions, statusOptions],
+        () =>
+            employeeSchema(
+                statusOptions,
+                rateTypeOptions,
+                shiftTypeOptions,
+                payBasisOptions,
+            ),
+        [payBasisOptions, rateTypeOptions, shiftTypeOptions, statusOptions],
     );
     const {
         control,
@@ -163,6 +288,34 @@ export default function EmployeeForm({
     const { fields: payRateFields, append, remove } = useFieldArray({
         control,
         name: 'pay_rates',
+    });
+    const {
+        append: appendProfession,
+        remove: removeProfession,
+    } = useFieldArray({
+        control,
+        name: 'professions',
+    });
+    const {
+        append: appendSkill,
+        remove: removeSkill,
+    } = useFieldArray({
+        control,
+        name: 'skills',
+    });
+    const {
+        append: appendAssignment,
+        remove: removeAssignment,
+    } = useFieldArray({
+        control,
+        name: 'project_assignments',
+    });
+    const {
+        append: appendShift,
+        remove: removeShift,
+    } = useFieldArray({
+        control,
+        name: 'skill_shifts',
     });
     const data = watch();
     const errors = new Proxy({} as Record<string, string | undefined>, {
@@ -194,6 +347,16 @@ export default function EmployeeForm({
     };
 
     const submit = handleSubmit((values) => {
+        const payload = {
+            ...values,
+            language_id: values.language_id || null,
+            profession_ids: values.professions
+                .map((profession) => profession.profession_id)
+                .filter(Boolean),
+            skill_ids: values.skills
+                .map((skill) => skill.skill_id)
+                .filter(Boolean),
+        };
         const submitOptions = {
             onBefore: () => setProcessing(true),
             onError: (serverErrors: Record<string, string>) => {
@@ -208,16 +371,22 @@ export default function EmployeeForm({
         };
 
         if (method === 'patch') {
-            router.patch(action, values, submitOptions);
+            router.patch(action, payload, submitOptions);
             return;
         }
 
-        router.post(action, values, submitOptions);
+        router.post(action, payload, submitOptions);
     }) as FormEventHandler;
 
     const inputClassName =
         'h-11 w-full border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring';
     const labelClassName = 'text-emerald-700 dark:text-emerald-300';
+    const setRowValue = (field: FieldPath<EmployeeFormData>, value: string | boolean) => {
+        setValue(field, value as PathValue<EmployeeFormData, FieldPath<EmployeeFormData>>, {
+            shouldDirty: true,
+            shouldValidate: true,
+        });
+    };
     const addPayRate = () => {
         append({
             profession_id: '',
@@ -394,18 +563,109 @@ export default function EmployeeForm({
                                 value="Hire date"
                                 className={labelClassName}
                             />
-                            <TextInput
+                            <DateMaskInput
                                 id="employee-hire-date"
-                                type="date"
                                 value={data.hire_date}
                                 className={inputClassName}
-                                onChange={(event) =>
-                                    setData('hire_date', event.target.value)
+                                onValueChange={(value) =>
+                                    setData('hire_date', value)
                                 }
                             />
                             <InputError message={errors.hire_date} />
                         </div>
                     </section>
+
+                    <section className="grid gap-5 md:grid-cols-2">
+                        <div className="flex flex-col gap-2">
+                            <InputLabel
+                                htmlFor="employee-date-of-birth"
+                                value="Date of birth"
+                                className={labelClassName}
+                            />
+                            <DateMaskInput
+                                id="employee-date-of-birth"
+                                value={data.date_of_birth}
+                                className={inputClassName}
+                                onValueChange={(value) =>
+                                    setData('date_of_birth', value)
+                                }
+                            />
+                            <InputError message={errors.date_of_birth} />
+                        </div>
+                    </section>
+
+                    <EmployeeRelationsFields
+                        data={data}
+                        validationErrors={validationErrors}
+                        languages={languages}
+                        professions={professions}
+                        skills={skills}
+                        projects={projects}
+                        shiftTypeOptions={shiftTypeOptions}
+                        payBasisOptions={payBasisOptions}
+                        inputClassName={inputClassName}
+                        labelClassName={labelClassName}
+                        setLanguage={(languageId) =>
+                            setData('language_id', languageId)
+                        }
+                        setProfession={(index, professionId) =>
+                            setRowValue(
+                                `professions.${index}.profession_id`,
+                                professionId,
+                            )
+                        }
+                        setSkill={(index, skillId) =>
+                            setRowValue(`skills.${index}.skill_id`, skillId)
+                        }
+                        setAssignment={(index, field, value) =>
+                            setRowValue(
+                                `project_assignments.${index}.${field}`,
+                                value,
+                            )
+                        }
+                        setShift={(index, field, value) =>
+                            setRowValue(`skill_shifts.${index}.${field}`, value)
+                        }
+                        setShiftUnion={(index, isUnionMember) => {
+                            setRowValue(
+                                `skill_shifts.${index}.is_union_member`,
+                                isUnionMember,
+                            );
+
+                            if (!isUnionMember) {
+                                setRowValue(
+                                    `skill_shifts.${index}.union_rate`,
+                                    '',
+                                );
+                            }
+                        }}
+                        addProfession={() =>
+                            appendProfession({ profession_id: '' })
+                        }
+                        removeProfession={removeProfession}
+                        addSkill={() => appendSkill({ skill_id: '' })}
+                        removeSkill={removeSkill}
+                        addAssignment={() =>
+                            appendAssignment({
+                                project_id: '',
+                                work_date: '',
+                                notes: '',
+                            })
+                        }
+                        removeAssignment={removeAssignment}
+                        addShift={() =>
+                            appendShift({
+                                skill_id: '',
+                                shift_type: 'full_day',
+                                pay_basis: 'hourly',
+                                amount: '',
+                                is_union_member: false,
+                                union_rate: '',
+                                notes: '',
+                            })
+                        }
+                        removeShift={removeShift}
+                    />
 
                     <section className="flex flex-col gap-4 rounded-xl border border-border bg-muted/20 p-4">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -508,21 +768,18 @@ export default function EmployeeForm({
                                                     value="Amount"
                                                     className={labelClassName}
                                                 />
-                                                <TextInput
+                                                <MoneyInput
                                                     id={`employee-pay-rate-amount-${index}`}
-                                                    type="number"
-                                                    min="0"
-                                                    step="0.01"
                                                     value={
                                                         payRate?.amount ?? ''
                                                     }
                                                     className={inputClassName}
                                                     placeholder="0.00"
-                                                    onChange={(event) =>
+                                                    onValueChange={(value) =>
                                                         setPayRateData(
                                                             index,
                                                             'amount',
-                                                            event.target.value,
+                                                            value,
                                                         )
                                                     }
                                                 />

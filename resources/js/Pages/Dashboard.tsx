@@ -35,6 +35,8 @@ type DashboardProps = {
         bids: BarChartItem[] | null;
     } | null;
     listVersion?: string | null;
+    bidListVersion?: string | null;
+    quotationListVersion?: string | null;
     stats?: {
         totalProjects: number;
         activeProjects: number;
@@ -220,25 +222,46 @@ function WorkspaceSummaryTable({ summary }: { summary: WorkspaceSummary }) {
     );
 }
 
+const dashboardRefreshProps = [
+    'charts',
+    'stats',
+    'summary',
+    'listVersion',
+    'bidListVersion',
+    'quotationListVersion',
+];
+
 export default function Dashboard({
     charts = null,
     listVersion = null,
+    bidListVersion = null,
+    quotationListVersion = null,
     stats,
     summary,
 }: DashboardProps) {
     const { auth } = usePage<PageProps>().props;
     const can = auth.can ?? {};
     const canViewProjects = Boolean(can.viewProjects);
+    const canViewBids = Boolean(can.viewBids);
+    const canViewQuotations = Boolean(can.viewQuotations);
     const showGraphics = Boolean(
         canViewProjects || charts?.quotations || charts?.bids,
     );
 
-    useProjectListRefresh(canViewProjects ? listVersion : null, [
-        'charts',
-        'stats',
-        'summary',
-        'listVersion',
-    ]);
+    useProjectListRefresh(
+        canViewProjects ? listVersion : null,
+        dashboardRefreshProps,
+    );
+    useProjectListRefresh(
+        canViewBids ? bidListVersion : null,
+        dashboardRefreshProps,
+        'admin.bids.version',
+    );
+    useProjectListRefresh(
+        canViewQuotations ? quotationListVersion : null,
+        dashboardRefreshProps,
+        'admin.quotations.version',
+    );
 
     return (
         <AuthenticatedLayout>
@@ -321,7 +344,7 @@ export default function Dashboard({
                                     </CardHeader>
                                     <CardContent>
                                         <AnimatedBarChart
-                                            key={`${listVersion ?? 'quotations'}-quotations`}
+                                            key={`${quotationListVersion ?? 'quotations'}-quotations`}
                                             items={charts.quotations}
                                             emptyLabel="No quotations yet."
                                             hideZeros={false}
@@ -341,7 +364,7 @@ export default function Dashboard({
                                     </CardHeader>
                                     <CardContent>
                                         <AnimatedBarChart
-                                            key={`${listVersion ?? 'bids'}-bids`}
+                                            key={`${bidListVersion ?? 'bids'}-bids`}
                                             items={charts.bids}
                                             emptyLabel="No bids yet."
                                             hideZeros={false}

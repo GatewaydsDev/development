@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\Bid;
 use App\Models\Company;
 use App\Models\Contractor;
 use App\Models\ContractorContact;
@@ -10,11 +11,14 @@ use App\Models\Employee;
 use App\Models\EmployeePayRate;
 use App\Models\Profession;
 use App\Models\Project;
+use App\Models\Quotation;
 use App\Models\User;
 use App\Models\UserActivity;
 use App\Models\UserLevel;
 use App\Observers\AuditModelObserver;
+use App\Observers\BidObserver;
 use App\Observers\ProjectObserver;
+use App\Observers\QuotationObserver;
 use App\Services\UserActivityLogger;
 use App\Support\DocumentAppearance;
 use Illuminate\Auth\Events\Login;
@@ -102,5 +106,7 @@ class AppServiceProvider extends ServiceProvider
         }
 
         Project::observe(ProjectObserver::class);
+        Bid::observe(BidObserver::class);
+        Quotation::observe(QuotationObserver::class);
     }
 }
