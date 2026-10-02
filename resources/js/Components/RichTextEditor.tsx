@@ -61,6 +61,7 @@ import {
     Redo2Icon,
     RemoveFormattingIcon,
     Rows3Icon,
+    ScalingIcon,
     SquareIcon,
     StrikethroughIcon,
     SubscriptIcon,
@@ -93,9 +94,9 @@ import {
 import { toast } from 'sonner';
 import {
     type ChangeEvent,
-    type FocusEvent as ReactFocusEvent,
     type ReactNode,
     useEffect,
+    useLayoutEffect,
     useMemo,
     useReducer,
     useRef,
@@ -638,12 +639,19 @@ export default function RichTextEditor({
     const documentLang = i18n.language?.startsWith('es') ? 'es' : 'en-US';
     const ignoreToolbarRefresh = useRef(false);
     const editorFrameRef = useRef<HTMLDivElement>(null);
-    const releaseCommandsTimer = useRef<number | null>(null);
-    const [commandsPinned, setCommandsPinned] = useState(false);
     const [commandsOffset, setCommandsOffset] = useState(0);
     const [commandsLeft, setCommandsLeft] = useState(0);
     const [commandsWide, setCommandsWide] = useState(false);
-    const [commandsInView, setCommandsInView] = useState(false);
+    const [commandsScrolled, setCommandsScrolled] = useState(false);
+    const [commandSidePose, setCommandSidePose] = useState(false);
+    const commandBarRef = useRef<HTMLDivElement>(null);
+    const commandsScrolledRef = useRef(false);
+    const dockOriginRef = useRef<{
+        top: number;
+        left: number;
+        width: number;
+        height: number;
+    } | null>(null);
     const [commandHint, setCommandHint] = useState<{
         text: string;
         top: number;
@@ -655,6 +663,8 @@ export default function RichTextEditor({
         (files: File[], x: number, y: number) => void
     >(() => {});
     const [pictureFieldsFocused, setPictureFieldsFocused] = useState(false);
+    const [spaceDraft, setSpaceDraft] = useState<string | null>(null);
+    const [heightDraft, setHeightDraft] = useState<string | null>(null);
     const pictureInputRef = useRef<HTMLInputElement>(null);
     const replaceInputRef = useRef<HTMLInputElement>(null);
     const pictureLayout = useRef<ImageLayout>('row');
@@ -1015,65 +1025,65 @@ export default function RichTextEditor({
             .run();
     };
 
-    const pinCommands = () => {
-        if (releaseCommandsTimer.current !== null) {
-            window.clearTimeout(releaseCommandsTimer.current);
-            releaseCommandsTimer.current = null;
-        }
-
-        setCommandsPinned(true);
-    };
-
-    const scheduleReleaseCommands = () => {
-        if (releaseCommandsTimer.current !== null) {
-            window.clearTimeout(releaseCommandsTimer.current);
-        }
-
-        releaseCommandsTimer.current = window.setTimeout(() => {
-            releaseCommandsTimer.current = null;
-
-            if (ignoreToolbarRefresh.current) {
-                return;
-            }
-
-            const frame = editorFrameRef.current;
-
-            if (frame?.contains(document.activeElement)) {
-                return;
-            }
-
-            setCommandsPinned(false);
-        }, 0);
-    };
-
     const handleMenuOpenChange = (open: boolean) => {
         ignoreToolbarRefresh.current = open;
 
         if (open) {
-            pinCommands();
             return;
         }
 
         refreshToolbar();
-        scheduleReleaseCommands();
     };
 
     useEffect(() => {
         const updateOffset = () => {
             const header = document.querySelector('nav.sticky');
             const sidebar = document.querySelector('aside');
+            const stickyTitle = document.querySelector(
+                '[data-sticky-page-title]',
+            );
+            const frame = editorFrameRef.current;
             const wide = window.matchMedia('(min-width: 1024px)').matches;
-            const top = header
-                ? Math.ceil(header.getBoundingClientRect().bottom) + 8
-                : 8;
+            const navBottom = header
+                ? header.getBoundingClientRect().bottom
+                : 0;
+            const titleBottom = stickyTitle
+                ? stickyTitle.getBoundingClientRect().bottom
+                : navBottom + 56;
+            const dockTop = Math.ceil(Math.max(navBottom, titleBottom) + 8);
 
-            setCommandsOffset(top);
+            setCommandsOffset(dockTop);
             setCommandsWide(wide);
             setCommandsLeft(
                 wide && sidebar
                     ? Math.round(sidebar.getBoundingClientRect().right)
                     : 8,
             );
+
+            const rect = frame?.getBoundingClientRect();
+            const scrolled = Boolean(
+                wide &&
+                    rect &&
+                    rect.top < navBottom + 4 &&
+                    rect.bottom > dockTop + 48,
+            );
+
+            if (scrolled && !commandsScrolledRef.current && commandBarRef.current) {
+                const box = commandBarRef.current.getBoundingClientRect();
+                dockOriginRef.current = {
+                    top: box.top,
+                    left: box.left,
+                    width: box.width,
+                    height: box.height,
+                };
+            }
+
+            if (!scrolled) {
+                dockOriginRef.current = null;
+            }
+
+            commandsScrolledRef.current = scrolled;
+            setCommandsScrolled(scrolled);
         };
 
         updateOffset();
@@ -1090,30 +1100,28 @@ export default function RichTextEditor({
         }
 
         window.addEventListener('resize', updateOffset);
+        window.addEventListener('scroll', updateOffset, { passive: true });
 
         return () => {
             observer.disconnect();
             window.removeEventListener('resize', updateOffset);
+            window.removeEventListener('scroll', updateOffset);
         };
     }, []);
 
-    useEffect(() => {
-        const frame = editorFrameRef.current;
+    const commandsDocked = commandsWide && commandsScrolled;
 
-        if (!frame) {
+    useLayoutEffect(() => {
+        if (!commandsDocked) {
+            setCommandSidePose(false);
+
             return;
         }
 
-        const observer = new IntersectionObserver(([entry]) => {
-            setCommandsInView(entry.isIntersecting);
-        });
+        const frame = requestAnimationFrame(() => setCommandSidePose(true));
 
-        observer.observe(frame);
-
-        return () => observer.disconnect();
-    }, [editor]);
-
-    const commandsDocked = commandsWide && (commandsPinned || commandsInView);
+        return () => cancelAnimationFrame(frame);
+    }, [commandsDocked]);
 
     useEffect(() => {
         const main = document.querySelector('main');
@@ -1142,15 +1150,6 @@ export default function RichTextEditor({
             main.dataset.commandDocks = String(next);
         };
     }, [commandsDocked]);
-
-    useEffect(
-        () => () => {
-            if (releaseCommandsTimer.current !== null) {
-                window.clearTimeout(releaseCommandsTimer.current);
-            }
-        },
-        [],
-    );
 
     const selectedPicture = currentRichImage(editor, null);
 
@@ -1446,38 +1445,40 @@ export default function RichTextEditor({
             ref={editorFrameRef}
             data-rich-text-frame
             className={cn(
-                'relative flex items-start overflow-visible rounded-md border bg-background',
+                'relative flex flex-col overflow-visible rounded-md border bg-background',
                 error ? 'border-destructive' : 'border-border',
                 pictureDropActive && 'border-emerald-600 ring-2 ring-emerald-600/40',
             )}
-            onFocus={pinCommands}
-            onBlur={(event: ReactFocusEvent<HTMLDivElement>) => {
-                const next = event.relatedTarget;
-
-                if (next instanceof Node && event.currentTarget.contains(next)) {
-                    return;
-                }
-
-                scheduleReleaseCommands();
-            }}
         >
             {(() => {
                 const commandBar = (
             <div
+                ref={commandBarRef}
                 className={cn(
-                    'rich-text-commands z-30 flex w-[3.25rem] shrink-0 flex-col items-center justify-start gap-0.5 overflow-x-hidden overflow-y-auto border-r-2 p-1',
-                    commandsDocked ? 'is-pinned' : 'absolute inset-y-0 left-0',
+                    'rich-text-commands z-30 border-border',
+                    commandsDocked
+                        ? 'is-pinned flex w-[4rem] shrink-0 flex-col items-center justify-start gap-0.5 overflow-x-hidden overflow-y-auto border-r-2 p-1'
+                        : 'relative flex w-full flex-wrap items-center gap-1 border-b-2 p-1.5',
                 )}
                 style={
                     commandsDocked
-                        ? {
-                              position: 'fixed',
-                              top: commandsOffset,
-                              bottom: 12,
-                              left: commandsLeft,
-                              height: 'auto',
-                              zIndex: 35,
-                          }
+                        ? commandSidePose || !dockOriginRef.current
+                            ? {
+                                  position: 'fixed',
+                                  top: commandsOffset,
+                                  left: commandsLeft,
+                                  width: '4rem',
+                                  height: `calc(100vh - ${commandsOffset}px - 0.75rem)`,
+                                  zIndex: 28,
+                              }
+                            : {
+                                  position: 'fixed',
+                                  top: dockOriginRef.current.top,
+                                  left: dockOriginRef.current.left,
+                                  width: dockOriginRef.current.width,
+                                  height: dockOriginRef.current.height,
+                                  zIndex: 28,
+                              }
                         : undefined
                 }
                 onMouseDown={(event) => {
@@ -1488,13 +1489,10 @@ export default function RichTextEditor({
                         target instanceof HTMLTextAreaElement ||
                         target instanceof HTMLSelectElement
                     ) {
-                        pinCommands();
-
                         return;
                     }
 
                     event.preventDefault();
-                    pinCommands();
                     setCommandHint(null);
                 }}
                 onScroll={() => setCommandHint(null)}
@@ -2142,6 +2140,32 @@ export default function RichTextEditor({
                         <Rows3Icon />
                         One under another
                     </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                        onSelect={() => {
+                            if (!editor) {
+                                return;
+                            }
+
+                            const picture = currentRichImage(
+                                editor,
+                                savedImagePos.current,
+                            );
+
+                            if (!picture) {
+                                toast.message(
+                                    'Click a picture first, then choose Same size.',
+                                );
+
+                                return;
+                            }
+
+                            matchRichImageSize(editor, picture.pos);
+                        }}
+                    >
+                        <ScalingIcon />
+                        Same size
+                    </DropdownMenuItem>
                 </ToolbarMenu>
                 {showPictureTools && editingPicture ? (
                     <>
@@ -2199,6 +2223,20 @@ export default function RichTextEditor({
                                 </span>
                             </Button>
                         ))}
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            data-labeled-command
+                            title="Make every picture in this group the same size"
+                            onClick={() =>
+                                editor &&
+                                matchRichImageSize(editor, savedImagePos.current)
+                            }
+                        >
+                            <ScalingIcon />
+                            <span>Same size</span>
+                        </Button>
                         <div
                             data-picture-fields
                             className="flex items-center gap-1"
@@ -2225,14 +2263,25 @@ export default function RichTextEditor({
                                     max={80}
                                     className="h-7 w-16 rounded-md border border-border bg-background px-1.5 text-xs text-foreground"
                                     value={
-                                        Number(
-                                            editor?.getAttributes('imageGallery')
-                                                .gap,
-                                        ) || 16
+                                        spaceDraft ??
+                                        String(
+                                            Number(
+                                                editor?.getAttributes(
+                                                    'imageGallery',
+                                                ).gap,
+                                            ) || 16,
+                                        )
                                     }
                                     aria-label="Space between pictures"
                                     title="Equal space between pictures"
-                                    onChange={(event) => {
+                                    onFocus={(event) => {
+                                        setPictureFieldsFocused(true);
+                                        setSpaceDraft(event.currentTarget.value);
+                                    }}
+                                    onChange={(event) =>
+                                        setSpaceDraft(event.target.value)
+                                    }
+                                    onBlur={(event) => {
                                         const gap = Number.parseInt(
                                             event.target.value,
                                             10,
@@ -2245,6 +2294,15 @@ export default function RichTextEditor({
                                                 savedImagePos.current,
                                             );
                                         }
+
+                                        setSpaceDraft(null);
+                                    }}
+                                    onKeyDown={(event) => {
+                                        event.stopPropagation();
+
+                                        if (event.key === 'Enter') {
+                                            event.currentTarget.blur();
+                                        }
                                     }}
                                 />
                             </label>
@@ -2254,11 +2312,25 @@ export default function RichTextEditor({
                                     type="number"
                                     min={48}
                                     className="h-7 w-16 rounded-md border border-border bg-background px-1.5 text-xs text-foreground"
-                                    value={pictureHeight}
+                                    value={
+                                        heightDraft ??
+                                        (pictureHeight === ''
+                                            ? ''
+                                            : String(pictureHeight))
+                                    }
                                     placeholder="Auto"
                                     aria-label="Picture height"
-                                    onChange={(event) => {
+                                    onFocus={(event) => {
+                                        setPictureFieldsFocused(true);
+                                        setHeightDraft(event.currentTarget.value);
+                                    }}
+                                    onChange={(event) =>
+                                        setHeightDraft(event.target.value)
+                                    }
+                                    onBlur={(event) => {
                                         if (!editor) {
+                                            setHeightDraft(null);
+
                                             return;
                                         }
 
@@ -2270,37 +2342,33 @@ export default function RichTextEditor({
                                                 savedImagePos.current,
                                                 { height: null },
                                             );
+                                        } else {
+                                            const height = Number.parseInt(
+                                                raw,
+                                                10,
+                                            );
 
-                                            return;
+                                            if (Number.isFinite(height)) {
+                                                updateRichImage(
+                                                    editor,
+                                                    savedImagePos.current,
+                                                    { height },
+                                                );
+                                            }
                                         }
 
-                                        const height = Number.parseInt(raw, 10);
+                                        setHeightDraft(null);
+                                    }}
+                                    onKeyDown={(event) => {
+                                        event.stopPropagation();
 
-                                        if (Number.isFinite(height)) {
-                                            updateRichImage(
-                                                editor,
-                                                savedImagePos.current,
-                                                { height },
-                                            );
+                                        if (event.key === 'Enter') {
+                                            event.currentTarget.blur();
                                         }
                                     }}
                                 />
                             </label>
                         </div>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            title="Make every picture in this group this size"
-                            onClick={() =>
-                                editor &&
-                                matchRichImageSize(editor, savedImagePos.current)
-                            }
-                        >
-                            <span className="text-[10px] font-semibold leading-none">
-                                1:1
-                            </span>
-                        </Button>
                         <Button
                             type="button"
                             variant="ghost"
@@ -2537,12 +2605,7 @@ export default function RichTextEditor({
                     </>
                 );
             })()}
-            <div
-                className="relative min-w-0 flex-1"
-                style={
-                    commandsDocked ? undefined : { paddingLeft: '3.25rem' }
-                }
-            >
+            <div className="relative min-w-0 flex-1">
             <input
                 ref={pictureInputRef}
                 type="file"

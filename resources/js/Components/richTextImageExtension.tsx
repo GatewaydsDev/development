@@ -349,7 +349,6 @@ export function setImageGap(
 
     return editor
         .chain()
-        .focus()
         .command(({ tr, state }) => {
             const gallery = state.doc.nodeAt(galleryPos);
 
@@ -380,7 +379,6 @@ export function updateRichImage(
 
     return editor
         .chain()
-        .focus()
         .command(({ tr }) => {
             tr.setNodeMarkup(target.pos, undefined, {
                 ...target.node.attrs,
@@ -516,7 +514,10 @@ function RichImageView({
             style={inRow ? { flex: '1 1 0', minWidth: 0 } : { width: '100%' }}
             data-rich-image="true"
         >
-            <div className="rich-image-frame" style={{ width: '100%' }}>
+            <div
+                className={cn('rich-image-frame', selected && 'is-selected')}
+                style={{ width: '100%' }}
+            >
                 <img
                     src={String(node.attrs.src ?? '')}
                     alt={String(node.attrs.alt ?? '')}

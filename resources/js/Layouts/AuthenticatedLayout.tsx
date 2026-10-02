@@ -1426,6 +1426,7 @@ export default function Authenticated({
 
                     {showCompactTitle && (
                         <div
+                            data-sticky-page-title
                             className={cn(
                                 'fixed left-0 right-0 z-30 border-b border-border bg-card/95 shadow-sm backdrop-blur transition-all duration-300',
                                 sidebarCollapsed
