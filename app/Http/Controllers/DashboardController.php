@@ -23,7 +23,6 @@ class DashboardController extends Controller
             'bidListVersion' => $snapshot['bidListVersion'],
             'quotationListVersion' => $snapshot['quotationListVersion'],
             'stats' => $snapshot['stats'],
-            'summary' => $snapshot['summary'],
         ]);
     }
 }

@@ -5,20 +5,12 @@ import {
     Card,
     CardContent,
     CardDescription,
+    CardFooter,
     CardHeader,
     CardTitle,
 } from '@/Components/ui/card';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/Components/ui/table';
 import { useProjectListRefresh } from '@/hooks/useProjectListRefresh';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { cn } from '@/lib/utils';
 import { PageProps } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
 import {
@@ -41,191 +33,41 @@ type DashboardProps = {
         totalProjects: number;
         activeProjects: number;
     } | null;
-    summary?: WorkspaceSummary | null;
 };
 
-type QuotationStatusTotal = {
-    status: string;
-    label: string;
-    total: string;
-};
+function formatChartTotal(items: BarChartItem[], money: boolean): string {
+    const total = items.reduce((sum, item) => sum + item.value, 0);
 
-type WorkspaceSummary = {
-    projects: string | null;
-    activeProjects: string | null;
-    bids: string | null;
-    quotations: string | null;
-    quotationStatuses: QuotationStatusTotal[];
-};
-
-const summaryRowTones = {
-    emerald: {
-        row: 'bg-emerald-50 text-emerald-950 hover:bg-emerald-100/80 dark:bg-emerald-950/40 dark:text-emerald-100 dark:hover:bg-emerald-950/60',
-        accent: 'border-l-4 border-l-emerald-500',
-    },
-    teal: {
-        row: 'bg-teal-50 text-teal-950 hover:bg-teal-100/80 dark:bg-teal-950/40 dark:text-teal-100 dark:hover:bg-teal-950/60',
-        accent: 'border-l-4 border-l-teal-500',
-    },
-    sky: {
-        row: 'bg-sky-50 text-sky-950 hover:bg-sky-100/80 dark:bg-sky-950/40 dark:text-sky-100 dark:hover:bg-sky-950/60',
-        accent: 'border-l-4 border-l-sky-500',
-    },
-    violet: {
-        row: 'bg-violet-50 text-violet-950 hover:bg-violet-100/80 dark:bg-violet-950/40 dark:text-violet-100 dark:hover:bg-violet-950/60',
-        accent: 'border-l-4 border-l-violet-500',
-    },
-    slate: {
-        row: 'bg-slate-50 text-slate-800 hover:bg-slate-100/80 dark:bg-slate-900/50 dark:text-slate-100 dark:hover:bg-slate-900/70',
-        accent: 'border-l-4 border-l-slate-400',
-    },
-    cyan: {
-        row: 'bg-cyan-50 text-cyan-950 hover:bg-cyan-100/80 dark:bg-cyan-950/40 dark:text-cyan-100 dark:hover:bg-cyan-950/60',
-        accent: 'border-l-4 border-l-cyan-500',
-    },
-    amber: {
-        row: 'bg-amber-50 text-amber-950 hover:bg-amber-100/80 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-950/60',
-        accent: 'border-l-4 border-l-amber-500',
-    },
-    rose: {
-        row: 'bg-rose-50 text-rose-950 hover:bg-rose-100/80 dark:bg-rose-950/40 dark:text-rose-100 dark:hover:bg-rose-950/60',
-        accent: 'border-l-4 border-l-rose-500',
-    },
-} as const;
-
-type SummaryRowTone = keyof typeof summaryRowTones;
-
-const quotationStatusTones: Record<string, SummaryRowTone> = {
-    draft: 'slate',
-    sent: 'cyan',
-    accepted: 'teal',
-    expired: 'amber',
-    declined: 'rose',
-};
-
-function WorkspaceSummaryTable({ summary }: { summary: WorkspaceSummary }) {
-    const rows: Array<{
-        key: string;
-        label: string;
-        total: string;
-        href?: string;
-        nested?: boolean;
-        tone: SummaryRowTone;
-    }> = [];
-
-    if (summary.projects !== null) {
-        rows.push({
-            key: 'projects',
-            label: 'Projects',
-            total: summary.projects,
-            href: route('admin.projects.index'),
-            tone: 'emerald',
-        });
+    if (money) {
+        return `$${total.toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        })}`;
     }
 
-    if (summary.activeProjects !== null) {
-        rows.push({
-            key: 'active-projects',
-            label: 'Active projects',
-            total: summary.activeProjects,
-            tone: 'teal',
-        });
-    }
+    return total.toLocaleString('en-US');
+}
 
-    if (summary.bids !== null) {
-        rows.push({
-            key: 'bids',
-            label: 'Bids',
-            total: summary.bids,
-            href: route('admin.bids.index'),
-            tone: 'sky',
-        });
-    }
-
-    if (summary.quotations !== null) {
-        rows.push({
-            key: 'quotations',
-            label: 'Quotations',
-            total: summary.quotations,
-            href: route('admin.quotations.index'),
-            tone: 'violet',
-        });
-
-        summary.quotationStatuses.forEach((status) => {
-            rows.push({
-                key: `quotation-${status.status}`,
-                label: status.label,
-                total: status.total,
-                nested: true,
-                tone: quotationStatusTones[status.status] ?? 'violet',
-            });
-        });
-    }
-
+function ChartTotal({
+    items,
+    money = false,
+}: {
+    items: BarChartItem[];
+    money?: boolean;
+}) {
     return (
-        <Card className="shadow-sm">
-            <CardHeader>
-                <CardTitle className="text-lg font-bold sm:text-xl">
-                    Summary
-                </CardTitle>
-                <CardDescription>
-                    Dollar totals for projects, bids, and quotations.
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="overflow-hidden rounded-xl border border-border">
-                    <Table className="table-fixed">
-                        <TableHeader>
-                            <TableRow className="bg-muted/50 hover:bg-muted/50">
-                                <TableHead className="w-[70%] px-4 text-xs font-semibold uppercase tracking-wider">
-                                    Record
-                                </TableHead>
-                                <TableHead className="w-[30%] px-4 text-right text-xs font-semibold uppercase tracking-wider">
-                                    Total
-                                </TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {rows.map((row) => (
-                                <TableRow
-                                    key={row.key}
-                                    className={summaryRowTones[row.tone].row}
-                                >
-                                    <TableCell
-                                        className={cn(
-                                            'px-4 text-sm',
-                                            summaryRowTones[row.tone].accent,
-                                            row.nested && 'pl-8',
-                                        )}
-                                    >
-                                        {row.href ? (
-                                            <Link
-                                                href={row.href}
-                                                className="font-medium underline-offset-2 hover:underline"
-                                            >
-                                                {row.label}
-                                            </Link>
-                                        ) : (
-                                            row.label
-                                        )}
-                                    </TableCell>
-                                    <TableCell className="px-4 text-right text-sm font-semibold tabular-nums">
-                                        {row.total}
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </div>
-            </CardContent>
-        </Card>
+        <CardFooter className="mt-auto justify-between text-sm">
+            <span className="text-muted-foreground">Total</span>
+            <span className="font-semibold tabular-nums text-foreground">
+                {formatChartTotal(items, money)}
+            </span>
+        </CardFooter>
     );
 }
 
 const dashboardRefreshProps = [
     'charts',
     'stats',
-    'summary',
     'listVersion',
     'bidListVersion',
     'quotationListVersion',
@@ -237,7 +79,6 @@ export default function Dashboard({
     bidListVersion = null,
     quotationListVersion = null,
     stats,
-    summary,
 }: DashboardProps) {
     const { auth } = usePage<PageProps>().props;
     const can = auth.can ?? {};
@@ -293,7 +134,7 @@ export default function Dashboard({
                         <div className="grid gap-6 xl:grid-cols-2">
                             {canViewProjects && (
                                 <>
-                                    <Card className="shadow-sm">
+                                    <Card className="h-full pb-0 shadow-sm">
                                         <CardHeader>
                                             <CardTitle className="text-lg font-bold sm:text-xl">
                                                 Projects by status
@@ -310,8 +151,9 @@ export default function Dashboard({
                                                 emptyLabel="No projects yet."
                                             />
                                         </CardContent>
+                                        <ChartTotal items={charts.byStatus} />
                                     </Card>
-                                    <Card className="shadow-sm">
+                                    <Card className="h-full pb-0 shadow-sm">
                                         <CardHeader>
                                             <CardTitle className="text-lg font-bold sm:text-xl">
                                                 Projects by priority
@@ -328,11 +170,12 @@ export default function Dashboard({
                                                 emptyLabel="No projects yet."
                                             />
                                         </CardContent>
+                                        <ChartTotal items={charts.byPriority} />
                                     </Card>
                                 </>
                             )}
                             {charts.quotations && (
-                                <Card className="shadow-sm">
+                                <Card className="h-full pb-0 shadow-sm">
                                     <CardHeader>
                                         <CardTitle className="text-lg font-bold sm:text-xl">
                                             Quotations by status
@@ -350,10 +193,14 @@ export default function Dashboard({
                                             hideZeros={false}
                                         />
                                     </CardContent>
+                                    <ChartTotal
+                                        items={charts.quotations}
+                                        money
+                                    />
                                 </Card>
                             )}
                             {charts.bids && (
-                                <Card className="shadow-sm">
+                                <Card className="h-full pb-0 shadow-sm">
                                     <CardHeader>
                                         <CardTitle className="text-lg font-bold sm:text-xl">
                                             Bids by stage
@@ -370,15 +217,13 @@ export default function Dashboard({
                                             hideZeros={false}
                                         />
                                     </CardContent>
+                                    <ChartTotal items={charts.bids} money />
                                 </Card>
                             )}
                         </div>
-                        {summary && (
-                            <WorkspaceSummaryTable summary={summary} />
-                        )}
                     </div>
                 ) : (
-                    <Card className="shadow-sm">
+                    <Card className="h-full shadow-sm">
                         <CardHeader>
                             <CardTitle>Personal Workspace</CardTitle>
                             <CardDescription>
