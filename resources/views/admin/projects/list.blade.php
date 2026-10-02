@@ -217,7 +217,8 @@
             }
 
             .toolbar-inner {
-                max-width: 1100px;
+                width: min(100% - 1rem, 100%);
+                max-width: 100%;
                 margin: 0 auto;
                 display: flex;
                 align-items: center;
@@ -262,11 +263,28 @@
             }
 
             .page {
-                max-width: 1100px;
+                width: min(100% - 1rem, 100%);
+                max-width: 100%;
                 margin: 24px auto 40px;
                 overflow: hidden;
                 border-radius: 20px;
                 box-shadow: 0 24px 60px rgba(15, 23, 42, 0.14);
+            }
+
+            @media (min-width: 768px) {
+                .toolbar-inner, .page { width: min(100% - 1.5rem, 960px); max-width: 960px; }
+            }
+
+            @media (min-width: 1024px) {
+                .toolbar-inner, .page { width: min(100% - 2rem, 1120px); max-width: 1120px; }
+            }
+
+            @media (min-width: 1280px) {
+                .toolbar-inner, .page { width: min(100% - 2.5rem, 1280px); max-width: 1280px; }
+            }
+
+            @media (min-width: 1536px) {
+                .toolbar-inner, .page { width: min(100% - 3rem, 1440px); max-width: 1440px; }
             }
             @endif
         }

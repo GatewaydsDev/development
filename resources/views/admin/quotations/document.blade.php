@@ -125,12 +125,49 @@
         @media screen {
             @if ($mode === 'print')
             .toolbar { display: block; position: sticky; top: 0; z-index: 20; background: {{ $c['toolbar_bg'] }}; color: {{ $c['header_text'] }}; }
-            .toolbar-inner { max-width: 820px; margin: 0 auto; padding: 12px 16px; display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+            .toolbar-inner { width: min(100% - 1rem, 100%); max-width: 100%; margin: 0 auto; padding: 12px 16px; display: flex; justify-content: space-between; gap: 12px; align-items: center; }
             .toolbar strong { display: block; font-size: 15px; }
             .actions { display: flex; flex-wrap: wrap; gap: 8px; }
             .actions a, .actions button { appearance: none; border: 0; border-radius: 999px; padding: 9px 14px; font: inherit; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; color: {{ $c['title'] }}; background: {{ $c['highlight_bg'] }}; }
             .actions .primary { background: {{ $c['button'] }}; }
-            .page { max-width: 820px; margin: 24px auto 40px; overflow: hidden; border-radius: 20px; box-shadow: 0 24px 60px rgba(15, 23, 42, 0.14); }
+            .page { width: min(100% - 1rem, 100%); max-width: 100%; margin: 24px auto 40px; overflow: hidden; border-radius: 20px; box-shadow: 0 24px 60px rgba(15, 23, 42, 0.14); }
+            @media (min-width: 768px) {
+                .toolbar-inner, .page { width: min(100% - 1.5rem, 960px); max-width: 960px; }
+                .hero { padding: 26px 32px 22px; }
+                .body { padding: 24px 32px 28px; }
+                .hero h1 { font-size: 32px; }
+                .document-title { font-size: 28px; }
+                .rich-text { font-size: 15px; }
+                .rich-text h1 { font-size: 22px; }
+                .rich-text h2 { font-size: 19px; }
+                .rich-text h3 { font-size: 16px; }
+                .rich-text th, .rich-text td { font-size: 13px; }
+            }
+            @media (min-width: 1024px) {
+                .toolbar-inner, .page { width: min(100% - 2rem, 1120px); max-width: 1120px; }
+                .hero h1 { font-size: 36px; }
+                .document-title { font-size: 32px; }
+                .rich-text { font-size: 16px; }
+                .rich-text h1 { font-size: 26px; }
+                .rich-text h2 { font-size: 21px; }
+                .rich-text h3 { font-size: 18px; }
+                .rich-text th, .rich-text td { font-size: 14px; }
+            }
+            @media (min-width: 1280px) {
+                .toolbar-inner, .page { width: min(100% - 2.5rem, 1280px); max-width: 1280px; }
+                .hero { padding: 32px 48px 28px; }
+                .body { padding: 36px 48px 40px; }
+                .hero h1 { font-size: 40px; }
+                .document-title { font-size: 36px; }
+                .rich-text { font-size: 18px; }
+                .rich-text h1 { font-size: 30px; }
+                .rich-text h2 { font-size: 24px; }
+                .rich-text h3 { font-size: 20px; }
+                .rich-text th, .rich-text td { font-size: 15px; padding: 8px 10px; }
+            }
+            @media (min-width: 1536px) {
+                .toolbar-inner, .page { width: min(100% - 3rem, 1440px); max-width: 1440px; }
+            }
             @endif
 
             @media (max-width: 640px) {
