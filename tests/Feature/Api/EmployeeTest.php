@@ -9,6 +9,9 @@ use App\Models\ProjectStatus;
 use App\Models\Skill;
 use App\Models\User;
 use App\Models\UserLevel;
+use App\Support\EmployeeListVersion;
+use App\Support\SkillListVersion;
+use Inertia\Testing\AssertableInertia as Assert;
 
 function apiEmployeeUser(string $levelName): User
 {
@@ -211,4 +214,102 @@ test('the mobile app can add a language skill and profession', function () {
         ->postJson('/api/employees/professions', ['name' => 'Welder'])
         ->assertCreated()
         ->assertJsonPath('profession.name', 'Welder');
+});
+
+test('a skill added on mobile shows up on the employee form', function () {
+    $user = apiEmployeeUser(UserLevel::ADMINISTRATOR);
+    $before = SkillListVersion::current();
+
+    $this->actingAs($user, 'sanctum')
+        ->postJson('/api/employees/skills', ['name' => 'Welding Live'])
+        ->assertCreated()
+        ->assertJsonPath('skill.name', 'Welding Live');
+
+    $version = SkillListVersion::current();
+
+    expect($version)->not->toBe($before);
+
+    $this->actingAs($user)
+        ->get(route('admin.employees.create'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Admin/Employees/Create')
+            ->where('skillsVersion', $version)
+            ->where('skills', fn ($skills) => collect($skills)->contains(
+                fn (array $skill): bool => $skill['name'] === 'Welding Live',
+            ))
+        );
+
+    $this->actingAs($user)
+        ->getJson(route('admin.skills.version'))
+        ->assertOk()
+        ->assertJsonPath('version', $version);
+
+    $this->actingAs($user, 'sanctum')
+        ->getJson('/api/employees/skills/version')
+        ->assertOk()
+        ->assertJsonPath('version', $version);
+
+    $this->actingAs($user, 'sanctum')
+        ->getJson('/api/employees/options')
+        ->assertOk()
+        ->assertJsonPath('options.skillsVersion', $version)
+        ->assertJsonFragment(['name' => 'Welding Live']);
+});
+
+test('adding or updating an employee refreshes skills and professions on the list', function () {
+    $user = apiEmployeeUser(UserLevel::ADMINISTRATOR);
+    $profession = Profession::create(['name' => 'Carpenter']);
+    $nextProfession = Profession::create(['name' => 'Foreman']);
+    $skill = Skill::create(['name' => 'Carpentry']);
+    $nextSkill = Skill::create(['name' => 'Welding']);
+    $project = Project::create([
+        'name' => 'Live Employee Project',
+        'project_status_id' => ProjectStatus::idFor('quoted'),
+        'priority' => 'normal',
+        'created_by' => $user->id,
+    ]);
+    $before = EmployeeListVersion::current();
+
+    $created = $this->actingAs($user, 'sanctum')
+        ->postJson('/api/employees', apiEmployeePayload($project, $skill, $profession))
+        ->assertCreated();
+
+    $createdVersion = EmployeeListVersion::current();
+
+    expect($createdVersion)->not->toBe($before);
+
+    $payload = apiEmployeePayload($project, $nextSkill, $nextProfession);
+
+    $this->actingAs($user, 'sanctum')
+        ->patchJson('/api/employees/'.$created->json('employee.id'), $payload)
+        ->assertOk()
+        ->assertJsonPath('employee.professions.0.name', 'Foreman')
+        ->assertJsonPath('employee.skills.0.name', 'Welding');
+
+    $updatedVersion = EmployeeListVersion::current();
+
+    expect($updatedVersion)->not->toBe($createdVersion);
+
+    $this->actingAs($user)
+        ->get(route('admin.employees.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Admin/Employees/Index')
+            ->where('employeesVersion', $updatedVersion)
+            ->where('employees.data', fn ($rows) => collect($rows)->contains(
+                fn (array $row): bool => ($row['professions'][0]['name'] ?? null) === 'Foreman'
+                    && ($row['skills'][0]['name'] ?? null) === 'Welding',
+            ))
+        );
+
+    $this->actingAs($user)
+        ->getJson(route('admin.employees.version'))
+        ->assertOk()
+        ->assertJsonPath('version', $updatedVersion);
+
+    $this->actingAs($user, 'sanctum')
+        ->getJson('/api/employees/version')
+        ->assertOk()
+        ->assertJsonPath('version', $updatedVersion);
 });

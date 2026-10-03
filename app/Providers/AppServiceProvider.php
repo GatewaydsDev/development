@@ -12,13 +12,16 @@ use App\Models\EmployeePayRate;
 use App\Models\Profession;
 use App\Models\Project;
 use App\Models\Quotation;
+use App\Models\Skill;
 use App\Models\User;
 use App\Models\UserActivity;
 use App\Models\UserLevel;
 use App\Observers\AuditModelObserver;
 use App\Observers\BidObserver;
+use App\Observers\EmployeeObserver;
 use App\Observers\ProjectObserver;
 use App\Observers\QuotationObserver;
+use App\Observers\SkillObserver;
 use App\Services\UserActivityLogger;
 use App\Support\DocumentAppearance;
 use Illuminate\Auth\Events\Login;
@@ -108,5 +111,7 @@ class AppServiceProvider extends ServiceProvider
         Project::observe(ProjectObserver::class);
         Bid::observe(BidObserver::class);
         Quotation::observe(QuotationObserver::class);
+        Skill::observe(SkillObserver::class);
+        Employee::observe(EmployeeObserver::class);
     }
 }

@@ -1,6 +1,9 @@
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import RichTextEditor from '@/Components/RichTextEditor';
+import TextAutoSave, {
+    type TextAutoSaveConfig,
+} from '@/Components/TextAutoSave';
 import TextInput from '@/Components/TextInput';
 import {
     AlertDialog,
@@ -46,6 +49,7 @@ type QuotationReusableTextSectionProps = {
     }>;
     placeholderValues?: Record<string, string>;
     onChange: (html: string) => void;
+    autoSave?: TextAutoSaveConfig;
 };
 
 const copyFor = (purpose: QuotationReusableTextPurpose) => {
@@ -135,6 +139,7 @@ export default function QuotationReusableTextSection({
     placeholderFields = [],
     placeholderValues = {},
     onChange,
+    autoSave,
 }: QuotationReusableTextSectionProps) {
     const copy = copyFor(purpose);
     const templates = options[copy.catalogKey] ?? [];
@@ -422,11 +427,16 @@ export default function QuotationReusableTextSection({
             </div>
 
             <div className="flex flex-col gap-2">
-                <InputLabel
-                    htmlFor={copy.editorId}
-                    value={copy.editorLabel}
-                    className="text-emerald-700 dark:text-emerald-300"
-                />
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                    <InputLabel
+                        htmlFor={copy.editorId}
+                        value={copy.editorLabel}
+                        className="text-emerald-700 dark:text-emerald-300"
+                    />
+                    {autoSave ? (
+                        <TextAutoSave html={value} {...autoSave} />
+                    ) : null}
+                </div>
                 <RichTextEditor
                     id={copy.editorId}
                     value={value}

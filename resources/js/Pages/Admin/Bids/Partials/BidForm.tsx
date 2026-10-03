@@ -2,7 +2,6 @@ import CreatableSelect from '@/Components/CreatableSelect';
 import FormActionFab from '@/Components/FormActionFab';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
-import MaskedDecimalInput from '@/Components/MaskedDecimalInput';
 import TextInput from '@/Components/TextInput';
 import {
     AlertDialog,
@@ -27,7 +26,6 @@ import { router, usePage } from '@inertiajs/react';
 import { PlusIcon, Trash2Icon, FileUpIcon } from 'lucide-react';
 import { FormEventHandler, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    Control,
     FieldErrors,
     FieldPath,
     PathValue,
@@ -45,16 +43,12 @@ import {
     bidToFormData,
     blankRevision,
     blankScope,
-    blankScopeProduct,
     blankStage,
-    formatMoney,
     scopeExtendedAmount,
     combinedPriceAmount,
     pricingFromQuotation,
     quotationImportHtml,
     scopesFromProject,
-    scopesTotalAmount,
-    scopesCombinedPriceAmount,
     type BidFormData,
     type BidOptions,
     type BidPayload,
@@ -93,7 +87,7 @@ const schema = z.object({
     quotation_id: z.string(),
     notes: z
         .string()
-        .max(250000, 'Shipping & handling, basis & qualification and more must be 250,000 characters or less.'),
+        .max(250000, 'Bid information must be 250,000 characters or less.'),
     bid_shipping_text_template_id: z.string(),
     bid_scope_text_template_id: z.string(),
     scope_of_work_text: z
@@ -639,10 +633,6 @@ export default function BidForm({
         data.assigned_to,
         data.quotation_id,
     ]);
-    const latestTotal = scopesTotalAmount(data.scopes ?? []);
-    const combinedPriceValue = scopesCombinedPriceAmount(data.scopes ?? []);
-    const selectedProjectScopes = selectedProject?.scopes ?? [];
-
     return (
         <form onSubmit={submit} className="flex w-full min-w-0 max-w-full flex-col gap-6 pr-4 pb-28 sm:pr-20 lg:pb-6">
             <Card className="overflow-visible shadow-sm">
@@ -1086,73 +1076,6 @@ export default function BidForm({
                 </div>
             </section>
 
-            <section className="flex flex-col gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
-                <div>
-                    <h3 className="text-base font-semibold text-foreground">
-                        Scope of work
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                        {selectedProjectScopes.length > 0
-                            ? 'Start with predefined scope wording, then add a custom product description and pricing for each location.'
-                            : 'A scope is ready below. Use Add item under the last line if you need another.'}
-                    </p>
-                </div>
-
-                <div className="flex flex-col gap-4">
-                    {scopeFields.map((field, index) => {
-                        const scope = data.scopes?.[index];
-                        const scopeName =
-                            scope?.title_name ||
-                            options.scopeTitles.find(
-                                (title) =>
-                                    String(title.id) ===
-                                    (scope?.title_id ?? ''),
-                            )?.name;
-
-                        return (
-                            <ScopeWorkCard
-                                key={field.id}
-                                control={control}
-                                data={data}
-                                index={index}
-                                options={options}
-                                validationErrors={validationErrors}
-                                inputClassName={inputClassName}
-                                locked={
-                                    selectedProjectScopes.length > 0 &&
-                                    index < selectedProjectScopes.length
-                                }
-                                canRemove={scopeFields.length > 1}
-                                onChange={setData}
-                                onRemove={() =>
-                                    setPendingDelete({
-                                        type: 'scope',
-                                        index,
-                                        name: scopeName,
-                                    })
-                                }
-                            />
-                        );
-                    })}
-                </div>
-
-                <BidApplicationTextSection
-                    embedded
-                    purpose="scope"
-                    options={options}
-                    project={selectedProject}
-                    scopes={data.scopes ?? []}
-                    extraFieldValues={extraFieldValues}
-                    value={data.scope_of_work_text ?? ''}
-                    templateId={data.bid_scope_text_template_id ?? ''}
-                    error={errorMessage(validationErrors, 'scope_of_work_text')}
-                    onChange={(html) => setData('scope_of_work_text', html)}
-                    onTemplateIdChange={(id) =>
-                        setData('bid_scope_text_template_id', id)
-                    }
-                />
-            </section>
-
             <BidApplicationTextSection
                 purpose="shipping"
                 options={options}
@@ -1166,28 +1089,14 @@ export default function BidForm({
                 onTemplateIdChange={(id) =>
                     setData('bid_shipping_text_template_id', id)
                 }
+                autoSave={{
+                    persistKey: bid ? `bid:${bid.id}` : null,
+                    url: bid ? route('admin.bids.autosave', bid.id) : null,
+                    field: 'notes',
+                    unavailableMessage:
+                        'AutoSave on. Add the bid to start saving this text.',
+                }}
             />
-
-            <div className="sticky bottom-20 z-10 mr-16 flex min-w-0 max-w-full flex-row items-center justify-between gap-4 rounded-xl border border-emerald-200 bg-background/95 px-3.5 py-2.5 shadow-lg backdrop-blur sm:mr-20 sm:px-4 sm:py-3 lg:bottom-4 lg:mr-20 landscape:bottom-3 landscape:px-3.5 landscape:py-2 dark:border-emerald-900/70">
-                <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground sm:text-xs">
-                        Combined price
-                    </p>
-                    <p className="text-base font-semibold text-emerald-700 sm:text-lg lg:text-xl landscape:text-base dark:text-emerald-300">
-                        {combinedPriceValue
-                            ? formatMoney(combinedPriceValue)
-                            : '—'}
-                    </p>
-                </div>
-                <div className="text-right">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground sm:text-xs">
-                        Latest revision total
-                    </p>
-                    <p className="text-base font-semibold text-emerald-700 sm:text-lg lg:text-xl landscape:text-base dark:text-emerald-300">
-                        {formatMoney(latestTotal)}
-                    </p>
-                </div>
-            </div>
 
             <FormActionFab
                 cancelHref={route('admin.bids.index')}
@@ -1297,404 +1206,5 @@ export default function BidForm({
                 </AlertDialogContent>
             </AlertDialog>
         </form>
-    );
-}
-
-function ScopeWorkCard({
-    control,
-    data,
-    index,
-    options,
-    validationErrors,
-    inputClassName,
-    locked,
-    canRemove,
-    onChange,
-    onRemove,
-}: {
-    control: Control<BidFormData>;
-    data: BidFormData;
-    index: number;
-    options: BidOptions;
-    validationErrors: FieldErrors<BidFormData>;
-    inputClassName: string;
-    locked: boolean;
-    canRemove: boolean;
-    onChange: <Field extends FieldPath<BidFormData>>(
-        field: Field,
-        value: PathValue<BidFormData, Field>,
-    ) => void;
-    onRemove: () => void;
-}) {
-    const { fields, append, remove } = useFieldArray({
-        control,
-        name: `scopes.${index}.products`,
-    });
-    const [pendingDeleteProductIndex, setPendingDeleteProductIndex] =
-        useState<number | null>(null);
-    const scope = data.scopes?.[index];
-    const titleName =
-        scope?.title_name ||
-        options.scopeTitles.find(
-            (title) => String(title.id) === (scope?.title_id ?? ''),
-        )?.name ||
-        '';
-    const hasEmptyLine = (scope?.products ?? []).some(
-        (item) => item.description.trim() === '',
-    );
-    const canAddProduct = !hasEmptyLine;
-    const setLineAmount = (
-        productIndex: number,
-        field: 'quantity' | 'unit_bid' | 'allocated_handling',
-        value: string,
-    ) => {
-        const line = scope?.products?.[productIndex];
-        const quantity = field === 'quantity' ? value : (line?.quantity ?? '');
-        const unitBid = field === 'unit_bid' ? value : (line?.unit_bid ?? '');
-        const allocated =
-            field === 'allocated_handling'
-                ? value
-                : (line?.allocated_handling ?? '');
-        const combined = combinedPriceAmount(unitBid, allocated);
-
-        onChange(`scopes.${index}.products.${productIndex}.${field}`, value);
-        onChange(
-            `scopes.${index}.products.${productIndex}.combined_price`,
-            combined,
-        );
-        onChange(
-            `scopes.${index}.products.${productIndex}.extended`,
-            scopeExtendedAmount(quantity, unitBid, allocated, combined),
-        );
-    };
-
-    return (
-        <div className="flex flex-col gap-4 overflow-visible rounded-lg border border-emerald-200 bg-background p-4 dark:border-emerald-900/70">
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto]">
-                {locked || scope?.scope_type ? (
-                    <div className="flex flex-col gap-2">
-                        <InputLabel
-                            htmlFor={`bid-scope-title-${index}`}
-                            value="Project pre defined scope of work"
-                            className="text-emerald-700 dark:text-emerald-300"
-                        />
-                        <TextInput
-                            id={`bid-scope-title-${index}`}
-                            value={titleName}
-                            disabled
-                            readOnly
-                            className="h-11 w-full cursor-not-allowed border-border bg-muted text-foreground"
-                        />
-                    </div>
-                ) : (
-                    <CreatableSelect
-                        id={`bid-scope-title-${index}`}
-                        label="Project pre defined scope of work"
-                        value={scope?.title_id ?? ''}
-                        options={options.scopeTitles}
-                        createRoute={route('admin.project-scope-types.store')}
-                        catalogKey="scopeTitles"
-                        entityLabel="scope type"
-                        placeholder="Select a scope"
-                        error={errorMessage(
-                            validationErrors,
-                            `scopes.${index}.title_id`,
-                        )}
-                        onChange={(titleId) =>
-                            onChange(`scopes.${index}.title_id`, titleId)
-                        }
-                    />
-                )}
-                {!locked && canRemove && (
-                    <div className="flex items-start lg:pt-7">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            aria-label={`Remove scope ${index + 1}`}
-                            onClick={onRemove}
-                        >
-                            <Trash2Icon className="size-4" />
-                        </Button>
-                    </div>
-                )}
-            </div>
-
-            <div className="flex flex-col gap-3">
-                {fields.map((productField, productIndex) => {
-                    const line = scope?.products?.[productIndex];
-                    const moneyLabelClass =
-                        'text-emerald-700 dark:text-emerald-300 leading-tight';
-
-                    return (
-                    <Card
-                        key={productField.id}
-                        size="sm"
-                        className="overflow-visible border-rose-200 bg-rose-50/90 ring-rose-200/80 dark:border-rose-900/70 dark:bg-rose-950/40 dark:ring-rose-900/50"
-                    >
-                        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                            <div>
-                                <CardTitle className="text-rose-800 dark:text-rose-200">
-                                    Line {productIndex + 1}
-                                </CardTitle>
-                                <CardDescription>
-                                    Location of the service, product description, and pricing for this custom item.
-                                </CardDescription>
-                            </div>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                aria-label={`Remove line ${productIndex + 1}`}
-                                onClick={() =>
-                                    setPendingDeleteProductIndex(productIndex)
-                                }
-                            >
-                                <Trash2Icon className="size-4" />
-                            </Button>
-                        </CardHeader>
-                        <CardContent className="flex flex-col gap-4">
-                        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(10rem,16rem)_minmax(0,1fr)]">
-                        <div className="flex flex-col gap-2">
-                            <InputLabel
-                                htmlFor={`bid-scope-location-${index}-${productIndex}`}
-                                value="Location of the service"
-                                className="text-emerald-700 dark:text-emerald-300"
-                            />
-                            <TextInput
-                                id={`bid-scope-location-${index}-${productIndex}`}
-                                value={line?.location ?? ''}
-                                className={inputClassName}
-                                placeholder="Bldg 19, Room 54"
-                                onChange={(event) =>
-                                    onChange(
-                                        `scopes.${index}.products.${productIndex}.location`,
-                                        event.target.value,
-                                    )
-                                }
-                            />
-                            <InputError
-                                message={errorMessage(
-                                    validationErrors,
-                                    `scopes.${index}.products.${productIndex}.location`,
-                                )}
-                            />
-                        </div>
-                        <div className="flex min-w-0 flex-col gap-2">
-                            <InputLabel
-                                htmlFor={`bid-scope-description-${index}-${productIndex}`}
-                                value="Product Description"
-                                className="text-emerald-700 dark:text-emerald-300"
-                            />
-                            <textarea
-                                id={`bid-scope-description-${index}-${productIndex}`}
-                                value={line?.description ?? ''}
-                                rows={3}
-                                maxLength={2000}
-                                spellCheck
-                                autoCorrect="on"
-                                autoCapitalize="sentences"
-                                placeholder="Custom door, handing, size, and finish for this customer"
-                                className="min-h-[5.5rem] w-full resize-y rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-1 focus:ring-ring"
-                                onChange={(event) =>
-                                    onChange(
-                                        `scopes.${index}.products.${productIndex}.description`,
-                                        event.target.value,
-                                    )
-                                }
-                            />
-                            <InputError
-                                message={errorMessage(
-                                    validationErrors,
-                                    `scopes.${index}.products.${productIndex}.description`,
-                                )}
-                            />
-                        </div>
-                        </div>
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[5.75rem_minmax(8.5rem,1fr)_minmax(10.5rem,1.2fr)_minmax(9.5rem,1fr)_minmax(8.5rem,1fr)] xl:items-end">
-                        <div className="flex min-w-0 flex-col gap-1">
-                            <InputLabel
-                                htmlFor={`bid-scope-quantity-${index}-${productIndex}`}
-                                value="Qty"
-                                className={moneyLabelClass}
-                            />
-                            <MaskedDecimalInput
-                                id={`bid-scope-quantity-${index}-${productIndex}`}
-                                value={line?.quantity ?? ''}
-                                className={inputClassName}
-                                placeholder="0"
-                                withThousands={false}
-                                onChange={(value) =>
-                                    setLineAmount(productIndex, 'quantity', value)
-                                }
-                            />
-                            <InputError
-                                message={errorMessage(
-                                    validationErrors,
-                                    `scopes.${index}.products.${productIndex}.quantity`,
-                                )}
-                            />
-                        </div>
-                        <div className="flex min-w-0 flex-col gap-1">
-                            <InputLabel
-                                htmlFor={`bid-scope-unit-${index}-${productIndex}`}
-                                value="Material Unit Price"
-                                className={moneyLabelClass}
-                            />
-                            <MaskedDecimalInput
-                                id={`bid-scope-unit-${index}-${productIndex}`}
-                                prefix="$"
-                                value={line?.unit_bid ?? ''}
-                                className={inputClassName}
-                                placeholder="0.00"
-                                onChange={(value) =>
-                                    setLineAmount(productIndex, 'unit_bid', value)
-                                }
-                            />
-                            <InputError
-                                message={errorMessage(
-                                    validationErrors,
-                                    `scopes.${index}.products.${productIndex}.unit_bid`,
-                                )}
-                            />
-                        </div>
-                        <div className="flex min-w-0 flex-col gap-1 sm:col-span-2 xl:col-span-1">
-                            <InputLabel
-                                htmlFor={`bid-scope-allocated-${index}-${productIndex}`}
-                                value="Allocated Install / Freight / Handling"
-                                className={moneyLabelClass}
-                            />
-                            <MaskedDecimalInput
-                                id={`bid-scope-allocated-${index}-${productIndex}`}
-                                prefix="$"
-                                value={line?.allocated_handling ?? ''}
-                                className={inputClassName}
-                                placeholder="0.00"
-                                onChange={(value) =>
-                                    setLineAmount(
-                                        productIndex,
-                                        'allocated_handling',
-                                        value,
-                                    )
-                                }
-                            />
-                            <InputError
-                                message={errorMessage(
-                                    validationErrors,
-                                    `scopes.${index}.products.${productIndex}.allocated_handling`,
-                                )}
-                            />
-                        </div>
-                        <div className="flex min-w-0 flex-col gap-1">
-                            <InputLabel
-                                htmlFor={`bid-scope-combined-${index}-${productIndex}`}
-                                value="Combined Installed Unit Price"
-                                className={moneyLabelClass}
-                            />
-                            <MaskedDecimalInput
-                                id={`bid-scope-combined-${index}-${productIndex}`}
-                                prefix="$"
-                                disabled
-                                value={
-                                    combinedPriceAmount(
-                                        line?.unit_bid ?? '',
-                                        line?.allocated_handling ?? '',
-                                    ) ||
-                                    line?.combined_price ||
-                                    ''
-                                }
-                                className={inputClassName}
-                                placeholder="0.00"
-                                onChange={() => undefined}
-                            />
-                        </div>
-                        <div className="flex min-w-0 flex-col gap-1">
-                            <InputLabel
-                                htmlFor={`bid-scope-extended-${index}-${productIndex}`}
-                                value="Building Total"
-                                className={moneyLabelClass}
-                            />
-                            <MaskedDecimalInput
-                                id={`bid-scope-extended-${index}-${productIndex}`}
-                                prefix="$"
-                                disabled
-                                value={
-                                    scopeExtendedAmount(
-                                        line?.quantity ?? '',
-                                        line?.unit_bid ?? '',
-                                        line?.allocated_handling ?? '',
-                                        combinedPriceAmount(
-                                            line?.unit_bid ?? '',
-                                            line?.allocated_handling ?? '',
-                                        ) ||
-                                            line?.combined_price ||
-                                            '',
-                                    ) ||
-                                    line?.extended ||
-                                    ''
-                                }
-                                className={inputClassName}
-                                placeholder="0.00"
-                                onChange={() => undefined}
-                            />
-                        </div>
-                        </div>
-                        </CardContent>
-                    </Card>
-                    );
-                })}
-                <div className="flex">
-                    <Button
-                        type="button"
-                        size="sm"
-                        disabled={!canAddProduct}
-                        onClick={() => append(blankScopeProduct())}
-                        className="border-rose-600 bg-rose-600 text-white hover:bg-rose-700 hover:text-white"
-                    >
-                        <PlusIcon className="size-3.5" />
-                        Add item
-                    </Button>
-                </div>
-            </div>
-
-            <AlertDialog
-                open={pendingDeleteProductIndex !== null}
-                onOpenChange={(open) => {
-                    if (!open) {
-                        setPendingDeleteProductIndex(null);
-                    }
-                }}
-            >
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Remove line item?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Are you sure you want to remove line{' '}
-                            {(pendingDeleteProductIndex ?? 0) + 1}
-                            {scope?.products?.[pendingDeleteProductIndex ?? 0]
-                                ?.location
-                                ? ` (${scope.products[pendingDeleteProductIndex ?? 0].location})`
-                                : ''}
-                            ? This action cannot be undone.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel type="button">
-                            Cancel
-                        </AlertDialogCancel>
-                        <AlertDialogAction
-                            type="button"
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            onClick={() => {
-                                if (pendingDeleteProductIndex !== null) {
-                                    remove(pendingDeleteProductIndex);
-                                    setPendingDeleteProductIndex(null);
-                                }
-                            }}
-                        >
-                            Remove line item
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-        </div>
     );
 }

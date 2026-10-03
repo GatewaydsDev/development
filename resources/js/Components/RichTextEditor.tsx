@@ -431,6 +431,70 @@ function fillCurrentTableHeaders(
     editor.view.dispatch(tr);
 }
 
+function labelCurrentTableHeaders(editor: Editor) {
+    const { $from } = editor.state.selection;
+    let tablePos: number | null = null;
+
+    for (let depth = $from.depth; depth > 0; depth -= 1) {
+        if ($from.node(depth).type.name === 'table') {
+            tablePos = $from.before(depth);
+            break;
+        }
+    }
+
+    if (tablePos === null) {
+        return;
+    }
+
+    const table = editor.state.doc.nodeAt(tablePos);
+
+    if (!table) {
+        return;
+    }
+
+    const inserts: number[] = [];
+
+    table.descendants((node, pos) => {
+        if (node.type.name === 'tableHeader' && node.textContent === '') {
+            inserts.push(tablePos + 1 + pos + 1);
+        }
+    });
+
+    if (inserts.length === 0) {
+        return;
+    }
+
+    let { tr } = editor.state;
+
+    for (let index = inserts.length - 1; index >= 0; index -= 1) {
+        tr = tr.insertText(`Column ${index + 1}`, inserts[index]);
+    }
+
+    editor.view.dispatch(tr);
+}
+
+function currentTableHasHeaders(editor: Editor) {
+    const { $from } = editor.state.selection;
+
+    for (let depth = $from.depth; depth > 0; depth -= 1) {
+        if ($from.node(depth).type.name !== 'table') {
+            continue;
+        }
+
+        let hasHeader = false;
+
+        $from.node(depth).descendants((node) => {
+            if (node.type.name === 'tableHeader') {
+                hasHeader = true;
+            }
+        });
+
+        return hasHeader;
+    }
+
+    return false;
+}
+
 function ColorChoices({
     onSelect,
     allowClear,
@@ -823,28 +887,31 @@ export default function RichTextEditor({
             .run();
     };
 
-    const insertTable = (
-        columns: number,
-        headerColor: LayoutColor = LAYOUT_COLORS[0],
-    ) => {
+    const insertTable = (columns: number, withHeader = true) => {
+        if (!editor) {
+            return;
+        }
+
         const count = Math.min(6, Math.max(2, columns));
-        const headerStyle = `background-color: ${headerColor.value}; color: ${headerColor.text};`;
-        const headers = Array.from({ length: count }, (_, index) => {
-            return `<th style="${headerStyle}"><p>Column ${index + 1}</p></th>`;
-        }).join('');
-        const cells = Array.from(
-            { length: count },
-            () => '<td><p><br></p></td>',
-        ).join('');
-        const emptyRow = `<tr>${cells}</tr>`;
 
         editor
-            ?.chain()
+            .chain()
             .focus()
-            .insertContent(
-                `<table><tbody><tr>${headers}</tr>${emptyRow}${emptyRow}</tbody></table>`,
-            )
+            .insertTable({
+                rows: 3,
+                cols: count,
+                withHeaderRow: withHeader,
+            })
             .run();
+
+        if (!withHeader) {
+            return;
+        }
+
+        const headerColor = LAYOUT_COLORS[0];
+
+        fillCurrentTableHeaders(editor, headerColor.value, headerColor.text);
+        labelCurrentTableHeaders(editor);
     };
 
     const boxedNoteStyles = {
@@ -1061,12 +1128,34 @@ export default function RichTextEditor({
             );
 
             const rect = frame?.getBoundingClientRect();
-            const scrolled = Boolean(
-                wide &&
-                    rect &&
+            const pastHeader = Boolean(
+                rect &&
                     rect.top < navBottom + 4 &&
                     rect.bottom > dockTop + 48,
             );
+            const editorOnScreen = Boolean(
+                rect &&
+                    rect.bottom > dockTop + 48 &&
+                    rect.top < window.innerHeight - 40,
+            );
+            const remainingScroll = Math.max(
+                0,
+                document.documentElement.scrollHeight -
+                    window.innerHeight -
+                    window.scrollY,
+            );
+            const distanceToHeader = rect ? rect.top - (navBottom + 4) : 0;
+            const pageCannotReachHeader =
+                distanceToHeader > remainingScroll + 48;
+            let scrolled = false;
+
+            if (wide && rect) {
+                if (pastHeader || (editorOnScreen && pageCannotReachHeader)) {
+                    scrolled = true;
+                } else if (commandsScrolledRef.current && editorOnScreen) {
+                    scrolled = true;
+                }
+            }
 
             if (scrolled && !commandsScrolledRef.current && commandBarRef.current) {
                 const box = commandBarRef.current.getBoundingClientRect();
@@ -2422,16 +2511,38 @@ export default function RichTextEditor({
                     }
                 >
                     <DropdownMenuLabel>Insert layout blocks</DropdownMenuLabel>
-                    <DropdownMenuLabel>Add a table</DropdownMenuLabel>
-                    {[2, 3, 4, 5, 6].map((columns) => (
-                        <DropdownMenuItem
-                            key={columns}
-                            onClick={() => insertTable(columns)}
-                        >
+                    <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>
                             <TableIcon />
-                            {columns} columns
-                        </DropdownMenuItem>
-                    ))}
+                            Table with headers
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent>
+                            {[2, 3, 4, 5, 6].map((columns) => (
+                                <DropdownMenuItem
+                                    key={columns}
+                                    onClick={() => insertTable(columns, true)}
+                                >
+                                    {columns} columns
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                    <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>
+                            <Columns3Icon />
+                            Summary, no header
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent>
+                            {[2, 3, 4, 5, 6].map((columns) => (
+                                <DropdownMenuItem
+                                    key={columns}
+                                    onClick={() => insertTable(columns, false)}
+                                >
+                                    {columns} columns
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuSubContent>
+                    </DropdownMenuSub>
                     <DropdownMenuItem onClick={applyBoxedNote}>
                         <SquareIcon />
                         Boxed note
@@ -2455,37 +2566,70 @@ export default function RichTextEditor({
                 </ToolbarMenu>
                 {editor?.isActive('table') ? (
                     <>
-                        <ToolbarMenu
-                            onOpenChange={handleMenuOpenChange}
-                            trigger={
-                                <Button type="button" variant="ghost" size="icon-sm" title="Header fill">
-                                    <PaintBucketIcon />
-                                </Button>
-                            }
-                        >
-                            <DropdownMenuLabel>
-                                Table header color
-                            </DropdownMenuLabel>
-                            <ColorChoices
-                                onSelect={(color) =>
-                                    fillCurrentTableHeaders(
-                                        editor,
-                                        color.value,
-                                        color.text,
-                                    )
+                        {currentTableHasHeaders(editor) ? (
+                            <ToolbarMenu
+                                onOpenChange={handleMenuOpenChange}
+                                trigger={
+                                    <Button type="button" variant="ghost" size="icon-sm" title="Header fill">
+                                        <PaintBucketIcon />
+                                    </Button>
                                 }
-                            />
-                        </ToolbarMenu>
+                            >
+                                <DropdownMenuLabel>
+                                    Table header color
+                                </DropdownMenuLabel>
+                                <ColorChoices
+                                    onSelect={(color) =>
+                                        fillCurrentTableHeaders(
+                                            editor,
+                                            color.value,
+                                            color.text,
+                                        )
+                                    }
+                                />
+                            </ToolbarMenu>
+                        ) : null}
                         <Button
                             type="button"
                             variant="ghost"
-                            size="icon-sm"
-                            title="Add row"
+                            size="sm"
+                            data-labeled-command
+                            title="Add a row above this one"
+                            disabled={!editor.can().addRowBefore()}
+                            onClick={() =>
+                                editor.chain().focus().addRowBefore().run()
+                            }
+                        >
+                            <Rows3Icon />
+                            <span>Row above</span>
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            data-labeled-command
+                            title="Add a row below this one"
+                            disabled={!editor.can().addRowAfter()}
                             onClick={() =>
                                 editor.chain().focus().addRowAfter().run()
                             }
                         >
                             <Rows3Icon />
+                            <span>Row below</span>
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            data-labeled-command
+                            title="Remove this row"
+                            disabled={!editor.can().deleteRow()}
+                            onClick={() =>
+                                editor.chain().focus().deleteRow().run()
+                            }
+                        >
+                            <MinusIcon />
+                            <span>Remove row</span>
                         </Button>
                         <Button
                             type="button"
@@ -2510,17 +2654,6 @@ export default function RichTextEditor({
                         >
                             <MinusIcon />
                             Remove column
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            title="Delete row"
-                            onClick={() =>
-                                editor.chain().focus().deleteRow().run()
-                            }
-                        >
-                            <MinusIcon />
                         </Button>
                         <Button
                             type="button"

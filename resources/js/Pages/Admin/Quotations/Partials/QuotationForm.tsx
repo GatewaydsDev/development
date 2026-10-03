@@ -1024,6 +1024,17 @@ export default function QuotationForm({
                     onChange={(html) =>
                         setValue('pricing_conditions', html)
                     }
+                    autoSave={{
+                        persistKey: quotation
+                            ? `quotation:${quotation.id}`
+                            : null,
+                        url: quotation
+                            ? route('admin.quotations.autosave', quotation.id)
+                            : null,
+                        field: 'pricing_conditions',
+                        unavailableMessage:
+                            'AutoSave on. Add the quotation to start saving this text.',
+                    }}
                 />
             </section>
 

@@ -236,6 +236,27 @@ class BidController extends Controller
             ->with('success', 'Bid updated successfully.');
     }
 
+    public function autosave(Request $request, Bid $bid): JsonResponse
+    {
+        abort_unless(BidAccess::canUpdate($request->user()), 403);
+
+        $validated = $request->validate([
+            'notes' => ['nullable', 'string', 'max:250000'],
+        ]);
+
+        $notes = BidApplicationText::sanitize($validated['notes'] ?? null);
+
+        if (BidApplicationText::isEmpty($notes)) {
+            $notes = null;
+        }
+
+        $bid->update(['notes' => $notes]);
+
+        return response()->json([
+            'saved_at' => $bid->fresh()->updated_at?->toIso8601String(),
+        ]);
+    }
+
     public function destroy(Request $request, Bid $bid): RedirectResponse
     {
         abort_unless(BidAccess::canDelete($request->user()), 403);

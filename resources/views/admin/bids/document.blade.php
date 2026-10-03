@@ -78,6 +78,14 @@
             letter-spacing: -0.3px;
         }
 
+        .hero-stage {
+            margin: 6px 0 0;
+            font-size: 15px;
+            font-weight: 700;
+            line-height: 1.3;
+            color: {{ $c['header_text'] }};
+        }
+
         .hero-meta {
             margin: 6px 0 0;
             font-size: 11px;
@@ -686,6 +694,9 @@
                 <tr>
                     <td>
                         <h1>Bid</h1>
+                        @if ($stageLabel)
+                            <p class="hero-stage">{{ $stageLabel }}</p>
+                        @endif
                         <p class="hero-meta">
                             Generated {{ $generatedAt->format('F j, Y') }}
                             @if ($generatedBy)
@@ -706,22 +717,32 @@
             <table class="stats">
                 <tr>
                     <td>
-                        <span class="stat-value">{{ $projectNumber ?: '—' }}</span>
-                        <span class="stat-label">Project number</span>
+                        <span class="stat-value">{{ $bidNumber ?: '—' }}</span>
+                        <span class="stat-label">Bid number</span>
                     </td>
                     <td>
-                        <span class="stat-value">{{ count($scopes) }}</span>
-                        <span class="stat-label">Scopes</span>
+                        <span class="stat-value">{{ $bidDate ?: '—' }}</span>
+                        <span class="stat-label">Date</span>
                     </td>
                 </tr>
             </table>
 
-            <h2 class="section-title">Project information</h2>
             <h1 class="document-title">{{ $projectName ?: $title }}</h1>
-            @if ($projectAddress)
-                <div class="block">
-                    <p class="block-title">{{ $projectAddress }}</p>
-                </div>
+
+            @if (count($projectFields) > 0)
+                <h2 class="section-title">Project information</h2>
+                <table class="meta">
+                    @foreach (array_chunk($projectFields, 2) as $pair)
+                        <tr>
+                            @foreach ($pair as $field)
+                                <td @if (count($pair) === 1) colspan="2" @endif>
+                                    <span class="meta-label">{{ $field[0] }}</span>
+                                    <span class="meta-value">{{ $field[1] }}</span>
+                                </td>
+                            @endforeach
+                        </tr>
+                    @endforeach
+                </table>
             @endif
 
             @if ($mode !== 'print' && count($revisions) > 0)
@@ -748,113 +769,40 @@
                 </div>
             @endif
 
-            <h2 class="section-title">Contractors</h2>
-            @if (count($contractors) === 0)
-                <p class="muted">No contractors added yet.</p>
-            @else
-                @foreach ($contractors as $contractor)
-                    <div class="block">
-                        <p class="block-title">{{ $contractor['name'] ?: 'Contractor' }}</p>
-                        @if ($contractor['contact_name'] || $contractor['phone'] || $contractor['email'])
-                            <table class="meta" style="margin-bottom: 0;">
-                                @if ($contractor['contact_name'] || $contractor['phone'])
-                                    <tr>
-                                        @if ($contractor['contact_name'])
-                                            <td>
-                                                <span class="meta-label">Contact name</span>
-                                                <span class="meta-value">{{ $contractor['contact_name'] }}</span>
-                                            </td>
-                                        @endif
-                                        @if ($contractor['phone'])
-                                            <td>
-                                                <span class="meta-label">Phone number</span>
-                                                <span class="meta-value">{{ $contractor['phone'] }}</span>
-                                            </td>
-                                        @endif
-                                    </tr>
-                                @endif
-                                @if ($contractor['email'])
-                                    <tr>
-                                        <td colspan="2">
-                                            <span class="meta-label">Email address</span>
-                                            <span class="meta-value">{{ $contractor['email'] }}</span>
-                                        </td>
-                                    </tr>
-                                @endif
-                            </table>
-                        @endif
-                    </div>
-                @endforeach
-            @endif
-
-            <div class="scope-of-work">
-            <h2 class="section-title">Scope of work</h2>
-            @if ($scopeOfWorkText ?? null)
-                <div class="rich-text">{!! $scopeOfWorkText !!}</div>
-            @endif
-            @forelse ($scopes as $scope)
-                <div class="block">
-                    <p class="block-title">{{ $scope['name'] ?: 'Scope' }}</p>
-                    @if (count($scope['items']) > 0)
-                        <div class="table-responsive">
-                            <table class="pricing">
-                                <thead>
-                                    <tr>
-                                        @foreach ($scope['columns'] as $column)
-                                            <th @class(['amount' => $column['amount']])>{{ $column['label'] }}</th>
-                                        @endforeach
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach ($scope['items'] as $item)
-                                        <tr>
-                                            @foreach ($scope['columns'] as $column)
-                                                <td @class(['amount' => $column['amount']])>{{ $item[$column['key']] }}</td>
-                                            @endforeach
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    @else
-                        <p class="muted">No items added yet.</p>
-                    @endif
-                </div>
-            @empty
-                <p class="muted">No scopes added yet.</p>
-            @endforelse
-            @if (count($scopes) > 0)
-                <div class="totals">
-                    <h2 class="section-title" style="margin-top: 0;">Totals</h2>
-                    <table class="totals-table">
-                        <tr>
-                            <td>
-                                Materials
-                                <span class="note">Qty × Material Unit Price</span>
-                            </td>
-                            <td class="amount">{{ $materialsTotal }}</td>
-                        </tr>
-                        <tr>
-                            <td>
-                                Installation
-                                <span class="note">Qty × Allocated Install / Freight / Handling</span>
-                            </td>
-                            <td class="amount">{{ $installationTotal }}</td>
-                        </tr>
-                        <tr class="spacer">
-                            <td colspan="2"></td>
-                        </tr>
-                        <tr class="grand">
-                            <td>Grand total</td>
-                            <td class="amount">{{ $grandTotal }}</td>
-                        </tr>
+            @foreach ($contractorSections as $contractorSection)
+                <h2 class="section-title">{{ $contractorSection['label'] }}</h2>
+                @if (count($contractorSection['fields']) > 0)
+                    <table class="meta">
+                        @foreach (array_chunk($contractorSection['fields'], 2) as $pair)
+                            <tr>
+                                @foreach ($pair as $field)
+                                    <td @if (count($pair) === 1) colspan="2" @endif>
+                                        <span class="meta-label">{{ $field[0] }}</span>
+                                        <span class="meta-value">{{ $field[1] }}</span>
+                                    </td>
+                                @endforeach
+                            </tr>
+                        @endforeach
                     </table>
-                </div>
-            @endif
-            </div>
+                @endif
+                @foreach ($contractorSection['contacts'] as $contactFields)
+                    <table class="meta">
+                        @foreach (array_chunk($contactFields, 2) as $pair)
+                            <tr>
+                                @foreach ($pair as $field)
+                                    <td @if (count($pair) === 1) colspan="2" @endif>
+                                        <span class="meta-label">{{ $field[0] }}</span>
+                                        <span class="meta-value">{{ $field[1] }}</span>
+                                    </td>
+                                @endforeach
+                            </tr>
+                        @endforeach
+                    </table>
+                @endforeach
+            @endforeach
 
             @if ($notes)
-                <h2 class="section-title">Shipping &amp; handling, basis &amp; qualification and more</h2>
+                <h2 class="section-title">Bid information</h2>
                 <div class="rich-text">{!! $notes !!}</div>
             @endif
 

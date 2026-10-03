@@ -9,6 +9,8 @@ use App\Models\Language;
 use App\Models\Profession;
 use App\Models\Skill;
 use App\Models\User;
+use App\Support\EmployeeListVersion;
+use App\Support\SkillListVersion;
 use App\Support\UserPrivileges;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -46,6 +48,7 @@ class EmployeeController extends Controller
         return response()->json([
             'data' => $employees->items(),
             'meta' => [
+                'version' => EmployeeListVersion::current(),
                 'current_page' => $employees->currentPage(),
                 'from' => $employees->firstItem(),
                 'last_page' => $employees->lastPage(),
@@ -54,6 +57,15 @@ class EmployeeController extends Controller
                 'total' => $employees->total(),
             ],
             'can' => $this->capabilities($user),
+        ]);
+    }
+
+    public function version(Request $request): JsonResponse
+    {
+        $this->authorizeEmployee($request, 'view-employees');
+
+        return response()->json([
+            'version' => EmployeeListVersion::current(),
         ]);
     }
 
@@ -83,6 +95,24 @@ class EmployeeController extends Controller
                 'name' => $language->name,
             ],
         ], 201);
+    }
+
+    public function skillsVersion(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        abort_unless(
+            $user instanceof User && (
+                UserPrivileges::allows($user, 'view-employees')
+                || UserPrivileges::allows($user, 'create-employees')
+                || UserPrivileges::allows($user, 'update-employees')
+            ),
+            403,
+        );
+
+        return response()->json([
+            'version' => SkillListVersion::current(),
+        ]);
     }
 
     public function storeSkill(Request $request): JsonResponse

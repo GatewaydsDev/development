@@ -1,3 +1,4 @@
+import { useProjectListRefresh } from '@/hooks/useProjectListRefresh';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ActionHint from '@/Components/ActionHint';
 import DirectoryFieldLabel from '@/Components/DirectoryFieldLabel';
@@ -34,7 +35,12 @@ import {
     UserRoundIcon,
     UsersRoundIcon,
 } from 'lucide-react';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
+import {
+    CatalogChangeBadges,
+    catalogChanges,
+    type CatalogChange,
+} from './CatalogChanges';
 import {
     formatDisplayDate,
     type EmployeePayload,
@@ -46,6 +52,7 @@ type IndexProps = {
         search?: string;
     };
     employees: EmployeesPaginator;
+    employeesVersion?: string | null;
 };
 
 function statusBadgeClassName(status: string): string {
@@ -79,6 +86,27 @@ function rateTypeLabel(rateType: string, customRateType?: string | null): string
         .join(' ');
 }
 
+function MembershipLine({
+    label,
+    items,
+}: {
+    label: string;
+    items: Array<{ id: number; name: string }>;
+}) {
+    return (
+        <div className="mt-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {label}
+            </p>
+            <p className="mt-1 text-sm text-foreground">
+                {items.length > 0
+                    ? items.map((item) => item.name).join(', ')
+                    : 'None'}
+            </p>
+        </div>
+    );
+}
+
 function formatCurrency(amount: string): string {
     const numericAmount = Number(amount);
 
@@ -92,7 +120,11 @@ function formatCurrency(amount: string): string {
     });
 }
 
-export default function Index({ filters, employees }: IndexProps) {
+export default function Index({
+    filters,
+    employees,
+    employeesVersion = null,
+}: IndexProps) {
     const { auth } = usePage<PageProps>().props;
     const canCreateEmployees = Boolean(auth.can?.createEmployees);
     const canUpdateEmployees = Boolean(auth.can?.updateEmployees);
@@ -104,6 +136,71 @@ export default function Index({ filters, employees }: IndexProps) {
         id: number;
         name: string;
     } | null>(null);
+    const [catalogChangesByEmployee, setCatalogChangesByEmployee] = useState<
+        Record<number, CatalogChange[]>
+    >({});
+    const previousEmployees = useRef<Map<number, EmployeePayload> | null>(null);
+    const seenEmployeesVersion = useRef(employeesVersion);
+
+    useProjectListRefresh(
+        employeesVersion,
+        ['employees', 'employeesVersion'],
+        'admin.employees.version',
+    );
+
+    useEffect(() => {
+        const next = new Map(
+            employees.data.map((employee) => [employee.id, employee]),
+        );
+        const previous = previousEmployees.current;
+        const versionChanged = seenEmployeesVersion.current !== employeesVersion;
+        previousEmployees.current = next;
+        seenEmployeesVersion.current = employeesVersion;
+
+        if (!previous || !versionChanged) {
+            return;
+        }
+
+        const changes: Record<number, CatalogChange[]> = {};
+
+        next.forEach((employee, id) => {
+            const before = previous.get(id);
+
+            if (!before) {
+                changes[id] = [
+                    ...employee.professions.map((profession) => ({
+                        id: profession.id,
+                        name: profession.name,
+                        kind: 'profession' as const,
+                        action: 'added' as const,
+                    })),
+                    ...employee.skills.map((skill) => ({
+                        id: skill.id,
+                        name: skill.name,
+                        kind: 'skill' as const,
+                        action: 'added' as const,
+                    })),
+                ];
+
+                return;
+            }
+
+            const employeeChanges = catalogChanges(before, employee);
+
+            if (employeeChanges.length > 0) {
+                changes[id] = employeeChanges;
+            }
+        });
+
+        setCatalogChangesByEmployee(changes);
+
+        const timer = window.setTimeout(
+            () => setCatalogChangesByEmployee({}),
+            12_000,
+        );
+
+        return () => window.clearTimeout(timer);
+    }, [employeesVersion, employees]);
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
@@ -243,14 +340,26 @@ export default function Index({ filters, employees }: IndexProps) {
                                                         employee.date_of_birth
                                                             ? `Born ${formatDisplayDate(employee.date_of_birth)}`
                                                             : null,
-                                                        employee.skills
-                                                            .map((skill) => skill.name)
-                                                            .join(', ') || null,
                                                     ]
                                                         .filter(Boolean)
                                                         .join(' · ') ||
-                                                        'No language or skills yet'}
+                                                        'No language yet'}
                                                 </p>
+                                                <CatalogChangeBadges
+                                                    changes={
+                                                        catalogChangesByEmployee[
+                                                            employee.id
+                                                        ] ?? []
+                                                    }
+                                                />
+                                                <MembershipLine
+                                                    label="Professions"
+                                                    items={employee.professions}
+                                                />
+                                                <MembershipLine
+                                                    label="Skills"
+                                                    items={employee.skills}
+                                                />
                                             </div>
                                             <div className="min-w-0 text-sm text-muted-foreground">
                                                 <DirectoryFieldLabel>Contact</DirectoryFieldLabel>

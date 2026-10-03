@@ -281,7 +281,7 @@ export default function PreBidSection({
                         <AlertDialogHeader>
                             <AlertDialogTitle>Save reusable pre-bid</AlertDialogTitle>
                             <AlertDialogDescription>
-                                Save the current basic information (project, assignee, scope & shipping texts, scopes, stages, and revisions) as a reusable pre-bid template for starting new bids.
+                                Save the current basic information (project, assignee, bid information, stages, and revisions) as a reusable pre-bid template for starting new bids.
                             </AlertDialogDescription>
                         </AlertDialogHeader>
                         <div className="flex flex-col gap-2 py-4">

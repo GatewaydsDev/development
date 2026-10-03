@@ -12,6 +12,9 @@ use App\Models\Profession;
 use App\Models\Project;
 use App\Models\Skill;
 use App\Support\EmployeeAccess;
+use App\Support\EmployeeListVersion;
+use App\Support\SkillListVersion;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -65,6 +68,16 @@ class EmployeeController extends Controller
                 ->paginate(10)
                 ->withQueryString()
                 ->through(fn (Employee $employee): array => $this->employeePayload($employee)),
+            'employeesVersion' => EmployeeListVersion::current(),
+        ]);
+    }
+
+    public function version(Request $request): JsonResponse
+    {
+        abort_unless(EmployeeAccess::canView($request->user()), 403);
+
+        return response()->json([
+            'version' => EmployeeListVersion::current(),
         ]);
     }
 
@@ -94,6 +107,7 @@ class EmployeeController extends Controller
 
         return Inertia::render('Admin/Employees/Edit', [
             'employee' => $this->employeePayload($employee),
+            'employeesVersion' => EmployeeListVersion::current(),
             ...$this->formOptions(),
         ]);
     }
@@ -282,6 +296,7 @@ class EmployeeController extends Controller
             'professions' => $this->namedOptions(Profession::class),
             'languages' => $this->namedOptions(Language::class),
             'skills' => $this->namedOptions(Skill::class),
+            'skillsVersion' => SkillListVersion::current(),
             'projects' => Project::query()
                 ->orderBy('name')
                 ->get(['id', 'name', 'project_number'])

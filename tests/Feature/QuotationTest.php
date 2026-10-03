@@ -800,3 +800,30 @@ test('a quotation print fills a product field inserted in the text', function ()
         ->assertSee('52', false)
         ->assertDontSee('{{'.$token.'}}', false);
 });
+
+test('a quotation autosave keeps the text and leaves the rest of the quotation alone', function () {
+    $admin = quotationAdmin();
+    $quotation = makeQuotation($admin, null, [
+        'title' => 'Autosave quote',
+        'notes' => 'Leave this note',
+        'pricing_conditions' => '<p>Original conditions</p>',
+    ]);
+
+    $this->patchJson(route('admin.quotations.autosave', $quotation), [
+        'pricing_conditions' => '<p>Saved while writing</p><script>alert(1)</script>',
+    ])->assertUnauthorized();
+
+    $this->actingAs($admin)
+        ->patchJson(route('admin.quotations.autosave', $quotation), [
+            'pricing_conditions' => '<p>Saved while writing</p><script>alert(1)</script>',
+        ])
+        ->assertOk()
+        ->assertJsonStructure(['saved_at']);
+
+    $fresh = $quotation->fresh();
+
+    expect($fresh->pricing_conditions)->toContain('Saved while writing')
+        ->and($fresh->pricing_conditions)->not->toContain('<script')
+        ->and($fresh->notes)->toBe('Leave this note')
+        ->and($fresh->title)->toBe('Autosave quote');
+});

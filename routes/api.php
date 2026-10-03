@@ -52,8 +52,10 @@ Route::middleware('auth:sanctum')->prefix('quotations')->group(function () {
 
 Route::middleware('auth:sanctum')->prefix('employees')->group(function () {
     Route::get('/', [EmployeeController::class, 'index']);
+    Route::get('/version', [EmployeeController::class, 'version']);
     Route::get('/options', [EmployeeController::class, 'options']);
     Route::post('/languages', [EmployeeController::class, 'storeLanguage']);
+    Route::get('/skills/version', [EmployeeController::class, 'skillsVersion']);
     Route::post('/skills', [EmployeeController::class, 'storeSkill']);
     Route::post('/professions', [EmployeeController::class, 'storeProfession']);
     Route::post('/', [EmployeeController::class, 'store']);

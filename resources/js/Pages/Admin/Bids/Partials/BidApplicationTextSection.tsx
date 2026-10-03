@@ -2,6 +2,9 @@ import CreatableSelect from '@/Components/CreatableSelect';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import RichTextEditor from '@/Components/RichTextEditor';
+import TextAutoSave, {
+    type TextAutoSaveConfig,
+} from '@/Components/TextAutoSave';
 import TextInput from '@/Components/TextInput';
 import {
     AlertDialog,
@@ -54,22 +57,23 @@ type BidApplicationTextSectionProps = {
     embedded?: boolean;
     onChange: (html: string) => void;
     onTemplateIdChange: (id: string) => void;
+    autoSave?: TextAutoSaveConfig;
 };
 
 const copyFor = (purpose: BidReusableTextPurpose) => {
     if (purpose === 'shipping') {
         return {
             kind: 'shipping',
-            heading: 'Shipping & handling, basis & qualification and more',
+            heading: 'Bid information',
             description:
-                'This is a customized notes section, not a fixed list of fields. Use it for the full wording this bid needs — shipping, handling, basis & qualification, exclusions, adjustments, lead times, or any other terms that do not belong on a product line. Pick a saved page to insert it, or write your own. Saving the bid stores this wording on the bid.',
+                'Write the full bid in this editor. Include the scope, shipping and handling, basis and qualification, exclusions, and any other wording for this bid.',
             selectLabel: 'Saved shipping and handling texts',
             selectPlaceholder: 'Type to search or add shipping and handling…',
             selectId: 'bid-shipping-text-template',
-            editorLabel: 'Custom text and descriptions',
+            editorLabel: 'Bid information',
             editorId: 'bid-shipping-text',
             editorPlaceholder:
-                'Write shipping, handling, basis & qualification, exclusions, or any other notes…',
+                'Write the bid information…',
             saveTitle: 'Save reusable shipping and handling text',
             importTitle: 'Import shipping and handling text',
             emptySave: 'Enter shipping and handling text before saving it.',
@@ -257,6 +261,7 @@ export default function BidApplicationTextSection({
     embedded = false,
     onChange,
     onTemplateIdChange,
+    autoSave,
 }: BidApplicationTextSectionProps) {
     const copy = copyFor(purpose);
     const templates = options[copy.catalogKey] ?? [];
@@ -480,6 +485,8 @@ export default function BidApplicationTextSection({
         );
     };
 
+    const editorOnly = purpose === 'shipping';
+
     const fields = (
         <>
             <div>
@@ -491,6 +498,7 @@ export default function BidApplicationTextSection({
                 </p>
             </div>
 
+            {editorOnly ? null : (
             <div>
                 {copy.gallery ? (
                     <div className="flex flex-col gap-3">
@@ -623,13 +631,19 @@ export default function BidApplicationTextSection({
                     </div>
                 )}
             </div>
+            )}
 
             <div className="flex flex-col gap-2">
-                <InputLabel
-                    htmlFor={copy.editorId}
-                    value={copy.editorLabel}
-                    className="text-emerald-700 dark:text-emerald-300"
-                />
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                    <InputLabel
+                        htmlFor={copy.editorId}
+                        value={copy.editorLabel}
+                        className="text-emerald-700 dark:text-emerald-300"
+                    />
+                    {autoSave ? (
+                        <TextAutoSave html={value} {...autoSave} />
+                    ) : null}
+                </div>
                 <RichTextEditor
                     id={copy.editorId}
                     value={value}
@@ -640,6 +654,7 @@ export default function BidApplicationTextSection({
                     placeholderValues={values}
                 />
                 <InputError message={error} />
+                {editorOnly ? null : (
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-sm text-muted-foreground">
                         Save as reusable text stores this wording in the
@@ -675,6 +690,7 @@ export default function BidApplicationTextSection({
                         </Button>
                     </div>
                 </div>
+                )}
             </div>
         </>
     );

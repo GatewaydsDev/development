@@ -16,6 +16,7 @@ export function useProjectListRefresh(
         }
 
         let stopped = false;
+        let reloading = false;
         let version = listVersion;
 
         const watch = window.setInterval(async () => {
@@ -27,17 +28,18 @@ export function useProjectListRefresh(
                     },
                 });
 
-                if (!response.ok || stopped) {
+                if (!response.ok || stopped || reloading) {
                     return;
                 }
 
                 const body = (await response.json()) as { version?: string };
+                const nextVersion = body.version;
 
-                if (!body.version || body.version === version || stopped) {
+                if (!nextVersion || nextVersion === version || stopped) {
                     return;
                 }
 
-                version = body.version;
+                reloading = true;
 
                 router.reload({
                     only: reloadKey.split(','),
@@ -45,8 +47,15 @@ export function useProjectListRefresh(
                     preserveScroll: true,
                     async: true,
                     showProgress: false,
+                    onSuccess: () => {
+                        version = nextVersion;
+                    },
+                    onFinish: () => {
+                        reloading = false;
+                    },
                 });
             } catch {
+                reloading = false;
                 // Keep the current list when the version check cannot be reached.
             }
         }, projectListRefreshInterval);

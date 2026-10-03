@@ -14,6 +14,7 @@ import {
     CardTitle,
 } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
+import { useProjectListRefresh } from '@/hooks/useProjectListRefresh';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from '@inertiajs/react';
 import { PlusIcon, Trash2Icon } from 'lucide-react';
@@ -48,6 +49,7 @@ type EmployeeFormProps = {
     professions: NamedOption[];
     languages: NamedOption[];
     skills: NamedOption[];
+    skillsVersion?: string | null;
     projects: ProjectOption[];
     rateTypeOptions: EmployeeRateTypeOptions;
     statusOptions: EmployeeStatusOptions;
@@ -255,6 +257,7 @@ export default function EmployeeForm({
     professions,
     languages,
     skills,
+    skillsVersion = null,
     projects,
     rateTypeOptions,
     statusOptions,
@@ -263,6 +266,12 @@ export default function EmployeeForm({
     employee,
 }: EmployeeFormProps) {
     const [processing, setProcessing] = useState(false);
+
+    useProjectListRefresh(
+        skillsVersion,
+        ['skills', 'skillsVersion'],
+        'admin.skills.version',
+    );
     const validationSchema = useMemo(
         () =>
             employeeSchema(

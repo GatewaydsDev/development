@@ -13,6 +13,7 @@ type CreateProps = {
     professions: NamedOption[];
     languages: NamedOption[];
     skills: NamedOption[];
+    skillsVersion?: string | null;
     projects: ProjectOption[];
     rateTypeOptions: EmployeeRateTypeOptions;
     statusOptions: EmployeeStatusOptions;
@@ -24,6 +25,7 @@ export default function Create({
     professions,
     languages,
     skills,
+    skillsVersion = null,
     projects,
     rateTypeOptions,
     statusOptions,
@@ -67,6 +69,7 @@ export default function Create({
                         professions={professions}
                         languages={languages}
                         skills={skills}
+                        skillsVersion={skillsVersion}
                         projects={projects}
                         rateTypeOptions={rateTypeOptions}
                         statusOptions={statusOptions}

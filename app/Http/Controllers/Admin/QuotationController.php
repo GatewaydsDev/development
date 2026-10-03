@@ -268,6 +268,23 @@ class QuotationController extends Controller
             ->with('success', 'Quotation updated successfully.');
     }
 
+    public function autosave(Request $request, Quotation $quotation): JsonResponse
+    {
+        abort_unless(QuotationAccess::canUpdate($request->user()), 403);
+
+        $validated = $request->validate([
+            'pricing_conditions' => ['nullable', 'string', 'max:250000'],
+        ]);
+
+        $quotation->update([
+            'pricing_conditions' => $this->sanitizedHtml($validated['pricing_conditions'] ?? null),
+        ]);
+
+        return response()->json([
+            'saved_at' => $quotation->fresh()->updated_at?->toIso8601String(),
+        ]);
+    }
+
     public function destroy(Request $request, Quotation $quotation): RedirectResponse
     {
         abort_unless(QuotationAccess::canDelete($request->user()), 403);

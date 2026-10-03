@@ -2,6 +2,7 @@
 
 use App\Models\Bid;
 use App\Models\BidPricingStatus;
+use App\Models\BidScopeTitle;
 use App\Models\BidStageType;
 use App\Models\BidTextField;
 use App\Models\BidTextTemplate;
@@ -1616,26 +1617,18 @@ test('a bid can be printed and exported as pdf or word', function () {
         ->assertDontSee('Bid revisions', false)
         ->assertDontSee('Bid application text', false)
         ->assertDontSee('Proposal for Harbor Print Package.', false)
-        ->assertSee('Furnish and install RF doors for Harbor Print Package.', false)
-        ->assertSee('RF Doors', false)
-        ->assertDontSee('Location', false)
-        ->assertSee('Product Description', false)
-        ->assertSee('Qty', false)
-        ->assertSee('Material Unit Price', false)
-        ->assertSee('Combined Installed Unit Price', false)
-        ->assertSee('Building Total', false)
+        ->assertDontSee('Furnish and install RF doors for Harbor Print Package.', false)
+        ->assertDontSee('Scope of work', false)
+        ->assertDontSee('RF Doors', false)
+        ->assertDontSee('Product Description', false)
+        ->assertDontSee('Material Unit Price', false)
+        ->assertDontSee('Combined Installed Unit Price', false)
+        ->assertDontSee('Building Total', false)
         ->assertDontSee('Include frames and hardware', false)
-        ->assertSee('Assembly w/ vision glazing', false)
-        ->assertSee('RF door leaf', false)
-        ->assertSee('$1,250.00', false)
-        ->assertSee('$150.00', false)
-        ->assertSee('$1,400.00', false)
-        ->assertSee('$2,500.00', false)
-        ->assertSee('$300.00', false)
-        ->assertSee('$2,800.00', false)
-        ->assertSee('Materials', false)
-        ->assertSee('Installation', false)
-        ->assertSee('Grand total', false)
+        ->assertDontSee('RF door leaf', false)
+        ->assertDontSee('$1,250.00', false)
+        ->assertDontSee('$2,800.00', false)
+        ->assertDontSee('Grand total', false)
         ->assertDontSee('Product / work subtotal', false)
         ->assertDontSee('Bid total', false)
         ->assertSee('Owner review draft', false)
@@ -1703,9 +1696,10 @@ test('printed scope tables omit the empty information placeholder', function () 
     $this->actingAs($admin)
         ->get(route('admin.bids.print', $bid))
         ->assertOk()
-        ->assertSee('RF door leaf', false)
-        ->assertSee('Product Description', false)
-        ->assertDontSee('Location', false)
+        ->assertDontSee('Scope of work', false)
+        ->assertDontSee('RF door leaf', false)
+        ->assertDontSee('Product Description', false)
+        ->assertDontSee('Grand total', false)
         ->assertDontSee('No information added', false);
 });
 
@@ -1742,8 +1736,9 @@ test('printed scope tables include location when it is set', function () {
     $this->actingAs($admin)
         ->get(route('admin.bids.print', $bid))
         ->assertOk()
-        ->assertSee('Location', false)
-        ->assertSee('Bldg 19', false);
+        ->assertDontSee('Scope of work', false)
+        ->assertDontSee('Bldg 19', false)
+        ->assertDontSee('Grand total', false);
 });
 
 test('the bid list can be printed and exported as pdf or word', function () {
@@ -1811,7 +1806,7 @@ test('the bids index page includes a summarization of all bids ordered by bid st
     $stageEstimating = BidStageType::create(['name' => 'Estimating']);
     $stageWon = BidStageType::create(['name' => 'Won']);
     $stageDraft = BidStageType::create(['name' => 'Draft']);
-    $scopeTitle = \App\Models\BidScopeTitle::create(['name' => 'Doors']);
+    $scopeTitle = BidScopeTitle::create(['name' => 'Doors']);
 
     $project1 = bidProject($admin, 'Project 1');
     $bid1 = Bid::create([
@@ -1954,6 +1949,33 @@ test('admins can delete pre-bids', function () {
     $this->assertDatabaseMissing('pre_bids', [
         'id' => $preBid->id,
     ]);
+});
+
+test('a bid autosave keeps the text and leaves the rest of the bid alone', function () {
+    $admin = bidAdmin();
+    $project = bidProject($admin, 'Autosave Bid Project');
+    $bid = Bid::create([
+        'project_id' => $project->id,
+        'notes' => '<p>Original wording</p>',
+        'created_by' => $admin->id,
+    ]);
+
+    $this->patchJson(route('admin.bids.autosave', $bid), [
+        'notes' => '<p>Saved while writing</p><script>alert(1)</script>',
+    ])->assertUnauthorized();
+
+    $this->actingAs($admin)
+        ->patchJson(route('admin.bids.autosave', $bid), [
+            'notes' => '<p>Saved while writing</p><script>alert(1)</script>',
+        ])
+        ->assertOk()
+        ->assertJsonStructure(['saved_at']);
+
+    $fresh = $bid->fresh();
+
+    expect($fresh->notes)->toContain('Saved while writing')
+        ->and($fresh->notes)->not->toContain('<script')
+        ->and($fresh->project_id)->toBe($project->id);
 });
 
 test('pre-bids are provided in options when creating a new bid', function () {

@@ -1,5 +1,4 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import DirectoryFieldLabel from '@/Components/DirectoryFieldLabel';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -33,9 +32,6 @@ import {
 import {
     combinedPriceAmountFromBid,
     formatMoney,
-    lineCombinedPrice,
-    lineExtendedAmount,
-    scopeProductDescription,
     type BidOptions,
     type BidPayload,
 } from './types';
@@ -277,14 +273,12 @@ export default function Show({ bid, options }: ShowProps) {
                                 )}
                             </div>
                                 <p className="mt-4 text-sm font-medium text-foreground">
-                                    Shipping & handling, basis & qualification
-                                    and more
+                                    Bid information
                                 </p>
                                 <p className="mt-1 text-sm text-muted-foreground">
-                                    Customized notes for shipping, handling,
-                                    basis & qualification, exclusions,
-                                    adjustments, and any other terms that do
-                                    not belong on a product line.
+                                    Scope, shipping and handling, basis and
+                                    qualification, and the rest of the bid
+                                    wording.
                                 </p>
                             {bid.notes ? (
                                 <div
@@ -295,7 +289,7 @@ export default function Show({ bid, options }: ShowProps) {
                                 />
                             ) : (
                                 <p className="mt-2 text-sm text-muted-foreground">
-                                    No shipping & handling notes yet.
+                                    No bid information yet.
                                 </p>
                             )}
                         </CardContent>
@@ -381,183 +375,6 @@ export default function Show({ bid, options }: ShowProps) {
                         </CardContent>
                     </Card>
 
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Scope of work</CardTitle>
-                            <CardDescription>
-                                Custom product descriptions and pricing for each
-                                location on this bid.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="flex flex-col gap-3">
-                            {bid.scope_of_work_text ? (
-                                <div
-                                    className="rich-text-content text-sm text-foreground"
-                                    dangerouslySetInnerHTML={{
-                                        __html: bid.scope_of_work_text,
-                                    }}
-                                />
-                            ) : null}
-                            {bid.scopes.length > 0 ? (
-                                bid.scopes.map((scope) => (
-                                    <div
-                                        key={scope.id}
-                                        className="flex flex-col gap-3 rounded-lg border border-border p-4"
-                                    >
-                                        <p className="font-medium text-foreground">
-                                            {scope.name}
-                                        </p>
-                                        {scope.products?.length > 0 ? (
-                                            <div className="flex flex-col gap-3">
-                                                <div className="hidden gap-3 border-b border-border pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground xl:grid xl:grid-cols-[minmax(7rem,0.8fr)_minmax(0,1.5fr)_4.5rem_minmax(7rem,0.9fr)_minmax(8.5rem,1fr)_minmax(8.5rem,1fr)_minmax(7.5rem,0.9fr)]">
-                                                    <div>Location of the service</div>
-                                                    <div>Product Description</div>
-                                                    <div className="text-right">Qty</div>
-                                                    <div className="text-right">
-                                                        Material Unit Price
-                                                    </div>
-                                                    <div className="text-right">
-                                                        Allocated Install / Freight / Handling
-                                                    </div>
-                                                    <div className="text-right">
-                                                        Combined Installed Unit Price
-                                                    </div>
-                                                    <div className="text-right">
-                                                        Building Total
-                                                    </div>
-                                                </div>
-                                                {scope.products.map(
-                                                    (
-                                                        product,
-                                                        productIndex,
-                                                    ) => {
-                                                        const combined =
-                                                            lineCombinedPrice(
-                                                                product,
-                                                            );
-                                                        const extended =
-                                                            lineExtendedAmount(
-                                                                product,
-                                                            );
-
-                                                        return (
-                                                            <div
-                                                                key={
-                                                                    product.id ??
-                                                                    productIndex
-                                                                }
-                                                                className="grid grid-cols-1 gap-3 rounded-lg border border-border p-3 md:grid-cols-2 xl:grid-cols-[minmax(7rem,0.8fr)_minmax(0,1.5fr)_4.5rem_minmax(7rem,0.9fr)_minmax(8.5rem,1fr)_minmax(8.5rem,1fr)_minmax(7.5rem,0.9fr)] xl:items-start xl:border-0 xl:p-0"
-                                                            >
-                                                                <p className="min-w-0 break-words text-sm text-foreground md:col-span-2 xl:col-span-1">
-                                                                    <DirectoryFieldLabel hideFrom="xl">
-                                                                        Location of the service
-                                                                    </DirectoryFieldLabel>
-                                                                    {product.location ||
-                                                                        '—'}
-                                                                </p>
-                                                                <p className="min-w-0 whitespace-pre-wrap break-words text-sm text-foreground md:col-span-2 xl:col-span-1">
-                                                                    <DirectoryFieldLabel hideFrom="xl">
-                                                                        Product Description
-                                                                    </DirectoryFieldLabel>
-                                                                    {scopeProductDescription(
-                                                                        product,
-                                                                    ) || '—'}
-                                                                </p>
-                                                                <p className="text-sm text-muted-foreground xl:text-right xl:tabular-nums">
-                                                                    <DirectoryFieldLabel hideFrom="xl">
-                                                                        Qty
-                                                                    </DirectoryFieldLabel>
-                                                                    {product.quantity ??
-                                                                        '—'}
-                                                                </p>
-                                                                <p className="text-sm text-muted-foreground xl:text-right xl:tabular-nums">
-                                                                    <DirectoryFieldLabel hideFrom="xl">
-                                                                        Material Unit Price
-                                                                    </DirectoryFieldLabel>
-                                                                    {product.unit_bid
-                                                                        ? formatMoney(
-                                                                              product.unit_bid,
-                                                                          )
-                                                                        : '—'}
-                                                                </p>
-                                                                <p className="text-sm text-muted-foreground xl:text-right xl:tabular-nums">
-                                                                    <DirectoryFieldLabel hideFrom="xl">
-                                                                        Allocated Install / Freight / Handling
-                                                                    </DirectoryFieldLabel>
-                                                                    {product.allocated_handling
-                                                                        ? formatMoney(
-                                                                              product.allocated_handling,
-                                                                          )
-                                                                        : '—'}
-                                                                </p>
-                                                                <p className="text-sm text-muted-foreground xl:text-right xl:tabular-nums">
-                                                                    <DirectoryFieldLabel hideFrom="xl">
-                                                                        Combined Installed Unit Price
-                                                                    </DirectoryFieldLabel>
-                                                                    {combined
-                                                                        ? formatMoney(
-                                                                              combined,
-                                                                          )
-                                                                        : '—'}
-                                                                </p>
-                                                                <p className="text-sm font-medium xl:text-right xl:tabular-nums">
-                                                                    <DirectoryFieldLabel hideFrom="xl">
-                                                                        Building Total
-                                                                    </DirectoryFieldLabel>
-                                                                    {extended
-                                                                        ? formatMoney(
-                                                                              extended,
-                                                                          )
-                                                                        : '—'}
-                                                                </p>
-                                                            </div>
-                                                        );
-                                                    },
-                                                )}
-                                                <p className="text-right text-sm font-semibold text-foreground">
-                                                    Scope total{' '}
-                                                    {formatMoney(
-                                                        scope.products.reduce(
-                                                            (
-                                                                sum,
-                                                                product,
-                                                            ) => {
-                                                                const extended =
-                                                                    Number(
-                                                                        lineExtendedAmount(
-                                                                            product,
-                                                                        ) || 0,
-                                                                    );
-
-                                                                return (
-                                                                    sum +
-                                                                    (Number.isFinite(
-                                                                        extended,
-                                                                    )
-                                                                        ? extended
-                                                                        : 0)
-                                                                );
-                                                            },
-                                                            0,
-                                                        ) ||
-                                                            scope.extended,
-                                                    )}
-                                                </p>
-                                            </div>
-                                        ) : (
-                                            <p className="text-sm text-muted-foreground">
-                                                No items added yet.
-                                            </p>
-                                        )}
-                                    </div>
-                                ))
-                            ) : (
-                                <p className="text-sm text-muted-foreground">
-                                    No scopes added yet.
-                                </p>
-                            )}
-                        </CardContent>
-                    </Card>
                 </div>
             </div>
 

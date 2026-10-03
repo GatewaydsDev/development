@@ -5,7 +5,9 @@ namespace App\Support;
 use App\Models\Bid;
 use App\Models\BidScope;
 use App\Models\BidScopeProduct;
+use App\Models\BidStage;
 use App\Models\Company;
+use App\Models\Contractor;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Response;
@@ -84,10 +86,15 @@ class BidDocument
             'wordUrl' => route('admin.bids.export.word', $this->bid),
             'showUrl' => route('admin.bids.show', $this->bid),
             'title' => $project?->name ?: 'Bid',
+            'stageLabel' => $this->currentStage()?->type?->name,
+            'bidNumber' => $project?->project_number,
+            'bidDate' => $this->bidDateLabel(),
             'projectName' => $project?->name,
             'projectNumber' => $project?->project_number,
             'projectAddress' => $projectAddress !== '' ? $projectAddress : null,
+            'projectFields' => $this->projectPrintFields(),
             'contractors' => $this->contractorRows(),
+            'contractorSections' => $this->contractorPrintSections(),
             'revisions' => $revisions = $this->revisionRows(),
             'revisionColumns' => $this->visibleRevisionColumns($revisions),
             'notes' => $this->displayHtml($this->bid->notes),
@@ -208,6 +215,13 @@ class BidDocument
             'Bid',
             ['bold' => true, 'size' => 26, 'color' => $this->wordColor('title')],
         );
+        $stageLabel = $this->currentStage()?->type?->name;
+        if (filled($stageLabel)) {
+            $section->addText(
+                (string) $stageLabel,
+                ['bold' => true, 'size' => 14, 'color' => $this->wordColor('brand')],
+            );
+        }
         $section->addText(
             'Generated '.$this->generatedAtLabel(),
             ['size' => 11, 'color' => '4B5563'],
@@ -218,8 +232,8 @@ class BidDocument
         $stats = $section->addTable(['borderSize' => 0, 'cellMargin' => 80]);
         $stats->addRow();
         foreach ([
-            [$this->bid->project?->project_number ?: '—', 'Project number'],
-            [(string) $this->bid->scopes->count(), 'Scopes'],
+            [$this->bid->project?->project_number ?: '—', 'Bid number'],
+            [$this->bidDateLabel() ?: '—', 'Date'],
         ] as [$value, $label]) {
             $cell = $stats->addCell(5400, ['bgColor' => $this->wordColor('highlight_bg'), 'borderSize' => 6, 'borderColor' => $this->wordColor('highlight_border')]);
             $cell->addText((string) $value, ['bold' => true, 'size' => 12, 'color' => $this->wordColor('brand')]);
@@ -227,18 +241,15 @@ class BidDocument
         }
 
         $section->addTextBreak(1);
-        $section->addText('Project information', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
         $section->addText(
             $projectName,
             ['bold' => true, 'size' => 18, 'color' => $this->wordColor('title')],
         );
-        $projectAddress = $this->projectAddress();
-        $section->addText(
-            $projectAddress !== '' ? $projectAddress : 'No project address added yet.',
-            $projectAddress === ''
-                ? ['italic' => true, 'size' => 10, 'color' => '6B7280']
-                : ['size' => 11, 'color' => '111827'],
-        );
+        $projectFields = $this->projectPrintFields();
+        if ($projectFields !== []) {
+            $section->addText('Project information', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
+            $this->addMetaTable($section, $projectFields);
+        }
 
         $revisions = $this->revisionRows();
         if ($revisions !== []) {
@@ -261,72 +272,19 @@ class BidDocument
             }
         }
 
-        $section->addTextBreak(1);
-
-        $contractors = $this->contractorRows();
-
-        $section->addText('Contractors', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
-
-        if ($contractors === []) {
-            $section->addText('No contractors added yet.', ['italic' => true, 'size' => 10, 'color' => '6B7280']);
-        }
-
-        foreach ($contractors as $contractor) {
-            $this->addMetaTable($section, array_values(array_filter([
-                ['Company name', $contractor['name'] ?: ''],
-                ['Contact name', $contractor['contact_name'] ?: ''],
-                ['Phone number', $contractor['phone'] ?: ''],
-                ['Email address', $contractor['email'] ?: ''],
-            ], fn (array $row): bool => $this->hasPrintValue($row[1]))));
-        }
-
-        $section->addText('Scope of work', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
-        if ($this->displayHtml($this->bid->scope_of_work_text)) {
-            $this->addHtml($section, $this->bid->scope_of_work_text);
-        }
-
-        if ($this->bid->scopes->isEmpty()) {
-            $section->addText('No scopes added yet.', ['italic' => true, 'color' => '6B7280']);
-        } else {
-            foreach ($this->scopeRows() as $scope) {
-                $section->addText($scope['name'] ?: 'Scope', ['bold' => true, 'size' => 12, 'color' => $this->wordColor('title')]);
-
-                if ($scope['items'] === []) {
-                    $section->addText('No items added yet.', ['italic' => true, 'size' => 10, 'color' => '6B7280']);
-                } else {
-                    $table = $section->addTable('bidTable');
-                    $table->addRow(360);
-                    foreach ($scope['columns'] as $column) {
-                        $table->addCell($column['width'], ['bgColor' => $this->wordColor('table_header_bg'), 'valign' => 'center'])
-                            ->addText($column['word_label'], ['bold' => true, 'color' => $this->wordColor('table_header_text'), 'size' => 9]);
-                    }
-
-                    foreach ($scope['items'] as $index => $item) {
-                        $bg = $index % 2 === 1 ? $this->wordColor('row_alt') : 'FFFFFF';
-                        $table->addRow();
-                        foreach ($scope['columns'] as $column) {
-                            $cell = $table->addCell($column['width'], ['bgColor' => $bg]);
-                            $cell->addText(
-                                $item[$column['key']] ?: '',
-                                ['size' => 9],
-                                $column['amount'] ? ['alignment' => Jc::END] : [],
-                            );
-                        }
-                    }
-                }
-
-                $section->addTextBreak(1);
+        foreach ($this->contractorPrintSections() as $contractorSection) {
+            $section->addText($contractorSection['label'], ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
+            if ($contractorSection['fields'] !== []) {
+                $this->addMetaTable($section, $contractorSection['fields']);
             }
-
-            $section->addTextBreak(1);
-            $this->addTotalsTable($section, $this->totalsBreakdown());
+            foreach ($contractorSection['contacts'] as $contactFields) {
+                $this->addMetaTable($section, $contactFields);
+            }
         }
-
-        $section->addTextBreak(2);
 
         if ($this->displayHtml($this->bid->notes)) {
             $section->addTextBreak(1);
-            $section->addText('Shipping & handling, basis & qualification and more', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
+            $section->addText('Bid information', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
             $this->addHtml($section, $this->bid->notes);
         }
 
@@ -345,36 +303,6 @@ class BidDocument
         }
 
         return $path;
-    }
-
-    /**
-     * @param  array{materials: float, installation: float, grand_total: float}  $totals
-     */
-    private function addTotalsTable(Section $section, array $totals): void
-    {
-        $section->addText('Totals', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
-
-        $detail = $section->addTable(['borderSize' => 0, 'cellMargin' => 80]);
-        foreach ([
-            ['Materials', $this->money($totals['materials']), 'Qty × Material Unit Price'],
-            ['Installation', $this->money($totals['installation']), 'Qty × Allocated Install / Freight / Handling'],
-        ] as [$label, $value, $note]) {
-            $detail->addRow();
-            $labelCell = $detail->addCell(7200, ['bgColor' => 'F9FAFB', 'borderSize' => 4, 'borderColor' => 'D1D5DB']);
-            $labelCell->addText($label, ['size' => 10, 'color' => '374151']);
-            $labelCell->addText($note, ['size' => 8, 'color' => '6B7280']);
-            $detail->addCell(3600, ['bgColor' => 'F9FAFB', 'borderSize' => 4, 'borderColor' => 'D1D5DB'])
-                ->addText($value, ['bold' => true, 'size' => 11, 'color' => $this->wordColor('brand')], ['alignment' => Jc::END]);
-        }
-
-        $section->addTextBreak(1);
-
-        $grand = $section->addTable(['borderSize' => 0, 'cellMargin' => 80]);
-        $grand->addRow();
-        $grand->addCell(7200, ['bgColor' => $this->wordColor('highlight_bg'), 'borderSize' => 6, 'borderColor' => $this->wordColor('brand')])
-            ->addText('Grand total', ['bold' => true, 'size' => 11, 'color' => $this->wordColor('brand')]);
-        $grand->addCell(3600, ['bgColor' => $this->wordColor('highlight_bg'), 'borderSize' => 6, 'borderColor' => $this->wordColor('brand')])
-            ->addText($this->money($totals['grand_total']), ['bold' => true, 'size' => 12, 'color' => $this->wordColor('brand')], ['alignment' => Jc::END]);
     }
 
     /**
@@ -745,6 +673,118 @@ class BidDocument
     private function latestTotal(): float
     {
         return $this->bid->latestTotal();
+    }
+
+    private function currentStage(): ?BidStage
+    {
+        return $this->bid->stages->last();
+    }
+
+    private function bidDateLabel(): ?string
+    {
+        $stageDate = $this->currentStage()?->stage_date;
+
+        if ($stageDate) {
+            return $this->dateLabel($stageDate);
+        }
+
+        return $this->dateLabel($this->bid->created_at);
+    }
+
+    /**
+     * @return list<array{0: string, 1: string}>
+     */
+    private function projectPrintFields(): array
+    {
+        $project = $this->bid->project;
+
+        if (! $project || ! $this->hasPrintValue($project->name)) {
+            return [];
+        }
+
+        return $this->filledPairs([
+            ['Project name', $project->name],
+            ['Project number', $project->project_number],
+            ['Site address', $this->projectAddress()],
+        ]);
+    }
+
+    /**
+     * @return list<array{label: string, fields: list<array{0: string, 1: string}>, contacts: list<list<array{0: string, 1: string}>>}>
+     */
+    private function contractorPrintSections(): array
+    {
+        $project = $this->bid->project;
+
+        if (! $project) {
+            return [];
+        }
+
+        $sections = [];
+
+        foreach ($project->contractors as $contractor) {
+            $label = Contractor::roleLabel($contractor->role);
+            $fields = $this->filledPairs([
+                [$label, $contractor->name],
+                ['Address', BidApplicationText::formatAddress(
+                    $contractor->address_line_1,
+                    $contractor->address_line_2,
+                    $contractor->city,
+                    $contractor->state,
+                    $contractor->postal_code,
+                    $contractor->country,
+                )],
+            ]);
+            $contacts = [];
+
+            foreach ($contractor->contacts as $contact) {
+                $name = trim((string) ($contact->name ?? ''));
+                $title = trim((string) ($contact->title ?? ''));
+                $contactFields = $this->filledPairs([
+                    [
+                        'Contact'.($contact->is_primary ? ' (primary)' : ''),
+                        trim($name.($title !== '' ? ' · '.$title : '')),
+                    ],
+                    ['Email', $contact->email],
+                    ['Phone', $contact->phone_number],
+                ]);
+
+                if ($contactFields !== []) {
+                    $contacts[] = $contactFields;
+                }
+            }
+
+            if ($fields === [] && $contacts === []) {
+                continue;
+            }
+
+            $sections[] = [
+                'label' => $label,
+                'fields' => $fields,
+                'contacts' => $contacts,
+            ];
+        }
+
+        return $sections;
+    }
+
+    /**
+     * @param  list<array{0: string, 1: mixed}>  $pairs
+     * @return list<array{0: string, 1: string}>
+     */
+    private function filledPairs(array $pairs): array
+    {
+        $filled = [];
+
+        foreach ($pairs as [$label, $value]) {
+            if (! $this->hasPrintValue($value)) {
+                continue;
+            }
+
+            $filled[] = [$label, trim((string) $value)];
+        }
+
+        return $filled;
     }
 
     private function projectAddress(): string

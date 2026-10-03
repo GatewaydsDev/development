@@ -166,7 +166,7 @@ export default function Index({
                             <div>
                                 <CardTitle>Bid directory</CardTitle>
                                 <CardDescription>
-                                    Search by project, stage, or scope of work.
+                                    Search by project or stage.
                                 </CardDescription>
                             </div>
                             <div className="flex w-full flex-col gap-2 sm:w-auto">

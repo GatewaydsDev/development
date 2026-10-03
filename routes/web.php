@@ -195,6 +195,9 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::get('/employees', [EmployeeController::class, 'index'])
             ->middleware('can:view-employees')
             ->name('employees.index');
+        Route::get('/employees/version', [EmployeeController::class, 'version'])
+            ->middleware('can:view-employees')
+            ->name('employees.version');
         Route::get('/employees/create', [EmployeeController::class, 'create'])
             ->middleware('can:create-employees')
             ->name('employees.create');
@@ -214,6 +217,8 @@ Route::middleware(['auth', 'prevent-back-history'])
             ->name('professions.store');
         Route::post('/languages', [LanguageController::class, 'store'])
             ->name('languages.store');
+        Route::get('/skills/version', [SkillController::class, 'version'])
+            ->name('skills.version');
         Route::post('/skills', [SkillController::class, 'store'])
             ->name('skills.store');
 
@@ -256,6 +261,9 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::patch('/bids/{bid}', [BidController::class, 'update'])
             ->middleware('can:update-bids')
             ->name('bids.update');
+        Route::patch('/bids/{bid}/autosave', [BidController::class, 'autosave'])
+            ->middleware('can:update-bids')
+            ->name('bids.autosave');
         Route::delete('/bids/{bid}', [BidController::class, 'destroy'])
             ->middleware('can:delete-bids')
             ->name('bids.destroy');
@@ -315,6 +323,9 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::patch('/quotations/{quotation}', [QuotationController::class, 'update'])
             ->middleware('can:update-quotations')
             ->name('quotations.update');
+        Route::patch('/quotations/{quotation}/autosave', [QuotationController::class, 'autosave'])
+            ->middleware('can:update-quotations')
+            ->name('quotations.autosave');
         Route::delete('/quotations/{quotation}', [QuotationController::class, 'destroy'])
             ->middleware('can:delete-quotations')
             ->name('quotations.destroy');
