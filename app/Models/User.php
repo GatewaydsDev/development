@@ -7,6 +7,8 @@ use App\Notifications\ResetPasswordNotification;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
@@ -137,6 +139,21 @@ class User extends Authenticatable
     public function level(): BelongsTo
     {
         return $this->belongsTo(UserLevel::class);
+    }
+
+    public function designatedEmployees(): HasMany
+    {
+        return $this->hasMany(Employee::class, 'foreman_user_id');
+    }
+
+    public function employee(): HasOne
+    {
+        return $this->hasOne(Employee::class);
+    }
+
+    public function workSchedules(): HasMany
+    {
+        return $this->hasMany(EmployeeWorkSchedule::class, 'foreman_user_id');
     }
 
     public function hasUserLevel(string|array $levels): bool

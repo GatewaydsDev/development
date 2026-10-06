@@ -9,11 +9,12 @@ import {
     ActivityIcon,
     BriefcaseIcon,
     Building2Icon,
+    CalendarClockIcon,
+    CalendarDaysIcon,
     ClipboardListIcon,
     ClockIcon,
     FileSpreadsheetIcon,
     HardHatIcon,
-    HomeIcon,
     IdCardIcon,
     LayoutDashboardIcon,
     LockKeyholeIcon,
@@ -103,7 +104,7 @@ export default function DashboardSidebar({
 
     const navigationGroups: NavGroup[] = [
         {
-            label: 'Main Workspace',
+            label: 'Overview',
             items: [
                 {
                     title: 'Dashboard',
@@ -111,6 +112,11 @@ export default function DashboardSidebar({
                     icon: LayoutDashboardIcon,
                     active: isRouteActive('dashboard'),
                 },
+            ],
+        },
+        {
+            label: 'Work',
+            items: [
                 ...(canViewProjects
                     ? [
                           {
@@ -144,7 +150,7 @@ export default function DashboardSidebar({
             ],
         },
         {
-            label: 'Directory',
+            label: 'Catalog',
             items: [
                 ...(canViewProducts
                     ? [
@@ -166,6 +172,11 @@ export default function DashboardSidebar({
                           },
                       ]
                     : []),
+            ],
+        },
+        {
+            label: 'People',
+            items: [
                 ...(canViewContractors
                     ? [
                           {
@@ -190,78 +201,101 @@ export default function DashboardSidebar({
                               icon: UsersIcon,
                               active: isRouteActive('admin.employees.*'),
                           },
+                          {
+                              title: 'Attendance',
+                              href: route('admin.employee-attendance.index'),
+                              icon: CalendarDaysIcon,
+                              active: isRouteActive(
+                                  'admin.employee-attendance.*',
+                              ),
+                          },
+                          {
+                              title: 'Work Schedule',
+                              href: route('admin.employee-schedules.index'),
+                              icon: CalendarClockIcon,
+                              active: isRouteActive(
+                                  'admin.employee-schedules.*',
+                              ),
+                          },
                       ]
                     : []),
             ],
         },
-        ...(canViewUsers ||
-        canManageAccess ||
-        canViewUserActivity ||
-        canViewCompany ||
-        canManageDocumentColors
-            ? [
-                  {
-                      label: 'Administration',
-                      items: [
-                          ...(canViewUsers
-                              ? [
-                                    {
-                                        title: 'User Management',
-                                        href: route('admin.users.index'),
-                                        icon: UserCogIcon,
-                                        active: isRouteActive('admin.users.*'),
-                                    },
-                                ]
-                              : []),
-                          ...(canManageAccess
-                              ? [
-                                    {
-                                        title: 'Access Control',
-                                        href: route('admin.access-control.edit'),
-                                        icon: LockKeyholeIcon,
-                                        active: isRouteActive('admin.access-control.*'),
-                                    },
-                                ]
-                              : []),
-                          ...(canViewUserActivity
-                              ? [
-                                    {
-                                        title: 'Activity Audit',
-                                        href: route(
-                                            'admin.user-activities.index',
-                                        ),
-                                        icon: ActivityIcon,
-                                        active: isRouteActive('admin.user-activities.*'),
-                                    },
-                                ]
-                              : []),
-                          ...(canViewCompany
-                              ? [
-                                    {
-                                        title: 'Company Settings',
-                                        href: route('admin.company.show'),
-                                        icon: Building2Icon,
-                                        active: isRouteActive('admin.company.*'),
-                                    },
-                                ]
-                              : []),
-                          ...(canManageDocumentColors
-                              ? [
-                                    {
-                                        title: 'Document Appearance',
-                                        href: route(
-                                            'admin.document-settings.edit',
-                                        ),
-                                        icon: PaletteIcon,
-                                        active: isRouteActive('admin.document-settings.*'),
-                                    },
-                                ]
-                              : []),
-                      ],
-                  },
-              ]
-            : []),
-    ];
+        {
+            label: 'Administration',
+            items: [
+                ...(canViewUsers
+                    ? [
+                          {
+                              title: 'User Management',
+                              href: route('admin.users.index'),
+                              icon: UserCogIcon,
+                              active: isRouteActive('admin.users.*'),
+                          },
+                      ]
+                    : []),
+                ...(canManageAccess
+                    ? [
+                          {
+                              title: 'Access Control',
+                              href: route('admin.access-control.edit'),
+                              icon: LockKeyholeIcon,
+                              active: isRouteActive('admin.access-control.*'),
+                          },
+                      ]
+                    : []),
+                ...(canViewUserActivity
+                    ? [
+                          {
+                              title: 'Activity Audit',
+                              href: route('admin.user-activities.index'),
+                              icon: ActivityIcon,
+                              active: isRouteActive('admin.user-activities.*'),
+                          },
+                      ]
+                    : []),
+                ...(canViewCompany
+                    ? [
+                          {
+                              title: 'Company Settings',
+                              href: route('admin.company.show'),
+                              icon: Building2Icon,
+                              active: isRouteActive('admin.company.*'),
+                          },
+                      ]
+                    : []),
+                ...(canManageDocumentColors
+                    ? [
+                          {
+                              title: 'Document Appearance',
+                              href: route('admin.document-settings.edit'),
+                              icon: PaletteIcon,
+                              active: isRouteActive(
+                                  'admin.document-settings.*',
+                              ),
+                          },
+                      ]
+                    : []),
+            ],
+        },
+        {
+            label: 'Account',
+            items: [
+                {
+                    title: 'Account & Profile',
+                    href: route('profile.edit'),
+                    icon: UserCogIcon,
+                    active: isRouteActive('profile.*'),
+                },
+                {
+                    title: 'Themes',
+                    href: route('appearance.edit'),
+                    icon: PaletteIcon,
+                    active: isRouteActive('appearance.edit'),
+                },
+            ],
+        },
+    ].filter((group) => group.items.length > 0);
 
     const displayLevel = user.level?.name ?? 'Standard Access';
 
@@ -364,8 +398,16 @@ export default function DashboardSidebar({
 
                 {/* Navigation Sections */}
                 <nav className="flex flex-col gap-5">
-                    {navigationGroups.map((group) => (
-                        <div key={group.label} className="flex flex-col gap-1.5">
+                    {navigationGroups.map((group, index) => (
+                        <div
+                            key={group.label}
+                            className={cn(
+                                'flex flex-col gap-1.5',
+                                collapsed &&
+                                    index > 0 &&
+                                    'border-t border-border pt-3',
+                            )}
+                        >
                             {!collapsed && (
                                 <p className="px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">
                                     {group.label}
@@ -438,85 +480,6 @@ export default function DashboardSidebar({
 
             {/* Bottom Actions & User Account */}
             <div className="sticky bottom-0 mt-6 flex flex-col gap-2 border-t border-border bg-card pt-4">
-                {/* Profile Link */}
-                <Button
-                    asChild
-                    variant="ghost"
-                    size="sm"
-                    className={cn(
-                        'w-full text-xs',
-                        collapsed ? 'justify-center px-0' : 'justify-start',
-                        isRouteActive('profile.*')
-                            ? 'dash-accent'
-                            : 'text-muted-foreground hover:text-foreground',
-                    )}
-                >
-                    <Link
-                        href={route('profile.edit')}
-                        onClick={onNavigate}
-                        title={collapsed ? 'Account & Profile' : undefined}
-                    >
-                        <UserCogIcon
-                            className={cn(
-                                'size-3.5',
-                                !collapsed && 'mr-2',
-                                isRouteActive('profile.*') && 'text-white',
-                            )}
-                        />
-                        {!collapsed && 'Account & Profile'}
-                    </Link>
-                </Button>
-
-                <Button
-                    asChild
-                    variant="ghost"
-                    size="sm"
-                    className={cn(
-                        'w-full text-xs',
-                        collapsed ? 'justify-center px-0' : 'justify-start',
-                        isRouteActive('appearance.edit')
-                            ? 'dash-accent'
-                            : 'text-muted-foreground hover:text-foreground',
-                    )}
-                >
-                    <Link
-                        href={route('appearance.edit')}
-                        onClick={onNavigate}
-                        title={collapsed ? 'Themes' : undefined}
-                    >
-                        <PaletteIcon
-                            className={cn(
-                                'size-3.5',
-                                !collapsed && 'mr-2',
-                                isRouteActive('appearance.edit') && 'text-white',
-                            )}
-                        />
-                        {!collapsed && 'Themes'}
-                    </Link>
-                </Button>
-
-                {/* Public Website */}
-                <Button
-                    asChild
-                    variant="ghost"
-                    size="sm"
-                    className={cn(
-                        'w-full text-xs text-muted-foreground hover:text-foreground',
-                        collapsed ? 'justify-center px-0' : 'justify-start',
-                    )}
-                >
-                    <Link
-                        href={route('home')}
-                        onClick={onNavigate}
-                        title={collapsed ? 'Public Website' : undefined}
-                    >
-                        <HomeIcon
-                            className={cn('size-3.5', !collapsed && 'mr-2')}
-                        />
-                        {!collapsed && 'Public Website'}
-                    </Link>
-                </Button>
-
                 {/* Log out */}
                 <Button
                     asChild

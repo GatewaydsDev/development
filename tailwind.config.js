@@ -49,6 +49,12 @@ export default {
                     DEFAULT: 'var(--destructive)',
                     foreground: 'var(--destructive-foreground)',
                 },
+                success: {
+                    DEFAULT: 'var(--success)',
+                },
+                warning: {
+                    DEFAULT: 'var(--warning)',
+                },
                 border: 'var(--border)',
                 input: 'var(--input)',
                 ring: 'var(--ring)',

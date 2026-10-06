@@ -224,3 +224,109 @@ test('an employee form stores language projects skills and union shift pay', fun
     expect($employee->skillShifts->first()?->is_union_member)->toBeTrue();
     expect($employee->skillShifts->first()?->union_rate)->toBe('61.25');
 });
+
+test('the same profession cannot store two rates of the same type', function () {
+    $admin = employeeAdmin();
+    $profession = Profession::create(['name' => 'Foreman']);
+
+    $response = $this
+        ->actingAs($admin)
+        ->from(route('admin.employees.create'))
+        ->post(route('admin.employees.store'), [
+            'first_name' => 'Jordan',
+            'last_name' => 'Rivera',
+            'email' => 'jordan.rates@example.com',
+            'phone_number' => '',
+            'job_title' => '',
+            'department' => '',
+            'employment_status' => Employee::STATUS_ACTIVE,
+            'hire_date' => '',
+            'notes' => '',
+            'profession_ids' => [$profession->id],
+            'pay_rates' => [
+                [
+                    'profession_id' => (string) $profession->id,
+                    'rate_type' => EmployeePayRate::RATE_HOURLY,
+                    'custom_rate_type' => '',
+                    'amount' => '45.00',
+                    'notes' => '',
+                ],
+                [
+                    'profession_id' => (string) $profession->id,
+                    'rate_type' => EmployeePayRate::RATE_DAILY,
+                    'custom_rate_type' => '',
+                    'amount' => '360.00',
+                    'notes' => '',
+                ],
+                [
+                    'profession_id' => (string) $profession->id,
+                    'rate_type' => EmployeePayRate::RATE_HOURLY,
+                    'custom_rate_type' => '',
+                    'amount' => '50.00',
+                    'notes' => '',
+                ],
+            ],
+        ]);
+
+    $response
+        ->assertRedirect(route('admin.employees.create'))
+        ->assertSessionHasErrors('pay_rates.2.rate_type');
+
+    expect(Employee::query()->where('email', 'jordan.rates@example.com')->exists())->toBeFalse();
+});
+
+test('skill rates can be stored for an employee', function () {
+    $admin = employeeAdmin();
+    $painter = Skill::create(['name' => 'Painter']);
+
+    $this->actingAs($admin)
+        ->post(route('admin.employees.store'), [
+            'first_name' => 'Riley',
+            'last_name' => 'Painter',
+            'email' => 'riley.painter@example.com',
+            'employment_status' => Employee::STATUS_ACTIVE,
+            'skill_ids' => [$painter->id],
+            'pay_rates' => [
+                [
+                    'skill_id' => $painter->id,
+                    'rate_type' => EmployeePayRate::RATE_HOURLY,
+                    'amount' => '42.00',
+                ],
+                [
+                    'skill_id' => $painter->id,
+                    'rate_type' => EmployeePayRate::RATE_HALF_DAY,
+                    'amount' => '160.00',
+                ],
+                [
+                    'skill_id' => $painter->id,
+                    'rate_type' => EmployeePayRate::RATE_DAILY,
+                    'amount' => '300.00',
+                ],
+                [
+                    'skill_id' => $painter->id,
+                    'rate_type' => EmployeePayRate::RATE_DAY_OFF,
+                    'amount' => '150.00',
+                ],
+                [
+                    'skill_id' => $painter->id,
+                    'rate_type' => EmployeePayRate::RATE_UNION,
+                    'amount' => '55.00',
+                ],
+            ],
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect(route('admin.employees.index'));
+
+    $employee = Employee::query()->where('email', 'riley.painter@example.com')->firstOrFail();
+
+    expect($employee->skills)->toHaveCount(1)
+        ->and($employee->payRates)->toHaveCount(5)
+        ->and($employee->payRates->pluck('rate_type')->all())->toEqualCanonicalizing([
+            EmployeePayRate::RATE_HOURLY,
+            EmployeePayRate::RATE_HALF_DAY,
+            EmployeePayRate::RATE_DAILY,
+            EmployeePayRate::RATE_DAY_OFF,
+            EmployeePayRate::RATE_UNION,
+        ])
+        ->and($employee->payRates->every(fn (EmployeePayRate $rate): bool => $rate->skill_id === $painter->id))->toBeTrue();
+});

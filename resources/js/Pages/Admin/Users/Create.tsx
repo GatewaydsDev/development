@@ -13,12 +13,26 @@ type Language = {
     abbreviation: string;
 };
 
+type AccessPermission = {
+    key: string;
+    name: string;
+    group: string;
+    description: string;
+};
+
 type CreateProps = {
     levels: Level[];
     languages: Language[];
+    accessPermissions?: AccessPermission[];
+    canCreateUserLevel?: boolean;
 };
 
-export default function Create({ levels, languages }: CreateProps) {
+export default function Create({
+    levels,
+    languages,
+    accessPermissions = [],
+    canCreateUserLevel = false,
+}: CreateProps) {
     return (
         <AuthenticatedLayout
             header={
@@ -51,6 +65,8 @@ export default function Create({ levels, languages }: CreateProps) {
                     <UserForm
                         levels={levels}
                         languages={languages}
+                        accessPermissions={accessPermissions}
+                        canCreateUserLevel={canCreateUserLevel}
                         title="Create a team member"
                         description="Invite an internal user and choose the correct access level for Gateway Door Systems."
                         action={route('admin.users.store')}

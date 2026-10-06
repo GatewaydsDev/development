@@ -113,7 +113,7 @@ export default function Dashboard({
                     <h1 className="text-lg font-bold tracking-tight text-foreground sm:text-xl">
                         Dashboard
                     </h1>
-                    {stats && (
+                    {canViewProjects && stats && (
                         <Badge
                             variant="secondary"
                             className="dash-soft dash-text dash-border gap-1.5 border text-xs font-medium"
@@ -131,7 +131,7 @@ export default function Dashboard({
 
                 {showGraphics && charts ? (
                     <div className="flex flex-col gap-6">
-                        <div className="grid gap-6 xl:grid-cols-2">
+                        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                             {canViewProjects && (
                                 <>
                                     <Card className="h-full pb-0 shadow-sm">

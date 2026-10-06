@@ -1,3 +1,4 @@
+import type { AccessPermission, UserLevelOption } from '@/Components/UserLevelSelect';
 import { useProjectListRefresh } from '@/hooks/useProjectListRefresh';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link } from '@inertiajs/react';
@@ -9,39 +10,35 @@ import {
 } from './CatalogChanges';
 import EmployeeForm from './Partials/EmployeeForm';
 import type {
-    EmployeeOptionMap,
     EmployeePayload,
     EmployeeRateTypeOptions,
     EmployeeStatusOptions,
     NamedOption,
-    ProjectOption,
 } from './types';
 
 type EditProps = {
     employee: EmployeePayload;
-    professions: NamedOption[];
     languages: NamedOption[];
     skills: NamedOption[];
     skillsVersion?: string | null;
-    projects: ProjectOption[];
     rateTypeOptions: EmployeeRateTypeOptions;
     statusOptions: EmployeeStatusOptions;
-    shiftTypeOptions: EmployeeOptionMap;
-    payBasisOptions: EmployeeOptionMap;
+    userLevels?: UserLevelOption[];
+    accessPermissions?: AccessPermission[];
+    canCreateUserLevel?: boolean;
     employeesVersion?: string | null;
 };
 
 export default function Edit({
     employee,
-    professions,
     languages,
     skills,
     skillsVersion = null,
-    projects,
     rateTypeOptions,
     statusOptions,
-    shiftTypeOptions,
-    payBasisOptions,
+    userLevels = [],
+    accessPermissions = [],
+    canCreateUserLevel = false,
     employeesVersion = null,
 }: EditProps) {
     const previousEmployee = useRef(employee);
@@ -108,21 +105,20 @@ export default function Edit({
                         </div>
                     )}
                     <EmployeeForm
-                        action={route('admin.employees.update', employee.id)}
+                        action={route('admin.employees.update', employee.uuid)}
                         method="patch"
                         submitLabel="Save changes"
                         title={employee.full_name}
-                        description="Update contact details, language, professions, projects, and skill shifts."
+                        description="Contact details, employment, app login, and skill rates."
                         employee={employee}
-                        professions={professions}
                         languages={languages}
                         skills={skills}
                         skillsVersion={skillsVersion}
-                        projects={projects}
                         rateTypeOptions={rateTypeOptions}
                         statusOptions={statusOptions}
-                        shiftTypeOptions={shiftTypeOptions}
-                        payBasisOptions={payBasisOptions}
+                        userLevels={userLevels}
+                        accessPermissions={accessPermissions}
+                        canCreateUserLevel={canCreateUserLevel}
                     />
                 </div>
             </div>

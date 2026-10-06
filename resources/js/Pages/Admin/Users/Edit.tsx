@@ -26,13 +26,28 @@ type ManagedUser = {
     level: Level | null;
 };
 
+type AccessPermission = {
+    key: string;
+    name: string;
+    group: string;
+    description: string;
+};
+
 type EditProps = {
     levels: Level[];
     languages: Language[];
+    accessPermissions?: AccessPermission[];
+    canCreateUserLevel?: boolean;
     managedUser: ManagedUser;
 };
 
-export default function Edit({ levels, languages, managedUser }: EditProps) {
+export default function Edit({
+    levels,
+    languages,
+    accessPermissions = [],
+    canCreateUserLevel = false,
+    managedUser,
+}: EditProps) {
     return (
         <AuthenticatedLayout
             header={
@@ -66,6 +81,8 @@ export default function Edit({ levels, languages, managedUser }: EditProps) {
                         userId={managedUser.id}
                         levels={levels}
                         languages={languages}
+                        accessPermissions={accessPermissions}
+                        canCreateUserLevel={canCreateUserLevel}
                         title={`Update ${managedUser.name}`}
                         description="Review profile details, access level, and password settings for this user."
                         action={route('admin.users.update', managedUser.id)}

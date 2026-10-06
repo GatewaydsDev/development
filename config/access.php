@@ -165,9 +165,9 @@ return [
             'description' => 'Remove contractor records.',
         ],
         'view-employees' => [
-            'name' => 'See all employees',
+            'name' => 'See employees',
             'group' => 'Employees',
-            'description' => 'Open the employees list page.',
+            'description' => 'Open the employees and attendance pages. Foremen only see the employees designated to them.',
         ],
         'create-employees' => [
             'name' => 'Add new employees',
@@ -280,6 +280,19 @@ return [
             'view-contractors',
             'create-contractors',
             'update-contractors',
+            'view-employees',
+            'create-employees',
+            'update-employees',
+            'delete-employees',
+        ],
+        UserLevel::FOREMAN => [
+            'view-dashboard',
+            'manage-profile',
+            'view-employees',
+        ],
+        UserLevel::EMPLOYEE => [
+            'view-dashboard',
+            'manage-profile',
         ],
         UserLevel::PROJECT_MANAGER => [
             'view-dashboard',

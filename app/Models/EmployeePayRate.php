@@ -17,10 +17,13 @@ class EmployeePayRate extends Model
 
     public const RATE_DAY_OFF = 'day_off';
 
+    public const RATE_UNION = 'union';
+
     public const RATE_CUSTOM = 'custom';
 
     protected $fillable = [
         'employee_id',
+        'skill_id',
         'profession_id',
         'rate_type',
         'custom_rate_type',
@@ -43,5 +46,10 @@ class EmployeePayRate extends Model
     public function profession(): BelongsTo
     {
         return $this->belongsTo(Profession::class);
+    }
+
+    public function skill(): BelongsTo
+    {
+        return $this->belongsTo(Skill::class);
     }
 }

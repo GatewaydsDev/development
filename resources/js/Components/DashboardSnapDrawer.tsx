@@ -15,9 +15,10 @@ import { PageProps } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import {
     ActivityIcon,
-    ArrowRightIcon,
     BellIcon,
     Building2Icon,
+    CalendarClockIcon,
+    CalendarDaysIcon,
     ChevronRightIcon,
     ClipboardListIcon,
     FileSpreadsheetIcon,
@@ -32,9 +33,7 @@ import {
     PlusIcon,
     SearchIcon,
     ShieldIcon,
-    SlidersHorizontalIcon,
     SparklesIcon,
-    UserCheckIcon,
     UserCogIcon,
     UsersIcon,
     WrenchIcon,
@@ -268,6 +267,36 @@ export default function DashboardSnapDrawer({
                 keywords: ['staff', 'employees', 'technicians', 'roster', 'team'],
                 quickAddHref: canCreateEmployees ? route('admin.employees.create') : undefined,
                 quickAddTitle: 'Add employee',
+                visible: canViewEmployees || canCreateEmployees,
+            },
+            {
+                id: 'dir-attendance',
+                title: 'Employee Attendance',
+                description: 'Monday through Saturday schedules and the days each employee worked.',
+                href: route('admin.employee-attendance.index'),
+                icon: CalendarDaysIcon,
+                category: 'directory',
+                badge: 'Attendance',
+                keywords: ['attendance', 'schedule', 'worked', 'week', 'employees', 'payroll'],
+                quickAddHref: canCreateEmployees
+                    ? route('admin.employee-attendance.create')
+                    : undefined,
+                quickAddTitle: 'Add attendance week',
+                visible: canViewEmployees || canCreateEmployees,
+            },
+            {
+                id: 'dir-schedules',
+                title: 'Work Schedule',
+                description: 'Assign a foreman and the employees attending each job.',
+                href: route('admin.employee-schedules.index'),
+                icon: CalendarClockIcon,
+                category: 'directory',
+                badge: 'Schedule',
+                keywords: ['schedule', 'crew', 'job', 'foreman', 'employees', 'work'],
+                quickAddHref: canCreateEmployees
+                    ? route('admin.employee-schedules.create')
+                    : undefined,
+                quickAddTitle: 'Add work schedule',
                 visible: canViewEmployees || canCreateEmployees,
             },
             {

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Language;
 use App\Models\User;
 use App\Models\UserLevel;
+use App\Support\UserLevelAccess;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -65,11 +66,13 @@ class UserController extends Controller
         ]);
     }
 
-    public function create(): Response
+    public function create(Request $request): Response
     {
         return Inertia::render('Admin/Users/Create', [
             'levels' => $this->levels(),
             'languages' => $this->languages(),
+            'accessPermissions' => UserLevelAccess::catalog(),
+            'canCreateUserLevel' => (bool) $request->user()?->isSuperAdmin(),
         ]);
     }
 
@@ -143,6 +146,8 @@ class UserController extends Controller
         return Inertia::render('Admin/Users/Edit', [
             'levels' => $this->levels(),
             'languages' => $this->languages(),
+            'accessPermissions' => UserLevelAccess::catalog(),
+            'canCreateUserLevel' => (bool) request()->user()?->isSuperAdmin(),
             'managedUser' => [
                 'id' => $user->id,
                 'name' => $user->name,

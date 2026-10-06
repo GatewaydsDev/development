@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -26,6 +27,8 @@ class Employee extends Model
         'phone_number',
         'job_title',
         'department',
+        'foreman_user_id',
+        'user_id',
         'employment_status',
         'hire_date',
         'date_of_birth',
@@ -45,6 +48,11 @@ class Employee extends Model
         static::creating(function (Employee $employee): void {
             $employee->uuid ??= (string) Str::uuid();
         });
+    }
+
+    public function getRouteKeyName(): string
+    {
+        return 'uuid';
     }
 
     public function fullName(): string
@@ -80,5 +88,31 @@ class Employee extends Model
     public function skillShifts(): HasMany
     {
         return $this->hasMany(EmployeeSkillShift::class);
+    }
+
+    public function attendanceWeeks(): HasMany
+    {
+        return $this->hasMany(EmployeeAttendanceWeek::class);
+    }
+
+    public function checkIns(): HasMany
+    {
+        return $this->hasMany(EmployeeCheckIn::class);
+    }
+
+    public function workSchedules(): BelongsToMany
+    {
+        return $this->belongsToMany(EmployeeWorkSchedule::class, 'work_schedule_employees')
+            ->withTimestamps();
+    }
+
+    public function foreman(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'foreman_user_id');
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 }

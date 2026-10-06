@@ -16,6 +16,8 @@ class UserLevelSeeder extends Seeder
             'Super Admin',
             'Administrator',
             'Admin',
+            'Foreman',
+            'Employee',
             'Project Manager',
             'User',
             'Visitor',

@@ -22,7 +22,7 @@ class DashboardSnapshot
      *     listVersion: string|null,
      *     bidListVersion: string|null,
      *     quotationListVersion: string|null,
-     *     stats: array{totalProjects: int, activeProjects: int},
+     *     stats: array{totalProjects: int, activeProjects: int}|null,
      *     summary: array{
      *         projects: string|null,
      *         activeProjects: string|null,
@@ -106,7 +106,7 @@ class DashboardSnapshot
             'listVersion' => $canViewProjects ? ProjectListVersion::current() : null,
             'bidListVersion' => $canViewBids ? BidListVersion::current() : null,
             'quotationListVersion' => $canViewQuotations ? QuotationListVersion::current() : null,
-            'stats' => $stats,
+            'stats' => $canViewProjects ? $stats : null,
             'summary' => $canViewProjects ? $summary : null,
             'counts' => [
                 'projects' => $canViewProjects ? $stats['totalProjects'] : null,

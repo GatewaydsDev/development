@@ -1,36 +1,33 @@
+import type { AccessPermission, UserLevelOption } from '@/Components/UserLevelSelect';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link } from '@inertiajs/react';
 import EmployeeForm from './Partials/EmployeeForm';
 import type {
-    EmployeeOptionMap,
     EmployeeRateTypeOptions,
     EmployeeStatusOptions,
     NamedOption,
-    ProjectOption,
 } from './types';
 
 type CreateProps = {
-    professions: NamedOption[];
     languages: NamedOption[];
     skills: NamedOption[];
     skillsVersion?: string | null;
-    projects: ProjectOption[];
     rateTypeOptions: EmployeeRateTypeOptions;
     statusOptions: EmployeeStatusOptions;
-    shiftTypeOptions: EmployeeOptionMap;
-    payBasisOptions: EmployeeOptionMap;
+    userLevels?: UserLevelOption[];
+    accessPermissions?: AccessPermission[];
+    canCreateUserLevel?: boolean;
 };
 
 export default function Create({
-    professions,
     languages,
     skills,
     skillsVersion = null,
-    projects,
     rateTypeOptions,
     statusOptions,
-    shiftTypeOptions,
-    payBasisOptions,
+    userLevels = [],
+    accessPermissions = [],
+    canCreateUserLevel = false,
 }: CreateProps) {
     return (
         <AuthenticatedLayout
@@ -65,16 +62,15 @@ export default function Create({
                         action={route('admin.employees.store')}
                         submitLabel="Create employee"
                         title="Employee information"
-                        description="Create an employee record with contact details, language, professions, projects, and skill shifts."
-                        professions={professions}
+                        description="Contact details, employment, app login, and skill rates."
                         languages={languages}
                         skills={skills}
                         skillsVersion={skillsVersion}
-                        projects={projects}
                         rateTypeOptions={rateTypeOptions}
                         statusOptions={statusOptions}
-                        shiftTypeOptions={shiftTypeOptions}
-                        payBasisOptions={payBasisOptions}
+                        userLevels={userLevels}
+                        accessPermissions={accessPermissions}
+                        canCreateUserLevel={canCreateUserLevel}
                     />
                 </div>
             </div>

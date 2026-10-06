@@ -7,6 +7,12 @@ export type ProjectOption = NamedOption & {
     project_number: string | null;
 };
 
+export type ForemanOption = {
+    id: number;
+    name: string;
+    email: string;
+};
+
 export type EmployeePayload = {
     id: number;
     uuid: string;
@@ -22,8 +28,15 @@ export type EmployeePayload = {
     date_of_birth: string | null;
     language: NamedOption | null;
     notes: string | null;
-    professions: NamedOption[];
-    skills: NamedOption[];
+    foreman: ForemanOption | null;
+    user: {
+        id: number;
+        name: string;
+        email: string;
+        level: NamedOption | null;
+    } | null;
+    professions: EmployeeProfessionPayload[];
+    skills: EmployeeSkillPayload[];
     project_assignments: EmployeeProjectAssignmentPayload[];
     skill_shifts: EmployeeSkillShiftPayload[];
     pay_rates: EmployeePayRatePayload[];
@@ -33,10 +46,25 @@ export type EmployeePayload = {
 
 export type ProfessionOption = NamedOption;
 
-export type EmployeePayRatePayload = {
+export type EmployeeProfessionRatePayload = {
     id: number;
     profession_id: number;
+    rate_type: string;
+    custom_rate_type: string | null;
+    amount: string;
+    notes: string | null;
+};
+
+export type EmployeeProfessionPayload = NamedOption & {
+    rates: EmployeeProfessionRatePayload[];
+};
+
+export type EmployeePayRatePayload = {
+    id: number;
+    skill_id?: number | null;
+    profession_id: number | null;
     profession: ProfessionOption | null;
+    skill?: NamedOption | null;
     rate_type: string;
     custom_rate_type: string | null;
     amount: string;
@@ -87,16 +115,15 @@ export type EmployeeFormData = {
     phone_number: string;
     job_title: string;
     department: string;
+    account_level_id: string;
+    account_password: string;
+    account_password_confirmation: string;
     employment_status: string;
     hire_date: string;
     date_of_birth: string;
     language_id: string;
     notes: string;
-    professions: EmployeeProfessionFormData[];
     skills: EmployeeSkillFormData[];
-    project_assignments: EmployeeProjectAssignmentFormData[];
-    skill_shifts: EmployeeSkillShiftFormData[];
-    pay_rates: EmployeePayRateFormData[];
 };
 
 export type EmployeeStatusOptions = Record<string, string>;
@@ -105,8 +132,7 @@ export type EmployeeRateTypeOptions = Record<string, string>;
 
 export type EmployeeOptionMap = Record<string, string>;
 
-export type EmployeePayRateFormData = {
-    profession_id: string;
+export type EmployeeProfessionRateFormData = {
     rate_type: string;
     custom_rate_type: string;
     amount: string;
@@ -115,16 +141,21 @@ export type EmployeePayRateFormData = {
 
 export type EmployeeProfessionFormData = {
     profession_id: string;
+    rates: EmployeeProfessionRateFormData[];
+};
+
+export type EmployeeSkillPayload = NamedOption & {
+    rates: EmployeePayRatePayload[];
+};
+
+export type EmployeeSkillRateFormData = {
+    rate_type: string;
+    amount: string;
 };
 
 export type EmployeeSkillFormData = {
     skill_id: string;
-};
-
-export type EmployeeProjectAssignmentFormData = {
-    project_id: string;
-    work_date: string;
-    notes: string;
+    rates: EmployeeSkillRateFormData[];
 };
 
 export type EmployeeSkillShiftFormData = {
@@ -137,18 +168,57 @@ export type EmployeeSkillShiftFormData = {
     notes: string;
 };
 
+export function emptyProfessionRate(): EmployeeProfessionRateFormData {
+    return {
+        rate_type: 'hourly',
+        custom_rate_type: '',
+        amount: '',
+        notes: '',
+    };
+}
+
+export function emptySkillRate(): EmployeeSkillRateFormData {
+    return {
+        rate_type: 'hourly',
+        amount: '',
+    };
+}
+
 export function employeeToFormData(
     employee?: EmployeePayload,
 ): EmployeeFormData {
-    const professionIds = employee?.professions?.length
-        ? employee.professions.map((profession) => String(profession.id))
-        : [
-              ...new Set(
-                  employee?.pay_rates.map((payRate) =>
-                      String(payRate.profession_id),
-                  ) ?? [],
-              ),
-          ];
+    const skillIds = employee?.skills?.length
+        ? employee.skills.map((skill) => String(skill.id))
+        : [];
+
+    for (const payRate of employee?.pay_rates ?? []) {
+        if (!payRate.skill_id) {
+            continue;
+        }
+
+        const skillId = String(payRate.skill_id);
+
+        if (!skillIds.includes(skillId)) {
+            skillIds.push(skillId);
+        }
+    }
+
+    const ratesBySkill = new Map<string, EmployeeSkillRateFormData[]>();
+
+    for (const payRate of employee?.pay_rates ?? []) {
+        if (!payRate.skill_id) {
+            continue;
+        }
+
+        const skillId = String(payRate.skill_id);
+        const rates = ratesBySkill.get(skillId) ?? [];
+
+        rates.push({
+            rate_type: payRate.rate_type,
+            amount: payRate.amount,
+        });
+        ratesBySkill.set(skillId, rates);
+    }
 
     return {
         first_name: employee?.first_name ?? '',
@@ -157,40 +227,20 @@ export function employeeToFormData(
         phone_number: employee?.phone_number ?? '',
         job_title: employee?.job_title ?? '',
         department: employee?.department ?? '',
+        account_level_id: employee?.user?.level
+            ? String(employee.user.level.id)
+            : '',
+        account_password: '',
+        account_password_confirmation: '',
         employment_status: employee?.employment_status ?? 'active',
         hire_date: employee?.hire_date ?? '',
         date_of_birth: employee?.date_of_birth ?? '',
         language_id: employee?.language ? String(employee.language.id) : '',
         notes: employee?.notes ?? '',
-        professions: professionIds.map((professionId) => ({ profession_id: professionId })),
-        skills:
-            employee?.skills.map((skill) => ({
-                skill_id: String(skill.id),
-            })) ?? [],
-        project_assignments:
-            employee?.project_assignments.map((assignment) => ({
-                project_id: String(assignment.project_id),
-                work_date: assignment.work_date ?? '',
-                notes: assignment.notes ?? '',
-            })) ?? [],
-        skill_shifts:
-            employee?.skill_shifts.map((shift) => ({
-                skill_id: String(shift.skill_id),
-                shift_type: shift.shift_type,
-                pay_basis: shift.pay_basis,
-                amount: shift.amount,
-                is_union_member: shift.is_union_member,
-                union_rate: shift.union_rate ?? '',
-                notes: shift.notes ?? '',
-            })) ?? [],
-        pay_rates:
-            employee?.pay_rates.map((payRate) => ({
-                profession_id: String(payRate.profession_id),
-                rate_type: payRate.rate_type,
-                custom_rate_type: payRate.custom_rate_type ?? '',
-                amount: payRate.amount,
-                notes: payRate.notes ?? '',
-            })) ?? [],
+        skills: skillIds.map((skillId) => ({
+            skill_id: skillId,
+            rates: ratesBySkill.get(skillId) ?? [],
+        })),
     };
 }
 

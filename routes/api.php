@@ -3,9 +3,13 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BidController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\EmployeeAttendanceController;
 use App\Http\Controllers\Api\EmployeeController;
+use App\Http\Controllers\Api\EmployeeWorkdayController;
+use App\Http\Controllers\Api\EmployeeWorkScheduleController;
 use App\Http\Controllers\Api\ProjectController;
 use App\Http\Controllers\Api\QuotationController;
+use App\Http\Controllers\Api\UserLevelController;
 use App\Http\Controllers\PostmarkWebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -50,6 +54,13 @@ Route::middleware('auth:sanctum')->prefix('quotations')->group(function () {
     Route::match(['put', 'patch'], '/{quotation}', [QuotationController::class, 'update']);
 });
 
+Route::middleware('auth:sanctum')->prefix('user-levels')->group(function () {
+    Route::get('/', [UserLevelController::class, 'index']);
+    Route::post('/', [UserLevelController::class, 'store']);
+    Route::get('/{userLevel}', [UserLevelController::class, 'show']);
+    Route::match(['put', 'patch'], '/{userLevel}', [UserLevelController::class, 'update']);
+});
+
 Route::middleware('auth:sanctum')->prefix('employees')->group(function () {
     Route::get('/', [EmployeeController::class, 'index']);
     Route::get('/version', [EmployeeController::class, 'version']);
@@ -58,6 +69,21 @@ Route::middleware('auth:sanctum')->prefix('employees')->group(function () {
     Route::get('/skills/version', [EmployeeController::class, 'skillsVersion']);
     Route::post('/skills', [EmployeeController::class, 'storeSkill']);
     Route::post('/professions', [EmployeeController::class, 'storeProfession']);
+    Route::get('/schedules', [EmployeeWorkScheduleController::class, 'index']);
+    Route::get('/schedules/options', [EmployeeWorkScheduleController::class, 'options']);
+    Route::post('/schedules', [EmployeeWorkScheduleController::class, 'store']);
+    Route::get('/schedules/{schedule}', [EmployeeWorkScheduleController::class, 'show']);
+    Route::match(['put', 'patch'], '/schedules/{schedule}', [EmployeeWorkScheduleController::class, 'update']);
+    Route::delete('/schedules/{schedule}', [EmployeeWorkScheduleController::class, 'destroy']);
+    Route::get('/workday', [EmployeeWorkdayController::class, 'show']);
+    Route::post('/workday/check-in', [EmployeeWorkdayController::class, 'checkIn']);
+    Route::get('/attendance', [EmployeeAttendanceController::class, 'index']);
+    Route::get('/attendance/options', [EmployeeAttendanceController::class, 'options']);
+    Route::post('/attendance', [EmployeeAttendanceController::class, 'store']);
+    Route::post('/attendance/bulk', [EmployeeAttendanceController::class, 'bulkStore']);
+    Route::get('/attendance/{attendanceWeek}', [EmployeeAttendanceController::class, 'show']);
+    Route::match(['put', 'patch'], '/attendance/{attendanceWeek}', [EmployeeAttendanceController::class, 'update']);
+    Route::delete('/attendance/{attendanceWeek}', [EmployeeAttendanceController::class, 'destroy']);
     Route::post('/', [EmployeeController::class, 'store']);
     Route::get('/{employee}', [EmployeeController::class, 'show']);
     Route::match(['put', 'patch'], '/{employee}', [EmployeeController::class, 'update']);

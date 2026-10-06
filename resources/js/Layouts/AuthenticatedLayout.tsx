@@ -22,6 +22,7 @@ import {
     ActivityIcon,
     Building2Icon,
     BellIcon,
+    CalendarDaysIcon,
     BriefcaseIcon,
     ChevronDownIcon,
     ClipboardListIcon,
@@ -811,6 +812,22 @@ export default function Authenticated({
                                                 viewIcon={UsersIcon}
                                                 createIcon={UserPlusIcon}
                                             />
+                                            {canViewEmployees && (
+                                                <ResponsiveNavLink
+                                                    href={route(
+                                                        'admin.employee-attendance.index',
+                                                    )}
+                                                    active={route().current(
+                                                        'admin.employee-attendance.*',
+                                                    )}
+                                                    className="ps-10"
+                                                >
+                                                    <span className="inline-flex items-center gap-2">
+                                                        <CalendarDaysIcon className="size-4" />
+                                                        Attendance
+                                                    </span>
+                                                </ResponsiveNavLink>
+                                            )}
                                         </MobileDisclosure>
                                     )}
 

@@ -22,10 +22,10 @@ import {
     CardHeader,
     CardTitle,
 } from '@/Components/ui/card';
-import { cn } from '@/lib/utils';
 import { PageProps } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
+    CalendarDaysIcon,
     DollarSignIcon,
     EditIcon,
     MailIcon,
@@ -55,17 +55,19 @@ type IndexProps = {
     employeesVersion?: string | null;
 };
 
-function statusBadgeClassName(status: string): string {
-    return cn(
-        status === 'active' &&
-            'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
-        status === 'inactive' &&
-            'border-muted-foreground/30 bg-muted text-muted-foreground',
-        status === 'on_leave' &&
-            'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300',
-        status === 'terminated' &&
-            'border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300',
-    );
+function statusBadgeVariant(
+    status: string,
+): 'success' | 'secondary' | 'warning' | 'destructive' {
+    switch (status) {
+        case 'active':
+            return 'success';
+        case 'on_leave':
+            return 'warning';
+        case 'terminated':
+            return 'destructive';
+        default:
+            return 'secondary';
+    }
 }
 
 function statusLabel(status: string): string {
@@ -73,6 +75,44 @@ function statusLabel(status: string): string {
         .split('_')
         .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
         .join(' ');
+}
+
+function skillRateGroups(employee: EmployeePayload) {
+    const groups = new Map<
+        number,
+        { id: number; name: string; rates: EmployeePayload['pay_rates'] }
+    >();
+
+    for (const skill of employee.skills) {
+        groups.set(skill.id, {
+            id: skill.id,
+            name: skill.name,
+            rates: skill.rates ?? [],
+        });
+    }
+
+    for (const rate of employee.pay_rates) {
+        if (!rate.skill_id) {
+            continue;
+        }
+
+        const existing = groups.get(rate.skill_id);
+
+        if (existing) {
+            if (!existing.rates.some((item) => item.id === rate.id)) {
+                existing.rates.push(rate);
+            }
+            continue;
+        }
+
+        groups.set(rate.skill_id, {
+            id: rate.skill_id,
+            name: rate.skill?.name || 'Skill removed',
+            rates: [rate],
+        });
+    }
+
+    return [...groups.values()];
 }
 
 function rateTypeLabel(rateType: string, customRateType?: string | null): string {
@@ -94,18 +134,31 @@ function MembershipLine({
     items: Array<{ id: number; name: string }>;
 }) {
     return (
-        <div className="mt-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="mt-3">
+            <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
                 {label}
             </p>
-            <p className="mt-1 text-sm text-foreground">
-                {items.length > 0
-                    ? items.map((item) => item.name).join(', ')
-                    : 'None'}
-            </p>
+            {items.length > 0 ? (
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {items.map((item) => (
+                        <Badge
+                            key={item.id}
+                            variant="outline"
+                            className="border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
+                        >
+                            {item.name}
+                        </Badge>
+                    ))}
+                </div>
+            ) : (
+                <p className="mt-1 text-sm text-muted-foreground">None</p>
+            )}
         </div>
     );
 }
+
+const employeeListColumns =
+    'lg:grid-cols-[minmax(16rem,1.5fr)_minmax(13rem,1.1fr)_minmax(11rem,1fr)_7.5rem_14.5rem]';
 
 function formatCurrency(amount: string): string {
     const numericAmount = Number(amount);
@@ -133,7 +186,7 @@ export default function Index({
     const [selectedRatesEmployee, setSelectedRatesEmployee] =
         useState<EmployeePayload | null>(null);
     const [pendingDeleteEmployee, setPendingDeleteEmployee] = useState<{
-        id: number;
+        uuid: string;
         name: string;
     } | null>(null);
     const [catalogChangesByEmployee, setCatalogChangesByEmployee] = useState<
@@ -215,8 +268,8 @@ export default function Index({
         );
     };
 
-    const destroyEmployee = (employeeId: number) => {
-        router.delete(route('admin.employees.destroy', employeeId), {
+    const destroyEmployee = (employeeUuid: string) => {
+        router.delete(route('admin.employees.destroy', employeeUuid), {
             preserveScroll: true,
             onFinish: () => setPendingDeleteEmployee(null),
         });
@@ -237,14 +290,22 @@ export default function Index({
                         </h2>
                     </div>
 
-                    {canCreateEmployees && (
-                        <Button asChild>
-                            <Link href={route('admin.employees.create')}>
-                                <PlusIcon className="size-4" />
-                                Add employee
+                    <div className="flex flex-wrap gap-2">
+                        <Button variant="outline" asChild>
+                            <Link href={route('admin.employee-attendance.index')}>
+                                <CalendarDaysIcon className="size-4" />
+                                Attendance
                             </Link>
                         </Button>
-                    )}
+                        {canCreateEmployees && (
+                            <Button asChild>
+                                <Link href={route('admin.employees.create')}>
+                                    <PlusIcon className="size-4" />
+                                    Add employee
+                                </Link>
+                            </Button>
+                        )}
+                    </div>
                 </div>
             }
         >
@@ -306,7 +367,9 @@ export default function Index({
 
                         <CardContent>
                             <div className="overflow-x-auto rounded-lg border border-border">
-                                <div className="hidden grid-cols-[1.2fr_1fr_1fr_0.8fr_auto] gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:grid">
+                                <div
+                                    className={`hidden gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:grid ${employeeListColumns}`}
+                                >
                                     <div>Employee</div>
                                     <div>Contact</div>
                                     <div>Department</div>
@@ -318,7 +381,7 @@ export default function Index({
                                     employees.data.map((employee) => (
                                         <div
                                             key={employee.id}
-                                            className="grid gap-3 border-b border-border px-4 py-4 last:border-b-0 lg:grid-cols-[1.2fr_1fr_1fr_0.8fr_auto] lg:items-center lg:gap-4"
+                                            className={`grid gap-3 border-b border-border px-4 py-4 last:border-b-0 lg:items-start lg:gap-4 ${employeeListColumns}`}
                                         >
                                             <div className="min-w-0">
                                                 <DirectoryFieldLabel>Employee</DirectoryFieldLabel>
@@ -327,10 +390,7 @@ export default function Index({
                                                 </p>
                                                 <p className="text-sm text-muted-foreground">
                                                     {employee.job_title ||
-                                                        employee.professions[0]
-                                                            ?.name ||
-                                                        employee.pay_rates[0]
-                                                            ?.profession
+                                                        employee.skills[0]
                                                             ?.name ||
                                                         employee.uuid}
                                                 </p>
@@ -353,29 +413,33 @@ export default function Index({
                                                     }
                                                 />
                                                 <MembershipLine
-                                                    label="Professions"
-                                                    items={employee.professions}
-                                                />
-                                                <MembershipLine
                                                     label="Skills"
                                                     items={employee.skills}
                                                 />
                                             </div>
                                             <div className="min-w-0 text-sm text-muted-foreground">
                                                 <DirectoryFieldLabel>Contact</DirectoryFieldLabel>
-                                                <p className="flex items-center gap-2 truncate">
+                                                <p className="flex min-w-0 items-center gap-2">
                                                     <MailIcon className="size-4 shrink-0" />
-                                                    {employee.email}
+                                                    <span className="truncate">
+                                                        {employee.email}
+                                                    </span>
                                                 </p>
                                                 <p>
                                                     {employee.phone_number ||
                                                         'No phone added'}
                                                 </p>
                                             </div>
-                                            <div className="text-sm text-muted-foreground">
+                                            <div className="min-w-0 text-sm text-muted-foreground">
                                                 <DirectoryFieldLabel>Department</DirectoryFieldLabel>
                                                 {employee.department ||
                                                     'Not added'}
+                                                <span className="block">
+                                                    App login:{' '}
+                                                    {employee.user?.level
+                                                        ?.name ||
+                                                        'No login yet'}
+                                                </span>
                                                 {employee.hire_date && (
                                                     <span className="block">
                                                         Hired{' '}
@@ -384,28 +448,11 @@ export default function Index({
                                                         )}
                                                     </span>
                                                 )}
-                                                {employee.project_assignments
-                                                    .length > 0 && (
-                                                    <span className="block">
-                                                        {
-                                                            employee
-                                                                .project_assignments
-                                                                .length
-                                                        }{' '}
-                                                        project
-                                                        {employee
-                                                            .project_assignments
-                                                            .length === 1
-                                                            ? ''
-                                                            : 's'}
-                                                    </span>
-                                                )}
                                             </div>
-                                            <div>
+                                            <div className="min-w-0">
                                                 <DirectoryFieldLabel>Status</DirectoryFieldLabel>
                                                 <Badge
-                                                    variant="outline"
-                                                    className={statusBadgeClassName(
+                                                    variant={statusBadgeVariant(
                                                         employee.employment_status,
                                                     )}
                                                 >
@@ -414,27 +461,23 @@ export default function Index({
                                                     )}
                                                 </Badge>
                                             </div>
-                                            <div className="flex min-w-0 flex-col gap-1 md:items-end">
+                                            <div className="flex min-w-0 flex-col gap-1 lg:items-end">
                                                 <DirectoryFieldLabel>Actions</DirectoryFieldLabel>
-                                                <div className="flex flex-wrap gap-1.5 md:justify-end">
-                                                <ActionHint
-                                                    hint={`Pay rates (${employee.pay_rates.length})`}
+                                                <div className="flex flex-wrap items-center gap-1.5 lg:flex-nowrap lg:justify-end">
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:border-emerald-800/60 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+                                                    onClick={() =>
+                                                        setSelectedRatesEmployee(
+                                                            employee,
+                                                        )
+                                                    }
                                                 >
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="icon-sm"
-                                                        className="border-emerald-200 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:border-emerald-800/60 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
-                                                        onClick={() =>
-                                                            setSelectedRatesEmployee(
-                                                                employee,
-                                                            )
-                                                        }
-                                                        aria-label={`Pay rates (${employee.pay_rates.length})`}
-                                                    >
-                                                        <DollarSignIcon className="size-4" />
-                                                    </Button>
-                                                </ActionHint>
+                                                    <DollarSignIcon className="size-4" />
+                                                    Rates
+                                                </Button>
                                                 {canUpdateEmployees && (
                                                     <ActionHint hint="Edit this employee">
                                                         <Button
@@ -446,7 +489,7 @@ export default function Index({
                                                             <Link
                                                                 href={route(
                                                                     'admin.employees.edit',
-                                                                    employee.id,
+                                                                    employee.uuid,
                                                                 )}
                                                                 aria-label="Edit this employee"
                                                             >
@@ -465,7 +508,7 @@ export default function Index({
                                                             onClick={() =>
                                                                 setPendingDeleteEmployee(
                                                                     {
-                                                                        id: employee.id,
+                                                                        uuid: employee.uuid,
                                                                         name: employee.full_name,
                                                                     },
                                                                 )
@@ -517,87 +560,63 @@ export default function Index({
                             {selectedRatesEmployee?.full_name} pay rates
                         </AlertDialogTitle>
                         <AlertDialogDescription>
-                            Review all configured rates for this employee.
+                            Rates are grouped by skill. A skill can have
+                            hourly, daily, half day, day off, and union rates.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
 
-                    {selectedRatesEmployee?.pay_rates.length ? (
-                        <div className="overflow-x-auto rounded-lg border border-border">
-                            <div className="hidden grid-cols-[1.2fr_1fr_0.8fr] gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:grid">
-                                <div>Profession</div>
-                                <div>Rate type</div>
-                                <div>Amount</div>
-                            </div>
-                            {selectedRatesEmployee.pay_rates.map((rate) => (
-                                <div
-                                    key={rate.id}
-                                    className="grid gap-2 border-b border-border px-4 py-4 last:border-b-0 lg:grid-cols-[1.2fr_1fr_0.8fr] lg:gap-4"
-                                >
-                                    <div>
-                                        <DirectoryFieldLabel>Profession</DirectoryFieldLabel>
-                                        <p className="font-medium text-foreground">
-                                            {rate.profession?.name ||
-                                                'Profession removed'}
-                                        </p>
-                                        {rate.notes && (
-                                            <p className="mt-1 text-sm text-muted-foreground">
-                                                {rate.notes}
+                    {selectedRatesEmployee &&
+                    skillRateGroups(selectedRatesEmployee).length ? (
+                        <div className="flex flex-col gap-4">
+                            {skillRateGroups(selectedRatesEmployee).map(
+                                (group) => (
+                                    <div
+                                        key={group.id}
+                                        className="overflow-hidden rounded-lg border border-border"
+                                    >
+                                        <div className="border-b border-border bg-muted/50 px-4 py-3 text-sm font-semibold text-foreground">
+                                            {group.name}
+                                        </div>
+                                        {group.rates.length ? (
+                                            group.rates.map((rate) => (
+                                                <div
+                                                    key={rate.id}
+                                                    className="grid gap-2 border-b border-border px-4 py-4 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                                                >
+                                                    <div>
+                                                        <p className="text-sm text-foreground">
+                                                            {rateTypeLabel(
+                                                                rate.rate_type,
+                                                                rate.custom_rate_type,
+                                                            )}
+                                                        </p>
+                                                        {rate.notes && (
+                                                            <p className="text-sm text-muted-foreground">
+                                                                {rate.notes}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                    <p className="font-semibold text-foreground">
+                                                        {formatCurrency(
+                                                            rate.amount,
+                                                        )}
+                                                    </p>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <p className="px-4 py-4 text-sm text-muted-foreground">
+                                                No rates for this skill yet.
                                             </p>
                                         )}
                                     </div>
-                                    <div className="text-sm text-muted-foreground">
-                                        <DirectoryFieldLabel>Rate type</DirectoryFieldLabel>
-                                        {rateTypeLabel(
-                                            rate.rate_type,
-                                            rate.custom_rate_type,
-                                        )}
-                                    </div>
-                                    <div className="font-semibold text-foreground">
-                                        <DirectoryFieldLabel>Amount</DirectoryFieldLabel>
-                                        {formatCurrency(rate.amount)}
-                                    </div>
-                                </div>
-                            ))}
+                                ),
+                            )}
                         </div>
                     ) : (
                         <div className="rounded-lg border border-dashed border-border bg-muted/30 p-6 text-center text-sm text-muted-foreground">
                             No pay rates have been added for this employee yet.
                         </div>
                     )}
-
-                    {selectedRatesEmployee?.skill_shifts.length ? (
-                        <div className="overflow-x-auto rounded-lg border border-border">
-                            <div className="border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                Skill shifts
-                            </div>
-                            {selectedRatesEmployee.skill_shifts.map((shift) => (
-                                <div
-                                    key={shift.id}
-                                    className="grid gap-2 border-b border-border px-4 py-4 last:border-b-0 lg:grid-cols-[1.2fr_1fr_0.8fr]"
-                                >
-                                    <div>
-                                        <p className="font-medium text-foreground">
-                                            {shift.skill?.name || 'Skill removed'}
-                                        </p>
-                                        <p className="text-sm text-muted-foreground">
-                                            {rateTypeLabel(shift.shift_type)} ·{' '}
-                                            {shift.pay_basis === 'daily'
-                                                ? 'Day payment'
-                                                : 'Hourly payment'}
-                                        </p>
-                                    </div>
-                                    <div className="text-sm text-muted-foreground">
-                                        {shift.is_union_member
-                                            ? `Union ${formatCurrency(shift.union_rate ?? '0')}`
-                                            : 'Not a union member'}
-                                    </div>
-                                    <div className="font-semibold text-foreground">
-                                        {formatCurrency(shift.amount)}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : null}
 
                     <AlertDialogFooter>
                         <AlertDialogCancel>Close</AlertDialogCancel>
@@ -627,7 +646,7 @@ export default function Index({
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             onClick={() => {
                                 if (pendingDeleteEmployee) {
-                                    destroyEmployee(pendingDeleteEmployee.id);
+                                    destroyEmployee(pendingDeleteEmployee.uuid);
                                 }
                             }}
                         >

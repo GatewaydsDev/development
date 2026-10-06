@@ -155,7 +155,12 @@ function PermissionMatrix({
 
                         <div className="overflow-x-auto">
                             <div className="min-w-[760px]">
-                                <div className="grid grid-cols-[1.4fr_repeat(6,minmax(120px,1fr))] border-b border-border bg-background px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                <div
+                                    className="grid border-b border-border bg-background px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                                    style={{
+                                        gridTemplateColumns: `minmax(220px, 1.4fr) repeat(${levels.length}, minmax(120px, 1fr))`,
+                                    }}
+                                >
                                     <div>Permission</div>
                                     {levels.map((level) => (
                                         <div
@@ -175,7 +180,10 @@ function PermissionMatrix({
                                 {groupPermissions.map((permission) => (
                                     <div
                                         key={permission.key}
-                                        className="grid grid-cols-[1.4fr_repeat(6,minmax(120px,1fr))] items-center border-b border-border px-4 py-4 last:border-b-0"
+                                        className="grid items-center border-b border-border px-4 py-4 last:border-b-0"
+                                        style={{
+                                            gridTemplateColumns: `minmax(220px, 1.4fr) repeat(${levels.length}, minmax(120px, 1fr))`,
+                                        }}
                                     >
                                         <div className="pr-4">
                                             <div className="flex items-center gap-2">
@@ -248,6 +256,144 @@ function PermissionMatrix({
                 );
             })}
         </>
+    );
+}
+
+function NewLevelForm({ permissions }: { permissions: Permission[] }) {
+    const groupedPermissions = permissions.reduce<Record<string, Permission[]>>(
+        (groups, permission) => ({
+            ...groups,
+            [permission.group]: [
+                ...(groups[permission.group] ?? []),
+                permission,
+            ],
+        }),
+        {},
+    );
+    const { data, setData, post, processing, errors } = useForm({
+        name: '',
+        grant_mobile: true,
+        permissions: Object.fromEntries(
+            permissions.map((permission) => [permission.key, false]),
+        ),
+    });
+
+    const submit: FormEventHandler = (event) => {
+        event.preventDefault();
+
+        post(route('admin.access-control.levels.store'), {
+            preserveScroll: true,
+        });
+    };
+
+    return (
+        <form onSubmit={submit}>
+            <Card className="shadow-sm">
+                <CardHeader>
+                    <CardTitle>New user level</CardTitle>
+                    <CardDescription>
+                        Create a level such as Employee and choose its website
+                        access now. The same checks are granted on the mobile
+                        app when that option is on. Super Admin cannot be
+                        created here.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-5">
+                    <div className="flex max-w-md flex-col gap-2">
+                        <label
+                            htmlFor="new-level-name"
+                            className="text-sm font-medium text-foreground"
+                        >
+                            Level name
+                        </label>
+                        <input
+                            id="new-level-name"
+                            value={data.name}
+                            onChange={(event) =>
+                                setData('name', event.target.value)
+                            }
+                            className="h-11 rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
+                            placeholder="Employee"
+                        />
+                        {errors.name && (
+                            <p className="text-sm text-destructive">
+                                {errors.name}
+                            </p>
+                        )}
+                    </div>
+
+                    <label className="flex items-center gap-2 text-sm text-foreground">
+                        <input
+                            type="checkbox"
+                            checked={data.grant_mobile}
+                            onChange={(event) =>
+                                setData('grant_mobile', event.target.checked)
+                            }
+                        />
+                        Grant these rights on the mobile app
+                    </label>
+
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                        {Object.entries(groupedPermissions).map(
+                            ([group, groupPermissions]) => (
+                                <fieldset
+                                    key={group}
+                                    className="rounded-lg border border-border p-4"
+                                >
+                                    <legend className="px-1 text-sm font-semibold text-foreground">
+                                        {group}
+                                    </legend>
+                                    <div className="flex flex-col gap-2">
+                                        {groupPermissions.map((permission) => (
+                                            <label
+                                                key={permission.key}
+                                                className="flex items-start gap-2 text-sm text-foreground"
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    className="mt-1"
+                                                    checked={
+                                                        data.permissions[
+                                                            permission.key
+                                                        ] ?? false
+                                                    }
+                                                    onChange={(event) =>
+                                                        setData('permissions', {
+                                                            ...data.permissions,
+                                                            [permission.key]:
+                                                                event.target
+                                                                    .checked,
+                                                        })
+                                                    }
+                                                />
+                                                <span>
+                                                    <span className="block">
+                                                        {permission.name}
+                                                    </span>
+                                                    <span className="block text-xs text-muted-foreground">
+                                                        {permission.description}
+                                                    </span>
+                                                </span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </fieldset>
+                            ),
+                        )}
+                    </div>
+
+                    <div>
+                        <button
+                            type="submit"
+                            disabled={processing}
+                            className="inline-flex h-10 items-center rounded-md bg-emerald-700 px-4 text-sm font-medium text-white transition hover:bg-emerald-800 disabled:opacity-60"
+                        >
+                            Create level
+                        </button>
+                    </div>
+                </CardContent>
+            </Card>
+        </form>
     );
 }
 
@@ -365,6 +511,7 @@ export default function Edit({
 
             <div className="py-6 sm:py-8">
                 <div className="mx-auto flex max-w-[96rem] flex-col gap-6 px-4 sm:px-6 lg:px-8">
+                    <NewLevelForm permissions={permissions} />
                     <form onSubmit={submit} className="w-full min-w-0 max-w-full pr-4 pb-28 sm:pr-20 lg:pb-6">
                         <FormActionFab
                             cancelHref={route('admin.users.index')}

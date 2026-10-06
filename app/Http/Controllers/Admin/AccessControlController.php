@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\UserLevel;
+use App\Support\UserLevelAccess;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -50,6 +51,31 @@ class AccessControlController extends Controller
             'levels' => $levels,
             'selectedLevelId' => $request->integer('level') ?: null,
         ]);
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'grant_mobile' => ['sometimes', 'boolean'],
+            'permissions' => ['sometimes', 'array'],
+        ]);
+
+        $website = UserLevelAccess::normalize($validated['permissions'] ?? []);
+        $grantMobile = filter_var($validated['grant_mobile'] ?? true, FILTER_VALIDATE_BOOLEAN);
+        $mobile = $grantMobile
+            ? $website
+            : array_map(static fn (): bool => false, $website);
+
+        $level = UserLevelAccess::create($validated['name'], $website, $mobile);
+
+        if (str_contains(url()->previous(), '/access-control')) {
+            return redirect()
+                ->route('admin.access-control.edit', ['level' => $level->id])
+                ->with('success', 'User level created.');
+        }
+
+        return back()->with('success', 'User level created.');
     }
 
     public function update(Request $request): RedirectResponse

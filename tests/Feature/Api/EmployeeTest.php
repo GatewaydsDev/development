@@ -112,7 +112,11 @@ test('mobile users can list show create and update employees', function () {
         ->assertJsonPath('employee.skill_shifts.0.union_rate', '55.00')
         ->assertJsonPath('can.create', true);
 
-    $employeeId = $created->json('employee.id');
+    $employeeUuid = $created->json('employee.uuid');
+
+    expect($employeeUuid)->toMatch(
+        '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i',
+    );
 
     $this->actingAs($user, 'sanctum')
         ->getJson('/api/employees?search=Jordan')
@@ -121,7 +125,7 @@ test('mobile users can list show create and update employees', function () {
         ->assertJsonPath('data.0.email', 'jordan.rivera@example.com');
 
     $this->actingAs($user, 'sanctum')
-        ->getJson('/api/employees/'.$employeeId)
+        ->getJson('/api/employees/'.$employeeUuid)
         ->assertOk()
         ->assertJsonPath('employee.project_assignments.0.project.name', 'Harbor Employee Project');
 
@@ -133,7 +137,6 @@ test('mobile users can list show create and update employees', function () {
                 'languages',
                 'skills',
                 'professions',
-                'projects',
                 'shiftTypeOptions',
                 'payBasisOptions',
             ],
@@ -156,24 +159,24 @@ test('mobile users can list show create and update employees', function () {
     ];
 
     $this->actingAs($user, 'sanctum')
-        ->patchJson('/api/employees/'.$employeeId, $payload)
+        ->patchJson('/api/employees/'.$employeeUuid, $payload)
         ->assertOk()
         ->assertJsonPath('employee.project_assignments.0.work_date', '2026-10-02')
         ->assertJsonCount(2, 'employee.project_assignments')
         ->assertJsonCount(2, 'employee.skill_shifts');
 
-    $employee = Employee::query()->findOrFail($employeeId);
+    $employee = Employee::query()->where('uuid', $employeeUuid)->firstOrFail();
 
     expect($employee->languagePreference)->not->toBeNull();
     expect($employee->projectAssignments)->toHaveCount(2);
     expect($employee->projectAssignments->pluck('work_date')->map->toDateString()->unique())->toHaveCount(1);
 
     $this->actingAs($user, 'sanctum')
-        ->deleteJson('/api/employees/'.$employeeId)
+        ->deleteJson('/api/employees/'.$employeeUuid)
         ->assertOk();
 
     $this->assertDatabaseMissing('employees', [
-        'id' => $employeeId,
+        'id' => $employee->id,
     ]);
 });
 
@@ -195,6 +198,129 @@ test('a union skill shift requires a union rate', function () {
         ->postJson('/api/employees', $payload)
         ->assertUnprocessable()
         ->assertJsonValidationErrors('skill_shifts.0.union_rate');
+});
+
+test('the mobile app can add and remove pay rates on a profession', function () {
+    $user = apiEmployeeUser(UserLevel::ADMINISTRATOR);
+    $profession = Profession::create(['name' => 'Foreman']);
+    $skill = Skill::create(['name' => 'Supervision']);
+    $project = Project::create([
+        'name' => 'Foreman Rate Project',
+        'project_status_id' => ProjectStatus::idFor('quoted'),
+        'priority' => 'normal',
+        'created_by' => $user->id,
+    ]);
+
+    $payload = apiEmployeePayload($project, $skill, $profession);
+    unset($payload['profession_ids'], $payload['pay_rates']);
+    $payload['email'] = 'foreman.rates@example.com';
+    $payload['professions'] = [
+        [
+            'profession_id' => $profession->id,
+            'rates' => [
+                [
+                    'rate_type' => 'hourly',
+                    'amount' => '45.00',
+                    'notes' => 'Weekday',
+                ],
+                [
+                    'rate_type' => 'daily',
+                    'amount' => '320.00',
+                ],
+            ],
+        ],
+    ];
+
+    $created = $this->actingAs($user, 'sanctum')
+        ->postJson('/api/employees', $payload)
+        ->assertCreated()
+        ->assertJsonPath('employee.professions.0.name', 'Foreman')
+        ->assertJsonPath('employee.professions.0.rates.0.rate_type', 'hourly')
+        ->assertJsonPath('employee.professions.0.rates.0.amount', '45.00')
+        ->assertJsonPath('employee.professions.0.rates.0.notes', 'Weekday')
+        ->assertJsonPath('employee.professions.0.rates.1.rate_type', 'daily')
+        ->assertJsonPath('employee.professions.0.rates.1.amount', '320.00')
+        ->assertJsonCount(2, 'employee.professions.0.rates')
+        ->assertJsonCount(2, 'employee.pay_rates');
+
+    $employeeUuid = $created->json('employee.uuid');
+
+    $payload['professions'][0]['rates'] = [
+        [
+            'rate_type' => 'hourly',
+            'amount' => '48.00',
+        ],
+        [
+            'rate_type' => 'overtime',
+            'amount' => '67.50',
+        ],
+    ];
+
+    $this->actingAs($user, 'sanctum')
+        ->patchJson('/api/employees/'.$employeeUuid, $payload)
+        ->assertOk()
+        ->assertJsonCount(2, 'employee.professions.0.rates')
+        ->assertJsonPath('employee.professions.0.rates.0.amount', '48.00')
+        ->assertJsonPath('employee.professions.0.rates.1.rate_type', 'overtime');
+
+    $employee = Employee::query()->where('uuid', $employeeUuid)->firstOrFail();
+
+    expect($employee->payRates)->toHaveCount(2);
+    expect($employee->payRates()->where('rate_type', 'daily')->exists())->toBeFalse();
+
+    $payload['professions'] = [
+        [
+            'profession_id' => $profession->id,
+            'rates' => [],
+        ],
+    ];
+
+    $this->actingAs($user, 'sanctum')
+        ->patchJson('/api/employees/'.$employeeUuid, $payload)
+        ->assertOk()
+        ->assertJsonCount(0, 'employee.professions.0.rates')
+        ->assertJsonCount(0, 'employee.pay_rates')
+        ->assertJsonPath('employee.professions.0.name', 'Foreman');
+
+    $this->actingAs($user, 'sanctum')
+        ->getJson('/api/employees/options')
+        ->assertOk()
+        ->assertJsonPath('options.rateTypeOptions.hourly', 'Hourly')
+        ->assertJsonPath('options.rateTypeOptions.daily', 'Daily');
+});
+
+test('the mobile app cannot add the same rate twice for one profession', function () {
+    $user = apiEmployeeUser(UserLevel::ADMINISTRATOR);
+    $profession = Profession::create(['name' => 'Foreman']);
+    $skill = Skill::create(['name' => 'Supervision']);
+    $project = Project::create([
+        'name' => 'Duplicate Rate Project',
+        'project_status_id' => ProjectStatus::idFor('quoted'),
+        'priority' => 'normal',
+        'created_by' => $user->id,
+    ]);
+    $payload = apiEmployeePayload($project, $skill, $profession);
+    unset($payload['profession_ids'], $payload['pay_rates']);
+    $payload['email'] = 'duplicate.rate@example.com';
+    $payload['professions'] = [
+        [
+            'profession_id' => $profession->id,
+            'rates' => [
+                ['rate_type' => 'hourly', 'amount' => '45.00'],
+                ['rate_type' => 'daily', 'amount' => '320.00'],
+                ['rate_type' => 'hourly', 'amount' => '50.00'],
+            ],
+        ],
+    ];
+
+    $this->actingAs($user, 'sanctum')
+        ->postJson('/api/employees', $payload)
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('professions.0.rates.2.rate_type');
+
+    $this->assertDatabaseMissing('employees', [
+        'email' => 'duplicate.rate@example.com',
+    ]);
 });
 
 test('the mobile app can add a language skill and profession', function () {
@@ -282,7 +408,7 @@ test('adding or updating an employee refreshes skills and professions on the lis
     $payload = apiEmployeePayload($project, $nextSkill, $nextProfession);
 
     $this->actingAs($user, 'sanctum')
-        ->patchJson('/api/employees/'.$created->json('employee.id'), $payload)
+        ->patchJson('/api/employees/'.$created->json('employee.uuid'), $payload)
         ->assertOk()
         ->assertJsonPath('employee.professions.0.name', 'Foreman')
         ->assertJsonPath('employee.skills.0.name', 'Welding');

@@ -11,15 +11,20 @@ use App\Models\Language;
 use App\Models\Profession;
 use App\Models\Project;
 use App\Models\Skill;
+use App\Models\User;
+use App\Models\UserLevel;
 use App\Support\EmployeeAccess;
+use App\Support\EmployeeAccount;
 use App\Support\EmployeeListVersion;
 use App\Support\SkillListVersion;
+use App\Support\UserLevelAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -36,7 +41,7 @@ class EmployeeController extends Controller
             'filters' => [
                 'search' => $search,
             ],
-            'employees' => Employee::query()
+            'employees' => EmployeeAccess::scopeVisibleEmployees(Employee::query(), $request->user())
                 ->with($this->employeeRelations())
                 ->when($search !== '', function ($query) use ($search): void {
                     $query->where(function ($query) use ($search): void {
@@ -61,6 +66,9 @@ class EmployeeController extends Controller
                             })
                             ->orWhereHas('projectAssignments.project', function ($query) use ($search): void {
                                 $query->where('name', 'like', "%{$search}%");
+                            })
+                            ->orWhereHas('foreman', function ($query) use ($search): void {
+                                $query->where('name', 'like', "%{$search}%");
                             });
                     });
                 })
@@ -78,6 +86,58 @@ class EmployeeController extends Controller
 
         return response()->json([
             'version' => EmployeeListVersion::current(),
+        ]);
+    }
+
+    public function emailAvailability(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        abort_unless(
+            $user instanceof User && (
+                EmployeeAccess::canCreate($user) || EmployeeAccess::canUpdate($user)
+            ),
+            403,
+        );
+
+        $validated = $request->validate([
+            'email' => ['nullable', 'string', 'email', 'max:255'],
+            'employee' => ['nullable', 'uuid', Rule::exists(Employee::class, 'uuid')],
+        ]);
+
+        $email = strtolower(trim((string) ($validated['email'] ?? '')));
+
+        if ($email === '') {
+            return response()->json(['available' => true]);
+        }
+
+        $employee = isset($validated['employee'])
+            ? Employee::query()->where('uuid', $validated['employee'])->first()
+            : null;
+
+        if ($employee && strtolower(trim((string) $employee->email)) === $email) {
+            return response()->json(['available' => true]);
+        }
+
+        $usedByEmployee = Employee::query()
+            ->whereRaw('LOWER(email) = ?', [$email])
+            ->when($employee, fn ($query) => $query->whereKeyNot($employee->id))
+            ->exists();
+
+        if ($usedByEmployee) {
+            return response()->json(['available' => false]);
+        }
+
+        $usedByLogin = User::query()
+            ->whereRaw('LOWER(email) = ?', [$email])
+            ->when(
+                $employee?->user_id,
+                fn ($query) => $query->whereKeyNot($employee->user_id),
+            )
+            ->exists();
+
+        return response()->json([
+            'available' => ! $usedByLogin,
         ]);
     }
 
@@ -102,6 +162,7 @@ class EmployeeController extends Controller
     public function edit(Request $request, Employee $employee): Response
     {
         abort_unless(EmployeeAccess::canUpdate($request->user()), 403);
+        EmployeeAccess::ensureCanViewEmployee($request->user(), $employee);
 
         $employee->load($this->employeeRelations());
 
@@ -115,6 +176,7 @@ class EmployeeController extends Controller
     public function update(Request $request, Employee $employee): RedirectResponse
     {
         abort_unless(EmployeeAccess::canUpdate($request->user()), 403);
+        EmployeeAccess::ensureCanViewEmployee($request->user(), $employee);
 
         $this->saveEmployee($request, $employee);
 
@@ -126,6 +188,7 @@ class EmployeeController extends Controller
     public function destroy(Request $request, Employee $employee): RedirectResponse
     {
         abort_unless(EmployeeAccess::canDelete($request->user()), 403);
+        EmployeeAccess::ensureCanViewEmployee($request->user(), $employee);
 
         $employee->delete();
 
@@ -141,9 +204,12 @@ class EmployeeController extends Controller
             $payRates = $validated['pay_rates'] ?? [];
             $professionIds = $validated['profession_ids'] ?? [];
             $skillIds = $validated['skill_ids'] ?? [];
-            $projectAssignments = $validated['project_assignments'] ?? [];
             $skillShifts = $validated['skill_shifts'] ?? [];
             $languageId = $validated['language_id'] ?? null;
+
+            $accountPassword = $validated['account_password'] ?? null;
+            $accountLevel = $this->accountLevel($validated);
+            $originalEmail = $employee?->email;
 
             $attributes = collect($validated)
                 ->except([
@@ -153,6 +219,9 @@ class EmployeeController extends Controller
                     'project_assignments',
                     'skill_shifts',
                     'language_id',
+                    'account_role',
+                    'account_level_id',
+                    'account_password',
                 ])
                 ->all();
 
@@ -162,12 +231,18 @@ class EmployeeController extends Controller
                 $employee = Employee::create($attributes);
             }
 
+            EmployeeAccount::sync($employee, $accountLevel, $accountPassword, $originalEmail);
+
+            if (array_key_exists('project_assignments', $validated)) {
+                $this->syncProjectAssignments($employee, $validated['project_assignments'] ?? []);
+            }
+
             $this->syncPayRates($employee, $payRates);
             $this->syncProfessions($employee, $professionIds, $payRates);
             $this->syncLanguage($employee, $languageId);
-            $this->syncProjectAssignments($employee, $projectAssignments);
-            $this->syncSkills($employee, $skillIds, $skillShifts);
+            $this->syncSkills($employee, $skillIds, $skillShifts, $payRates);
             $this->syncSkillShifts($employee, $skillShifts);
+            $employee->load($this->employeeRelations());
 
             return $employee;
         });
@@ -191,22 +266,66 @@ class EmployeeController extends Controller
             })
             ->all();
 
+        $accountRole = $request->input('account.role', $request->input('account_role'));
+        $accountLevelId = $request->input('account.level_id', $request->input('account_level_id'));
+        $accountPassword = $request->input('account.password', $request->input('account_password'));
+        $accountPasswordConfirmation = $request->input(
+            'account.password_confirmation',
+            $request->input('account_password_confirmation'),
+        );
+
         $request->merge([
             'skill_shifts' => $skillShifts,
             'language_id' => $request->input('language_id') ?: null,
             'date_of_birth' => $request->input('date_of_birth') ?: null,
             'hire_date' => $request->input('hire_date') ?: null,
+            'account_role' => $accountRole === '' ? null : $accountRole,
+            'account_level_id' => $accountLevelId === '' ? null : $accountLevelId,
+            'account_password' => $accountPassword === '' ? null : $accountPassword,
+            'account_password_confirmation' => $accountPasswordConfirmation === '' ? null : $accountPasswordConfirmation,
         ]);
 
+        if ($request->exists('foreman_user_id')) {
+            $request->merge([
+                'foreman_user_id' => $request->input('foreman_user_id') ?: null,
+            ]);
+        }
+
+        $groupedProfessions = $this->groupedProfessions($request);
+        $ratePaths = [];
+
+        if ($groupedProfessions !== null) {
+            $expanded = $this->expandGroupedProfessions($groupedProfessions);
+            $ratePaths = $expanded['rate_paths'];
+
+            $request->merge([
+                'profession_ids' => $expanded['profession_ids'],
+                'pay_rates' => $expanded['pay_rates'],
+            ]);
+        }
+
+        try {
+            $validated = $this->validateEmployeeRequest($request, $employee);
+        } catch (ValidationException $exception) {
+            if ($groupedProfessions !== null) {
+                throw $this->remapGroupedProfessionErrors($exception, $ratePaths);
+            }
+
+            throw $exception;
+        }
+
+        return $validated;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function validateEmployeeRequest(Request $request, ?Employee $employee = null): array
+    {
         $validated = $request->validate([
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
-            'email' => [
-                'required',
-                'email',
-                'max:255',
-                Rule::unique(Employee::class, 'email')->ignore($employee),
-            ],
+            'email' => $this->emailRules($request, $employee),
             'phone_number' => ['nullable', 'string', 'max:50'],
             'job_title' => ['nullable', 'string', 'max:255'],
             'department' => ['nullable', 'string', 'max:255'],
@@ -215,6 +334,22 @@ class EmployeeController extends Controller
             'date_of_birth' => ['nullable', 'date', 'before_or_equal:today'],
             'language_id' => ['nullable', 'integer', Rule::exists(Language::class, 'id')],
             'notes' => ['nullable', 'string', 'max:5000'],
+            'foreman_user_id' => [
+                'nullable',
+                'integer',
+                Rule::exists(User::class, 'id')->where(fn ($query) => $query->whereIn(
+                    'level_id',
+                    UserLevel::query()->where('name', UserLevel::FOREMAN)->select('id'),
+                )),
+            ],
+            'account_role' => ['nullable', Rule::in(['employee', 'foreman'])],
+            'account_level_id' => ['nullable', 'integer', Rule::exists(UserLevel::class, 'id')],
+            'account_password' => [
+                Rule::requiredIf(fn (): bool => $this->accountPasswordRequired($request, $employee)),
+                'nullable',
+                'confirmed',
+                Password::defaults(),
+            ],
             'profession_ids' => ['nullable', 'array'],
             'profession_ids.*' => ['integer', Rule::exists(Profession::class, 'id')],
             'skill_ids' => ['nullable', 'array'],
@@ -232,12 +367,15 @@ class EmployeeController extends Controller
             'skill_shifts.*.union_rate' => ['nullable', 'numeric', 'min:0.01'],
             'skill_shifts.*.notes' => ['nullable', 'string', 'max:1000'],
             'pay_rates' => ['array'],
-            'pay_rates.*.profession_id' => ['required', 'integer', Rule::exists(Profession::class, 'id')],
+            'pay_rates.*.skill_id' => ['nullable', 'integer', Rule::exists(Skill::class, 'id')],
+            'pay_rates.*.profession_id' => ['nullable', 'integer', Rule::exists(Profession::class, 'id')],
             'pay_rates.*.rate_type' => ['required', 'string', Rule::in(array_keys($this->rateTypeOptions()))],
             'pay_rates.*.custom_rate_type' => ['nullable', 'string', 'max:255'],
             'pay_rates.*.amount' => ['required', 'numeric', 'min:0.01'],
             'pay_rates.*.notes' => ['nullable', 'string', 'max:1000'],
         ]);
+
+        $rateKeys = [];
 
         foreach ($validated['pay_rates'] ?? [] as $index => $payRate) {
             if (
@@ -248,6 +386,29 @@ class EmployeeController extends Controller
                     "pay_rates.{$index}.custom_rate_type" => 'Enter a custom rate type.',
                 ]);
             }
+
+            if (blank($payRate['skill_id'] ?? null) && blank($payRate['profession_id'] ?? null)) {
+                throw ValidationException::withMessages([
+                    "pay_rates.{$index}.skill_id" => 'Choose a skill for this rate.',
+                ]);
+            }
+
+            $owner = filled($payRate['skill_id'] ?? null)
+                ? 'skill:'.$payRate['skill_id']
+                : 'profession:'.$payRate['profession_id'];
+            $rateKey = $owner.'|'.$payRate['rate_type'];
+
+            if (($payRate['rate_type'] ?? null) === EmployeePayRate::RATE_CUSTOM) {
+                $rateKey .= '|'.strtolower(trim((string) ($payRate['custom_rate_type'] ?? '')));
+            }
+
+            if (isset($rateKeys[$rateKey])) {
+                throw ValidationException::withMessages([
+                    "pay_rates.{$index}.rate_type" => 'This rate is already added for this skill.',
+                ]);
+            }
+
+            $rateKeys[$rateKey] = true;
         }
 
         $assignmentKeys = [];
@@ -288,6 +449,108 @@ class EmployeeController extends Controller
     }
 
     /**
+     * Professions sent as `{ profession_id, rates: [...] }` are the mobile shape.
+     * The admin form still sends profession_ids and a flat pay_rates list.
+     *
+     * @return list<array<string, mixed>>|null
+     */
+    private function groupedProfessions(Request $request): ?array
+    {
+        if (! $request->exists('professions')) {
+            return null;
+        }
+
+        $groups = $request->input('professions');
+
+        if (! is_array($groups)) {
+            return null;
+        }
+
+        foreach ($groups as $group) {
+            if (! is_array($group)) {
+                return null;
+            }
+        }
+
+        return array_values($groups);
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $groups
+     * @return array{
+     *     profession_ids: list<mixed>,
+     *     pay_rates: list<array<string, mixed>>,
+     *     rate_paths: array<int, string>
+     * }
+     */
+    private function expandGroupedProfessions(array $groups): array
+    {
+        $professionIds = [];
+        $payRates = [];
+        $ratePaths = [];
+        $seenProfessionIds = [];
+
+        foreach ($groups as $groupIndex => $group) {
+            $professionId = $group['profession_id'] ?? null;
+            $professionIds[] = $professionId;
+
+            if (filled($professionId)) {
+                $seenKey = (string) $professionId;
+
+                if (isset($seenProfessionIds[$seenKey])) {
+                    throw ValidationException::withMessages([
+                        "professions.{$groupIndex}.profession_id" => 'This profession is already added.',
+                    ]);
+                }
+
+                $seenProfessionIds[$seenKey] = true;
+            }
+
+            $rates = is_array($group['rates'] ?? null) ? array_values($group['rates']) : [];
+
+            foreach ($rates as $rateIndex => $rate) {
+                $rate = is_array($rate) ? $rate : [];
+                $flatIndex = count($payRates);
+                $payRates[] = [
+                    'profession_id' => $professionId,
+                    'rate_type' => $rate['rate_type'] ?? null,
+                    'custom_rate_type' => $rate['custom_rate_type'] ?? null,
+                    'amount' => $rate['amount'] ?? null,
+                    'notes' => ($rate['notes'] ?? null) === '' ? null : ($rate['notes'] ?? null),
+                ];
+                $ratePaths[$flatIndex] = "professions.{$groupIndex}.rates.{$rateIndex}";
+            }
+        }
+
+        return [
+            'profession_ids' => $professionIds,
+            'pay_rates' => $payRates,
+            'rate_paths' => $ratePaths,
+        ];
+    }
+
+    /**
+     * @param  array<int, string>  $ratePaths
+     */
+    private function remapGroupedProfessionErrors(ValidationException $exception, array $ratePaths): ValidationException
+    {
+        $messages = [];
+
+        foreach ($exception->errors() as $key => $errors) {
+            if (preg_match('/^pay_rates\.(\d+)\.(.+)$/', $key, $matches) === 1) {
+                $path = $ratePaths[(int) $matches[1]] ?? null;
+                $key = $path !== null ? "{$path}.{$matches[2]}" : $key;
+            } elseif (preg_match('/^profession_ids\.(\d+)$/', $key, $matches) === 1) {
+                $key = "professions.{$matches[1]}.profession_id";
+            }
+
+            $messages[$key] = $errors;
+        }
+
+        return ValidationException::withMessages($messages);
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function formOptions(): array
@@ -297,20 +560,94 @@ class EmployeeController extends Controller
             'languages' => $this->namedOptions(Language::class),
             'skills' => $this->namedOptions(Skill::class),
             'skillsVersion' => SkillListVersion::current(),
-            'projects' => Project::query()
-                ->orderBy('name')
-                ->get(['id', 'name', 'project_number'])
-                ->map(fn (Project $project): array => [
-                    'id' => $project->id,
-                    'name' => $project->name,
-                    'project_number' => $project->project_number,
-                ])
-                ->all(),
+            'foremen' => $this->foremanOptions(),
             'rateTypeOptions' => $this->rateTypeOptions(),
             'statusOptions' => $this->statusOptions(),
             'shiftTypeOptions' => $this->shiftTypeOptions(),
             'payBasisOptions' => $this->payBasisOptions(),
+            'userLevels' => $this->assignableUserLevels(),
+            'accessPermissions' => UserLevelAccess::catalog(),
+            'canCreateUserLevel' => (bool) auth()->user()?->isSuperAdmin(),
         ];
+    }
+
+    /**
+     * @return list<array{id: int, name: string}>
+     */
+    public function assignableUserLevels(): array
+    {
+        return UserLevel::query()
+            ->orderBy('id')
+            ->get()
+            ->reject(fn (UserLevel $level): bool => $level->isSuperAdminLevel())
+            ->map(fn (UserLevel $level): array => [
+                'id' => $level->id,
+                'name' => $level->name,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function accountLevel(array $validated): ?UserLevel
+    {
+        if (! empty($validated['account_level_id'])) {
+            return UserLevel::query()->findOrFail($validated['account_level_id']);
+        }
+
+        $role = $validated['account_role'] ?? null;
+
+        if (! is_string($role) || $role === '') {
+            return null;
+        }
+
+        return EmployeeAccount::levelFor($role);
+    }
+
+    /**
+     * @return list<mixed>
+     */
+    private function emailRules(Request $request, ?Employee $employee): array
+    {
+        $rules = ['required', 'email', 'max:255'];
+        $submitted = strtolower(trim((string) $request->input('email')));
+        $current = strtolower(trim((string) ($employee->email ?? '')));
+
+        if ($employee && $submitted === $current) {
+            return $rules;
+        }
+
+        $unique = Rule::unique(Employee::class, 'email');
+
+        if ($employee) {
+            $unique->ignore($employee->id);
+        }
+
+        $rules[] = $unique;
+
+        return $rules;
+    }
+
+    private function accountPasswordRequired(Request $request, ?Employee $employee): bool
+    {
+        if (! $request->filled('account_role') && ! $request->filled('account_level_id')) {
+            return false;
+        }
+
+        if ($employee?->user_id) {
+            return false;
+        }
+
+        $submitted = strtolower(trim((string) $request->input('email')));
+        $current = strtolower(trim((string) ($employee->email ?? '')));
+
+        if ($employee && $submitted === $current && User::query()->whereRaw('LOWER(email) = ?', [$submitted])->exists()) {
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -337,6 +674,7 @@ class EmployeeController extends Controller
             EmployeePayRate::RATE_DAILY => 'Daily',
             EmployeePayRate::RATE_OVERTIME => 'Overtime',
             EmployeePayRate::RATE_DAY_OFF => 'Day off',
+            EmployeePayRate::RATE_UNION => 'Union',
             EmployeePayRate::RATE_CUSTOM => 'Custom',
         ];
     }
@@ -391,10 +729,35 @@ class EmployeeController extends Controller
                 ]
                 : null,
             'notes' => $employee->notes,
+            'foreman' => $employee->foreman
+                ? [
+                    'id' => $employee->foreman->id,
+                    'name' => $employee->foreman->name,
+                    'email' => $employee->foreman->email,
+                ]
+                : null,
+            'user' => $employee->user
+                ? [
+                    'id' => $employee->user->id,
+                    'name' => $employee->user->name,
+                    'email' => $employee->user->email,
+                    'level' => $employee->user->level
+                        ? [
+                            'id' => $employee->user->level->id,
+                            'name' => $employee->user->level->name,
+                        ]
+                        : null,
+                ]
+                : null,
             'professions' => $employee->professions
                 ->map(fn (Profession $profession): array => [
                     'id' => $profession->id,
                     'name' => $profession->name,
+                    'rates' => $employee->payRates
+                        ->where('profession_id', $profession->id)
+                        ->map(fn (EmployeePayRate $payRate): array => $this->payRatePayload($payRate, false))
+                        ->values()
+                        ->all(),
                 ])
                 ->values()
                 ->all(),
@@ -402,6 +765,11 @@ class EmployeeController extends Controller
                 ->map(fn (Skill $skill): array => [
                     'id' => $skill->id,
                     'name' => $skill->name,
+                    'rates' => $employee->payRates
+                        ->where('skill_id', $skill->id)
+                        ->map(fn (EmployeePayRate $payRate): array => $this->payRatePayload($payRate, false))
+                        ->values()
+                        ->all(),
                 ])
                 ->values()
                 ->all(),
@@ -445,24 +813,46 @@ class EmployeeController extends Controller
                 ->values()
                 ->all(),
             'pay_rates' => $employee->payRates
-                ->map(fn (EmployeePayRate $payRate): array => [
-                    'id' => $payRate->id,
-                    'profession_id' => $payRate->profession_id,
-                    'profession' => $payRate->profession
-                        ? [
-                            'id' => $payRate->profession->id,
-                            'name' => $payRate->profession->name,
-                        ]
-                        : null,
-                    'rate_type' => $payRate->rate_type,
-                    'custom_rate_type' => $payRate->custom_rate_type,
-                    'amount' => $payRate->amount,
-                    'notes' => $payRate->notes,
-                ])
+                ->map(fn (EmployeePayRate $payRate): array => $this->payRatePayload($payRate))
+                ->values()
                 ->all(),
             'created_at' => $employee->created_at?->toISOString(),
             'updated_at' => $employee->updated_at?->toISOString(),
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function payRatePayload(EmployeePayRate $payRate, bool $withProfession = true): array
+    {
+        $payload = [
+            'id' => $payRate->id,
+            'skill_id' => $payRate->skill_id,
+            'profession_id' => $payRate->profession_id,
+            'rate_type' => $payRate->rate_type,
+            'custom_rate_type' => $payRate->custom_rate_type,
+            'amount' => $payRate->amount,
+            'notes' => $payRate->notes,
+        ];
+
+        if ($withProfession) {
+            $payload['profession'] = $payRate->profession
+                ? [
+                    'id' => $payRate->profession->id,
+                    'name' => $payRate->profession->name,
+                ]
+                : null;
+        }
+
+        $payload['skill'] = $payRate->skill
+            ? [
+                'id' => $payRate->skill->id,
+                'name' => $payRate->skill->name,
+            ]
+            : null;
+
+        return $payload;
     }
 
     /**
@@ -477,7 +867,27 @@ class EmployeeController extends Controller
             'projectAssignments.project:id,name,project_number',
             'skillShifts.skill:id,name',
             'payRates.profession:id,name',
+            'payRates.skill:id,name',
+            'foreman:id,name,email',
+            'user.level:id,name',
         ];
+    }
+
+    /**
+     * @return list<array{id: int, name: string, email: string}>
+     */
+    public function foremanOptions(): array
+    {
+        return User::query()
+            ->whereHas('level', fn ($query) => $query->where('name', UserLevel::FOREMAN))
+            ->orderBy('name')
+            ->get(['id', 'name', 'email'])
+            ->map(fn (User $user): array => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+            ])
+            ->all();
     }
 
     /**
@@ -489,7 +899,8 @@ class EmployeeController extends Controller
 
         collect($payRates)
             ->map(fn (array $payRate): array => [
-                'profession_id' => $payRate['profession_id'],
+                'skill_id' => $payRate['skill_id'] ?? null,
+                'profession_id' => $payRate['profession_id'] ?? null,
                 'rate_type' => $payRate['rate_type'],
                 'custom_rate_type' => $payRate['rate_type'] === EmployeePayRate::RATE_CUSTOM
                     ? ($payRate['custom_rate_type'] ?? null)
@@ -549,11 +960,13 @@ class EmployeeController extends Controller
     /**
      * @param  array<int, mixed>  $skillIds
      * @param  array<int, array<string, mixed>>  $skillShifts
+     * @param  array<int, array<string, mixed>>  $payRates
      */
-    public function syncSkills(Employee $employee, array $skillIds, array $skillShifts): void
+    public function syncSkills(Employee $employee, array $skillIds, array $skillShifts, array $payRates = []): void
     {
         $ids = collect($skillIds)
             ->merge(collect($skillShifts)->pluck('skill_id'))
+            ->merge(collect($payRates)->pluck('skill_id'))
             ->filter()
             ->map(fn (mixed $id): int => (int) $id)
             ->unique()

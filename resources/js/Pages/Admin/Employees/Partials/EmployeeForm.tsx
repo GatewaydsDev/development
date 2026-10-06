@@ -1,10 +1,13 @@
 import DateMaskInput from '@/Components/DateMaskInput';
+import UserLevelSelect, {
+    type AccessPermission,
+    type UserLevelOption,
+} from '@/Components/UserLevelSelect';
 import FormActionFab from '@/Components/FormActionFab';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
-import MoneyInput from '@/Components/MoneyInput';
+import NamedCatalogSelect from '@/Components/NamedCatalogSelect';
 import PhoneInput from '@/Components/PhoneInput';
-import ProfessionSelect from '@/Components/ProfessionSelect';
 import TextInput from '@/Components/TextInput';
 import {
     Card,
@@ -13,12 +16,11 @@ import {
     CardHeader,
     CardTitle,
 } from '@/Components/ui/card';
-import { Button } from '@/Components/ui/button';
 import { useProjectListRefresh } from '@/hooks/useProjectListRefresh';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from '@inertiajs/react';
-import { PlusIcon, Trash2Icon } from 'lucide-react';
-import { FormEventHandler, useMemo, useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
+import { FormEventHandler, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import {
     FieldErrors,
     FieldPath,
@@ -29,16 +31,16 @@ import {
 import { z } from 'zod';
 import {
     employeeToFormData,
+    emptySkillRate,
     type EmployeeFormData,
-    type EmployeeOptionMap,
-    type EmployeePayRateFormData,
     type EmployeePayload,
     type EmployeeRateTypeOptions,
     type EmployeeStatusOptions,
     type NamedOption,
-    type ProjectOption,
 } from '../types';
 import EmployeeRelationsFields from './EmployeeRelationsFields';
+
+const defaultAccountPassword = 'Welcome!@';
 
 type EmployeeFormProps = {
     action: string;
@@ -46,15 +48,14 @@ type EmployeeFormProps = {
     submitLabel: string;
     title: string;
     description: string;
-    professions: NamedOption[];
     languages: NamedOption[];
     skills: NamedOption[];
     skillsVersion?: string | null;
-    projects: ProjectOption[];
     rateTypeOptions: EmployeeRateTypeOptions;
     statusOptions: EmployeeStatusOptions;
-    shiftTypeOptions: EmployeeOptionMap;
-    payBasisOptions: EmployeeOptionMap;
+    userLevels?: UserLevelOption[];
+    accessPermissions?: AccessPermission[];
+    canCreateUserLevel?: boolean;
     employee?: EmployeePayload;
 };
 
@@ -68,8 +69,7 @@ const isoDate = z
 function employeeSchema(
     statusOptions: EmployeeStatusOptions,
     rateTypeOptions: EmployeeRateTypeOptions,
-    shiftTypeOptions: EmployeeOptionMap,
-    payBasisOptions: EmployeeOptionMap,
+    hasLogin: boolean,
 ) {
     return z.object({
         first_name: z.string().trim().min(1, 'Enter the first name.').max(255),
@@ -78,6 +78,9 @@ function employeeSchema(
         phone_number: z.string().trim().max(50),
         job_title: z.string().trim().max(255),
         department: z.string().trim().max(255),
+        account_level_id: z.string(),
+        account_password: z.string(),
+        account_password_confirmation: z.string(),
         employment_status: z
             .string()
             .refine(
@@ -98,134 +101,88 @@ function employeeSchema(
         }, 'Date of birth cannot be in the future.'),
         language_id: z.string(),
         notes: z.string().trim().max(5000, 'Notes must be 5,000 characters or less.'),
-        professions: z.array(
-            z.object({
-                profession_id: z.string().trim().min(1, 'Select a profession.'),
-            }),
-        ),
         skills: z.array(
             z.object({
                 skill_id: z.string().trim().min(1, 'Select a skill.'),
-            }),
-        ),
-        project_assignments: z.array(
-            z.object({
-                project_id: z.string().trim().min(1, 'Select a project.'),
-                work_date: isoDate.refine(
-                    (value) => value !== '',
-                    'Enter the work date.',
+                rates: z.array(
+                    z.object({
+                        rate_type: z
+                            .string()
+                            .refine(
+                                (value) =>
+                                    Object.keys(rateTypeOptions).includes(
+                                        value,
+                                    ),
+                                'Select a valid rate type.',
+                            ),
+                        amount: z
+                            .string()
+                            .trim()
+                            .min(1, 'Enter an amount.')
+                            .refine(
+                                (value) =>
+                                    !Number.isNaN(Number(value)) &&
+                                    Number(value) > 0,
+                                'Enter an amount greater than 0.',
+                            ),
+                    }),
                 ),
-                notes: z.string().trim().max(1000),
             }),
-        ),
-        skill_shifts: z.array(
-            z
-                .object({
-                    skill_id: z.string().trim().min(1, 'Select a skill.'),
-                    shift_type: z
-                        .string()
-                        .refine(
-                            (value) =>
-                                Object.keys(shiftTypeOptions).includes(value),
-                            'Select a shift.',
-                        ),
-                    pay_basis: z
-                        .string()
-                        .refine(
-                            (value) =>
-                                Object.keys(payBasisOptions).includes(value),
-                            'Select hourly or day payment.',
-                        ),
-                    amount: z
-                        .string()
-                        .trim()
-                        .min(1, 'Enter an amount.')
-                        .refine(
-                            (value) =>
-                                !Number.isNaN(Number(value)) &&
-                                Number(value) > 0,
-                            'Enter an amount greater than 0.',
-                        ),
-                    is_union_member: z.boolean(),
-                    union_rate: z.string().trim(),
-                    notes: z.string().trim().max(1000),
-                })
-                .superRefine((value, context) => {
-                    if (value.is_union_member && value.union_rate === '') {
-                        context.addIssue({
-                            code: z.ZodIssueCode.custom,
-                            path: ['union_rate'],
-                            message: 'Enter the union rate.',
-                        });
-                    }
-
-                    if (
-                        value.union_rate !== '' &&
-                        (Number.isNaN(Number(value.union_rate)) ||
-                            Number(value.union_rate) <= 0)
-                    ) {
-                        context.addIssue({
-                            code: z.ZodIssueCode.custom,
-                            path: ['union_rate'],
-                            message: 'Enter a union rate greater than 0.',
-                        });
-                    }
-                }),
-        ),
-        pay_rates: z.array(
-            z
-                .object({
-                    profession_id: z
-                        .string()
-                        .trim()
-                        .min(1, 'Select a profession.'),
-                    rate_type: z
-                        .string()
-                        .refine(
-                            (value) =>
-                                Object.keys(rateTypeOptions).includes(value),
-                            'Select a valid rate type.',
-                        ),
-                    custom_rate_type: z.string().trim().max(255),
-                    amount: z
-                        .string()
-                        .trim()
-                        .min(1, 'Enter an amount.')
-                        .refine(
-                            (value) =>
-                                !Number.isNaN(Number(value)) &&
-                                Number(value) > 0,
-                            'Enter an amount greater than 0.',
-                        ),
-                    notes: z.string().trim().max(1000),
-                })
-                .superRefine((value, context) => {
-                    if (
-                        value.rate_type === 'custom' &&
-                        value.custom_rate_type.trim() === ''
-                    ) {
-                        context.addIssue({
-                            code: z.ZodIssueCode.custom,
-                            path: ['custom_rate_type'],
-                            message: 'Enter a custom rate type.',
-                        });
-                    }
-                }),
         ),
     }).superRefine((value, context) => {
-        const selectedSkills = new Set(
-            value.skills.map((skill) => skill.skill_id).filter(Boolean),
-        );
+        const selectedSkills = new Set<string>();
 
-        value.skill_shifts.forEach((shift, index) => {
-            if (shift.skill_id && !selectedSkills.has(shift.skill_id)) {
+        value.skills.forEach((skill, skillIndex) => {
+            if (skill.skill_id && selectedSkills.has(skill.skill_id)) {
                 context.addIssue({
                     code: z.ZodIssueCode.custom,
-                    path: ['skill_shifts', index, 'skill_id'],
-                    message: 'Add this skill before using it on a shift.',
+                    path: ['skills', skillIndex, 'skill_id'],
+                    message: 'This skill is already added.',
                 });
             }
+
+            if (skill.skill_id) {
+                selectedSkills.add(skill.skill_id);
+            }
+
+            const selectedRates = new Set<string>();
+
+            skill.rates.forEach((rate, rateIndex) => {
+                if (selectedRates.has(rate.rate_type)) {
+                    context.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        path: ['skills', skillIndex, 'rates', rateIndex, 'rate_type'],
+                        message: 'This rate is already added for this skill.',
+                    });
+                }
+
+                selectedRates.add(rate.rate_type);
+            });
         });
+
+        if (value.account_level_id === '') {
+            return;
+        }
+
+        const password = value.account_password.trim();
+        const confirmation = value.account_password_confirmation.trim();
+        const passwordRequired = !hasLogin || password !== '';
+
+        if (passwordRequired && password.length < 8) {
+            context.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ['account_password'],
+                message: 'Enter a password of at least 8 characters.',
+            });
+        }
+
+        if (passwordRequired && password !== confirmation) {
+            context.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ['account_password_confirmation'],
+                message: 'The password confirmation does not match.',
+            });
+        }
     });
 }
 
@@ -248,24 +205,52 @@ function errorMessage(
         : undefined;
 }
 
+function FormSection({
+    title,
+    description,
+    children,
+}: {
+    title: string;
+    description: string;
+    children: ReactNode;
+}) {
+    return (
+        <section className="flex flex-col gap-4 rounded-xl border border-border bg-muted/20 p-4">
+            <div>
+                <h3 className="text-base font-semibold text-foreground">
+                    {title}
+                </h3>
+                <p className="text-sm text-muted-foreground">{description}</p>
+            </div>
+            {children}
+        </section>
+    );
+}
+
 export default function EmployeeForm({
     action,
     method = 'post',
     submitLabel,
     title,
     description,
-    professions,
     languages,
     skills,
     skillsVersion = null,
-    projects,
     rateTypeOptions,
     statusOptions,
-    shiftTypeOptions,
-    payBasisOptions,
+    userLevels = [],
+    accessPermissions = [],
+    canCreateUserLevel = false,
     employee,
 }: EmployeeFormProps) {
     const [processing, setProcessing] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showPasswordConfirmation, setShowPasswordConfirmation] =
+        useState(false);
+    const [checkingEmail, setCheckingEmail] = useState(false);
+    const [emailTaken, setEmailTaken] = useState(false);
+    const emailRequest = useRef(0);
+    const originalEmail = (employee?.email ?? '').trim().toLowerCase();
 
     useProjectListRefresh(
         skillsVersion,
@@ -277,33 +262,41 @@ export default function EmployeeForm({
             employeeSchema(
                 statusOptions,
                 rateTypeOptions,
-                shiftTypeOptions,
-                payBasisOptions,
+                Boolean(employee?.user),
             ),
-        [payBasisOptions, rateTypeOptions, shiftTypeOptions, statusOptions],
+        [employee?.user, rateTypeOptions, statusOptions],
     );
+    const initialAccountLevelId = employee
+        ? employee.user?.level
+            ? String(employee.user.level.id)
+            : ''
+        : String(
+              userLevels.find((level) => level.name === 'Employee')?.id ?? '',
+          );
     const {
         control,
         handleSubmit,
+        getValues,
         setError,
+        clearErrors,
         setValue,
         watch,
         formState: { errors: validationErrors },
     } = useForm<EmployeeFormData>({
         resolver: zodResolver(validationSchema),
-        defaultValues: employeeToFormData(employee),
+        defaultValues: {
+            ...employeeToFormData(employee),
+            account_level_id: initialAccountLevelId,
+            account_password:
+                !employee?.user && initialAccountLevelId !== ''
+                    ? defaultAccountPassword
+                    : '',
+            account_password_confirmation:
+                !employee?.user && initialAccountLevelId !== ''
+                    ? defaultAccountPassword
+                    : '',
+        },
         mode: 'onChange',
-    });
-    const { fields: payRateFields, append, remove } = useFieldArray({
-        control,
-        name: 'pay_rates',
-    });
-    const {
-        append: appendProfession,
-        remove: removeProfession,
-    } = useFieldArray({
-        control,
-        name: 'professions',
     });
     const {
         append: appendSkill,
@@ -311,20 +304,6 @@ export default function EmployeeForm({
     } = useFieldArray({
         control,
         name: 'skills',
-    });
-    const {
-        append: appendAssignment,
-        remove: removeAssignment,
-    } = useFieldArray({
-        control,
-        name: 'project_assignments',
-    });
-    const {
-        append: appendShift,
-        remove: removeShift,
-    } = useFieldArray({
-        control,
-        name: 'skill_shifts',
     });
     const data = watch();
     const errors = new Proxy({} as Record<string, string | undefined>, {
@@ -340,14 +319,138 @@ export default function EmployeeForm({
             shouldValidate: true,
         });
     };
-    const setPayRateData = (
-        index: number,
-        field: keyof EmployeePayRateFormData,
+    const selectAccountLevel = (levelId: string) => {
+        setData('account_level_id', levelId);
+
+        if (levelId === '') {
+            return;
+        }
+
+        if (getValues('account_password').trim() === '') {
+            setData('account_password', defaultAccountPassword);
+        }
+
+        if (getValues('account_password_confirmation').trim() === '') {
+            setData(
+                'account_password_confirmation',
+                defaultAccountPassword,
+            );
+        }
+    };
+    const checkEmailAvailability = async (value: string): Promise<boolean> => {
+        const email = value.trim();
+        const requestId = ++emailRequest.current;
+
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            setCheckingEmail(false);
+            setEmailTaken(false);
+            return true;
+        }
+
+        if (originalEmail !== '' && email.toLowerCase() === originalEmail) {
+            setCheckingEmail(false);
+            setEmailTaken(false);
+            clearErrors('email');
+            return true;
+        }
+
+        setCheckingEmail(true);
+
+        const params = new URLSearchParams({ email });
+
+        if (employee?.uuid) {
+            params.set('employee', employee.uuid);
+        }
+
+        let availabilityUrl: string;
+
+        try {
+            availabilityUrl = `${route(
+                'admin.employees.email-availability',
+                undefined,
+                false,
+            )}?${params.toString()}`;
+        } catch {
+            availabilityUrl = `/administration/employees/email-availability?${params.toString()}`;
+        }
+
+        try {
+            const response = await fetch(availabilityUrl, {
+                credentials: 'same-origin',
+                headers: {
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            });
+
+            if (requestId !== emailRequest.current) {
+                return false;
+            }
+
+            if (!response.ok) {
+                setEmailTaken(false);
+                return true;
+            }
+
+            const result = (await response.json()) as { available: boolean };
+
+            if (!result.available) {
+                setEmailTaken(true);
+                setError('email', {
+                    type: 'server',
+                    message: 'This email address has already been taken.',
+                });
+                return false;
+            }
+
+            setEmailTaken(false);
+            clearErrors('email');
+            return true;
+        } catch {
+            if (requestId === emailRequest.current) {
+                setEmailTaken(false);
+            }
+
+            return true;
+        } finally {
+            if (requestId === emailRequest.current) {
+                setCheckingEmail(false);
+            }
+        }
+    };
+
+    useEffect(() => {
+        const timeout = window.setTimeout(() => {
+            void checkEmailAvailability(data.email);
+        }, 400);
+
+        return () => window.clearTimeout(timeout);
+    }, [data.email]);
+    const setSkillRate = (
+        skillIndex: number,
+        rateIndex: number,
+        field: 'rate_type' | 'amount',
         value: string,
     ) => {
+        setValue(`skills.${skillIndex}.rates.${rateIndex}.${field}`, value, {
+            shouldDirty: true,
+            shouldValidate: true,
+        });
+    };
+    const addSkillRate = (skillIndex: number) => {
+        const rates = getValues(`skills.${skillIndex}.rates`) ?? [];
+
+        setValue(`skills.${skillIndex}.rates`, [...rates, emptySkillRate()], {
+            shouldDirty: true,
+            shouldValidate: true,
+        });
+    };
+    const removeSkillRate = (skillIndex: number, rateIndex: number) => {
+        const rates = getValues(`skills.${skillIndex}.rates`) ?? [];
+
         setValue(
-            `pay_rates.${index}.${field}` as FieldPath<EmployeeFormData>,
-            value as PathValue<EmployeeFormData, FieldPath<EmployeeFormData>>,
+            `skills.${skillIndex}.rates`,
+            rates.filter((_, index) => index !== rateIndex),
             {
                 shouldDirty: true,
                 shouldValidate: true,
@@ -355,16 +458,31 @@ export default function EmployeeForm({
         );
     };
 
-    const submit = handleSubmit((values) => {
+    const submit = handleSubmit(async (values) => {
+        const emailIsAvailable = await checkEmailAvailability(values.email);
+
+        if (!emailIsAvailable) {
+            return;
+        }
+
+        const { skills: skillRows, ...employeeValues } = values;
         const payload = {
-            ...values,
+            ...employeeValues,
             language_id: values.language_id || null,
-            profession_ids: values.professions
-                .map((profession) => profession.profession_id)
-                .filter(Boolean),
-            skill_ids: values.skills
+            account_level_id: values.account_level_id || null,
+            account_password: values.account_password,
+            account_password_confirmation:
+                values.account_password_confirmation,
+            skill_ids: skillRows
                 .map((skill) => skill.skill_id)
                 .filter(Boolean),
+            pay_rates: skillRows.flatMap((skill) =>
+                skill.rates.map((rate) => ({
+                    skill_id: skill.skill_id,
+                    rate_type: rate.rate_type,
+                    amount: rate.amount,
+                })),
+            ),
         };
         const submitOptions = {
             onBefore: () => setProcessing(true),
@@ -396,15 +514,8 @@ export default function EmployeeForm({
             shouldValidate: true,
         });
     };
-    const addPayRate = () => {
-        append({
-            profession_id: '',
-            rate_type: 'hourly',
-            custom_rate_type: '',
-            amount: '',
-            notes: '',
-        });
-    };
+    const selectClassName =
+        'h-11 rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring';
 
     return (
         <Card className="shadow-sm">
@@ -420,10 +531,14 @@ export default function EmployeeForm({
                     <FormActionFab
                         cancelHref={route('admin.employees.index')}
                         saveLabel={submitLabel}
-                        disabled={processing}
+                        disabled={processing || checkingEmail || emailTaken}
                     />
 
-                    <section className="grid gap-5 md:grid-cols-2">
+                    <FormSection
+                        title="Personal details"
+                        description="Name, contact information, and preferred language."
+                    >
+                        <div className="grid gap-5 md:grid-cols-2">
                         <div className="flex flex-col gap-2">
                             <InputLabel
                                 htmlFor="employee-first-name"
@@ -460,9 +575,7 @@ export default function EmployeeForm({
                             />
                             <InputError message={errors.last_name} />
                         </div>
-                    </section>
 
-                    <section className="grid gap-5 md:grid-cols-2">
                         <div className="flex flex-col gap-2">
                             <InputLabel
                                 htmlFor="employee-email"
@@ -475,11 +588,29 @@ export default function EmployeeForm({
                                 value={data.email}
                                 className={inputClassName}
                                 autoComplete="email"
-                                onChange={(event) =>
-                                    setData('email', event.target.value)
+                                onChange={(event) => {
+                                    emailRequest.current += 1;
+                                    setEmailTaken(false);
+                                    setData('email', event.target.value);
+                                }}
+                                onBlur={(event) => {
+                                    void checkEmailAvailability(
+                                        event.target.value,
+                                    );
+                                }}
+                            />
+                            <InputError
+                                message={
+                                    emailTaken
+                                        ? 'This email address has already been taken.'
+                                        : errors.email
                                 }
                             />
-                            <InputError message={errors.email} />
+                            {checkingEmail && (
+                                <p className="text-sm text-muted-foreground">
+                                    Checking email availability...
+                                </p>
+                            )}
                         </div>
 
                         <div className="flex flex-col gap-2">
@@ -499,9 +630,46 @@ export default function EmployeeForm({
                             />
                             <InputError message={errors.phone_number} />
                         </div>
-                    </section>
 
-                    <section className="grid gap-5 md:grid-cols-2">
+                        <div className="flex flex-col gap-2">
+                            <InputLabel
+                                htmlFor="employee-date-of-birth"
+                                value="Date of birth"
+                                className={labelClassName}
+                            />
+                            <DateMaskInput
+                                id="employee-date-of-birth"
+                                value={data.date_of_birth}
+                                className={inputClassName}
+                                onValueChange={(value) =>
+                                    setData('date_of_birth', value)
+                                }
+                            />
+                            <InputError message={errors.date_of_birth} />
+                        </div>
+
+                        <NamedCatalogSelect
+                            id="employee-language"
+                            label="Preferred language"
+                            placeholder="Select a language"
+                            addLabel="Add language"
+                            items={languages}
+                            value={data.language_id}
+                            reloadKey="languages"
+                            storeRoute="admin.languages.store"
+                            error={errors.language_id}
+                            onChange={(languageId) =>
+                                setData('language_id', languageId)
+                            }
+                        />
+                        </div>
+                    </FormSection>
+
+                    <FormSection
+                        title="Employment"
+                        description="Job title, department, status, and hire date."
+                    >
+                        <div className="grid gap-5 md:grid-cols-2">
                         <div className="flex flex-col gap-2">
                             <InputLabel
                                 htmlFor="employee-job-title"
@@ -535,9 +703,7 @@ export default function EmployeeForm({
                             />
                             <InputError message={errors.department} />
                         </div>
-                    </section>
 
-                    <section className="grid gap-5 md:grid-cols-2">
                         <div className="flex flex-col gap-2">
                             <InputLabel
                                 htmlFor="employee-status"
@@ -553,7 +719,7 @@ export default function EmployeeForm({
                                         event.target.value,
                                     )
                                 }
-                                className="h-11 rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
+                                className={selectClassName}
                             >
                                 {Object.entries(statusOptions).map(
                                     ([value, label]) => (
@@ -582,326 +748,191 @@ export default function EmployeeForm({
                             />
                             <InputError message={errors.hire_date} />
                         </div>
-                    </section>
-
-                    <section className="grid gap-5 md:grid-cols-2">
-                        <div className="flex flex-col gap-2">
-                            <InputLabel
-                                htmlFor="employee-date-of-birth"
-                                value="Date of birth"
-                                className={labelClassName}
-                            />
-                            <DateMaskInput
-                                id="employee-date-of-birth"
-                                value={data.date_of_birth}
-                                className={inputClassName}
-                                onValueChange={(value) =>
-                                    setData('date_of_birth', value)
-                                }
-                            />
-                            <InputError message={errors.date_of_birth} />
                         </div>
-                    </section>
+                    </FormSection>
+
+                    <FormSection
+                        title="App login"
+                        description="Choose Employee, Foreman, or another existing level. A new name asks before it is added."
+                    >
+                        <div className="grid gap-5 md:grid-cols-2">
+                        <div className="md:col-span-2">
+                            <UserLevelSelect
+                                id="employee-account-level"
+                                label="User level"
+                                value={data.account_level_id}
+                                levels={userLevels}
+                                permissions={accessPermissions}
+                                canCreate={canCreateUserLevel}
+                                reloadOnly="userLevels"
+                                emptyLabel={
+                                    employee?.user
+                                        ? 'Keep the current login'
+                                        : 'No app login'
+                                }
+                                error={errors.account_level_id}
+                                onChange={selectAccountLevel}
+                            />
+                        </div>
+
+                        {data.account_level_id !== '' && (
+                            <>
+                                <div className="flex flex-col gap-2">
+                                    <InputLabel
+                                        htmlFor="employee-account-password"
+                                        value={
+                                            employee?.user
+                                                ? 'New password'
+                                                : 'Password'
+                                        }
+                                        className={labelClassName}
+                                    />
+                                    <div className="relative">
+                                        <TextInput
+                                            id="employee-account-password"
+                                            type={
+                                                showPassword
+                                                    ? 'text'
+                                                    : 'password'
+                                            }
+                                            value={data.account_password}
+                                            className={`${inputClassName} pe-11`}
+                                            autoComplete="new-password"
+                                            onChange={(event) =>
+                                                setData(
+                                                    'account_password',
+                                                    event.target.value,
+                                                )
+                                            }
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setShowPassword(
+                                                    (current) => !current,
+                                                )
+                                            }
+                                            className="absolute inset-y-0 end-0 flex items-center px-3 text-muted-foreground transition hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+                                            aria-label={
+                                                showPassword
+                                                    ? 'Hide password'
+                                                    : 'Show password'
+                                            }
+                                        >
+                                            {showPassword ? (
+                                                <EyeOff className="size-4" />
+                                            ) : (
+                                                <Eye className="size-4" />
+                                            )}
+                                        </button>
+                                    </div>
+                                    <InputError
+                                        message={errors.account_password}
+                                    />
+                                </div>
+                                <div className="flex flex-col gap-2">
+                                    <InputLabel
+                                        htmlFor="employee-account-password-confirmation"
+                                        value="Confirm password"
+                                        className={labelClassName}
+                                    />
+                                    <div className="relative">
+                                        <TextInput
+                                            id="employee-account-password-confirmation"
+                                            type={
+                                                showPasswordConfirmation
+                                                    ? 'text'
+                                                    : 'password'
+                                            }
+                                            value={
+                                                data.account_password_confirmation
+                                            }
+                                            className={`${inputClassName} pe-11`}
+                                            autoComplete="new-password"
+                                            onChange={(event) =>
+                                                setData(
+                                                    'account_password_confirmation',
+                                                    event.target.value,
+                                                )
+                                            }
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setShowPasswordConfirmation(
+                                                    (current) => !current,
+                                                )
+                                            }
+                                            className="absolute inset-y-0 end-0 flex items-center px-3 text-muted-foreground transition hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+                                            aria-label={
+                                                showPasswordConfirmation
+                                                    ? 'Hide password confirmation'
+                                                    : 'Show password confirmation'
+                                            }
+                                        >
+                                            {showPasswordConfirmation ? (
+                                                <EyeOff className="size-4" />
+                                            ) : (
+                                                <Eye className="size-4" />
+                                            )}
+                                        </button>
+                                    </div>
+                                    <InputError
+                                        message={
+                                            errors.account_password_confirmation
+                                        }
+                                    />
+                                </div>
+                            </>
+                        )}
+                        </div>
+                    </FormSection>
 
                     <EmployeeRelationsFields
                         data={data}
                         validationErrors={validationErrors}
-                        languages={languages}
-                        professions={professions}
                         skills={skills}
-                        projects={projects}
-                        shiftTypeOptions={shiftTypeOptions}
-                        payBasisOptions={payBasisOptions}
                         inputClassName={inputClassName}
                         labelClassName={labelClassName}
-                        setLanguage={(languageId) =>
-                            setData('language_id', languageId)
-                        }
-                        setProfession={(index, professionId) =>
-                            setRowValue(
-                                `professions.${index}.profession_id`,
-                                professionId,
-                            )
-                        }
                         setSkill={(index, skillId) =>
                             setRowValue(`skills.${index}.skill_id`, skillId)
                         }
-                        setAssignment={(index, field, value) =>
-                            setRowValue(
-                                `project_assignments.${index}.${field}`,
-                                value,
-                            )
-                        }
-                        setShift={(index, field, value) =>
-                            setRowValue(`skill_shifts.${index}.${field}`, value)
-                        }
-                        setShiftUnion={(index, isUnionMember) => {
-                            setRowValue(
-                                `skill_shifts.${index}.is_union_member`,
-                                isUnionMember,
-                            );
-
-                            if (!isUnionMember) {
-                                setRowValue(
-                                    `skill_shifts.${index}.union_rate`,
-                                    '',
-                                );
-                            }
-                        }}
-                        addProfession={() =>
-                            appendProfession({ profession_id: '' })
-                        }
-                        removeProfession={removeProfession}
-                        addSkill={() => appendSkill({ skill_id: '' })}
-                        removeSkill={removeSkill}
-                        addAssignment={() =>
-                            appendAssignment({
-                                project_id: '',
-                                work_date: '',
-                                notes: '',
-                            })
-                        }
-                        removeAssignment={removeAssignment}
-                        addShift={() =>
-                            appendShift({
+                        rateTypeOptions={rateTypeOptions}
+                        setSkillRate={setSkillRate}
+                        addSkillRate={addSkillRate}
+                        removeSkillRate={removeSkillRate}
+                        addSkill={() =>
+                            appendSkill({
                                 skill_id: '',
-                                shift_type: 'full_day',
-                                pay_basis: 'hourly',
-                                amount: '',
-                                is_union_member: false,
-                                union_rate: '',
-                                notes: '',
+                                rates: [emptySkillRate()],
                             })
                         }
-                        removeShift={removeShift}
+                        removeSkill={removeSkill}
                     />
 
-                    <section className="flex flex-col gap-4 rounded-xl border border-border bg-muted/20 p-4">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                                <h3 className="text-base font-semibold text-foreground">
-                                    Pay rates
-                                </h3>
-                                <p className="text-sm text-muted-foreground">
-                                    Add one or more rates for each profession,
-                                    such as hourly, daily, overtime, or custom.
-                                </p>
-                            </div>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={addPayRate}
-                                className="w-full sm:w-auto"
-                            >
-                                <PlusIcon className="size-4" />
-                                Add pay rate
-                            </Button>
+
+                    <FormSection
+                        title="Notes"
+                        description="Optional details that do not belong in the fields above."
+                    >
+                        <div className="flex flex-col gap-2">
+                            <InputLabel
+                                htmlFor="employee-notes"
+                                value="Notes"
+                                className={labelClassName}
+                            />
+                            <textarea
+                                id="employee-notes"
+                                value={data.notes}
+                                rows={4}
+                                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
+                                onChange={(event) =>
+                                    setData('notes', event.target.value)
+                                }
+                            />
+                            <InputError message={errors.notes} />
                         </div>
-
-                        {payRateFields.length === 0 ? (
-                            <div className="rounded-lg border border-dashed border-border bg-background/60 p-4 text-sm text-muted-foreground">
-                                No pay rates added yet.
-                            </div>
-                        ) : (
-                            <div className="flex flex-col gap-4">
-                                {payRateFields.map((field, index) => {
-                                    const payRate = data.pay_rates[index];
-
-                                    return (
-                                        <div
-                                            key={field.id}
-                                            className="grid min-w-0 gap-4 rounded-lg border border-border bg-background p-4 shadow-sm xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,0.8fr)_auto]"
-                                        >
-                                            <ProfessionSelect
-                                                id={`employee-pay-rate-profession-${index}`}
-                                                value={
-                                                    payRate?.profession_id ?? ''
-                                                }
-                                                professions={professions}
-                                                error={errorMessage(
-                                                    validationErrors,
-                                                    `pay_rates.${index}.profession_id`,
-                                                )}
-                                                onChange={(professionId) =>
-                                                    setPayRateData(
-                                                        index,
-                                                        'profession_id',
-                                                        professionId,
-                                                    )
-                                                }
-                                            />
-
-                                            <div className="flex flex-col gap-2">
-                                                <InputLabel
-                                                    htmlFor={`employee-pay-rate-type-${index}`}
-                                                    value="Rate type"
-                                                    className={labelClassName}
-                                                />
-                                                <select
-                                                    id={`employee-pay-rate-type-${index}`}
-                                                    value={
-                                                        payRate?.rate_type ??
-                                                        'hourly'
-                                                    }
-                                                    onChange={(event) =>
-                                                        setPayRateData(
-                                                            index,
-                                                            'rate_type',
-                                                            event.target.value,
-                                                        )
-                                                    }
-                                                    className="h-11 rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
-                                                >
-                                                    {Object.entries(
-                                                        rateTypeOptions,
-                                                    ).map(([value, label]) => (
-                                                        <option
-                                                            key={value}
-                                                            value={value}
-                                                        >
-                                                            {label}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                                <InputError
-                                                    message={errorMessage(
-                                                        validationErrors,
-                                                        `pay_rates.${index}.rate_type`,
-                                                    )}
-                                                />
-                                            </div>
-
-                                            <div className="flex flex-col gap-2">
-                                                <InputLabel
-                                                    htmlFor={`employee-pay-rate-amount-${index}`}
-                                                    value="Amount"
-                                                    className={labelClassName}
-                                                />
-                                                <MoneyInput
-                                                    id={`employee-pay-rate-amount-${index}`}
-                                                    value={
-                                                        payRate?.amount ?? ''
-                                                    }
-                                                    className={inputClassName}
-                                                    placeholder="0.00"
-                                                    onValueChange={(value) =>
-                                                        setPayRateData(
-                                                            index,
-                                                            'amount',
-                                                            value,
-                                                        )
-                                                    }
-                                                />
-                                                <InputError
-                                                    message={errorMessage(
-                                                        validationErrors,
-                                                        `pay_rates.${index}.amount`,
-                                                    )}
-                                                />
-                                            </div>
-
-                                            <div className="flex items-start lg:pt-7">
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    onClick={() =>
-                                                        remove(index)
-                                                    }
-                                                    className="w-full border-rose-200 text-rose-700 hover:bg-rose-50 dark:border-rose-900/70 dark:text-rose-300 dark:hover:bg-rose-950/30 lg:w-auto"
-                                                    aria-label="Remove pay rate"
-                                                >
-                                                    <Trash2Icon className="size-4" />
-                                                    Remove
-                                                </Button>
-                                            </div>
-
-                                            {payRate?.rate_type ===
-                                                'custom' && (
-                                                <div className="flex flex-col gap-2 lg:col-span-2">
-                                                    <InputLabel
-                                                        htmlFor={`employee-pay-rate-custom-${index}`}
-                                                        value="Custom rate type"
-                                                        className={
-                                                            labelClassName
-                                                        }
-                                                    />
-                                                    <TextInput
-                                                        id={`employee-pay-rate-custom-${index}`}
-                                                        value={
-                                                            payRate.custom_rate_type
-                                                        }
-                                                        className={
-                                                            inputClassName
-                                                        }
-                                                        placeholder="Example: Weekend emergency"
-                                                        onChange={(event) =>
-                                                            setPayRateData(
-                                                                index,
-                                                                'custom_rate_type',
-                                                                event.target
-                                                                    .value,
-                                                            )
-                                                        }
-                                                    />
-                                                    <InputError
-                                                        message={errorMessage(
-                                                            validationErrors,
-                                                            `pay_rates.${index}.custom_rate_type`,
-                                                        )}
-                                                    />
-                                                </div>
-                                            )}
-
-                                            <div className="flex flex-col gap-2 lg:col-span-2">
-                                                <InputLabel
-                                                    htmlFor={`employee-pay-rate-notes-${index}`}
-                                                    value="Rate notes"
-                                                    className={labelClassName}
-                                                />
-                                                <TextInput
-                                                    id={`employee-pay-rate-notes-${index}`}
-                                                    value={payRate?.notes ?? ''}
-                                                    className={inputClassName}
-                                                    placeholder="Optional notes"
-                                                    onChange={(event) =>
-                                                        setPayRateData(
-                                                            index,
-                                                            'notes',
-                                                            event.target.value,
-                                                        )
-                                                    }
-                                                />
-                                                <InputError
-                                                    message={errorMessage(
-                                                        validationErrors,
-                                                        `pay_rates.${index}.notes`,
-                                                    )}
-                                                />
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </section>
-
-                    <div className="flex flex-col gap-2">
-                        <InputLabel
-                            htmlFor="employee-notes"
-                            value="Notes"
-                            className={labelClassName}
-                        />
-                        <textarea
-                            id="employee-notes"
-                            value={data.notes}
-                            rows={5}
-                            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
-                            onChange={(event) =>
-                                setData('notes', event.target.value)
-                            }
-                        />
-                        <InputError message={errors.notes} />
-                    </div>
+                    </FormSection>
                 </form>
             </CardContent>
         </Card>

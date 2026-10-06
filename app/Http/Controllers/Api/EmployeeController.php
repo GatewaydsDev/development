@@ -9,6 +9,7 @@ use App\Models\Language;
 use App\Models\Profession;
 use App\Models\Skill;
 use App\Models\User;
+use App\Support\EmployeeAccess;
 use App\Support\EmployeeListVersion;
 use App\Support\SkillListVersion;
 use App\Support\UserPrivileges;
@@ -24,7 +25,7 @@ class EmployeeController extends Controller
         $search = (string) $request->query('search', '');
         $perPage = min(100, max(1, $request->integer('per_page', 15)));
 
-        $employees = Employee::query()
+        $employees = EmployeeAccess::scopeVisibleEmployees(Employee::query(), $user)
             ->with($this->admin()->employeeRelations())
             ->when($search !== '', function ($query) use ($search): void {
                 $query->where(function ($query) use ($search): void {
@@ -37,7 +38,8 @@ class EmployeeController extends Controller
                         ->orWhereHas('professions', fn ($query) => $query->where('name', 'like', "%{$search}%"))
                         ->orWhereHas('skills', fn ($query) => $query->where('name', 'like', "%{$search}%"))
                         ->orWhereHas('languagePreference.language', fn ($query) => $query->where('name', 'like', "%{$search}%"))
-                        ->orWhereHas('projectAssignments.project', fn ($query) => $query->where('name', 'like', "%{$search}%"));
+                        ->orWhereHas('projectAssignments.project', fn ($query) => $query->where('name', 'like', "%{$search}%"))
+                        ->orWhereHas('foreman', fn ($query) => $query->where('name', 'like', "%{$search}%"));
                 });
             })
             ->latest()
@@ -169,6 +171,7 @@ class EmployeeController extends Controller
     public function show(Request $request, Employee $employee): JsonResponse
     {
         $user = $this->authorizeEmployee($request, 'view-employees');
+        EmployeeAccess::ensureCanViewEmployee($user, $employee);
 
         return response()->json([
             'employee' => $this->admin()->employeePayload($employee),
@@ -179,6 +182,7 @@ class EmployeeController extends Controller
     public function update(Request $request, Employee $employee): JsonResponse
     {
         $user = $this->authorizeEmployee($request, 'update-employees');
+        EmployeeAccess::ensureCanViewEmployee($user, $employee);
         $employee = $this->admin()->saveEmployee($request, $employee);
 
         return response()->json([
@@ -189,7 +193,8 @@ class EmployeeController extends Controller
 
     public function destroy(Request $request, Employee $employee): JsonResponse
     {
-        $this->authorizeEmployee($request, 'delete-employees');
+        $user = $this->authorizeEmployee($request, 'delete-employees');
+        EmployeeAccess::ensureCanViewEmployee($user, $employee);
 
         $employee->delete();
 

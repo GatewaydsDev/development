@@ -9,7 +9,9 @@ use App\Http\Controllers\Admin\ContactController;
 use App\Http\Controllers\Admin\ContractorController;
 use App\Http\Controllers\Admin\DocumentSettingController;
 use App\Http\Controllers\Admin\EditorImageController;
+use App\Http\Controllers\Admin\EmployeeAttendanceController;
 use App\Http\Controllers\Admin\EmployeeController;
+use App\Http\Controllers\Admin\EmployeeWorkScheduleController;
 use App\Http\Controllers\Admin\LanguageController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ProfessionController;
@@ -192,6 +194,52 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::get('/contractor-contacts/availability', [ContractorController::class, 'contactAvailability'])
             ->name('contractor-contacts.availability');
 
+        Route::get('/employees/schedules', [EmployeeWorkScheduleController::class, 'index'])
+            ->middleware('can:view-employees')
+            ->name('employee-schedules.index');
+        Route::get('/employees/schedules/create', [EmployeeWorkScheduleController::class, 'create'])
+            ->middleware('can:create-employees')
+            ->name('employee-schedules.create');
+        Route::post('/employees/schedules', [EmployeeWorkScheduleController::class, 'store'])
+            ->middleware('can:create-employees')
+            ->name('employee-schedules.store');
+        Route::get('/employees/schedules/{schedule}/edit', [EmployeeWorkScheduleController::class, 'edit'])
+            ->middleware('can:update-employees')
+            ->name('employee-schedules.edit');
+        Route::patch('/employees/schedules/{schedule}', [EmployeeWorkScheduleController::class, 'update'])
+            ->middleware('can:update-employees')
+            ->name('employee-schedules.update');
+        Route::delete('/employees/schedules/{schedule}', [EmployeeWorkScheduleController::class, 'destroy'])
+            ->middleware('can:delete-employees')
+            ->name('employee-schedules.destroy');
+
+        Route::get('/employees/attendance', [EmployeeAttendanceController::class, 'index'])
+            ->middleware('can:view-employees')
+            ->name('employee-attendance.index');
+        Route::get('/employees/attendance/create', [EmployeeAttendanceController::class, 'create'])
+            ->middleware('can:create-employees')
+            ->name('employee-attendance.create');
+        Route::post('/employees/attendance', [EmployeeAttendanceController::class, 'store'])
+            ->middleware('can:create-employees')
+            ->name('employee-attendance.store');
+        Route::get('/employees/attendance/bulk', [EmployeeAttendanceController::class, 'bulkCreate'])
+            ->middleware('can:create-employees')
+            ->name('employee-attendance.bulk');
+        Route::post('/employees/attendance/bulk', [EmployeeAttendanceController::class, 'bulkStore'])
+            ->middleware('can:create-employees')
+            ->name('employee-attendance.bulk.store');
+        Route::get('/employees/attendance/{attendanceWeek}/edit', [EmployeeAttendanceController::class, 'edit'])
+            ->middleware('can:update-employees')
+            ->name('employee-attendance.edit');
+        Route::patch('/employees/attendance/{attendanceWeek}', [EmployeeAttendanceController::class, 'update'])
+            ->middleware('can:update-employees')
+            ->name('employee-attendance.update');
+        Route::delete('/employees/attendance/{attendanceWeek}', [EmployeeAttendanceController::class, 'destroy'])
+            ->middleware('can:delete-employees')
+            ->name('employee-attendance.destroy');
+
+        Route::get('/employees/email-availability', [EmployeeController::class, 'emailAvailability'])
+            ->name('employees.email-availability');
         Route::get('/employees', [EmployeeController::class, 'index'])
             ->middleware('can:view-employees')
             ->name('employees.index');
@@ -460,6 +508,8 @@ Route::middleware(['auth', 'prevent-back-history', 'can:manage-access'])
     ->group(function () {
         Route::get('/access-control', [AccessControlController::class, 'edit'])
             ->name('access-control.edit');
+        Route::post('/access-control/levels', [AccessControlController::class, 'store'])
+            ->name('access-control.levels.store');
         Route::patch('/access-control', [AccessControlController::class, 'update'])
             ->name('access-control.update');
     });

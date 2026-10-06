@@ -19,6 +19,10 @@ class UserLevel extends Model
 
     public const ADMIN = 'Admin';
 
+    public const FOREMAN = 'Foreman';
+
+    public const EMPLOYEE = 'Employee';
+
     public const PROJECT_MANAGER = 'Project Manager';
 
     public const USER = 'User';

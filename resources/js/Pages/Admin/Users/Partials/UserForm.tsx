@@ -3,6 +3,9 @@ import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
 import UserAvatar from '@/Components/UserAvatar';
+import UserLevelSelect, {
+    type AccessPermission,
+} from '@/Components/UserLevelSelect';
 import {
     Card,
     CardContent,
@@ -40,6 +43,8 @@ type UserFormProps = {
     userId?: number;
     levels: Level[];
     languages: Language[];
+    accessPermissions?: AccessPermission[];
+    canCreateUserLevel?: boolean;
     submitLabel: string;
     title: string;
     description: string;
@@ -107,6 +112,8 @@ export default function UserForm({
     userId,
     levels,
     languages,
+    accessPermissions = [],
+    canCreateUserLevel = false,
     submitLabel,
     title,
     description,
@@ -407,29 +414,16 @@ export default function UserForm({
                         </div>
                     </div>
 
-                    <div className="flex flex-col gap-2">
-                        <InputLabel
-                            htmlFor="level_id"
-                            value="User level"
-                            className="text-emerald-700 dark:text-emerald-300"
-                        />
-                        <select
-                            id="level_id"
-                            value={data.level_id}
-                            onChange={(event) =>
-                                setData('level_id', event.target.value)
-                            }
-                            className="h-11 rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
-                        >
-                            <option value="">Select a user level</option>
-                            {levels.map((level) => (
-                                <option key={level.id} value={level.id}>
-                                    {level.name}
-                                </option>
-                            ))}
-                        </select>
-                        <InputError message={errors.level_id} />
-                    </div>
+                    <UserLevelSelect
+                        id="level_id"
+                        value={data.level_id}
+                        levels={levels}
+                        permissions={accessPermissions}
+                        canCreate={canCreateUserLevel}
+                        emptyLabel="Select a user level"
+                        error={errors.level_id}
+                        onChange={(levelId) => setData('level_id', levelId)}
+                    />
 
                     <div className="grid gap-5 md:grid-cols-2">
                         <div className="flex flex-col gap-2">
