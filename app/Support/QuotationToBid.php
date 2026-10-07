@@ -11,6 +11,7 @@ use App\Models\BidScopeTitle;
 use App\Models\BidStage;
 use App\Models\BidStageType;
 use App\Models\Quotation;
+use App\Models\QuotationProductField;
 use App\Models\QuotationLineItem;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -20,19 +21,36 @@ class QuotationToBid
 {
     public static function convert(Quotation $quotation, User $user): Bid
     {
-        $quotation->loadMissing(['lineItems', 'project', 'convertedBid', 'revisions']);
-
-        if ($quotation->convertedBid) {
-            return $quotation->convertedBid;
-        }
-
-        if (! $quotation->project_id || ! $quotation->project) {
-            throw ValidationException::withMessages([
-                'project_id' => 'This quotation needs a project before it can become a bid.',
-            ]);
-        }
-
         return DB::transaction(function () use ($quotation, $user): Bid {
+            $quotation = Quotation::query()
+                ->whereKey($quotation->getKey())
+                ->lockForUpdate()
+                ->with([
+                    'lineItems',
+                    'project',
+                    'convertedBid',
+                    'bids',
+                    'revisions',
+                    'contacts',
+                    'tables.fields.field',
+                    'tables.fields.product',
+                    'productFields.field',
+                    'productFields.product',
+                ])
+                ->firstOrFail();
+
+            $existingBid = $quotation->convertedBid ?? $quotation->bids->first();
+
+            if ($existingBid) {
+                return $existingBid;
+            }
+
+            if (! $quotation->project_id || ! $quotation->project) {
+                throw ValidationException::withMessages([
+                    'project_id' => 'This quotation needs a project before it can become a bid.',
+                ]);
+            }
+
             $project = $quotation->project;
 
             if ($quotation->contractor_id) {
@@ -43,13 +61,13 @@ class QuotationToBid
 
             $total = $quotation->total();
             $lineItemsHtml = static::lineItemsHtml($quotation);
-            $intro = '<p>Created from quotation '.e($quotation->quotation_number).' — '.e($quotation->title).'.</p>';
+            $scopeHtml = static::quotationScopeHtml($quotation, $lineItemsHtml);
 
             $bid = Bid::query()->create([
                 'project_id' => $quotation->project_id,
                 'quotation_id' => $quotation->id,
-                'notes' => static::proposalHtml($quotation->notes),
-                'scope_of_work_text' => $intro.$lineItemsHtml,
+                'notes' => static::proposalHtml($quotation),
+                'scope_of_work_text' => $scopeHtml,
                 'created_by' => $user->id,
             ]);
 
@@ -81,7 +99,7 @@ class QuotationToBid
                 'bid_id' => $bid->id,
                 'name' => 'Imported from '.$quotation->quotation_number,
                 'revision_date' => $quotation->quoted_at?->toDateString() ?: now()->toDateString(),
-                'notes' => $quotation->title,
+                'notes' => static::pricingNotes($quotation),
                 'sort_order' => 0,
             ]);
 
@@ -190,21 +208,130 @@ class QuotationToBid
         return BidScopeTitle::query()->create(['name' => $name])->id;
     }
 
-    private static function proposalHtml(?string $notes): ?string
+    private static function proposalHtml(Quotation $quotation): ?string
     {
+        $notes = $quotation->notes;
+
         if (! is_string($notes) || trim($notes) === '') {
             return null;
         }
 
+        $heading = trim((string) $quotation->proposal_title);
+        $headingHtml = $heading !== ''
+            ? '<h2>'.e($heading).'</h2>'
+            : '';
+
         if (strip_tags($notes) === $notes) {
-            return BidApplicationText::plainTextToHtml($notes);
+            return BidApplicationText::sanitize(
+                $headingHtml.BidApplicationText::plainTextToHtml($notes),
+            );
         }
 
-        $sanitized = BidApplicationText::sanitize($notes);
+        $sanitized = BidApplicationText::sanitize($headingHtml.$notes);
 
         return $sanitized && ! BidApplicationText::isEmpty($sanitized)
             ? $sanitized
             : null;
+    }
+
+    private static function quotationScopeHtml(Quotation $quotation, string $lineItemsHtml): string
+    {
+        $details = array_filter([
+            'Status: '.Quotation::statusLabel($quotation->status),
+            $quotation->quoted_at ? 'Quoted on: '.$quotation->quoted_at->format('F j, Y') : null,
+            $quotation->valid_until ? 'Valid until: '.$quotation->valid_until->format('F j, Y') : null,
+            $quotation->project_amount !== null
+                ? 'Total project amount: $'.number_format((float) $quotation->project_amount, 2)
+                : null,
+            $quotation->contacts->isNotEmpty()
+                ? 'Contacts: '.$quotation->contacts->pluck('name')->filter()->implode(', ')
+                : null,
+        ]);
+
+        $parts = [
+            '<p>Created from quotation '.e($quotation->quotation_number).' — '.e($quotation->title).'.</p>',
+            $details !== []
+                ? '<p>'.implode('<br>', array_map('e', $details)).'</p>'
+                : '',
+            $lineItemsHtml,
+        ];
+
+        $pricingBasis = BidApplicationText::sanitize($quotation->pricing_basis);
+        $pricingConditions = BidApplicationText::sanitize($quotation->pricing_conditions);
+
+        if ($pricingBasis) {
+            $parts[] = '<h2>Pricing basis</h2>'.$pricingBasis;
+        }
+
+        if ($pricingConditions) {
+            $parts[] = '<h2>Quotation details</h2>'.$pricingConditions;
+        }
+
+        $tableHtml = static::quotationTablesHtml($quotation);
+
+        if ($tableHtml !== '') {
+            $parts[] = $tableHtml;
+        }
+
+        return BidApplicationText::sanitize(implode('', array_filter($parts))) ?? '';
+    }
+
+    private static function quotationTablesHtml(Quotation $quotation): string
+    {
+        $tables = $quotation->tables
+            ->map(function ($table): string {
+                $rows = $table->fields
+                    ->map(fn (QuotationProductField $field): string => static::quotationFieldRow($field))
+                    ->filter()
+                    ->implode('');
+
+                if ($rows === '') {
+                    return '';
+                }
+
+                $heading = filled($table->title)
+                    ? '<h3>'.e($table->title).'</h3>'
+                    : '';
+
+                return $heading.'<table><tbody>'.$rows.'</tbody></table>';
+            })
+            ->filter()
+            ->implode('');
+
+        $unassignedRows = $quotation->productFields
+            ->whereNull('quotation_table_id')
+            ->map(fn (QuotationProductField $field): string => static::quotationFieldRow($field))
+            ->filter()
+            ->implode('');
+
+        return $tables.($unassignedRows !== '' ? '<table><tbody>'.$unassignedRows.'</tbody></table>' : '');
+    }
+
+    private static function quotationFieldRow(QuotationProductField $field): string
+    {
+        $name = $field->field?->name ?: ($field->product?->name ? 'Product' : 'Field');
+        $value = trim((string) $field->value) ?: (string) ($field->product?->name ?? '');
+
+        if ($value === '') {
+            return '';
+        }
+
+        return '<tr><td><strong>'.e($name).'</strong></td><td>'.e($value).'</td></tr>';
+    }
+
+    private static function pricingNotes(Quotation $quotation): string
+    {
+        $notes = [
+            'Quotation title: '.$quotation->title,
+            $quotation->project_amount !== null
+                ? 'Total project amount: $'.number_format((float) $quotation->project_amount, 2)
+                : null,
+            $quotation->valid_until
+                ? 'Valid until: '.$quotation->valid_until->format('F j, Y')
+                : null,
+        ];
+
+        return implode("\n", array_filter($notes));
     }
 
     private static function lineAmount(QuotationLineItem $item): ?float

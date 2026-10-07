@@ -184,11 +184,13 @@ class QuotationController extends Controller
         abort_unless(QuotationAccess::canView($request->user()), 403);
         abort_unless(BidAccess::canCreate($request->user()), 403);
 
-        $quotation->load(['lineItems', 'convertedBid']);
+        $quotation->load(['lineItems', 'convertedBid', 'bids']);
 
-        if ($quotation->convertedBid) {
+        $existingBid = $quotation->convertedBid ?? $quotation->bids->first();
+
+        if ($existingBid) {
             return redirect()
-                ->route('admin.bids.edit', $quotation->convertedBid)
+                ->route('admin.bids.edit', $existingBid)
                 ->with('success', 'This quotation already has a bid. We opened it for you.');
         }
 
@@ -196,7 +198,7 @@ class QuotationController extends Controller
 
         return redirect()
             ->route('admin.bids.edit', $bid)
-            ->with('success', 'Your bid is ready. Review the details, then save when everything looks good. The quotation is still on file and linked to this bid.');
+            ->with('success', 'Your bid is ready. Review the imported quotation information, then save when everything looks good. The quotation is still on file and linked to this bid.');
     }
 
     public function print(Request $request, Quotation $quotation): HttpResponse
@@ -592,7 +594,7 @@ class QuotationController extends Controller
     public function listingQuery(string $search)
     {
         return Quotation::query()
-            ->with(['contractor.contacts', 'contacts', 'project', 'lineItems', 'convertedBid'])
+            ->with(['contractor.contacts', 'contacts', 'project', 'lineItems', 'convertedBid', 'bids'])
             ->when($search !== '', function ($query) use ($search): void {
                 $query->where(function ($query) use ($search): void {
                     $query
@@ -617,12 +619,13 @@ class QuotationController extends Controller
      */
     public function quotationPayload(Quotation $quotation, bool $summary = false): array
     {
-        $quotation->loadMissing(['contractor.contacts', 'contacts', 'project', 'lineItems', 'convertedBid', 'creator:id,name,signature_path', 'revisions.user:id,name', 'tables.fields.field', 'tables.fields.product', 'productFields.field', 'productFields.product']);
+        $quotation->loadMissing(['contractor.contacts', 'contacts', 'project', 'lineItems', 'convertedBid', 'bids', 'creator:id,name,signature_path', 'revisions.user:id,name', 'tables.fields.field', 'tables.fields.product', 'productFields.field', 'productFields.product']);
 
         $contractor = $quotation->contractor;
         $selectedContacts = $quotation->contacts;
         $contact = $selectedContacts->first() ?? $contractor?->primaryContact();
         $project = $quotation->project;
+        $linkedBid = $quotation->convertedBid ?? $quotation->bids->first();
 
         $payload = [
             'id' => $quotation->id,
@@ -674,9 +677,9 @@ class QuotationController extends Controller
                     $project->site_country,
                 ])->filter()->implode(', ') ?: null,
             ] : null,
-            'converted_bid' => $quotation->convertedBid ? [
-                'id' => $quotation->convertedBid->id,
-                'uuid' => $quotation->convertedBid->uuid,
+            'converted_bid' => $linkedBid ? [
+                'id' => $linkedBid->id,
+                'uuid' => $linkedBid->uuid,
             ] : null,
         ];
 
