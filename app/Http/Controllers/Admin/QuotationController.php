@@ -1034,7 +1034,12 @@ class QuotationController extends Controller
             /** @var Collection<int, Quotation> $groupQuotations */
             $groupQuotations = $statusGroups->get($statusKey, collect());
             $count = $groupQuotations->count();
-            $totalAmount = round((float) $groupQuotations->sum(fn (Quotation $quotation): float => $quotation->total()), 2);
+            $totalAmount = round(
+                (float) $groupQuotations->sum(
+                    fn (Quotation $quotation): float => $this->quotationListAmount($quotation),
+                ),
+                2,
+            );
 
             return [
                 'status' => Quotation::statusLabel($statusKey),
@@ -1045,7 +1050,12 @@ class QuotationController extends Controller
             ];
         })->values()->all();
 
-        $overallTotalAmount = round((float) $allQuotations->sum(fn (Quotation $quotation): float => $quotation->total()), 2);
+        $overallTotalAmount = round(
+            (float) $allQuotations->sum(
+                fn (Quotation $quotation): float => $this->quotationListAmount($quotation),
+            ),
+            2,
+        );
 
         return [
             'statuses' => $statuses,
@@ -1053,5 +1063,10 @@ class QuotationController extends Controller
             'total_amount' => $overallTotalAmount,
             'formatted_total_amount' => '$'.number_format($overallTotalAmount, 2),
         ];
+    }
+
+    private function quotationListAmount(Quotation $quotation): float
+    {
+        return (float) ($quotation->project_amount ?? $quotation->total());
     }
 }

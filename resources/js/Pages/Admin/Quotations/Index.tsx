@@ -134,7 +134,9 @@ export default function Index({
     };
 
     const rowGridClassName =
-        'lg:grid-cols-[minmax(9.5rem,1fr)_minmax(11rem,1.2fr)_minmax(11rem,1.2fr)_7rem_7.5rem_minmax(12.5rem,auto)]';
+        'lg:grid-cols-[minmax(9.5rem,1fr)_minmax(11rem,1.2fr)_minmax(11rem,1.2fr)_7rem_9rem_minmax(12.5rem,auto)]';
+    const desktopAmountClassName =
+        'flex w-full min-w-0 justify-end whitespace-nowrap tabular-nums';
 
     return (
         <AuthenticatedLayout
@@ -236,19 +238,21 @@ export default function Index({
 
                         <CardContent>
                             <div className="overflow-x-auto rounded-lg border border-border">
-                                <div className="min-w-full lg:min-w-[62rem]">
+                                <div className="min-w-full lg:min-w-[65rem]">
                                     <div
                                         className={cn(
                                             'hidden items-center gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:grid',
                                             rowGridClassName,
                                         )}
                                     >
-                                        <div>Number</div>
-                                        <div>Quoted for</div>
-                                        <div>Project</div>
-                                        <div>Status</div>
-                                        <div className="lg:text-right">Total</div>
-                                        <div className="lg:text-right">Actions</div>
+                                        <div className="lg:col-start-1">Number</div>
+                                        <div className="lg:col-start-2">Quoted for</div>
+                                        <div className="lg:col-start-3">Project</div>
+                                        <div className="lg:col-start-4">Status</div>
+                                        <div className="flex justify-end whitespace-nowrap lg:col-start-5">
+                                            Total
+                                        </div>
+                                        <div className="lg:col-start-6 lg:text-right">Actions</div>
                                     </div>
 
                                     {quotations.data.length > 0 ? (
@@ -263,7 +267,7 @@ export default function Index({
                                                         'bg-emerald-50 dark:bg-emerald-950/30',
                                                 )}
                                             >
-                                                <div className="min-w-0">
+                                                <div className="min-w-0 lg:col-start-1">
                                                     <DirectoryFieldLabel>Number</DirectoryFieldLabel>
                                                     <p className="font-semibold text-foreground">
                                                         {quotation.quotation_number}
@@ -277,7 +281,7 @@ export default function Index({
                                                         </p>
                                                     ) : null}
                                                 </div>
-                                                <div className="min-w-0">
+                                                <div className="min-w-0 lg:col-start-2">
                                                     <DirectoryFieldLabel>
                                                         {quotation.contractor
                                                             ?.role_label ||
@@ -292,7 +296,7 @@ export default function Index({
                                                         </p>
                                                     ) : null}
                                                 </div>
-                                                <div className="min-w-0">
+                                                <div className="min-w-0 lg:col-start-3">
                                                     <DirectoryFieldLabel>Project</DirectoryFieldLabel>
                                                     {quotation.project ? (
                                                         <>
@@ -311,7 +315,7 @@ export default function Index({
                                                         </span>
                                                     )}
                                                 </div>
-                                                <div className="min-w-0">
+                                                <div className="min-w-0 lg:col-start-4">
                                                     <DirectoryFieldLabel>Status</DirectoryFieldLabel>
                                                     <Badge
                                                         variant="outline"
@@ -322,11 +326,21 @@ export default function Index({
                                                         {quotation.status_label}
                                                     </Badge>
                                                 </div>
-                                                <div className="min-w-0 font-semibold tabular-nums text-foreground lg:text-right">
+                                                <div
+                                                    className={cn(
+                                                        desktopAmountClassName,
+                                                        'font-semibold text-foreground lg:col-start-5',
+                                                    )}
+                                                >
                                                     <DirectoryFieldLabel>Total</DirectoryFieldLabel>
-                                                    {formatMoney(quotation.total)}
+                                                    <span className="flex w-full justify-end whitespace-nowrap">
+                                                        {formatMoney(
+                                                            quotation.project_amount ??
+                                                                quotation.total,
+                                                        )}
+                                                    </span>
                                                 </div>
-                                                <div className="flex min-w-0 flex-col gap-1 lg:items-end">
+                                                <div className="flex min-w-0 flex-col gap-1 lg:col-start-6 lg:items-end">
                                                     <DirectoryFieldLabel>Actions</DirectoryFieldLabel>
                                                     <div className="flex flex-wrap items-center gap-1.5 lg:justify-end">
                                                         <ActionHint hint="Print this quotation">
@@ -536,7 +550,7 @@ export default function Index({
                                                     rowGridClassName,
                                                 )}
                                             >
-                                                <div className="col-span-3 flex items-center gap-2">
+                                                <div className="col-span-3 col-start-1 flex items-center gap-2">
                                                     <Badge
                                                         variant="outline"
                                                         className={cn('font-medium', statusBadgeClassName(status.status_key))}
@@ -544,11 +558,16 @@ export default function Index({
                                                         {status.status}
                                                     </Badge>
                                                 </div>
-                                                <div className="min-w-0 text-right text-sm text-muted-foreground">
+                                                <div className="col-start-4 flex min-w-0 justify-end whitespace-nowrap text-right text-sm text-muted-foreground">
                                                     {status.count}{' '}
                                                     {status.count === 1 ? 'quotation' : 'quotations'}
                                                 </div>
-                                                <div className="col-span-2 min-w-0 text-right font-semibold tabular-nums text-foreground">
+                                                <div
+                                                    className={cn(
+                                                        desktopAmountClassName,
+                                                        'col-start-5 font-semibold text-foreground',
+                                                    )}
+                                                >
                                                     {status.formatted_total}
                                                 </div>
                                             </div>
@@ -559,14 +578,19 @@ export default function Index({
                                                 rowGridClassName,
                                             )}
                                         >
-                                            <div className="col-span-3 font-bold text-foreground">
+                                            <div className="col-span-3 col-start-1 font-bold text-foreground">
                                                 Total
                                             </div>
-                                            <div className="min-w-0 text-right text-sm font-semibold text-muted-foreground">
+                                            <div className="col-start-4 flex min-w-0 justify-end whitespace-nowrap text-right text-sm font-semibold text-muted-foreground">
                                                 {summary.total_count}{' '}
                                                 {summary.total_count === 1 ? 'quotation' : 'quotations'}
                                             </div>
-                                            <div className="col-span-2 min-w-0 text-right text-base font-bold tabular-nums text-emerald-700 dark:text-emerald-400">
+                                            <div
+                                                className={cn(
+                                                    desktopAmountClassName,
+                                                    'col-start-5 text-base font-bold text-emerald-700 dark:text-emerald-400',
+                                                )}
+                                            >
                                                 {summary.formatted_total_amount}
                                             </div>
                                         </div>

@@ -727,6 +727,7 @@ test('quotation list includes status summarization breakdown and totals', functi
         'title' => 'Draft quote 1',
         'status' => 'draft',
         'quoted_at' => '2026-09-15',
+        'project_amount' => 3500.00,
         'created_by' => $admin->id,
     ]);
     $q1->lineItems()->create([
@@ -771,17 +772,21 @@ test('quotation list includes status summarization breakdown and totals', functi
             ->component('Admin/Quotations/Index')
             ->has('summary')
             ->where('summary.total_count', 3)
-            ->where('summary.total_amount', 8000)
-            ->where('summary.formatted_total_amount', '$8,000.00')
+            ->where('summary.total_amount', 10000)
+            ->where('summary.formatted_total_amount', '$10,000.00')
             ->has('summary.statuses', 2)
             ->where('summary.statuses.0.status', 'Draft')
             ->where('summary.statuses.0.count', 2)
-            ->where('summary.statuses.0.total_amount', 4000)
-            ->where('summary.statuses.0.formatted_total', '$4,000.00')
+            ->where('summary.statuses.0.total_amount', 6000)
+            ->where('summary.statuses.0.formatted_total', '$6,000.00')
             ->where('summary.statuses.1.status', 'Sent')
             ->where('summary.statuses.1.count', 1)
             ->where('summary.statuses.1.total_amount', 4000)
             ->where('summary.statuses.1.formatted_total', '$4,000.00')
+            ->where('quotations.data', fn ($rows) => collect($rows)->contains(
+                fn (array $row): bool => $row['project_amount'] === '3500.00'
+                    && (float) $row['total'] === 1500.0,
+            ))
         );
 });
 
