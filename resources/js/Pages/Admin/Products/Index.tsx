@@ -137,7 +137,7 @@ export default function Index({ filters, options, products }: IndexProps) {
 
             <div className="py-6 sm:py-8">
                 <div className="mx-auto flex max-w-[96rem] flex-col gap-6 px-4 sm:px-6 lg:px-8">
-                    <div className="grid gap-4 md:grid-cols-3">
+                    <div className="grid gap-4 md:ml-auto md:w-full md:max-w-sm">
                         <Card>
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
