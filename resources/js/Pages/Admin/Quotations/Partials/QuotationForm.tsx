@@ -2,6 +2,7 @@ import CreatableSelect from '@/Components/CreatableSelect';
 import FormActionFab from '@/Components/FormActionFab';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
+import MaskedDecimalInput from '@/Components/MaskedDecimalInput';
 import TextInput from '@/Components/TextInput';
 import QuotationReusableTextSection from './QuotationReusableTextSection';
 import {
@@ -72,6 +73,7 @@ const schema = z.object({
     status: z.string().trim().min(1, 'Select a status.'),
     quoted_at: z.string(),
     valid_until: z.string(),
+    project_amount: z.string(),
     notes: z.string().max(250000),
     proposal_title: z
         .string()
@@ -857,6 +859,43 @@ export default function QuotationForm({
                     </div>
                 </CardContent>
             </Card>
+
+            <section className="flex min-w-0 flex-col gap-4 rounded-xl border border-border bg-card p-5">
+                <div>
+                    <h3 className="text-base font-semibold text-foreground">
+                        Total project amount
+                    </h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                        Set the overall amount for the project. This is
+                        separate from the quotation line-item total.
+                    </p>
+                </div>
+                <div className="flex max-w-sm flex-col gap-2">
+                    <InputLabel
+                        htmlFor="project_amount"
+                        value="Project amount"
+                    />
+                    <MaskedDecimalInput
+                        id="project_amount"
+                        value={data.project_amount}
+                        prefix="$"
+                        placeholder="0.00"
+                        className={inputClassName}
+                        onChange={(value) =>
+                            setValue('project_amount', value, {
+                                shouldDirty: true,
+                                shouldValidate: true,
+                            })
+                        }
+                    />
+                    <InputError
+                        message={errorMessage(
+                            validationErrors,
+                            'project_amount',
+                        )}
+                    />
+                </div>
+            </section>
 
             <section className="flex min-w-0 flex-col gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

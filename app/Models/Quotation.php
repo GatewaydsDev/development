@@ -28,6 +28,7 @@ class Quotation extends Model
         'quotation_number',
         'contractor_id',
         'project_id',
+        'project_amount',
         'converted_bid_id',
         'title',
         'status',
@@ -46,6 +47,7 @@ class Quotation extends Model
         return [
             'quoted_at' => 'date',
             'valid_until' => 'date',
+            'project_amount' => 'decimal:2',
             'include_authorization' => 'boolean',
         ];
     }

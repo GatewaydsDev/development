@@ -81,6 +81,7 @@ test('an admin can save a quotation for a contractor', function () {
             'status' => 'sent',
             'quoted_at' => '2026-09-15',
             'valid_until' => '2026-10-15',
+            'project_amount' => '8450.75',
             'notes' => 'Includes hardware.',
             'proposal_title' => 'Site conditions',
             'pricing_conditions' => '<p>Net 30. Freight excluded.</p>',
@@ -102,6 +103,7 @@ test('an admin can save a quotation for a contractor', function () {
     expect($quotation->contractor_id)->toBe($contractorId)
         ->and($quotation->project_id)->toBe($project->id)
         ->and($quotation->status)->toBe('sent')
+        ->and($quotation->project_amount)->toBe('8450.75')
         ->and($quotation->quotation_number)->toStartWith('GDS-Q-')
         ->and($quotation->lineItems)->toHaveCount(1)
         ->and($quotation->lineItems->first()->size)->toBe('3x7')
@@ -156,6 +158,7 @@ test('an admin can save a quotation for a contractor', function () {
             'project_id' => $project->id,
             'title' => 'Harbor RF quote',
             'status' => 'sent',
+            'project_amount' => '12000.50',
             'notes' => 'Includes hardware.',
             'proposal_title' => 'Saved heading',
             'line_items' => [
@@ -169,7 +172,8 @@ test('an admin can save a quotation for a contractor', function () {
         ])
         ->assertSessionHasNoErrors();
 
-    expect($quotation->fresh()->proposal_title)->toBe('Saved heading');
+    expect($quotation->fresh()->proposal_title)->toBe('Saved heading')
+        ->and($quotation->fresh()->project_amount)->toBe('12000.50');
 
     $this->actingAs($admin)
         ->get(route('admin.quotations.print', $quotation))

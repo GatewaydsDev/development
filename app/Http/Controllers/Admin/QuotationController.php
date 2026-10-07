@@ -141,6 +141,7 @@ class QuotationController extends Controller
             $quotation = Quotation::create([
                 'contractor_id' => $validated['contractor_id'],
                 'project_id' => $validated['project_id'] ?? null,
+                'project_amount' => $validated['project_amount'] ?? null,
                 'title' => $validated['title'],
                 'status' => $validated['status'],
                 'quoted_at' => $validated['quoted_at'] ?? null,
@@ -246,6 +247,7 @@ class QuotationController extends Controller
             $quotation->update([
                 'contractor_id' => $validated['contractor_id'],
                 'project_id' => $validated['project_id'] ?? null,
+                'project_amount' => $validated['project_amount'] ?? null,
                 'title' => $validated['title'],
                 'status' => $validated['status'],
                 'quoted_at' => $validated['quoted_at'] ?? null,
@@ -313,6 +315,7 @@ class QuotationController extends Controller
             'status' => ['required', 'string', Rule::in(Quotation::STATUSES)],
             'quoted_at' => ['nullable', 'date'],
             'valid_until' => ['nullable', 'date', 'after_or_equal:quoted_at'],
+            'project_amount' => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99'],
             'notes' => ['nullable', 'string', 'max:250000'],
             'proposal_title' => ['nullable', 'string', 'max:255'],
             'pricing_conditions' => ['nullable', 'string', 'max:250000'],
@@ -633,6 +636,7 @@ class QuotationController extends Controller
             'status_label' => Quotation::statusLabel($quotation->status),
             'quoted_at' => $quotation->quoted_at?->toDateString(),
             'valid_until' => $quotation->valid_until?->toDateString(),
+            'project_amount' => $quotation->project_amount,
             'notes' => $this->sanitizedHtml($quotation->notes),
             'proposal_title' => $quotation->proposalTitle(),
             'pricing_conditions' => $this->sanitizedHtml($quotation->pricing_conditions),
