@@ -25,6 +25,7 @@ import {
 import { Head, Link, router } from '@inertiajs/react';
 import { cn } from '@/lib/utils';
 import {
+    ClipboardCheckIcon,
     ClipboardListIcon,
     DollarSignIcon,
     EditIcon,
@@ -445,7 +446,7 @@ export default function Index({
                                                                 <Button
                                                                     variant="outline"
                                                                     size="icon-sm"
-                                                                    className="border-teal-200 text-teal-600 hover:bg-teal-50 hover:text-teal-700 dark:border-teal-800/60 dark:text-teal-400 dark:hover:bg-teal-950/40"
+                                                                    className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:border-emerald-800/60 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
                                                                     asChild
                                                                 >
                                                                     <Link
@@ -457,7 +458,7 @@ export default function Index({
                                                                         )}
                                                                         aria-label="Open converted bid"
                                                                     >
-                                                                        <ClipboardListIcon className="size-4" />
+                                                                        <ClipboardCheckIcon className="size-4" />
                                                                     </Link>
                                                                 </Button>
                                                             </ActionHint>

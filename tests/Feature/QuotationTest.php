@@ -420,7 +420,22 @@ test('converting a quotation without a project is rejected', function () {
 test('converting a quotation creates a linked bid and keeps the quote', function () {
     $admin = quotationAdmin();
     $project = quotationProject($admin, 'Harbor RF Upgrade');
-    $quotation = makeQuotation($admin, $project);
+    $quotation = makeQuotation($admin, $project, [
+        'project_amount' => '9800.00',
+        'proposal_title' => 'Acoustic package',
+        'pricing_basis' => '<p>Pricing includes material and installation.</p>',
+        'pricing_conditions' => '<h2>Opening conditions</h2><p>Three sound-rated openings.</p>',
+    ]);
+    $table = $quotation->tables()->create([
+        'title' => 'Opening specifications',
+        'sort_order' => 0,
+    ]);
+    $table->fields()->create([
+        'quotation_id' => $quotation->id,
+        'quotation_field_id' => QuotationField::firstOrCreateByName('Door size')->id,
+        'value' => '3 ft × 7 ft',
+        'sort_order' => 0,
+    ]);
 
     $this->actingAs($admin)
         ->post(route('admin.quotations.convert-to-bid', $quotation))
@@ -431,8 +446,17 @@ test('converting a quotation creates a linked bid and keeps the quote', function
 
     expect($quotation->converted_bid_id)->toBe($bid->id)
         ->and($bid->project_id)->toBe($project->id)
+        ->and($bid->notes)->toContain('Acoustic package')
+        ->and($bid->notes)->toContain('Lead time two weeks.')
         ->and($bid->scope_of_work_text)->toContain('RF door leaf')
         ->and($bid->scope_of_work_text)->toContain($quotation->quotation_number)
+        ->and($bid->scope_of_work_text)->toContain('Total project amount: $9,800.00')
+        ->and($bid->scope_of_work_text)->toContain('Pricing includes material and installation.')
+        ->and($bid->scope_of_work_text)->toContain('Three sound-rated openings.')
+        ->and($bid->scope_of_work_text)->toContain('Opening specifications')
+        ->and($bid->scope_of_work_text)->toContain('3 ft × 7 ft')
+        ->and($bid->pricings->first()->notes)->toContain('Quotation title: RF door quotation')
+        ->and($bid->pricings->first()->notes)->toContain('Total project amount: $9,800.00')
         ->and($bid->pricings)->toHaveCount(1)
         ->and($bid->pricings->first()->items)->toHaveCount(1)
         ->and($bid->scopes)->toHaveCount(1)
@@ -503,6 +527,26 @@ test('a bid can be saved with a linked quotation without converting it', functio
     expect($bid->quotation_id)->toBe($quotation->id)
         ->and($quotation->fresh()->converted_bid_id)->toBeNull()
         ->and($quotation->fresh()->title)->toBe('RF door quotation');
+
+    $this->actingAs($admin)
+        ->get(route('admin.quotations.show', $quotation))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Admin/Quotations/Show')
+            ->where('quotation.converted_bid.uuid', $bid->uuid));
+
+    $this->actingAs($admin)
+        ->get(route('admin.quotations.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Admin/Quotations/Index')
+            ->where('quotations.data.0.converted_bid.uuid', $bid->uuid));
+
+    $this->actingAs($admin)
+        ->post(route('admin.quotations.convert-to-bid', $quotation))
+        ->assertRedirect(route('admin.bids.edit', $bid->uuid));
+
+    expect(Bid::query()->where('quotation_id', $quotation->id)->count())->toBe(1);
 });
 
 test('a quotation can store revisions like a bid', function () {
