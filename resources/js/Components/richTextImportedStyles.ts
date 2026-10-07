@@ -145,6 +145,13 @@ const cellColorAttributes = {
         renderHTML: (attributes: { color?: string | null }) =>
             attributes.color ? { style: `color: ${attributes.color}` } : {},
     },
+    border: {
+        default: null,
+        parseHTML: (element: HTMLElement) =>
+            element.style.border || null,
+        renderHTML: (attributes: { border?: string | null }) =>
+            attributes.border ? { style: `border: ${attributes.border}` } : {},
+    },
 };
 
 export const ImportedTextStyles = Extension.create({

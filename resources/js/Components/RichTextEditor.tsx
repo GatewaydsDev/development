@@ -391,8 +391,8 @@ function currentBlockType(
 
 function fillCurrentTableHeaders(
     editor: Editor,
-    background: string,
-    color: string,
+    background: string | null,
+    color: string | null,
 ) {
     const { $from } = editor.state.selection;
     let tablePos: number | null = null;
@@ -425,6 +425,87 @@ function fillCurrentTableHeaders(
             ...node.attrs,
             backgroundColor: background,
             color,
+        });
+    });
+
+    editor.view.dispatch(tr);
+}
+
+function fillCurrentTableCells(editor: Editor, color: LayoutColor | null) {
+    const { $from } = editor.state.selection;
+    let tablePos: number | null = null;
+
+    for (let depth = $from.depth; depth > 0; depth -= 1) {
+        if ($from.node(depth).type.name === 'table') {
+            tablePos = $from.before(depth);
+            break;
+        }
+    }
+
+    if (tablePos === null) {
+        return;
+    }
+
+    const table = editor.state.doc.nodeAt(tablePos);
+
+    if (!table) {
+        return;
+    }
+
+    let { tr } = editor.state;
+
+    table.descendants((node, pos) => {
+        if (
+            node.type.name !== 'tableCell' &&
+            node.type.name !== 'tableHeader'
+        ) {
+            return;
+        }
+
+        tr = tr.setNodeMarkup(tablePos + 1 + pos, undefined, {
+            ...node.attrs,
+            backgroundColor: color?.value ?? null,
+            color: color?.text ?? null,
+        });
+    });
+
+    editor.view.dispatch(tr);
+}
+
+function setCurrentTableBorders(editor: Editor, border: string | null) {
+    const { $from } = editor.state.selection;
+    let tablePos: number | null = null;
+
+    for (let depth = $from.depth; depth > 0; depth -= 1) {
+        if ($from.node(depth).type.name === 'table') {
+            tablePos = $from.before(depth);
+            break;
+        }
+    }
+
+    if (tablePos === null) {
+        return;
+    }
+
+    const table = editor.state.doc.nodeAt(tablePos);
+
+    if (!table) {
+        return;
+    }
+
+    let { tr } = editor.state;
+
+    table.descendants((node, pos) => {
+        if (
+            node.type.name !== 'tableCell' &&
+            node.type.name !== 'tableHeader'
+        ) {
+            return;
+        }
+
+        tr = tr.setNodeMarkup(tablePos + 1 + pos, undefined, {
+            ...node.attrs,
+            border,
         });
     });
 
@@ -935,7 +1016,11 @@ export default function RichTextEditor({
             .run();
     };
 
-    const insertTable = (columns: number, withHeader = true) => {
+    const insertTable = (
+        columns: number,
+        withHeader = true,
+        withoutBorders = false,
+    ) => {
         if (!editor) {
             return;
         }
@@ -953,6 +1038,10 @@ export default function RichTextEditor({
             .run();
 
         if (!withHeader) {
+            if (withoutBorders) {
+                setCurrentTableBorders(editor, 'none');
+            }
+
             return;
         }
 
@@ -960,9 +1049,16 @@ export default function RichTextEditor({
 
         fillCurrentTableHeaders(editor, headerColor.value, headerColor.text);
         labelCurrentTableHeaders(editor);
+
+        if (withoutBorders) {
+            setCurrentTableBorders(editor, 'none');
+        }
     };
 
-    const insertBoxedNoteWithColumns = (columns: number) => {
+    const insertBoxedNoteWithColumns = (
+        columns: number,
+        withoutBorders = false,
+    ) => {
         if (!editor) {
             return;
         }
@@ -976,6 +1072,10 @@ export default function RichTextEditor({
                 withHeaderRow: false,
             })
             .run();
+
+        if (withoutBorders) {
+            setCurrentTableBorders(editor, 'none');
+        }
     };
 
     const boxedNoteStyles = {
@@ -1074,6 +1174,17 @@ export default function RichTextEditor({
                 ...boxedNoteStyles,
                 backgroundColor: color.value,
                 color: color.text,
+            })
+            .run();
+    };
+
+    const applyBoxedNoteBorder = (border: string | null) => {
+        editor
+            ?.chain()
+            .focus()
+            .updateAttributes('paragraph', {
+                ...boxedNoteStyles,
+                border,
             })
             .run();
     };
@@ -2603,7 +2714,7 @@ export default function RichTextEditor({
                         </Button>
                     }
                 >
-                    <DropdownMenuLabel>Insert layout blocks</DropdownMenuLabel>
+                    <DropdownMenuLabel>Insert a table</DropdownMenuLabel>
                     <DropdownMenuSub>
                         <DropdownMenuSubTrigger>
                             <TableIcon />
@@ -2636,6 +2747,44 @@ export default function RichTextEditor({
                             ))}
                         </DropdownMenuSubContent>
                     </DropdownMenuSub>
+                    <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>
+                            <TableIcon />
+                            Borderless table with headers
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent>
+                            {[2, 3, 4, 5, 6].map((columns) => (
+                                <DropdownMenuItem
+                                    key={columns}
+                                    onClick={() =>
+                                        insertTable(columns, true, true)
+                                    }
+                                >
+                                    {columns} columns
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                    <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>
+                            <TableIcon />
+                            Borderless table, no header
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent>
+                            {[2, 3, 4, 5, 6].map((columns) => (
+                                <DropdownMenuItem
+                                    key={columns}
+                                    onClick={() =>
+                                        insertTable(columns, false, true)
+                                    }
+                                >
+                                    {columns} columns
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel>Insert a boxed note</DropdownMenuLabel>
                     <DropdownMenuItem onClick={() => applyBoxedNote()}>
                         <SquareIcon />
                         Boxed note
@@ -2670,11 +2819,37 @@ export default function RichTextEditor({
                             ))}
                         </DropdownMenuSubContent>
                     </DropdownMenuSub>
+                    <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>
+                            <Columns3Icon />
+                            Borderless boxed note with columns
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent>
+                            {[2, 3, 4].map((columns) => (
+                                <DropdownMenuItem
+                                    key={columns}
+                                    onClick={() =>
+                                        insertBoxedNoteWithColumns(
+                                            columns,
+                                            true,
+                                        )
+                                    }
+                                >
+                                    {columns} columns
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuSubContent>
+                    </DropdownMenuSub>
                     <DropdownMenuSeparator />
-                    <DropdownMenuLabel>Add a colored section</DropdownMenuLabel>
+                    <DropdownMenuLabel>Other layout blocks</DropdownMenuLabel>
+                    <DropdownMenuLabel className="font-normal text-muted-foreground">
+                        Section background
+                    </DropdownMenuLabel>
                     <ColorChoices onSelect={insertColoredSection} />
                     <DropdownMenuSeparator />
-                    <DropdownMenuLabel>Colored line</DropdownMenuLabel>
+                    <DropdownMenuLabel className="font-normal text-muted-foreground">
+                        Line color
+                    </DropdownMenuLabel>
                     <ColorChoices
                         onSelect={(color) => insertColoredLine(color)}
                     />
@@ -2693,8 +2868,9 @@ export default function RichTextEditor({
                             <ToolbarMenu
                                 onOpenChange={handleMenuOpenChange}
                                 trigger={
-                                    <Button type="button" variant="ghost" size="icon-sm" title="Header fill">
+                                    <Button type="button" variant="ghost" size="sm" data-labeled-command title="Change table header background">
                                         <PaintBucketIcon />
+                                        Header color
                                     </Button>
                                 }
                             >
@@ -2703,6 +2879,7 @@ export default function RichTextEditor({
                                 </DropdownMenuLabel>
                                 <ColorChoices
                                     allowCustom
+                                    allowClear
                                     onSelect={(color) =>
                                         fillCurrentTableHeaders(
                                             editor,
@@ -2710,9 +2887,77 @@ export default function RichTextEditor({
                                             color.text,
                                         )
                                     }
+                                    onClear={() =>
+                                        fillCurrentTableHeaders(
+                                            editor,
+                                            null,
+                                            null,
+                                        )
+                                    }
                                 />
                             </ToolbarMenu>
                         ) : null}
+                        <ToolbarMenu
+                            onOpenChange={handleMenuOpenChange}
+                            trigger={
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    data-labeled-command
+                                    title="Change table cell background"
+                                >
+                                    <PaintBucketIcon />
+                                    Cell color
+                                </Button>
+                            }
+                        >
+                            <DropdownMenuLabel>Table background</DropdownMenuLabel>
+                            <ColorChoices
+                                allowCustom
+                                allowClear
+                                onSelect={(color) =>
+                                    fillCurrentTableCells(editor, color)
+                                }
+                                onClear={() =>
+                                    fillCurrentTableCells(editor, null)
+                                }
+                            />
+                        </ToolbarMenu>
+                        <ToolbarMenu
+                            onOpenChange={handleMenuOpenChange}
+                            trigger={
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    data-labeled-command
+                                    title="Change table border visibility"
+                                >
+                                    <TableIcon />
+                                    Borders
+                                </Button>
+                            }
+                        >
+                            <DropdownMenuLabel>Table borders</DropdownMenuLabel>
+                            <DropdownMenuItem
+                                onClick={() =>
+                                    setCurrentTableBorders(editor, 'none')
+                                }
+                            >
+                                No borders
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                onClick={() =>
+                                    setCurrentTableBorders(
+                                        editor,
+                                        '1px solid #d1d5db',
+                                    )
+                                }
+                            >
+                                Show borders
+                            </DropdownMenuItem>
+                        </ToolbarMenu>
                         <Button
                             type="button"
                             variant="ghost"
@@ -2825,6 +3070,20 @@ export default function RichTextEditor({
                                     .run()
                             }
                         />
+                        <DropdownMenuSeparator />
+                        <DropdownMenuLabel>Box border</DropdownMenuLabel>
+                        <DropdownMenuItem
+                            onClick={() => applyBoxedNoteBorder('none')}
+                        >
+                            No border
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                            onClick={() =>
+                                applyBoxedNoteBorder('1px solid #111827')
+                            }
+                        >
+                            Show border
+                        </DropdownMenuItem>
                     </ToolbarMenu>
                 ) : null}
                 {editor?.isActive('coloredSection') ? (
