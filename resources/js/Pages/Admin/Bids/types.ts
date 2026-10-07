@@ -23,6 +23,7 @@ export type BidProjectOption = {
 
 export type BidTextTemplateOption = {
     id: number;
+    uuid: string;
     name: string;
     body: string;
 };
@@ -75,6 +76,7 @@ export type BidQuotationLineOption = {
 
 export type BidQuotationOption = {
     id: number;
+    uuid: string;
     name: string;
     quotation_number: string;
     title: string;
@@ -93,7 +95,7 @@ export type BidTextFieldOption = {
 
 export type PreBidOption = {
     id: number;
-    uuid?: string;
+    uuid: string;
     name: string;
     project_id?: string | null;
     project_name?: string | null;
@@ -219,6 +221,7 @@ export type BidPayload = {
     };
     quotation?: {
         id: number;
+        uuid: string;
         quotation_number: string;
         title: string;
     } | null;

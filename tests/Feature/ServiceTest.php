@@ -48,7 +48,7 @@ test('a service can be created and updated', function () {
     $response
         ->assertSessionHasNoErrors()
         ->assertSessionHas('success', 'Service created successfully.')
-        ->assertRedirect(route('admin.services.index', ['highlight' => $service->id]));
+        ->assertRedirect(route('admin.services.index', ['highlight' => $service->uuid]));
 
     $this->actingAs($admin)
         ->patch(route('admin.services.update', $service), [

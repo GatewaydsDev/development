@@ -66,7 +66,7 @@ function DetailItem({
 export default function Show({ project, options }: ShowProps) {
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const removeProject = () => {
-        router.delete(route('admin.projects.destroy', project.id));
+        router.delete(route('admin.projects.destroy', project.uuid));
     };
 
     return (
@@ -102,7 +102,7 @@ export default function Show({ project, options }: ShowProps) {
                                 <a
                                     href={route(
                                         'admin.projects.document.print',
-                                        project.id,
+                                        project.uuid,
                                     )}
                                     target="_blank"
                                     rel="noreferrer"
@@ -118,7 +118,7 @@ export default function Show({ project, options }: ShowProps) {
                                 <a
                                     href={route(
                                         'admin.projects.document.export.pdf',
-                                        project.id,
+                                        project.uuid,
                                     )}
                                     aria-label="Download as PDF"
                                 >
@@ -132,7 +132,7 @@ export default function Show({ project, options }: ShowProps) {
                                 <a
                                     href={route(
                                         'admin.projects.document.export.word',
-                                        project.id,
+                                        project.uuid,
                                     )}
                                     aria-label="Download as Word"
                                 >
@@ -147,7 +147,7 @@ export default function Show({ project, options }: ShowProps) {
                                     <Link
                                         href={route(
                                             'admin.projects.edit',
-                                            project.id,
+                                            project.uuid,
                                         )}
                                         aria-label="Edit this project"
                                     >
@@ -468,4 +468,3 @@ export default function Show({ project, options }: ShowProps) {
         </AuthenticatedLayout>
     );
 }
-

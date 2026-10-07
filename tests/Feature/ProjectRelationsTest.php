@@ -105,7 +105,7 @@ test('a project can be created with a general contractor scopes and revisions', 
         ->with(['contractors', 'scopes', 'revisions'])
         ->firstOrFail();
 
-    $response->assertRedirect(route('admin.projects.index', ['highlight' => $project->id]));
+    $response->assertRedirect(route('admin.projects.index', ['highlight' => $project->uuid]));
 
     expect($project->contractors)->toHaveCount(1);
     expect($project->contractors->first()?->name)->toBe('Turner Construction');
@@ -298,7 +298,7 @@ test('a project can update its general contractor scopes and revisions', functio
     $response
         ->assertSessionHasNoErrors()
         ->assertSessionHas('success', 'Project updated successfully.')
-        ->assertRedirect(route('admin.projects.index', ['highlight' => $project->id]));
+        ->assertRedirect(route('admin.projects.index', ['highlight' => $project->uuid]));
 
     $project->refresh()->load(['contractors', 'scopes', 'revisions']);
 
@@ -482,7 +482,7 @@ test('a project can be created without a contractor', function () {
     $response
         ->assertSessionHasNoErrors()
         ->assertSessionHas('success', 'Project created successfully.')
-        ->assertRedirect(route('admin.projects.index', ['highlight' => $project->id]));
+        ->assertRedirect(route('admin.projects.index', ['highlight' => $project->uuid]));
 
     expect($project->fresh('contractors')->contractors)->toHaveCount(0);
 });
@@ -720,6 +720,7 @@ test('the projects table includes company phone and email', function () {
             ->where('projects.data.0.contractors.0.phone_number', '(973) 555-0144')
             ->where('projects.data.0.bids_count', 0)
             ->where('projects.data.0.latest_bid_id', null)
+            ->where('projects.data.0.latest_bid_uuid', null)
             ->where('projects.data.0.bid_scopes', [])
         );
 });
@@ -749,6 +750,7 @@ test('the projects table shows when a project is linked to a bid', function () {
             ->component('Admin/Projects/Index')
             ->where('projects.data.0.bids_count', 1)
             ->where('projects.data.0.latest_bid_id', $bid->id)
+            ->where('projects.data.0.latest_bid_uuid', $bid->uuid)
             ->where('projects.data.0.bid_scopes.0.name', 'RF Doors')
         );
 });

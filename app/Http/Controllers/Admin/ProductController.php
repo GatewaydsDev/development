@@ -42,18 +42,18 @@ class ProductController extends Controller
 
         $search = (string) $request->query('search', '');
         $typeId = (int) $request->query('type', 0);
-        $highlight = (int) $request->query('highlight', 0);
+        $highlight = (string) $request->query('highlight', '');
 
         return Inertia::render('Admin/Products/Index', [
             'filters' => [
                 'search' => $search,
                 'type' => $typeId > 0 ? $typeId : '',
-                'highlight' => $highlight > 0 ? $highlight : null,
+                'highlight' => $highlight !== '' ? $highlight : null,
             ],
             'options' => $this->options($request->user()),
             'products' => $this->productListingQuery($request)
-                ->when($highlight > 0, function ($query) use ($highlight): void {
-                    $query->orderByRaw('CASE WHEN id = ? THEN 0 ELSE 1 END', [$highlight]);
+                ->when($highlight !== '', function ($query) use ($highlight): void {
+                    $query->orderByRaw('CASE WHEN uuid = ? THEN 0 ELSE 1 END', [$highlight]);
                 })
                 ->orderBy('id')
                 ->paginate(10)
@@ -106,7 +106,7 @@ class ProductController extends Controller
         });
 
         return redirect()
-            ->route('admin.products.index', ['highlight' => $product->id])
+            ->route('admin.products.index', ['highlight' => $product->uuid])
             ->with('success', 'Product created successfully.');
     }
 
@@ -388,7 +388,7 @@ class ProductController extends Controller
         });
 
         return redirect()
-            ->route('admin.products.index', ['highlight' => $product->id])
+            ->route('admin.products.index', ['highlight' => $product->uuid])
             ->with('success', 'Product updated successfully.');
     }
 

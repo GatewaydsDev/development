@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasUuidRouteKey;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 class UserLevel extends Model
 {
+    use HasUuidRouteKey;
+
     public const SUPER_ADMIN = 'Super Admin';
 
     public const SUPER_ADMIN_ALIASES = [

@@ -413,7 +413,7 @@ export default function QuotationForm({
                     quotation
                         ? quotationDocumentHref(
                               'admin.quotations.print',
-                              quotation.id,
+                              quotation.uuid,
                               data.proposal_title,
                           )
                         : undefined
@@ -1029,7 +1029,7 @@ export default function QuotationForm({
                             ? `quotation:${quotation.id}`
                             : null,
                         url: quotation
-                            ? route('admin.quotations.autosave', quotation.id)
+                            ? route('admin.quotations.autosave', quotation.uuid)
                             : null,
                         field: 'pricing_conditions',
                         unavailableMessage:

@@ -63,7 +63,7 @@ type BidFormProps = {
     description: string;
     options: BidOptions;
     bid?: BidPayload;
-    importQuotationId?: number | null;
+    importQuotationUuid?: string | null;
     onSelectedProjectNameChange?: (name: string) => void;
 };
 
@@ -235,7 +235,7 @@ export default function BidForm({
     description,
     options,
     bid,
-    importQuotationId = null,
+    importQuotationUuid = null,
     onSelectedProjectNameChange,
 }: BidFormProps) {
     const { auth } = usePage<PageProps>().props;
@@ -402,7 +402,7 @@ export default function BidForm({
 
     const quotations = options.quotations ?? [];
     const [importQuotationValue, setImportQuotationValue] = useState(
-        importQuotationId ? String(importQuotationId) : '',
+        '',
     );
     const autoImported = useRef(false);
 
@@ -476,11 +476,11 @@ export default function BidForm({
     };
 
     useEffect(() => {
-        if (autoImported.current || !importQuotationId) {
+        if (autoImported.current || !importQuotationUuid) {
             return;
         }
 
-        const quotation = quotations.find((item) => item.id === importQuotationId);
+        const quotation = quotations.find((item) => item.uuid === importQuotationUuid);
 
         if (!quotation) {
             return;
@@ -489,7 +489,7 @@ export default function BidForm({
         autoImported.current = true;
         setImportQuotationValue(String(quotation.id));
         applyQuotation(quotation);
-    }, [importQuotationId, quotations]);
+    }, [importQuotationUuid, quotations]);
 
     const submit = handleSubmit(
         (values) => {
@@ -1091,7 +1091,7 @@ export default function BidForm({
                 }
                 autoSave={{
                     persistKey: bid ? `bid:${bid.id}` : null,
-                    url: bid ? route('admin.bids.autosave', bid.id) : null,
+                    url: bid ? route('admin.bids.autosave', bid.uuid) : null,
                     field: 'notes',
                     unavailableMessage:
                         'AutoSave on. Add the bid to start saving this text.',
@@ -1104,7 +1104,7 @@ export default function BidForm({
                 disabled={isSubmitting}
                 printHref={
                     bid
-                        ? route('admin.bids.print', bid.id)
+                        ? route('admin.bids.print', bid.uuid)
                         : undefined
                 }
                 printLabel={bid ? 'Print bid' : 'Print'}

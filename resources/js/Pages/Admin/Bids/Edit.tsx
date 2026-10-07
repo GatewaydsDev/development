@@ -42,7 +42,7 @@ export default function Edit({ bid, options }: EditProps) {
                     <div className="flex flex-wrap items-center gap-2">
                         <Button variant="outline" asChild>
                             <a
-                                href={route('admin.bids.print', bid.id)}
+                                href={route('admin.bids.print', bid.uuid)}
                                 target="_blank"
                                 rel="noreferrer"
                             >
@@ -51,13 +51,13 @@ export default function Edit({ bid, options }: EditProps) {
                             </a>
                         </Button>
                         <Button variant="outline" asChild>
-                            <a href={route('admin.bids.export.pdf', bid.id)}>
+                            <a href={route('admin.bids.export.pdf', bid.uuid)}>
                                 <FileTextIcon className="size-4" />
                                 PDF
                             </a>
                         </Button>
                         <Button variant="outline" asChild>
-                            <Link href={route('admin.bids.show', bid.id)}>
+                            <Link href={route('admin.bids.show', bid.uuid)}>
                                 <EyeIcon className="size-4" />
                                 View
                             </Link>
@@ -71,7 +71,7 @@ export default function Edit({ bid, options }: EditProps) {
             <div className="py-6 sm:py-8">
                 <div className="mx-auto max-w-[96rem] px-4 sm:px-6 lg:px-8">
                     <BidForm
-                        action={route('admin.bids.update', bid.id)}
+                        action={route('admin.bids.update', bid.uuid)}
                         method="patch"
                         title={projectName || 'Bid'}
                         description="Update stages, scopes of work, and preliminary pricing revisions."

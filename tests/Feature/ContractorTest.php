@@ -82,7 +82,7 @@ test('a contractor can be created with multiple contacts', function () {
     $response
         ->assertSessionHasNoErrors()
         ->assertSessionHas('success', 'Contractor created successfully.')
-        ->assertRedirect(route('admin.contractors.index', ['highlight' => $contractor->id]));
+        ->assertRedirect(route('admin.contractors.index', ['highlight' => $contractor->uuid]));
 
     expect($contractor->website)->toBe('https://turner.example');
     expect($contractor->city)->toBe('Newark');
@@ -116,7 +116,7 @@ test('a contractor can be updated and keep extra contacts', function () {
     $response
         ->assertSessionHasNoErrors()
         ->assertSessionHas('success', 'Contractor updated successfully.')
-        ->assertRedirect(route('admin.contractors.index', ['highlight' => $contractor->id]));
+        ->assertRedirect(route('admin.contractors.index', ['highlight' => $contractor->uuid]));
 
     $contractor->refresh()->load('contacts');
 

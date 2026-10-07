@@ -24,6 +24,7 @@ class EmployeeAttendanceController extends Controller
         $perPage = min(100, max(1, $request->integer('per_page', 15)));
 
         $weeks = EmployeeAccess::scopeVisibleListings(EmployeeAttendanceListing::query(), $user)
+            ->with('week:id,uuid')
             ->tap(fn ($query) => $this->admin()->applyListFilters($query, $search, $week, $from, $to))
             ->when($request->filled('employee_id'), fn ($query) => $query->where(
                 'employee_id',

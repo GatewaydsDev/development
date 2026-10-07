@@ -62,6 +62,7 @@ class NotificationController extends Controller
                 ->get(['id', 'name', 'email', 'company', 'title'])
                 ->map(fn (Contact $contact): array => [
                     'id' => $contact->id,
+                    'uuid' => $contact->uuid,
                     'name' => $contact->name,
                     'email' => $contact->email,
                     'company' => $contact->company,

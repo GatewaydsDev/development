@@ -29,6 +29,7 @@ class AccessControlController extends Controller
             ->get()
             ->map(fn (UserLevel $level): array => [
                 'id' => $level->id,
+                'uuid' => $level->uuid,
                 'name' => $level->name,
                 'locked' => $level->isSuperAdminLevel(),
                 'permissions' => collect(config('access.permissions', []))
@@ -49,7 +50,7 @@ class AccessControlController extends Controller
         return Inertia::render('Admin/AccessControl/Edit', [
             'permissions' => $permissions,
             'levels' => $levels,
-            'selectedLevelId' => $request->integer('level') ?: null,
+            'selectedLevelId' => $this->selectedLevelId($request),
         ]);
     }
 
@@ -71,7 +72,7 @@ class AccessControlController extends Controller
 
         if (str_contains(url()->previous(), '/access-control')) {
             return redirect()
-                ->route('admin.access-control.edit', ['level' => $level->id])
+                ->route('admin.access-control.edit', ['level' => $level->uuid])
                 ->with('success', 'User level created.');
         }
 
@@ -138,5 +139,24 @@ class AccessControlController extends Controller
         return redirect()
             ->route('admin.users.index')
             ->with('success', 'Access control permissions updated successfully.');
+    }
+
+    private function selectedLevelId(Request $request): ?int
+    {
+        $identifier = $request->query('level');
+
+        if (! is_string($identifier) || $identifier === '') {
+            return null;
+        }
+
+        $level = UserLevel::query()
+            ->where('uuid', $identifier)
+            ->when(
+                ctype_digit($identifier),
+                fn ($query) => $query->orWhere('id', (int) $identifier),
+            )
+            ->first();
+
+        return $level?->id;
     }
 }

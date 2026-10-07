@@ -99,7 +99,7 @@ const defaultValues: ContactFormValues = {
 
 export default function Index({ filters, contacts }: IndexProps) {
     const [search, setSearch] = useState(filters.search ?? '');
-    const [editingId, setEditingId] = useState<number | null>(null);
+    const [editingUuid, setEditingUuid] = useState<string | null>(null);
     const [formOpen, setFormOpen] = useState(false);
     const [processing, setProcessing] = useState(false);
     const [pendingDeleteContact, setPendingDeleteContact] =
@@ -130,14 +130,14 @@ export default function Index({ filters, contacts }: IndexProps) {
     };
 
     const openCreate = () => {
-        setEditingId(null);
+        setEditingUuid(null);
         clearErrors();
         reset(defaultValues);
         setFormOpen(true);
     };
 
     const openEdit = (contact: Contact) => {
-        setEditingId(contact.id);
+        setEditingUuid(contact.uuid);
         clearErrors();
         reset({
             name: contact.name ?? '',
@@ -153,7 +153,7 @@ export default function Index({ filters, contacts }: IndexProps) {
 
     const closeForm = () => {
         setFormOpen(false);
-        setEditingId(null);
+        setEditingUuid(null);
         clearErrors();
         reset(defaultValues);
     };
@@ -174,9 +174,9 @@ export default function Index({ filters, contacts }: IndexProps) {
             onFinish: () => setProcessing(false),
         };
 
-        if (editingId) {
+        if (editingUuid) {
             router.patch(
-                route('admin.contacts.update', editingId),
+                route('admin.contacts.update', editingUuid),
                 values,
                 options,
             );
@@ -187,7 +187,7 @@ export default function Index({ filters, contacts }: IndexProps) {
     };
 
     const destroyContact = (contact: Contact) => {
-        router.delete(route('admin.contacts.destroy', contact.id), {
+        router.delete(route('admin.contacts.destroy', contact.uuid), {
             preserveScroll: true,
             onFinish: () => setPendingDeleteContact(null),
         });
@@ -226,7 +226,7 @@ export default function Index({ filters, contacts }: IndexProps) {
                         <Card className="shadow-sm">
                             <CardHeader>
                                 <CardTitle>
-                                    {editingId
+                                    {editingUuid
                                         ? 'Edit contact'
                                         : 'New contact'}
                                 </CardTitle>
@@ -257,7 +257,7 @@ export default function Index({ filters, contacts }: IndexProps) {
                                             'admin.contacts.index',
                                         )}
                                         saveLabel={
-                                            editingId
+                                            editingUuid
                                                 ? 'Save changes'
                                                 : 'Create contact'
                                         }

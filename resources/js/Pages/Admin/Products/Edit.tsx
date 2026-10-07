@@ -39,7 +39,7 @@ export default function Edit({ product, options }: EditProps) {
             <div className="py-6 sm:py-8">
                 <div className="mx-auto max-w-[96rem] px-4 sm:px-6 lg:px-8">
                     <ProductForm
-                        action={route('admin.products.update', product.id)}
+                        action={route('admin.products.update', product.uuid)}
                         method="patch"
                         title={`${product.type?.name || 'Product'} information`}
                         description="Update this reusable door, window, or part."

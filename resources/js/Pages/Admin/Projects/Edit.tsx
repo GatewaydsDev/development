@@ -40,7 +40,7 @@ export default function Edit({ project, options }: EditProps) {
             <div className="py-6 sm:py-8">
                 <div className="mx-auto max-w-[96rem] px-4 sm:px-6 lg:px-8">
                     <ProjectForm
-                        action={route('admin.projects.update', project.id)}
+                        action={route('admin.projects.update', project.uuid)}
                         method="patch"
                         submitLabel="Save changes"
                         title={project.name}
@@ -53,4 +53,3 @@ export default function Edit({ project, options }: EditProps) {
         </AuthenticatedLayout>
     );
 }
-

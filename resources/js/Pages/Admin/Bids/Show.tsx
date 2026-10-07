@@ -64,7 +64,7 @@ export default function Show({ bid, options }: ShowProps) {
     const combinedPrice = combinedPriceAmountFromBid(bid);
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const removeBid = () => {
-        router.delete(route('admin.bids.destroy', bid.id));
+        router.delete(route('admin.bids.destroy', bid.uuid));
     };
 
     return (
@@ -101,7 +101,7 @@ export default function Show({ bid, options }: ShowProps) {
                     <div className="flex flex-wrap gap-2">
                         <Button variant="outline" asChild>
                             <a
-                                href={route('admin.bids.print', bid.id)}
+                                href={route('admin.bids.print', bid.uuid)}
                                 target="_blank"
                                 rel="noreferrer"
                             >
@@ -110,20 +110,20 @@ export default function Show({ bid, options }: ShowProps) {
                             </a>
                         </Button>
                         <Button variant="outline" asChild>
-                            <a href={route('admin.bids.export.pdf', bid.id)}>
+                            <a href={route('admin.bids.export.pdf', bid.uuid)}>
                                 <FileTextIcon className="size-4" />
                                 PDF
                             </a>
                         </Button>
                         <Button variant="outline" asChild>
-                            <a href={route('admin.bids.export.word', bid.id)}>
+                            <a href={route('admin.bids.export.word', bid.uuid)}>
                                 <FileTextIcon className="size-4" />
                                 Word 2026
                             </a>
                         </Button>
                         {options.can.update && (
                             <Button asChild>
-                                <Link href={route('admin.bids.edit', bid.id)}>
+                                <Link href={route('admin.bids.edit', bid.uuid)}>
                                     <EditIcon className="size-4" />
                                     Edit
                                 </Link>
@@ -134,7 +134,7 @@ export default function Show({ bid, options }: ShowProps) {
                                 <Link
                                     href={route(
                                         'admin.quotations.show',
-                                        bid.quotation.id,
+                                        bid.quotation.uuid,
                                     )}
                                 >
                                     <ClipboardListIcon className="size-4" />

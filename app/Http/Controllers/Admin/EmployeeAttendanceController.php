@@ -33,6 +33,7 @@ class EmployeeAttendanceController extends Controller
         [$from, $to] = $this->dateRange($request->query('from'), $request->query('to'));
 
         $weeks = EmployeeAccess::scopeVisibleListings(EmployeeAttendanceListing::query(), $request->user())
+            ->with('week:id,uuid')
             ->tap(fn (Builder $query) => $this->applyListFilters($query, $search, $week, $from, $to))
             ->orderByDesc('week_start')
             ->orderByDesc('id')
@@ -281,7 +282,9 @@ class EmployeeAttendanceController extends Controller
      */
     public function presentWeek(int $weekId): array
     {
-        return $this->listingPayload(EmployeeAttendanceListing::query()->findOrFail($weekId));
+        return $this->listingPayload(
+            EmployeeAttendanceListing::query()->with('week:id,uuid')->findOrFail($weekId),
+        );
     }
 
     /**
@@ -289,6 +292,7 @@ class EmployeeAttendanceController extends Controller
      */
     public function listingPayload(EmployeeAttendanceListing $listing): array
     {
+        $listing->loadMissing('week:id,uuid');
         $start = $listing->week_start;
         $end = $listing->week_end;
         $employee = is_array($listing->employee) ? $listing->employee : null;
@@ -301,6 +305,7 @@ class EmployeeAttendanceController extends Controller
 
         return [
             'id' => $listing->id,
+            'uuid' => $listing->week?->uuid,
             'employee_id' => $listing->employee_id,
             'employee' => [
                 'id' => (int) ($employee['id'] ?? $listing->employee_id),

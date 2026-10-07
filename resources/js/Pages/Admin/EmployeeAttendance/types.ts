@@ -43,6 +43,7 @@ export type AttendanceDayPayload = {
 
 export type AttendanceWeekPayload = {
     id: number;
+    uuid: string;
     employee_id: number;
     employee: {
         id: number;

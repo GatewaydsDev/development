@@ -36,7 +36,7 @@ type IndexProps = {
     filters: {
         search?: string;
         type?: number | string;
-        highlight?: number | null;
+        highlight?: string | null;
     };
     options: ProductOptions;
     products: ProductsPaginator;
@@ -77,17 +77,17 @@ export default function Index({ filters, options, products }: IndexProps) {
     const [type, setType] = useState(
         filters.type ? String(filters.type) : '',
     );
-    const highlightedProductId = filters.highlight ?? null;
+    const highlightedProductUuid = filters.highlight ?? null;
 
     useEffect(() => {
-        if (!highlightedProductId) {
+        if (!highlightedProductUuid) {
             return;
         }
 
         document
-            .getElementById(`product-row-${highlightedProductId}`)
+            .getElementById(`product-row-${highlightedProductUuid}`)
             ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, [highlightedProductId]);
+    }, [highlightedProductUuid]);
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
@@ -261,13 +261,13 @@ export default function Index({ filters, options, products }: IndexProps) {
                                 {products.data.length > 0 ? (
                                     products.data.map((product) => (
                                         <div
-                                            id={`product-row-${product.id}`}
+                                            id={`product-row-${product.uuid}`}
                                             key={product.id}
                                             className={cn(
                                                 'grid gap-3 border-b border-border px-4 py-4 last:border-b-0 xl:min-h-20 xl:items-center xl:gap-3',
                                                 productRowGridClassName,
-                                                highlightedProductId ===
-                                                    product.id &&
+                                                highlightedProductUuid ===
+                                                    product.uuid &&
                                                     'bg-emerald-50 dark:bg-emerald-950/30',
                                             )}
                                         >
@@ -421,7 +421,7 @@ export default function Index({ filters, options, products }: IndexProps) {
                                                         <Link
                                                             href={route(
                                                                 'admin.products.show',
-                                                                product.id,
+                                                                product.uuid,
                                                             )}
                                                             aria-label="View product details"
                                                         >
@@ -440,7 +440,7 @@ export default function Index({ filters, options, products }: IndexProps) {
                                                             <Link
                                                                 href={route(
                                                                     'admin.products.edit',
-                                                                    product.id,
+                                                                    product.uuid,
                                                                 )}
                                                                 aria-label="Edit this product"
                                                             >

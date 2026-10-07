@@ -38,7 +38,7 @@ import { phoneTypeLabel, type ContractorsPaginator } from './types';
 type IndexProps = {
     filters: {
         search?: string;
-        highlight?: number | null;
+        highlight?: string | null;
     };
     contractors: ContractorsPaginator;
 };
@@ -50,20 +50,20 @@ export default function Index({ filters, contractors }: IndexProps) {
     const canDeleteContractors = Boolean(auth.can?.deleteContractors);
     const [search, setSearch] = useState(filters.search ?? '');
     const [pendingDeleteContractor, setPendingDeleteContractor] = useState<{
-        id: number;
+        uuid: string;
         name: string;
     } | null>(null);
-    const highlightedContractorId = filters.highlight ?? null;
+    const highlightedContractorUuid = filters.highlight ?? null;
 
     useEffect(() => {
-        if (!highlightedContractorId) {
+        if (!highlightedContractorUuid) {
             return;
         }
 
         document
-            .getElementById(`contractor-row-${highlightedContractorId}`)
+            .getElementById(`contractor-row-${highlightedContractorUuid}`)
             ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, [highlightedContractorId]);
+    }, [highlightedContractorUuid]);
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
@@ -78,8 +78,8 @@ export default function Index({ filters, contractors }: IndexProps) {
         );
     };
 
-    const destroyContractor = (contractorId: number) => {
-        router.delete(route('admin.contractors.destroy', contractorId), {
+    const destroyContractor = (contractorUuid: string) => {
+        router.delete(route('admin.contractors.destroy', contractorUuid), {
             preserveScroll: true,
             onFinish: () => setPendingDeleteContractor(null),
         });
@@ -186,12 +186,12 @@ export default function Index({ filters, contractors }: IndexProps) {
 
                                         return (
                                             <div
-                                                id={`contractor-row-${contractor.id}`}
+                                                id={`contractor-row-${contractor.uuid}`}
                                                 key={contractor.id}
                                                 className={cn(
                                                     'grid gap-3 border-b border-border px-4 py-4 last:border-b-0 lg:grid-cols-[1.3fr_1fr_1fr_1fr_auto] lg:items-center lg:gap-4',
-                                                    highlightedContractorId ===
-                                                        contractor.id &&
+                                                    highlightedContractorUuid ===
+                                                        contractor.uuid &&
                                                         'bg-emerald-50 dark:bg-emerald-950/30',
                                                 )}
                                             >
@@ -272,7 +272,7 @@ export default function Index({ filters, contractors }: IndexProps) {
                                                                 <Link
                                                                     href={route(
                                                                         'admin.contractors.edit',
-                                                                        contractor.id,
+                                                                        contractor.uuid,
                                                                     )}
                                                                     aria-label="Edit this contractor"
                                                                 >
@@ -293,7 +293,7 @@ export default function Index({ filters, contractors }: IndexProps) {
                                                                     onClick={() =>
                                                                         setPendingDeleteContractor(
                                                                             {
-                                                                                id: contractor.id,
+                                                                                uuid: contractor.uuid,
                                                                                 name: contractor.name,
                                                                             },
                                                                         )
@@ -354,7 +354,7 @@ export default function Index({ filters, contractors }: IndexProps) {
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             onClick={() => {
                                 if (pendingDeleteContractor) {
-                                    destroyContractor(pendingDeleteContractor.id);
+                                    destroyContractor(pendingDeleteContractor.uuid);
                                 }
                             }}
                         >

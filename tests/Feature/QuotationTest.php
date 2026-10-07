@@ -451,11 +451,11 @@ test('converting a quotation twice reuses the existing bid', function () {
         ->post(route('admin.quotations.convert-to-bid', $quotation))
         ->assertRedirect();
 
-    $bidId = $quotation->fresh()->converted_bid_id;
+    $bid = Bid::query()->where('quotation_id', $quotation->id)->firstOrFail();
 
     $this->actingAs($admin)
         ->post(route('admin.quotations.convert-to-bid', $quotation))
-        ->assertRedirect(route('admin.bids.edit', $bidId));
+        ->assertRedirect(route('admin.bids.edit', $bid->uuid));
 
     expect(Bid::query()->where('quotation_id', $quotation->id)->count())->toBe(1);
 });
@@ -466,11 +466,11 @@ test('the add bid form can import a saved quotation', function () {
     $quotation = makeQuotation($admin, $project, ['title' => 'Importable quote']);
 
     $this->actingAs($admin)
-        ->get(route('admin.bids.create', ['quotation' => $quotation->id]))
+        ->get(route('admin.bids.create', ['quotation' => $quotation->uuid]))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('Admin/Bids/Create')
-            ->where('importQuotationId', $quotation->id)
+            ->where('importQuotationUuid', $quotation->uuid)
             ->has('options.quotations', 1)
             ->where('options.quotations.0.id', $quotation->id)
             ->where('options.quotations.0.project_id', $project->id)

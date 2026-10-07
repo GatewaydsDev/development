@@ -29,7 +29,7 @@ class UserController extends Controller
                 'search' => $search,
             ],
             'users' => User::query()
-                ->with(['level:id,name', 'preferredLanguage:id,name,abbreviation'])
+                ->with(['level:id,uuid,name', 'preferredLanguage:id,name,abbreviation'])
                 ->when($search !== '', function ($query) use ($search): void {
                     $query->where(function ($query) use ($search): void {
                         $query
@@ -42,6 +42,7 @@ class UserController extends Controller
                 ->withQueryString()
                 ->through(fn (User $user): array => [
                     'id' => $user->id,
+                    'uuid' => $user->uuid,
                     'name' => $user->name,
                     'email' => $user->email,
                     'avatar_url' => $user->avatar_url,
@@ -57,6 +58,7 @@ class UserController extends Controller
                     'level' => $user->level
                         ? [
                             'id' => $user->level->id,
+                            'uuid' => $user->level->uuid,
                             'name' => $user->level->name,
                         ]
                         : null,
@@ -141,7 +143,7 @@ class UserController extends Controller
 
     public function edit(User $user): Response
     {
-        $user->load(['level:id,name', 'preferredLanguage:id,name,abbreviation']);
+        $user->load(['level:id,uuid,name', 'preferredLanguage:id,name,abbreviation']);
 
         return Inertia::render('Admin/Users/Edit', [
             'levels' => $this->levels(),
@@ -150,6 +152,7 @@ class UserController extends Controller
             'canCreateUserLevel' => (bool) request()->user()?->isSuperAdmin(),
             'managedUser' => [
                 'id' => $user->id,
+                'uuid' => $user->uuid,
                 'name' => $user->name,
                 'email' => $user->email,
                 'avatar_url' => $user->avatar_url,
@@ -167,6 +170,7 @@ class UserController extends Controller
                 'level' => $user->level
                     ? [
                         'id' => $user->level->id,
+                        'uuid' => $user->level->uuid,
                         'name' => $user->level->name,
                     ]
                     : null,
@@ -224,15 +228,16 @@ class UserController extends Controller
     }
 
     /**
-     * @return array<int, array{id: int, name: string}>
+     * @return array<int, array{id: int, uuid: string, name: string}>
      */
     private function levels(): array
     {
         return UserLevel::query()
             ->orderBy('id')
-            ->get(['id', 'name'])
+            ->get(['id', 'uuid', 'name'])
             ->map(fn (UserLevel $level): array => [
                 'id' => $level->id,
+                'uuid' => $level->uuid,
                 'name' => $level->name,
             ])
             ->all();

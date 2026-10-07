@@ -286,8 +286,8 @@ export default function Index({ filters, weeks }: IndexProps) {
         }
     }
 
-    const destroyWeek = (weekId: number) => {
-        router.delete(route('admin.employee-attendance.destroy', weekId), {
+    const destroyWeek = (weekUuid: string) => {
+        router.delete(route('admin.employee-attendance.destroy', weekUuid), {
             preserveScroll: true,
             onFinish: () => setPendingDelete(null),
         });
@@ -542,7 +542,7 @@ export default function Index({ filters, weeks }: IndexProps) {
                                                             <Link
                                                                 href={route(
                                                                     'admin.employee-attendance.edit',
-                                                                    attendanceWeek.id,
+                                                                    attendanceWeek.uuid,
                                                                 )}
                                                                 aria-label="Update attendance"
                                                             >
@@ -610,7 +610,7 @@ export default function Index({ filters, weeks }: IndexProps) {
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             onClick={() => {
                                 if (pendingDelete) {
-                                    destroyWeek(pendingDelete.id);
+                                    destroyWeek(pendingDelete.uuid);
                                 }
                             }}
                         >

@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasUuidRouteKey;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
 class BidTextTemplate extends Model
 {
+    use HasUuidRouteKey;
+
     public const KIND_APPLICATION = 'application';
 
     public const KIND_SCOPE = 'scope';

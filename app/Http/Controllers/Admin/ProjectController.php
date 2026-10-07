@@ -44,19 +44,19 @@ class ProjectController extends Controller
 
         $search = (string) $request->query('search', '');
         $status = (int) $request->query('status', 0);
-        $highlight = (int) $request->query('highlight', 0);
+        $highlight = (string) $request->query('highlight', '');
         $user = $request->user();
 
         return Inertia::render('Admin/Projects/Index', [
             'filters' => [
                 'search' => $search,
                 'status' => $status > 0 ? (string) $status : '',
-                'highlight' => $highlight > 0 ? $highlight : null,
+                'highlight' => $highlight !== '' ? $highlight : null,
             ],
             'options' => $this->options($user),
             'projects' => $this->projectListingQuery($request)
-                ->when($highlight > 0, function ($query) use ($highlight): void {
-                    $query->orderByRaw('CASE WHEN id = ? THEN 0 ELSE 1 END', [$highlight]);
+                ->when($highlight !== '', function ($query) use ($highlight): void {
+                    $query->orderByRaw('CASE WHEN uuid = ? THEN 0 ELSE 1 END', [$highlight]);
                 })
                 ->latest()
                 ->paginate(10)
@@ -168,7 +168,7 @@ class ProjectController extends Controller
         });
 
         return redirect()
-            ->route('admin.projects.index', ['highlight' => $project->id])
+            ->route('admin.projects.index', ['highlight' => $project->uuid])
             ->with('success', 'Project created successfully.');
     }
 
@@ -227,7 +227,7 @@ class ProjectController extends Controller
         });
 
         return redirect()
-            ->route('admin.projects.index', ['highlight' => $project->id])
+            ->route('admin.projects.index', ['highlight' => $project->uuid])
             ->with('success', 'Project updated successfully.');
     }
 
@@ -322,6 +322,11 @@ class ProjectController extends Controller
             ->addSelect([
                 'latest_bid_id' => Bid::query()
                     ->select('id')
+                    ->whereColumn('project_id', 'projects.id')
+                    ->latest('id')
+                    ->limit(1),
+                'latest_bid_uuid' => Bid::query()
+                    ->select('uuid')
                     ->whereColumn('project_id', 'projects.id')
                     ->latest('id')
                     ->limit(1),
@@ -822,6 +827,10 @@ class ProjectController extends Controller
                 ? (int) $project->latest_bid_id
                 : ($project->relationLoaded('bids')
                     ? $project->bids->sortByDesc('id')->first()?->id
+                    : null),
+            'latest_bid_uuid' => $project->latest_bid_uuid
+                ?? ($project->relationLoaded('bids')
+                    ? $project->bids->sortByDesc('id')->first()?->uuid
                     : null),
             'bid_scopes' => $this->bidScopePayload($project),
         ];

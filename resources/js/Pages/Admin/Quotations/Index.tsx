@@ -50,7 +50,7 @@ import {
 type IndexProps = {
     filters: {
         search?: string;
-        highlight?: number | null;
+        highlight?: string | null;
     };
     options: QuotationOptions;
     summary?: QuotationListSummary;
@@ -80,17 +80,17 @@ export default function Index({
     const [search, setSearch] = useState(filters.search ?? '');
     const [pendingQuotation, setPendingQuotation] =
         useState<QuotationPayload | null>(null);
-    const highlightedId = filters.highlight ?? null;
+    const highlightedUuid = filters.highlight ?? null;
 
     useEffect(() => {
-        if (!highlightedId) {
+        if (!highlightedUuid) {
             return;
         }
 
         document
-            .getElementById(`quotation-row-${highlightedId}`)
+            .getElementById(`quotation-row-${highlightedUuid}`)
             ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, [highlightedId]);
+    }, [highlightedUuid]);
 
     useProjectListRefresh(
         listVersion,
@@ -128,7 +128,7 @@ export default function Index({
         }
 
         router.post(
-            route('admin.quotations.convert-to-bid', pendingQuotation.id),
+            route('admin.quotations.convert-to-bid', pendingQuotation.uuid),
         );
         setPendingQuotation(null);
     };
@@ -254,12 +254,12 @@ export default function Index({
                                     {quotations.data.length > 0 ? (
                                         quotations.data.map((quotation) => (
                                             <div
-                                                id={`quotation-row-${quotation.id}`}
+                                                id={`quotation-row-${quotation.uuid}`}
                                                 key={quotation.id}
                                                 className={cn(
                                                     'grid gap-3 border-b border-border px-4 py-3.5 transition-colors hover:bg-muted/40 last:border-b-0 lg:items-center lg:gap-4',
                                                     rowGridClassName,
-                                                    highlightedId === quotation.id &&
+                                                    highlightedUuid === quotation.uuid &&
                                                         'bg-emerald-50 dark:bg-emerald-950/30',
                                                 )}
                                             >
@@ -339,7 +339,7 @@ export default function Index({
                                                                 <a
                                                                     href={quotationDocumentHref(
                                                                         'admin.quotations.print',
-                                                                        quotation.id,
+                                                                        quotation.uuid,
                                                                         quotation.proposal_title,
                                                                     )}
                                                                     target="_blank"
@@ -360,7 +360,7 @@ export default function Index({
                                                                 <a
                                                                     href={quotationDocumentHref(
                                                                         'admin.quotations.export.pdf',
-                                                                        quotation.id,
+                                                                        quotation.uuid,
                                                                         quotation.proposal_title,
                                                                     )}
                                                                     aria-label="Download as PDF"
@@ -379,7 +379,7 @@ export default function Index({
                                                                 <a
                                                                     href={quotationDocumentHref(
                                                                         'admin.quotations.export.word',
-                                                                        quotation.id,
+                                                                        quotation.uuid,
                                                                         quotation.proposal_title,
                                                                     )}
                                                                     aria-label="Download as Word"
@@ -398,7 +398,7 @@ export default function Index({
                                                                 <Link
                                                                     href={route(
                                                                         'admin.quotations.show',
-                                                                        quotation.id,
+                                                                        quotation.uuid,
                                                                     )}
                                                                     aria-label="View quotation details"
                                                                 >
@@ -417,7 +417,7 @@ export default function Index({
                                                                     <Link
                                                                         href={route(
                                                                             'admin.quotations.edit',
-                                                                            quotation.id,
+                                                                            quotation.uuid,
                                                                         )}
                                                                         aria-label="Edit this quotation"
                                                                     >
@@ -439,7 +439,7 @@ export default function Index({
                                                                             'admin.bids.show',
                                                                             quotation
                                                                                 .converted_bid
-                                                                                .id,
+                                                                                .uuid,
                                                                         )}
                                                                         aria-label="Open converted bid"
                                                                     >

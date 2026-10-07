@@ -38,7 +38,7 @@ export default function Edit({ service }: EditProps) {
             <div className="py-6 sm:py-8">
                 <div className="mx-auto max-w-[96rem] px-4 sm:px-6 lg:px-8">
                     <ServiceForm
-                        action={route('admin.services.update', service.id)}
+                        action={route('admin.services.update', service.uuid)}
                         method="patch"
                         title={service.name}
                         description={

@@ -307,7 +307,9 @@ export default function BidApplicationTextSection({
         (template) => String(template.id) === selectedId,
     );
 
-    const insertTemplate = (template: BidTextTemplateOption) => {
+    const insertTemplate = (
+        template: Pick<BidTextTemplateOption, 'id' | 'name' | 'body'>,
+    ) => {
         onChange(template.body);
         onTemplateIdChange(String(template.id));
         setSelectedId(String(template.id));
@@ -396,7 +398,7 @@ export default function BidApplicationTextSection({
 
         if (selectedMatchesName && selectedTemplate) {
             router.patch(
-                route('admin.bid-text-templates.update', selectedTemplate.id),
+                route('admin.bid-text-templates.update', selectedTemplate.uuid),
                 payload,
                 visitCatalog,
             );

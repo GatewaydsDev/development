@@ -47,7 +47,7 @@ export default function Edit({ attendance, employees }: EditProps) {
                     <AttendanceForm
                         action={route(
                             'admin.employee-attendance.update',
-                            attendance.id,
+                            attendance.uuid,
                         )}
                         method="patch"
                         submitLabel="Update week"

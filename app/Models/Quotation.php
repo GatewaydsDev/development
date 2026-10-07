@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasUuidRouteKey;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -10,6 +11,8 @@ use Illuminate\Support\Str;
 
 class Quotation extends Model
 {
+    use HasUuidRouteKey;
+
     public const DEFAULT_PROPOSAL_TITLE = 'Quote proposal based';
 
     public const STATUSES = [
