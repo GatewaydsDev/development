@@ -88,6 +88,7 @@ export type QuotationFormData = {
     status: string;
     quoted_at: string;
     valid_until: string;
+    project_amount: string;
     notes: string;
     proposal_title: string;
     pricing_conditions: string;
@@ -192,6 +193,7 @@ export type QuotationPayload = {
     status_label: string;
     quoted_at: string | null;
     valid_until: string | null;
+    project_amount?: string | number | null;
     notes: string | null;
     proposal_title?: string | null;
     pricing_conditions?: string | null;
@@ -344,6 +346,11 @@ export const quotationToFormData = (
     status: quotation?.status ?? 'draft',
     quoted_at: quotation?.quoted_at ?? '',
     valid_until: quotation?.valid_until ?? '',
+    project_amount:
+        quotation?.project_amount === null ||
+        quotation?.project_amount === undefined
+            ? ''
+            : String(quotation.project_amount),
     notes: quotation?.notes ?? '',
     proposal_title:
         quotation?.proposal_title?.trim() || DEFAULT_PROPOSAL_TITLE,
