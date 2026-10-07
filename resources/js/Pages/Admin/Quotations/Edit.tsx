@@ -48,7 +48,7 @@ export default function Edit({ quotation, options }: EditProps) {
                             <a
                                 href={quotationDocumentHref(
                                     'admin.quotations.print',
-                                    quotation.id,
+                                    quotation.uuid,
                                     proposalTitle,
                                 )}
                                 target="_blank"
@@ -62,7 +62,7 @@ export default function Edit({ quotation, options }: EditProps) {
                             <a
                                 href={quotationDocumentHref(
                                     'admin.quotations.export.pdf',
-                                    quotation.id,
+                                    quotation.uuid,
                                     proposalTitle,
                                 )}
                             >
@@ -74,7 +74,7 @@ export default function Edit({ quotation, options }: EditProps) {
                             <Link
                                 href={route(
                                     'admin.quotations.show',
-                                    quotation.id,
+                                    quotation.uuid,
                                 )}
                             >
                                 <EyeIcon className="size-4" />
@@ -90,7 +90,7 @@ export default function Edit({ quotation, options }: EditProps) {
             <div className="py-6 sm:py-8">
                 <div className="mx-auto max-w-[96rem] px-4 sm:px-6 lg:px-8">
                     <QuotationForm
-                        action={route('admin.quotations.update', quotation.id)}
+                        action={route('admin.quotations.update', quotation.uuid)}
                         method="patch"
                         title="Quotation information"
                         description="Update the project, contractor, and contacts. Previous versions stay in the quotation history as saved records."

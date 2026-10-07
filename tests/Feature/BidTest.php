@@ -533,7 +533,7 @@ test('a bid can be created with stages reusable scopes and pricing revisions', f
     $response
         ->assertSessionHasNoErrors()
         ->assertSessionHas('success', 'Bid created successfully.')
-        ->assertRedirect(route('admin.bids.index', ['highlight' => $bid->id]));
+        ->assertRedirect(route('admin.bids.index', ['highlight' => $bid->uuid]));
 
     expect($bid->stages)->toHaveCount(1);
     expect($bid->stages->first()?->type?->name)->toBe('Preliminary Bid');
@@ -867,7 +867,7 @@ test('a bid can update its stages scopes and pricing revisions', function () {
         ])
         ->assertSessionHasNoErrors()
         ->assertSessionHas('success', 'Bid updated successfully.')
-        ->assertRedirect(route('admin.bids.index', ['highlight' => $bid->id]));
+        ->assertRedirect(route('admin.bids.index', ['highlight' => $bid->uuid]));
 
     $bid->refresh()->load(['stages.type', 'scopes.title', 'scopes.products', 'pricings.items']);
 

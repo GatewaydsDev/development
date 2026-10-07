@@ -126,7 +126,7 @@ export type ProjectPayload = {
     created_at: string | null;
     updated_at: string | null;
     bids_count?: number;
-    latest_bid_id?: number | null;
+    latest_bid_uuid?: string | null;
     bid_scopes?: Array<{
         id: number;
         name: string;

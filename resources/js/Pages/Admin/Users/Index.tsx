@@ -25,6 +25,7 @@ import { FormEvent, useState } from 'react';
 
 type UserRow = {
     id: number;
+    uuid: string;
     name: string;
     email: string;
     date_of_birth: string | null;
@@ -35,6 +36,7 @@ type UserRow = {
     } | null;
     level: {
         id: number;
+        uuid: string;
         name: string;
     } | null;
     created_at: string | null;
@@ -286,7 +288,7 @@ export default function Index({ filters, users }: IndexProps) {
                                                                 asChild
                                                             >
                                                                 <Link
-                                                                    href={`${route('admin.access-control.edit')}?level=${user.level.id}`}
+                                                                    href={`${route('admin.access-control.edit')}?level=${user.level.uuid}`}
                                                                     aria-label="Edit permissions"
                                                                 >
                                                                     <SlidersHorizontalIcon className="size-4" />
@@ -306,7 +308,7 @@ export default function Index({ filters, users }: IndexProps) {
                                                             <Link
                                                                 href={route(
                                                                     'admin.users.edit',
-                                                                    user.id,
+                                                                    user.uuid,
                                                                 )}
                                                                 aria-label="Edit this user"
                                                             >

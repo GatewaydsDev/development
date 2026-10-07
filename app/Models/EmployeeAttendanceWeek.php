@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasUuidRouteKey;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,6 +11,8 @@ use Illuminate\Support\Carbon;
 
 class EmployeeAttendanceWeek extends Model
 {
+    use HasUuidRouteKey;
+
     /**
      * Monday through Saturday. Sunday is outside the work week.
      *

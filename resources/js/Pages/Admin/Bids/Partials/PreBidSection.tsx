@@ -147,7 +147,7 @@ export default function PreBidSection({
         if (!pendingDeletePreBid) return;
 
         setIsDeleting(true);
-        router.delete(route('admin.pre-bids.destroy', pendingDeletePreBid.id), {
+        router.delete(route('admin.pre-bids.destroy', pendingDeletePreBid.uuid), {
             preserveScroll: true,
             preserveState: true,
             onSuccess: () => {

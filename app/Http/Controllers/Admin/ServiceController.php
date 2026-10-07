@@ -18,12 +18,12 @@ class ServiceController extends Controller
         abort_unless(ServiceAccess::canView($request->user()), 403);
 
         $search = (string) $request->query('search', '');
-        $highlight = (int) $request->query('highlight', 0);
+        $highlight = (string) $request->query('highlight', '');
 
         return Inertia::render('Admin/Services/Index', [
             'filters' => [
                 'search' => $search,
-                'highlight' => $highlight > 0 ? $highlight : null,
+                'highlight' => $highlight !== '' ? $highlight : null,
             ],
             'services' => Service::query()
                 ->withCount('bidScopeProducts')
@@ -34,8 +34,8 @@ class ServiceController extends Controller
                             ->orWhere('description', 'like', "%{$search}%");
                     });
                 })
-                ->when($highlight > 0, function ($query) use ($highlight): void {
-                    $query->orderByRaw('CASE WHEN id = ? THEN 0 ELSE 1 END', [$highlight]);
+                ->when($highlight !== '', function ($query) use ($highlight): void {
+                    $query->orderByRaw('CASE WHEN uuid = ? THEN 0 ELSE 1 END', [$highlight]);
                 })
                 ->orderBy('name')
                 ->paginate(10)
@@ -62,7 +62,7 @@ class ServiceController extends Controller
         $service = Service::create($this->validatedService($request));
 
         return redirect()
-            ->route('admin.services.index', ['highlight' => $service->id])
+            ->route('admin.services.index', ['highlight' => $service->uuid])
             ->with('success', 'Service created successfully.');
     }
 
@@ -84,7 +84,7 @@ class ServiceController extends Controller
         $service->update($this->validatedService($request, $service));
 
         return redirect()
-            ->route('admin.services.index', ['highlight' => $service->id])
+            ->route('admin.services.index', ['highlight' => $service->uuid])
             ->with('success', 'Service updated successfully.');
     }
 

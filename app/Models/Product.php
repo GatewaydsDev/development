@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasUuidRouteKey;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -11,6 +12,8 @@ use Illuminate\Support\Str;
 
 class Product extends Model
 {
+    use HasUuidRouteKey;
+
     public const KIND_DOOR = 'door';
 
     public const KIND_WINDOW = 'window';

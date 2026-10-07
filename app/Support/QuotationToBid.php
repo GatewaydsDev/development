@@ -125,6 +125,7 @@ class QuotationToBid
 
         return [
             'id' => $quotation->id,
+            'uuid' => $quotation->uuid,
             'name' => trim($quotation->quotation_number.' · '.$quotation->title.' · '.$contractorName),
             'quotation_number' => $quotation->quotation_number,
             'title' => $quotation->title,

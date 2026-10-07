@@ -297,7 +297,7 @@ export default function AttendanceForm({
                             <Link
                                 href={route(
                                     'admin.employee-attendance.edit',
-                                    existingWeek.id,
+                                    existingWeek.uuid,
                                 )}
                                 className="font-medium text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-300"
                             >

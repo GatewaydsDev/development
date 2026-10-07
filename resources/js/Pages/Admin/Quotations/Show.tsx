@@ -81,7 +81,7 @@ export default function Show({ quotation, options }: ShowProps) {
           )
         : '';
     const removeQuotation = () => {
-        router.delete(route('admin.quotations.destroy', quotation.id));
+        router.delete(route('admin.quotations.destroy', quotation.uuid));
     };
 
     const convertToBid = () => {
@@ -97,7 +97,7 @@ export default function Show({ quotation, options }: ShowProps) {
 
     const confirmConvertToBid = () => {
         setIsConvertOpen(false);
-        router.post(route('admin.quotations.convert-to-bid', quotation.id));
+        router.post(route('admin.quotations.convert-to-bid', quotation.uuid));
     };
 
     return (
@@ -131,7 +131,7 @@ export default function Show({ quotation, options }: ShowProps) {
                             <a
                                 href={quotationDocumentHref(
                                     'admin.quotations.print',
-                                    quotation.id,
+                                    quotation.uuid,
                                     quotation.proposal_title,
                                 )}
                                 target="_blank"
@@ -145,7 +145,7 @@ export default function Show({ quotation, options }: ShowProps) {
                             <a
                                 href={quotationDocumentHref(
                                     'admin.quotations.export.pdf',
-                                    quotation.id,
+                                    quotation.uuid,
                                     quotation.proposal_title,
                                 )}
                             >
@@ -157,7 +157,7 @@ export default function Show({ quotation, options }: ShowProps) {
                             <a
                                 href={quotationDocumentHref(
                                     'admin.quotations.export.word',
-                                    quotation.id,
+                                    quotation.uuid,
                                     quotation.proposal_title,
                                 )}
                             >
@@ -170,7 +170,7 @@ export default function Show({ quotation, options }: ShowProps) {
                                 <Link
                                     href={route(
                                         'admin.bids.show',
-                                        quotation.converted_bid.id,
+                                        quotation.converted_bid.uuid,
                                     )}
                                 >
                                     <ClipboardListIcon className="size-4" />
@@ -189,7 +189,7 @@ export default function Show({ quotation, options }: ShowProps) {
                                 <Button variant="outline" asChild>
                                     <Link
                                         href={route('admin.bids.create', {
-                                            quotation: quotation.id,
+                                            quotation: quotation.uuid,
                                         })}
                                     >
                                         <FileUpIcon className="size-4" />
@@ -203,7 +203,7 @@ export default function Show({ quotation, options }: ShowProps) {
                                 <Link
                                     href={route(
                                         'admin.quotations.edit',
-                                        quotation.id,
+                                        quotation.uuid,
                                     )}
                                 >
                                     <EditIcon className="size-4" />

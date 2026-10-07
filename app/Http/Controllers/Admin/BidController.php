@@ -53,19 +53,19 @@ class BidController extends Controller
         abort_unless(BidAccess::canView($request->user()), 403);
 
         $search = (string) $request->query('search', '');
-        $highlight = (int) $request->query('highlight', 0);
+        $highlight = (string) $request->query('highlight', '');
         $listingQuery = $this->bidListingQuery($request);
 
         return Inertia::render('Admin/Bids/Index', [
             'filters' => [
                 'search' => $search,
-                'highlight' => $highlight > 0 ? $highlight : null,
+                'highlight' => $highlight !== '' ? $highlight : null,
             ],
             'options' => $this->options($request->user()),
             'summary' => $this->bidStageSummary($listingQuery),
             'bids' => (clone $listingQuery)
-                ->when($highlight > 0, function ($query) use ($highlight): void {
-                    $query->orderByRaw('CASE WHEN id = ? THEN 0 ELSE 1 END', [$highlight]);
+                ->when($highlight !== '', function ($query) use ($highlight): void {
+                    $query->orderByRaw('CASE WHEN uuid = ? THEN 0 ELSE 1 END', [$highlight]);
                 })
                 ->latest()
                 ->paginate(10)
@@ -109,9 +109,14 @@ class BidController extends Controller
     {
         abort_unless(BidAccess::canCreate($request->user()), 403);
 
+        $quotation = $request->query('quotation');
+        $importQuotationUuid = is_string($quotation) && ctype_digit($quotation)
+            ? Quotation::query()->whereKey($quotation)->value('uuid')
+            : (is_string($quotation) ? $quotation : null);
+
         return Inertia::render('Admin/Bids/Create', [
             'options' => $this->options($request->user()),
-            'importQuotationId' => $request->integer('quotation') ?: null,
+            'importQuotationUuid' => $importQuotationUuid ?: null,
         ]);
     }
 
@@ -139,7 +144,7 @@ class BidController extends Controller
         });
 
         return redirect()
-            ->route('admin.bids.index', ['highlight' => $bid->id])
+            ->route('admin.bids.index', ['highlight' => $bid->uuid])
             ->with('success', 'Bid created successfully.');
     }
 
@@ -232,7 +237,7 @@ class BidController extends Controller
         });
 
         return redirect()
-            ->route('admin.bids.index', ['highlight' => $bid->id])
+            ->route('admin.bids.index', ['highlight' => $bid->uuid])
             ->with('success', 'Bid updated successfully.');
     }
 
@@ -810,6 +815,7 @@ class BidController extends Controller
             ],
             'quotation' => $bid->quotation ? [
                 'id' => $bid->quotation->id,
+                'uuid' => $bid->quotation->uuid,
                 'quotation_number' => $bid->quotation->quotation_number,
                 'title' => $bid->quotation->title,
             ] : null,
@@ -1237,9 +1243,10 @@ class BidController extends Controller
             'scopeTextTemplates' => BidTextTemplate::query()
                 ->where('kind', BidTextTemplate::KIND_SCOPE)
                 ->orderBy('name')
-                ->get(['id', 'name', 'body'])
+                ->get(['id', 'uuid', 'name', 'body'])
                 ->map(fn (BidTextTemplate $template): array => [
                     'id' => $template->id,
+                    'uuid' => $template->uuid,
                     'name' => $template->name,
                     'body' => $template->body,
                 ])

@@ -81,7 +81,7 @@ test('a door can be created with reusable parts', function () {
     $response
         ->assertSessionHasNoErrors()
         ->assertSessionHas('success', 'Product created successfully.')
-        ->assertRedirect(route('admin.products.index', ['highlight' => $door->id]));
+        ->assertRedirect(route('admin.products.index', ['highlight' => $door->uuid]));
 
     expect($door->kind)->toBe(Product::KIND_DOOR);
     expect($door->product_type_id)->toBe($doorType->id);
@@ -128,7 +128,7 @@ test('a window can be created after the door type with reusable parts', function
     $response
         ->assertSessionHasNoErrors()
         ->assertSessionHas('success', 'Product created successfully.')
-        ->assertRedirect(route('admin.products.index', ['highlight' => $window->id]));
+        ->assertRedirect(route('admin.products.index', ['highlight' => $window->uuid]));
 
     expect($windowType->kind())->toBe(Product::KIND_WINDOW);
     expect($windowType->allows_parts)->toBeTrue();

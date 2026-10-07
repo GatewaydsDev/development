@@ -23,6 +23,7 @@ type Permission = {
 
 type Level = {
     id: number;
+    uuid: string;
     name: string;
     locked: boolean;
     permissions: Record<string, boolean>;

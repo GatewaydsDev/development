@@ -38,7 +38,7 @@ import {
 type IndexProps = {
     filters: {
         search?: string;
-        highlight?: number | null;
+        highlight?: string | null;
     };
     options: BidOptions;
     summary?: BidListSummary;
@@ -54,22 +54,22 @@ export default function Index({
     listVersion,
 }: IndexProps) {
     const [search, setSearch] = useState(filters.search ?? '');
-    const highlightedBidId = filters.highlight ?? null;
+    const highlightedBidUuid = filters.highlight ?? null;
 
     useEffect(() => {
-        if (!highlightedBidId) {
+        if (!highlightedBidUuid) {
             return;
         }
 
         const rows = document.querySelectorAll<HTMLElement>(
-            `[data-bid-row="${highlightedBidId}"]`,
+            `[data-bid-row="${highlightedBidUuid}"]`,
         );
         const visibleRow =
             Array.from(rows).find((row) => row.offsetParent !== null) ??
             rows[0];
 
         visibleRow?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, [highlightedBidId]);
+    }, [highlightedBidUuid]);
 
     useProjectListRefresh(
         listVersion,
@@ -239,12 +239,12 @@ export default function Index({
                                         <div className="lg:hidden">
                                             {bids.data.map((bid) => (
                                                 <div
-                                                    data-bid-row={bid.id}
+                                                    data-bid-row={bid.uuid}
                                                     key={bid.id}
                                                     className={cn(
                                                         'grid gap-3 border-b border-border px-4 py-4 last:border-b-0',
-                                                        highlightedBidId ===
-                                                            bid.id &&
+                                                        highlightedBidUuid ===
+                                                            bid.uuid &&
                                                             'bg-emerald-50 dark:bg-emerald-950/30',
                                                     )}
                                                 >
@@ -280,7 +280,7 @@ export default function Index({
                                                             Actions
                                                         </DirectoryFieldLabel>
                                                         <BidDirectoryActions
-                                                            bidId={bid.id}
+                                                            bidId={bid.uuid}
                                                             canUpdate={
                                                                 options.can
                                                                     .update
@@ -354,12 +354,12 @@ export default function Index({
                                             </div>
                                             {bids.data.map((bid) => (
                                                 <div
-                                                    data-bid-row={bid.id}
+                                                    data-bid-row={bid.uuid}
                                                     key={bid.id}
                                                     className={cn(
                                                         'col-span-5 grid grid-cols-subgrid items-center gap-x-4 border-b border-border px-4 py-4 last:border-b-0',
-                                                        highlightedBidId ===
-                                                            bid.id &&
+                                                        highlightedBidUuid ===
+                                                            bid.uuid &&
                                                             'bg-emerald-50 dark:bg-emerald-950/30',
                                                     )}
                                                 >
@@ -388,7 +388,7 @@ export default function Index({
                                                     </div>
                                                     <div className="min-w-0">
                                                         <BidDirectoryActions
-                                                            bidId={bid.id}
+                                                            bidId={bid.uuid}
                                                             canUpdate={
                                                                 options.can
                                                                     .update
@@ -539,7 +539,7 @@ function BidDirectoryActions({
     bidId,
     canUpdate,
 }: {
-    bidId: number;
+    bidId: string;
     canUpdate: boolean;
 }) {
     return (

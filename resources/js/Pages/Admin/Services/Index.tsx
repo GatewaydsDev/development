@@ -36,7 +36,7 @@ import type { ServicesPaginator } from './types';
 type IndexProps = {
     filters: {
         search?: string;
-        highlight?: number | null;
+        highlight?: string | null;
     };
     services: ServicesPaginator;
 };
@@ -48,20 +48,20 @@ export default function Index({ filters, services }: IndexProps) {
     const canDeleteServices = Boolean(auth.can?.deleteServices);
     const [search, setSearch] = useState(filters.search ?? '');
     const [pendingDeleteService, setPendingDeleteService] = useState<{
-        id: number;
+        uuid: string;
         name: string;
     } | null>(null);
-    const highlightedServiceId = filters.highlight ?? null;
+    const highlightedServiceUuid = filters.highlight ?? null;
 
     useEffect(() => {
-        if (!highlightedServiceId) {
+        if (!highlightedServiceUuid) {
             return;
         }
 
         document
-            .getElementById(`service-row-${highlightedServiceId}`)
+            .getElementById(`service-row-${highlightedServiceUuid}`)
             ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, [highlightedServiceId]);
+    }, [highlightedServiceUuid]);
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
@@ -76,8 +76,8 @@ export default function Index({ filters, services }: IndexProps) {
         );
     };
 
-    const destroyService = (serviceId: number) => {
-        router.delete(route('admin.services.destroy', serviceId), {
+    const destroyService = (serviceUuid: string) => {
+        router.delete(route('admin.services.destroy', serviceUuid), {
             preserveScroll: true,
             onFinish: () => setPendingDeleteService(null),
         });
@@ -177,12 +177,12 @@ export default function Index({ filters, services }: IndexProps) {
                                 {services.data.length > 0 ? (
                                     services.data.map((item) => (
                                         <div
-                                            id={`service-row-${item.id}`}
+                                            id={`service-row-${item.uuid}`}
                                             key={item.id}
                                             className={cn(
                                                 'grid gap-3 border-b border-border px-4 py-4 last:border-b-0 md:grid-cols-[1.4fr_1fr_auto] md:items-center md:gap-4',
-                                                highlightedServiceId ===
-                                                    item.id &&
+                                                highlightedServiceUuid ===
+                                                    item.uuid &&
                                                     'bg-emerald-50 dark:bg-emerald-950/30',
                                             )}
                                         >
@@ -221,7 +221,7 @@ export default function Index({ filters, services }: IndexProps) {
                                                             <Link
                                                                 href={route(
                                                                     'admin.services.edit',
-                                                                    item.id,
+                                                                    item.uuid,
                                                                 )}
                                                                 aria-label="Edit this service"
                                                             >
@@ -242,7 +242,7 @@ export default function Index({ filters, services }: IndexProps) {
                                                                 onClick={() =>
                                                                     setPendingDeleteService(
                                                                         {
-                                                                            id: item.id,
+                                                                            uuid: item.uuid,
                                                                             name: item.name,
                                                                         },
                                                                     )
@@ -302,7 +302,7 @@ export default function Index({ filters, services }: IndexProps) {
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             onClick={() => {
                                 if (pendingDeleteService) {
-                                    destroyService(pendingDeleteService.id);
+                                    destroyService(pendingDeleteService.uuid);
                                 }
                             }}
                         >

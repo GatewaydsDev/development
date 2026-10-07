@@ -4,6 +4,7 @@ import { Head, Link } from '@inertiajs/react';
 
 type Level = {
     id: number;
+    uuid: string;
     name: string;
 };
 
@@ -15,6 +16,7 @@ type Language = {
 
 type ManagedUser = {
     id: number;
+    uuid: string;
     name: string;
     email: string;
     avatar_url: string | null;
@@ -85,7 +87,7 @@ export default function Edit({
                         canCreateUserLevel={canCreateUserLevel}
                         title={`Update ${managedUser.name}`}
                         description="Review profile details, access level, and password settings for this user."
-                        action={route('admin.users.update', managedUser.id)}
+                        action={route('admin.users.update', managedUser.uuid)}
                         method="patch"
                         submitLabel="Save changes"
                         passwordOptional

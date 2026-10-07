@@ -19,6 +19,7 @@ import { ChangeEvent, FormEventHandler, useEffect, useMemo, useState } from 'rea
 
 type Level = {
     id: number;
+    uuid: string;
     name: string;
 };
 

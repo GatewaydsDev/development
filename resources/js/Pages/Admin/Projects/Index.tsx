@@ -35,7 +35,7 @@ type IndexProps = {
     filters: {
         search?: string;
         status?: string;
-        highlight?: number | null;
+        highlight?: string | null;
     };
     options: ProjectOptions;
     projects: ProjectsPaginator;
@@ -82,17 +82,17 @@ export default function Index({
     const canViewBids = Boolean(auth.can?.viewBids);
     const [search, setSearch] = useState(filters.search ?? '');
     const [status, setStatus] = useState(filters.status ?? '');
-    const highlightedProjectId = filters.highlight ?? null;
+    const highlightedProjectUuid = filters.highlight ?? null;
 
     useEffect(() => {
-        if (!highlightedProjectId) {
+        if (!highlightedProjectUuid) {
             return;
         }
 
         document
-            .getElementById(`project-row-${highlightedProjectId}`)
+            .getElementById(`project-row-${highlightedProjectUuid}`)
             ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, [highlightedProjectId]);
+    }, [highlightedProjectUuid]);
 
     useProjectListRefresh(listVersion, ['projects', 'listVersion']);
 
@@ -275,13 +275,13 @@ export default function Index({
                                 {projects.data.length > 0 ? (
                                     projects.data.map((project) => (
                                         <div
-                                            id={`project-row-${project.id}`}
+                                            id={`project-row-${project.uuid}`}
                                             key={project.id}
                                             className={cn(
                                                 'grid gap-4 border-b border-border px-5 py-6 last:border-b-0 xl:min-h-24 xl:items-start xl:gap-6',
                                                 projectRowGridClassName,
-                                                highlightedProjectId ===
-                                                    project.id &&
+                                                highlightedProjectUuid ===
+                                                    project.uuid &&
                                                     'bg-emerald-50 dark:bg-emerald-950/30',
                                             )}
                                         >
@@ -335,11 +335,11 @@ export default function Index({
                                                 </DirectoryFieldLabel>
                                                 {project.bids_count ? (
                                                     canViewBids &&
-                                                    project.latest_bid_id ? (
+                                                    project.latest_bid_uuid ? (
                                                         <Link
                                                             href={route(
                                                                 'admin.bids.show',
-                                                                project.latest_bid_id,
+                                                                project.latest_bid_uuid,
                                                             )}
                                                             className="inline-flex"
                                                         >
@@ -459,7 +459,7 @@ export default function Index({
                                                         <a
                                                             href={route(
                                                                 'admin.projects.document.print',
-                                                                project.id,
+                                                                project.uuid,
                                                             )}
                                                             target="_blank"
                                                             rel="noreferrer"
@@ -479,7 +479,7 @@ export default function Index({
                                                         <a
                                                             href={route(
                                                                 'admin.projects.document.export.pdf',
-                                                                project.id,
+                                                                project.uuid,
                                                             )}
                                                             aria-label="Download as PDF"
                                                         >
@@ -497,7 +497,7 @@ export default function Index({
                                                         <a
                                                             href={route(
                                                                 'admin.projects.document.export.word',
-                                                                project.id,
+                                                                project.uuid,
                                                             )}
                                                             aria-label="Download as Word"
                                                         >
@@ -515,7 +515,7 @@ export default function Index({
                                                         <Link
                                                             href={route(
                                                                 'admin.projects.show',
-                                                                project.id,
+                                                                project.uuid,
                                                             )}
                                                             aria-label="View project details"
                                                         >
@@ -534,7 +534,7 @@ export default function Index({
                                                             <Link
                                                                 href={route(
                                                                     'admin.projects.edit',
-                                                                    project.id,
+                                                                    project.uuid,
                                                                 )}
                                                                 aria-label="Edit this project"
                                                             >
@@ -573,4 +573,3 @@ export default function Index({
         </AuthenticatedLayout>
     );
 }
-

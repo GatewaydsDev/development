@@ -249,7 +249,7 @@ export default function QuotationReusableTextSection({
 
         if (selectedMatchesName && selectedTemplate) {
             router.patch(
-                route('admin.bid-text-templates.update', selectedTemplate.id),
+                route('admin.bid-text-templates.update', selectedTemplate.uuid),
                 payload,
                 visitCatalog,
             );

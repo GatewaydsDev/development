@@ -27,12 +27,12 @@ class ContractorController extends Controller
         abort_unless(ContractorAccess::canView($request->user()), 403);
 
         $search = (string) $request->query('search', '');
-        $highlight = (int) $request->query('highlight', 0);
+        $highlight = (string) $request->query('highlight', '');
 
         return Inertia::render('Admin/Contractors/Index', [
             'filters' => [
                 'search' => $search,
-                'highlight' => $highlight > 0 ? $highlight : null,
+                'highlight' => $highlight !== '' ? $highlight : null,
             ],
             'contractors' => Contractor::query()
                 ->with([
@@ -54,8 +54,8 @@ class ContractorController extends Controller
                             });
                     });
                 })
-                ->when($highlight > 0, function ($query) use ($highlight): void {
-                    $query->orderByRaw('CASE WHEN id = ? THEN 0 ELSE 1 END', [$highlight]);
+                ->when($highlight !== '', function ($query) use ($highlight): void {
+                    $query->orderByRaw('CASE WHEN uuid = ? THEN 0 ELSE 1 END', [$highlight]);
                 })
                 ->orderBy('name')
                 ->paginate(10)
@@ -95,7 +95,7 @@ class ContractorController extends Controller
         });
 
         return redirect()
-            ->route('admin.contractors.index', ['highlight' => $contractor->id])
+            ->route('admin.contractors.index', ['highlight' => $contractor->uuid])
             ->with('success', $this->savedMessage($contractor->role, created: true));
     }
 
@@ -130,7 +130,7 @@ class ContractorController extends Controller
         });
 
         return redirect()
-            ->route('admin.contractors.index', ['highlight' => $contractor->id])
+            ->route('admin.contractors.index', ['highlight' => $contractor->uuid])
             ->with('success', $this->savedMessage($contractor->role, created: false));
     }
 

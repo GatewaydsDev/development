@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasUuidRouteKey;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -11,6 +12,8 @@ use Illuminate\Support\Str;
 
 class Employee extends Model
 {
+    use HasUuidRouteKey;
+
     public const STATUS_ACTIVE = 'active';
 
     public const STATUS_INACTIVE = 'inactive';
@@ -48,11 +51,6 @@ class Employee extends Model
         static::creating(function (Employee $employee): void {
             $employee->uuid ??= (string) Str::uuid();
         });
-    }
-
-    public function getRouteKeyName(): string
-    {
-        return 'uuid';
     }
 
     public function fullName(): string

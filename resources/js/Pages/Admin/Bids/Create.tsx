@@ -8,10 +8,10 @@ import type { BidOptions } from './types';
 
 type CreateProps = {
     options: BidOptions;
-    importQuotationId?: number | null;
+    importQuotationUuid?: string | null;
 };
 
-export default function Create({ options, importQuotationId = null }: CreateProps) {
+export default function Create({ options, importQuotationUuid = null }: CreateProps) {
     const [projectName, setProjectName] = useState('');
 
     return (
@@ -67,7 +67,7 @@ export default function Create({ options, importQuotationId = null }: CreateProp
                         title="Bid information"
                         description="Create a bid with stages, reusable scopes of work, and revising preliminary pricing."
                         options={options}
-                        importQuotationId={importQuotationId}
+                        importQuotationUuid={importQuotationUuid}
                         onSelectedProjectNameChange={setProjectName}
                     />
                 </div>

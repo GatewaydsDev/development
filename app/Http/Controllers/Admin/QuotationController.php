@@ -50,19 +50,19 @@ class QuotationController extends Controller
         abort_unless(QuotationAccess::canView($request->user()), 403);
 
         $search = (string) $request->query('search', '');
-        $highlight = (int) $request->query('highlight', 0);
+        $highlight = (string) $request->query('highlight', '');
         $listingQuery = $this->listingQuery($search);
 
         return Inertia::render('Admin/Quotations/Index', [
             'filters' => [
                 'search' => $search,
-                'highlight' => $highlight > 0 ? $highlight : null,
+                'highlight' => $highlight !== '' ? $highlight : null,
             ],
             'options' => $this->options($request->user()),
             'summary' => $this->quotationStatusSummary($listingQuery),
             'quotations' => (clone $listingQuery)
-                ->when($highlight > 0, function ($query) use ($highlight): void {
-                    $query->orderByRaw('CASE WHEN quotations.id = ? THEN 0 ELSE 1 END', [$highlight]);
+                ->when($highlight !== '', function ($query) use ($highlight): void {
+                    $query->orderByRaw('CASE WHEN quotations.uuid = ? THEN 0 ELSE 1 END', [$highlight]);
                 })
                 ->paginate(10)
                 ->withQueryString()
@@ -162,7 +162,7 @@ class QuotationController extends Controller
         });
 
         return redirect()
-            ->route('admin.quotations.index', ['highlight' => $quotation->id])
+            ->route('admin.quotations.index', ['highlight' => $quotation->uuid])
             ->with('success', 'Quotation saved successfully.');
     }
 
@@ -264,7 +264,7 @@ class QuotationController extends Controller
         });
 
         return redirect()
-            ->route('admin.quotations.index', ['highlight' => $quotation->id])
+            ->route('admin.quotations.index', ['highlight' => $quotation->uuid])
             ->with('success', 'Quotation updated successfully.');
     }
 
@@ -672,6 +672,7 @@ class QuotationController extends Controller
             ] : null,
             'converted_bid' => $quotation->convertedBid ? [
                 'id' => $quotation->convertedBid->id,
+                'uuid' => $quotation->convertedBid->uuid,
             ] : null,
         ];
 
@@ -740,9 +741,10 @@ class QuotationController extends Controller
         return BidTextTemplate::query()
             ->where('kind', $kind)
             ->orderBy('name')
-            ->get(['id', 'name', 'body'])
+            ->get(['id', 'uuid', 'name', 'body'])
             ->map(fn (BidTextTemplate $template): array => [
                 'id' => $template->id,
+                'uuid' => $template->uuid,
                 'name' => $template->name,
                 'body' => $template->body,
             ])

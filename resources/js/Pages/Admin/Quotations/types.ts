@@ -46,6 +46,7 @@ export type QuotationFieldTableFormData = {
 
 export type QuotationTextTemplateOption = {
     id: number;
+    uuid: string;
     name: string;
     body: string;
 };
@@ -66,13 +67,13 @@ export const quotationDocumentHref = (
         | 'admin.quotations.print'
         | 'admin.quotations.export.pdf'
         | 'admin.quotations.export.word',
-    quotationId: number,
+    quotationUuid: string,
     proposalTitle?: string | null,
 ) => {
     const title = proposalTitle?.trim();
 
     return route(name, {
-        quotation: quotationId,
+        quotation: quotationUuid,
         ...(title ? { proposal_title: title } : {}),
     });
 };
@@ -221,6 +222,7 @@ export type QuotationPayload = {
     } | null;
     converted_bid?: {
         id: number;
+        uuid: string;
     } | null;
     line_item_count?: number;
     line_items?: QuotationLineItemPayload[];

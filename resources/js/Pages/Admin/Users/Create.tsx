@@ -4,6 +4,7 @@ import { Head, Link } from '@inertiajs/react';
 
 type Level = {
     id: number;
+    uuid: string;
     name: string;
 };
 

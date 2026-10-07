@@ -499,10 +499,12 @@ function ColorChoices({
     onSelect,
     allowClear,
     onClear,
+    allowCustom,
 }: {
     onSelect: (color: LayoutColor) => void;
     allowClear?: boolean;
     onClear?: () => void;
+    allowCustom?: boolean;
 }) {
     return (
         <>
@@ -518,6 +520,50 @@ function ColorChoices({
                     {swatch.label}
                 </DropdownMenuItem>
             ))}
+            {allowCustom ? (
+                <div
+                    className="flex items-center justify-between gap-3 px-2 py-1.5 text-sm"
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={(event) => event.stopPropagation()}
+                    onKeyDown={(event) => event.stopPropagation()}
+                >
+                    <label className="flex w-full cursor-pointer items-center justify-between gap-3">
+                        Custom color
+                        <input
+                            type="color"
+                            aria-label="Choose a custom background color"
+                            className="size-7 cursor-pointer rounded border-0 bg-transparent p-0"
+                            onChange={(event) => {
+                                const value = event.target.value;
+                                const channels = [1, 3, 5].map((offset) => {
+                                    const channel =
+                                        Number.parseInt(
+                                            value.slice(offset, offset + 2),
+                                            16,
+                                        ) / 255;
+
+                                    return channel <= 0.04045
+                                        ? channel / 12.92
+                                        : ((channel + 0.055) / 1.055) ** 2.4;
+                                });
+                                const luminance =
+                                    0.2126 * channels[0] +
+                                    0.7152 * channels[1] +
+                                    0.0722 * channels[2];
+
+                                onSelect({
+                                    label: 'Custom',
+                                    value,
+                                    text:
+                                        luminance > 0.179
+                                            ? '#111111'
+                                            : '#FFFFFF',
+                                });
+                            }}
+                        />
+                    </label>
+                </div>
+            ) : null}
             {allowClear ? (
                 <DropdownMenuItem onClick={onClear}>Clear fill</DropdownMenuItem>
             ) : null}
@@ -916,6 +962,22 @@ export default function RichTextEditor({
         labelCurrentTableHeaders(editor);
     };
 
+    const insertBoxedNoteWithColumns = (columns: number) => {
+        if (!editor) {
+            return;
+        }
+
+        editor
+            .chain()
+            .focus()
+            .insertTable({
+                rows: 1,
+                cols: Math.min(4, Math.max(2, columns)),
+                withHeaderRow: false,
+            })
+            .run();
+    };
+
     const boxedNoteStyles = {
         border: '1px solid #111827',
         backgroundColor: '#ffffff',
@@ -930,18 +992,19 @@ export default function RichTextEditor({
     const currentParagraphHasBox = () =>
         Boolean(editor?.getAttributes('paragraph').border);
 
-    const applyBoxedNote = () => {
+    const applyBoxedNote = (color: LayoutColor | null = null) => {
         if (!editor) {
             return;
         }
 
-        if (currentParagraphHasBox()) {
+        if (currentParagraphHasBox() && !color) {
             editor
                 .chain()
                 .focus()
                 .updateAttributes('paragraph', {
                     border: null,
                     backgroundColor: null,
+                    color: null,
                     paddingTop: null,
                     paddingBottom: null,
                     paddingLeft: null,
@@ -963,7 +1026,15 @@ export default function RichTextEditor({
                 .focus()
                 .insertContent({
                     type: 'paragraph',
-                    attrs: boxedNoteStyles,
+                    attrs: {
+                        ...boxedNoteStyles,
+                        ...(color
+                            ? {
+                                  backgroundColor: color.value,
+                                  color: color.text,
+                              }
+                            : {}),
+                    },
                     content: [
                         {
                             type: 'text',
@@ -983,7 +1054,27 @@ export default function RichTextEditor({
         editor
             .chain()
             .focus()
-            .updateAttributes('paragraph', boxedNoteStyles)
+            .updateAttributes('paragraph', {
+                ...boxedNoteStyles,
+                ...(color
+                    ? {
+                          backgroundColor: color.value,
+                          color: color.text,
+                      }
+                    : {}),
+            })
+            .run();
+    };
+
+    const applyBoxedNoteBackground = (color: LayoutColor) => {
+        editor
+            ?.chain()
+            .focus()
+            .updateAttributes('paragraph', {
+                ...boxedNoteStyles,
+                backgroundColor: color.value,
+                color: color.text,
+            })
             .run();
     };
 
@@ -2107,7 +2198,7 @@ export default function RichTextEditor({
                 <Toggle
                     size="sm"
                     pressed={currentParagraphHasBox()}
-                    onPressedChange={applyBoxedNote}
+                    onPressedChange={() => applyBoxedNote()}
                     aria-label="Boxed note"
                     title="Put the text in a box"
                 >
@@ -2545,10 +2636,40 @@ export default function RichTextEditor({
                             ))}
                         </DropdownMenuSubContent>
                     </DropdownMenuSub>
-                    <DropdownMenuItem onClick={applyBoxedNote}>
+                    <DropdownMenuItem onClick={() => applyBoxedNote()}>
                         <SquareIcon />
                         Boxed note
                     </DropdownMenuItem>
+                    <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>
+                            <PaintBucketIcon />
+                            Boxed note background
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent>
+                            <ColorChoices
+                                allowCustom
+                                onSelect={(color) => applyBoxedNote(color)}
+                            />
+                        </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                    <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>
+                            <Columns3Icon />
+                            Boxed note with columns
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent>
+                            {[2, 3, 4].map((columns) => (
+                                <DropdownMenuItem
+                                    key={columns}
+                                    onClick={() =>
+                                        insertBoxedNoteWithColumns(columns)
+                                    }
+                                >
+                                    {columns} columns
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuSubContent>
+                    </DropdownMenuSub>
                     <DropdownMenuSeparator />
                     <DropdownMenuLabel>Add a colored section</DropdownMenuLabel>
                     <ColorChoices onSelect={insertColoredSection} />
@@ -2581,6 +2702,7 @@ export default function RichTextEditor({
                                     Table header color
                                 </DropdownMenuLabel>
                                 <ColorChoices
+                                    allowCustom
                                     onSelect={(color) =>
                                         fillCurrentTableHeaders(
                                             editor,
@@ -2669,6 +2791,41 @@ export default function RichTextEditor({
                             <Trash2Icon />
                         </Button>
                     </>
+                ) : null}
+                {editor?.isActive('paragraph') &&
+                currentParagraphHasBox() ? (
+                    <ToolbarMenu
+                        onOpenChange={handleMenuOpenChange}
+                        trigger={
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                title="Change boxed note background"
+                            >
+                                <PaintBucketIcon />
+                            </Button>
+                        }
+                    >
+                        <DropdownMenuLabel>
+                            Boxed note background
+                        </DropdownMenuLabel>
+                        <ColorChoices
+                            allowCustom
+                            allowClear
+                            onSelect={applyBoxedNoteBackground}
+                            onClear={() =>
+                                editor
+                                    .chain()
+                                    .focus()
+                                    .updateAttributes('paragraph', {
+                                        backgroundColor: null,
+                                        color: null,
+                                    })
+                                    .run()
+                            }
+                        />
+                    </ToolbarMenu>
                 ) : null}
                 {editor?.isActive('coloredSection') ? (
                     <>

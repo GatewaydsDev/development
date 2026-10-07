@@ -1,5 +1,6 @@
 export interface User {
     id: number;
+    uuid: string;
     name: string;
     email: string;
     email_verified_at?: string;
@@ -37,7 +38,7 @@ export interface AppNotification {
 
 export interface Contact {
     id: number;
-    uuid?: string;
+    uuid: string;
     name: string;
     email: string;
     phone_number?: string | null;

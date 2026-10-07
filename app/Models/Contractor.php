@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasUuidRouteKey;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -9,6 +10,8 @@ use Illuminate\Support\Str;
 
 class Contractor extends Model
 {
+    use HasUuidRouteKey;
+
     public const ROLE_CONTRACTOR = 'contractor';
 
     public const ROLE_OWNER = 'owner';

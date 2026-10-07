@@ -72,7 +72,7 @@ export default function Show({ product, options }: ShowProps) {
     const minSellTotal = applyTaxTotal(minSellPrice, taxRate);
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const removeProduct = () => {
-        router.delete(route('admin.products.destroy', product.id));
+        router.delete(route('admin.products.destroy', product.uuid));
     };
 
     return (
@@ -107,7 +107,7 @@ export default function Show({ product, options }: ShowProps) {
                                 <Link
                                     href={route(
                                         'admin.products.edit',
-                                        product.id,
+                                        product.uuid,
                                     )}
                                 >
                                     <EditIcon className="size-4" />
