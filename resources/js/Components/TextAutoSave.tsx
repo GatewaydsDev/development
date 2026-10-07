@@ -21,6 +21,18 @@ export type TextAutoSaveConfig = {
 
 const saveDelayMs = 1200;
 
+type TextAutoSaveFlusher = () => Promise<boolean>;
+
+const textAutoSaveFlushers = new Set<TextAutoSaveFlusher>();
+
+export async function flushPendingTextAutoSaves(): Promise<boolean> {
+    const results = await Promise.all(
+        Array.from(textAutoSaveFlushers, (flush) => flush()),
+    );
+
+    return results.every(Boolean);
+}
+
 const preferenceKey = (persistKey: string) =>
     `gateway-autosave:${persistKey}`;
 
@@ -93,11 +105,11 @@ export default function TextAutoSave({
         }
     };
 
-    const saveNow = async (body: string) => {
+    const saveNow = async (body: string): Promise<boolean> => {
         const endpoint = urlRef.current;
 
         if (!endpoint) {
-            return;
+            return false;
         }
 
         setStatus('saving');
@@ -118,23 +130,43 @@ export default function TextAutoSave({
             });
 
             if (latestHtml.current !== body) {
-                return;
+                return true;
             }
 
             if (!response.ok) {
                 setStatus('error');
 
-                return;
+                return false;
             }
 
             savedHtml.current = body;
             setStatus('saved');
+            return true;
         } catch {
             if (latestHtml.current === body) {
                 setStatus('error');
             }
+
+            return false;
         }
     };
+
+    const flush = async (): Promise<boolean> => {
+        clearTimer();
+
+        while (latestHtml.current !== savedHtml.current) {
+            const body = latestHtml.current;
+
+            if (!(await saveNow(body))) {
+                return false;
+            }
+        }
+
+        return true;
+    };
+
+    const flushRef = useRef(flush);
+    flushRef.current = flush;
 
     const scheduleSave = (body: string) => {
         if (!urlRef.current || body === savedHtml.current) {
@@ -170,6 +202,16 @@ export default function TextAutoSave({
     }, [html, choice]);
 
     useEffect(() => () => clearTimer(), []);
+
+    useEffect(() => {
+        const registeredFlush = () => flushRef.current();
+
+        textAutoSaveFlushers.add(registeredFlush);
+
+        return () => {
+            textAutoSaveFlushers.delete(registeredFlush);
+        };
+    }, []);
 
     const enable = () => {
         asked.current = true;

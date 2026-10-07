@@ -111,6 +111,44 @@ class BidImportedHtml
         return BidApplicationText::isEmpty($html) ? null : $html;
     }
 
+    public static function removeEmptyTrailingTableCells(string $html): string
+    {
+        $dom = self::fragmentToDom($html);
+        $root = $dom?->getElementById('bid-import-root');
+
+        if (! $dom || ! $root) {
+            return $html;
+        }
+
+        foreach ($dom->getElementsByTagName('tr') as $row) {
+            while ($row->lastElementChild instanceof DOMElement) {
+                $cell = $row->lastElementChild;
+
+                if (! in_array(strtolower($cell->tagName), ['td', 'th'], true)) {
+                    break;
+                }
+
+                $content = trim(str_replace(
+                    "\u{00A0}",
+                    ' ',
+                    html_entity_decode(
+                        $cell->textContent,
+                        ENT_QUOTES | ENT_HTML5,
+                        'UTF-8',
+                    ),
+                ));
+
+                if ($content !== '' || $row->childElementCount <= 2) {
+                    break;
+                }
+
+                $row->removeChild($cell);
+            }
+        }
+
+        return self::innerHtml($dom) ?? $html;
+    }
+
     public static function fromDocx(string $path): ?string
     {
         $zip = new ZipArchive;

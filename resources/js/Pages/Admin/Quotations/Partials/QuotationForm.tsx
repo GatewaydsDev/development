@@ -3,6 +3,7 @@ import FormActionFab from '@/Components/FormActionFab';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import MaskedDecimalInput from '@/Components/MaskedDecimalInput';
+import { flushPendingTextAutoSaves } from '@/Components/TextAutoSave';
 import TextInput from '@/Components/TextInput';
 import QuotationReusableTextSection from './QuotationReusableTextSection';
 import {
@@ -34,6 +35,7 @@ import {
     useForm,
     useWatch,
 } from 'react-hook-form';
+import { toast } from 'sonner';
 import { z } from 'zod';
 import { type PageProps } from '@/types';
 import {
@@ -399,6 +401,37 @@ export default function QuotationForm({
         })(event);
     };
 
+    const printQuotation = async () => {
+        if (!quotation) {
+            return;
+        }
+
+        const printWindow = window.open('about:blank', '_blank');
+
+        if (!printWindow) {
+            toast.error('Allow pop-ups to open the quotation print preview.');
+
+            return;
+        }
+
+        printWindow.opener = null;
+
+        if (!(await flushPendingTextAutoSaves())) {
+            printWindow.close();
+            toast.error(
+                'The quotation text could not be saved. Please try again before printing.',
+            );
+
+            return;
+        }
+
+        printWindow.location.href = quotationDocumentHref(
+            'admin.quotations.print',
+            quotation.uuid,
+            data.proposal_title,
+        );
+    };
+
     return (
         <form
             onSubmit={submit}
@@ -420,6 +453,7 @@ export default function QuotationForm({
                           )
                         : undefined
                 }
+                onPrint={quotation ? printQuotation : undefined}
                 printLabel={quotation ? 'Print quotation' : 'Print'}
                 showPrint={true}
             />
