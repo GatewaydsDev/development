@@ -65,52 +65,9 @@ class QuotationDocument
 
     private function documentTitle(): string
     {
-        $fromText = $this->quotationTextHeading();
-
-        if ($fromText !== null) {
-            return $fromText;
-        }
-
-        $proposal = $this->proposalTitleOverride;
-
-        if ($proposal === null) {
-            $stored = trim((string) ($this->quotation->proposal_title ?? ''));
-            $proposal = $stored !== '' && mb_strtolower($stored) !== mb_strtolower(Quotation::DEFAULT_PROPOSAL_TITLE)
-                ? $stored
-                : null;
-        }
-
-        if (is_string($proposal) && trim($proposal) !== '') {
-            return trim($proposal);
-        }
-
         $title = trim((string) $this->quotation->title);
 
         return $title !== '' ? $title : 'Quotation';
-    }
-
-    private function quotationTextHeading(): ?string
-    {
-        $html = (string) $this->quotation->pricing_conditions;
-
-        if (! preg_match_all('/<h[1-4]\b[^>]*>(.*?)<\/h[1-4]>/is', $html, $matches)) {
-            return null;
-        }
-
-        $company = mb_strtolower($this->companyName());
-
-        foreach ($matches[1] as $inner) {
-            $title = trim(html_entity_decode(strip_tags((string) $inner), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
-            $title = trim(preg_replace('/\s+/u', ' ', $title) ?? $title);
-
-            if ($title === '' || mb_strtolower($title) === $company) {
-                continue;
-            }
-
-            return $title;
-        }
-
-        return null;
     }
 
     /**

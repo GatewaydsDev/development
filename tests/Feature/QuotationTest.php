@@ -84,7 +84,7 @@ test('an admin can save a quotation for a contractor', function () {
             'project_amount' => '8450.75',
             'notes' => 'Includes hardware.',
             'proposal_title' => 'Site conditions',
-            'pricing_conditions' => '<p>Net 30. Freight excluded.</p>',
+            'pricing_conditions' => '<h2>JOB CONDITIONS</h2><p>Net 30. Freight excluded.</p>',
             'pricing_basis' => '<p>Based on {{project_name}} and {{base_bid_total}}.</p>',
             'line_items' => [
                 [
@@ -119,6 +119,8 @@ test('an admin can save a quotation for a contractor', function () {
         ->assertOk()
         ->assertSee('class="hero-brand"', false)
         ->assertSee('<p class="hero-label">Proposal</p>', false)
+        ->assertSee('<h1 class="document-title">Harbor RF quote</h1>', false)
+        ->assertSee('JOB CONDITIONS', false)
         ->assertSee('Site conditions', false)
         ->assertSee('Pricing Basis', false)
         ->assertDontSee('Base Bid', false)
