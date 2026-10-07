@@ -69,6 +69,44 @@ const isoDate = z
         'Enter a valid date as MM/DD/YYYY.',
     );
 
+function calculateAge(dateOfBirth: string): number | null {
+    const match = dateOfBirth.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+    if (!match) {
+        return null;
+    }
+
+    const [, yearValue, monthValue, dayValue] = match;
+    const year = Number(yearValue);
+    const month = Number(monthValue);
+    const day = Number(dayValue);
+    const birthDate = new Date(year, month - 1, day);
+    const today = new Date();
+    const todayDate = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate(),
+    );
+
+    if (
+        birthDate.getFullYear() !== year ||
+        birthDate.getMonth() !== month - 1 ||
+        birthDate.getDate() !== day ||
+        birthDate > todayDate
+    ) {
+        return null;
+    }
+
+    return (
+        today.getFullYear() -
+        year -
+        (today.getMonth() < month - 1 ||
+        (today.getMonth() === month - 1 && today.getDate() < day)
+            ? 1
+            : 0)
+    );
+}
+
 function employeeSchema(
     statusOptions: EmployeeStatusOptions,
     rateTypeOptions: EmployeeRateTypeOptions,
@@ -528,6 +566,7 @@ export default function EmployeeForm({
     const inputClassName =
         'h-11 w-full border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring';
     const labelClassName = 'text-emerald-700 dark:text-emerald-300';
+    const employeeAge = calculateAge(data.date_of_birth);
     const setRowValue = (field: FieldPath<EmployeeFormData>, value: string | boolean) => {
         setValue(field, value as PathValue<EmployeeFormData, FieldPath<EmployeeFormData>>, {
             shouldDirty: true,
@@ -660,11 +699,17 @@ export default function EmployeeForm({
                             <DateMaskInput
                                 id="employee-date-of-birth"
                                 value={data.date_of_birth}
-                                className={inputClassName}
+                                className={`${inputClassName} max-w-40`}
                                 onValueChange={(value) =>
                                     setData('date_of_birth', value)
                                 }
                             />
+                            {employeeAge !== null && (
+                                <p className="text-sm text-muted-foreground">
+                                    Age: {employeeAge}{' '}
+                                    {employeeAge === 1 ? 'year' : 'years'}
+                                </p>
+                            )}
                             <InputError message={errors.date_of_birth} />
                         </div>
 
@@ -761,7 +806,7 @@ export default function EmployeeForm({
                             <DateMaskInput
                                 id="employee-hire-date"
                                 value={data.hire_date}
-                                className={inputClassName}
+                                className={`${inputClassName} max-w-40`}
                                 onValueChange={(value) =>
                                     setData('hire_date', value)
                                 }
