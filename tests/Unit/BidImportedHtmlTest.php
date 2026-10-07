@@ -38,3 +38,22 @@ test('a colored quotation section keeps its background', function () {
         ->toContain('<h2>Assembly</h2>')
         ->toContain('<p>Single door</p>');
 });
+
+test('quotation print output drops empty trailing cells from summary rows', function () {
+    $html = BidImportedHtml::removeEmptyTrailingTableCells(
+        '<table><tbody><tr><td>TOTAL BID (USD)</td><td>$27,070.00</td><td><p><br></p></td></tr></tbody></table>',
+    );
+
+    expect($html)
+        ->toContain('<td>TOTAL BID (USD)</td>')
+        ->toContain('<td>$27,070.00</td>')
+        ->not->toContain('<td><p><br></p></td>');
+});
+
+test('quotation print output preserves two-column rows with an empty cell', function () {
+    $html = BidImportedHtml::removeEmptyTrailingTableCells(
+        '<table><tbody><tr><td>TOTAL BID (USD)</td><td><p><br></p></td></tr></tbody></table>',
+    );
+
+    expect($html)->toContain('<td><p><br></p></td>');
+});

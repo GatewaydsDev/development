@@ -82,27 +82,45 @@ export default function FormActionFab({
                 </Button>
                 {hasPrint &&
                     (printHref ? (
-                        <Button
-                            type="button"
-                            variant="outline"
-                            asChild
-                            className={cn(
-                                'size-11 sm:size-13 landscape:size-10 rounded-full border-sky-200 bg-background text-sky-700 shadow-lg transition-all duration-300 ease-out hover:bg-sky-50 dark:border-sky-900/70 dark:text-sky-300 dark:hover:bg-sky-950/30',
-                                isOpen
-                                    ? 'scale-100 opacity-100 delay-75'
-                                    : 'scale-90 opacity-0 delay-75',
-                            )}
-                        >
-                            <a
-                                href={printHref}
-                                target="_blank"
-                                rel="noreferrer"
+                        onPrint ? (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={onPrint}
+                                className={cn(
+                                    'size-11 sm:size-13 landscape:size-10 rounded-full border-sky-200 bg-background text-sky-700 shadow-lg transition-all duration-300 ease-out hover:bg-sky-50 dark:border-sky-900/70 dark:text-sky-300 dark:hover:bg-sky-950/30',
+                                    isOpen
+                                        ? 'scale-100 opacity-100 delay-75'
+                                        : 'scale-90 opacity-0 delay-75',
+                                )}
                                 aria-label={printLabel}
                                 title={printLabel}
                             >
                                 <PrinterIcon className="size-5 sm:size-6 landscape:size-4.5" />
-                            </a>
-                        </Button>
+                            </Button>
+                        ) : (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                asChild
+                                className={cn(
+                                    'size-11 sm:size-13 landscape:size-10 rounded-full border-sky-200 bg-background text-sky-700 shadow-lg transition-all duration-300 ease-out hover:bg-sky-50 dark:border-sky-900/70 dark:text-sky-300 dark:hover:bg-sky-950/30',
+                                    isOpen
+                                        ? 'scale-100 opacity-100 delay-75'
+                                        : 'scale-90 opacity-0 delay-75',
+                                )}
+                            >
+                                <a
+                                    href={printHref}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    aria-label={printLabel}
+                                    title={printLabel}
+                                >
+                                    <PrinterIcon className="size-5 sm:size-6 landscape:size-4.5" />
+                                </a>
+                            </Button>
+                        )
                     ) : (
                         <Button
                             type="button"

@@ -733,6 +733,10 @@ class QuotationDocument
             $sanitized = BidApplicationText::fill($sanitized, $this->fieldValues()) ?? $sanitized;
         }
 
+        if (in_array($this->imageMode, ['print', 'pdf'], true)) {
+            $sanitized = BidImportedHtml::removeEmptyTrailingTableCells($sanitized);
+        }
+
         return EditorImage::forDocument($sanitized, $this->imageMode);
     }
 
