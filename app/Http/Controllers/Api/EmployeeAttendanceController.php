@@ -61,6 +61,13 @@ class EmployeeAttendanceController extends Controller
         ]);
     }
 
+    public function existing(Request $request): JsonResponse
+    {
+        $this->authorizeAttendance($request, 'create-employees');
+
+        return $this->admin()->existing($request);
+    }
+
     public function store(Request $request): JsonResponse
     {
         $user = $this->authorizeAttendance($request, 'create-employees');

@@ -110,12 +110,20 @@ test('mobile users can list search and open projects', function () {
     $list->assertOk()
         ->assertJsonPath('meta.total', 1)
         ->assertJsonPath('data.0.name', 'Harbor SCIF')
+        ->assertJsonPath('data.0.uuid', fn (mixed $uuid): bool => is_string($uuid) && $uuid !== '')
         ->assertJsonPath('data.0.budget_amount', '15000.00')
         ->assertJsonPath('can.view', true)
         ->assertJsonPath('can.create', true)
         ->assertJsonPath('can.delete', true);
 
     $projectId = $list->json('data.0.id');
+    $projectUuid = $list->json('data.0.uuid');
+
+    $this->actingAs($user, 'sanctum')
+        ->getJson('/api/projects/'.$projectUuid)
+        ->assertOk()
+        ->assertJsonPath('project.uuid', $projectUuid)
+        ->assertJsonPath('project.name', 'Harbor SCIF');
 
     $this->actingAs($user, 'sanctum')
         ->getJson('/api/projects/'.$projectId)

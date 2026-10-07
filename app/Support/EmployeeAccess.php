@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\Employee;
 use App\Models\EmployeeAttendanceListing;
+use App\Models\WorkScheduleListing;
 use App\Models\EmployeeAttendanceWeek;
 use App\Models\EmployeeWorkSchedule;
 use App\Models\User;
@@ -116,6 +117,19 @@ class EmployeeAccess
      * @return Builder<EmployeeWorkSchedule>
      */
     public static function scopeVisibleSchedules(Builder $query, User $user): Builder
+    {
+        if (self::isForeman($user)) {
+            $query->where('foreman_user_id', $user->id);
+        }
+
+        return $query;
+    }
+
+    /**
+     * @param  Builder<WorkScheduleListing>  $query
+     * @return Builder<WorkScheduleListing>
+     */
+    public static function scopeVisibleScheduleListings(Builder $query, User $user): Builder
     {
         if (self::isForeman($user)) {
             $query->where('foreman_user_id', $user->id);

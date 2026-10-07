@@ -60,6 +60,7 @@ function attendancePayload(Employee $employee, EmployeePayRate $hourly, Employee
                 'work_date' => '2026-10-05',
                 'profession_id' => $hourly->profession_id,
                 'pay_rate_id' => $hourly->id,
+                'hours' => '8',
                 'scheduled' => true,
                 'worked' => true,
                 'notes' => 'Morning crew',
@@ -94,6 +95,8 @@ test('an attendance week can be added and listed for monday through saturday', f
     expect($week->saturday()->toDateString())->toBe('2026-10-10');
     expect($week->days)->toHaveCount(2);
     expect($monday->rate_type)->toBe(EmployeePayRate::RATE_HOURLY);
+    expect($monday->hours)->toBe('8.00');
+    expect($wednesday->hours)->toBeNull();
     expect($wednesday->scheduled)->toBeFalse();
     expect($wednesday->worked)->toBeTrue();
 
@@ -126,6 +129,7 @@ test('an attendance week can be added and listed for monday through saturday', f
             ->where('weeks.data.0.scheduled_count', 1)
             ->where('weeks.data.0.worked_count', 2)
             ->where('weeks.data.0.days.0.rate_label', 'Hourly · $45.50')
+            ->where('weeks.data.0.pay_total', '684.00')
         );
 });
 
@@ -152,7 +156,7 @@ test('attendance days must stay inside monday through saturday and use the emplo
     $this->assertDatabaseCount('employee_attendance_weeks', 0);
 });
 
-test('an attendance week can be updated and cannot be duplicated', function () {
+test('an open day can be added when the employee already has attendance that week', function () {
     $admin = attendanceAdmin();
     ['employee' => $employee, 'hourly' => $hourly, 'daily' => $daily] = attendanceEmployee();
     $payload = attendancePayload($employee, $hourly, $daily);
@@ -164,8 +168,47 @@ test('an attendance week can be updated and cannot be duplicated', function () {
     $week = EmployeeAttendanceWeek::query()->firstOrFail();
 
     $this->actingAs($admin)
+        ->getJson(route('admin.employee-attendance.existing', [
+            'employee_id' => $employee->id,
+            'week_start' => '2026-10-07',
+        ]))
+        ->assertOk()
+        ->assertJsonPath('attendance.week_start', '2026-10-05')
+        ->assertJsonPath('attendance.week_label', 'Monday, Oct 5 – Saturday, Oct 10, 2026')
+        ->assertJsonCount(2, 'attendance.days');
+
+    $this->actingAs($admin)
         ->post(route('admin.employee-attendance.store'), $payload)
-        ->assertSessionHasErrors('week_start');
+        ->assertSessionHasErrors('days.0.work_date');
+
+    $this->actingAs($admin)
+        ->post(route('admin.employee-attendance.store'), [
+            'employee_id' => $employee->id,
+            'week_start' => '2026-10-07',
+            'notes' => 'Saturday crew',
+            'days' => [
+                [
+                    'work_date' => '2026-10-10',
+                    'profession_id' => $daily->profession_id,
+                    'pay_rate_id' => $daily->id,
+                    'scheduled' => true,
+                    'worked' => false,
+                    'notes' => 'Saturday only',
+                ],
+            ],
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect(route('admin.employee-attendance.index'));
+
+    $week->refresh();
+
+    expect(EmployeeAttendanceWeek::query()->count())->toBe(1);
+    expect($week->days)->toHaveCount(3);
+    expect($week->notes)->toBe("Harbor week\nSaturday crew");
+    expect($week->days->first(fn ($day) => $day->work_date->toDateString() === '2026-10-05')->rate_type)
+        ->toBe(EmployeePayRate::RATE_HOURLY);
+    expect($week->days->first(fn ($day) => $day->work_date->toDateString() === '2026-10-10')->notes)
+        ->toBe('Saturday only');
 
     $payload['days'] = [
         [
@@ -235,6 +278,7 @@ test('attendance can be added for several employees on one date', function () {
                     'employee_id' => $second['employee']->id,
                     'profession_id' => $second['hourly']->profession_id,
                     'pay_rate_id' => $second['hourly']->id,
+                    'hours' => '5',
                 ],
             ],
         ])
@@ -263,6 +307,7 @@ test('attendance can be added for several employees on one date', function () {
     expect($secondWeek->week_start->toDateString())->toBe('2026-10-05');
     expect($secondWeek->days)->toHaveCount(1);
     expect($secondWeek->days->first()->rate_type)->toBe(EmployeePayRate::RATE_HOURLY);
+    expect($secondWeek->days->first()->hours)->toBe('5.00');
     expect($secondWeek->days->first()->amount)->toBe('45.50');
 
     $this->actingAs($admin)
@@ -275,6 +320,7 @@ test('attendance can be added for several employees on one date', function () {
                     'employee_id' => $first['employee']->id,
                     'profession_id' => $first['hourly']->profession_id,
                     'pay_rate_id' => $first['hourly']->id,
+                    'hours' => '4',
                 ],
             ],
         ])
@@ -287,6 +333,7 @@ test('attendance can be added for several employees on one date', function () {
 
     expect($firstWeek->days)->toHaveCount(3);
     expect($updatedTuesday->rate_type)->toBe(EmployeePayRate::RATE_HOURLY);
+    expect($updatedTuesday->hours)->toBe('4.00');
     expect($updatedTuesday->worked)->toBeTrue();
 
     $this->actingAs($admin)

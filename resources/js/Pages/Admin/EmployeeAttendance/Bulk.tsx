@@ -7,6 +7,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { FormEvent, useMemo, useState } from 'react';
 import {
+    numericHours,
     weekdayName,
     type AttendanceEmployeeOption,
 } from './types';
@@ -21,6 +22,7 @@ type BulkEmployee = {
     employee_id: string;
     skill_id: string;
     pay_rate_id: string;
+    hours: string;
 };
 
 type BulkFormData = {
@@ -48,6 +50,7 @@ function defaultRow(employee: AttendanceEmployeeOption): BulkEmployee {
         employee_id: String(employee.id),
         skill_id: skill ? String(skill.id) : '',
         pay_rate_id: rate ? String(rate.id) : '',
+        hours: '',
     };
 }
 
@@ -344,6 +347,7 @@ export default function Bulk({ employees, defaultWorkDate }: BulkProps) {
                                                                             event.target
                                                                                 .value,
                                                                         pay_rate_id: '',
+                                                                        hours: '',
                                                                     },
                                                                 )
                                                             }
@@ -370,7 +374,8 @@ export default function Bulk({ employees, defaultWorkDate }: BulkProps) {
                                                             )}
                                                         </select>
                                                     </div>
-                                                    <div className="flex flex-col gap-2">
+                                                    <div className="flex items-start gap-3">
+                                                        <div className="flex min-w-0 flex-1 flex-col gap-2">
                                                         <InputLabel
                                                             htmlFor={`bulk-rate-${employee.id}`}
                                                             value="Rate"
@@ -380,16 +385,27 @@ export default function Bulk({ employees, defaultWorkDate }: BulkProps) {
                                                             id={`bulk-rate-${employee.id}`}
                                                             value={row.pay_rate_id}
                                                             disabled={row.skill_id === ''}
-                                                            onChange={(event) =>
+                                                            onChange={(event) => {
+                                                                const rate = rates.find(
+                                                                    (item) =>
+                                                                        String(item.id) ===
+                                                                        event.target.value,
+                                                                );
+
                                                                 updateRow(
                                                                     row.employee_id,
                                                                     {
                                                                         pay_rate_id:
                                                                             event.target
                                                                                 .value,
+                                                                        hours:
+                                                                            rate?.rate_type ===
+                                                                            'hourly'
+                                                                                ? row.hours
+                                                                                : '',
                                                                     },
-                                                                )
-                                                            }
+                                                                );
+                                                            }}
                                                             className={selectClassName}
                                                         >
                                                             <option value="">
@@ -417,6 +433,45 @@ export default function Bulk({ employees, defaultWorkDate }: BulkProps) {
                                                                 ]
                                                             }
                                                         />
+                                                        </div>
+                                                        {rates.find(
+                                                            (rate) =>
+                                                                String(rate.id) ===
+                                                                row.pay_rate_id,
+                                                        )?.rate_type === 'hourly' ? (
+                                                            <div className="flex w-28 shrink-0 flex-col gap-2">
+                                                                <InputLabel
+                                                                    htmlFor={`bulk-hours-${employee.id}`}
+                                                                    value="Hours"
+                                                                    className={`${labelClassName} whitespace-nowrap`}
+                                                                />
+                                                                <TextInput
+                                                                    id={`bulk-hours-${employee.id}`}
+                                                                    inputMode="decimal"
+                                                                    value={row.hours}
+                                                                    className={inputClassName}
+                                                                    placeholder="0"
+                                                                    onChange={(event) =>
+                                                                        updateRow(
+                                                                            row.employee_id,
+                                                                            {
+                                                                                hours: numericHours(
+                                                                                    event.target
+                                                                                        .value,
+                                                                                ),
+                                                                            },
+                                                                        )
+                                                                    }
+                                                                />
+                                                                <InputError
+                                                                    message={
+                                                                        errorBag[
+                                                                            `employees.${errorIndex}.hours`
+                                                                        ]
+                                                                    }
+                                                                />
+                                                            </div>
+                                                        ) : null}
                                                     </div>
                                                 </div>
                                             ) : null}

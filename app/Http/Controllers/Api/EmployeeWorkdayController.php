@@ -94,6 +94,7 @@ class EmployeeWorkdayController extends Controller
             'date' => $today,
             'employee' => [
                 'id' => $employee->id,
+                'uuid' => $employee->uuid,
                 'full_name' => $employee->fullName(),
                 'email' => $employee->email,
                 'phone_number' => $employee->phone_number,
@@ -116,7 +117,8 @@ class EmployeeWorkdayController extends Controller
                     ->all(),
             ],
             'schedules' => EmployeeWorkSchedule::query()
-                ->whereDate('work_date', $today)
+                ->covering($today)
+                ->where('status', EmployeeWorkSchedule::STATUS_ACTIVE)
                 ->whereHas('employees', fn ($query) => $query->whereKey($employee->id))
                 ->with(app(AdminEmployeeWorkScheduleController::class)->relations())
                 ->orderBy('id')
@@ -132,6 +134,7 @@ class EmployeeWorkdayController extends Controller
                     'project' => $assignment->project instanceof Project
                         ? [
                             'id' => $assignment->project->id,
+                            'uuid' => $assignment->project->uuid,
                             'name' => $assignment->project->name,
                             'project_number' => $assignment->project->project_number,
                             'address' => $this->projectAddress($assignment->project),
@@ -153,6 +156,7 @@ class EmployeeWorkdayController extends Controller
                     'longitude' => $checkIn->longitude,
                     'accuracy' => $checkIn->accuracy,
                     'project_id' => $checkIn->project_id,
+                    'project_uuid' => $checkIn->project?->uuid,
                 ]
                 : null,
         ];

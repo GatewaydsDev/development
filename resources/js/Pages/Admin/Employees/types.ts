@@ -36,6 +36,7 @@ export type EmployeePayload = {
         level: NamedOption | null;
     } | null;
     professions: EmployeeProfessionPayload[];
+    certifications: EmployeeCertificationPayload[];
     skills: EmployeeSkillPayload[];
     project_assignments: EmployeeProjectAssignmentPayload[];
     skill_shifts: EmployeeSkillShiftPayload[];
@@ -124,6 +125,7 @@ export type EmployeeFormData = {
     language_id: string;
     notes: string;
     skills: EmployeeSkillFormData[];
+    certifications: EmployeeCertificationFormData[];
 };
 
 export type EmployeeStatusOptions = Record<string, string>;
@@ -151,6 +153,26 @@ export type EmployeeSkillPayload = NamedOption & {
 export type EmployeeSkillRateFormData = {
     rate_type: string;
     amount: string;
+};
+
+export type CertificationOption = NamedOption & {
+    is_competent_person?: boolean;
+};
+
+export type EmployeeCertificationPayload = {
+    id: number;
+    uuid: string;
+    certification_id: number;
+    name: string | null;
+    is_competent_person: boolean;
+    issued_on: string | null;
+    expires_on: string | null;
+};
+
+export type EmployeeCertificationFormData = {
+    certification_id: string;
+    issued_on: string;
+    expires_on: string;
 };
 
 export type EmployeeSkillFormData = {
@@ -237,6 +259,13 @@ export function employeeToFormData(
         date_of_birth: employee?.date_of_birth ?? '',
         language_id: employee?.language ? String(employee.language.id) : '',
         notes: employee?.notes ?? '',
+        certifications: (employee?.certifications ?? []).map((certification) => ({
+            certification_id: certification.certification_id
+                ? String(certification.certification_id)
+                : '',
+            issued_on: certification.issued_on ?? '',
+            expires_on: certification.expires_on ?? '',
+        })),
         skills: skillIds.map((skillId) => ({
             skill_id: skillId,
             rates: ratesBySkill.get(skillId) ?? [],

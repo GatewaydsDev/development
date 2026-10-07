@@ -12,6 +12,7 @@ use App\Models\Profession;
 use App\Models\Skill;
 use App\Support\EmployeeAccess;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -56,6 +57,29 @@ class EmployeeAttendanceController extends Controller
         return Inertia::render('Admin/EmployeeAttendance/Create', [
             'employees' => $this->employeeOptions(),
             'defaultWeekStart' => now()->startOfWeek(Carbon::MONDAY)->toDateString(),
+        ]);
+    }
+
+    public function existing(Request $request): JsonResponse
+    {
+        abort_unless(EmployeeAccess::canCreate($request->user()), 403);
+
+        $validated = $request->validate([
+            'employee_id' => ['required', 'integer', Rule::exists(Employee::class, 'id')],
+            'week_start' => ['required', 'date'],
+        ]);
+
+        $employee = Employee::query()->findOrFail($validated['employee_id']);
+        EmployeeAccess::ensureCanViewEmployee($request->user(), $employee);
+
+        $monday = EmployeeAttendanceWeek::mondayOf($validated['week_start'])->toDateString();
+        $week = EmployeeAttendanceWeek::query()
+            ->where('employee_id', $employee->id)
+            ->whereDate('week_start', $monday)
+            ->first();
+
+        return response()->json([
+            'attendance' => $week ? $this->presentWeek($week->id) : null,
         ]);
     }
 
@@ -166,6 +190,7 @@ class EmployeeAttendanceController extends Controller
                         ? $rate->custom_rate_type
                         : null,
                     'amount' => $rate->amount,
+                    'hours' => $row['hours'] ?? null,
                     'scheduled' => $validated['scheduled'],
                     'worked' => $validated['worked'],
                     'notes' => $validated['notes'] ?? null,
@@ -199,38 +224,45 @@ class EmployeeAttendanceController extends Controller
             $employee = Employee::query()->findOrFail($validated['employee_id']);
             EmployeeAccess::ensureCanViewEmployee($request->user(), $employee);
 
-            $attributes = [
+            if ($week) {
+                $week->update([
+                    'employee_id' => $validated['employee_id'],
+                    'week_start' => $validated['week_start'],
+                    'notes' => $validated['notes'] ?? null,
+                ]);
+                $week->days()->delete();
+                $activeDays->each(fn (array $day) => $this->createAttendanceDay($week, $day));
+
+                return $week->load($this->weekRelations());
+            }
+
+            $existing = EmployeeAttendanceWeek::query()
+                ->where('employee_id', $validated['employee_id'])
+                ->whereDate('week_start', $validated['week_start'])
+                ->first();
+
+            if ($existing) {
+                $notes = $validated['notes'] ?? null;
+
+                if (filled($notes)) {
+                    $existing->update([
+                        'notes' => filled($existing->notes)
+                            ? trim($existing->notes."\n".$notes)
+                            : $notes,
+                    ]);
+                }
+
+                $activeDays->each(fn (array $day) => $this->createAttendanceDay($existing, $day));
+
+                return $existing->load($this->weekRelations());
+            }
+
+            $week = EmployeeAttendanceWeek::create([
                 'employee_id' => $validated['employee_id'],
                 'week_start' => $validated['week_start'],
                 'notes' => $validated['notes'] ?? null,
-            ];
-
-            if ($week) {
-                $week->update($attributes);
-            } else {
-                $week = EmployeeAttendanceWeek::create($attributes);
-            }
-
-            $week->days()->delete();
-
-            $activeDays->each(function (array $day) use ($week): void {
-                $rate = EmployeePayRate::query()->findOrFail($day['pay_rate_id']);
-
-                $week->days()->create([
-                    'work_date' => Carbon::parse($day['work_date'])->toDateString(),
-                    'skill_id' => $rate->skill_id,
-                    'profession_id' => $rate->profession_id,
-                    'employee_pay_rate_id' => $rate->id,
-                    'rate_type' => $rate->rate_type,
-                    'custom_rate_type' => $rate->rate_type === EmployeePayRate::RATE_CUSTOM
-                        ? $rate->custom_rate_type
-                        : null,
-                    'amount' => $rate->amount,
-                    'scheduled' => $day['scheduled'],
-                    'worked' => $day['worked'],
-                    'notes' => $day['notes'] ?? null,
-                ]);
-            });
+            ]);
+            $activeDays->each(fn (array $day) => $this->createAttendanceDay($week, $day));
 
             return $week->load($this->weekRelations());
         });
@@ -278,11 +310,12 @@ class EmployeeAttendanceController extends Controller
             'week_start' => $start?->toDateString(),
             'week_end' => $end?->toDateString(),
             'week_label' => $start && $end
-                ? $start->format('D, M j').' – '.$end->format('D, M j, Y')
+                ? $start->format('l, M j').' – '.$end->format('l, M j, Y')
                 : null,
             'notes' => $listing->notes,
             'scheduled_count' => $listing->scheduled_count,
             'worked_count' => $listing->worked_count,
+            'pay_total' => $this->weekPayTotal($days),
             'days' => $days,
             'created_at' => $listing->created_at?->toISOString(),
             'updated_at' => $listing->updated_at?->toISOString(),
@@ -380,6 +413,7 @@ class EmployeeAttendanceController extends Controller
                     'skill_id' => ($day['skill_id'] ?? '') === '' ? null : $day['skill_id'],
                     'profession_id' => ($day['profession_id'] ?? '') === '' ? null : $day['profession_id'],
                     'pay_rate_id' => ($day['pay_rate_id'] ?? '') === '' ? null : $day['pay_rate_id'],
+                    'hours' => ($day['hours'] ?? '') === '' ? null : $day['hours'],
                     'scheduled' => filter_var($day['scheduled'] ?? false, FILTER_VALIDATE_BOOLEAN),
                     'worked' => filter_var($day['worked'] ?? false, FILTER_VALIDATE_BOOLEAN),
                     'notes' => ($day['notes'] ?? '') === '' ? null : $day['notes'],
@@ -412,6 +446,7 @@ class EmployeeAttendanceController extends Controller
             'days.*.skill_id' => ['nullable', 'integer'],
             'days.*.profession_id' => ['nullable', 'integer'],
             'days.*.pay_rate_id' => ['nullable', 'integer'],
+            'days.*.hours' => ['nullable', 'numeric'],
             'days.*.scheduled' => ['required', 'boolean'],
             'days.*.worked' => ['required', 'boolean'],
             'days.*.notes' => ['nullable', 'string', 'max:1000'],
@@ -422,17 +457,24 @@ class EmployeeAttendanceController extends Controller
 
         $monday = EmployeeAttendanceWeek::mondayOf($validated['week_start'])->startOfDay();
         $saturday = $monday->copy()->addDays(5);
-        $duplicateWeek = EmployeeAttendanceWeek::query()
+        $existingWeek = EmployeeAttendanceWeek::query()
             ->where('employee_id', $validated['employee_id'])
             ->whereDate('week_start', $monday->toDateString())
             ->when($week, fn ($query) => $query->whereKeyNot($week->getKey()))
-            ->exists();
+            ->with('days')
+            ->first();
 
-        if ($duplicateWeek) {
+        if ($existingWeek && $week) {
             throw ValidationException::withMessages([
                 'week_start' => 'This employee already has attendance for that work week.',
             ]);
         }
+
+        $takenDates = $existingWeek
+            ? $existingWeek->days
+                ->map(fn (EmployeeAttendanceDay $day): string => $day->work_date->toDateString())
+                ->all()
+            : [];
         $seenDates = [];
         $activeCount = 0;
 
@@ -455,6 +497,15 @@ class EmployeeAttendanceController extends Controller
 
             $seenDates[$dateKey] = true;
             $validated['days'][$index]['work_date'] = $dateKey;
+
+            if (in_array($dateKey, $takenDates, true) && ($day['scheduled'] || $day['worked'])) {
+                $weekday = EmployeeAttendanceWeek::weekdayFor($workDate);
+                $label = $weekday['label'] ?? 'This day';
+
+                throw ValidationException::withMessages([
+                    "days.{$index}.work_date" => "{$label} already has attendance. Enter a day that is still open.",
+                ]);
+            }
 
             if (! $day['scheduled'] && ! $day['worked']) {
                 continue;
@@ -485,6 +536,12 @@ class EmployeeAttendanceController extends Controller
                     "days.{$index}.pay_rate_id" => 'Choose a rate assigned to this employee and skill.',
                 ]);
             }
+
+            $validated['days'][$index]['hours'] = $this->validatedHours(
+                $rate,
+                $day['hours'] ?? null,
+                "days.{$index}.hours",
+            );
         }
 
         if ($activeCount === 0) {
@@ -543,6 +600,7 @@ class EmployeeAttendanceController extends Controller
             'rate_type' => $rateType,
             'custom_rate_type' => $customRateType,
             'amount' => $amount,
+            'hours' => $this->hoursValue($day['hours'] ?? null),
             'rate_label' => $this->rateLabel($rateType, $customRateType, $amount),
             'scheduled' => filter_var($day['scheduled'] ?? false, FILTER_VALIDATE_BOOLEAN),
             'worked' => filter_var($day['worked'] ?? false, FILTER_VALIDATE_BOOLEAN),
@@ -576,11 +634,90 @@ class EmployeeAttendanceController extends Controller
             'rate_type' => $day->rate_type,
             'custom_rate_type' => $day->custom_rate_type,
             'amount' => $day->amount,
+            'hours' => $this->hoursValue($day->hours),
             'rate_label' => $this->rateLabel($day->rate_type, $day->custom_rate_type, (string) $day->amount),
             'scheduled' => $day->scheduled,
             'worked' => $day->worked,
             'notes' => $day->notes,
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $day
+     */
+    private function createAttendanceDay(EmployeeAttendanceWeek $week, array $day): void
+    {
+        $rate = EmployeePayRate::query()->findOrFail($day['pay_rate_id']);
+
+        $week->days()->create([
+            'work_date' => Carbon::parse($day['work_date'])->toDateString(),
+            'skill_id' => $rate->skill_id,
+            'profession_id' => $rate->profession_id,
+            'employee_pay_rate_id' => $rate->id,
+            'rate_type' => $rate->rate_type,
+            'custom_rate_type' => $rate->rate_type === EmployeePayRate::RATE_CUSTOM
+                ? $rate->custom_rate_type
+                : null,
+            'amount' => $rate->amount,
+            'hours' => $day['hours'] ?? null,
+            'scheduled' => $day['scheduled'],
+            'worked' => $day['worked'],
+            'notes' => $day['notes'] ?? null,
+        ]);
+    }
+
+    private function validatedHours(EmployeePayRate $rate, mixed $hours, string $key): ?string
+    {
+        if ($rate->rate_type !== EmployeePayRate::RATE_HOURLY) {
+            return null;
+        }
+
+        if (! is_numeric($hours)) {
+            throw ValidationException::withMessages([
+                $key => 'Enter the hours worked.',
+            ]);
+        }
+
+        $value = (float) $hours;
+
+        if ($value < 0.01 || $value > 24) {
+            throw ValidationException::withMessages([
+                $key => 'Enter the hours worked as a number up to 24.',
+            ]);
+        }
+
+        return number_format($value, 2, '.', '');
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $days
+     */
+    private function weekPayTotal(array $days): string
+    {
+        $total = 0.0;
+
+        foreach ($days as $day) {
+            $amount = (float) ($day['amount'] ?? 0);
+
+            if (($day['rate_type'] ?? '') === EmployeePayRate::RATE_HOURLY) {
+                $total += $amount * (float) ($day['hours'] ?? 0);
+
+                continue;
+            }
+
+            $total += $amount;
+        }
+
+        return number_format($total, 2, '.', '');
+    }
+
+    private function hoursValue(mixed $hours): ?string
+    {
+        if ($hours === null || $hours === '') {
+            return null;
+        }
+
+        return number_format((float) $hours, 2, '.', '');
     }
 
     private function rateLabel(string $rateType, ?string $customRateType, string $amount): string
@@ -607,6 +744,7 @@ class EmployeeAttendanceController extends Controller
                     'skill_id' => ($row['skill_id'] ?? '') === '' ? null : $row['skill_id'],
                     'profession_id' => ($row['profession_id'] ?? '') === '' ? null : $row['profession_id'],
                     'pay_rate_id' => ($row['pay_rate_id'] ?? '') === '' ? null : $row['pay_rate_id'],
+                    'hours' => ($row['hours'] ?? '') === '' ? null : $row['hours'],
                 ];
             })
             ->all();
@@ -635,6 +773,7 @@ class EmployeeAttendanceController extends Controller
             'employees.*.skill_id' => ['nullable', 'integer'],
             'employees.*.profession_id' => ['nullable', 'integer'],
             'employees.*.pay_rate_id' => ['required', 'integer'],
+            'employees.*.hours' => ['nullable', 'numeric'],
         ], [
             'employees.required' => 'Select at least one employee.',
             'employees.min' => 'Select at least one employee.',
@@ -691,6 +830,12 @@ class EmployeeAttendanceController extends Controller
                     "employees.{$index}.pay_rate_id" => 'Choose a rate assigned to this employee and skill.',
                 ]);
             }
+
+            $validated['employees'][$index]['hours'] = $this->validatedHours(
+                $rate,
+                $row['hours'] ?? null,
+                "employees.{$index}.hours",
+            );
         }
 
         $validated['work_date'] = $date->toDateString();

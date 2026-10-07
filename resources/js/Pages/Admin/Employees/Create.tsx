@@ -10,6 +10,7 @@ import type {
 
 type CreateProps = {
     languages: NamedOption[];
+    certifications?: NamedOption[];
     skills: NamedOption[];
     skillsVersion?: string | null;
     rateTypeOptions: EmployeeRateTypeOptions;
@@ -21,6 +22,7 @@ type CreateProps = {
 
 export default function Create({
     languages,
+    certifications = [],
     skills,
     skillsVersion = null,
     rateTypeOptions,
@@ -64,6 +66,7 @@ export default function Create({
                         title="Employee information"
                         description="Contact details, employment, app login, and skill rates."
                         languages={languages}
+                        certifications={certifications}
                         skills={skills}
                         skillsVersion={skillsVersion}
                         rateTypeOptions={rateTypeOptions}

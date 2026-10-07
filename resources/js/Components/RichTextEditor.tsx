@@ -560,6 +560,7 @@ type RichTextEditorProps = {
     error?: string;
     id?: string;
     compact?: boolean;
+    allowSideToolbar?: boolean;
     showPlaceholders?: boolean;
     placeholderFields?: Array<{
         key: string;
@@ -689,6 +690,7 @@ export default function RichTextEditor({
     error,
     id,
     compact = false,
+    allowSideToolbar = true,
     showPlaceholders = true,
     placeholderFields = [],
     placeholderValues = {},
@@ -1149,7 +1151,7 @@ export default function RichTextEditor({
                 distanceToHeader > remainingScroll + 48;
             let scrolled = false;
 
-            if (wide && rect) {
+            if (allowSideToolbar && wide && rect) {
                 if (pastHeader || (editorOnScreen && pageCannotReachHeader)) {
                     scrolled = true;
                 } else if (commandsScrolledRef.current && editorOnScreen) {
@@ -1196,7 +1198,7 @@ export default function RichTextEditor({
             window.removeEventListener('resize', updateOffset);
             window.removeEventListener('scroll', updateOffset);
         };
-    }, []);
+    }, [allowSideToolbar]);
 
     const commandsDocked = commandsWide && commandsScrolled;
 

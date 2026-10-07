@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\EmployeeAttendanceController;
 use App\Http\Controllers\Api\EmployeeController;
 use App\Http\Controllers\Api\EmployeeWorkdayController;
+use App\Http\Controllers\Api\ForemanScheduleController;
 use App\Http\Controllers\Api\EmployeeWorkScheduleController;
 use App\Http\Controllers\Api\ProjectController;
 use App\Http\Controllers\Api\QuotationController;
@@ -35,6 +36,8 @@ Route::prefix('auth')->group(function () {
 Route::middleware('auth:sanctum')->get('/user', [AuthController::class, 'user']);
 
 Route::middleware('auth:sanctum')->get('/dashboard', [DashboardController::class, 'show']);
+
+Route::middleware('auth:sanctum')->get('/me/work-schedule', [ForemanScheduleController::class, 'show']);
 
 Route::middleware('auth:sanctum')->prefix('bids')->group(function () {
     Route::get('/', [BidController::class, 'index']);
@@ -68,6 +71,7 @@ Route::middleware('auth:sanctum')->prefix('employees')->group(function () {
     Route::post('/languages', [EmployeeController::class, 'storeLanguage']);
     Route::get('/skills/version', [EmployeeController::class, 'skillsVersion']);
     Route::post('/skills', [EmployeeController::class, 'storeSkill']);
+    Route::post('/certifications', [EmployeeController::class, 'storeCertification']);
     Route::post('/professions', [EmployeeController::class, 'storeProfession']);
     Route::get('/schedules', [EmployeeWorkScheduleController::class, 'index']);
     Route::get('/schedules/options', [EmployeeWorkScheduleController::class, 'options']);
@@ -79,6 +83,7 @@ Route::middleware('auth:sanctum')->prefix('employees')->group(function () {
     Route::post('/workday/check-in', [EmployeeWorkdayController::class, 'checkIn']);
     Route::get('/attendance', [EmployeeAttendanceController::class, 'index']);
     Route::get('/attendance/options', [EmployeeAttendanceController::class, 'options']);
+    Route::get('/attendance/existing', [EmployeeAttendanceController::class, 'existing']);
     Route::post('/attendance', [EmployeeAttendanceController::class, 'store']);
     Route::post('/attendance/bulk', [EmployeeAttendanceController::class, 'bulkStore']);
     Route::get('/attendance/{attendanceWeek}', [EmployeeAttendanceController::class, 'show']);

@@ -1,3 +1,4 @@
+import CertificationBadge from '@/Components/CertificationBadge';
 import PaginationNav from '@/Components/PaginationNav';
 import {
     AlertDialog,
@@ -22,13 +23,19 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router } from '@inertiajs/react';
 import { CalendarDaysIcon, PencilIcon, PlusIcon, Trash2Icon } from 'lucide-react';
 import { FormEvent, useRef, useState } from 'react';
-import type { SchedulePaginator, SchedulePayload } from './types';
+import type {
+    SchedulePaginator,
+    SchedulePayload,
+    ScheduleStatusOption,
+} from './types';
 
 type IndexProps = {
     filters: {
         date: string;
         search: string;
+        status: string;
     };
+    statuses: ScheduleStatusOption[];
     schedules: SchedulePaginator;
     can: {
         create: boolean;
@@ -37,7 +44,22 @@ type IndexProps = {
     };
 };
 
-export default function Index({ filters, schedules, can }: IndexProps) {
+function statusBadgeVariant(
+    status: string,
+): 'success' | 'secondary' | 'warning' | 'default' {
+    switch (status) {
+        case 'active':
+            return 'success';
+        case 'on_hold':
+            return 'warning';
+        case 'completed':
+            return 'default';
+        default:
+            return 'secondary';
+    }
+}
+
+export default function Index({ filters, statuses, schedules, can }: IndexProps) {
     const dateRef = useRef<HTMLInputElement>(null);
     const [pendingDelete, setPendingDelete] = useState<SchedulePayload | null>(
         null,
@@ -71,6 +93,7 @@ export default function Index({ filters, schedules, can }: IndexProps) {
             route('admin.employee-schedules.index'),
             {
                 date: String(formData.get('date') ?? ''),
+                status: String(formData.get('status') ?? ''),
                 search: String(formData.get('search') ?? ''),
             },
             { preserveState: false },
@@ -86,8 +109,8 @@ export default function Index({ filters, schedules, can }: IndexProps) {
                             Work schedule
                         </h2>
                         <p className="text-sm text-muted-foreground">
-                            Jobs for the day, the foreman responsible, and the
-                            employees attending.
+                            Jobs covering the selected date, with a start and
+                            end date, a status, and the crew attending.
                         </p>
                     </div>
                     {can.create && (
@@ -108,33 +131,46 @@ export default function Index({ filters, schedules, can }: IndexProps) {
                         <CardContent className="pt-6">
                             <form
                                 onSubmit={search}
-                                className="flex flex-col gap-3 sm:flex-row"
+                                className="grid gap-3 lg:grid-cols-[11rem_14rem_minmax(0,1fr)_auto]"
                             >
-                                <div className="flex h-11 overflow-hidden rounded-md border border-border bg-background sm:w-56">
+                                <div className="flex h-9 overflow-hidden rounded-md border border-border bg-background">
                                     <input
                                         ref={dateRef}
                                         name="date"
                                         type="date"
                                         defaultValue={filters.date}
-                                        aria-label="Work date"
-                                        className="h-11 min-w-0 flex-1 bg-transparent px-3 text-sm text-foreground focus:outline-none dark:[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:hidden"
+                                        aria-label="Date within the schedule"
+                                        className="h-9 min-w-0 flex-1 bg-transparent px-2 text-sm text-foreground focus:outline-none dark:[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:hidden"
                                     />
                                     <button
                                         type="button"
                                         onClick={openDatePicker}
                                         aria-label="Choose date"
-                                        className="flex w-11 items-center justify-center border-l border-border text-muted-foreground hover:bg-muted/60"
+                                        className="flex w-9 items-center justify-center border-l border-border text-muted-foreground hover:bg-muted/60"
                                     >
                                         <CalendarDaysIcon className="size-4" />
                                     </button>
                                 </div>
+                                <select
+                                    name="status"
+                                    defaultValue={filters.status}
+                                    aria-label="Status"
+                                    className="h-9 rounded-md border border-border bg-background px-2 text-sm text-foreground shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
+                                >
+                                    <option value="">All statuses</option>
+                                    {statuses.map((status) => (
+                                        <option key={status.value} value={status.value}>
+                                            {status.label}
+                                        </option>
+                                    ))}
+                                </select>
                                 <input
                                     name="search"
                                     defaultValue={filters.search}
                                     placeholder="Search job, foreman, or employee"
-                                    className="h-11 flex-1 rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
+                                    className="h-9 flex-1 rounded-md border border-border bg-background px-2 text-sm text-foreground shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
                                 />
-                                <Button type="submit" variant="outline">
+                                <Button type="submit" variant="outline" className="h-9">
                                     Search
                                 </Button>
                             </form>
@@ -146,25 +182,35 @@ export default function Index({ filters, schedules, can }: IndexProps) {
                             <CardHeader>
                                 <CardTitle>No jobs scheduled</CardTitle>
                                 <CardDescription>
-                                    No crew is assigned on this date.
+                                    No crew is assigned on a schedule that covers
+                                    this date.
                                 </CardDescription>
                             </CardHeader>
                         </Card>
                     ) : (
                         schedules.data.map((schedule) => (
-                            <Card key={schedule.id} className="shadow-sm">
+                            <Card key={schedule.uuid} className="shadow-sm">
                                 <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
                                     <div>
-                                        <CardTitle>
-                                            {schedule.project?.name ?? 'Job'}
+                                        <CardTitle className="flex min-w-0 items-center gap-2 whitespace-nowrap">
+                                            <span className="truncate">
+                                                {schedule.project?.name ?? 'Job'}
+                                                {schedule.project?.project_number
+                                                    ? ` (${schedule.project.project_number})`
+                                                    : ''}
+                                                {schedule.project?.address
+                                                    ? ` · ${schedule.project.address}`
+                                                    : ''}
+                                            </span>
+                                            <Badge
+                                                variant={statusBadgeVariant(
+                                                    schedule.status,
+                                                )}
+                                                className="shrink-0"
+                                            >
+                                                {schedule.status_label}
+                                            </Badge>
                                         </CardTitle>
-                                        <CardDescription>
-                                            {schedule.project?.project_number
-                                                ? `${schedule.project.project_number} · `
-                                                : ''}
-                                            {schedule.project?.address ||
-                                                'No site address'}
-                                        </CardDescription>
                                     </div>
                                     <div className="flex gap-2">
                                         {can.update && (
@@ -176,7 +222,7 @@ export default function Index({ filters, schedules, can }: IndexProps) {
                                                 <Link
                                                     href={route(
                                                         'admin.employee-schedules.edit',
-                                                        schedule.id,
+                                                        schedule.uuid,
                                                     )}
                                                     aria-label="Edit schedule"
                                                 >
@@ -198,28 +244,84 @@ export default function Index({ filters, schedules, can }: IndexProps) {
                                         )}
                                     </div>
                                 </CardHeader>
-                                <CardContent className="flex flex-col gap-3">
-                                    <p className="text-sm text-muted-foreground">
-                                        Foreman:{' '}
-                                        <span className="font-medium text-foreground">
+                                <CardContent className="grid gap-4 lg:grid-cols-4">
+                                    <div>
+                                        <p className="text-xs text-muted-foreground">
+                                            Dates
+                                        </p>
+                                        <p className="text-sm text-foreground">
+                                            {schedule.date_label}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-muted-foreground">
+                                            Competent person
+                                        </p>
+                                        <p className="text-sm font-medium text-foreground">
+                                            {schedule.requires_competent_person
+                                                ? (schedule.competent_person
+                                                      ?.full_name ??
+                                                  'Not set')
+                                                : 'Not required'}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-muted-foreground">
+                                            Foreman
+                                        </p>
+                                        <p className="text-sm font-medium text-foreground">
                                             {schedule.foreman?.name ??
                                                 'Not set'}
-                                        </span>
-                                    </p>
-                                    <div className="flex flex-wrap gap-2">
-                                        {schedule.employees.map((employee) => (
-                                            <Badge
-                                                key={employee.id}
-                                                variant="outline"
-                                            >
-                                                {employee.full_name}
-                                            </Badge>
-                                        ))}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-muted-foreground">
+                                            Employees attending
+                                        </p>
+                                        <div className="mt-1 flex flex-col gap-2">
+                                            {schedule.employees.map(
+                                                (employee) => (
+                                                    <div key={employee.uuid}>
+                                                        <p className="text-sm font-medium text-foreground">
+                                                            {employee.full_name}
+                                                        </p>
+                                                        {(employee.certifications ??
+                                                            []).length > 0 && (
+                                                            <div className="mt-1 flex flex-wrap gap-1">
+                                                                {employee.certifications?.map(
+                                                                    (
+                                                                        certification,
+                                                                    ) => (
+                                                                        <CertificationBadge
+                                                                            key={
+                                                                                certification.id
+                                                                            }
+                                                                            id={
+                                                                                certification.id
+                                                                            }
+                                                                            name={
+                                                                                certification.name
+                                                                            }
+                                                                            competent={
+                                                                                certification.is_competent_person
+                                                                            }
+                                                                        />
+                                                                    ),
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ),
+                                            )}
+                                        </div>
                                     </div>
                                     {schedule.notes && (
-                                        <p className="text-sm text-muted-foreground">
-                                            {schedule.notes}
-                                        </p>
+                                        <div
+                                            className="rich-text-content text-sm text-muted-foreground lg:col-span-4"
+                                            dangerouslySetInnerHTML={{
+                                                __html: schedule.notes,
+                                            }}
+                                        />
                                     )}
                                 </CardContent>
                             </Card>
@@ -243,7 +345,7 @@ export default function Index({ filters, schedules, can }: IndexProps) {
                         <AlertDialogTitle>Remove this job crew?</AlertDialogTitle>
                         <AlertDialogDescription>
                             {pendingDelete?.project?.name} will no longer have
-                            this crew on {pendingDelete?.work_date}.
+                            this crew from {pendingDelete?.date_label}.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -257,7 +359,7 @@ export default function Index({ filters, schedules, can }: IndexProps) {
                                 router.delete(
                                     route(
                                         'admin.employee-schedules.destroy',
-                                        pendingDelete.id,
+                                        pendingDelete.uuid,
                                     ),
                                 );
                                 setPendingDelete(null);

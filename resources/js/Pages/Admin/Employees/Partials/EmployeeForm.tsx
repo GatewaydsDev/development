@@ -32,12 +32,14 @@ import { z } from 'zod';
 import {
     employeeToFormData,
     emptySkillRate,
+    type CertificationOption,
     type EmployeeFormData,
     type EmployeePayload,
     type EmployeeRateTypeOptions,
     type EmployeeStatusOptions,
     type NamedOption,
 } from '../types';
+import EmployeeCertificationsFields from './EmployeeCertificationsFields';
 import EmployeeRelationsFields from './EmployeeRelationsFields';
 
 const defaultAccountPassword = 'Welcome!@';
@@ -49,6 +51,7 @@ type EmployeeFormProps = {
     title: string;
     description: string;
     languages: NamedOption[];
+    certifications?: CertificationOption[];
     skills: NamedOption[];
     skillsVersion?: string | null;
     rateTypeOptions: EmployeeRateTypeOptions;
@@ -101,6 +104,16 @@ function employeeSchema(
         }, 'Date of birth cannot be in the future.'),
         language_id: z.string(),
         notes: z.string().trim().max(5000, 'Notes must be 5,000 characters or less.'),
+        certifications: z.array(
+            z.object({
+                certification_id: z
+                    .string()
+                    .trim()
+                    .min(1, 'Select a certification or qualification.'),
+                issued_on: isoDate,
+                expires_on: isoDate,
+            }),
+        ),
         skills: z.array(
             z.object({
                 skill_id: z.string().trim().min(1, 'Select a skill.'),
@@ -234,6 +247,7 @@ export default function EmployeeForm({
     title,
     description,
     languages,
+    certifications = [],
     skills,
     skillsVersion = null,
     rateTypeOptions,
@@ -305,6 +319,11 @@ export default function EmployeeForm({
         control,
         name: 'skills',
     });
+    const { append: appendCertification, remove: removeCertification } =
+        useFieldArray({
+            control,
+            name: 'certifications',
+        });
     const data = watch();
     const errors = new Proxy({} as Record<string, string | undefined>, {
         get: (_target, property) =>
@@ -473,6 +492,7 @@ export default function EmployeeForm({
             account_password: values.account_password,
             account_password_confirmation:
                 values.account_password_confirmation,
+            certifications: values.certifications,
             skill_ids: skillRows
                 .map((skill) => skill.skill_id)
                 .filter(Boolean),
@@ -887,6 +907,27 @@ export default function EmployeeForm({
                         )}
                         </div>
                     </FormSection>
+
+                    <EmployeeCertificationsFields
+                        certifications={data.certifications}
+                        errors={validationErrors}
+                        labelClassName={labelClassName}
+                        onChange={(index, field, value) =>
+                            setRowValue(
+                                `certifications.${index}.${field}`,
+                                value,
+                            )
+                        }
+                        catalog={certifications}
+                        onAdd={() =>
+                            appendCertification({
+                                certification_id: '',
+                                issued_on: '',
+                                expires_on: '',
+                            })
+                        }
+                        onRemove={removeCertification}
+                    />
 
                     <EmployeeRelationsFields
                         data={data}

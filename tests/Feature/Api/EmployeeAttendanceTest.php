@@ -19,6 +19,67 @@ function attendanceApiUser(string $levelName): User
     ]);
 }
 
+test('the mobile app can read days already set and add an open day', function () {
+    $user = attendanceApiUser(UserLevel::ADMINISTRATOR);
+    $employee = Employee::create([
+        'first_name' => 'Alex',
+        'last_name' => 'Costa',
+        'email' => 'alex.mobile.attendance@example.com',
+        'employment_status' => Employee::STATUS_ACTIVE,
+    ]);
+    $profession = Profession::create(['name' => 'Painter']);
+    $employee->professions()->sync([$profession->id]);
+    $hourly = $employee->payRates()->create([
+        'profession_id' => $profession->id,
+        'rate_type' => EmployeePayRate::RATE_HOURLY,
+        'amount' => '40.00',
+    ]);
+
+    $this->actingAs($user, 'sanctum')
+        ->postJson('/api/employees/attendance', [
+            'employee_id' => $employee->id,
+            'week_start' => '2026-10-05',
+            'days' => [
+                [
+                    'work_date' => '2026-10-05',
+                    'profession_id' => $profession->id,
+                    'pay_rate_id' => $hourly->id,
+                    'hours' => 8,
+                    'scheduled' => true,
+                    'worked' => true,
+                ],
+            ],
+        ])
+        ->assertCreated();
+
+    $this->actingAs($user, 'sanctum')
+        ->getJson('/api/employees/attendance/existing?employee_id='.$employee->id.'&week_start=2026-10-07')
+        ->assertOk()
+        ->assertJsonPath('attendance.days.0.work_date', '2026-10-05')
+        ->assertJsonCount(1, 'attendance.days');
+
+    $this->actingAs($user, 'sanctum')
+        ->postJson('/api/employees/attendance', [
+            'employee_id' => $employee->id,
+            'week_start' => '2026-10-05',
+            'days' => [
+                [
+                    'work_date' => '2026-10-07',
+                    'profession_id' => $profession->id,
+                    'pay_rate_id' => $hourly->id,
+                    'hours' => 8,
+                    'scheduled' => true,
+                    'worked' => false,
+                ],
+            ],
+        ])
+        ->assertCreated();
+
+    $week = EmployeeAttendanceWeek::query()->where('employee_id', $employee->id)->firstOrFail();
+
+    expect($week->days)->toHaveCount(2);
+});
+
 test('attendance api routes require a token', function () {
     $this->getJson('/api/employees/attendance')->assertUnauthorized();
     $this->postJson('/api/employees/attendance')->assertUnauthorized();
@@ -64,6 +125,7 @@ test('the mobile app can list add and update an attendance week', function () {
                     'work_date' => '2026-10-05',
                     'profession_id' => $profession->id,
                     'pay_rate_id' => $hourly->id,
+                    'hours' => 8,
                     'scheduled' => true,
                     'worked' => false,
                 ],
@@ -158,6 +220,7 @@ test('the mobile app can add one date for several employees', function () {
                     'employee_id' => $lead->id,
                     'profession_id' => $foreman->id,
                     'pay_rate_id' => $leadRate->id,
+                    'hours' => 6,
                 ],
                 [
                     'employee_id' => $helper->id,

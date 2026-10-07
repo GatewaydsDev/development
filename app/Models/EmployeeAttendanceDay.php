@@ -16,6 +16,7 @@ class EmployeeAttendanceDay extends Model
         'rate_type',
         'custom_rate_type',
         'amount',
+        'hours',
         'scheduled',
         'worked',
         'notes',
@@ -26,6 +27,7 @@ class EmployeeAttendanceDay extends Model
         return [
             'work_date' => 'date',
             'amount' => 'decimal:2',
+            'hours' => 'decimal:2',
             'scheduled' => 'boolean',
             'worked' => 'boolean',
         ];

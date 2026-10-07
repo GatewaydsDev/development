@@ -34,6 +34,7 @@ export type AttendanceDayPayload = {
     rate_type: string;
     custom_rate_type: string | null;
     amount: string;
+    hours: string | null;
     rate_label: string;
     scheduled: boolean;
     worked: boolean;
@@ -54,6 +55,7 @@ export type AttendanceWeekPayload = {
     notes: string | null;
     scheduled_count: number;
     worked_count: number;
+    pay_total: string;
     days: AttendanceDayPayload[];
 };
 
@@ -79,8 +81,9 @@ export type AttendancePaginator = {
 export type AttendanceDayForm = {
     scheduled: boolean;
     worked: boolean;
-        skill_id: string;
-        pay_rate_id: string;
+    skill_id: string;
+    pay_rate_id: string;
+    hours: string;
     notes: string;
 };
 
@@ -119,6 +122,60 @@ export function addDays(value: string, days: number): string {
     date.setDate(date.getDate() + days);
 
     return formatIsoDate(date);
+}
+
+export function monthDayLabel(value: string): string {
+    if (!value) {
+        return '';
+    }
+
+    return new Intl.DateTimeFormat('en-US', {
+        month: 'short',
+        day: 'numeric',
+    }).format(parseIsoDate(value));
+}
+
+export function weekdayDateLabel(value: string): string {
+    if (!value) {
+        return '';
+    }
+
+    const day = weekdayName(value);
+    const date = monthDayLabel(value);
+
+    return day ? `${day}, ${date}` : date;
+}
+
+export function numericHours(value: string): string {
+    const cleaned = value.replace(/[^\d.]/g, '');
+    const dot = cleaned.indexOf('.');
+
+    if (dot === -1) {
+        return cleaned.slice(0, 2);
+    }
+
+    const whole = cleaned.slice(0, dot).slice(0, 2);
+    const fraction = cleaned.slice(dot + 1).replace(/\./g, '').slice(0, 2);
+
+    return `${whole}.${fraction}`;
+}
+
+export function hoursLabel(hours?: string | number | null): string {
+    if (hours === null || hours === undefined || hours === '') {
+        return '';
+    }
+
+    const value = Number(hours);
+
+    if (!Number.isFinite(value)) {
+        return '';
+    }
+
+    const text = Number.isInteger(value)
+        ? String(value)
+        : String(Math.round(value * 100) / 100);
+
+    return `${text} ${text === '1' ? 'hour' : 'hours'}`;
 }
 
 export function weekdayName(value: string): string {
@@ -166,6 +223,7 @@ function emptyDay(): AttendanceDayForm {
         worked: false,
         skill_id: '',
         pay_rate_id: '',
+        hours: '',
         notes: '',
     };
 }
@@ -199,6 +257,10 @@ export function attendanceToFormData(
                 worked: saved.worked,
                 skill_id: saved.skill_id ? String(saved.skill_id) : '',
                 pay_rate_id: matchingRateId(employee, saved),
+                hours:
+                    saved.rate_type === 'hourly' && saved.hours
+                        ? String(Number(saved.hours))
+                        : '',
                 notes: saved.notes ?? '',
             };
         }),

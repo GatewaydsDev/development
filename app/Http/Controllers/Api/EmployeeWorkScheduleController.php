@@ -4,7 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Admin\EmployeeWorkScheduleController as AdminEmployeeWorkScheduleController;
 use App\Http\Controllers\Controller;
+use App\Models\Employee;
 use App\Models\EmployeeWorkSchedule;
+use App\Models\Project;
+use App\Models\WorkScheduleListing;
 use App\Models\User;
 use App\Support\EmployeeAccess;
 use App\Support\UserPrivileges;
@@ -20,27 +23,42 @@ class EmployeeWorkScheduleController extends Controller
         $search = trim((string) $request->query('search', ''));
         $perPage = min(100, max(1, $request->integer('per_page', 15)));
 
-        $schedules = EmployeeAccess::scopeVisibleSchedules(EmployeeWorkSchedule::query(), $user)
-            ->with($this->admin()->relations())
-            ->when($date, fn ($query) => $query->whereDate('work_date', $date))
-            ->when($request->filled('project_id'), fn ($query) => $query->where(
-                'project_id',
-                $request->integer('project_id'),
+        $schedules = EmployeeAccess::scopeVisibleScheduleListings(WorkScheduleListing::query(), $user)
+            ->when($date, fn ($query) => $query->covering($date))
+            ->when($this->admin()->statusQuery($request->query('status')), fn ($query, $status) => $query->where(
+                'status',
+                $status,
             ))
+            ->when($request->filled('project_id') || $request->filled('project_uuid'), function ($query) use ($request) {
+                $projectId = $this->admin()->recordId(
+                    Project::class,
+                    $request->query('project_uuid') ?: $request->query('project_id'),
+                );
+
+                if ($projectId !== null) {
+                    $query->where('project_id', $projectId);
+                }
+            })
             ->when($request->filled('foreman_user_id') && ! EmployeeAccess::isForeman($user), fn ($query) => $query->where(
                 'foreman_user_id',
                 $request->integer('foreman_user_id'),
             ))
-            ->when($request->filled('employee_id'), fn ($query) => $query->whereHas(
-                'employees',
-                fn ($query) => $query->whereKey($request->integer('employee_id')),
-            ))
-            ->tap(fn ($query) => $this->admin()->applySearch($query, $search))
-            ->orderByDesc('work_date')
+            ->when($request->filled('employee_id') || $request->filled('employee_uuid'), function ($query) use ($request) {
+                $employeeId = $this->admin()->recordId(
+                    Employee::class,
+                    $request->query('employee_uuid') ?: $request->query('employee_id'),
+                );
+
+                if ($employeeId !== null) {
+                    $query->where('crew_employee_ids', 'like', "%|{$employeeId}|%");
+                }
+            })
+            ->tap(fn ($query) => $this->admin()->applyListingSearch($query, $search))
+            ->orderByDesc('starts_on')
             ->orderByDesc('id')
             ->paginate($perPage)
             ->withQueryString()
-            ->through(fn (EmployeeWorkSchedule $schedule): array => $this->admin()->payload($schedule));
+            ->through(fn (WorkScheduleListing $listing): array => $this->admin()->listingPayload($listing));
 
         return response()->json([
             'data' => $schedules->items(),

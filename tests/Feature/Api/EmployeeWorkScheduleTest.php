@@ -49,33 +49,45 @@ test('the mobile app can list add update and remove a job crew', function () {
         'email' => 'sam.api.schedule@example.com',
         'employment_status' => Employee::STATUS_ACTIVE,
     ]);
+    $certification = \App\Models\Certification::findOrCreateByName('OSHA 30', true);
+    $jordan->certifications()->create([
+        'certification_id' => $certification->id,
+    ]);
 
     $created = $this->actingAs($admin, 'sanctum')
         ->postJson('/api/employees/schedules', [
-            'project_id' => $project->id,
+            'project_uuid' => $project->uuid,
             'work_date' => '2026-10-07',
             'foreman_user_id' => $foreman->id,
-            'employee_ids' => [$jordan->id],
+            'employee_uuids' => [$jordan->uuid],
             'notes' => 'Morning',
         ])
         ->assertCreated()
+        ->assertJsonPath('schedule.starts_on', '2026-10-07')
+        ->assertJsonPath('schedule.ends_on', '2026-10-07')
+        ->assertJsonPath('schedule.status', 'active')
+        ->assertJsonPath('schedule.project.uuid', $project->uuid)
         ->assertJsonPath('schedule.project.name', 'Harbor Schedule')
         ->assertJsonPath('schedule.foreman.email', $foreman->email)
-        ->assertJsonPath('schedule.employees.0.full_name', 'Jordan Rivera');
+        ->assertJsonPath('schedule.employees.0.uuid', $jordan->uuid)
+        ->assertJsonPath('schedule.employees.0.full_name', 'Jordan Rivera')
+        ->assertJsonPath('schedule.employees.0.certifications.0.name', 'OSHA 30')
+        ->assertJsonPath('schedule.employees.0.certifications.0.is_competent_person', true);
 
-    $scheduleId = $created->json('schedule.id');
+    $scheduleUuid = $created->json('schedule.uuid');
+    expect($scheduleUuid)->not->toBeEmpty();
 
     $this->actingAs($admin, 'sanctum')
         ->postJson('/api/employees/schedules', [
-            'project_id' => $second->id,
+            'project_uuid' => $second->uuid,
             'work_date' => '2026-10-07',
             'foreman_user_id' => $foreman->id,
-            'employee_ids' => [$jordan->id, $sam->id],
+            'employee_uuids' => [$jordan->uuid, $sam->uuid],
         ])
         ->assertCreated();
 
     $this->actingAs($admin, 'sanctum')
-        ->getJson('/api/employees/schedules?date=2026-10-07&employee_id='.$jordan->id)
+        ->getJson('/api/employees/schedules?date=2026-10-07&employee_uuid='.$jordan->uuid)
         ->assertOk()
         ->assertJsonCount(2, 'data');
 
@@ -85,11 +97,11 @@ test('the mobile app can list add update and remove a job crew', function () {
         ->assertJsonCount(2, 'data');
 
     $this->actingAs($admin, 'sanctum')
-        ->patchJson("/api/employees/schedules/{$scheduleId}", [
-            'project_id' => $project->id,
+        ->patchJson("/api/employees/schedules/{$scheduleUuid}", [
+            'project_uuid' => $project->uuid,
             'work_date' => '2026-10-07',
             'foreman_user_id' => $foreman->id,
-            'employee_ids' => [$jordan->id, $sam->id],
+            'employee_uuids' => [$jordan->uuid, $sam->uuid],
             'notes' => 'Full crew',
         ])
         ->assertOk()
@@ -97,10 +109,10 @@ test('the mobile app can list add update and remove a job crew', function () {
         ->assertJsonCount(2, 'schedule.employees');
 
     $this->actingAs($admin, 'sanctum')
-        ->deleteJson("/api/employees/schedules/{$scheduleId}")
+        ->deleteJson("/api/employees/schedules/{$scheduleUuid}")
         ->assertOk();
 
-    $this->assertDatabaseMissing('employee_work_schedules', ['id' => $scheduleId]);
+    $this->assertDatabaseMissing('employee_work_schedules', ['uuid' => $scheduleUuid]);
 });
 
 test('a foreman cannot open a job assigned to someone else', function () {
@@ -122,14 +134,14 @@ test('a foreman cannot open a job assigned to someone else', function () {
 
     $created = $this->actingAs($admin, 'sanctum')
         ->postJson('/api/employees/schedules', [
-            'project_id' => $project->id,
+            'project_uuid' => $project->uuid,
             'work_date' => '2026-10-08',
             'foreman_user_id' => $other->id,
-            'employee_ids' => [$jordan->id],
+            'employee_uuids' => [$jordan->uuid],
         ])
         ->assertCreated();
 
     $this->actingAs($foreman, 'sanctum')
-        ->getJson('/api/employees/schedules/'.$created->json('schedule.id'))
+        ->getJson('/api/employees/schedules/'.$created->json('schedule.uuid'))
         ->assertForbidden();
 });

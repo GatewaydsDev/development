@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Certification;
 use App\Models\Employee;
+use App\Models\EmployeeCertification;
 use App\Models\EmployeePayRate;
 use App\Models\EmployeeProjectAssignment;
 use App\Models\EmployeeSkillShift;
@@ -59,6 +61,9 @@ class EmployeeController extends Controller
                                 $query->where('name', 'like', "%{$search}%");
                             })
                             ->orWhereHas('skills', function ($query) use ($search): void {
+                                $query->where('name', 'like', "%{$search}%");
+                            })
+                            ->orWhereHas('certifications.certification', function ($query) use ($search): void {
                                 $query->where('name', 'like', "%{$search}%");
                             })
                             ->orWhereHas('languagePreference.language', function ($query) use ($search): void {
@@ -218,6 +223,7 @@ class EmployeeController extends Controller
                     'skill_ids',
                     'project_assignments',
                     'skill_shifts',
+                    'certifications',
                     'language_id',
                     'account_role',
                     'account_level_id',
@@ -242,6 +248,10 @@ class EmployeeController extends Controller
             $this->syncLanguage($employee, $languageId);
             $this->syncSkills($employee, $skillIds, $skillShifts, $payRates);
             $this->syncSkillShifts($employee, $skillShifts);
+
+            if (array_key_exists('certifications', $validated)) {
+                $this->syncCertifications($employee, $validated['certifications']);
+            }
             $employee->load($this->employeeRelations());
 
             return $employee;
@@ -291,6 +301,33 @@ class EmployeeController extends Controller
             ]);
         }
 
+        if ($request->exists('certifications')) {
+            $request->merge([
+                'certifications' => collect($request->input('certifications', []))
+                    ->map(function (mixed $row): array {
+                        $row = is_array($row) ? $row : [];
+                        $name = trim((string) ($row['name'] ?? ''));
+                        $certificationId = $row['certification_id'] ?? null;
+
+                        if (($certificationId === null || $certificationId === '') && $name !== '') {
+                            $certificationId = Certification::findOrCreateByName(
+                                $name,
+                                filter_var($row['is_competent_person'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                            )->id;
+                        }
+
+                        return [
+                            'certification_id' => $certificationId === '' ? null : $certificationId,
+                            'issued_on' => ($row['issued_on'] ?? '') === '' ? null : $row['issued_on'],
+                            'expires_on' => ($row['expires_on'] ?? '') === '' ? null : $row['expires_on'],
+                        ];
+                    })
+                    ->filter(fn (array $row): bool => $row['certification_id'] !== null && $row['certification_id'] !== '')
+                    ->values()
+                    ->all(),
+            ]);
+        }
+
         $groupedProfessions = $this->groupedProfessions($request);
         $ratePaths = [];
 
@@ -312,6 +349,17 @@ class EmployeeController extends Controller
             }
 
             throw $exception;
+        }
+
+        foreach ($validated['certifications'] ?? [] as $index => $certification) {
+            $issuedOn = $certification['issued_on'] ?? null;
+            $expiresOn = $certification['expires_on'] ?? null;
+
+            if ($issuedOn && $expiresOn && $expiresOn < $issuedOn) {
+                throw ValidationException::withMessages([
+                    "certifications.$index.expires_on" => 'The expiration date must be on or after the issued date.',
+                ]);
+            }
         }
 
         return $validated;
@@ -373,6 +421,10 @@ class EmployeeController extends Controller
             'pay_rates.*.custom_rate_type' => ['nullable', 'string', 'max:255'],
             'pay_rates.*.amount' => ['required', 'numeric', 'min:0.01'],
             'pay_rates.*.notes' => ['nullable', 'string', 'max:1000'],
+            'certifications' => ['nullable', 'array'],
+            'certifications.*.certification_id' => ['required', 'integer', 'distinct', Rule::exists(Certification::class, 'id')],
+            'certifications.*.issued_on' => ['nullable', 'date'],
+            'certifications.*.expires_on' => ['nullable', 'date'],
         ]);
 
         $rateKeys = [];
@@ -558,6 +610,15 @@ class EmployeeController extends Controller
         return [
             'professions' => $this->namedOptions(Profession::class),
             'languages' => $this->namedOptions(Language::class),
+            'certifications' => Certification::query()
+                ->orderBy('name')
+                ->get(['id', 'name', 'is_competent_person'])
+                ->map(fn (Certification $certification): array => [
+                    'id' => $certification->id,
+                    'name' => $certification->name,
+                    'is_competent_person' => $certification->is_competent_person,
+                ])
+                ->all(),
             'skills' => $this->namedOptions(Skill::class),
             'skillsVersion' => SkillListVersion::current(),
             'foremen' => $this->foremanOptions(),
@@ -761,6 +822,19 @@ class EmployeeController extends Controller
                 ])
                 ->values()
                 ->all(),
+            'certifications' => $employee->certifications
+                ->sortBy(fn (EmployeeCertification $assignment): string => $assignment->certification?->name ?? '')
+                ->map(fn (EmployeeCertification $assignment): array => [
+                    'id' => $assignment->id,
+                    'uuid' => $assignment->uuid,
+                    'certification_id' => $assignment->certification_id,
+                    'name' => $assignment->certification?->name,
+                    'is_competent_person' => (bool) $assignment->certification?->is_competent_person,
+                    'issued_on' => $assignment->issued_on?->toDateString(),
+                    'expires_on' => $assignment->expires_on?->toDateString(),
+                ])
+                ->values()
+                ->all(),
             'skills' => $employee->skills
                 ->map(fn (Skill $skill): array => [
                     'id' => $skill->id,
@@ -786,6 +860,7 @@ class EmployeeController extends Controller
                     'project' => $assignment->project
                         ? [
                             'id' => $assignment->project->id,
+                            'uuid' => $assignment->project->uuid,
                             'name' => $assignment->project->name,
                             'project_number' => $assignment->project->project_number,
                         ]
@@ -864,12 +939,13 @@ class EmployeeController extends Controller
             'languagePreference.language:id,name',
             'professions:id,name',
             'skills:id,name',
-            'projectAssignments.project:id,name,project_number',
+            'projectAssignments.project:id,uuid,name,project_number',
             'skillShifts.skill:id,name',
             'payRates.profession:id,name',
             'payRates.skill:id,name',
             'foreman:id,name,email',
             'user.level:id,name',
+            'certifications.certification:id,name,is_competent_person',
         ];
     }
 
@@ -996,6 +1072,22 @@ class EmployeeController extends Controller
                 'notes' => $shift['notes'] ?? null,
             ]);
         });
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $certifications
+     */
+    public function syncCertifications(Employee $employee, array $certifications): void
+    {
+        $employee->certifications()->delete();
+
+        foreach ($certifications as $certification) {
+            $employee->certifications()->create([
+                'certification_id' => $certification['certification_id'],
+                'issued_on' => $certification['issued_on'] ?? null,
+                'expires_on' => $certification['expires_on'] ?? null,
+            ]);
+        }
     }
 
     /**

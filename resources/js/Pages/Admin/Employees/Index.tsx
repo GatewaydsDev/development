@@ -1,3 +1,4 @@
+import CertificationBadge from '@/Components/CertificationBadge';
 import { useProjectListRefresh } from '@/hooks/useProjectListRefresh';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ActionHint from '@/Components/ActionHint';
@@ -131,7 +132,7 @@ function MembershipLine({
     items,
 }: {
     label: string;
-    items: Array<{ id: number; name: string }>;
+    items: Array<{ id: number; name: string; competent?: boolean }>;
 }) {
     return (
         <div className="mt-3">
@@ -143,8 +144,12 @@ function MembershipLine({
                     {items.map((item) => (
                         <Badge
                             key={item.id}
-                            variant="outline"
-                            className="border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
+                            variant={item.competent ? 'success' : 'outline'}
+                            className={
+                                item.competent
+                                    ? undefined
+                                    : 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200'
+                            }
                         >
                             {item.name}
                         </Badge>
@@ -268,6 +273,21 @@ export default function Index({
         );
     };
 
+    const clearSearch = () => {
+        setSearch('');
+
+        if ((filters.search ?? '').trim() !== '') {
+            router.get(
+                route('admin.employees.index'),
+                {},
+                {
+                    preserveState: true,
+                    replace: true,
+                },
+            );
+        }
+    };
+
     const destroyEmployee = (employeeUuid: string) => {
         router.delete(route('admin.employees.destroy', employeeUuid), {
             preserveScroll: true,
@@ -352,8 +372,8 @@ export default function Index({
                                         onChange={(event) =>
                                             setSearch(event.target.value)
                                         }
-                                        placeholder="Search employees"
-                                        className="h-11 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm text-foreground sm:w-64"
+                                        placeholder="Name, skill, or qualification"
+                                        className="h-11 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm text-foreground sm:w-80"
                                     />
                                 </div>
                                 <Button
@@ -362,6 +382,17 @@ export default function Index({
                                 >
                                     Search
                                 </Button>
+                                {search.trim() !== '' ||
+                                (filters.search ?? '').trim() !== '' ? (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="h-11"
+                                        onClick={clearSearch}
+                                    >
+                                        Clear
+                                    </Button>
+                                ) : null}
                             </form>
                         </CardHeader>
 
@@ -416,6 +447,49 @@ export default function Index({
                                                     label="Skills"
                                                     items={employee.skills}
                                                 />
+                                                <div className="mt-3">
+                                                    <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                                                        Qualifications
+                                                    </p>
+                                                    {employee.certifications.some(
+                                                        (certification) =>
+                                                            certification.name,
+                                                    ) ? (
+                                                        <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                                            {employee.certifications
+                                                                .filter(
+                                                                    (
+                                                                        certification,
+                                                                    ) =>
+                                                                        certification.name,
+                                                                )
+                                                                .map(
+                                                                    (
+                                                                        certification,
+                                                                    ) => (
+                                                                        <CertificationBadge
+                                                                            key={
+                                                                                certification.certification_id
+                                                                            }
+                                                                            id={
+                                                                                certification.certification_id
+                                                                            }
+                                                                            name={
+                                                                                certification.name as string
+                                                                            }
+                                                                            competent={
+                                                                                certification.is_competent_person
+                                                                            }
+                                                                        />
+                                                                    ),
+                                                                )}
+                                                        </div>
+                                                    ) : (
+                                                        <p className="mt-1 text-sm text-muted-foreground">
+                                                            None
+                                                        </p>
+                                                    )}
+                                                </div>
                                             </div>
                                             <div className="min-w-0 text-sm text-muted-foreground">
                                                 <DirectoryFieldLabel>Contact</DirectoryFieldLabel>

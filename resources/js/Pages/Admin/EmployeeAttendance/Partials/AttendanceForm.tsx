@@ -2,15 +2,20 @@ import Checkbox from '@/Components/Checkbox';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
+import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
-import { router, useForm } from '@inertiajs/react';
-import { FormEvent } from 'react';
+import { Link, router, useForm } from '@inertiajs/react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import {
     WORK_WEEK,
     addDays,
     attendanceToFormData,
+    hoursLabel,
     mondayOf,
+    numericHours,
     weekRangeLabel,
+    weekdayDateLabel,
+    type AttendanceDayPayload,
     type AttendanceEmployeeOption,
     type AttendanceFormData,
     type AttendanceWeekPayload,
@@ -21,6 +26,27 @@ const inputClassName =
 const labelClassName = 'text-emerald-700 dark:text-emerald-300';
 const selectClassName =
     'h-11 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60';
+
+function SavedDayDetails({ day }: { day: AttendanceDayPayload }) {
+    return (
+        <div className="flex flex-col gap-2 text-sm">
+            <p className="font-medium text-foreground">
+                {day.skill?.name ?? day.profession?.name ?? 'Skill'}
+            </p>
+            <p className="text-muted-foreground">{day.rate_label}</p>
+            {day.rate_type === 'hourly' && hoursLabel(day.hours) ? (
+                <p className="text-muted-foreground">{hoursLabel(day.hours)}</p>
+            ) : null}
+            <div className="flex flex-wrap gap-1">
+                {day.scheduled ? <Badge variant="outline">On schedule</Badge> : null}
+                {day.worked ? <Badge>Worked</Badge> : null}
+            </div>
+            {day.notes ? (
+                <p className="text-muted-foreground">{day.notes}</p>
+            ) : null}
+        </div>
+    );
+}
 
 type AttendanceFormProps = {
     action: string;
@@ -48,6 +74,90 @@ export default function AttendanceForm({
         (employee) => String(employee.id) === data.employee_id,
     );
     const rangeLabel = data.week_start ? weekRangeLabel(data.week_start) : '';
+    const [existingWeek, setExistingWeek] = useState<AttendanceWeekPayload | null>(
+        null,
+    );
+    const [loadingExisting, setLoadingExisting] = useState(false);
+    const existingRequest = useRef(0);
+    const existingByDate = new Map(
+        (existingWeek?.days ?? []).map((day) => [day.work_date, day]),
+    );
+    const openDayCount = data.week_start
+        ? WORK_WEEK.filter(
+              (weekday) =>
+                  !existingByDate.has(addDays(data.week_start, weekday.offset)),
+          ).length
+        : WORK_WEEK.length;
+
+    useEffect(() => {
+        if (attendance || data.employee_id === '' || data.week_start === '') {
+            setExistingWeek(null);
+            setLoadingExisting(false);
+            return;
+        }
+
+        const requestId = ++existingRequest.current;
+        const params = new URLSearchParams({
+            employee_id: data.employee_id,
+            week_start: data.week_start,
+        });
+        let existingUrl = `/administration/employees/attendance/existing?${params.toString()}`;
+
+        try {
+            existingUrl = `${route(
+                'admin.employee-attendance.existing',
+                undefined,
+                false,
+            )}?${params.toString()}`;
+        } catch {
+            existingUrl = `/administration/employees/attendance/existing?${params.toString()}`;
+        }
+
+        setLoadingExisting(true);
+
+        fetch(existingUrl, {
+            credentials: 'same-origin',
+            headers: {
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        })
+            .then(async (response) => {
+                if (requestId !== existingRequest.current) {
+                    return;
+                }
+
+                if (!response.ok) {
+                    setExistingWeek(null);
+                    return;
+                }
+
+                const body = (await response.json()) as {
+                    attendance?: AttendanceWeekPayload | null;
+                };
+                setExistingWeek(body.attendance ?? null);
+            })
+            .catch(() => {
+                if (requestId === existingRequest.current) {
+                    setExistingWeek(null);
+                }
+            })
+            .finally(() => {
+                if (requestId === existingRequest.current) {
+                    setLoadingExisting(false);
+                }
+            });
+    }, [attendance, data.employee_id, data.week_start]);
+
+    const blankDays = () =>
+        data.days.map(() => ({
+            scheduled: false,
+            worked: false,
+            skill_id: '',
+            pay_rate_id: '',
+            hours: '',
+            notes: '',
+        }));
 
     const updateDay = (
         index: number,
@@ -72,6 +182,7 @@ export default function AttendanceForm({
                     : '',
                 skill_id: day.skill_id || null,
                 pay_rate_id: day.pay_rate_id || null,
+                hours: day.hours || null,
                 scheduled: day.scheduled,
                 worked: day.worked,
                 notes: day.notes,
@@ -102,11 +213,7 @@ export default function AttendanceForm({
                             setData({
                                 ...data,
                                 employee_id: event.target.value,
-                                days: data.days.map((day) => ({
-                                    ...day,
-                                    skill_id: '',
-                                    pay_rate_id: '',
-                                })),
+                                days: blankDays(),
                             });
                         }}
                         className={selectClassName}
@@ -133,12 +240,13 @@ export default function AttendanceForm({
                         value={data.week_start}
                         className={inputClassName}
                         onChange={(event) =>
-                            setData(
-                                'week_start',
-                                event.target.value
+                            setData({
+                                ...data,
+                                week_start: event.target.value
                                     ? mondayOf(event.target.value)
                                     : '',
-                            )
+                                days: blankDays(),
+                            })
                         }
                     />
                     <p className="text-sm text-muted-foreground">
@@ -176,6 +284,27 @@ export default function AttendanceForm({
                         For each day, choose the employee&apos;s skill and rate.
                         Mark the day on the schedule, as worked, or both.
                     </p>
+                    {!attendance && loadingExisting ? (
+                        <p className="mt-2 text-sm text-muted-foreground">
+                            Checking the days already set for this work week.
+                        </p>
+                    ) : null}
+                    {!attendance && existingWeek && existingWeek.days.length > 0 ? (
+                        <p className="mt-2 text-sm text-muted-foreground">
+                            {openDayCount === 0
+                                ? 'Every Monday through Saturday is already set for this week.'
+                                : 'Days already set stay as they are. Add any day that is still open.'}{' '}
+                            <Link
+                                href={route(
+                                    'admin.employee-attendance.edit',
+                                    existingWeek.id,
+                                )}
+                                className="font-medium text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-300"
+                            >
+                                Edit this week
+                            </Link>
+                        </p>
+                    ) : null}
                     <InputError message={errorBag.days} className="mt-2" />
                 </div>
 
@@ -195,24 +324,40 @@ export default function AttendanceForm({
                             skills.find(
                                 (skill) => String(skill.id) === day.skill_id,
                             )?.rates ?? [];
+                        const hourlyRate =
+                            rates.find((rate) => String(rate.id) === day.pay_rate_id)
+                                ?.rate_type === 'hourly';
                         const workDate = data.week_start
                             ? addDays(data.week_start, weekday.offset)
                             : '';
+                        const savedDay = attendance
+                            ? undefined
+                            : existingByDate.get(workDate);
 
                         return (
                             <article
                                 key={weekday.label}
-                                className="flex flex-col gap-4 rounded-xl bg-card p-4 ring-1 ring-foreground/10"
+                                className={
+                                    savedDay
+                                        ? 'flex flex-col gap-4 rounded-xl bg-muted/50 p-4 ring-1 ring-foreground/10'
+                                        : 'flex flex-col gap-4 rounded-xl bg-card p-4 ring-1 ring-foreground/10'
+                                }
                             >
-                                <div>
+                                <div className="flex items-start justify-between gap-3">
                                     <h4 className="font-semibold text-foreground">
-                                        {weekday.label}
+                                        {workDate
+                                            ? weekdayDateLabel(workDate)
+                                            : weekday.label}
                                     </h4>
-                                    <p className="text-sm text-muted-foreground">
-                                        {workDate}
-                                    </p>
+                                    {savedDay ? (
+                                        <Badge variant="secondary">Already set</Badge>
+                                    ) : null}
                                 </div>
 
+                                {savedDay ? (
+                                    <SavedDayDetails day={savedDay} />
+                                ) : (
+                                <>
                                 <div className="flex flex-wrap gap-4">
                                     <label className="flex items-center gap-2 text-sm text-foreground">
                                         <Checkbox
@@ -252,6 +397,7 @@ export default function AttendanceForm({
                                             updateDay(index, {
                                                 skill_id: event.target.value,
                                                 pay_rate_id: '',
+                                                hours: '',
                                             })
                                         }
                                         className={selectClassName}
@@ -265,38 +411,79 @@ export default function AttendanceForm({
                                     </select>
                                 </div>
 
-                                <div className="flex flex-col gap-2">
-                                    <InputLabel
-                                        htmlFor={`attendance-rate-${index}`}
-                                        value="Rate"
-                                        className={labelClassName}
-                                    />
-                                    <select
-                                        id={`attendance-rate-${index}`}
-                                        value={day.pay_rate_id}
-                                        disabled={
-                                            !active || day.skill_id === ''
-                                        }
-                                        onChange={(event) =>
-                                            updateDay(index, {
-                                                pay_rate_id: event.target.value,
-                                            })
-                                        }
-                                        className={selectClassName}
-                                    >
-                                        <option value="">Select a rate</option>
-                                        {rates.map((rate) => (
-                                            <option key={rate.id} value={rate.id}>
-                                                {rate.label}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <InputError
-                                        message={
-                                            errorBag[`days.${index}.pay_rate_id`] ||
-                                            errorBag[`days.${index}.work_date`]
-                                        }
-                                    />
+                                <div className="flex items-start gap-3">
+                                    <div className="flex min-w-0 flex-1 flex-col gap-2">
+                                        <InputLabel
+                                            htmlFor={`attendance-rate-${index}`}
+                                            value="Rate"
+                                            className={labelClassName}
+                                        />
+                                        <select
+                                            id={`attendance-rate-${index}`}
+                                            value={day.pay_rate_id}
+                                            disabled={
+                                                !active || day.skill_id === ''
+                                            }
+                                            onChange={(event) => {
+                                                const rate = rates.find(
+                                                    (item) =>
+                                                        String(item.id) ===
+                                                        event.target.value,
+                                                );
+
+                                                updateDay(index, {
+                                                    pay_rate_id: event.target.value,
+                                                    hours:
+                                                        rate?.rate_type === 'hourly'
+                                                            ? day.hours
+                                                            : '',
+                                                });
+                                            }}
+                                            className={selectClassName}
+                                        >
+                                            <option value="">Select a rate</option>
+                                            {rates.map((rate) => (
+                                                <option key={rate.id} value={rate.id}>
+                                                    {rate.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <InputError
+                                            message={
+                                                errorBag[`days.${index}.pay_rate_id`] ||
+                                                errorBag[`days.${index}.work_date`]
+                                            }
+                                        />
+                                    </div>
+
+                                    {hourlyRate ? (
+                                        <div className="flex w-28 shrink-0 flex-col gap-2">
+                                            <InputLabel
+                                                htmlFor={`attendance-hours-${index}`}
+                                                value="Hours"
+                                                className={`${labelClassName} whitespace-nowrap`}
+                                            />
+                                            <TextInput
+                                                id={`attendance-hours-${index}`}
+                                                inputMode="decimal"
+                                                value={day.hours}
+                                                className={inputClassName}
+                                                placeholder="0"
+                                                onChange={(event) =>
+                                                    updateDay(index, {
+                                                        hours: numericHours(
+                                                            event.target.value,
+                                                        ),
+                                                    })
+                                                }
+                                            />
+                                            <InputError
+                                                message={
+                                                    errorBag[`days.${index}.hours`]
+                                                }
+                                            />
+                                        </div>
+                                    ) : null}
                                 </div>
 
                                 <div className="flex flex-col gap-2">
@@ -318,6 +505,8 @@ export default function AttendanceForm({
                                         }
                                     />
                                 </div>
+                                </>
+                                )}
                             </article>
                         );
                     })}
@@ -327,7 +516,11 @@ export default function AttendanceForm({
             <div className="flex flex-wrap items-center gap-3">
                 <Button
                     type="submit"
-                    disabled={processing}
+                    disabled={
+                        processing ||
+                        loadingExisting ||
+                        (!attendance && openDayCount === 0)
+                    }
                     className="h-11 bg-emerald-600 px-4 text-white hover:bg-emerald-700"
                 >
                     {submitLabel}

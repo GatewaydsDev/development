@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Admin\EmployeeController as AdminEmployeeController;
 use App\Http\Controllers\Controller;
+use App\Models\Certification;
 use App\Models\Employee;
 use App\Models\Language;
 use App\Models\Profession;
@@ -37,6 +38,7 @@ class EmployeeController extends Controller
                         ->orWhere('job_title', 'like', "%{$search}%")
                         ->orWhereHas('professions', fn ($query) => $query->where('name', 'like', "%{$search}%"))
                         ->orWhereHas('skills', fn ($query) => $query->where('name', 'like', "%{$search}%"))
+                        ->orWhereHas('certifications.certification', fn ($query) => $query->where('name', 'like', "%{$search}%"))
                         ->orWhereHas('languagePreference.language', fn ($query) => $query->where('name', 'like', "%{$search}%"))
                         ->orWhereHas('projectAssignments.project', fn ($query) => $query->where('name', 'like', "%{$search}%"))
                         ->orWhereHas('foreman', fn ($query) => $query->where('name', 'like', "%{$search}%"));
@@ -133,6 +135,30 @@ class EmployeeController extends Controller
             'skill' => [
                 'id' => $skill->id,
                 'name' => $skill->name,
+            ],
+        ], 201);
+    }
+
+    public function storeCertification(Request $request): JsonResponse
+    {
+        $this->authorizeCatalog($request);
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'is_competent_person' => ['nullable', 'boolean'],
+        ]);
+
+        $certification = Certification::findOrCreateByName(
+            $validated['name'],
+            filter_var($validated['is_competent_person'] ?? false, FILTER_VALIDATE_BOOLEAN),
+        );
+
+        return response()->json([
+            'certification' => [
+                'id' => $certification->id,
+                'uuid' => $certification->uuid,
+                'name' => $certification->name,
+                'is_competent_person' => $certification->is_competent_person,
             ],
         ], 201);
     }

@@ -28,10 +28,12 @@ type NamedCatalogSelectProps = {
     addLabel: string;
     items: CatalogOption[];
     value: string;
-    reloadKey: 'languages' | 'skills' | 'professions';
+    reloadKey: 'languages' | 'skills' | 'professions' | 'certifications';
     storeRoute: string;
     onChange: (id: string) => void;
     error?: string;
+    selectClassName?: string;
+    competentPersonToggle?: boolean;
 };
 
 const newNameSchema = z
@@ -51,8 +53,11 @@ export default function NamedCatalogSelect({
     storeRoute,
     onChange,
     error,
+    selectClassName,
+    competentPersonToggle = false,
 }: NamedCatalogSelectProps) {
     const [newName, setNewName] = useState('');
+    const [isCompetentPerson, setIsCompetentPerson] = useState(false);
     const [isAdding, setIsAdding] = useState(false);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -106,7 +111,12 @@ export default function NamedCatalogSelect({
         setIsSaving(true);
         router.post(
             route(storeRoute),
-            { name: normalizedName },
+            {
+                name: normalizedName,
+                ...(competentPersonToggle
+                    ? { is_competent_person: isCompetentPerson }
+                    : {}),
+            },
             {
                 preserveScroll: true,
                 onSuccess: () => {
@@ -127,6 +137,7 @@ export default function NamedCatalogSelect({
                             if (created) {
                                 onChange(String(created.id));
                                 setNewName('');
+                                setIsCompetentPerson(false);
                             }
                         },
                     });
@@ -147,7 +158,10 @@ export default function NamedCatalogSelect({
                 id={id}
                 value={value}
                 onChange={(event) => selectItem(event.target.value)}
-                className="h-11 rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
+                className={
+                    selectClassName ??
+                    'h-11 rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring'
+                }
             >
                 <option value="">{placeholder}</option>
                 {items.map((item) => (
@@ -179,6 +193,18 @@ export default function NamedCatalogSelect({
                         </Button>
                     </div>
                     <InputError message={nameError} />
+                    {competentPersonToggle && (
+                        <label className="flex items-center gap-2 text-sm text-foreground">
+                            <input
+                                type="checkbox"
+                                checked={isCompetentPerson}
+                                onChange={(event) =>
+                                    setIsCompetentPerson(event.target.checked)
+                                }
+                            />
+                            Competent person certification
+                        </label>
+                    )}
                 </div>
             )}
             <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

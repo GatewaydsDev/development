@@ -14,6 +14,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class ProjectController extends Controller
@@ -85,8 +86,9 @@ class ProjectController extends Controller
         ], 201);
     }
 
-    public function show(Request $request, Project $project): JsonResponse
+    public function show(Request $request, string $project): JsonResponse
     {
+        $project = $this->findProject($project);
         $user = $this->authorizeProject($request, 'view-projects');
 
         return response()->json([
@@ -95,22 +97,25 @@ class ProjectController extends Controller
         ]);
     }
 
-    public function exportPdf(Request $request, Project $project): Response
+    public function exportPdf(Request $request, string $project): Response
     {
+        $project = $this->findProject($project);
         $user = $this->authorizeProject($request, 'view-projects');
 
         return ProjectDocument::for($project, $user)->pdfResponse();
     }
 
-    public function exportWord(Request $request, Project $project): BinaryFileResponse
+    public function exportWord(Request $request, string $project): BinaryFileResponse
     {
+        $project = $this->findProject($project);
         $user = $this->authorizeProject($request, 'view-projects');
 
         return ProjectDocument::for($project, $user)->wordResponse();
     }
 
-    public function update(Request $request, Project $project): JsonResponse
+    public function update(Request $request, string $project): JsonResponse
     {
+        $project = $this->findProject($project);
         $user = $this->authorizeProject($request, 'update-projects');
         $validated = $this->admin()->validatedProject($request, $project);
 
@@ -129,8 +134,9 @@ class ProjectController extends Controller
         ]);
     }
 
-    public function destroy(Request $request, Project $project): JsonResponse
+    public function destroy(Request $request, string $project): JsonResponse
     {
+        $project = $this->findProject($project);
         $this->authorizeProject($request, 'delete-projects');
 
         $project->delete();
@@ -138,6 +144,17 @@ class ProjectController extends Controller
         return response()->json([
             'message' => 'Project removed.',
         ]);
+    }
+
+    private function findProject(string $value): Project
+    {
+        $project = Str::isUuid($value)
+            ? Project::query()->where('uuid', $value)->first()
+            : (ctype_digit($value) ? Project::query()->find($value) : null);
+
+        abort_unless($project instanceof Project, 404);
+
+        return $project;
     }
 
     private function authorizeProject(Request $request, string $permission): User

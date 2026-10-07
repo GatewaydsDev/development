@@ -19,6 +19,7 @@ use App\Http\Controllers\Admin\ProjectController;
 use App\Http\Controllers\Admin\QuotationController;
 use App\Http\Controllers\Admin\ServiceController;
 use App\Http\Controllers\Admin\SignatureController;
+use App\Http\Controllers\Admin\CertificationController;
 use App\Http\Controllers\Admin\SkillController;
 use App\Http\Controllers\Admin\UserActivityController;
 use App\Http\Controllers\Admin\UserController;
@@ -219,6 +220,9 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::get('/employees/attendance/create', [EmployeeAttendanceController::class, 'create'])
             ->middleware('can:create-employees')
             ->name('employee-attendance.create');
+        Route::get('/employees/attendance/existing', [EmployeeAttendanceController::class, 'existing'])
+            ->middleware('can:create-employees')
+            ->name('employee-attendance.existing');
         Route::post('/employees/attendance', [EmployeeAttendanceController::class, 'store'])
             ->middleware('can:create-employees')
             ->name('employee-attendance.store');
@@ -269,6 +273,8 @@ Route::middleware(['auth', 'prevent-back-history'])
             ->name('skills.version');
         Route::post('/skills', [SkillController::class, 'store'])
             ->name('skills.store');
+        Route::post('/certifications', [CertificationController::class, 'store'])
+            ->name('certifications.store');
 
         Route::get('/bids', [BidController::class, 'index'])
             ->middleware('can:view-bids')

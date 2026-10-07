@@ -1,12 +1,17 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link } from '@inertiajs/react';
 import ScheduleForm from './Partials/ScheduleForm';
-import type { ScheduleOption, SchedulePayload } from './types';
+import type {
+    ScheduleOption,
+    SchedulePayload,
+    ScheduleStatusOption,
+} from './types';
 
 type EditProps = {
     projects: ScheduleOption[];
     foremen: ScheduleOption[];
     employees: ScheduleOption[];
+    statuses: ScheduleStatusOption[];
     schedule: SchedulePayload;
 };
 
@@ -14,6 +19,7 @@ export default function Edit({
     projects,
     foremen,
     employees,
+    statuses,
     schedule,
 }: EditProps) {
     return (
@@ -28,7 +34,7 @@ export default function Edit({
                         <span>/</span>
                         <Link
                             href={route('admin.employee-schedules.index', {
-                                date: schedule.work_date,
+                                date: schedule.starts_on,
                             })}
                             className="transition hover:text-foreground"
                         >
@@ -45,17 +51,18 @@ export default function Edit({
         >
             <Head title="Edit Work Schedule" />
             <div className="py-6 sm:py-8">
-                <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+                <div className="mx-auto max-w-[96rem] px-4 sm:px-6 lg:px-8">
                     <ScheduleForm
                         action={route(
                             'admin.employee-schedules.update',
-                            schedule.id,
+                            schedule.uuid,
                         )}
                         method="patch"
                         submitLabel="Save changes"
                         projects={projects}
                         foremen={foremen}
                         employees={employees}
+                        statuses={statuses}
                         schedule={schedule}
                     />
                 </div>

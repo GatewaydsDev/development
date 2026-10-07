@@ -19,10 +19,12 @@ import {
     CardTitle,
 } from '@/Components/ui/card';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { formatCurrency } from '@/lib/money';
 import { PageProps } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     CalendarDaysIcon,
+    PencilIcon,
     PlusIcon,
     SearchIcon,
     Trash2Icon,
@@ -38,7 +40,8 @@ import {
 import {
     WORK_WEEK,
     addDays,
-    parseIsoDate,
+    hoursLabel,
+    monthDayLabel,
     type AttendanceDayPayload,
     type AttendancePaginator,
     type AttendanceWeekPayload,
@@ -109,13 +112,6 @@ function DateChoice({
     );
 }
 
-function shortMonthDay(value: string): string {
-    return new Intl.DateTimeFormat('en-US', {
-        month: 'short',
-        day: 'numeric',
-    }).format(parseIsoDate(value));
-}
-
 function dateInSearch(workDate: string, from?: string, to?: string): boolean {
     const start = from || to || '';
     const end = to || from || '';
@@ -141,6 +137,9 @@ function weekColumns(attendanceWeek: AttendanceWeekPayload) {
     });
 }
 
+const attendanceColumns =
+    'grid-cols-[14rem_13rem_repeat(6,minmax(10rem,1fr))_5.5rem]';
+
 function ScheduleDay({
     day,
     workDate,
@@ -151,7 +150,13 @@ function ScheduleDay({
     matched?: boolean;
 }) {
     return (
-        <div className="flex min-h-24 flex-col gap-1">
+        <div
+            className={
+                matched
+                    ? 'row-span-6 grid grid-rows-subgrid gap-1 bg-emerald-100 px-3 py-4 dark:bg-emerald-950'
+                    : 'row-span-6 grid grid-rows-subgrid gap-1 px-3 py-4'
+            }
+        >
             <p
                 className={
                     matched
@@ -159,28 +164,32 @@ function ScheduleDay({
                         : 'text-xs text-muted-foreground'
                 }
             >
-                {shortMonthDay(workDate)}
-                {matched ? ' · In search' : ''}
+                {monthDayLabel(workDate)}
             </p>
-            {day ? (
-                <>
-                    <p className="font-medium text-foreground">
-                        {day.skill?.name ?? day.profession?.name ?? 'Skill'}
-                    </p>
-                    <p className="text-xs text-muted-foreground">{day.rate_label}</p>
-                    <div className="mt-auto flex flex-wrap gap-1 pt-1">
-                        {day.scheduled ? (
-                            <Badge variant="outline">Schedule</Badge>
-                        ) : null}
-                        {day.worked ? <Badge>Worked</Badge> : null}
-                    </div>
-                    {day.notes ? (
-                        <p className="text-xs text-muted-foreground">{day.notes}</p>
-                    ) : null}
-                </>
-            ) : (
-                <p className="mt-auto text-xs text-muted-foreground">Off</p>
-            )}
+            <p
+                className={
+                    day
+                        ? 'truncate font-medium text-foreground'
+                        : 'truncate text-muted-foreground'
+                }
+            >
+                {day ? (day.skill?.name ?? day.profession?.name ?? 'Skill') : 'Off'}
+            </p>
+            <p className="truncate text-xs text-muted-foreground">
+                {day?.rate_label ?? '\u00a0'}
+            </p>
+            <p className="truncate text-xs text-muted-foreground">
+                {day?.rate_type === 'hourly' && hoursLabel(day.hours)
+                    ? hoursLabel(day.hours)
+                    : '\u00a0'}
+            </p>
+            <div className="flex min-h-6 flex-wrap items-center gap-1">
+                {day?.scheduled ? <Badge variant="outline">Schedule</Badge> : null}
+                {day?.worked ? <Badge>Worked</Badge> : null}
+            </div>
+            <p className="truncate text-xs text-muted-foreground">
+                {day?.notes ?? '\u00a0'}
+            </p>
         </div>
     );
 }
@@ -422,158 +431,144 @@ export default function Index({ filters, weeks }: IndexProps) {
                                 </p>
                             ) : (
                                 <div className="overflow-x-auto">
-                                    <table className="w-full min-w-[72rem] border-collapse text-left text-sm">
-                                        <thead>
-                                            <tr className="border-b border-border">
-                                                <th
-                                                    rowSpan={2}
-                                                    className="px-3 py-2 font-medium text-muted-foreground"
-                                                >
-                                                    Employee
-                                                </th>
-                                                <th
-                                                    rowSpan={2}
-                                                    className="px-3 py-2 font-medium text-muted-foreground"
-                                                >
-                                                    Week
-                                                </th>
-                                                <th
-                                                    colSpan={6}
-                                                    className="px-3 py-2 text-center font-semibold text-foreground"
-                                                >
-                                                    Schedule
-                                                </th>
-                                                <th
-                                                    rowSpan={2}
-                                                    className="px-3 py-2 text-right font-medium text-muted-foreground"
-                                                >
-                                                    <span className="sr-only">
-                                                        Actions
-                                                    </span>
-                                                </th>
-                                            </tr>
-                                            <tr className="border-b border-border">
-                                                {WORK_WEEK.map((weekday) => {
-                                                    const searchedDate = searchedDates.get(
-                                                        weekday.offset,
-                                                    );
+                                    <div className="min-w-[90rem] text-sm">
+                                        <div
+                                            className={`grid border-b border-border ${attendanceColumns}`}
+                                        >
+                                            <div className="px-3 py-3 font-medium text-muted-foreground">
+                                                Employee
+                                            </div>
+                                            <div className="px-3 py-3 font-medium text-muted-foreground">
+                                                Week
+                                            </div>
+                                            {WORK_WEEK.map((weekday) => {
+                                                const searchedDate = searchedDates.get(
+                                                    weekday.offset,
+                                                );
 
-                                                    return (
-                                                        <th
-                                                            key={weekday.short}
-                                                            className={
-                                                                searchedDate
-                                                                    ? 'w-40 border-l-4 border-l-emerald-700 bg-emerald-600 px-3 py-2 font-semibold text-white dark:border-l-emerald-300 dark:bg-emerald-700'
-                                                                    : 'w-40 px-3 py-2 font-medium text-foreground'
-                                                            }
-                                                        >
+                                                return (
+                                                    <div
+                                                        key={weekday.short}
+                                                        className={
+                                                            searchedDate
+                                                                ? 'bg-emerald-600 px-3 py-3 font-semibold text-white dark:bg-emerald-700'
+                                                                : 'px-3 py-3 font-medium text-foreground'
+                                                        }
+                                                    >
+                                                        <span className="block">
                                                             {weekday.label}
-                                                            {searchedDate ? (
-                                                                <span className="mt-0.5 block text-xs font-medium text-emerald-50">
-                                                                    {shortMonthDay(searchedDate)}
-                                                                </span>
-                                                            ) : null}
-                                                        </th>
-                                                    );
-                                                })}
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {weeks.data.map((attendanceWeek) => (
-                                                <tr
-                                                    key={attendanceWeek.id}
-                                                    className="border-b border-border align-top last:border-b-0"
-                                                >
-                                                    <td className="px-3 py-4">
-                                                        <div className="flex items-center gap-2">
-                                                            <CalendarDaysIcon className="size-4 shrink-0 text-muted-foreground" />
-                                                            <p className="font-semibold text-foreground">
-                                                                {attendanceWeek
-                                                                    .employee
-                                                                    ?.full_name ??
-                                                                    'Employee removed'}
-                                                            </p>
-                                                        </div>
-                                                        {attendanceWeek.notes ? (
-                                                            <p className="mt-2 max-w-56 text-xs text-muted-foreground">
-                                                                {attendanceWeek.notes}
-                                                            </p>
+                                                        </span>
+                                                        {searchedDate ? (
+                                                            <span className="mt-0.5 block text-xs font-medium text-emerald-50">
+                                                                {monthDayLabel(searchedDate)}
+                                                            </span>
                                                         ) : null}
-                                                    </td>
-                                                    <td className="px-3 py-4 text-muted-foreground">
-                                                        <p>{attendanceWeek.week_label}</p>
-                                                        <p className="mt-2 text-xs">
-                                                            {attendanceWeek.scheduled_count}{' '}
-                                                            scheduled ·{' '}
-                                                            {attendanceWeek.worked_count}{' '}
-                                                            worked
+                                                    </div>
+                                                );
+                                            })}
+                                            <div className="px-3 py-3 text-right font-medium text-muted-foreground">
+                                                <span className="sr-only">Actions</span>
+                                            </div>
+                                        </div>
+                                        {weeks.data.map((attendanceWeek) => (
+                                            <div
+                                                key={attendanceWeek.id}
+                                                className={`grid grid-rows-[auto_auto_auto_auto_auto_auto] border-b border-border last:border-b-0 ${attendanceColumns}`}
+                                            >
+                                                <div className="row-span-6 px-3 py-4">
+                                                    <div className="flex items-start gap-2">
+                                                        <CalendarDaysIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                                                        <p className="break-words font-semibold text-foreground">
+                                                            {attendanceWeek.employee
+                                                                ?.full_name ??
+                                                                'Employee removed'}
                                                         </p>
-                                                    </td>
-                                                    {weekColumns(attendanceWeek).map(
-                                                        (column) => {
-                                                            const matched = dateInSearch(
+                                                    </div>
+                                                    {attendanceWeek.notes ? (
+                                                        <p className="mt-2 break-words text-xs text-muted-foreground">
+                                                            {attendanceWeek.notes}
+                                                        </p>
+                                                    ) : null}
+                                                </div>
+                                                <div className="row-span-6 px-3 py-4 text-muted-foreground">
+                                                    <div className="flex flex-col gap-0.5">
+                                                        {(attendanceWeek.week_label ?? '')
+                                                            .split(' – ')
+                                                            .map((line) => (
+                                                                <p
+                                                                    key={line}
+                                                                    className="break-words"
+                                                                >
+                                                                    {line}
+                                                                </p>
+                                                            ))}
+                                                    </div>
+                                                    <p className="mt-2 text-xs">
+                                                        {attendanceWeek.scheduled_count}{' '}
+                                                        scheduled ·{' '}
+                                                        {attendanceWeek.worked_count}{' '}
+                                                        worked
+                                                    </p>
+                                                    <p className="mt-3 text-xs">
+                                                        Week total
+                                                    </p>
+                                                    <p className="font-semibold text-foreground">
+                                                        {formatCurrency(
+                                                            attendanceWeek.pay_total,
+                                                        )}
+                                                    </p>
+                                                </div>
+                                                {weekColumns(attendanceWeek).map(
+                                                    (column) => (
+                                                        <ScheduleDay
+                                                            key={column.key}
+                                                            day={column.day}
+                                                            workDate={column.workDate}
+                                                            matched={dateInSearch(
                                                                 column.workDate,
                                                                 filters.from,
                                                                 filters.to,
-                                                            );
-
-                                                            return (
-                                                                <td
-                                                                    key={column.key}
-                                                                    className={
-                                                                        matched
-                                                                            ? 'border-l-4 border-l-emerald-600 bg-emerald-100 px-3 py-4 dark:border-l-emerald-400 dark:bg-emerald-950'
-                                                                            : 'px-3 py-4'
-                                                                    }
-                                                                >
-                                                                    <ScheduleDay
-                                                                        day={column.day}
-                                                                        workDate={
-                                                                            column.workDate
-                                                                        }
-                                                                        matched={matched}
-                                                                    />
-                                                                </td>
-                                                            );
-                                                        },
+                                                            )}
+                                                        />
+                                                    ),
+                                                )}
+                                                <div className="row-span-6 flex justify-end gap-2 px-3 py-4">
+                                                    {canUpdate && (
+                                                        <Button
+                                                            variant="default"
+                                                            size="icon-sm"
+                                                            asChild
+                                                        >
+                                                            <Link
+                                                                href={route(
+                                                                    'admin.employee-attendance.edit',
+                                                                    attendanceWeek.id,
+                                                                )}
+                                                                aria-label="Update attendance"
+                                                            >
+                                                                <PencilIcon />
+                                                            </Link>
+                                                        </Button>
                                                     )}
-                                                    <td className="px-3 py-4">
-                                                        <div className="flex justify-end gap-2">
-                                                            {canUpdate && (
-                                                                <Button
-                                                                    variant="outline"
-                                                                    asChild
-                                                                >
-                                                                    <Link
-                                                                        href={route(
-                                                                            'admin.employee-attendance.edit',
-                                                                            attendanceWeek.id,
-                                                                        )}
-                                                                    >
-                                                                        Update
-                                                                    </Link>
-                                                                </Button>
-                                                            )}
-                                                            {canDelete && (
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="outline"
-                                                                    onClick={() =>
-                                                                        setPendingDelete(
-                                                                            attendanceWeek,
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    <Trash2Icon className="size-4" />
-                                                                    Remove
-                                                                </Button>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                                                    {canDelete && (
+                                                        <Button
+                                                            type="button"
+                                                            variant="destructive"
+                                                            size="icon-sm"
+                                                            aria-label="Remove attendance"
+                                                            onClick={() =>
+                                                                setPendingDelete(
+                                                                    attendanceWeek,
+                                                                )
+                                                            }
+                                                        >
+                                                            <Trash2Icon />
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
                             )}
 

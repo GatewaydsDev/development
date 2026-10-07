@@ -127,7 +127,8 @@ test('mobile users can list show create and update employees', function () {
     $this->actingAs($user, 'sanctum')
         ->getJson('/api/employees/'.$employeeUuid)
         ->assertOk()
-        ->assertJsonPath('employee.project_assignments.0.project.name', 'Harbor Employee Project');
+        ->assertJsonPath('employee.project_assignments.0.project.name', 'Harbor Employee Project')
+        ->assertJsonPath('employee.project_assignments.0.project.uuid', $created->json('employee.project_assignments.0.project.uuid'));
 
     $this->actingAs($user, 'sanctum')
         ->getJson('/api/employees/options')
