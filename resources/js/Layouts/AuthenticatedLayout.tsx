@@ -895,7 +895,7 @@ export default function Authenticated({
                                                 >
                                                     <span className="inline-flex items-center gap-2">
                                                         <PaletteIcon className="size-4" />
-                                                        Document colors
+                                                        Print layouts
                                                     </span>
                                                 </ResponsiveNavLink>
                                             )}

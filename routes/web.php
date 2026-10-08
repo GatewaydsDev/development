@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AccessControlController;
 use App\Http\Controllers\Admin\AccountController;
 use App\Http\Controllers\Admin\BidCatalogController;
 use App\Http\Controllers\Admin\BidController;
+use App\Http\Controllers\Admin\CertificationController;
 use App\Http\Controllers\Admin\CompanyController;
 use App\Http\Controllers\Admin\ContactController;
 use App\Http\Controllers\Admin\ContractorController;
@@ -19,7 +20,6 @@ use App\Http\Controllers\Admin\ProjectController;
 use App\Http\Controllers\Admin\QuotationController;
 use App\Http\Controllers\Admin\ServiceController;
 use App\Http\Controllers\Admin\SignatureController;
-use App\Http\Controllers\Admin\CertificationController;
 use App\Http\Controllers\Admin\SkillController;
 use App\Http\Controllers\Admin\UserActivityController;
 use App\Http\Controllers\Admin\UserController;
@@ -160,7 +160,13 @@ Route::middleware(['auth', 'prevent-back-history'])
             ->name('user-activities.index');
         Route::get('/document-settings', [DocumentSettingController::class, 'edit'])
             ->name('document-settings.edit');
-        Route::patch('/document-settings', [DocumentSettingController::class, 'update'])
+        Route::post('/document-settings', [DocumentSettingController::class, 'store'])
+            ->name('document-settings.store');
+        Route::post('/document-settings/import', [DocumentSettingController::class, 'importFile'])
+            ->name('document-settings.import');
+        Route::post('/document-settings/images', [DocumentSettingController::class, 'uploadImage'])
+            ->name('document-settings.images');
+        Route::patch('/document-settings/{layout}', [DocumentSettingController::class, 'update'])
             ->name('document-settings.update');
 
         Route::get('/account', [AccountController::class, 'edit'])

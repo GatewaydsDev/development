@@ -74,7 +74,8 @@ class ProductCatalogDocument
 
     public function pdfResponse(): Response
     {
-        $pdf = Pdf::loadView('admin.products.catalog', $this->viewData(mode: 'pdf'))
+        $data = $this->viewData(mode: 'pdf');
+        $pdf = Pdf::loadHTML($this->transformViewHtml('admin.products.catalog', $data, 'pdf'))
             ->setPaper('letter', 'landscape')
             ->setOption('isRemoteEnabled', false)
             ->setOption('isHtml5ParserEnabled', true)
@@ -85,7 +86,7 @@ class ProductCatalogDocument
 
     public function wordResponse(): BinaryFileResponse
     {
-        $path = $this->writeWordDocument();
+        $path = $this->transformWordText($this->writeWordDocument());
 
         return response()
             ->download($path, $this->fileName('docx'), [

@@ -382,13 +382,13 @@ export default function DashboardSnapDrawer({
             },
             {
                 id: 'ws-document-settings',
-                title: 'Document Colors & Branding',
-                description: 'Customize document printout color themes and proposal headers.',
+                title: 'Print Layouts',
+                description: 'Customize text casing and colors for print, PDF, and Word documents.',
                 href: route('admin.document-settings.edit'),
                 icon: PaletteIcon,
                 category: 'workspace',
                 badge: 'Branding',
-                keywords: ['colors', 'branding', 'document', 'theme', 'pdf', 'styling'],
+                keywords: ['print', 'layout', 'text', 'case', 'colors', 'branding', 'document', 'theme', 'pdf', 'word'],
                 visible: canManageDocumentColors,
             },
             {

@@ -205,11 +205,8 @@ class QuotationController extends Controller
     {
         abort_unless(QuotationAccess::canView($request->user()), 403);
 
-        return response()
-            ->view(
-                'admin.quotations.document',
-                $this->quotationDocument($request, $quotation)->viewData(mode: 'print'),
-            )
+        return $this->quotationDocument($request, $quotation)
+            ->printResponse('admin.quotations.document')
             ->header('Cache-Control', 'private, no-store, no-cache, must-revalidate');
     }
 

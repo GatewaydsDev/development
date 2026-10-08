@@ -115,7 +115,8 @@ class BidDocument
 
     public function pdfResponse(): Response
     {
-        $pdf = Pdf::loadView('admin.bids.document', $this->viewData(mode: 'pdf'))
+        $data = $this->viewData(mode: 'pdf');
+        $pdf = Pdf::loadHTML($this->transformViewHtml('admin.bids.document', $data, 'pdf'))
             ->setPaper('letter', 'portrait')
             ->setOption('isRemoteEnabled', false)
             ->setOption('isHtml5ParserEnabled', true)
@@ -126,7 +127,7 @@ class BidDocument
 
     public function wordResponse(): BinaryFileResponse
     {
-        $path = $this->writeWordDocument();
+        $path = $this->transformWordText($this->writeWordDocument());
 
         return response()
             ->download($path, $this->fileName('docx'), [

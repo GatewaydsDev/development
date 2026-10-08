@@ -267,7 +267,7 @@ export default function DashboardSidebar({
                 ...(canManageDocumentColors
                     ? [
                           {
-                              title: 'Document Appearance',
+                              title: 'Print layouts',
                               href: route('admin.document-settings.edit'),
                               icon: PaletteIcon,
                               active: isRouteActive(

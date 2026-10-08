@@ -41,7 +41,6 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
-use Illuminate\View\View;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -84,11 +83,11 @@ class BidController extends Controller
         ]);
     }
 
-    public function printList(Request $request): View
+    public function printList(Request $request): HttpResponse
     {
         abort_unless(BidAccess::canView($request->user()), 403);
 
-        return view('admin.bids.list', $this->listDocument($request)->viewData(mode: 'print'));
+        return $this->listDocument($request)->printResponse('admin.bids.list');
     }
 
     public function exportListPdf(Request $request): HttpResponse
@@ -172,11 +171,11 @@ class BidController extends Controller
         ]);
     }
 
-    public function print(Request $request, Bid $bid): View
+    public function print(Request $request, Bid $bid): HttpResponse
     {
         abort_unless(BidAccess::canView($request->user()), 403);
 
-        return view('admin.bids.document', BidDocument::for($bid, $request->user())->viewData(mode: 'print'));
+        return BidDocument::for($bid, $request->user())->printResponse('admin.bids.document');
     }
 
     public function exportPdf(Request $request, Bid $bid): HttpResponse

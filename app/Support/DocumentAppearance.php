@@ -2,13 +2,17 @@
 
 namespace App\Support;
 
+use App\Models\DocumentLayoutAssignment;
 use App\Models\DocumentSetting;
+use App\Models\PrintLayout;
 
 class DocumentAppearance
 {
     public const DEFAULT_HEADER_BACKGROUND = '#065f46';
 
     public const DEFAULT_TABLE_HEADER_BACKGROUND = '#065f46';
+
+    public const DEFAULT_TEXT_CASE = 'original';
 
     public const DOCUMENTS = [
         'bid' => [
@@ -57,6 +61,9 @@ class DocumentAppearance
         public readonly string $tableHeaderBackground,
         public readonly string $document = 'bid',
         public readonly string $format = 'print',
+        public readonly string $textCase = self::DEFAULT_TEXT_CASE,
+        public readonly array $elements = [],
+        public readonly array $zoneColors = [],
     ) {}
 
     public static function key(string $document, string $format): string
@@ -73,48 +80,31 @@ class DocumentAppearance
     {
         $document = self::normalizeDocument($document);
         $format = self::normalizeFormat($format);
-        $settings = DocumentSetting::forKey(self::key($document, $format));
+        $layout = DocumentLayoutAssignment::query()
+            ->where('document_key', self::key($document, $format))
+            ->with('layout')
+            ->first()
+            ?->layout;
+        $settings = $layout ?? DocumentSetting::forKey(self::key($document, $format));
 
         return new self(
             self::normalize($settings->header_background_color),
             self::normalize($settings->table_header_background_color),
             $document,
             $format,
+            DocumentTextCase::normalize($settings->text_case),
+            $layout instanceof PrintLayout
+                ? DocumentLayoutElements::sanitize($layout->design['elements'] ?? [])
+                : [],
+            $layout instanceof PrintLayout
+                ? DocumentLayoutElements::zoneColors($layout->design['zone_colors'] ?? [])
+                : [],
         );
     }
 
     public static function defaults(): self
     {
         return new self(self::DEFAULT_HEADER_BACKGROUND, self::DEFAULT_TABLE_HEADER_BACKGROUND);
-    }
-
-    /**
-     * @return array<string, array{label: string, description: string, formats: array<string, array{header_background_color: string, table_header_background_color: string}>}>
-     */
-    public static function catalog(): array
-    {
-        $rows = DocumentSetting::query()->get()->keyBy('document_key');
-        $catalog = [];
-
-        foreach (self::DOCUMENTS as $document => $meta) {
-            $formats = [];
-
-            foreach (array_keys(self::FORMATS) as $format) {
-                $settings = $rows->get(self::key($document, $format));
-                $formats[$format] = [
-                    'header_background_color' => self::normalize($settings?->header_background_color),
-                    'table_header_background_color' => self::normalize($settings?->table_header_background_color),
-                ];
-            }
-
-            $catalog[$document] = [
-                'label' => $meta['label'],
-                'description' => $meta['description'],
-                'formats' => $formats,
-            ];
-        }
-
-        return $catalog;
     }
 
     public static function normalizeDocument(string $document): string
@@ -148,6 +138,7 @@ class DocumentAppearance
         return [
             'header_background_color' => $this->headerBackground,
             'table_header_background_color' => $this->tableHeaderBackground,
+            'text_case' => $this->textCase,
         ];
     }
 
@@ -197,6 +188,11 @@ class DocumentAppearance
         }
 
         return strtolower($fallback);
+    }
+
+    public static function contrast(string $hex): string
+    {
+        return (new self($hex, $hex))->contrastColor($hex);
     }
 
     private function contrastColor(string $hex): string

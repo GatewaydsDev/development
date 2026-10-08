@@ -31,7 +31,6 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
-use Illuminate\View\View;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -75,11 +74,11 @@ class ProjectController extends Controller
         ]);
     }
 
-    public function print(Request $request): View
+    public function print(Request $request): HttpResponse
     {
         $this->authorizeProjectView($request);
 
-        return view('admin.projects.list', $this->listDocument($request)->viewData(mode: 'print'));
+        return $this->listDocument($request)->printResponse('admin.projects.list');
     }
 
     public function exportPdf(Request $request): HttpResponse
@@ -96,11 +95,11 @@ class ProjectController extends Controller
         return $this->listDocument($request)->wordResponse();
     }
 
-    public function printProject(Request $request, Project $project): View
+    public function printProject(Request $request, Project $project): HttpResponse
     {
         $this->authorizeProjectView($request);
 
-        return view('admin.projects.document', ProjectDocument::for($project, $request->user())->viewData(mode: 'print'));
+        return ProjectDocument::for($project, $request->user())->printResponse('admin.projects.document');
     }
 
     public function exportProjectPdf(Request $request, Project $project): HttpResponse

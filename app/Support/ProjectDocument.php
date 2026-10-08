@@ -101,7 +101,8 @@ class ProjectDocument
 
     public function pdfResponse(): Response
     {
-        $pdf = Pdf::loadView('admin.projects.document', $this->viewData(mode: 'pdf'))
+        $data = $this->viewData(mode: 'pdf');
+        $pdf = Pdf::loadHTML($this->transformViewHtml('admin.projects.document', $data, 'pdf'))
             ->setPaper('letter', 'portrait')
             ->setOption('isRemoteEnabled', false)
             ->setOption('isHtml5ParserEnabled', true)
@@ -112,7 +113,7 @@ class ProjectDocument
 
     public function wordResponse(): BinaryFileResponse
     {
-        $path = $this->writeWordDocument();
+        $path = $this->transformWordText($this->writeWordDocument());
 
         return response()
             ->download($path, $this->fileName('docx'), [
