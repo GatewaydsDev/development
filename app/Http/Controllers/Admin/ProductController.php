@@ -29,7 +29,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
-use Illuminate\View\View;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -62,11 +61,11 @@ class ProductController extends Controller
         ]);
     }
 
-    public function print(Request $request): View
+    public function print(Request $request): HttpResponse
     {
         abort_unless(ProductAccess::canView($request->user()), 403);
 
-        return view('admin.products.catalog', $this->catalogDocument($request)->viewData(mode: 'print'));
+        return $this->catalogDocument($request)->printResponse('admin.products.catalog');
     }
 
     public function exportPdf(Request $request): HttpResponse

@@ -11,6 +11,7 @@ class DocumentSetting extends Model
         'document_key',
         'header_background_color',
         'table_header_background_color',
+        'text_case',
     ];
 
     public static function current(): self
@@ -32,6 +33,7 @@ class DocumentSetting extends Model
             'document_key' => $key,
             'header_background_color' => $fallback?->header_background_color ?? DocumentAppearance::DEFAULT_HEADER_BACKGROUND,
             'table_header_background_color' => $fallback?->table_header_background_color ?? DocumentAppearance::DEFAULT_TABLE_HEADER_BACKGROUND,
+            'text_case' => $fallback?->text_case ?? 'original',
         ]);
     }
 }

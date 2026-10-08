@@ -7,6 +7,7 @@ use App\Models\BidStageType;
 use App\Models\BidTextField;
 use App\Models\BidTextTemplate;
 use App\Models\Contractor;
+use App\Models\DocumentLayoutAssignment;
 use App\Models\PreBid;
 use App\Models\Product;
 use App\Models\Project;
@@ -16,6 +17,7 @@ use App\Models\Service;
 use App\Models\TaxState;
 use App\Models\User;
 use App\Models\UserLevel;
+use App\Support\DocumentAppearance;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\UploadedFile;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -1547,6 +1549,70 @@ test('a pdf can be imported as reusable bid text', function () {
     } finally {
         @unlink($path);
     }
+});
+
+test('printed bids use the assigned layout colors and text casing', function () {
+    $admin = bidAdmin();
+    $project = bidProject($admin, 'Color Theme Bid');
+    $title = bidScopeType('RF Doors');
+    $door = Product::create(['name' => 'RF door leaf', 'kind' => Product::KIND_DOOR]);
+    $service = bidService();
+
+    $printLayout = DocumentLayoutAssignment::query()
+        ->where('document_key', DocumentAppearance::key('bid', 'print'))
+        ->firstOrFail()
+        ->layout;
+    $pdfLayout = $printLayout->replicate();
+    $pdfLayout->name = 'PDF only';
+    $pdfLayout->save();
+    DocumentLayoutAssignment::query()
+        ->where('document_key', DocumentAppearance::key('bid', 'pdf'))
+        ->update(['print_layout_id' => $pdfLayout->id]);
+    $printLayout->update([
+        'header_background_color' => '#1e3a8a',
+        'table_header_background_color' => '#7c2d12',
+        'text_case' => 'uppercase',
+    ]);
+    $pdfLayout->update([
+        'header_background_color' => '#be185d',
+        'table_header_background_color' => '#9d174d',
+        'text_case' => 'lowercase',
+    ]);
+
+    $this->actingAs($admin)
+        ->post(route('admin.bids.store'), [
+            'project_id' => $project->id,
+            'scopes' => [
+                [
+                    'title_id' => $title->id,
+                    'products' => [
+                        [
+                            'product_id' => $door->id,
+                            'service_id' => $service->id,
+                            'quantity' => '1',
+                            'unit_bid' => '100',
+                        ],
+                    ],
+                ],
+            ],
+        ])
+        ->assertSessionHasNoErrors();
+
+    $bid = Bid::query()->where('project_id', $project->id)->firstOrFail();
+
+    $this->actingAs($admin)
+        ->get(route('admin.bids.print', $bid))
+        ->assertOk()
+        ->assertSee('#1e3a8a', false)
+        ->assertSee('#7c2d12', false)
+        ->assertSee('COLOR THEME BID')
+        ->assertSee('PROJECT INFORMATION')
+        ->assertDontSee('#be185d', false);
+
+    $this->actingAs($admin)
+        ->get(route('admin.bids.export.pdf', $bid))
+        ->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
 });
 
 test('a bid can be printed and exported as pdf or word', function () {
