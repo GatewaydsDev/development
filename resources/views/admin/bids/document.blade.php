@@ -6,7 +6,7 @@
     <title>{{ $title }} Bid</title>
     <style>
         @page {
-            margin: 16mm 14mm 16mm;
+            margin: 18mm 14mm 18mm;
         }
 
         * {
@@ -317,6 +317,10 @@
             color: #6b7280;
         }
 
+        .rich-text [data-position-item] > :first-child {
+            margin-top: 0;
+        }
+
         .rich-text {
             font-size: 11px;
             line-height: 1.5;
@@ -356,6 +360,8 @@
         }
 
         .rich-text [data-image-gallery] { display: flex; align-items: flex-start; width: 100%; margin: 12px 0; }
+        .rich-text [data-position-item] [data-image-gallery] { margin: 0; padding: 4px 0; }
+        .rich-text [data-position-item] hr { margin: 6px 0; }
         .rich-text [data-image-gallery="stack"] { flex-direction: column; }
         .rich-text [data-image-gallery="row"] > [data-rich-image] { display: flex; flex: 1 1 0; flex-direction: column; align-items: stretch; min-width: 0; max-width: 100%; }
         .rich-text [data-rich-image] img { display: block; width: 100%; max-width: 100%; }
@@ -489,6 +495,39 @@
                 gap: 8px;
             }
 
+            .view-controls {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                flex-wrap: wrap;
+                font-size: 13px;
+            }
+
+            .view-controls input {
+                width: 72px;
+                min-height: 36px;
+                border: 1px solid #d1d5db;
+                border-radius: 6px;
+                padding: 6px 8px;
+                color: #111827;
+                background: #ffffff;
+                font: inherit;
+            }
+
+            .actions :focus-visible {
+                outline: 2px solid #ffffff;
+                outline-offset: 3px;
+            }
+
+            .preview-viewport {
+                overflow-x: auto;
+                padding: 16px 24px 32px;
+            }
+
+            .preview-sheet {
+                margin: 0 auto;
+            }
+
             .actions a,
             .actions button {
                 appearance: none;
@@ -500,13 +539,13 @@
                 font-weight: 600;
                 text-decoration: none;
                 cursor: pointer;
-                color: {{ $c['title'] }};
-                background: {{ $c['highlight_bg'] }};
+                color: #111827;
+                background: #ffffff;
             }
 
             .actions .primary {
-                color: {{ $c['title'] }};
-                background: {{ $c['button'] }};
+                color: #ffffff;
+                background: #065f46;
             }
 
             .page {
@@ -516,6 +555,10 @@
                 overflow: hidden;
                 border-radius: 20px;
                 box-shadow: 0 24px 60px rgba(15, 23, 42, 0.14);
+            }
+
+            .page .body {
+                padding: clamp(28px, 4vw, 56px) clamp(24px, 6vw, 80px);
             }
 
             @media (min-width: 768px) {
@@ -587,6 +630,10 @@
                     box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
                 }
 
+                .preview-viewport {
+                    padding: 12px;
+                }
+
                 .hero {
                     padding: 16px 14px;
                 }
@@ -647,7 +694,30 @@
             }
         }
 
+        @if ($customLayout)
+            .page .body {
+                padding: 32px 72px 40px;
+            }
+
+            @media screen {
+                .page .body {
+                    padding: clamp(28px, 4vw, 56px) clamp(24px, 6vw, 80px);
+                }
+            }
+
+            @if ($mode === 'pdf')
+                [data-position-canvas] {
+                    transform: scale(0.8);
+                    transform-origin: top left;
+                }
+            @endif
+        @endif
+
         @media print {
+            @page {
+                size: letter portrait;
+            }
+
             html, body {
                 background: #ffffff;
             }
@@ -657,11 +727,29 @@
             }
 
             .page {
+                width: 100% !important;
+                max-width: none !important;
                 margin: 0;
                 box-shadow: none;
                 border-radius: 0;
             }
+
+            .preview-viewport, .preview-sheet {
+                width: auto !important;
+                padding: 0;
+                margin: 0;
+                overflow: visible;
+            }
+
+            .page {
+                zoom: 1 !important;
+            }
+
+            [data-position-canvas] {
+                zoom: 0.8 !important;
+            }
         }
+        {!! file_get_contents(resource_path('css/positioned-bid-content.css')) !!}
     </style>
 </head>
 <body>
@@ -673,16 +761,26 @@
                     Print-ready proposal for this project.
                 </p>
                 <div class="actions">
+                    <div class="view-controls">
+                        <label for="preview-zoom">View</label>
+                        <input id="preview-zoom" type="number" min="50" max="200" step="10" value="100" aria-label="Page view percentage" aria-describedby="preview-zoom-help">
+                        <span>%</span>
+                        <button id="preview-fit" type="button">Fit width</button>
+                    </div>
                     <a href="{{ $showUrl }}">Back to bid</a>
                     <a href="{{ $pdfUrl }}">Download PDF</a>
                     <a href="{{ $wordUrl }}">Word 2026</a>
                     <button class="primary" type="button" onclick="window.print()">Print bid</button>
                 </div>
+                <p id="preview-zoom-help" style="margin-top: 8px">View zoom only — printed and downloaded documents are unchanged.</p>
             </div>
         </div>
     @endif
 
+    <div class="preview-viewport">
+    <div class="preview-sheet">
     <div class="page">
+        @if (! $customLayout)
         <div class="hero">
             <div class="hero-brand">
                 @if ($logoPath)
@@ -712,8 +810,10 @@
             </table>
         </div>
         <div class="accent"></div>
+        @endif
 
         <div class="body">
+            @if (! $customLayout)
             <table class="stats">
                 <tr>
                     <td>
@@ -727,22 +827,6 @@
                 </tr>
             </table>
 
-            <h1 class="document-title">{{ $projectName ?: $title }}</h1>
-
-            @if (count($projectFields) > 0)
-                <h2 class="section-title">Project information</h2>
-                <table class="meta">
-                    @foreach (array_chunk($projectFields, 2) as $pair)
-                        <tr>
-                            @foreach ($pair as $field)
-                                <td @if (count($pair) === 1) colspan="2" @endif>
-                                    <span class="meta-label">{{ $field[0] }}</span>
-                                    <span class="meta-value">{{ $field[1] }}</span>
-                                </td>
-                            @endforeach
-                        </tr>
-                    @endforeach
-                </table>
             @endif
 
             @if ($mode !== 'print' && count($revisions) > 0)
@@ -769,43 +853,14 @@
                 </div>
             @endif
 
-            @foreach ($contractorSections as $contractorSection)
-                <h2 class="section-title">{{ $contractorSection['label'] }}</h2>
-                @if (count($contractorSection['fields']) > 0)
-                    <table class="meta">
-                        @foreach (array_chunk($contractorSection['fields'], 2) as $pair)
-                            <tr>
-                                @foreach ($pair as $field)
-                                    <td @if (count($pair) === 1) colspan="2" @endif>
-                                        <span class="meta-label">{{ $field[0] }}</span>
-                                        <span class="meta-value">{{ $field[1] }}</span>
-                                    </td>
-                                @endforeach
-                            </tr>
-                        @endforeach
-                    </table>
-                @endif
-                @foreach ($contractorSection['contacts'] as $contactFields)
-                    <table class="meta">
-                        @foreach (array_chunk($contactFields, 2) as $pair)
-                            <tr>
-                                @foreach ($pair as $field)
-                                    <td @if (count($pair) === 1) colspan="2" @endif>
-                                        <span class="meta-label">{{ $field[0] }}</span>
-                                        <span class="meta-value">{{ $field[1] }}</span>
-                                    </td>
-                                @endforeach
-                            </tr>
-                        @endforeach
-                    </table>
-                @endforeach
-            @endforeach
-
             @if ($notes)
-                <h2 class="section-title">Bid information</h2>
+                @if (! $customLayout)
+                    <h2 class="section-title">Bid information</h2>
+                @endif
                 <div class="rich-text">{!! $notes !!}</div>
             @endif
 
+            @if ($includeSignature)
             <h2 class="section-title">Authorization</h2>
             <p class="authorization-intro">
                 This proposal is submitted by {{ $companyName }}. Acceptance below confirms the scope and pricing in this document.
@@ -861,6 +916,7 @@
                 </tr>
             </table>
 
+            @endif
             <p class="footnote">
                 {{ $companyName }}
                 @if ($companyPhone) · {{ $companyPhone }} @endif
@@ -870,5 +926,56 @@
             </p>
         </div>
     </div>
+    </div>
+    </div>
+    @if ($mode === 'print')
+        <script>
+            const page = document.querySelector('.page');
+            const sheet = document.querySelector('.preview-sheet');
+            const viewport = document.querySelector('.preview-viewport');
+            const zoomInput = document.getElementById('preview-zoom');
+            let viewZoom = 100;
+            const applyViewZoom = () => {
+                const style = getComputedStyle(viewport);
+                const available = viewport.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+                const maximum = window.innerWidth >= 1536 ? 1440 : window.innerWidth >= 1280 ? 1280 : window.innerWidth >= 1024 ? 1120 : window.innerWidth >= 768 ? 960 : available;
+                const width = Math.min(available, maximum);
+                page.style.width = `${width}px`;
+                page.style.maxWidth = 'none';
+                page.style.zoom = String(viewZoom / 100);
+                sheet.style.width = `${width * viewZoom / 100}px`;
+            };
+            zoomInput.addEventListener('change', () => {
+                if (!zoomInput.checkValidity() || zoomInput.value === '') {
+                    zoomInput.reportValidity();
+                    zoomInput.value = String(viewZoom);
+                    return;
+                }
+                viewZoom = Number(zoomInput.value);
+                applyViewZoom();
+            });
+            document.getElementById('preview-fit').addEventListener('click', () => {
+                viewZoom = 100;
+                zoomInput.value = '100';
+                applyViewZoom();
+            });
+            window.addEventListener('resize', applyViewZoom);
+            applyViewZoom();
+            const canvases = document.querySelectorAll('[data-position-canvas]');
+            const fitPreview = () => {
+                canvases.forEach((canvas) => {
+                    const width = parseFloat(canvas.style.width);
+                    const available = canvas.parentElement.clientWidth;
+                    if (width > 0 && available > 0) {
+                        canvas.style.zoom = String(available / width);
+                    }
+                });
+            };
+            const previewObserver = new ResizeObserver(fitPreview);
+            canvases.forEach((canvas) => previewObserver.observe(canvas.parentElement));
+            fitPreview();
+            window.addEventListener('afterprint', fitPreview);
+        </script>
+    @endif
 </body>
 </html>

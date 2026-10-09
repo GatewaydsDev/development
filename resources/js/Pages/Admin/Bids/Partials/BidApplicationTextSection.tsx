@@ -2,6 +2,7 @@ import CreatableSelect from '@/Components/CreatableSelect';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import RichTextEditor from '@/Components/RichTextEditor';
+import BidPrintLayoutPicker from './BidPrintLayoutPicker';
 import TextAutoSave, {
     type TextAutoSaveConfig,
 } from '@/Components/TextAutoSave';
@@ -23,6 +24,7 @@ import { router } from '@inertiajs/react';
 import { FileUpIcon, PlusIcon, SaveIcon } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { layoutSections, positionedLayoutSections } from '../layoutSections';
 import {
     DEFAULT_SCOPE_TEXT_BODY,
     DEFAULT_SHIPPING_TEXT_BODY,
@@ -50,6 +52,8 @@ type BidApplicationTextSectionProps = {
     project?: BidProjectOption;
     scopes: BidFormData['scopes'];
     extraFieldValues?: Record<string, string>;
+    printLayoutId?: string;
+    onPrintLayoutIdChange?: (id: string) => void;
     value: string;
     templateId: string;
     error?: string;
@@ -254,6 +258,8 @@ export default function BidApplicationTextSection({
     project,
     scopes,
     extraFieldValues = {},
+    printLayoutId = '',
+    onPrintLayoutIdChange,
     value,
     templateId,
     error,
@@ -297,6 +303,64 @@ export default function BidApplicationTextSection({
             options.textFields,
             extraFieldValues,
         ],
+    );
+
+    const printLayouts = options.printLayouts ?? [];
+    const companyLiterals = useMemo(
+        () => ({
+            company_name: options.company?.name ?? '',
+            company_legal_name: options.company?.legal_name ?? '',
+            company_address: options.company?.address ?? '',
+            company_phone: options.company?.phone ?? '',
+            company_email: options.company?.email ?? '',
+            company_contact_phone: options.company?.contact_phone ?? '',
+            company_website: options.company?.website ?? '',
+            company_contact_url: options.company?.contact_url ?? '',
+        }),
+        [options.company],
+    );
+    const activeLayout =
+        printLayouts.find((layout) => String(layout.id) === printLayoutId) ??
+        printLayouts.find(
+            (layout) => layout.id === options.assignedPrintLayoutId,
+        );
+    const [layoutLoad, setLayoutLoad] = useState<{
+        key: number;
+        sections: ReturnType<typeof layoutSections>;
+        replace: boolean;
+    } | null>(null);
+    const [pendingLayoutId, setPendingLayoutId] = useState<string | null>(
+        null,
+    );
+    const loadLayout = (id: string) => {
+        const layout =
+            printLayouts.find((item) => String(item.id) === id) ??
+            printLayouts.find(
+                (item) => item.id === options.assignedPrintLayoutId,
+            );
+
+        if (!layout) {
+            onPrintLayoutIdChange?.(id);
+            return;
+        }
+
+        const loaded = positionedLayoutSections(layout, companyLiterals);
+
+        if (loaded.length === 0) {
+            toast.error('This layout has no content to load.');
+            return;
+        }
+
+        onPrintLayoutIdChange?.(id);
+        setLayoutLoad({ key: Date.now(), sections: loaded, replace: true });
+        toast.success(`Loaded “${layout.name}” into the bid information.`);
+    };
+    const sections = useMemo(
+        () =>
+            purpose === 'shipping' && activeLayout
+                ? layoutSections(activeLayout.elements, companyLiterals)
+                : [],
+        [purpose, activeLayout, companyLiterals],
     );
 
     useEffect(() => {
@@ -646,6 +710,16 @@ export default function BidApplicationTextSection({
                         <TextAutoSave html={value} {...autoSave} />
                     ) : null}
                 </div>
+                {purpose === 'shipping' &&
+                printLayouts.length > 0 &&
+                onPrintLayoutIdChange ? (
+                    <BidPrintLayoutPicker
+                        layouts={printLayouts}
+                        assignedLayoutId={options.assignedPrintLayoutId}
+                        value={printLayoutId}
+                        onSelect={setPendingLayoutId}
+                    />
+                ) : null}
                 <RichTextEditor
                     id={copy.editorId}
                     value={value}
@@ -654,7 +728,16 @@ export default function BidApplicationTextSection({
                     placeholder={copy.editorPlaceholder}
                     placeholderFields={options.textFields ?? []}
                     placeholderValues={values}
+                    layoutSections={sections}
+                    layoutLoad={layoutLoad}
+                    allowBlockDrag
+                    layoutName={activeLayout?.name}
                 />
+                <p className="text-sm text-muted-foreground">
+                    Choose Move items to position content on the ruler grid.
+                    Dragging snaps to the grid. Drag a component's corner handle
+                    to resize it. Choose Edit text to resume typing.
+                </p>
                 <InputError message={error} />
                 {editorOnly ? null : (
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -707,6 +790,42 @@ export default function BidApplicationTextSection({
         >
             {fields}
 
+            <AlertDialog
+                open={pendingLayoutId !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setPendingLayoutId(null);
+                    }
+                }}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Change the layout?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Changing the layout clears everything in the bid
+                            information text and loads the new layout in its
+                            place.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel type="button">
+                            Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            type="button"
+                            onClick={() => {
+                                if (pendingLayoutId !== null) {
+                                    loadLayout(pendingLayoutId);
+                                }
+
+                                setPendingLayoutId(null);
+                            }}
+                        >
+                            Yes, change layout
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
             <AlertDialog open={isSaveOpen} onOpenChange={setIsSaveOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>

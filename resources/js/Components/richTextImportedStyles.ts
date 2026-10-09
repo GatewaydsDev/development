@@ -29,6 +29,7 @@ const blockStyleAttributes = {
     paddingBottom: 'padding-bottom',
     paddingLeft: 'padding-left',
     textIndent: 'text-indent',
+    textTransform: 'text-transform',
     border: 'border',
     borderTop: 'border-top',
     borderRight: 'border-right',
@@ -130,6 +131,13 @@ function tableRowFromEvent(view: EditorView, event: MouseEvent) {
 }
 
 const cellColorAttributes = {
+    ...styleAttributes({
+        paddingTop: 'padding-top',
+        paddingRight: 'padding-right',
+        paddingBottom: 'padding-bottom',
+        paddingLeft: 'padding-left',
+        verticalAlign: 'vertical-align',
+    }),
     backgroundColor: {
         default: null,
         parseHTML: (element: HTMLElement) =>

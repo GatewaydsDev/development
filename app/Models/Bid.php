@@ -22,6 +22,16 @@ class Bid extends Model
         'bid_shipping_text_template_id',
         'bid_scope_text_template_id',
         'scope_of_work_text',
+        'print_layout_id',
+        'include_signature',
+    ];
+
+    protected $casts = [
+        'include_signature' => 'boolean',
+    ];
+
+    protected $attributes = [
+        'include_signature' => true,
     ];
 
     protected static function booted(): void

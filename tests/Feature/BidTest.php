@@ -175,6 +175,55 @@ test('the create bid page includes project state and product state prices', func
         );
 });
 
+test('bid create and edit include the complete positioned layout configuration', function () {
+    $admin = bidAdmin();
+    $project = bidProject($admin);
+    $layout = \App\Models\PrintLayout::create([
+        'name' => 'Configured header',
+        'header_background_color' => '#fef3c7',
+        'table_header_background_color' => '#1d4ed8',
+        'design' => [
+            'zone_colors' => ['header_height' => 1250],
+            'elements' => [[
+                'id' => 'styled-heading', 'type' => 'text', 'zone' => 'header',
+                'x' => 11.3, 'y' => 37, 'width' => 42,
+                'content' => "First line\nSecond line",
+                'font_size' => 24, 'font_family' => 'georgia',
+                'color' => '#9333ea', 'bold' => true, 'italic' => true,
+                'underline' => true, 'line_height' => 1.5, 'list_style' => 'bullet',
+                'align' => 'right', 'text_case' => 'uppercase',
+            ]],
+        ],
+    ]);
+    $bid = Bid::create(['project_id' => $project->id, 'created_by' => $admin->id]);
+
+    foreach ([route('admin.bids.create'), route('admin.bids.edit', $bid)] as $url) {
+        $this->actingAs($admin)->get($url)->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('options.printLayouts', function ($layouts) use ($layout) {
+                    $option = collect($layouts)->firstWhere('id', $layout->id);
+
+                    return $option['headerHeight'] === 1250
+                        && $option['headerBackground'] === '#fef3c7'
+                        && $option['tableHeaderBackground'] === '#1d4ed8'
+                        && $option['elements'][0]['x'] === 11.3
+                        && $option['elements'][0]['y'] === 37
+                        && $option['elements'][0]['width'] === 42
+                        && $option['elements'][0]['font_size'] === 24
+                        && $option['elements'][0]['font_family'] === 'georgia'
+                        && $option['elements'][0]['color'] === '#9333ea'
+                        && $option['elements'][0]['bold']
+                        && $option['elements'][0]['italic']
+                        && $option['elements'][0]['underline']
+                        && $option['elements'][0]['line_height'] === 1.5
+                        && $option['elements'][0]['list_style'] === 'bullet'
+                        && $option['elements'][0]['align'] === 'right'
+                        && $option['elements'][0]['text_case'] === 'uppercase';
+                })
+            );
+    }
+});
+
 test('a bid stores quantity unit bid and computed extended', function () {
     $admin = bidAdmin();
     $project = bidProject($admin);
@@ -648,6 +697,106 @@ test('a bid can save rich text notes', function () {
     expect($bid->notes)->toContain('<strong>');
 });
 
+test('bid table labels cannot retain leading indentation or right alignment', function () {
+    $html = '<table><tr><td><p style="text-align: right; text-indent: 20px; margin-left: 10px"><strong>  Project  </strong></p></td><td><p>Project value</p></td></tr></table>';
+    $clean = \App\Support\BidApplicationText::sanitize($html);
+
+    expect($clean)->toContain('<strong>Project</strong>', 'text-align: left', 'text-indent: 0', 'margin-left: 0')
+        ->not->toContain('text-align: right', 'text-indent: 20px')
+        ->toContain('<p>Project value</p>');
+});
+
+test('saving positioned bids preserves deliberate table heading and value alignment', function () {
+    $admin = bidAdmin();
+    $project = bidProject($admin);
+    $html = '<div data-position-canvas="true" data-height="600" style="position: relative; width: 700px; height: 600px">'
+        .'<div data-position-item="true" data-x="79.1" data-y="155" data-width="299.6" style="position: absolute; left: 79.1px; top: 155px; width: 299.6px">'
+        .'<table><tr><th><p style="text-align: center"><strong>Header</strong></p></th></tr>'
+        .'<tr><td><p style="text-align: right"><strong>Value</strong></p></td></tr></table></div></div>';
+    $clean = \App\Support\BidApplicationText::sanitize($html);
+
+    expect($clean)->toContain('data-x="79.1"', 'left: 79.1px', 'data-width="299.6"', 'width: 299.6px', 'text-align: center', 'text-align: right')
+        ->not->toContain('text-align: left');
+
+    $this->actingAs($admin)->post(route('admin.bids.store'), [
+        'project_id' => $project->id, 'notes' => $html, 'stages' => [], 'scopes' => [],
+    ])->assertSessionHasNoErrors();
+    $bid = Bid::query()->where('project_id', $project->id)->firstOrFail();
+    $moved = str_replace(['data-y="155"', 'top: 155px'], ['data-y="210"', 'top: 210px'], $html);
+    $this->actingAs($admin)->patch(route('admin.bids.update', $bid), [
+        'project_id' => $project->id, 'notes' => $moved, 'stages' => [], 'scopes' => [],
+    ])->assertSessionHasNoErrors();
+    expect($bid->fresh()->notes)->toContain('data-y="210"', 'top: 210px', 'text-align: center', 'text-align: right');
+    $this->actingAs($admin)->get(route('admin.bids.print', $bid))->assertOk()
+        ->assertSee('data-x="79.1"', false)
+        ->assertSee('data-y="210"', false)
+        ->assertSee('width: 299.6px', false)
+        ->assertSee('text-align: center', false)
+        ->assertSee('text-align: right', false);
+});
+
+test('bid canvas coordinates survive saving updating printing and pdf export', function () {
+    $admin = bidAdmin();
+    $project = bidProject($admin);
+    $html = '<div data-position-canvas="true" data-height="500" style="position: relative; width: 700px; height: 500px; background-color: #fef3c7">'
+        .'<div data-position-item="true" data-x="120" data-y="80" data-width="300" data-height="120" style="position: absolute; left: 120px; top: 80px; width: 300px; min-height: 120px">'
+        .'<p style="font-size: 24px; font-family: Georgia, serif; color: #9333ea; line-height: 1.35; margin-top: 0px; margin-bottom: 0px; text-transform: uppercase"><strong><em>Positioned bid header</em></strong></p>'
+        .'<table><tbody><tr><th style="padding: 6px 10px; background-color: #065f46; color: #ffffff; border: 1px solid #dc2626"><p>Header</p></th></tr></tbody></table></div></div>';
+
+    $this->actingAs($admin)
+        ->post(route('admin.bids.store'), [
+            'project_id' => $project->id,
+            'notes' => $html,
+            'scopes' => [],
+            'stages' => [],
+        ])
+        ->assertSessionHasNoErrors();
+
+    $bid = Bid::query()->where('project_id', $project->id)->firstOrFail();
+    expect($bid->notes)->toContain('data-position-canvas', 'data-x="120"', 'position: absolute', 'left: 120px', 'data-height="120"', 'min-height: 120px');
+
+    $this->actingAs($admin)
+        ->patch(route('admin.bids.update', $bid), [
+            'project_id' => $project->id,
+            'notes' => str_replace(['data-x="120"', 'left: 120px'], ['data-x="140"', 'left: 140px'], $html),
+            'scopes' => [],
+            'stages' => [],
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect($bid->fresh()->notes)->toContain('data-x="140"', 'left: 140px', 'font-size: 24px', 'font-family: Georgia, serif', 'color: #9333ea', 'line-height: 1.35', 'text-transform: uppercase', 'background-color: #fef3c7', 'padding: 6px 10px', 'background-color: #065f46', 'border: 1px solid #dc2626');
+    $this->actingAs($admin)
+        ->get(route('admin.bids.print', $bid))
+        ->assertOk()
+        ->assertSee('position: absolute', false)
+        ->assertSee('left: 140px', false)
+        ->assertSee('top: 80px', false)
+        ->assertSee('min-height: 120px', false)
+        ->assertSee('Positioned bid header')
+        ->assertSee('font-size: 24px', false)
+        ->assertSee('color: #9333ea', false)
+        ->assertSee('text-transform: uppercase', false)
+        ->assertSee('background-color: #fef3c7', false)
+        ->assertSee('background-color: #065f46', false)
+        ->assertSee('const fitPreview', false)
+        ->assertSee('zoom: 0.8 !important', false)
+        ->assertSee('padding: 32px 72px 40px', false)
+        ->assertSee('Page view percentage')
+        ->assertSee('Fit width')
+        ->assertSee('zoom: 1 !important', false)
+        ->assertSee('[data-position-canvas] h1 { font-size: 24px', false)
+        ->assertSee('font-family: Arial, Helvetica, sans-serif', false)
+        ->assertSee('[data-position-canvas][data-position-canvas] .tableWrapper,', false)
+        ->assertDontSee('<div class="hero">', false)
+        ->assertDontSee('rich-position-rulers', false)
+        ->assertDontSee('rich-position-coordinates', false);
+
+    $this->actingAs($admin)
+        ->get(route('admin.bids.export.pdf', $bid))
+        ->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
+});
+
 test('a bid can be created from a project scope of work', function () {
     $admin = bidAdmin();
     $project = bidProject($admin, 'Project With Scopes');
@@ -709,6 +858,115 @@ test('a bid can be created from a project scope of work', function () {
         ->toBe('RF shielded pair');
     expect($bid->scopes->first(fn ($scope) => $scope->title?->name === 'Blast')?->products->first()?->product_id)
         ->toBe($blastDoor->id);
+});
+
+test('bid signature selection is saved and controls print pdf and word', function () {
+    $admin = bidAdmin();
+    $project = bidProject($admin);
+
+    $this->actingAs($admin)->post(route('admin.bids.store'), [
+        'project_id' => $project->id,
+        'include_signature' => false,
+        'scopes' => [],
+        'stages' => [],
+    ])->assertSessionHasNoErrors();
+
+    $bid = Bid::query()->where('project_id', $project->id)->firstOrFail();
+    expect($bid->include_signature)->toBeFalse();
+
+    foreach ([false, true, false] as $include) {
+        $this->actingAs($admin)->patch(route('admin.bids.update', $bid), [
+            'project_id' => $project->id,
+            'include_signature' => $include,
+            'scopes' => [],
+            'stages' => [],
+        ])->assertSessionHasNoErrors();
+        $bid->refresh();
+        expect($bid->include_signature)->toBe($include);
+
+        $this->actingAs($admin)->get(route('admin.bids.edit', $bid))
+            ->assertInertia(fn (Assert $page) => $page->where('bid.include_signature', $include));
+
+        $print = $this->actingAs($admin)->get(route('admin.bids.print', $bid))->assertOk();
+        if ($include) {
+            $print->assertSee('Authorization')->assertSee('Submitted by')->assertSee('Accepted by');
+        } else {
+            $print->assertDontSee('Authorization')->assertDontSee('Submitted by')->assertDontSee('Accepted by')
+                ->assertDontSee('<table class="signature-table">', false);
+        }
+
+        $document = \App\Support\BidDocument::for($bid, $admin);
+        expect($document->viewData('pdf')['includeSignature'])->toBe($include);
+        $this->actingAs($admin)->get(route('admin.bids.export.pdf', $bid))
+            ->assertOk()->assertHeader('content-type', 'application/pdf');
+
+        $word = $document->wordResponse();
+        $path = $word->getFile()->getPathname();
+        try {
+            $zip = new ZipArchive;
+            expect($zip->open($path))->toBeTrue();
+            $xml = $zip->getFromName('word/document.xml');
+            $zip->close();
+            if ($include) {
+                expect($xml)->toContain('Authorization', 'Submitted by', 'Accepted by');
+            } else {
+                expect($xml)->not->toContain('Authorization', 'Submitted by', 'Accepted by');
+            }
+        } finally {
+            unlink($path);
+        }
+    }
+
+    $this->actingAs($admin)->patch(route('admin.bids.update', $bid), [
+        'project_id' => $project->id, 'scopes' => [], 'stages' => [],
+    ])->assertSessionHasNoErrors();
+    expect($bid->fresh()->include_signature)->toBeFalse();
+
+    $this->actingAs($admin)->patch(route('admin.bids.update', $bid), [
+        'project_id' => $project->id, 'include_signature' => 'invalid',
+    ])->assertSessionHasErrors('include_signature');
+});
+
+test('bids retain signatures by default', function () {
+    $admin = bidAdmin();
+    $project = bidProject($admin);
+    $this->actingAs($admin)->post(route('admin.bids.store'), [
+        'project_id' => $project->id, 'scopes' => [], 'stages' => [],
+    ])->assertSessionHasNoErrors();
+
+    $bid = Bid::query()->where('project_id', $project->id)->firstOrFail();
+    expect($bid->include_signature)->toBeTrue();
+    $this->actingAs($admin)->get(route('admin.bids.print', $bid))
+        ->assertOk()->assertSee('Authorization')->assertSee('Submitted by')->assertSee('Accepted by');
+});
+
+test('word bid exports escape special characters before applying text casing', function () {
+    $admin = bidAdmin();
+    $project = bidProject($admin, 'Doors & Frames <Required>');
+    $layout = \App\Models\PrintLayout::create([
+        'name' => 'Uppercase export',
+        'text_case' => 'uppercase',
+        'design' => [],
+    ]);
+    $bid = Bid::create([
+        'project_id' => $project->id, 'created_by' => $admin->id,
+        'print_layout_id' => $layout->id,
+        'notes' => '<p>Shipping &amp; handling &lt;included&gt;</p>',
+    ]);
+    $response = $this->actingAs($admin)->get(route('admin.bids.export.word', $bid))->assertOk();
+    $path = $response->baseResponse->getFile()->getPathname();
+
+    try {
+        $archive = new ZipArchive;
+        expect($archive->open($path))->toBeTrue();
+        $xml = $archive->getFromName('word/document.xml');
+        $archive->close();
+        $document = new DOMDocument;
+        expect($document->loadXML($xml))->toBeTrue();
+        expect($document->textContent)->toContain('DOORS & FRAMES <REQUIRED>', 'SHIPPING & HANDLING <INCLUDED>');
+    } finally {
+        unlink($path);
+    }
 });
 
 test('a bid scope can include the same product and service twice', function () {
@@ -1606,7 +1864,7 @@ test('printed bids use the assigned layout colors and text casing', function () 
         ->assertSee('#1e3a8a', false)
         ->assertSee('#7c2d12', false)
         ->assertSee('COLOR THEME BID')
-        ->assertSee('PROJECT INFORMATION')
+        ->assertDontSee('PROJECT INFORMATION')
         ->assertDontSee('#be185d', false);
 
     $this->actingAs($admin)
@@ -1675,11 +1933,12 @@ test('a bid can be printed and exported as pdf or word', function () {
         ->assertSee('Bid', false)
         ->assertSee('Gateway Door Systems', false)
         ->assertSee('Harbor Print Package', false)
-        ->assertSee('Project information', false)
+        ->assertDontSee('Project information', false)
+        ->assertDontSee('<h1 class="document-title">', false)
         ->assertDontSee('Revised bid', false)
         ->assertDontSee('Issued for review', false)
         ->assertSee('P-2026-PRINT', false)
-        ->assertSee('12 Dock Road', false)
+        ->assertDontSee('12 Dock Road', false)
         ->assertDontSee('Bid revisions', false)
         ->assertDontSee('Bid application text', false)
         ->assertDontSee('Proposal for Harbor Print Package.', false)
@@ -1710,8 +1969,8 @@ test('a bid can be printed and exported as pdf or word', function () {
         ->assertDontSee('>Stages<', false)
         ->assertSee('Word 2026', false)
         ->assertSee('data:image', false)
-        ->assertSee('Gateway Facilities', false)
-        ->assertSee('Turner Construction', false);
+        ->assertDontSee('Gateway Facilities', false)
+        ->assertDontSee('Turner Construction', false);
 
     $pdf = $this->actingAs($admin)
         ->get(route('admin.bids.export.pdf', $bid));

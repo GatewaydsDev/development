@@ -11,6 +11,16 @@ trait UsesDocumentAppearance
 
     abstract protected function documentAppearanceKey(): string;
 
+    protected function injectsLayoutElements(): bool
+    {
+        return true;
+    }
+
+    protected function documentLayoutId(): ?int
+    {
+        return null;
+    }
+
     protected function documentAppearance(string $format = 'print'): DocumentAppearance
     {
         $format = DocumentAppearance::normalizeFormat($format);
@@ -18,6 +28,7 @@ trait UsesDocumentAppearance
         return $this->documentAppearances[$format] ??= DocumentAppearance::for(
             $this->documentAppearanceKey(),
             $format,
+            $this->documentLayoutId(),
         );
     }
 
@@ -52,7 +63,7 @@ trait UsesDocumentAppearance
             $appearance->textCase,
         );
 
-        if ($appearance->elements === []) {
+        if ($appearance->elements === [] || ! $this->injectsLayoutElements()) {
             return $html;
         }
 

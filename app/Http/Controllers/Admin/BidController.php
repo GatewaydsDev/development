@@ -17,6 +17,7 @@ use App\Models\BidTextField;
 use App\Models\BidTextTemplate;
 use App\Models\Company;
 use App\Models\PreBid;
+use App\Models\PrintLayout;
 use App\Models\Product;
 use App\Models\Project;
 use App\Models\ProjectScopeType;
@@ -29,6 +30,8 @@ use App\Support\BidApplicationText;
 use App\Support\BidDocument;
 use App\Support\BidListDocument;
 use App\Support\BidListVersion;
+use App\Support\DocumentAppearance;
+use App\Support\DocumentLayoutElements;
 use App\Support\DocumentLogo;
 use App\Support\QuotationAccess;
 use App\Support\QuotationToBid;
@@ -133,6 +136,8 @@ class BidController extends Controller
                 'notes' => $this->shippingText($validated),
                 'bid_shipping_text_template_id' => $validated['bid_shipping_text_template_id'] ?? null,
                 'bid_scope_text_template_id' => $validated['bid_scope_text_template_id'] ?? null,
+                'print_layout_id' => $validated['print_layout_id'] ?? null,
+                'include_signature' => $validated['include_signature'] ?? true,
                 'scope_of_work_text' => $this->scopeOfWorkText($validated),
                 'created_by' => $request->user()->id,
             ]);
@@ -229,6 +234,8 @@ class BidController extends Controller
                 'notes' => $this->shippingText($validated),
                 'bid_shipping_text_template_id' => $validated['bid_shipping_text_template_id'] ?? null,
                 'bid_scope_text_template_id' => $validated['bid_scope_text_template_id'] ?? null,
+                'print_layout_id' => $validated['print_layout_id'] ?? null,
+                'include_signature' => $validated['include_signature'] ?? $bid->include_signature,
                 'scope_of_work_text' => $this->scopeOfWorkText($validated),
             ])->save();
 
@@ -289,6 +296,8 @@ class BidController extends Controller
                     BidTextTemplate::KIND_SHIPPING,
                 ),
             ],
+            'print_layout_id' => ['nullable', 'integer', Rule::exists(PrintLayout::class, 'id')],
+            'include_signature' => ['sometimes', 'boolean'],
             'bid_scope_text_template_id' => [
                 'nullable',
                 'integer',
@@ -782,6 +791,8 @@ class BidController extends Controller
             'notes' => $summary ? null : BidApplicationText::sanitize($bid->notes),
             'bid_shipping_text_template_id' => $summary ? null : $bid->bid_shipping_text_template_id,
             'bid_scope_text_template_id' => $summary ? null : $bid->bid_scope_text_template_id,
+            'print_layout_id' => $summary ? null : $bid->print_layout_id,
+            'include_signature' => $bid->include_signature,
             'scope_of_work_text' => $summary ? null : BidApplicationText::sanitize($bid->scope_of_work_text),
             'created_at' => $bid->created_at?->toDateString(),
             'updated_at' => $bid->updated_at?->toDateString(),
@@ -1136,6 +1147,16 @@ class BidController extends Controller
         $company = Company::query()->where('is_active', true)->latest()->first();
 
         return [
+            'printLayouts' => PrintLayout::query()->orderBy('name')->get()
+                ->map(fn (PrintLayout $layout): array => [
+                    'id' => $layout->id,
+                    'name' => $layout->name,
+                    'elements' => DocumentLayoutElements::sanitize($layout->design['elements'] ?? []),
+                    'headerHeight' => DocumentLayoutElements::zoneColors($layout->design['zone_colors'] ?? [])['header_height'],
+                    'headerBackground' => $layout->header_background_color,
+                    'tableHeaderBackground' => $layout->table_header_background_color,
+                ])->values()->all(),
+            'assignedPrintLayoutId' => DocumentAppearance::assignedLayoutId('bid', 'print'),
             'projects' => Project::query()
                 ->with(['scopes.product', 'scopes.service', 'contractors.contacts'])
                 ->orderBy('name')
@@ -1298,6 +1319,9 @@ class BidController extends Controller
                 'legal_name' => $company?->legal_name,
                 'email' => $company?->email,
                 'phone' => $company?->contact_phone_number ?: $company?->phone_number,
+                'contact_phone' => $company?->contact_phone_number,
+                'website' => $company?->website_url,
+                'contact_url' => $company?->contact_url,
                 'address' => $company
                     ? BidApplicationText::formatAddress(
                         $company->address_line_1,

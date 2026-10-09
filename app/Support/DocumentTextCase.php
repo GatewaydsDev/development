@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use DOMDocument;
+use DOMElement;
 use DOMNode;
 use DOMXPath;
 use RuntimeException;
@@ -121,7 +122,7 @@ class DocumentTextCase
                     $capitalizeNext = false;
                     $hasWord = false;
                     foreach ($textNodes as $textNode) {
-                        $textNode->nodeValue = self::transformTextNode(
+                        $textNode->textContent = self::transformTextNode(
                             $textNode->nodeValue ?? '',
                             $case,
                             $capitalizeNext,
@@ -150,8 +151,12 @@ class DocumentTextCase
         bool &$capitalizeNext,
         bool &$hasWord,
     ): void {
+        if ($node instanceof DOMElement && $node->hasAttribute('data-position-canvas')) {
+            return;
+        }
+
         if ($node->nodeType === XML_TEXT_NODE) {
-            $node->nodeValue = self::transformTextNode(
+            $node->textContent = self::transformTextNode(
                 $node->nodeValue ?? '',
                 $case,
                 $capitalizeNext,

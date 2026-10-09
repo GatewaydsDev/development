@@ -76,11 +76,12 @@ class DocumentAppearance
         return self::for('bid', 'print');
     }
 
-    public static function for(string $document, string $format): self
+    public static function for(string $document, string $format, ?int $layoutId = null): self
     {
         $document = self::normalizeDocument($document);
         $format = self::normalizeFormat($format);
-        $layout = DocumentLayoutAssignment::query()
+        $layout = $layoutId ? PrintLayout::query()->find($layoutId) : null;
+        $layout ??= DocumentLayoutAssignment::query()
             ->where('document_key', self::key($document, $format))
             ->with('layout')
             ->first()
@@ -100,6 +101,13 @@ class DocumentAppearance
                 ? DocumentLayoutElements::zoneColors($layout->design['zone_colors'] ?? [])
                 : [],
         );
+    }
+
+    public static function assignedLayoutId(string $document, string $format): ?int
+    {
+        return DocumentLayoutAssignment::query()
+            ->where('document_key', self::key(self::normalizeDocument($document), self::normalizeFormat($format)))
+            ->value('print_layout_id');
     }
 
     public static function defaults(): self
