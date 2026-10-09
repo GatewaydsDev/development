@@ -75,6 +75,9 @@ class BidImportedHtml
         'border-top-color',
         'border-top-width',
         'border-top-style',
+        'position',
+        'left',
+        'top',
     ];
 
     /**
@@ -837,11 +840,27 @@ class BidImportedHtml
 
                 self::sanitizeAttributes($child);
 
+                if ($tag === 'p' && strtolower($node->tagName) === 'td'
+                    && $child->childElementCount === 1
+                    && in_array(strtolower($child->firstElementChild->tagName), ['strong', 'b'], true)
+                    && mb_strtolower(trim($child->textContent)) === 'project'
+                    && trim($child->textContent) === trim($child->firstElementChild->textContent)) {
+                    $styles = self::parseDeclarations($child->getAttribute('style'));
+                    $styles['text-align'] = 'left';
+                    $styles['text-indent'] = '0';
+                    $styles['margin-left'] = '0';
+                    $styles['padding-left'] = '0';
+                    $child->setAttribute('style', self::declarationsToString($styles));
+                    $child->firstElementChild->textContent = trim($child->firstElementChild->textContent, " \t\n\r\0\x0B\u{00A0}");
+                }
+
                 if ($tag === 'div' && (
                     $child->hasAttribute('data-colored-section')
                     || $child->hasAttribute('data-image-gallery')
                     || $child->hasAttribute('data-rich-image')
                     || $child->hasAttribute('data-image-caption')
+                    || $child->hasAttribute('data-position-canvas')
+                    || $child->hasAttribute('data-position-item')
                 )) {
                     continue;
                 }
@@ -959,7 +978,7 @@ class BidImportedHtml
             $extra['font-size'] = $htmlSizes[$size];
         }
 
-        $allowed = ['href', 'style', 'colspan', 'rowspan', 'alt', 'data-bid-field', 'data-colored-section', 'data-image-gallery', 'data-rich-image', 'data-image-caption', 'data-image-gap'];
+        $allowed = ['href', 'style', 'colspan', 'rowspan', 'alt', 'data-bid-field', 'data-colored-section', 'data-image-gallery', 'data-rich-image', 'data-image-caption', 'data-image-gap', 'data-position-canvas', 'data-position-item', 'data-x', 'data-y', 'data-width', 'data-height'];
         $attributes = [];
 
         foreach ($element->attributes ?? [] as $attribute) {
@@ -1077,6 +1096,12 @@ class BidImportedHtml
             }
 
             if ($value === '' || preg_match('/expression|javascript|url\s*\(/i', $value) === 1) {
+                continue;
+            }
+            if ($property === 'position' && ! in_array(strtolower($value), ['relative', 'absolute'], true)) {
+                continue;
+            }
+            if (in_array($property, ['left', 'top'], true) && preg_match('/^\d+(?:\.\d+)?px$/', $value) !== 1) {
                 continue;
             }
 

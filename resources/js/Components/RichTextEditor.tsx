@@ -1,10 +1,13 @@
 import { Button } from '@/Components/ui/button';
+import StickyDocumentToolbar from '@/Components/StickyDocumentToolbar';
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuGroup,
     DropdownMenuItem,
     DropdownMenuLabel,
+    DropdownMenuRadioGroup,
+    DropdownMenuRadioItem,
     DropdownMenuSeparator,
     DropdownMenuSub,
     DropdownMenuSubContent,
@@ -14,6 +17,8 @@ import {
 import { Separator } from '@/Components/ui/separator';
 import { Toggle } from '@/Components/ui/toggle';
 import { cn } from '@/lib/utils';
+import { blockMoveModeKey, RichTextBlockDrag } from '@/Components/richTextBlockDrag';
+import { enablePositionCanvas, evenCanvasSpacing, PositionCanvas, PositionItem } from '@/Components/richTextPositionCanvas';
 import Color from '@tiptap/extension-color';
 import Highlight from '@tiptap/extension-highlight';
 import Link from '@tiptap/extension-link';
@@ -39,6 +44,7 @@ import {
     BoldIcon,
     CodeIcon,
     Columns3Icon,
+    ChevronDownIcon,
     EllipsisIcon,
     Heading1Icon,
     Heading2Icon,
@@ -66,12 +72,15 @@ import {
     StrikethroughIcon,
     SubscriptIcon,
     SuperscriptIcon,
+    LayoutTemplateIcon,
+    TypeIcon,
     TableIcon,
     Trash2Icon,
     UnderlineIcon,
     Undo2Icon,
 } from 'lucide-react';
 import InsertBidTextFieldMenu from '@/Components/InsertBidTextFieldMenu';
+import type { LayoutSection } from '@/Pages/Admin/Bids/layoutSections';
 import {
     BidTextFieldExtension,
     BidTextFieldValuesContext,
@@ -96,7 +105,6 @@ import {
     type ChangeEvent,
     type ReactNode,
     useEffect,
-    useLayoutEffect,
     useMemo,
     useReducer,
     useRef,
@@ -186,6 +194,15 @@ function evenDocumentSpacing(editor: Editor): {
     changed: boolean;
     message: string;
 } {
+    if (editor.state.doc.firstChild?.type.name === 'positionCanvas') {
+        const changed = evenCanvasSpacing(editor);
+        return {
+            changed,
+            message: changed
+                ? 'Sections now have equal 16px gaps. Side-by-side items keep their alignment.'
+                : 'Positioned sections already have equal 16px gaps.',
+        };
+    }
     let updated = 0;
     let removed = 0;
 
@@ -657,17 +674,19 @@ function ToolbarMenu({
     children,
     contentClassName,
     onOpenChange,
+    side = 'right',
 }: {
     trigger: ReactNode;
     children: ReactNode;
     contentClassName?: string;
     onOpenChange?: (open: boolean) => void;
+    side?: 'bottom' | 'right';
 }) {
     return (
         <DropdownMenu modal={false} onOpenChange={onOpenChange}>
             <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
             <DropdownMenuContent
-                side="right"
+                side={side}
                 align="start"
                 sideOffset={8}
                 collisionPadding={12}
@@ -680,7 +699,72 @@ function ToolbarMenu({
     );
 }
 
+function ToolbarStyleMenu({
+    label,
+    value,
+    choices,
+    docked,
+    icon,
+    onChange,
+    onOpenChange,
+}: {
+    label: string;
+    value: string | null;
+    choices: readonly { label: string; value: string }[];
+    docked: boolean;
+    icon: ReactNode;
+    onChange: (value: string | null) => void;
+    onOpenChange: (open: boolean) => void;
+}) {
+    const current = choices.find((choice) => choice.value === value)?.label
+        ?? (value ? 'Custom' : 'Default');
+
+    return (
+        <ToolbarMenu
+            onOpenChange={onOpenChange}
+            side={docked ? 'right' : 'bottom'}
+            trigger={
+                <Button
+                    type="button"
+                    variant="outline"
+                    size={docked ? 'icon-sm' : 'sm'}
+                    aria-label={`${label}: ${current}`}
+                    title={`${label}: ${current}`}
+                >
+                    {docked ? icon : (
+                        <>
+                            <span>{label}: {current}</span>
+                            <ChevronDownIcon data-icon="inline-end" />
+                        </>
+                    )}
+                </Button>
+            }
+        >
+            <DropdownMenuLabel>{label}</DropdownMenuLabel>
+            <DropdownMenuRadioGroup
+                value={value || 'default'}
+                onValueChange={(next) => onChange(next === 'default' ? null : next)}
+            >
+                <DropdownMenuRadioItem value="default">Default</DropdownMenuRadioItem>
+                {choices.map((choice) => (
+                    <DropdownMenuRadioItem key={choice.value} value={choice.value}>
+                        {choice.label}
+                    </DropdownMenuRadioItem>
+                ))}
+            </DropdownMenuRadioGroup>
+        </ToolbarMenu>
+    );
+}
+
 type RichTextEditorProps = {
+    layoutSections?: LayoutSection[];
+    layoutLoad?: {
+        key: number;
+        sections: LayoutSection[];
+        replace?: boolean;
+    } | null;
+    layoutName?: string;
+    allowBlockDrag?: boolean;
     value: string;
     onChange: (html: string) => void;
     placeholder?: string;
@@ -821,6 +905,10 @@ export default function RichTextEditor({
     showPlaceholders = true,
     placeholderFields = [],
     placeholderValues = {},
+    layoutSections = [],
+    layoutLoad = null,
+    layoutName,
+    allowBlockDrag = false,
     placeholderCatalog = 'bid',
     placeholderIntro,
     placeholderSearchPlaceholder,
@@ -832,19 +920,6 @@ export default function RichTextEditor({
     const documentLang = i18n.language?.startsWith('es') ? 'es' : 'en-US';
     const ignoreToolbarRefresh = useRef(false);
     const editorFrameRef = useRef<HTMLDivElement>(null);
-    const [commandsOffset, setCommandsOffset] = useState(0);
-    const [commandsLeft, setCommandsLeft] = useState(0);
-    const [commandsWide, setCommandsWide] = useState(false);
-    const [commandsScrolled, setCommandsScrolled] = useState(false);
-    const [commandSidePose, setCommandSidePose] = useState(false);
-    const commandBarRef = useRef<HTMLDivElement>(null);
-    const commandsScrolledRef = useRef(false);
-    const dockOriginRef = useRef<{
-        top: number;
-        left: number;
-        width: number;
-        height: number;
-    } | null>(null);
     const [commandHint, setCommandHint] = useState<{
         text: string;
         top: number;
@@ -852,6 +927,7 @@ export default function RichTextEditor({
     } | null>(null);
     const [uploadingPictures, setUploadingPictures] = useState(false);
     const [pictureDropActive, setPictureDropActive] = useState(false);
+    const [movingBlocks, setMovingBlocks] = useState(false);
     const placeDroppedPicturesRef = useRef<
         (files: File[], x: number, y: number) => void
     >(() => {});
@@ -877,6 +953,9 @@ export default function RichTextEditor({
             ImportedTextStyles,
             ImportedBlockStyles,
             ...richTextLayoutExtensions,
+            PositionCanvas,
+            PositionItem,
+            ...(allowBlockDrag ? [RichTextBlockDrag] : []),
             ImageGallery,
             RichImage,
             BidTextFieldExtension,
@@ -1015,6 +1094,100 @@ export default function RichTextEditor({
             .setLink({ href: url.trim() })
             .run();
     };
+
+    const insertLayoutSection = (section: LayoutSection) =>
+        insertLayoutSections([section], false);
+
+    const insertLayoutSections = (list: LayoutSection[], atStart: boolean) => {
+        if (!editor || list.length === 0) {
+            return;
+        }
+
+        const chain = editor.chain();
+
+        (atStart ? chain.focus('start') : chain.focus()).run();
+
+        const start = editor.state.selection.from;
+
+        editor
+            .chain()
+            .insertContent(list.map((section) => section.html).join(''))
+            .run();
+
+        const tables = list.filter((section) => section.table);
+
+        if (tables.length === 0) {
+            return;
+        }
+
+        const end = editor.state.selection.to;
+        let { tr } = editor.state;
+        let tableIndex = 0;
+
+        editor.state.doc.nodesBetween(start, end, (node, pos) => {
+            if (node.type.name !== 'table') {
+                return;
+            }
+
+            const settings = tables[tableIndex]?.table;
+
+            tableIndex += 1;
+
+            if (!settings) {
+                return false;
+            }
+
+            node.descendants((cell, cellPos, _parent, index) => {
+                if (
+                    cell.type.name !== 'tableCell' &&
+                    cell.type.name !== 'tableHeader'
+                ) {
+                    return;
+                }
+
+                tr = tr.setNodeMarkup(pos + 1 + cellPos, undefined, {
+                    ...cell.attrs,
+                    border: settings.guide
+                        ? '1px dashed #bfc0c1'
+                        : settings.borderless
+                          ? 'none'
+                        : `1px solid ${settings.borderColor}`,
+                    backgroundColor:
+                        cell.type.name === 'tableHeader' && settings.headerBackground
+                            ? settings.headerBackground
+                            : index % 2 === 0 && settings.labelBackground
+                            ? settings.labelBackground
+                            : null,
+                    ...(cell.type.name === 'tableHeader' && settings.headerColor
+                        ? { color: settings.headerColor }
+                        : {}),
+                });
+            });
+
+            return false;
+        });
+
+        editor.view.dispatch(tr);
+    };
+
+    const lastLoadKey = useRef(layoutLoad?.key ?? 0);
+
+    useEffect(() => {
+        if (!editor || !layoutLoad || layoutLoad.key === lastLoadKey.current) {
+            return;
+        }
+
+        lastLoadKey.current = layoutLoad.key;
+        if (layoutLoad.replace) {
+            editor.commands.clearContent();
+        }
+
+        insertLayoutSections(layoutLoad.sections, true);
+        if (movingBlocks) {
+            enablePositionCanvas(editor);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [layoutLoad?.key, editor]);
 
     const insertTable = (
         columns: number,
@@ -1306,144 +1479,6 @@ export default function RichTextEditor({
         refreshToolbar();
     };
 
-    useEffect(() => {
-        const updateOffset = () => {
-            const header = document.querySelector('nav.sticky');
-            const sidebar = document.querySelector('aside');
-            const stickyTitle = document.querySelector(
-                '[data-sticky-page-title]',
-            );
-            const frame = editorFrameRef.current;
-            const wide = window.matchMedia('(min-width: 1024px)').matches;
-            const navBottom = header
-                ? header.getBoundingClientRect().bottom
-                : 0;
-            const titleBottom = stickyTitle
-                ? stickyTitle.getBoundingClientRect().bottom
-                : navBottom + 56;
-            const dockTop = Math.ceil(Math.max(navBottom, titleBottom) + 8);
-
-            setCommandsOffset(dockTop);
-            setCommandsWide(wide);
-            setCommandsLeft(
-                wide && sidebar
-                    ? Math.round(sidebar.getBoundingClientRect().right)
-                    : 8,
-            );
-
-            const rect = frame?.getBoundingClientRect();
-            const pastHeader = Boolean(
-                rect &&
-                    rect.top < navBottom + 4 &&
-                    rect.bottom > dockTop + 48,
-            );
-            const editorOnScreen = Boolean(
-                rect &&
-                    rect.bottom > dockTop + 48 &&
-                    rect.top < window.innerHeight - 40,
-            );
-            const remainingScroll = Math.max(
-                0,
-                document.documentElement.scrollHeight -
-                    window.innerHeight -
-                    window.scrollY,
-            );
-            const distanceToHeader = rect ? rect.top - (navBottom + 4) : 0;
-            const pageCannotReachHeader =
-                distanceToHeader > remainingScroll + 48;
-            let scrolled = false;
-
-            if (allowSideToolbar && wide && rect) {
-                if (pastHeader || (editorOnScreen && pageCannotReachHeader)) {
-                    scrolled = true;
-                } else if (commandsScrolledRef.current && editorOnScreen) {
-                    scrolled = true;
-                }
-            }
-
-            if (scrolled && !commandsScrolledRef.current && commandBarRef.current) {
-                const box = commandBarRef.current.getBoundingClientRect();
-                dockOriginRef.current = {
-                    top: box.top,
-                    left: box.left,
-                    width: box.width,
-                    height: box.height,
-                };
-            }
-
-            if (!scrolled) {
-                dockOriginRef.current = null;
-            }
-
-            commandsScrolledRef.current = scrolled;
-            setCommandsScrolled(scrolled);
-        };
-
-        updateOffset();
-        const observer = new ResizeObserver(updateOffset);
-        const header = document.querySelector('nav.sticky');
-        const sidebar = document.querySelector('aside');
-
-        if (header) {
-            observer.observe(header);
-        }
-
-        if (sidebar) {
-            observer.observe(sidebar);
-        }
-
-        window.addEventListener('resize', updateOffset);
-        window.addEventListener('scroll', updateOffset, { passive: true });
-
-        return () => {
-            observer.disconnect();
-            window.removeEventListener('resize', updateOffset);
-            window.removeEventListener('scroll', updateOffset);
-        };
-    }, [allowSideToolbar]);
-
-    const commandsDocked = commandsWide && commandsScrolled;
-
-    useLayoutEffect(() => {
-        if (!commandsDocked) {
-            setCommandSidePose(false);
-
-            return;
-        }
-
-        const frame = requestAnimationFrame(() => setCommandSidePose(true));
-
-        return () => cancelAnimationFrame(frame);
-    }, [commandsDocked]);
-
-    useEffect(() => {
-        const main = document.querySelector('main');
-
-        if (!main || !commandsDocked) {
-            return;
-        }
-
-        const count = Number(main.dataset.commandDocks ?? '0') + 1;
-        main.dataset.commandDocks = String(count);
-        main.classList.add('rich-text-commands-docked');
-
-        return () => {
-            const next = Math.max(
-                0,
-                Number(main.dataset.commandDocks ?? '1') - 1,
-            );
-
-            if (next === 0) {
-                main.classList.remove('rich-text-commands-docked');
-                delete main.dataset.commandDocks;
-
-                return;
-            }
-
-            main.dataset.commandDocks = String(next);
-        };
-    }, [commandsDocked]);
-
     const selectedPicture = currentRichImage(editor, null);
 
     if (selectedPicture) {
@@ -1730,6 +1765,14 @@ export default function RichTextEditor({
     const pictureHeight = editingPicture?.node.attrs.height
         ? Number(editingPicture.node.attrs.height)
         : '';
+    const textStyle = editor?.getAttributes('textStyle') ?? {};
+    const blockStyle = editor?.getAttributes(
+        editor.isActive('heading') ? 'heading' : 'paragraph',
+    ) ?? {};
+    const currentStyle = (attribute: string): string | null => {
+        const value = textStyle[attribute] || blockStyle[attribute];
+        return typeof value === 'string' ? value : null;
+    };
 
     return (
         <BidTextFieldValuesContext.Provider value={placeholderValues}>
@@ -1746,34 +1789,9 @@ export default function RichTextEditor({
             {(() => {
                 const commandBar = (
             <div
-                ref={commandBarRef}
-                className={cn(
-                    'rich-text-commands z-30 border-border',
-                    commandsDocked
-                        ? 'is-pinned flex w-[4rem] shrink-0 flex-col items-center justify-start gap-0.5 overflow-x-hidden overflow-y-auto border-r-2 p-1'
-                        : 'relative flex w-full flex-wrap items-center gap-1 border-b-2 p-1.5',
-                )}
-                style={
-                    commandsDocked
-                        ? commandSidePose || !dockOriginRef.current
-                            ? {
-                                  position: 'fixed',
-                                  top: commandsOffset,
-                                  left: commandsLeft,
-                                  width: '4rem',
-                                  height: `calc(100vh - ${commandsOffset}px - 0.75rem)`,
-                                  zIndex: 28,
-                              }
-                            : {
-                                  position: 'fixed',
-                                  top: dockOriginRef.current.top,
-                                  left: dockOriginRef.current.left,
-                                  width: dockOriginRef.current.width,
-                                  height: dockOriginRef.current.height,
-                                  zIndex: 28,
-                              }
-                        : undefined
-                }
+                role="toolbar"
+                aria-label="Document text formatting"
+                className="rich-text-commands relative flex w-full flex-wrap items-center gap-1 border-b-2 border-border p-1.5"
                 onMouseDown={(event) => {
                     const target = event.target;
 
@@ -1826,6 +1844,11 @@ export default function RichTextEditor({
                 }}
                 onMouseLeave={() => setCommandHint(null)}
             >
+                <div
+                    role="group"
+                    aria-label="Text style and typography"
+                    className="flex flex-wrap items-center gap-1"
+                >
                 <Button
                     type="button"
                     variant="ghost"
@@ -1849,8 +1872,9 @@ export default function RichTextEditor({
                 <Separator orientation="vertical" className="mx-1 h-6" />
                 <ToolbarMenu
                     onOpenChange={handleMenuOpenChange}
+                    side="bottom"
                     trigger={
-                        <Button type="button" variant="ghost" size="icon-sm" title="Change the style, heading, font, or line spacing">
+                        <Button type="button" variant="ghost" size="sm" title="Paragraph style" aria-label="Paragraph style">
                             {editor?.isActive('heading', { level: 1 }) ? (
                                 <Heading1Icon />
                             ) : editor?.isActive('heading', { level: 2 }) ? (
@@ -1870,6 +1894,18 @@ export default function RichTextEditor({
                                 </span>
                             ) : (
                                 <PilcrowIcon />
+                            )}
+                            {(
+                                <>
+                                    <span>
+                                        {editor?.isActive('heading')
+                                            ? `Heading ${editor.getAttributes('heading').level}`
+                                            : editor?.isActive('blockquote') ? 'Quote'
+                                            : editor?.isActive('paragraph') && isFootnoteBlock(editor.getAttributes('paragraph')) ? 'Footnote'
+                                            : 'Paragraph'}
+                                    </span>
+                                    <ChevronDownIcon data-icon="inline-end" />
+                                </>
                             )}
                         </Button>
                     }
@@ -1949,96 +1985,34 @@ export default function RichTextEditor({
                             Footnote
                         </DropdownMenuItem>
                     </DropdownMenuGroup>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuSub>
-                        <DropdownMenuSubTrigger>
-                            Font size
-                        </DropdownMenuSubTrigger>
-                        <DropdownMenuSubContent>
-                            <DropdownMenuItem
-                                onClick={() =>
-                                    editor &&
-                                    applyBlockStyle(editor, { fontSize: null })
-                                }
-                            >
-                                Default
-                            </DropdownMenuItem>
-                            {FONT_SIZES.map((size) => (
-                                <DropdownMenuItem
-                                    key={size}
-                                    onClick={() =>
-                                        editor &&
-                                        applyBlockStyle(editor, {
-                                            fontSize: `${size}px`,
-                                        })
-                                    }
-                                >
-                                    {size}
-                                </DropdownMenuItem>
-                            ))}
-                        </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                    <DropdownMenuSub>
-                        <DropdownMenuSubTrigger>Font</DropdownMenuSubTrigger>
-                        <DropdownMenuSubContent>
-                            <DropdownMenuItem
-                                onClick={() =>
-                                    editor &&
-                                    applyBlockStyle(editor, {
-                                        fontFamily: null,
-                                    })
-                                }
-                            >
-                                Default
-                            </DropdownMenuItem>
-                            {FONT_FAMILIES.map((font) => (
-                                <DropdownMenuItem
-                                    key={font.label}
-                                    onClick={() =>
-                                        editor &&
-                                        applyBlockStyle(editor, {
-                                            fontFamily: font.value,
-                                        })
-                                    }
-                                >
-                                    <span style={{ fontFamily: font.value }}>
-                                        {font.label}
-                                    </span>
-                                </DropdownMenuItem>
-                            ))}
-                        </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                    <DropdownMenuSub>
-                        <DropdownMenuSubTrigger>
-                            Line spacing
-                        </DropdownMenuSubTrigger>
-                        <DropdownMenuSubContent>
-                            <DropdownMenuItem
-                                onClick={() =>
-                                    editor &&
-                                    applyBlockStyle(editor, {
-                                        lineHeight: null,
-                                    })
-                                }
-                            >
-                                Default
-                            </DropdownMenuItem>
-                            {LINE_SPACING.map((spacing) => (
-                                <DropdownMenuItem
-                                    key={spacing.label}
-                                    onClick={() =>
-                                        editor &&
-                                        applyBlockStyle(editor, {
-                                            lineHeight: spacing.value,
-                                        })
-                                    }
-                                >
-                                    {spacing.label}
-                                </DropdownMenuItem>
-                            ))}
-                        </DropdownMenuSubContent>
-                    </DropdownMenuSub>
                 </ToolbarMenu>
+                <ToolbarStyleMenu
+                    label="Font"
+                    value={currentStyle('fontFamily')}
+                    choices={FONT_FAMILIES}
+                    docked={false}
+                    icon={<TypeIcon />}
+                    onOpenChange={handleMenuOpenChange}
+                    onChange={(fontFamily) => editor && applyBlockStyle(editor, { fontFamily })}
+                />
+                <ToolbarStyleMenu
+                    label="Font size"
+                    value={currentStyle('fontSize')}
+                    choices={FONT_SIZES.map((size) => ({ label: `${size}px`, value: `${size}px` }))}
+                    docked={false}
+                    icon={<span className="text-xs">Size</span>}
+                    onOpenChange={handleMenuOpenChange}
+                    onChange={(fontSize) => editor && applyBlockStyle(editor, { fontSize })}
+                />
+                <ToolbarStyleMenu
+                    label="Line spacing"
+                    value={currentStyle('lineHeight')}
+                    choices={LINE_SPACING}
+                    docked={false}
+                    icon={<AlignVerticalSpaceAroundIcon />}
+                    onOpenChange={handleMenuOpenChange}
+                    onChange={(lineHeight) => editor && applyBlockStyle(editor, { lineHeight })}
+                />
                 <Button
                     type="button"
                     variant="ghost"
@@ -2062,6 +2036,8 @@ export default function RichTextEditor({
                 >
                     <AlignVerticalSpaceAroundIcon />
                 </Button>
+                </div>
+                <Separator />
                 <Toggle
                     size="sm"
                     pressed={Boolean(editor?.isActive('bold'))}
@@ -3113,6 +3089,39 @@ export default function RichTextEditor({
                         </Button>
                     </>
                 ) : null}
+                {layoutSections.length > 0 ? (
+                    <>
+                        <Separator orientation="vertical" className="mx-1 h-6" />
+                        <ToolbarMenu
+                            onOpenChange={handleMenuOpenChange}
+                            trigger={
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    title="Insert a section from the print layout"
+                                >
+                                    <LayoutTemplateIcon />
+                                    Layout sections
+                                </Button>
+                            }
+                        >
+                            <DropdownMenuLabel>
+                                {layoutName
+                                    ? `From “${layoutName}”`
+                                    : 'From the print layout'}
+                            </DropdownMenuLabel>
+                            {layoutSections.map((section) => (
+                                <DropdownMenuItem
+                                    key={section.id}
+                                    onClick={() => insertLayoutSection(section)}
+                                >
+                                    {section.label}
+                                </DropdownMenuItem>
+                            ))}
+                        </ToolbarMenu>
+                    </>
+                ) : null}
                 {showPlaceholders ? (
                     <>
                         <Separator orientation="vertical" className="mx-1 h-6" />
@@ -3149,9 +3158,9 @@ export default function RichTextEditor({
 
                 return (
                     <>
-                        {commandsDocked
-                            ? createPortal(commandBar, document.body)
-                            : commandBar}
+                        <StickyDocumentToolbar scopeRef={editorFrameRef} enabled={allowSideToolbar}>
+                            {commandBar}
+                        </StickyDocumentToolbar>
                         {commandHintPopover}
                     </>
                 );
@@ -3172,7 +3181,39 @@ export default function RichTextEditor({
                 className="hidden"
                 onChange={(event) => onPicturesChosen(event, true)}
             />
-            <EditorContent editor={editor} />
+            {allowBlockDrag ? (
+                <div className="flex items-center gap-3 border-b border-border px-4 py-2">
+                    <Button
+                        type="button"
+                        variant={movingBlocks ? 'secondary' : 'outline'}
+                        size="sm"
+                        aria-pressed={movingBlocks}
+                        disabled={!editor}
+                        onClick={() => {
+                            if (!editor) {
+                                return;
+                            }
+
+                            const next = !movingBlocks;
+                            if (next) {
+                                enablePositionCanvas(editor);
+                            }
+                            editor.view.dispatch(editor.state.tr.setMeta(blockMoveModeKey, next));
+                            setMovingBlocks(next);
+                        }}
+                    >
+                        {movingBlocks ? 'Edit text' : 'Move items'}
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                        {movingBlocks
+                            ? 'Drag to position items. Snaps every 10px; rulers are in pixels.'
+                            : 'Switch to Move items to drag content directly.'}
+                    </span>
+                </div>
+            ) : null}
+            <div className={allowBlockDrag ? 'overflow-x-auto' : undefined}>
+                <EditorContent editor={editor} />
+            </div>
             {pictureDropActive ? (
                 <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-md border-2 border-dashed border-emerald-600 bg-emerald-50/90 text-sm font-medium text-emerald-800 dark:bg-emerald-950/90 dark:text-emerald-100">
                     <span className="flex items-center gap-2">

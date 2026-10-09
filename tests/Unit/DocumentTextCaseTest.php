@@ -18,6 +18,20 @@ test('html text casing preserves markup and handles words split across inline ta
     expect($transformed)->toContain('.sample { color: red; }');
 });
 
+test('html casing preserves ampersands and angle brackets as text', function () {
+    $transformed = DocumentTextCase::transformHtml('<p>Doors &amp; frames &lt;required&gt;</p>', 'uppercase');
+
+    expect($transformed)->toContain('DOORS &amp; FRAMES &lt;REQUIRED&gt;');
+});
+
+test('document casing does not change text wrapping in an edited positioned canvas', function () {
+    $html = '<p>Document heading</p><div data-position-canvas="true">'
+        .'<div data-position-item="true"><p>Text spaced in the editor</p></div></div>';
+
+    $transformed = DocumentTextCase::transformHtml($html, 'camel');
+    expect($transformed)->toContain('<p>documentHeading</p>', '<p>Text spaced in the editor</p>');
+});
+
 test('word document text casing handles words split across text runs', function () {
     $path = tempnam(sys_get_temp_dir(), 'document-text-case-');
     if ($path === false) {
@@ -31,7 +45,7 @@ test('word document text casing handles words split across text runs', function 
             'word/document.xml',
             '<?xml version="1.0" encoding="UTF-8"?>'
                 .'<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
-                .'<w:body><w:p><w:r><w:t>Project </w:t></w:r><w:r><w:t>Title</w:t></w:r></w:p></w:body>'
+                .'<w:body><w:p><w:r><w:t>Project </w:t></w:r><w:r><w:t>Title &amp; &lt;Details&gt;</w:t></w:r></w:p></w:body>'
                 .'</w:document>',
         );
         $archive->close();
@@ -53,7 +67,7 @@ test('word document text casing handles words split across text runs', function 
             $text .= $textNode->nodeValue;
         }
 
-        expect($text)->toBe('projectTitle');
+        expect($text)->toBe('projectTitle&<details>');
     } finally {
         unlink($path);
     }

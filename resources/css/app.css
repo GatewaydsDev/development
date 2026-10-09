@@ -1,6 +1,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
+@import "./positioned-bid-content.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -595,6 +596,157 @@
     -webkit-overflow-scrolling: touch;
   }
 
+  .rich-position-stage {
+    position: relative;
+    width: 700px;
+    margin: 30px 24px 24px 38px;
+  }
+
+  .rich-text-content:has(.rich-position-stage) {
+    padding-right: 0;
+    padding-left: 0;
+  }
+
+  .rich-position-stage > [data-position-canvas] {
+    background-image:
+      linear-gradient(to right, #d1d5db66 1px, transparent 1px),
+      linear-gradient(to bottom, #d1d5db66 1px, transparent 1px);
+    background-size: 10px 10px;
+  }
+
+  .rich-position-rulers {
+    pointer-events: none;
+    color: var(--foreground);
+    font-size: 10px;
+  }
+
+  .rich-position-tick-x {
+    position: absolute;
+    top: -24px;
+    height: 24px;
+    border-left: 1px solid var(--border);
+    padding-left: 3px;
+  }
+
+  .rich-position-tick-y {
+    position: absolute;
+    left: -36px;
+    width: 36px;
+    border-top: 1px solid var(--border);
+    padding-top: 2px;
+  }
+
+  .rich-position-coordinates {
+    position: absolute;
+    pointer-events: none;
+    padding: 2px 6px;
+    background: var(--foreground);
+    color: var(--background);
+    font-size: 12px;
+    z-index: 10;
+  }
+
+  .rich-text-content[data-block-move-mode] [data-position-item] {
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+    outline: 1px dashed var(--border);
+  }
+
+  .rich-text-content [data-position-item].ProseMirror-selectednode {
+    outline: 2px solid var(--ring);
+  }
+
+  .rich-text-content [data-position-item] > :first-child {
+    margin-top: 0;
+  }
+
+  .rich-position-item-content > :first-child {
+    margin-top: 0;
+  }
+
+  .rich-position-resize-handle {
+    display: none;
+    position: absolute;
+    right: -5px;
+    bottom: -5px;
+    width: 12px;
+    height: 12px;
+    padding: 0;
+    border: 2px solid #ffffff;
+    border-radius: 2px;
+    background: #065f46;
+    cursor: nwse-resize;
+    z-index: 5;
+  }
+
+  .rich-text-content[data-block-move-mode] .rich-position-resize-handle {
+    display: block;
+  }
+
+  .rich-position-resize-handle:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  .rich-text-content [data-position-item] .rich-text-drag-handle {
+    display: none;
+  }
+
+  .rich-image-frame:not(.is-selected) .rich-image-resize-handle {
+    display: none;
+  }
+
+  .rich-text-content[data-block-move-mode] [data-position-item] .rich-image-resize-handle {
+    display: block;
+    cursor: nwse-resize;
+  }
+
+  .rich-text-content[data-block-move-mode] [data-movable-block] {
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .rich-text-content[data-block-move-mode] [data-movable-block]:hover {
+    outline: 1px dashed var(--border);
+  }
+
+  .rich-text-content[data-block-move-mode] [data-movable-block]:active {
+    cursor: grabbing;
+  }
+
+  .rich-text-drag-handle {
+    position: relative;
+    float: left;
+    width: 20px;
+    height: 24px;
+    margin-left: -22px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--background);
+    color: var(--foreground);
+    cursor: grab;
+    z-index: 2;
+    line-height: 20px;
+  }
+
+  .rich-text-drag-handle:active {
+    cursor: grabbing;
+  }
+
+  .rich-text-drag-handle:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  @media print {
+    .rich-text-drag-handle {
+      display: none;
+    }
+  }
+
   .rich-text-content table {
     width: 100%;
     border-collapse: collapse;
@@ -830,6 +982,15 @@
     gap: 0.4rem;
   }
 
+  .rich-position-item-content .rich-image-gallery {
+    margin: 0;
+    padding: 4px 0;
+  }
+
+  .rich-position-item-content hr {
+    margin: 6px 0;
+  }
+
   .rich-image-caption,
   .rich-image-caption [data-node-view-content-react] {
     display: block;
@@ -1023,91 +1184,6 @@
   .rich-text-commands {
     background-color: color-mix(in srgb, var(--dashboard-accent) 24%, var(--background));
     border-right-color: var(--dashboard-accent);
-  }
-
-  .rich-text-commands.is-pinned {
-    position: sticky;
-    display: flex !important;
-    flex-direction: column;
-    align-items: center;
-    width: 4rem;
-    background-color: color-mix(in srgb, var(--dashboard-accent) 34%, var(--background));
-    box-shadow: 8px 0 18px rgb(15 23 42 / 0.16);
-    transition:
-      top 0.45s ease,
-      left 0.45s ease,
-      width 0.45s ease,
-      height 0.45s ease;
-  }
-
-  .rich-text-commands.is-pinned button,
-  .rich-text-commands.is-pinned [data-slot='dropdown-menu-trigger'],
-  .rich-text-commands.is-pinned [data-slot='toggle'] {
-    width: 3.25rem !important;
-    height: 2.75rem !important;
-    min-height: 2.75rem !important;
-    max-height: 2.75rem !important;
-    flex: 0 0 2.75rem !important;
-    padding: 0 !important;
-    font-size: 0 !important;
-    line-height: 1;
-    gap: 0 !important;
-    overflow: hidden;
-    flex-direction: row !important;
-    justify-content: center !important;
-  }
-
-  .rich-text-commands.is-pinned svg {
-    width: 1.25rem !important;
-    height: 1.25rem !important;
-  }
-
-  .rich-text-commands.is-pinned button[data-labeled-command] {
-    height: auto !important;
-    min-height: 3.25rem !important;
-    max-height: none !important;
-    flex: 0 0 auto !important;
-    flex-direction: column !important;
-    font-size: 0.65rem !important;
-    line-height: 1.05;
-    white-space: normal;
-    padding: 0.2rem !important;
-  }
-
-  .rich-text-commands.is-pinned [data-slot='separator'] {
-    width: 100% !important;
-    height: 1px !important;
-    min-height: 1px !important;
-    max-height: 1px !important;
-    flex: 0 0 1px !important;
-    margin: 0.1rem 0 !important;
-  }
-
-  .rich-text-commands.is-pinned [data-picture-fields] {
-    flex: 0 0 auto !important;
-    flex-direction: column !important;
-    align-items: stretch;
-    width: 100%;
-  }
-
-  .rich-text-commands.is-pinned [data-picture-fields] label {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.15rem;
-  }
-
-  .rich-text-commands.is-pinned [data-picture-fields] input {
-    width: 100%;
-  }
-
-  @media (min-width: 1024px) {
-    .rich-text-commands.is-pinned {
-      position: fixed;
-    }
-
-    main.rich-text-commands-docked {
-      padding-left: 4.75rem;
-    }
   }
 
   .rich-text-content p.is-editor-empty:first-child::before {

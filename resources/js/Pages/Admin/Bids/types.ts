@@ -1,3 +1,4 @@
+import type { PrintLayoutOption } from './layoutSections';
 import { applyMarkup, parseDecimal } from '@/lib/money';
 
 export type BidProjectScopeOption = {
@@ -34,6 +35,9 @@ export type BidCompanyOption = {
     email?: string | null;
     phone?: string | null;
     address?: string | null;
+    contact_phone?: string | null;
+    website?: string | null;
+    contact_url?: string | null;
 };
 
 export type BidCatalogStatePrice = {
@@ -112,6 +116,8 @@ export type PreBidOption = {
 };
 
 export type BidOptions = {
+    printLayouts?: PrintLayoutOption[];
+    assignedPrintLayoutId?: number | null;
     projects: BidProjectOption[];
     stageTypes: BidCatalogOption[];
     scopeTitles: BidCatalogOption[];
@@ -204,6 +210,8 @@ export type BidPayload = {
     bid_shipping_text_template_id?: number | null;
     bid_scope_text_template_id?: number | null;
     scope_of_work_text?: string | null;
+    print_layout_id?: number | null;
+    include_signature?: boolean;
     created_at?: string | null;
     updated_at?: string | null;
     project: {
@@ -299,6 +307,8 @@ export type BidFormData = {
     bid_shipping_text_template_id: string;
     bid_scope_text_template_id: string;
     scope_of_work_text: string;
+    print_layout_id: string;
+    include_signature: boolean;
     revisions: BidRevisionFormData[];
     stages: BidStageFormData[];
     scopes: BidScopeFormData[];
@@ -930,6 +940,8 @@ export const bidToFormData = (bid?: BidPayload): BidFormData => ({
         ? String(bid.bid_scope_text_template_id)
         : '',
     scope_of_work_text: bid?.scope_of_work_text ?? '',
+    print_layout_id: bid?.print_layout_id ? String(bid.print_layout_id) : '',
+    include_signature: bid?.include_signature ?? true,
     revisions:
         bid?.revisions?.map((revision) => ({
             id: revision.id ? String(revision.id) : '',

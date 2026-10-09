@@ -41,6 +41,22 @@ class BidDocument
         return 'bid';
     }
 
+    protected function injectsLayoutElements(): bool
+    {
+        return ! $this->hasCustomLayout();
+    }
+
+    private function hasCustomLayout(): bool
+    {
+        return $this->bid->print_layout_id !== null
+            || str_contains($this->bid->notes ?? '', 'data-position-canvas');
+    }
+
+    protected function documentLayoutId(): ?int
+    {
+        return $this->bid->print_layout_id;
+    }
+
     public static function for(Bid $bid, ?User $user = null): self
     {
         $bid->load([
@@ -70,12 +86,14 @@ class BidDocument
 
         return [
             'mode' => $mode,
+            'customLayout' => $this->hasCustomLayout(),
+            'includeSignature' => $this->bid->include_signature,
             'year' => now()->year,
             'generatedAt' => now(),
             'generatedBy' => $this->user?->name,
             'assigneeName' => $this->bid->assignee?->name,
             'signatureDate' => $this->generatedAtLabel(),
-            'signatureSrc' => DocumentSignature::dataUri($this->bid->assignee),
+            'signatureSrc' => $this->bid->include_signature ? DocumentSignature::dataUri($this->bid->assignee) : null,
             'companyName' => $this->companyName(),
             'companyAddress' => $this->companyAddress(),
             'companyPhone' => $this->company?->contact_phone_number ?: $this->company?->phone_number,
@@ -289,8 +307,10 @@ class BidDocument
             $this->addHtml($section, $this->bid->notes);
         }
 
-        $section->addTextBreak(1);
-        $this->addAuthorizationSignatures($section);
+        if ($this->bid->include_signature) {
+            $section->addTextBreak(1);
+            $this->addAuthorizationSignatures($section);
+        }
 
         $path = tempnam(sys_get_temp_dir(), 'bid-document-').'.docx';
         IOFactory::createWriter($phpWord, 'Word2007')->save($path);
@@ -668,7 +688,47 @@ class BidDocument
 
         $sanitized = BidApplicationText::sanitize($value);
 
-        return $sanitized ? EditorImage::forDocument($sanitized, $this->imageMode) : null;
+        if (! $sanitized) {
+            return null;
+        }
+
+        $sanitized = $this->withoutHeaderRowBorders($sanitized);
+
+        return EditorImage::forDocument($sanitized, $this->imageMode);
+    }
+
+    /**
+     * The logo row at the top of a loaded layout is borderless when printed; its guide borders only show while editing.
+     */
+    private function withoutHeaderRowBorders(string $html): string
+    {
+        return preg_replace_callback(
+            '/<table\b.*?<\/table>/is',
+            function (array $match): string {
+                if (! str_contains($match[0], 'data-rich-image')) {
+                    return $match[0];
+                }
+
+                return preg_replace_callback(
+                    '/<(td|th)\b([^>]*)>/i',
+                    function (array $cell): string {
+                        $attributes = $cell[2];
+
+                        if (preg_match('/style="([^"]*)"/i', $attributes, $style)) {
+                            $css = preg_replace('/border[a-z-]*:[^;]*;?/i', '', $style[1]);
+                            $attributes = str_replace($style[0], 'style="'.rtrim(trim($css), ';').'; border: none;"', $attributes);
+                        } else {
+                            $attributes .= ' style="border: none;"';
+                        }
+
+                        return '<'.$cell[1].$attributes.'>';
+                    },
+                    $match[0],
+                ) ?? $match[0];
+            },
+            $html,
+            1,
+        ) ?? $html;
     }
 
     private function latestTotal(): float

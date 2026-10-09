@@ -834,17 +834,35 @@ function RichImageView({
         event.preventDefault();
         event.stopPropagation();
         const startY = event.clientY;
+        const startX = event.clientX;
         const image = event.currentTarget.parentElement?.querySelector('img');
+        const item = event.currentTarget.closest<HTMLElement>('[data-position-item]');
+        const canvas = item?.closest<HTMLElement>('[data-position-canvas]');
+        const scale = canvas ? canvas.getBoundingClientRect().width / 700 : 1;
+        const startWidth = item ? Number(item.dataset.width) : 0;
+        const ratio = image?.naturalWidth && image.naturalHeight
+            ? image.naturalWidth / image.naturalHeight
+            : (image?.getBoundingClientRect().width ?? 1) / (image?.getBoundingClientRect().height ?? 1);
         const startHeight =
             height ??
-            (image?.getBoundingClientRect().height ?? DEFAULT_HEIGHT);
+            ((image?.getBoundingClientRect().height ?? DEFAULT_HEIGHT) / scale);
         let nextHeight = Math.round(startHeight);
+        let nextWidth = startWidth;
 
         const onMove = (moveEvent: MouseEvent) => {
+            if (item) {
+                const dx = (moveEvent.clientX - startX) / scale;
+                const dy = (moveEvent.clientY - startY) / scale;
+                const delta = Math.abs(dx) > Math.abs(dy * ratio) ? dx : dy * ratio;
+                nextWidth = Math.max(MIN_IMAGE_SIZE, Math.min(700 - Number(item.dataset.x), Math.round(startWidth + delta)));
+                nextHeight = Math.max(MIN_IMAGE_SIZE, Math.round(nextWidth / ratio));
+                item.style.width = `${nextWidth}px`;
+            } else {
             nextHeight = Math.max(
                 MIN_IMAGE_SIZE,
-                Math.round(startHeight + moveEvent.clientY - startY),
+                Math.round(startHeight + (moveEvent.clientY - startY) / scale),
             );
+            }
 
             if (image instanceof HTMLElement) {
                 image.style.height = `${nextHeight}px`;
@@ -854,6 +872,24 @@ function RichImageView({
         const onUp = () => {
             window.removeEventListener('mousemove', onMove);
             window.removeEventListener('mouseup', onUp);
+            if (item) {
+                const current = typeof getPos === 'function' ? getPos() : null;
+                if (typeof current === 'number') {
+                    const resolved = editor.state.doc.resolve(current);
+                    for (let depth = resolved.depth; depth > 0; depth -= 1) {
+                        if (resolved.node(depth).type.name === 'positionItem') {
+                            const itemPos = resolved.before(depth);
+                            const tr = editor.state.tr.setNodeMarkup(itemPos, undefined, {
+                                ...resolved.node(depth).attrs,
+                                width: nextWidth,
+                            });
+                            tr.setNodeMarkup(current, undefined, { ...node.attrs, height: nextHeight });
+                            editor.view.dispatch(tr);
+                            return;
+                        }
+                    }
+                }
+            }
             updateAttributes({ height: nextHeight });
         };
 
@@ -880,21 +916,21 @@ function RichImageView({
                     style={{
                         width: '100%',
                         height: height ?? 'auto',
-                        objectFit: height ? 'cover' : 'contain',
+                        objectFit: 'contain',
                         maxWidth: '100%',
                         cursor: 'grab',
                     }}
                     onMouseDown={startMove}
                 />
-                {selected ? (
+                {(
                     <button
                         type="button"
                         className="rich-image-resize-handle"
-                        aria-label="Resize picture height"
-                        title="Drag to change the picture height"
+                        aria-label="Resize picture"
+                        title="Drag to resize the picture"
                         onMouseDown={startResize}
                     />
-                ) : null}
+                )}
             </div>
             <NodeViewContent
                 className="rich-image-caption"
@@ -961,7 +997,7 @@ export const RichImage = Node.create({
                 renderHTML: () => ({}),
             },
             height: {
-                default: DEFAULT_HEIGHT,
+                default: null,
                 parseHTML: (element: HTMLElement) => {
                     const image = element.querySelector('img');
 
@@ -1014,7 +1050,7 @@ export const RichImage = Node.create({
             ? Math.max(MIN_IMAGE_SIZE, Number(node.attrs.height))
             : null;
         const imageStyle = height
-            ? `width: 100%; height: ${height}px; max-width: 100%; object-fit: cover;`
+            ? `width: 100%; height: ${height}px; max-width: 100%; object-fit: contain;`
             : 'width: 100%; height: auto; max-width: 100%;';
 
         return [

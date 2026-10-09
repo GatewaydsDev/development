@@ -1,4 +1,5 @@
 import CreatableSelect from '@/Components/CreatableSelect';
+import Checkbox from '@/Components/Checkbox';
 import FormActionFab from '@/Components/FormActionFab';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
@@ -90,6 +91,8 @@ const schema = z.object({
         .max(250000, 'Bid information must be 250,000 characters or less.'),
     bid_shipping_text_template_id: z.string(),
     bid_scope_text_template_id: z.string(),
+    print_layout_id: z.string(),
+    include_signature: z.boolean(),
     scope_of_work_text: z
         .string()
         .max(250000, 'Scope of work text must be 250,000 characters or less.'),
@@ -502,6 +505,7 @@ export default function BidForm({
                 bid_scope_text_template_id:
                     values.bid_scope_text_template_id.trim() || null,
                 scope_of_work_text: values.scope_of_work_text,
+                print_layout_id: values.print_layout_id.trim() || null,
                 stages: values.stages.filter(
                     (stage) => stage.stage_type_id.trim() !== '',
                 ),
@@ -739,6 +743,22 @@ export default function BidForm({
                                     )}
                                 />
                             </div>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <label htmlFor="bid-include-signature" className="flex items-center gap-2 text-sm font-medium">
+                                <Checkbox
+                                    id="bid-include-signature"
+                                    checked={data.include_signature ?? true}
+                                    onChange={(event) => setData('include_signature', event.target.checked)}
+                                    aria-describedby="bid-include-signature-help"
+                                    aria-invalid={Boolean(errorMessage(validationErrors, 'include_signature'))}
+                                />
+                                Include signature section
+                            </label>
+                            <p id="bid-include-signature-help" className="text-xs text-muted-foreground">
+                                Include the authorization and signature fields in the printed bid, PDF, and Word document.
+                            </p>
+                            <InputError message={errorMessage(validationErrors, 'include_signature')} />
                         </div>
                         {selectedProject ? (
                             <p className="text-sm text-muted-foreground">
@@ -1082,6 +1102,8 @@ export default function BidForm({
                 project={selectedProject}
                 scopes={data.scopes ?? []}
                 extraFieldValues={extraFieldValues}
+                printLayoutId={data.print_layout_id ?? ''}
+                onPrintLayoutIdChange={(id) => setData('print_layout_id', id)}
                 value={data.notes ?? ''}
                 templateId={data.bid_shipping_text_template_id ?? ''}
                 error={errorMessage(validationErrors, 'notes')}

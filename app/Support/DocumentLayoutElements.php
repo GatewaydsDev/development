@@ -4,19 +4,53 @@ namespace App\Support;
 
 class DocumentLayoutElements
 {
-    public const TYPES = ['text', 'image', 'divider', 'spacer', 'date'];
+    public const TYPES = ['text', 'image', 'divider', 'spacer', 'date', 'company', 'table'];
 
-    public const ZONES = ['header', 'body', 'footer'];
+    public const ZONES = ['header', 'intro', 'body', 'footer'];
 
-    public const ALIGNMENTS = ['left', 'center', 'right'];
+    /** Sections currently enabled in the designer; others are kept off until they are built. */
+    public const FONT_FAMILIES = [
+        'default' => '',
+        'helvetica' => 'Helvetica, Arial, sans-serif',
+        'arial' => 'Arial, Helvetica, sans-serif',
+        'verdana' => 'Verdana, Geneva, sans-serif',
+        'tahoma' => 'Tahoma, Geneva, sans-serif',
+        'trebuchet' => '"Trebuchet MS", Helvetica, sans-serif',
+        'georgia' => 'Georgia, serif',
+        'times' => '"Times New Roman", Times, serif',
+        'courier' => '"Courier New", Courier, monospace',
+    ];
+
+    public const DEFAULT_HEADER_HEIGHT = 160;
+
+    public const ACTIVE_ZONES = ['header'];
+
+    public const ALIGNMENTS = ['left', 'center', 'right', 'justify'];
 
     public const MAX_ELEMENTS = 150;
+
+    public const COMPANY_FIELDS = [
+        'company_name' => 'Company name',
+        'company_legal_name' => 'Legal name',
+        'company_address' => 'Address',
+        'company_phone' => 'Phone',
+        'company_contact_phone' => 'Contact phone',
+        'company_email' => 'Email',
+        'company_website' => 'Website',
+        'company_contact_url' => 'Contact page',
+    ];
+
+    public const DEFAULT_COMPANY_FIELDS = ['company_name', 'company_address', 'company_phone', 'company_email'];
 
     public const FIELDS = [
         'company_name' => ['label' => 'Company name', 'group' => 'Company', 'sample' => 'Gateway Door Systems'],
         'company_address' => ['label' => 'Company address', 'group' => 'Company', 'sample' => '245 Market Street · Portland, OR 97201'],
         'company_phone' => ['label' => 'Company phone', 'group' => 'Company', 'sample' => '(503) 555-0142'],
         'company_email' => ['label' => 'Company email', 'group' => 'Company', 'sample' => 'info@example.com'],
+        'company_legal_name' => ['label' => 'Company legal name', 'group' => 'Company', 'sample' => 'Gateway Door Systems LLC'],
+        'company_contact_phone' => ['label' => 'Company contact phone', 'group' => 'Company', 'sample' => '(503) 555-0199'],
+        'company_website' => ['label' => 'Company website', 'group' => 'Company', 'sample' => 'www.example.com'],
+        'company_contact_url' => ['label' => 'Company contact page', 'group' => 'Company', 'sample' => 'www.example.com/contact'],
         'document_title' => ['label' => 'Document title', 'group' => 'Document', 'sample' => 'Northwest Commons'],
         'document_number' => ['label' => 'Document number', 'group' => 'Document', 'sample' => 'BID-2025-014'],
         'generated_date' => ['label' => 'Date generated', 'group' => 'Document', 'sample' => 'October 7, 2025'],
@@ -25,6 +59,9 @@ class DocumentLayoutElements
         'project_name' => ['label' => 'Project name', 'group' => 'Project', 'sample' => 'Northwest Commons'],
         'project_number' => ['label' => 'Project number', 'group' => 'Project', 'sample' => 'P-2025-014'],
         'project_address' => ['label' => 'Project address', 'group' => 'Project', 'sample' => '245 Market Street, Portland, OR'],
+        'bid_number' => ['label' => 'Bid number', 'group' => 'Bid', 'sample' => 'P-2025-014'],
+        'bid_date' => ['label' => 'Bid date', 'group' => 'Bid', 'sample' => 'October 7, 2025'],
+        'bid_stage' => ['label' => 'Bid stage', 'group' => 'Bid', 'sample' => 'Proposal'],
     ];
 
     /**
@@ -72,12 +109,14 @@ class DocumentLayoutElements
             'company_address' => $address,
             'company_phone' => (string) ($company->contact_phone_number ?: $company->phone_number),
             'company_email' => (string) $company->email,
+            'company_legal_name' => (string) $company->legal_name,
+            'company_contact_phone' => (string) $company->contact_phone_number,
+            'company_website' => (string) $company->website_url,
+            'company_contact_url' => (string) $company->contact_url,
         ];
     }
 
     /**
-     * Resolves every merge field for a document using its view data.
-     *
      * @param  array<string, mixed>  $data
      * @return array<string, string>
      */
@@ -91,6 +130,10 @@ class DocumentLayoutElements
             'company_address' => $company['company_address'] ?? $pick('companyAddress'),
             'company_phone' => $company['company_phone'] ?? $pick('companyPhone'),
             'company_email' => $company['company_email'] ?? $pick('companyEmail'),
+            'company_legal_name' => $company['company_legal_name'] ?? '',
+            'company_contact_phone' => $company['company_contact_phone'] ?? '',
+            'company_website' => $company['company_website'] ?? '',
+            'company_contact_url' => $company['company_contact_url'] ?? '',
             'document_title' => $pick('title'),
             'document_number' => $pick('bidNumber', $pick('quotationNumber', $pick('projectNumber'))),
             'generated_date' => now()->format('F j, Y'),
@@ -99,6 +142,9 @@ class DocumentLayoutElements
             'project_name' => $pick('projectName'),
             'project_number' => $pick('projectNumber'),
             'project_address' => $pick('projectAddress'),
+            'bid_number' => $pick('bidNumber'),
+            'bid_date' => $pick('bidDate'),
+            'bid_stage' => $pick('stageLabel'),
         ];
     }
 
@@ -115,14 +161,77 @@ class DocumentLayoutElements
     }
 
     /**
-     * @return array{body: string, footer: string}
+     * @return list<array{label: string, value: string}>
+     */
+    public static function tableItems(mixed $items): array
+    {
+        if (! is_array($items)) {
+            return [];
+        }
+
+        $clean = [];
+
+        foreach (array_slice(array_values($items), 0, 40) as $item) {
+            if (is_array($item)) {
+                $clean[] = [
+                    'label' => mb_substr((string) ($item['label'] ?? ''), 0, 300),
+                    'value' => mb_substr((string) ($item['value'] ?? ''), 0, 300),
+                ];
+            }
+        }
+
+        return $clean;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function companyFields(mixed $fields): array
+    {
+        if (! is_array($fields)) {
+            return self::DEFAULT_COMPANY_FIELDS;
+        }
+
+        return array_values(array_unique(array_filter(
+            $fields,
+            fn (mixed $key): bool => is_string($key) && isset(self::COMPANY_FIELDS[$key]),
+        )));
+    }
+
+    /**
+     * @return array{body: string, footer: string, header_height: int}
      */
     public static function zoneColors(mixed $colors): array
     {
         $colors = is_array($colors) ? $colors : [];
         $clean = fn (mixed $value): string => is_string($value) && preg_match('/^#[A-Fa-f0-9]{6}$/', $value) === 1 ? strtolower($value) : '';
 
-        return ['body' => $clean($colors['body'] ?? null), 'footer' => $clean($colors['footer'] ?? null)];
+        $height = (int) ($colors['header_height'] ?? 0);
+
+        return [
+            'body' => $clean($colors['body'] ?? null),
+            'footer' => $clean($colors['footer'] ?? null),
+            'header_height' => $height > 0 ? max(60, $height) : self::DEFAULT_HEADER_HEIGHT,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $element
+     */
+    private static function estimateHeight(array $element): int
+    {
+        $size = max(8, min(48, (int) ($element['font_size'] ?? 12)));
+
+        return match ($element['type'] ?? 'text') {
+            'image' => 80,
+            'divider' => max(1, (int) ($element['height'] ?? 2)) + 12,
+            'spacer' => max(1, (int) ($element['height'] ?? 16)),
+            'table' => isset($element['cells'])
+                ? max(1, count($element['cells'])) * 32
+                : max(1, count((array) ($element['items'] ?? []))) * 28,
+            'company' => max(1, count((array) ($element['fields'] ?? []))) * (int) ($size * 1.5),
+            default => (int) ($size * 1.5) + 6,
+        };
     }
 
     /**
@@ -137,6 +246,7 @@ class DocumentLayoutElements
         }
 
         $clean = [];
+        $cursor = 8;
 
         foreach (array_slice(array_values($elements), 0, self::MAX_ELEMENTS) as $index => $element) {
             if (! is_array($element) || ! in_array($element['type'] ?? null, self::TYPES, true)) {
@@ -146,19 +256,53 @@ class DocumentLayoutElements
             $id = preg_replace('/[^A-Za-z0-9_-]/', '', (string) ($element['id'] ?? ''));
             $src = (string) ($element['src'] ?? '');
 
+            $width = max(5, min(100, (int) ($element['width'] ?? 100)));
+            $align = in_array($element['align'] ?? null, self::ALIGNMENTS, true) ? $element['align'] : 'left';
+            $hasPosition = isset($element['x'], $element['y']) && is_numeric($element['x']) && is_numeric($element['y']);
+            $x = $hasPosition
+                ? (float) $element['x']
+                : match ($align) {
+                    'center' => (100 - $width) / 2,
+                    'right' => 100 - $width,
+                    default => 0.0,
+                };
+            $y = $hasPosition ? (int) $element['y'] : $cursor;
+            $cursor = $y + self::estimateHeight($element) + 6;
+
             $clean[] = [
                 'id' => $id !== '' ? substr($id, 0, 40) : 'el-'.$index,
+                'x' => round(max(0, min(100 - $width, $x)), 1),
+                'y' => max(0, min(2000, $y)),
                 'type' => $element['type'],
-                'zone' => in_array($element['zone'] ?? null, ['body', 'footer'], true) ? $element['zone'] : 'header',
+                'zone' => in_array($element['zone'] ?? null, ['intro', 'body', 'footer'], true) ? $element['zone'] : 'header',
                 'content' => mb_substr((string) ($element['content'] ?? ''), 0, 1000),
                 'src' => EditorImage::isStoredSrc($src) ? $src : '',
-                'align' => in_array($element['align'] ?? null, self::ALIGNMENTS, true) ? $element['align'] : 'left',
-                'width' => max(5, min(100, (int) ($element['width'] ?? 100))),
+                'align' => $align,
+                'width' => $width,
                 'height' => max(1, min(400, (int) ($element['height'] ?? 16))),
                 'font_size' => max(8, min(48, (int) ($element['font_size'] ?? 12))),
+                'font_family' => array_key_exists($element['font_family'] ?? null, self::FONT_FAMILIES) ? $element['font_family'] : 'default',
                 'text_case' => DocumentTextCase::normalize((string) ($element['text_case'] ?? 'original')),
+                'fields' => self::companyFields($element['fields'] ?? null),
+                'items' => self::tableItems($element['items'] ?? null),
+                'header_row' => (bool) ($element['header_row'] ?? false),
+                'header_color' => DocumentAppearance::normalize($element['header_color'] ?? '#ffffff'),
+                'cells' => isset($element['cells']) && is_array($element['cells'])
+                    ? array_map(fn ($row) => array_map(fn ($cell) => mb_substr((string) $cell, 0, 300), array_slice(is_array($row) ? array_values($row) : [], 0, 4)), array_slice(array_values($element['cells']), 0, 20))
+                    : null,
+                'label_bg' => DocumentAppearance::normalize((string) ($element['label_bg'] ?? ''), ''),
+                'border_color' => DocumentAppearance::normalize((string) ($element['border_color'] ?? ''), '#cbd5e1'),
+                'label_width' => max(10, min(70, (int) ($element['label_width'] ?? 30))),
+                'layout' => ($element['layout'] ?? null) === 'table' ? 'table' : 'lines',
+                'border' => (bool) ($element['border'] ?? true),
+                'show_labels' => (bool) ($element['show_labels'] ?? false),
+                'columns' => max(1, min(4, (int) ($element['columns'] ?? 2))),
+                'inline' => (bool) ($element['inline'] ?? false),
                 'bold' => (bool) ($element['bold'] ?? false),
                 'italic' => (bool) ($element['italic'] ?? false),
+                'underline' => (bool) ($element['underline'] ?? false),
+                'line_height' => in_array((float) ($element['line_height'] ?? 1.35), [1.0, 1.15, 1.35, 1.5, 2.0], true) ? (float) ($element['line_height'] ?? 1.35) : 1.35,
+                'list_style' => in_array($element['list_style'] ?? null, ['bullet', 'numbered'], true) ? $element['list_style'] : 'none',
                 'color' => DocumentAppearance::normalize((string) ($element['color'] ?? ''), '#111827'),
             ];
         }
@@ -169,7 +313,7 @@ class DocumentLayoutElements
     /**
      * @param  list<array<string, mixed>>  $elements
      */
-    public static function render(array $elements, string $zone, string $bannerColor = '#065f46', array $values = [], string $background = ''): string
+    public static function render(array $elements, string $zone, string $bannerColor = '#065f46', array $values = [], string $background = '', int $headerHeight = self::DEFAULT_HEADER_HEIGHT): string
     {
         $items = array_filter(
             $elements,
@@ -180,10 +324,45 @@ class DocumentLayoutElements
             return '';
         }
 
+        if ($zone === 'header') {
+            return self::renderFreeHeader($items, $bannerColor, $values, $headerHeight);
+        }
+
         $html = '';
 
+        $banner = $zone === 'header' || $background !== '';
+        $rows = [];
+
         foreach ($items as $element) {
-            $html .= self::renderElement($element, $zone === 'header' || $background !== '', $values);
+            if (! empty($element['inline']) && $rows !== []) {
+                $rows[array_key_last($rows)][] = $element;
+            } else {
+                $rows[] = [$element];
+            }
+        }
+
+        foreach ($rows as $row) {
+            if (count($row) === 1) {
+                $html .= self::renderElement($row[0], $banner, $values);
+
+                continue;
+            }
+
+            $cells = '';
+
+            foreach ($row as $element) {
+                $cell = self::renderElement(['width' => 100] + $element, $banner, $values);
+
+                if ($cell !== '') {
+                    $cells .= '<td style="width:'.$element['width'].'%;vertical-align:top;padding:0 4px;">'.$cell.'</td>';
+                }
+            }
+
+            $html .= $cells === '' ? '' : '<table style="width:100%;border-collapse:collapse;table-layout:fixed;"><tbody><tr>'.$cells.'</tr></tbody></table>';
+        }
+
+        if ($html === '') {
+            return '';
         }
 
         if ($zone === 'header') {
@@ -192,13 +371,46 @@ class DocumentLayoutElements
             return '<div class="layout-elements layout-elements-header" style="margin:0 0 12px 0;padding:14px 20px;background:'.$bannerColor.';color:'.$text.';">'.$html.'</div>';
         }
 
-        $padding = $zone === 'body' ? 'padding:0 20px;' : '';
+        $padding = in_array($zone, ['body', 'intro'], true) ? 'padding:0 20px;' : '';
 
         if ($background !== '') {
             $padding = 'padding:14px 20px;background:'.$background.';color:'.DocumentAppearance::contrast($background).';';
         }
 
         return '<div class="layout-elements layout-elements-'.$zone.'" style="margin:0 0 12px 0;'.$padding.'">'.$html.'</div>';
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $items
+     */
+    private static function renderFreeHeader(array $items, string $bannerColor, array $values, int $headerHeight): string
+    {
+        $html = '';
+
+        foreach ($items as $element) {
+            $inner = self::renderElement(['width' => 100] + $element, true, $values);
+
+            if ($inner === '') {
+                continue;
+            }
+
+            $html .= sprintf(
+                '<div style="position:absolute;left:%s%%;top:%dpx;width:%s%%;">%s</div>',
+                rtrim(rtrim(number_format((float) ($element['x'] ?? 0), 1, '.', ''), '0'), '.') ?: '0',
+                (int) ($element['y'] ?? 0),
+                (string) $element['width'],
+                $inner,
+            );
+        }
+
+        if ($html === '') {
+            return '';
+        }
+
+        $height = max(60, $headerHeight);
+        $text = DocumentAppearance::contrast($bannerColor);
+
+        return '<div class="layout-elements layout-elements-header" style="position:relative;height:'.$height.'px;margin:0 0 12px 0;background:'.$bannerColor.';color:'.$text.';">'.$html.'</div>';
     }
 
     /**
@@ -213,7 +425,11 @@ class DocumentLayoutElements
             default => '0',
         };
         $wrapper = sprintf('width:%d%%;margin:%s;text-align:%s;', $element['width'], $margin, $align);
+        $family = self::FONT_FAMILIES[$element['font_family'] ?? 'default'] ?? '';
+        $family = $family !== '' ? 'font-family:'.str_replace('"', "'", $family).';' : '';
         $color = $banner && $element['color'] === '#111827' ? 'inherit' : $element['color'];
+        $textExtras = 'line-height:'.($element['line_height'] ?? 1.35).';'
+            .'text-decoration:'.(! empty($element['underline']) ? 'underline' : 'none').';';
 
         switch ($element['type']) {
             case 'image':
@@ -229,6 +445,114 @@ class DocumentLayoutElements
             case 'spacer':
                 return '<div style="height:'.$element['height'].'px;"></div>';
 
+            case 'table':
+                if ($element['cells'] !== null) {
+                    $html = '<table style="'.$wrapper.'border-collapse:collapse;table-layout:fixed;"><tbody>';
+                    $border = $element['border'] ? '1px solid '.$element['border_color'] : 'none';
+                    foreach ($element['cells'] as $rowIndex => $row) {
+                        $html .= '<tr>';
+                        $header = $rowIndex === 0 && $element['header_row'];
+                        $tag = $header ? 'th' : 'td';
+                        $style = $header ? 'background-color:'.($element['label_bg'] ?: '#065f46').';font-weight:700;' : '';
+                        foreach ($row as $cell) {
+                            $html .= '<'.$tag.' style="'.$style.$family.$textExtras.'text-align:'.$align.';font-weight:'.($header || $element['bold'] ? 'bold' : 'normal').';font-style:'.($element['italic'] ? 'italic' : 'normal').';padding:6px 10px;border:'.$border.';font-size:'.$element['font_size'].'px;color:'.($header ? $element['header_color'] : $color).';">'
+                                .e(DocumentTextCase::transform(self::replaceFields($cell, $values), $element['text_case'])).'</'.$tag.'>';
+                        }
+                        $html .= '</tr>';
+                    }
+                    return $html.'</tbody></table>';
+                }
+                $rows = [];
+
+                foreach ($element['items'] as $item) {
+                    $value = trim(self::replaceFields($item['value'], $values));
+                    $label = trim(self::replaceFields($item['label'], $values));
+
+                    if (($value === '' && str_contains($item['value'], '{{')) || ($value === '' && $label === '')) {
+                        continue;
+                    }
+
+                    $rows[] = [$label, $value];
+                }
+
+                if ($rows === []) {
+                    return '';
+                }
+
+                $pairs = $element['columns'] > 3 ? 3 : $element['columns'];
+                $line = $element['border'] ? 'border:1px solid '.$element['border_color'].';' : '';
+                $labelWidth = (int) round($element['label_width'] / $pairs);
+                $valueWidth = (int) round((100 - $element['label_width']) / $pairs);
+                $labelBg = $element['label_bg'] !== '' ? 'background:'.$element['label_bg'].';' : '';
+                $base = sprintf('%sfont-size:%dpx;color:%s;%spadding:6px 10px;vertical-align:middle;%s', $family, $element['font_size'], $color, $textExtras, $line);
+                $case = fn (string $text): string => e(DocumentTextCase::transform($text, $element['text_case']));
+                $html = '<table style="'.$wrapper.'border-collapse:collapse;table-layout:fixed;"><tbody>';
+
+                foreach (array_chunk($rows, $pairs) as $chunk) {
+                    $html .= '<tr>';
+                    for ($i = 0; $i < $pairs; $i++) {
+                        $row = $chunk[$i] ?? ['', ''];
+                        $html .= '<td style="width:'.$labelWidth.'%;font-weight:bold;'.$labelBg.$base.'">'.$case($row[0]).'</td>';
+                        $html .= '<td style="width:'.$valueWidth.'%;font-weight:'.($element['bold'] ? 'bold' : 'normal').';font-style:'.($element['italic'] ? 'italic' : 'normal').';'.$base.'">'.$case($row[1]).'</td>';
+                    }
+                    $html .= '</tr>';
+                }
+
+                return $html.'</tbody></table>';
+
+            case 'company':
+                $rows = [];
+
+                foreach ($element['fields'] as $key) {
+                    $value = trim($values[$key] ?? '');
+
+                    if ($value !== '') {
+                        $rows[] = [self::COMPANY_FIELDS[$key] ?? '', $value];
+                    }
+                }
+
+                if ($rows === []) {
+                    return '';
+                }
+
+                $cell = fn (array $row): string => $element['show_labels']
+                    ? '<span style="opacity:.65;">'.e(DocumentTextCase::transform($row[0], $element['text_case'])).':</span> '.e(DocumentTextCase::transform($row[1], $element['text_case']))
+                    : e(DocumentTextCase::transform($row[1], $element['text_case']));
+                $textStyle = sprintf(
+                    '%sfont-size:%dpx;color:%s;font-weight:%s;font-style:%s;%s',
+                    $family,
+                    $element['font_size'],
+                    $color,
+                    $element['bold'] ? 'bold' : 'normal',
+                    $element['italic'] ? 'italic' : 'normal',
+                    $textExtras,
+                );
+
+                if ($element['layout'] === 'table') {
+                    $border = $element['border'] ? 'border:1px solid '.$color.';' : '';
+                    $html = '<table style="'.$wrapper.'border-collapse:collapse;table-layout:fixed;"><tbody>';
+
+                    foreach (array_chunk($rows, $element['columns']) as $chunk) {
+                        $html .= '<tr>';
+                        foreach ($chunk as $row) {
+                            $html .= '<td style="'.$textStyle.$border.'padding:4px 8px;vertical-align:top;">'.$cell($row).'</td>';
+                        }
+                        for ($i = count($chunk); $i < $element['columns']; $i++) {
+                            $html .= '<td style="'.$border.'padding:4px 8px;"></td>';
+                        }
+                        $html .= '</tr>';
+                    }
+
+                    return $html.'</tbody></table>';
+                }
+
+                $html = '';
+                foreach ($rows as $row) {
+                    $html .= '<div style="'.$wrapper.$textStyle.'padding:1px 0;">'.$cell($row).'</div>';
+                }
+
+                return $html;
+
             case 'date':
                 $content = now()->format('F j, Y');
                 break;
@@ -242,13 +566,26 @@ class DocumentLayoutElements
         }
 
         $style = sprintf(
-            '%sfont-size:%dpx;color:%s;font-weight:%s;font-style:%s;padding:2px 0;line-height:1.35;',
+            '%s%sfont-size:%dpx;color:%s;font-weight:%s;font-style:%s;padding:2px 0;%s',
             $wrapper,
+            $family,
             $element['font_size'],
             $color,
             $element['bold'] ? 'bold' : 'normal',
             $element['italic'] ? 'italic' : 'normal',
+            $textExtras,
         );
+
+        if ($element['type'] === 'text' && in_array($element['list_style'] ?? 'none', ['bullet', 'numbered'], true)) {
+            $tag = $element['list_style'] === 'numbered' ? 'ol' : 'ul';
+            $list = $tag === 'ol' ? 'decimal' : 'disc';
+            $items = array_map(
+                fn (string $line): string => '<li style="padding:2px 0;">'.e(DocumentTextCase::transform($line, $element['text_case'])).'</li>',
+                preg_split('/\r?\n/', $content),
+            );
+
+            return '<div style="'.$style.'padding:0;"><'.$tag.' style="margin:0;padding-left:20px;list-style-type:'.$list.';">'.implode('', $items).'</'.$tag.'></div>';
+        }
 
         $content = DocumentTextCase::transform($content, $element['text_case']);
 
@@ -262,16 +599,22 @@ class DocumentLayoutElements
      */
     public static function inject(string $html, array $elements, string $bannerColor = '#065f46', array $values = [], array $zoneColors = []): string
     {
+        $elements = array_values(array_filter(
+            $elements,
+            fn (array $element): bool => in_array($element['zone'] ?? 'header', self::ACTIVE_ZONES, true),
+        ));
+
         if ($elements === []) {
             return $html;
         }
 
-        $header = self::render($elements, 'header', $bannerColor, $values);
+        $header = self::render($elements, 'header', $bannerColor, $values, headerHeight: (int) ($zoneColors['header_height'] ?? self::DEFAULT_HEADER_HEIGHT));
         $footer = self::render($elements, 'footer', values: $values, background: $zoneColors['footer'] ?? '');
         $body = self::render($elements, 'body', values: $values, background: $zoneColors['body'] ?? '');
+        $intro = self::render($elements, 'intro', values: $values);
 
         if ($body !== '') {
-            $replacement = $header.$body.$footer;
+            $replacement = $header.$intro.$body.$footer;
             $count = 0;
             $html = preg_replace_callback(
                 '/(<body\b[^>]*>).*(<\/body>)/is',
@@ -282,6 +625,17 @@ class DocumentLayoutElements
             ) ?? $html;
 
             return $count > 0 ? $html : $html.$replacement;
+        }
+
+        $introPlaced = false;
+
+        if ($intro !== '') {
+            $end = self::heroEnd($html);
+
+            if ($end !== null) {
+                $html = substr_replace($html, $intro, $end, 0);
+                $introPlaced = true;
+            }
         }
 
         if ($header !== '') {
@@ -298,11 +652,28 @@ class DocumentLayoutElements
             if ($count === 0) {
                 $html = preg_replace_callback(
                     '/<body\b[^>]*>/i',
-                    fn (array $match): string => $match[0].$header,
+                    fn (array $match): string => $match[0].$header.($introPlaced ? '' : $intro),
                     $html,
                     1,
                 ) ?? $html;
             }
+        }
+
+        if ($header === '') {
+            $html = preg_replace('/<\/head>/i', '<style>.hero{display:none!important}</style></head>', $html, 1, $hidden) ?? $html;
+
+            if ($hidden === 0) {
+                $html = '<style>.hero{display:none!important}</style>'.$html;
+            }
+        }
+
+        if ($header === '' && $intro !== '' && ! $introPlaced) {
+            $html = preg_replace_callback(
+                '/<body\b[^>]*>/i',
+                fn (array $match): string => $match[0].$intro,
+                $html,
+                1,
+            ) ?? $html;
         }
 
         if ($footer !== '') {
@@ -313,5 +684,22 @@ class DocumentLayoutElements
         }
 
         return $html;
+    }
+
+    private static function heroEnd(string $html): ?int
+    {
+        if (preg_match('/<div\s+class="hero"[^>]*>/i', $html, $start, PREG_OFFSET_CAPTURE) !== 1) {
+            return null;
+        }
+
+        $depth = 1;
+        $offset = $start[0][1] + strlen($start[0][0]);
+
+        while ($depth > 0 && preg_match('/<(\/?)div\b[^>]*>/i', $html, $tag, PREG_OFFSET_CAPTURE, $offset) === 1) {
+            $depth += $tag[1][0] === '/' ? -1 : 1;
+            $offset = $tag[0][1] + strlen($tag[0][0]);
+        }
+
+        return $depth === 0 ? $offset : null;
     }
 }
