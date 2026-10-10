@@ -1,4 +1,9 @@
-export type PrintLayoutElement = {
+import { PRINT_LAYOUT_WIDTH, printLayoutTextCase, tableStripeColor, tableTextStyle, type TableStriping, type TextCaseState } from '@/lib/printLayoutGeometry';
+import { resolveLayoutTableFields } from '@/lib/printLayoutTableFields';
+import { layoutColumnWidths } from '@/lib/printLayoutGeometry';
+import { layoutPages, pdfTextFont, pdfTextLines, pdfTextLineHeight, pdfRunText, pdfRunY, type PdfLayoutElement } from '@/lib/printLayoutPdf';
+
+export type PrintLayoutElement = TableStriping & PdfLayoutElement & {
     id: string;
     type: string;
     zone?: string;
@@ -10,6 +15,7 @@ export type PrintLayoutElement = {
     underline?: boolean;
     line_height?: number;
     list_style?: 'none' | 'bullet' | 'numbered';
+    validity_days?: 30 | 60 | 90;
     color?: string;
     fields?: string[];
     show_labels?: boolean;
@@ -39,8 +45,14 @@ export type PrintLayoutOption = {
     headerHeight?: number;
     headerBackground?: string;
     tableHeaderBackground?: string;
+    textCase?: string;
+    version?: string;
 };
 
+export type PrintLayoutCatalog = {
+    printLayouts: PrintLayoutOption[];
+    assignedPrintLayoutId?: number | null;
+};
 export type LayoutSection = {
     id: string;
     label: string;
@@ -56,25 +68,15 @@ export type LayoutSection = {
 };
 
 const COMPANY_LABELS: Record<string, string> = {
-    company_name: 'Company name',
-    company_legal_name: 'Legal name',
-    company_address: 'Address',
-    company_phone: 'Phone',
-    company_contact_phone: 'Contact phone',
-    company_email: 'Email',
-    company_website: 'Website',
-    company_contact_url: 'Contact page',
-};
-
-const FONT_STACKS: Record<string, string> = {
-    helvetica: 'Helvetica, Arial, sans-serif',
-    arial: 'Arial, Helvetica, sans-serif',
-    verdana: 'Verdana, Geneva, sans-serif',
-    tahoma: 'Tahoma, Geneva, sans-serif',
-    trebuchet: '"Trebuchet MS", Helvetica, sans-serif',
-    georgia: 'Georgia, serif',
-    times: '"Times New Roman", Times, serif',
-    courier: '"Courier New", Courier, monospace',
+    company_name: 'name',
+    company_speciality: 'speciality',
+    company_legal_name: 'legal name',
+    company_address: 'address',
+    company_phone: 'phone',
+    company_contact_phone: 'contact phone',
+    company_email: 'email',
+    company_website: 'website',
+    company_contact_url: 'contact page',
 };
 
 // Layout merge fields mapped to the bid text editor's placeholder keys.
@@ -88,6 +90,9 @@ const EDITOR_KEYS: Record<string, string> = {
     bid_date: 'today',
     generated_date: 'today',
     generated_by: 'authorized_representative',
+    validity_30: 'validity_30',
+    validity_60: 'validity_60',
+    validity_90: 'validity_90',
 };
 
 const escapeHtml = (text: string) =>
@@ -97,52 +102,41 @@ const escapeHtml = (text: string) =>
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
 
-const applyCase = (text: string, mode?: string) => {
-    if (mode === 'uppercase') {
-        return text.toUpperCase();
-    }
-
-    if (mode === 'lowercase') {
-        return text.toLowerCase();
-    }
-
-    if (mode === 'camel') {
-        return text.replace(
-            /\w\S*/g,
-            (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase(),
-        );
-    }
-
-    return text;
-};
+const applyCase = printLayoutTextCase;
 
 // Known values are written as real text; project fields stay live placeholders.
 const resolve = (
     text: string,
     literals: Record<string, string>,
     mode?: string,
+    fieldKeys: Record<string, string> = EDITOR_KEYS,
+    caseState: TextCaseState = { hasWord: false, capitalizeNext: false },
 ) => {
     let out = '';
     let last = 0;
-    const pattern = /\{\{\s*([a-z_]+)\s*\}\}/g;
+    const pattern = /\{\{\s*([a-z0-9_]+)\s*\}\}/g;
     let match: RegExpExecArray | null;
 
     while ((match = pattern.exec(text)) !== null) {
-        out += escapeHtml(applyCase(text.slice(last, match.index), mode));
+        out += escapeHtml(applyCase(text.slice(last, match.index), mode, caseState));
         last = match.index + match[0].length;
 
         const key = match[1];
 
         if (Object.prototype.hasOwnProperty.call(literals, key)) {
-            out += escapeHtml(applyCase(literals[key], mode));
-        } else if (EDITOR_KEYS[key]) {
-            out += `{{${EDITOR_KEYS[key]}}}`;
+            out += escapeHtml(applyCase(literals[key], mode, caseState));
         } else {
-            out += escapeHtml(match[0]);
+            const fieldKey = fieldKeys[key] ?? key;
+            const token = `{{${fieldKey}}}`;
+            out += mode && ['camel', 'uppercase', 'lowercase'].includes(mode)
+                ? `<span data-bid-field="${escapeHtml(fieldKey)}" data-text-case="${mode}">${token}</span>`
+                : token;
+            caseState.hasWord = true;
+            caseState.capitalizeNext = false;
         }
     }
 
-    return out + escapeHtml(applyCase(text.slice(last), mode));
+    return out + escapeHtml(applyCase(text.slice(last), mode, caseState));
 };
 
 const plain = (html: string) => html.replace(/\{\{[^}]*\}\}/g, 'x').replace(/&[a-z]+;/g, 'x');
@@ -165,40 +159,35 @@ const wrap = (html: string, element: PrintLayoutElement) => {
 };
 
 const paragraphStyle = (element: PrintLayoutElement, align = true) => {
-    const rules: string[] = ['margin-top: 0px', 'margin-bottom: 0px', `line-height: ${element.line_height ?? 1.35}`];
-    if (element.type === 'text' || element.type === 'date') {
-        rules.push('padding-top: 2px', 'padding-bottom: 2px');
+    const rules: string[] = [
+        'margin-top: 0px', 'margin-bottom: 0px',
+        `line-height: ${pdfTextLineHeight(element)}`,
+        `font-size: ${element.font_size ?? 12}px`,
+        `font-family: ${pdfTextFont(element)}`,
+    ];
+    if (['text', 'date', 'validity'].includes(element.type)) {
+        rules.push(`padding-top: ${element.pdf_page ? 0 : 2}px`, `padding-bottom: ${element.pdf_page ? 0 : 2}px`, `white-space: ${element.pdf_page ? 'pre' : 'pre-line'}`);
     } else if (element.type === 'company' && element.layout !== 'table') {
         rules.push('padding-top: 1px', 'padding-bottom: 1px');
-    }
-
-    if (element.font_size) {
-        rules.push(`font-size: ${element.font_size}px`);
-    }
-
-    const family = FONT_STACKS[element.font_family ?? ''];
-
-    if (family) {
-        rules.push(`font-family: ${family}`);
     }
 
     if (element.color) {
         rules.push(`color: ${element.color}`);
     }
+    if (element.pdf_font_src) rules.push('font-synthesis: none');
 
-    if (align && element.align && element.align !== 'left') {
-        rules.push(`text-align: ${element.align}`);
+    if (align) {
+        rules.push(`text-align: ${element.align ?? 'left'}`);
     }
-    if (element.text_case && ['uppercase', 'lowercase', 'camel'].includes(element.text_case)) {
-        const transform = element.text_case === 'camel' ? 'capitalize' : element.text_case;
-        rules.push(`text-transform: ${transform}`);
+    if (element.text_case && ['uppercase', 'lowercase'].includes(element.text_case)) {
+        rules.push(`text-transform: ${element.text_case}`);
     }
 
     return rules.length > 0 ? ` style="${escapeHtml(rules.join('; '))}"` : '';
 };
 
 const paragraph = (html: string, element: PrintLayoutElement, align = true) =>
-    `<p${paragraphStyle(element, align)}>${wrap(html.replace(/\r?\n/g, '<br>'), element)}</p>`;
+    `<p${element.text_case && ['camel', 'uppercase', 'lowercase'].includes(element.text_case) ? ` data-editor-text-case="${element.text_case}"` : ''}${element.pdf_font_src ? ` data-pdf-font-src="${escapeHtml(element.pdf_font_src)}"` : ''}${paragraphStyle(element, align)}>${wrap((html || (element.pdf_page ? '&nbsp;' : '')).replace(/\r?\n/g, '<br>'), element)}</p>`;
 
 const preview = (text: string) => {
     const clean = text.replace(/\{\{\s*([a-z_]+)\s*\}\}/g, '[$1]').trim();
@@ -206,7 +195,7 @@ const preview = (text: string) => {
     return clean.length > 34 ? `${clean.slice(0, 34)}…` : clean;
 };
 
-const pageWidthPx = 700;
+const pageWidthPx = PRINT_LAYOUT_WIDTH;
 
 type Built = LayoutSection & { y: number; x: number; w: number; h: number };
 
@@ -214,6 +203,7 @@ function build(
     element: PrintLayoutElement,
     index: number,
     literals: Record<string, string>,
+    fieldKeys?: Record<string, string>,
 ): Built | null {
     const id = element.id || String(index);
     const base = {
@@ -224,42 +214,70 @@ function build(
         h: 24,
     };
 
-    if (element.type === 'text' || element.type === 'date') {
+    if (element.type === 'text' || element.type === 'date' || element.type === 'validity') {
+        const runCaseStates: Record<number, TextCaseState> = {};
         const html = resolve(
-            element.type === 'date' ? '{{generated_date}}' : element.content ?? '',
+            element.type === 'validity' ? `{{validity_${element.validity_days ?? 30}}}`
+                : element.type === 'date' ? '{{generated_date}}' : element.content ?? '',
             literals,
             element.text_case,
+            fieldKeys,
         );
 
-        if (plain(html).trim() === '') {
+        if (plain(html).trim() === '' && !element.pdf_page) {
             return null;
         }
 
         return {
             ...base,
-            h: Math.round((element.font_size ?? 12) * (element.line_height ?? 1.5) * (element.content?.split(/\r?\n/).length ?? 1)),
+            h: element.pdf_page ? element.height ?? 24 : Math.round((element.font_size ?? 12) * (element.line_height ?? 1.5) * (element.content?.split(/\r?\n/).length ?? 1)),
             label: `Text: ${preview(element.content ?? '')}`,
             html: element.type === 'text' && element.list_style && element.list_style !== 'none'
                 ? (() => {
                     const tag = element.list_style === 'numbered' ? 'ol' : 'ul';
-                    const list = element.list_style === 'numbered' ? 'decimal' : 'disc';
+                    const list = element.list_style === 'numbered' ? 'decimal' : element.pdf_bullet_style ?? 'disc';
                     const itemStyle = paragraphStyle({ ...element, type: 'listItem' });
-                    return `<${tag} style="margin: 0; padding-left: 20px; list-style-type: ${list}">${html.split(/\r?\n/).map((line) => `<li${itemStyle}>${paragraph(line || '&nbsp;', element)}</li>`).join('')}</${tag}>`;
+                    const lines = pdfTextLines(element.content ?? '', element)
+                        .map((line) => resolve(line, literals, element.text_case, fieldKeys));
+                    return `<${tag} style="margin: 0; padding-left: 20px; list-style-type: ${list}">${lines.map((line) => `<li${itemStyle}>${paragraph(line || '&nbsp;', element)}</li>`).join('')}</${tag}>`;
                 })()
-                : paragraph(html, element),
+                : element.pdf_text_runs?.length ? element.pdf_text_runs.map((run, index) => {
+                    const lines = pdfTextLines(element.content ?? '', element);
+                    const text = resolve(pdfRunText(lines, element.pdf_text_runs!, index), literals, element.text_case, fieldKeys,
+                        runCaseStates[run.line] ??= { hasWord: false, capitalizeNext: false });
+                    const y = pdfRunY(run, element);
+                    return `<div data-position-item="true" data-x="${run.x}" data-y="${y}" data-width="${run.width}" data-height="${run.height}" style="position:absolute;left:${run.x}px;top:${y}px;width:${run.width}px;min-height:${run.height}px;">${paragraph(text, { ...element, ...run, pdf_line_spacing: undefined, line_height: 1 })}</div>`;
+                }).join('')
+                : paragraph(pdfTextLines(html, element).join('\n'), element),
         };
     }
 
     if (element.type === 'table') {
+        const widths = layoutColumnWidths(element);
+        const innerWidth = pageWidthPx * (element.width ?? 100) / 100 - (element.border ? 1 : 0);
         if (element.cells) {
             return {
                 ...base,
-                h: element.cells.length * 32,
+                h: element.row_heights?.length === element.cells.length ? element.row_heights.reduce((sum, height) => sum + height, 0) : element.cells.length * 32,
                 label: `Table (${element.cells.length} rows)`,
-                html: `<table><tbody>${element.cells.map((row, index) => `<tr>${row.map((cell) => {
+                html: `<table${element.table_background ? ` style="background-color:${escapeHtml(element.table_background)}"` : ''}><tbody>${element.cells.map((row, index) => `<tr${element.row_heights?.[index] ? ` style="height:${element.row_heights[index]}px"` : ''}>${row.map((cell, column) => {
+                    const span = element.cell_spans?.[index]?.[column];
+                    if (span && (!span.rows || !span.columns)) return '';
                     const header = index === 0 && element.header_row;
                     const tag = header ? 'th' : 'td';
-                    return `<${tag}>${paragraph(resolve(cell, literals, element.text_case), header ? { ...element, bold: true, color: element.header_color || '#ffffff' } : element)}</${tag}>`;
+                    const background = header ? element.label_bg || '#065f46'
+                        : tableStripeColor(element, index - (element.header_row ? 1 : 0), column, index);
+                    const style = { ...element, ...tableTextStyle(element, index, column, !!header) };
+                    const css = [
+                        `width: ${innerWidth * widths.slice(column, column + (span?.columns ?? 1)).reduce((sum, value) => sum + value, 0) / 100}px`,
+                        ...(element.row_heights?.[index] ? [`height: ${element.row_heights[index]}px`, 'padding: 2px 6px'] : []),
+                        ...(background ? [`background-color: ${background}`] : []),
+                        ...(header ? ['font-weight: normal'] : []),
+                    ].join('; ');
+                    const borders = element.border ? element.cell_borders?.[index]?.[column] : undefined;
+                    const borderCss = borders ? Object.entries(borders).map(([side, value]) => `border-${side}:${value}`).join(';') : '';
+                    const colwidth = widths.slice(column, column + (span?.columns ?? 1)).map(width => Math.max(1, Math.round(innerWidth * width / 100))).join(',');
+                    return `<${tag} data-layout-column="${column}" colwidth="${colwidth}"${span ? ` colspan="${span.columns}" rowspan="${span.rows}"` : ''} style="${css};${borderCss}">${paragraph(resolve(cell, literals, style.text_case, fieldKeys) || '&nbsp;', style)}</${tag}>`;
                 }).join('')}</tr>`).join('')}</tbody></table><p></p>`,
                 table: {
                     borderless: !element.border, borderColor: element.border_color || '#cbd5e1', labelBackground: '',
@@ -269,9 +287,10 @@ function build(
             };
         }
         const rows = (element.items ?? [])
-            .map((item) => ({
-                label: resolve(item.label, literals, element.text_case).trim(),
-                value: resolve(item.value, literals, element.text_case).trim(),
+            .map((item, index) => ({
+                index,
+                label: resolve(item.label, literals, tableTextStyle(element, index, 0, false, true, 0).text_case, fieldKeys).trim(),
+                value: resolve(item.value, literals, tableTextStyle(element, index, 1, false, false, 1).text_case, fieldKeys).trim(),
             }))
             .filter((row) => plain(row.value) !== '' || plain(row.label) !== '');
 
@@ -279,7 +298,7 @@ function build(
             return null;
         }
 
-        const pairs = Math.min(3, Math.max(1, element.columns ?? 1));
+        const pairs = Math.min(3, Math.max(1, element.columns ?? 2));
         const font = element.font_size ?? 12;
         const body = Array.from(
             { length: Math.ceil(rows.length / pairs) },
@@ -288,11 +307,14 @@ function build(
                     const row = rows[rowIndex * pairs + col] ?? {
                         label: '',
                         value: '',
+                        index: -1,
                     };
 
-                    const labelWidth = Math.round(pageWidthPx * (element.width ?? 100) / 100 / pairs * (element.label_width ?? 30) / 100);
-                    const valueWidth = Math.round(pageWidthPx * (element.width ?? 100) / 100 / pairs) - labelWidth;
-                    return `<td style="width: ${labelWidth}px">${paragraph(row.label, { ...element, bold: true }, false)}</td><td style="width: ${valueWidth}px">${paragraph(row.value, element)}</td>`;
+                    const labelWidth = innerWidth * widths[col * 2] / 100;
+                    const valueWidth = innerWidth * widths[col * 2 + 1] / 100;
+                    const labelColor = tableStripeColor(element, rowIndex, col * 2) ?? element.label_bg;
+                    const valueColor = tableStripeColor(element, rowIndex, col * 2 + 1);
+                    return `<td style="width: ${labelWidth}px; background-color: ${labelColor || 'transparent'}">${paragraph(row.label || '&nbsp;', { ...element, ...tableTextStyle(element, row.index, col * 2, false, true, 0) })}</td><td style="width: ${valueWidth}px; background-color: ${valueColor || 'transparent'}">${paragraph(row.value || '&nbsp;', { ...element, ...tableTextStyle(element, row.index, col * 2 + 1, false, false, 1) })}</td>`;
                 }).join('')}</tr>`,
         ).join('');
 
@@ -310,7 +332,7 @@ function build(
     }
 
     if (element.type === 'company') {
-        const keys = (element.fields ?? []).filter((key) => literals[key]);
+        const keys = (element.fields ?? ['company_name', 'company_address', 'company_phone', 'company_email']).filter((key) => literals[key]?.trim());
 
         if (keys.length === 0) {
             return null;
@@ -320,10 +342,10 @@ function build(
             const value = escapeHtml(applyCase(literals[key], element.text_case));
 
             return paragraph(
-                element.show_labels === false
+                !element.show_labels
                     ? value
-                    : `${escapeHtml(COMPANY_LABELS[key] ?? key)}: ${value}`,
-                element,
+                    : `<span style="opacity: 0.65">${escapeHtml(applyCase(COMPANY_LABELS[key] ?? key, element.text_case))}: </span>${value}`,
+                element.layout === 'table' ? { ...element, type: 'companyCell' } : element,
             );
         });
 
@@ -363,7 +385,7 @@ function build(
             ...base,
             h: Math.round(width * 0.6),
             label: 'Image',
-            html: `<div data-rich-image="true" style="${margin}width: ${width}px"><img src="${escapeHtml(element.src)}" alt="" style="width: 100%; height: auto; max-width: 100%;"><div data-image-caption="true"><p>&nbsp;</p></div></div>`,
+            html: `<div data-rich-image="true" style="${margin}width: ${width}px"><img src="${escapeHtml(element.src)}" alt="" style="width: 100%; height: auto; max-width: 100%;"><div data-image-caption="true"><p></p></div></div>`,
         };
     }
 
@@ -372,12 +394,12 @@ function build(
             ...base,
             h: (element.height ?? 2) + 12,
             label: 'Divider line',
-            html: `<hr style="border-top: ${element.height ?? 1}px solid ${element.color || '#111827'}">`,
+            html: `<hr style="border-top: ${element.height ?? 1}px solid ${element.color || '#111827'}; margin-top: 6px; margin-bottom: 6px">`,
         };
     }
 
     if (element.type === 'spacer') {
-        return { ...base, h: element.height ?? 24, label: 'Spacer', html: '<p></p>' };
+        return { ...base, h: element.height ?? 24, label: 'Spacer', html: '<p style="font-size: 0px; line-height: 0; margin: 0"></p>' };
     }
 
     return null;
@@ -389,37 +411,59 @@ const overlapsX = (a: Built, b: Built) =>
 export function positionedLayoutSections(
     layout: PrintLayoutOption,
     literals: Record<string, string>,
+    fieldKeys?: Record<string, string>,
+    pdfPage = false,
 ): LayoutSection[] {
+    if (!pdfPage && layout.elements.some((element) => element.pdf_page)) {
+        return layoutPages(layout.elements, layout.headerHeight ?? 160).flatMap((page, index) =>
+            positionedLayoutSections({ ...layout, elements: page.elements, headerHeight: page.height }, literals, fieldKeys, true)
+                .map((section) => ({
+                    ...section, id: `${section.id}-${page.id}`, label: `${layout.name} — page ${index + 1}`,
+                    html: section.html.replace('data-position-canvas="true"', 'data-position-canvas="true" data-pdf-page="true"'),
+                })));
+    }
     const children: string[] = [];
-    let bottom = layout.headerHeight ?? 160;
+    const bottom = layout.headerHeight ?? 160;
     layout.elements.forEach((element, index) => {
         if (element.zone && element.zone !== 'header') {
             return;
         }
-        const item = build(element, index, literals);
+        const item = build({
+            ...element,
+            content: element.type === 'text' ? resolveLayoutTableFields(element.content ?? '', layout.elements) : element.content,
+            text_case: element.text_case,
+        }, index, literals, fieldKeys);
         if (!item) {
             return;
         }
         const parsed = new DOMParser().parseFromString(item.html, 'text/html');
         const settings = item.table;
         if (settings) {
-            parsed.querySelectorAll('tr').forEach((row) => {
+            parsed.querySelectorAll('tr').forEach((row, rowIndex) => {
                 Array.from(row.children).forEach((cell, column) => {
                     if (!(cell instanceof HTMLElement)) {
                         return;
                     }
-                    cell.style.border = settings.borderless ? 'none' : `1px solid ${settings.borderColor}`;
-                    cell.style.padding = element.type === 'company' ? '4px 8px' : '6px 10px';
+                    column = Number(cell.dataset.layoutColumn ?? column);
+                    delete cell.dataset.layoutColumn;
+                    if (settings.borderless || !cell.style.borderTop) cell.style.border = settings.borderless ? 'none' : `1px solid ${settings.borderColor}`;
+                    cell.style.padding = element.type === 'company' ? '4px 8px' : element.row_heights?.length ? '2px 6px' : '6px 10px';
                     cell.style.verticalAlign = element.type === 'company' ? 'top' : 'middle';
                     cell.style.backgroundColor = 'transparent';
                     if (!cell.style.width) {
-                        cell.style.width = `${Math.round(item.w * pageWidthPx / 100 / row.children.length)}px`;
+                        // ProseMirror column widths exclude the collapsed outer border.
+                        const innerWidth = item.w * pageWidthPx / 100 - (settings.borderless ? 0 : 1);
+                        cell.style.width = `${innerWidth / row.children.length}px`;
                     }
                     if (cell.tagName === 'TH') {
                         cell.style.backgroundColor = settings.headerBackground ?? '';
                         cell.style.color = settings.headerColor ?? '';
                     } else if (column % 2 === 0 && settings.labelBackground) {
                         cell.style.backgroundColor = settings.labelBackground;
+                    }
+                    if (cell.tagName !== 'TH' && element.type === 'table') {
+                        const color = tableStripeColor(element, rowIndex - (element.cells && element.header_row ? 1 : 0), column, rowIndex);
+                        if (color) cell.style.backgroundColor = color;
                     }
                 });
             });
@@ -436,9 +480,8 @@ export function positionedLayoutSections(
             .join('');
         const x = Number((item.x * pageWidthPx / 100).toFixed(2));
         const width = Number((item.w * pageWidthPx / 100).toFixed(2));
-        bottom = Math.max(bottom, item.y + item.h);
-        const height = element.type === 'spacer' ? element.height ?? 24 : 0;
-        children.push(`<div data-position-item="true" data-x="${x}" data-y="${item.y}" data-width="${width}" data-height="${height}" style="position: absolute; left: ${x}px; top: ${item.y}px; width: ${width}px; min-height: ${height}px">${content || '<p></p>'}</div>`);
+        const height = element.type === 'spacer' || element.pdf_page ? element.height ?? 24 : 0;
+        children.push(`<div data-position-item="true"${element.pdf_background ? ' data-pdf-background="true"' : ''} data-x="${x}" data-y="${item.y}" data-width="${width}" data-height="${height}" style="position: absolute; left: ${x}px; top: ${item.y}px; width: ${width}px; min-height: ${height}px">${content || '<p></p>'}</div>`);
     });
     if (!children.length) {
         return [];
@@ -453,6 +496,7 @@ export function positionedLayoutSections(
 export function layoutSections(
     elements: PrintLayoutElement[],
     literals: Record<string, string> = {},
+    fieldKeys?: Record<string, string>,
 ): LayoutSection[] {
     const built = elements
         .filter((element) => {
@@ -460,7 +504,10 @@ export function layoutSections(
 
             return !zone || zone === 'header';
         })
-        .map((element, index) => build(element, index, literals))
+        .map((element, index) => build({
+            ...element,
+            content: element.type === 'text' ? resolveLayoutTableFields(element.content ?? '', elements) : element.content,
+        }, index, literals, fieldKeys))
         .filter((item): item is Built => item !== null)
         .sort((a, b) => a.y - b.y || a.x - b.x);
 

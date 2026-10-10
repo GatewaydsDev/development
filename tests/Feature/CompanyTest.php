@@ -13,6 +13,7 @@ test('administrators can view the company page', function () {
 
     Company::create([
         'name' => 'Gateway Door Systems',
+        'speciality' => 'Specialized door systems',
         'phone_number' => '555-1000',
         'contact_phone_number' => '555-2000',
     ]);
@@ -23,6 +24,7 @@ test('administrators can view the company page', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->component('Admin/Company/Show')
             ->where('company.name', 'Gateway Door Systems')
+            ->where('company.speciality', 'Specialized door systems')
             ->where('company.contact_phone_number', '555-2000')
             ->where('company.logo_url', null)
         );
@@ -44,6 +46,7 @@ test('administrators can create the company record', function () {
     $this->actingAs($user)
         ->post(route('admin.company.store'), [
             'name' => 'Gateway Door Systems',
+            'speciality' => 'Specialized door systems',
             'legal_name' => 'Gateway Door Systems LLC',
             'email' => 'info@gatewaydoors.test',
             'phone_number' => '555-1000',
@@ -62,6 +65,7 @@ test('administrators can create the company record', function () {
 
     $this->assertDatabaseHas('companies', [
         'name' => 'Gateway Door Systems',
+        'speciality' => 'Specialized door systems',
         'contact_phone_number' => '555-2000',
     ]);
 });
@@ -77,6 +81,7 @@ test('administrators can update the company record', function () {
     $this->actingAs($user)
         ->patch(route('admin.company.update', $company), [
             'name' => 'Gateway Door Systems Updated',
+            'speciality' => 'Custom commercial doors',
             'legal_name' => 'Gateway Door Systems LLC',
             'email' => 'service@gatewaydoors.test',
             'phone_number' => '555-3000',
@@ -97,8 +102,28 @@ test('administrators can update the company record', function () {
     $this->assertDatabaseHas('companies', [
         'id' => $company->id,
         'name' => 'Gateway Door Systems Updated',
+        'speciality' => 'Custom commercial doors',
         'contact_phone_number' => '555-4000',
     ]);
+});
+
+test('company speciality is optional and limited to 255 characters', function () {
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::ADMINISTRATOR]);
+    $user = User::factory()->create(['level_id' => $level->id]);
+    $company = Company::create(['name' => 'Company', 'speciality' => 'Original speciality']);
+
+    $this->actingAs($user)->patch(route('admin.company.update', $company), [
+        'name' => 'Company', 'speciality' => str_repeat('x', 256),
+    ])->assertSessionHasErrors('speciality');
+    expect($company->fresh()->speciality)->toBe('Original speciality');
+    $this->patch(route('admin.company.update', $company), [
+        'name' => 'Company', 'speciality' => str_repeat('x', 255),
+    ])->assertSessionHasNoErrors();
+    expect($company->fresh()->speciality)->toBe(str_repeat('x', 255));
+    $this->patch(route('admin.company.update', $company), [
+        'name' => 'Company', 'speciality' => '',
+    ])->assertSessionHasNoErrors();
+    expect($company->fresh()->speciality)->toBeNull();
 });
 
 test('administrators can upload a company logo', function () {

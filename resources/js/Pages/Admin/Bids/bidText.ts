@@ -1,3 +1,12 @@
+export const QUOTATION_TEXT_FIELDS = [
+    { key: 'quotation_number', label: 'Quotation number', group: 'Quotation' },
+    { key: 'quotation_title', label: 'Quotation title', group: 'Quotation' },
+    { key: 'quoted_on', label: 'Quoted on', group: 'Quotation' },
+    { key: 'valid_until', label: 'Valid until', group: 'Quotation' },
+    { key: 'base_bid_total', label: 'Base Bid total', group: 'Quotation' },
+    { key: 'latest_revision', label: 'Latest revision', group: 'Quotation' },
+] as const;
+
 export const BID_TEXT_PLACEHOLDERS = [
     {
         key: 'materials',
@@ -56,8 +65,12 @@ export const BID_TEXT_PLACEHOLDERS = [
     },
     { key: 'project_name', label: 'Project name', group: 'Project' },
     { key: 'project_number', label: 'Project number', group: 'Project' },
-    { key: 'customer_name', label: 'Contractor contact', group: 'Project' },
-    { key: 'customer_company', label: 'Contractor company', group: 'Project' },
+    { key: 'customer_name', label: 'Contractor contact', group: 'Contractor' },
+    { key: 'customer_company', label: 'Contractor company', group: 'Contractor' },
+    { key: 'contractor_email', label: 'Contractor email', group: 'Contractor' },
+    { key: 'contractor_phone', label: 'Contractor phone', group: 'Contractor' },
+    { key: 'contractor_address', label: 'Contractor address', group: 'Contractor' },
+    { key: 'contractor_website', label: 'Contractor website', group: 'Contractor' },
     { key: 'project_address', label: 'Project address', group: 'Project' },
     { key: 'scope_of_work', label: 'Scope of work', group: 'Project' },
     {
@@ -71,6 +84,7 @@ export const BID_TEXT_PLACEHOLDERS = [
         group: 'Project',
     },
     { key: 'company_name', label: 'Company name', group: 'Company' },
+    { key: 'company_speciality', label: 'Company speciality', group: 'Company' },
     {
         key: 'company_legal_name',
         label: 'Company legal name',
@@ -80,12 +94,15 @@ export const BID_TEXT_PLACEHOLDERS = [
     { key: 'company_email', label: 'Company email', group: 'Company' },
     { key: 'company_address', label: 'Company address', group: 'Company' },
     { key: 'today', label: "Today's date", group: 'Bid' },
+    { key: 'validity_30', label: 'Validity date (30 days)', group: 'Bid' },
+    { key: 'validity_60', label: 'Validity date (60 days)', group: 'Bid' },
+    { key: 'validity_90', label: 'Validity date (90 days)', group: 'Bid' },
     {
         key: 'authorized_representative',
         label: 'Authorized representative',
         group: 'Bid',
     },
-    { key: 'quotation_number', label: 'Source quotation', group: 'Bid' },
+    ...QUOTATION_TEXT_FIELDS,
 ] as const;
 
 export type BidTextPlaceholderKey =
@@ -102,8 +119,10 @@ export type BidTextPlaceholder = {
 export const BID_TEXT_FIELD_GROUP_ORDER = [
     'Totals on this bid',
     'Project',
+    'Contractor',
     'Company',
     'Bid',
+    'Quotation',
     'Your fields',
 ] as const;
 

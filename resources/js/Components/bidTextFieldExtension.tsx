@@ -8,6 +8,7 @@ import {
 import { cn } from '@/lib/utils';
 import { XIcon } from 'lucide-react';
 import { createContext, useContext } from 'react';
+import { printLayoutTextCase } from '@/lib/printLayoutGeometry';
 
 export const BidTextFieldValuesContext = createContext<Record<string, string>>(
     {},
@@ -16,7 +17,7 @@ export const BidTextFieldValuesContext = createContext<Record<string, string>>(
 function BidTextFieldChip({ node, deleteNode }: NodeViewProps) {
     const values = useContext(BidTextFieldValuesContext);
     const key = String(node.attrs.key ?? '');
-    const value = (values[key] ?? '').trim();
+    const value = printLayoutTextCase((values[key] ?? '').trim(), node.attrs.textCase);
 
     return (
         <NodeViewWrapper
@@ -66,6 +67,13 @@ export const BidTextFieldExtension = Node.create({
                 renderHTML: (attributes) =>
                     attributes.key ? { 'data-bid-field': attributes.key } : {},
             },
+            textCase: {
+                default: 'original',
+                parseHTML: (element) => element.getAttribute('data-text-case') || 'original',
+                renderHTML: (attributes) => ['camel', 'uppercase', 'lowercase'].includes(attributes.textCase)
+                    ? { 'data-text-case': attributes.textCase }
+                    : {},
+            },
         };
     },
 
@@ -110,6 +118,7 @@ export const BidTextFieldExtension = Node.create({
                         from: number;
                         to: number;
                         key: string;
+                        marks: import('@tiptap/pm/model').Node['marks'];
                     }> = [];
                     const pattern = /\{\{\s*([a-z0-9_]+)\s*\}\}/gi;
 
@@ -127,6 +136,7 @@ export const BidTextFieldExtension = Node.create({
                                 from: pos + match.index,
                                 to: pos + match.index + match[0].length,
                                 key: match[1].toLowerCase(),
+                                marks: node.marks,
                             });
                             match = pattern.exec(text);
                         }
@@ -144,7 +154,11 @@ export const BidTextFieldExtension = Node.create({
                         tr = tr.replaceWith(
                             item.from,
                             item.to,
-                            type.create({ key: item.key }),
+                            type.create({
+                                key: item.key,
+                                textCase: item.marks.find(mark => mark.type.name === 'textStyle')?.attrs.textCase
+                                    ?? tr.doc.resolve(tr.mapping.map(item.from)).parent.attrs.editorTextCase ?? 'original',
+                            }, null, item.marks),
                         );
                     }
 

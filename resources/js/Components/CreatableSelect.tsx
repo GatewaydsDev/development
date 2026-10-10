@@ -60,6 +60,7 @@ type CreatableSelectProps = {
     wrapOptions?: boolean;
     menuMinWidth?: number;
     stateInitials?: boolean;
+    showCreateFooter?: boolean;
 };
 
 const nameSchema = z
@@ -106,6 +107,7 @@ export default function CreatableSelect({
     wrapOptions = false,
     menuMinWidth,
     stateInitials = false,
+    showCreateFooter = false,
 }: CreatableSelectProps) {
     const listboxId = useId();
     const containerRef = useRef<HTMLDivElement>(null);
@@ -128,6 +130,7 @@ export default function CreatableSelect({
     const [isSaving, setIsSaving] = useState(false);
     const [pendingName, setPendingName] = useState('');
     const [pendingRate, setPendingRate] = useState('');
+    const [isCreatePrompt, setIsCreatePrompt] = useState(false);
     const [menuStyle, setMenuStyle] = useState<CSSProperties>({
         position: 'fixed',
         visibility: 'hidden',
@@ -190,6 +193,7 @@ export default function CreatableSelect({
     useEffect(() => {
         if (!isOpen) {
             openDirectionRef.current = null;
+            setIsCreatePrompt(false);
             return;
         }
 
@@ -502,7 +506,11 @@ export default function CreatableSelect({
                     autoCapitalize={stateInitials ? 'characters' : undefined}
                     maxLength={stateInitials ? 2 : undefined}
                     size={stateInitials ? 2 : undefined}
-                    placeholder={placeholder}
+                    placeholder={
+                        isCreatePrompt
+                            ? `Type a new ${entityLabel}`
+                            : placeholder
+                    }
                     className={cn(
                         'h-11 w-full min-w-0 border-border bg-background pr-10 text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring',
                         stateInitials && stateInitialsInputClassName,
@@ -672,7 +680,7 @@ export default function CreatableSelect({
                                 </button>
                             );
                         })}
-                        {canCreate ? (
+                        {canCreate && !showCreateFooter ? (
                             <button
                                 id={`${listboxId}-option-${createOptionIndex}`}
                                 type="button"
@@ -700,6 +708,59 @@ export default function CreatableSelect({
                                     : 'No matches found.'}
                             </p>
                         ) : null}
+                        {showCreateFooter && allowCreate && createRoute ? (
+                            <div className="sticky bottom-0 -mb-1 border-t border-border bg-background p-1">
+                                <button
+                                    id={
+                                        canCreate
+                                            ? `${listboxId}-option-${createOptionIndex}`
+                                            : undefined
+                                    }
+                                    type="button"
+                                    role={canCreate ? 'option' : undefined}
+                                    aria-selected={
+                                        canCreate ? false : undefined
+                                    }
+                                    className={cn(
+                                        'flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-sm font-medium text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-950/40',
+                                        canCreate &&
+                                            highlightedIndex ===
+                                                createOptionIndex &&
+                                            'bg-emerald-50 dark:bg-emerald-950/40',
+                                    )}
+                                    onMouseEnter={() => {
+                                        if (canCreate) {
+                                            setHighlightedIndex(
+                                                createOptionIndex,
+                                            );
+                                        }
+                                    }}
+                                    onMouseDown={(event) =>
+                                        event.preventDefault()
+                                    }
+                                    onClick={() => {
+                                        if (canCreate) {
+                                            askToCreate(normalizedQuery);
+                                            return;
+                                        }
+
+                                        setIsCreatePrompt(true);
+                                        setQuery('');
+                                        setHasTyped(true);
+                                        inputRef.current?.focus();
+                                    }}
+                                >
+                                    <PlusIcon className="size-4 shrink-0" />
+                                    <span className="min-w-0 truncate">
+                                        {canCreate
+                                            ? `Add “${normalizedQuery}”`
+                                            : isCreatePrompt
+                                              ? `Type the new ${entityLabel} above`
+                                              : `Add new ${entityLabel}`}
+                                    </span>
+                                </button>
+                            </div>
+                        ) : null}
                     </div>,
                     document.body,
                 )}
@@ -712,6 +773,7 @@ export default function CreatableSelect({
                 }
             />
             {canCreate &&
+            !showCreateFooter &&
             !compact &&
             !isDialogOpen &&
             filtered.length === 0 ? (

@@ -9,6 +9,7 @@ use App\Support\EmployeeAccess;
 use App\Support\ProductAccess;
 use App\Support\ProjectAccess;
 use App\Support\QuotationAccess;
+use App\Support\QuotationRevisionAssignments;
 use App\Support\ServiceAccess;
 use Closure;
 use Illuminate\Http\Request;
@@ -81,6 +82,14 @@ class HandleInertiaRequests extends Middleware
             'session' => [
                 'idleTimeoutMinutes' => max(0, (int) config('session.idle_timeout_minutes')),
             ],
+            'realtime' => fn (): ?array => $request->user() && config('broadcasting.default') === 'reverb' && config('broadcasting.connections.reverb.key')
+                ? [
+                    'key' => config('broadcasting.connections.reverb.key'),
+                    'host' => config('broadcasting.connections.reverb.options.host'),
+                    'port' => (int) config('broadcasting.connections.reverb.options.port'),
+                    'scheme' => config('broadcasting.connections.reverb.options.scheme'),
+                ]
+                : null,
             'auth' => [
                 'user' => $request->user(),
                 'can' => [
@@ -224,6 +233,9 @@ class HandleInertiaRequests extends Middleware
                         'unreadCount' => 0,
                         'latestUnread' => [],
                     ],
+                'revisionAssignments' => fn (): array => $request->user()
+                    ? QuotationRevisionAssignments::pendingFor($request->user())
+                    : ['count' => 0, 'items' => []],
             ],
         ];
     }

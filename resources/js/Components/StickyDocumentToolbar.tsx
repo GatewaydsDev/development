@@ -9,11 +9,13 @@ export default function StickyDocumentToolbar({
     enabled = true,
     scopeRef,
     className,
+    propertiesPanel = false,
 }: {
     children: ReactNode;
     enabled?: boolean;
     scopeRef: RefObject<HTMLDivElement | null>;
     className?: string;
+    propertiesPanel?: boolean;
 }) {
     const anchorRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
@@ -32,6 +34,7 @@ export default function StickyDocumentToolbar({
         const main = anchor.closest('main');
         const nav = document.querySelector('nav.sticky');
         let title = document.querySelector('[data-sticky-page-title]');
+        let pinnedToolbar: Element | null = null;
         let frame = 0;
         const update = () => {
             frame = 0;
@@ -45,12 +48,27 @@ export default function StickyDocumentToolbar({
             }
             const rect = anchor.getBoundingClientRect();
             const mainRect = main?.getBoundingClientRect();
-            const top = Math.max(0, nav?.getBoundingClientRect().bottom ?? 0, title?.getBoundingClientRect().bottom ?? 0);
+            const currentToolbar = propertiesPanel
+                ? document.querySelector('[data-document-toolbar][data-pinned="true"]')
+                : null;
+            if (currentToolbar !== pinnedToolbar) {
+                if (pinnedToolbar) observer.unobserve(pinnedToolbar);
+                pinnedToolbar = currentToolbar;
+                if (pinnedToolbar) observer.observe(pinnedToolbar);
+            }
+            const top = Math.max(
+                0,
+                nav?.getBoundingClientRect().bottom ?? 0,
+                title?.getBoundingClientRect().bottom ?? 0,
+                pinnedToolbar?.getBoundingClientRect().bottom ?? 0,
+            ) + (propertiesPanel ? 8 : 0);
             const left = Math.max(rect.left, mainRect?.left ?? 0, 8);
             const right = Math.min(rect.right, mainRect?.right ?? window.innerWidth, window.innerWidth - 8);
             const height = Math.max(content.scrollHeight, content.getBoundingClientRect().height);
             const scopeBottom = scope.getBoundingClientRect().bottom;
-            const next = rect.top < top && scopeBottom > top + height && right > left
+            const visibleHeight = propertiesPanel ? Math.min(height, Math.max(0, window.innerHeight - top - 24)) : height;
+            const wideEnough = !propertiesPanel || window.matchMedia('(min-width: 1280px)').matches;
+            const next = wideEnough && rect.top < top && scopeBottom > top + visibleHeight && right > left
                 ? { top, left, width: right - left, height }
                 : null;
 
@@ -69,6 +87,7 @@ export default function StickyDocumentToolbar({
         });
         const titleObserver = new MutationObserver(schedule);
         if (main?.parentElement) titleObserver.observe(main.parentElement, { childList: true });
+        if (propertiesPanel) titleObserver.observe(document.body, { childList: true });
         update();
         window.addEventListener('scroll', schedule, { passive: true, capture: true });
         window.addEventListener('resize', schedule);
@@ -79,12 +98,13 @@ export default function StickyDocumentToolbar({
             window.removeEventListener('scroll', schedule, true);
             window.removeEventListener('resize', schedule);
         };
-    }, [enabled, scopeRef, Boolean(position)]);
+    }, [enabled, scopeRef, propertiesPanel, Boolean(position)]);
 
     const toolbar = (
         <div
             ref={contentRef}
-            data-document-toolbar
+            data-document-toolbar={propertiesPanel ? undefined : true}
+            data-document-properties={propertiesPanel ? true : undefined}
             data-pinned={Boolean(position)}
             className={cn(
                 'bg-background',

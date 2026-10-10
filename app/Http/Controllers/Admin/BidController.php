@@ -30,9 +30,8 @@ use App\Support\BidApplicationText;
 use App\Support\BidDocument;
 use App\Support\BidListDocument;
 use App\Support\BidListVersion;
-use App\Support\DocumentAppearance;
-use App\Support\DocumentLayoutElements;
 use App\Support\DocumentLogo;
+use App\Support\PrintLayoutCatalog;
 use App\Support\QuotationAccess;
 use App\Support\QuotationToBid;
 use Illuminate\Database\Eloquent\Builder;
@@ -122,7 +121,7 @@ class BidController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): RedirectResponse|JsonResponse
     {
         abort_unless(BidAccess::canCreate($request->user()), 403);
 
@@ -137,6 +136,7 @@ class BidController extends Controller
                 'bid_shipping_text_template_id' => $validated['bid_shipping_text_template_id'] ?? null,
                 'bid_scope_text_template_id' => $validated['bid_scope_text_template_id'] ?? null,
                 'print_layout_id' => $validated['print_layout_id'] ?? null,
+                'print_layout_version' => $validated['print_layout_version'] ?? null,
                 'include_signature' => $validated['include_signature'] ?? true,
                 'scope_of_work_text' => $this->scopeOfWorkText($validated),
                 'created_by' => $request->user()->id,
@@ -146,6 +146,10 @@ class BidController extends Controller
 
             return $bid;
         });
+
+        if ($request->expectsJson()) {
+            return response()->json(['document' => $this->bidPayload($bid)], 201);
+        }
 
         return redirect()
             ->route('admin.bids.index', ['highlight' => $bid->uuid])
@@ -220,7 +224,7 @@ class BidController extends Controller
         ]);
     }
 
-    public function update(Request $request, Bid $bid): RedirectResponse
+    public function update(Request $request, Bid $bid): RedirectResponse|JsonResponse
     {
         abort_unless(BidAccess::canUpdate($request->user()), 403);
 
@@ -231,16 +235,21 @@ class BidController extends Controller
                 'project_id' => $validated['project_id'],
                 'quotation_id' => $validated['quotation_id'] ?? null,
                 'assigned_to' => $validated['assigned_to'] ?? null,
-                'notes' => $this->shippingText($validated),
+                'notes' => $this->shippingText($validated, $bid),
                 'bid_shipping_text_template_id' => $validated['bid_shipping_text_template_id'] ?? null,
                 'bid_scope_text_template_id' => $validated['bid_scope_text_template_id'] ?? null,
                 'print_layout_id' => $validated['print_layout_id'] ?? null,
+                'print_layout_version' => $validated['print_layout_version'] ?? $bid->print_layout_version,
                 'include_signature' => $validated['include_signature'] ?? $bid->include_signature,
-                'scope_of_work_text' => $this->scopeOfWorkText($validated),
+                'scope_of_work_text' => $this->scopeOfWorkText($validated, $bid),
             ])->save();
 
             $this->syncBidRelations($bid, $validated, $request->user());
         });
+
+        if ($request->expectsJson()) {
+            return response()->json(['document' => $this->bidPayload($bid->fresh())]);
+        }
 
         return redirect()
             ->route('admin.bids.index', ['highlight' => $bid->uuid])
@@ -253,6 +262,8 @@ class BidController extends Controller
 
         $validated = $request->validate([
             'notes' => ['nullable', 'string', 'max:250000'],
+            'print_layout_id' => ['nullable', 'integer', Rule::exists(PrintLayout::class, 'id')],
+            'print_layout_version' => ['nullable', 'string', 'regex:/^[a-f0-9]{64}$/'],
         ]);
 
         $notes = BidApplicationText::sanitize($validated['notes'] ?? null);
@@ -261,7 +272,10 @@ class BidController extends Controller
             $notes = null;
         }
 
-        $bid->update(['notes' => $notes]);
+        $bid->update([
+            'notes' => $notes,
+            ...array_intersect_key($validated, array_flip(['print_layout_id', 'print_layout_version'])),
+        ]);
 
         return response()->json([
             'saved_at' => $bid->fresh()->updated_at?->toIso8601String(),
@@ -297,6 +311,7 @@ class BidController extends Controller
                 ),
             ],
             'print_layout_id' => ['nullable', 'integer', Rule::exists(PrintLayout::class, 'id')],
+            'print_layout_version' => ['nullable', 'string', 'regex:/^[a-f0-9]{64}$/'],
             'include_signature' => ['sometimes', 'boolean'],
             'bid_scope_text_template_id' => [
                 'nullable',
@@ -792,6 +807,7 @@ class BidController extends Controller
             'bid_shipping_text_template_id' => $summary ? null : $bid->bid_shipping_text_template_id,
             'bid_scope_text_template_id' => $summary ? null : $bid->bid_scope_text_template_id,
             'print_layout_id' => $summary ? null : $bid->print_layout_id,
+            'print_layout_version' => $summary ? null : $bid->print_layout_version,
             'include_signature' => $bid->include_signature,
             'scope_of_work_text' => $summary ? null : BidApplicationText::sanitize($bid->scope_of_work_text),
             'created_at' => $bid->created_at?->toDateString(),
@@ -941,23 +957,23 @@ class BidController extends Controller
     /**
      * @param  array<string, mixed>  $validated
      */
-    public function shippingText(array $validated): ?string
+    public function shippingText(array $validated, ?Bid $bid = null): ?string
     {
-        return $this->filledBidHtml($validated, 'notes');
+        return $this->filledBidHtml($validated, 'notes', $bid);
     }
 
     /**
      * @param  array<string, mixed>  $validated
      */
-    public function scopeOfWorkText(array $validated): ?string
+    public function scopeOfWorkText(array $validated, ?Bid $bid = null): ?string
     {
-        return $this->filledBidHtml($validated, 'scope_of_work_text');
+        return $this->filledBidHtml($validated, 'scope_of_work_text', $bid);
     }
 
     /**
      * @param  array<string, mixed>  $validated
      */
-    private function filledBidHtml(array $validated, string $field): ?string
+    private function filledBidHtml(array $validated, string $field, ?Bid $bid = null): ?string
     {
         $project = Project::query()
             ->with(['contractors.contacts', 'scopes'])
@@ -991,7 +1007,7 @@ class BidController extends Controller
                 $project,
                 $company,
                 $scopeLines !== [] ? $scopeLines : null,
-                $this->screenFieldValues($validated),
+                $this->screenFieldValues($validated, $bid),
             ),
         );
     }
@@ -1000,7 +1016,7 @@ class BidController extends Controller
      * @param  array<string, mixed>  $validated
      * @return array<string, string>
      */
-    private function screenFieldValues(array $validated): array
+    private function screenFieldValues(array $validated, ?Bid $bid = null): array
     {
         $lines = collect($validated['scopes'] ?? [])
             ->flatMap(fn (array $scope): array => $scope['products'] ?? [])
@@ -1073,21 +1089,21 @@ class BidController extends Controller
             $assigneeName = (string) User::query()->find($validated['assigned_to'])?->name;
         }
 
-        $quotationNumber = '';
+        $quotationValues = BidApplicationText::quotationValues(null);
         if (filled($validated['quotation_id'] ?? null)) {
             $quotation = Quotation::query()->find($validated['quotation_id']);
-            $quotationNumber = trim(implode(' — ', array_filter([
-                $quotation?->quotation_number,
-                $quotation?->title,
-            ])));
+            $quotationValues = BidApplicationText::quotationValues($quotation);
         }
 
         $itemCount = $lines->count();
 
         $grandTotal = $extended > 0 ? $this->formatUsd($extended) : '';
         $installationTotal = $installation > 0 ? $this->formatUsd($installation) : '';
+        $bidDate = collect($validated['stages'] ?? [])->last()['stage_date'] ?? null;
+        $bidDate = filled($bidDate) ? $bidDate : $bid?->created_at?->toDateString();
 
         return array_filter([
+            'bid_date' => $bidDate ?? now()->toDateString(),
             'materials' => $materials > 0 ? $this->formatUsd($materials) : '',
             'allocation_install' => $installationTotal,
             'installation' => $installationTotal,
@@ -1106,7 +1122,7 @@ class BidController extends Controller
             'item_quantity' => $quantity > 0 ? $this->formatQuantity($quantity) : '',
             'item_count' => $itemCount > 0 ? (string) $itemCount : '',
             'authorized_representative' => $assigneeName,
-            'quotation_number' => $quotationNumber,
+            ...$quotationValues,
         ], fn (string $value): bool => $value !== '');
     }
 
@@ -1147,16 +1163,7 @@ class BidController extends Controller
         $company = Company::query()->where('is_active', true)->latest()->first();
 
         return [
-            'printLayouts' => PrintLayout::query()->orderBy('name')->get()
-                ->map(fn (PrintLayout $layout): array => [
-                    'id' => $layout->id,
-                    'name' => $layout->name,
-                    'elements' => DocumentLayoutElements::sanitize($layout->design['elements'] ?? []),
-                    'headerHeight' => DocumentLayoutElements::zoneColors($layout->design['zone_colors'] ?? [])['header_height'],
-                    'headerBackground' => $layout->header_background_color,
-                    'tableHeaderBackground' => $layout->table_header_background_color,
-                ])->values()->all(),
-            'assignedPrintLayoutId' => DocumentAppearance::assignedLayoutId('bid', 'print'),
+            ...PrintLayoutCatalog::forDocument('bid'),
             'projects' => Project::query()
                 ->with(['scopes.product', 'scopes.service', 'contractors.contacts'])
                 ->orderBy('name')
@@ -1168,6 +1175,7 @@ class BidController extends Controller
                     'customer_name' => $project->contractors->first()?->contact_name,
                     'customer_company' => $project->contractors->first()?->name,
                     'contractor_name' => $project->contractors->first()?->name,
+                    ...BidApplicationText::contractorValues($project->contractors->first()),
                     'site_address' => BidApplicationText::formatAddress(
                         $project->site_address_line_1,
                         $project->site_address_line_2,
@@ -1316,6 +1324,7 @@ class BidController extends Controller
                 ->all(),
             'company' => [
                 'name' => $company?->name ?: 'Gateway Door Systems',
+                'speciality' => $company?->speciality,
                 'legal_name' => $company?->legal_name,
                 'email' => $company?->email,
                 'phone' => $company?->contact_phone_number ?: $company?->phone_number,
@@ -1335,7 +1344,7 @@ class BidController extends Controller
             ],
             'quotations' => $user && QuotationAccess::canView($user)
                 ? Quotation::query()
-                    ->with(['contractor:id,name', 'lineItems'])
+                    ->with(['contractor:id,name', 'lineItems', 'revisions'])
                     ->latest()
                     ->limit(200)
                     ->get()

@@ -35,10 +35,11 @@ class DocumentTextCase
         return array_key_exists((string) $case, self::OPTIONS) ? (string) $case : 'original';
     }
 
-    public static function transform(string $text, string $case): string
+    /** @param array{capitalizeNext: bool, hasWord: bool}|null $camelState */
+    public static function transform(string $text, string $case, ?array &$camelState = null): string
     {
         return match (self::normalize($case)) {
-            'camel' => self::toCamelCase($text),
+            'camel' => self::toCamelCase($text, $camelState),
             'uppercase' => mb_strtoupper($text, 'UTF-8'),
             'lowercase' => mb_strtolower($text, 'UTF-8'),
             default => $text,
@@ -114,7 +115,7 @@ class DocumentTextCase
                 }
 
                 foreach ($paragraphs as $paragraph) {
-                    $textNodes = $xpath->query('.//w:t', $paragraph);
+                    $textNodes = $xpath->query('.//w:t | .//w:br | .//w:cr', $paragraph);
                     if ($textNodes === false) {
                         throw new RuntimeException("Unable to inspect text in {$name}.");
                     }
@@ -122,6 +123,12 @@ class DocumentTextCase
                     $capitalizeNext = false;
                     $hasWord = false;
                     foreach ($textNodes as $textNode) {
+                        if ($textNode->localName !== 't') {
+                            $capitalizeNext = false;
+                            $hasWord = false;
+
+                            continue;
+                        }
                         $textNode->textContent = self::transformTextNode(
                             $textNode->nodeValue ?? '',
                             $case,
@@ -153,6 +160,10 @@ class DocumentTextCase
     ): void {
         if ($node instanceof DOMElement && $node->hasAttribute('data-position-canvas')) {
             return;
+        }
+        if ($node instanceof DOMElement && strtolower($node->nodeName) === 'br') {
+            $capitalizeNext = false;
+            $hasWord = false;
         }
 
         if ($node->nodeType === XML_TEXT_NODE) {
@@ -212,6 +223,13 @@ class DocumentTextCase
 
         $result = '';
         foreach ($characters as $character) {
+            if ($character === "\n" || $character === "\r") {
+                $result .= $character;
+                $capitalizeNext = false;
+                $hasWord = false;
+
+                continue;
+            }
             if (preg_match('/^[\s_-]$/u', $character) === 1) {
                 $capitalizeNext = $hasWord;
 
@@ -228,11 +246,10 @@ class DocumentTextCase
         return $result;
     }
 
-    private static function toCamelCase(string $text): string
+    private static function toCamelCase(string $text, ?array &$state): string
     {
-        $capitalizeNext = false;
-        $hasWord = false;
+        $state ??= ['capitalizeNext' => false, 'hasWord' => false];
 
-        return self::transformTextNode($text, 'camel', $capitalizeNext, $hasWord);
+        return self::transformTextNode($text, 'camel', $state['capitalizeNext'], $state['hasWord']);
     }
 }

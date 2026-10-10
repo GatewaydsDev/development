@@ -1,3 +1,6 @@
+import type { PrintLayoutOption } from '@/Pages/Admin/Bids/layoutSections';
+import { QUOTATION_TEXT_FIELDS } from '@/Pages/Admin/Bids/bidText';
+
 export type QuotationLineItemFormData = {
     description: string;
     quantity: string;
@@ -58,6 +61,9 @@ export type QuotationRevisionFormData = {
     notes: string;
     user_id: string;
     user_name: string;
+    responsible_user_id: string;
+    status_id: string;
+    title_id: string;
 };
 
 export const DEFAULT_PROPOSAL_TITLE = 'Quote proposal based';
@@ -91,6 +97,9 @@ export type QuotationFormData = {
     project_amount: string;
     notes: string;
     proposal_title: string;
+    print_layout_id: string;
+    print_layout_version: string;
+    layout_header: string;
     pricing_conditions: string;
     pricing_basis: string;
     include_authorization: boolean;
@@ -122,6 +131,8 @@ export type QuotationStatusOption = {
 };
 
 export type QuotationOptions = {
+    printLayouts?: PrintLayoutOption[];
+    assignedPrintLayoutId?: number | null;
     can: {
         create: boolean;
         update: boolean;
@@ -129,6 +140,9 @@ export type QuotationOptions = {
         convert_to_bid: boolean;
     };
     nextQuotationNumber?: string;
+    revisionResponsibleUsers?: { id: number; name: string }[];
+    revisionStatuses?: { id: number; name: string }[];
+    revisionTitles?: { id: number; name: string }[];
     titles: QuotationTitleOption[];
     fields: QuotationFieldOption[];
     products: QuotationProductOption[];
@@ -137,10 +151,14 @@ export type QuotationOptions = {
     pricingBasisTextTemplates: QuotationTextTemplateOption[];
     company?: {
         name: string;
+        speciality?: string | null;
         legal_name?: string | null;
         email?: string | null;
         phone?: string | null;
         address?: string | null;
+        contact_phone?: string | null;
+        website?: string | null;
+        contact_url?: string | null;
     };
     statuses: QuotationStatusOption[];
     contractors: QuotationContractorOption[];
@@ -166,6 +184,15 @@ export type QuotationRevisionPayload = {
         id?: number | null;
         name?: string | null;
     } | null;
+    responsible_user_id?: number | null;
+    responsible_user?: {
+        id?: number | null;
+        name?: string | null;
+    } | null;
+    status_id?: number | null;
+    status?: { id?: number | null; name?: string | null } | null;
+    title_id?: number | null;
+    title?: { id?: number | null; name?: string | null } | null;
 };
 
 export type QuotationProductFieldPayload = {
@@ -195,6 +222,9 @@ export type QuotationPayload = {
     valid_until: string | null;
     project_amount?: string | number | null;
     notes: string | null;
+    print_layout_id?: number | null;
+    print_layout_version?: string | null;
+    layout_header?: string | null;
     proposal_title?: string | null;
     pricing_conditions?: string | null;
     pricing_basis?: string | null;
@@ -288,6 +318,9 @@ export const blankRevision = (
     notes: '',
     user_id: userId,
     user_name: userName,
+    responsible_user_id: '',
+    status_id: '',
+    title_id: '',
 });
 
 const escapeHtml = (value: string) =>
@@ -352,6 +385,9 @@ export const quotationToFormData = (
             ? ''
             : String(quotation.project_amount),
     notes: quotation?.notes ?? '',
+    print_layout_id: quotation?.print_layout_id ? String(quotation.print_layout_id) : '',
+    print_layout_version: quotation?.print_layout_version ?? '',
+    layout_header: quotation?.layout_header ?? '',
     proposal_title:
         quotation?.proposal_title?.trim() || DEFAULT_PROPOSAL_TITLE,
     pricing_conditions: `${fieldTablesToHtml(
@@ -391,6 +427,11 @@ export const quotationToFormData = (
             notes: revision.notes ?? '',
             user_id: revision.user_id ? String(revision.user_id) : '',
             user_name: revision.user?.name ?? '',
+            responsible_user_id: revision.responsible_user_id
+                ? String(revision.responsible_user_id)
+                : '',
+            status_id: revision.status_id ? String(revision.status_id) : '',
+            title_id: revision.title_id ? String(revision.title_id) : '',
         })) ?? [],
     field_tables: [],
 });
@@ -456,19 +497,27 @@ export const QUOTATION_INSERT_FIELDS = [
     { key: 'customer_name', label: 'Contractor contact', group: 'Contractor' },
     { key: 'contractor_email', label: 'Contractor email', group: 'Contractor' },
     { key: 'contractor_phone', label: 'Contractor phone', group: 'Contractor' },
-    { key: 'quotation_number', label: 'Quotation number', group: 'Quotation' },
-    { key: 'quotation_title', label: 'Quotation title', group: 'Quotation' },
-    { key: 'quoted_on', label: 'Quoted on', group: 'Quotation' },
-    { key: 'valid_until', label: 'Valid until', group: 'Quotation' },
-    { key: 'base_bid_total', label: 'Base Bid total', group: 'Quotation' },
+    ...QUOTATION_TEXT_FIELDS,
     { key: 'item_count', label: 'Item count', group: 'Quotation' },
     { key: 'item_quantity', label: 'Item quantity', group: 'Quotation' },
-    { key: 'latest_revision', label: 'Latest revision', group: 'Quotation' },
     { key: 'company_name', label: 'Company name', group: 'Company' },
+    { key: 'company_speciality', label: 'Company speciality', group: 'Company' },
     { key: 'company_phone', label: 'Company phone', group: 'Company' },
     { key: 'company_email', label: 'Company email', group: 'Company' },
     { key: 'today', label: "Today's date", group: 'Quotation' },
+    { key: 'validity_30', label: 'Validity date (30 days)', group: 'Quotation' },
+    { key: 'validity_60', label: 'Validity date (60 days)', group: 'Quotation' },
+    { key: 'validity_90', label: 'Validity date (90 days)', group: 'Quotation' },
 ] as const;
+
+export const QUOTATION_LAYOUT_FIELD_KEYS: Record<string, string> = {
+    document_title: 'quotation_title',
+    document_number: 'quotation_number',
+    bid_number: 'quotation_number',
+    bid_date: 'quoted_on',
+    generated_date: 'today',
+    generated_by: 'authorized_representative',
+};
 
 export const fillQuotationPlaceholders = (
     html: string,
@@ -519,8 +568,16 @@ export const quotationInsertValues = (
     const latestRevision = [...(data.revisions ?? [])]
         .reverse()
         .find((revision) => revision.number.trim() !== '');
+    const base = data.quoted_at || quotation?.quoted_at;
+    const dateParts = base?.split('-').map(Number);
+    const validity = Object.fromEntries([30, 60, 90].map((days) => {
+        const date = dateParts ? new Date(dateParts[0], dateParts[1] - 1, dateParts[2]) : new Date();
+        date.setDate(date.getDate() + days);
+        return [`validity_${days}`, date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })];
+    }));
 
     return {
+        ...validity,
         quotation_number:
             data.quotation_number || quotation?.quotation_number || '',
         quotation_title: data.title || quotation?.title || '',
@@ -552,6 +609,7 @@ export const quotationInsertValues = (
             '',
         latest_revision: latestRevision?.number || '',
         company_name: options?.company?.name || '',
+        company_speciality: options?.company?.speciality || '',
         company_legal_name: options?.company?.legal_name || '',
         company_phone: options?.company?.phone || '',
         company_email: options?.company?.email || '',

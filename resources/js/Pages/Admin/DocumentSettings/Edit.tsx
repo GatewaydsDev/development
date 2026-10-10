@@ -6,6 +6,16 @@ import TextInput from "@/Components/TextInput";
 import { Button } from "@/Components/ui/button";
 import PrintLayoutThumbnail from "@/Components/PrintLayoutThumbnail";
 import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/Components/ui/alert-dialog";
+import {
     Card,
     CardContent,
     CardDescription,
@@ -14,8 +24,10 @@ import {
 } from "@/Components/ui/card";
 import FormActionFab from "@/Components/FormActionFab";
 import { cn } from "@/lib/utils";
+import { PRINT_LAYOUT_WIDTH } from "@/lib/printLayoutGeometry";
 import LayoutElementsEditor, {
     ElementsReadOnly,
+    ImportPanel,
     LayoutElement,
     LayoutElementsController,
     LayoutElementsFileInput,
@@ -353,13 +365,15 @@ export default function Edit({
         setData(values);
         setDefaults(values);
         clearErrors();
+        setNewLayoutPdfNotes([]);
     };
 
-    const canReplaceDraft = () =>
-        !isDirty ||
-        window.confirm(
-            "Discard your unsaved changes and switch to another layout?",
-        );
+    const [pendingLayoutChange, setPendingLayoutChange] = useState<
+        { kind: "select"; layout: LayoutRecord } | { kind: "new" } | null
+    >(null);
+    const [newLayoutDialog, setNewLayoutDialog] = useState(false);
+    const [newLayoutImportBusy, setNewLayoutImportBusy] = useState(false);
+    const [newLayoutPdfNotes, setNewLayoutPdfNotes] = useState<string[]>([]);
 
     const scrollToEditor = () => {
         window.requestAnimationFrame(() =>
@@ -371,20 +385,30 @@ export default function Edit({
     };
 
     const selectLayout = (layout: LayoutRecord) => {
-        if (canReplaceDraft()) {
-            loadLayout(layout);
-            scrollToEditor();
+        if (isDirty) {
+            setPendingLayoutChange({ kind: "select", layout });
+            return;
         }
+        loadLayout(layout);
+        scrollToEditor();
+    };
+
+    const startNewLayout = () => {
+        const values = emptyLayout(defaults);
+        setData(values);
+        setDefaults(values);
+        clearErrors();
+        setNewLayoutPdfNotes([]);
+        setNewLayoutDialog(false);
+        scrollToEditor();
     };
 
     const addLayout = () => {
-        if (canReplaceDraft()) {
-            const values = emptyLayout(defaults);
-            setData(values);
-            setDefaults(values);
-            clearErrors();
-            scrollToEditor();
+        if (isDirty) {
+            setPendingLayoutChange({ kind: "new" });
+            return;
         }
+        setNewLayoutDialog(true);
     };
 
     const submit: FormEventHandler = (event) => {
@@ -667,21 +691,15 @@ export default function Edit({
                                 >
                                     Restore style defaults
                                 </Button>
-                                {data.layout_id === null ? (
-                                    <Button
-                                        type="submit"
-                                        form="print-layouts-form"
-                                        disabled={processing}
-                                        className="min-w-32 gap-2 bg-emerald-700 text-white hover:bg-emerald-800"
-                                    >
-                                        <CheckIcon />
-                                        {processing
-                                            ? "Saving…"
-                                            : data.layout_id === null
-                                              ? "Create layout"
-                                              : "Save layout"}
-                                    </Button>
-                                ) : null}
+                                <Button
+                                    type="submit"
+                                    form="print-layouts-form"
+                                    disabled={processing}
+                                    className="min-w-32 gap-2 bg-emerald-700 text-white hover:bg-emerald-800"
+                                >
+                                    <CheckIcon />
+                                    {processing ? "Saving…" : "Save layout"}
+                                </Button>
                             </div>
                         </div>
 
@@ -690,16 +708,14 @@ export default function Edit({
                             onSubmit={submit}
                             className="space-y-6"
                         >
-                            {data.layout_id !== null ? (
-                                <FormActionFab
-                                    form="print-layouts-form"
-                                    cancelHref={route(
-                                        "admin.document-settings.edit",
-                                    )}
-                                    saveLabel="Save layout"
-                                    disabled={processing}
-                                />
-                            ) : null}
+                            <FormActionFab
+                                form="print-layouts-form"
+                                cancelHref={route(
+                                    "admin.document-settings.edit",
+                                )}
+                                saveLabel={processing ? "Saving…" : "Save layout"}
+                                disabled={processing}
+                            />
                             <div className="space-y-6">
                                 <Card className="shadow-sm">
                                     <CardHeader>
@@ -831,9 +847,13 @@ export default function Edit({
                                         </div>
                                     </CardHeader>
                                     <CardContent className="space-y-4 p-4 sm:p-6">
+                                        {newLayoutPdfNotes.length ? <ul role="status" className="space-y-1 text-sm text-muted-foreground">
+                                            {newLayoutPdfNotes.map((note) => <li key={note}>{note}</li>)}
+                                        </ul> : null}
                                         <LayoutElementsFileInput
                                             controller={elementsController}
                                         />
+                                        <ImportPanel controller={elementsController} />
                                         <LayoutElementsEditor
                                             controller={elementsController}
                                             error={errors.elements}
@@ -875,8 +895,9 @@ export default function Edit({
                                     <CardHeader>
                                         <CardTitle>Style and text</CardTitle>
                                         <CardDescription>
-                                            These settings apply to every text
-                                            element in each assigned output.
+                                            These settings apply to generated
+                                            document text. Layout components use
+                                            their own text-case controls.
                                         </CardDescription>
                                     </CardHeader>
                                     <CardContent className="space-y-6">
@@ -959,6 +980,70 @@ export default function Edit({
                     </section>
                 </div>
             </div>
+
+            <AlertDialog
+                open={pendingLayoutChange !== null}
+                onOpenChange={(open) => { if (!open) setPendingLayoutChange(null); }}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Discard unsaved changes?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {pendingLayoutChange?.kind === "select"
+                                ? `Switching to “${pendingLayoutChange.layout.name}” will discard your unsaved layout changes.`
+                                : "Creating a new layout will discard your unsaved layout changes."}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Keep editing</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => {
+                            if (pendingLayoutChange?.kind === "select") {
+                                loadLayout(pendingLayoutChange.layout);
+                                scrollToEditor();
+                            } else if (pendingLayoutChange?.kind === "new") {
+                                setNewLayoutDialog(true);
+                            }
+                            setPendingLayoutChange(null);
+                        }}>
+                            Discard changes
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <Dialog open={newLayoutDialog} onClose={() => { if (!newLayoutImportBusy) setNewLayoutDialog(false); }} className="relative z-50">
+                <div className="fixed inset-0 bg-slate-950/70" aria-hidden="true" />
+                <div className="fixed inset-0 overflow-y-auto p-4 sm:p-6">
+                    <div className="flex min-h-full items-center justify-center">
+                        <DialogPanel className="w-full max-w-2xl space-y-5 rounded-xl border border-border bg-background p-5 shadow-xl sm:p-6">
+                            <div className="flex items-start justify-between gap-3">
+                                <div>
+                                    <DialogTitle className="text-lg font-semibold">Add new layout</DialogTitle>
+                                    <p className="mt-1 text-sm text-muted-foreground">Start blank or upload a PDF to reuse its design with blank editable text on every page.</p>
+                                </div>
+                                <Button type="button" variant="ghost" size="icon" aria-label="Cancel new layout" disabled={newLayoutImportBusy}
+                                    onClick={() => setNewLayoutDialog(false)}><XIcon /></Button>
+                            </div>
+                            <ImportPanel controller={elementsController} pdfOnly onBusyChange={setNewLayoutImportBusy}
+                                onImported={(elements, filename, notes) => {
+                                    const blank = emptyLayout(defaults);
+                                    setDefaults(blank);
+                                    setData({ ...blank, name: filename.replace(/\.pdf$/i, "").slice(0, 120), elements });
+                                    clearErrors();
+                                    setNewLayoutPdfNotes(notes);
+                                    elementsController.setSelectedId(elements.find((element) => element.type === "text")?.id ?? null);
+                                    setNewLayoutDialog(false);
+                                    scrollToEditor();
+                                }} />
+                            <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border pt-4">
+                                <Button type="button" variant="outline" disabled={newLayoutImportBusy}
+                                    onClick={() => setNewLayoutDialog(false)}>Cancel</Button>
+                                <Button type="button" disabled={newLayoutImportBusy} onClick={startNewLayout}>Start blank</Button>
+                            </div>
+                        </DialogPanel>
+                    </div>
+                </div>
+            </Dialog>
 
             <Dialog
                 open={previewLayout !== null}
@@ -1071,23 +1156,27 @@ function DocumentPreview({
                 fullPage && "mx-auto max-w-4xl",
             )}
         >
-            <header style={{ backgroundColor: headerColor, color: headerText }}>
-                {controller ? (
-                    <PreviewZone
-                        controller={controller}
-                        zone="header"
-                        applyCase={caseText}
-                    />
-                ) : (
-                    <ElementsReadOnly
-                        elements={elements}
-                        zone="header"
-                        fields={fields}
-                        inBanner
-                        headerHeight={zoneColors?.header_height ?? 160}
-                    />
-                )}
-            </header>
+            <div className="overflow-x-auto">
+                <header style={{ width: PRINT_LAYOUT_WIDTH + (controller ? 52 : 0), backgroundColor: headerColor, color: headerText }}>
+                    {controller ? (
+                        <PreviewZone
+                            controller={controller}
+                            zone="header"
+                            applyCase={caseText}
+                            textCase={textCase}
+                        />
+                    ) : (
+                        <ElementsReadOnly
+                            elements={elements}
+                            zone="header"
+                            fields={fields}
+                            inBanner
+                            textCase={textCase}
+                            headerHeight={zoneColors?.header_height ?? 160}
+                        />
+                    )}
+                </header>
+            </div>
 
             <div
                 aria-hidden="true"

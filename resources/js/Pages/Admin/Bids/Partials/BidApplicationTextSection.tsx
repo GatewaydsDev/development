@@ -2,7 +2,7 @@ import CreatableSelect from '@/Components/CreatableSelect';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import RichTextEditor from '@/Components/RichTextEditor';
-import BidPrintLayoutPicker from './BidPrintLayoutPicker';
+import DocumentPrintLayoutEditor from '@/Components/DocumentPrintLayoutEditor';
 import TextAutoSave, {
     type TextAutoSaveConfig,
 } from '@/Components/TextAutoSave';
@@ -24,7 +24,6 @@ import { router } from '@inertiajs/react';
 import { FileUpIcon, PlusIcon, SaveIcon } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { layoutSections, positionedLayoutSections } from '../layoutSections';
 import {
     DEFAULT_SCOPE_TEXT_BODY,
     DEFAULT_SHIPPING_TEXT_BODY,
@@ -54,6 +53,10 @@ type BidApplicationTextSectionProps = {
     extraFieldValues?: Record<string, string>;
     printLayoutId?: string;
     onPrintLayoutIdChange?: (id: string) => void;
+    printLayoutVersion?: string;
+    onPrintLayoutVersionChange?: (version: string) => void;
+    hasUnsavedChanges?: boolean;
+    onSaveCurrent?: () => Promise<boolean>;
     value: string;
     templateId: string;
     error?: string;
@@ -201,12 +204,19 @@ function placeholderValues(
         project_number: project?.project_number ?? '',
         customer_name: project?.contractor_contact_name ?? '',
         customer_company: project?.contractor_name ?? '',
+        contractor_name: project?.contractor_name ?? '',
+        contractor_contact_name: project?.contractor_contact_name ?? '',
+        contractor_email: project?.contractor_email ?? '',
+        contractor_phone: project?.contractor_phone ?? '',
+        contractor_address: project?.contractor_address ?? '',
+        contractor_website: project?.contractor_website ?? '',
         project_address: project?.site_address ?? '',
         site_address: project?.site_address ?? '',
         scope_of_work: scopeLines.join('\n'),
         estimated_start_date: project?.estimated_start_date ?? '',
         estimated_end_date: project?.estimated_end_date ?? '',
         company_name: company?.name ?? 'Gateway Door Systems',
+        company_speciality: company?.speciality ?? '',
         company_legal_name:
             company?.legal_name || company?.name || 'Gateway Door Systems',
         company_phone: company?.phone ?? '',
@@ -230,6 +240,15 @@ function placeholderValues(
         item_count: lines.length > 0 ? String(lines.length) : '',
         ...extraFieldValues,
     };
+
+    const dateParts = (screenValues.bid_date || new Date().toLocaleDateString('en-CA')).split('-').map(Number);
+    for (const days of [30, 60, 90]) {
+        const expiry = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
+        expiry.setDate(expiry.getDate() + days);
+        screenValues[`validity_${days}`] = new Intl.DateTimeFormat('en-US', {
+            month: 'long', day: 'numeric', year: 'numeric',
+        }).format(expiry);
+    }
 
     const customValues = Object.fromEntries(
         customFields
@@ -260,6 +279,10 @@ export default function BidApplicationTextSection({
     extraFieldValues = {},
     printLayoutId = '',
     onPrintLayoutIdChange,
+    printLayoutVersion = '',
+    onPrintLayoutVersionChange,
+    hasUnsavedChanges = false,
+    onSaveCurrent,
     value,
     templateId,
     error,
@@ -309,6 +332,7 @@ export default function BidApplicationTextSection({
     const companyLiterals = useMemo(
         () => ({
             company_name: options.company?.name ?? '',
+            company_speciality: options.company?.speciality ?? '',
             company_legal_name: options.company?.legal_name ?? '',
             company_address: options.company?.address ?? '',
             company_phone: options.company?.phone ?? '',
@@ -319,50 +343,6 @@ export default function BidApplicationTextSection({
         }),
         [options.company],
     );
-    const activeLayout =
-        printLayouts.find((layout) => String(layout.id) === printLayoutId) ??
-        printLayouts.find(
-            (layout) => layout.id === options.assignedPrintLayoutId,
-        );
-    const [layoutLoad, setLayoutLoad] = useState<{
-        key: number;
-        sections: ReturnType<typeof layoutSections>;
-        replace: boolean;
-    } | null>(null);
-    const [pendingLayoutId, setPendingLayoutId] = useState<string | null>(
-        null,
-    );
-    const loadLayout = (id: string) => {
-        const layout =
-            printLayouts.find((item) => String(item.id) === id) ??
-            printLayouts.find(
-                (item) => item.id === options.assignedPrintLayoutId,
-            );
-
-        if (!layout) {
-            onPrintLayoutIdChange?.(id);
-            return;
-        }
-
-        const loaded = positionedLayoutSections(layout, companyLiterals);
-
-        if (loaded.length === 0) {
-            toast.error('This layout has no content to load.');
-            return;
-        }
-
-        onPrintLayoutIdChange?.(id);
-        setLayoutLoad({ key: Date.now(), sections: loaded, replace: true });
-        toast.success(`Loaded “${layout.name}” into the bid information.`);
-    };
-    const sections = useMemo(
-        () =>
-            purpose === 'shipping' && activeLayout
-                ? layoutSections(activeLayout.elements, companyLiterals)
-                : [],
-        [purpose, activeLayout, companyLiterals],
-    );
-
     useEffect(() => {
         setSelectedId(templateId);
     }, [templateId]);
@@ -711,15 +691,22 @@ export default function BidApplicationTextSection({
                     ) : null}
                 </div>
                 {purpose === 'shipping' &&
-                printLayouts.length > 0 &&
                 onPrintLayoutIdChange ? (
-                    <BidPrintLayoutPicker
-                        layouts={printLayouts}
-                        assignedLayoutId={options.assignedPrintLayoutId}
-                        value={printLayoutId}
-                        onSelect={setPendingLayoutId}
+                    <DocumentPrintLayoutEditor
+                        document="bid"
+                        catalog={{ printLayouts, assignedPrintLayoutId: options.assignedPrintLayoutId }}
+                        layoutId={printLayoutId} version={printLayoutVersion}
+                        onLayoutChange={(id, version) => {
+                            onPrintLayoutIdChange(id);
+                            onPrintLayoutVersionChange?.(version);
+                        }}
+                        literals={companyLiterals} hasUnsavedChanges={hasUnsavedChanges}
+                        onSaveCurrent={onSaveCurrent ?? (async () => false)}
+                        id={copy.editorId} value={value} onChange={onChange}
+                        error={error} placeholder={copy.editorPlaceholder}
+                        placeholderFields={options.textFields ?? []} placeholderValues={values}
                     />
-                ) : null}
+                ) : (
                 <RichTextEditor
                     id={copy.editorId}
                     value={value}
@@ -728,11 +715,9 @@ export default function BidApplicationTextSection({
                     placeholder={copy.editorPlaceholder}
                     placeholderFields={options.textFields ?? []}
                     placeholderValues={values}
-                    layoutSections={sections}
-                    layoutLoad={layoutLoad}
                     allowBlockDrag
-                    layoutName={activeLayout?.name}
                 />
+                )}
                 <p className="text-sm text-muted-foreground">
                     Choose Move items to position content on the ruler grid.
                     Dragging snaps to the grid. Drag a component's corner handle
@@ -790,42 +775,6 @@ export default function BidApplicationTextSection({
         >
             {fields}
 
-            <AlertDialog
-                open={pendingLayoutId !== null}
-                onOpenChange={(open) => {
-                    if (!open) {
-                        setPendingLayoutId(null);
-                    }
-                }}
-            >
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Change the layout?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Changing the layout clears everything in the bid
-                            information text and loads the new layout in its
-                            place.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel type="button">
-                            Cancel
-                        </AlertDialogCancel>
-                        <AlertDialogAction
-                            type="button"
-                            onClick={() => {
-                                if (pendingLayoutId !== null) {
-                                    loadLayout(pendingLayoutId);
-                                }
-
-                                setPendingLayoutId(null);
-                            }}
-                        >
-                            Yes, change layout
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
             <AlertDialog open={isSaveOpen} onOpenChange={setIsSaveOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>

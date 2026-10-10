@@ -36,6 +36,9 @@ class BidDocument
 
     private string $imageMode = 'print';
 
+    /** @var array<string, string>|null */
+    private ?array $resolvedFieldValues = null;
+
     protected function documentAppearanceKey(): string
     {
         return 'bid';
@@ -86,6 +89,8 @@ class BidDocument
 
         return [
             'mode' => $mode,
+            ...BidApplicationText::quotationValues($this->bid->quotation),
+            ...BidApplicationText::contractorValues($project?->contractors->first()),
             'customLayout' => $this->hasCustomLayout(),
             'includeSignature' => $this->bid->include_signature,
             'year' => now()->year,
@@ -683,7 +688,7 @@ class BidDocument
         }
 
         if (strip_tags($value) === $value) {
-            return '<p>'.nl2br(e(trim($value)), false).'</p>';
+            $value = '<p>'.nl2br(e(trim($value)), false).'</p>';
         }
 
         $sanitized = BidApplicationText::sanitize($value);
@@ -692,9 +697,64 @@ class BidDocument
             return null;
         }
 
+        $sanitized = BidApplicationText::fill($sanitized, $this->fieldValues()) ?? $sanitized;
         $sanitized = $this->withoutHeaderRowBorders($sanitized);
 
         return EditorImage::forDocument($sanitized, $this->imageMode);
+    }
+
+    /** @return array<string, string> */
+    private function fieldValues(): array
+    {
+        if ($this->resolvedFieldValues !== null) {
+            return $this->resolvedFieldValues;
+        }
+
+        $totals = $this->totalsBreakdown();
+        $lines = $this->bid->scopes->flatMap(fn (BidScope $scope) => $scope->products
+            ->map(fn (BidScopeProduct $line) => $this->resolvedLineAmounts(
+                $line, $scope, $scope->products->count(), $this->bid->project?->site_state,
+            )));
+        $uniqueAmount = function (string $key) use ($lines): string {
+            $amounts = $lines->pluck($key)->filter(fn ($value) => $value !== null)->unique()->values();
+
+            return $amounts->count() === 1 ? $this->money((float) $amounts->first()) : '';
+        };
+        $scopeLines = $this->bid->scopes->map(function (BidScope $scope): string {
+            $notes = trim(html_entity_decode(strip_tags($scope->notations ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+
+            return ($scope->title?->name ?? '').($notes !== '' ? ': '.$notes : '');
+        })->filter()->values()->all();
+        $date = $this->bidDateLabel() ?? $this->bid->created_at?->toDateString() ?? now()->toDateString();
+
+        return $this->resolvedFieldValues = BidApplicationText::valuesFor(
+            $this->bid->project,
+            $this->company,
+            $scopeLines !== [] ? $scopeLines : null,
+            [
+                'bid_date' => $date,
+                'document_title' => $this->bid->project->name,
+                'document_number' => $this->bid->project->project_number ?? '',
+                'bid_number' => $this->bid->project->project_number ?? '',
+                'bid_stage' => $this->currentStage()?->type?->name ?? '',
+                'generated_date' => now()->format('F j, Y'),
+                'generated_by' => $this->user?->name ?? '',
+                'year' => (string) now()->year,
+                'materials' => $this->money($totals['materials']),
+                'allocation_install' => $this->money($totals['installation']),
+                'installation' => $this->money($totals['installation']),
+                'grand_total' => $this->money($totals['grand_total']),
+                'building_total' => $this->money($totals['grand_total']),
+                'latest_revision_total' => $this->money($totals['grand_total']),
+                'material_unit_price' => $uniqueAmount('unit'),
+                'allocated_handling' => $uniqueAmount('allocated'),
+                'combined_price' => $uniqueAmount('combined'),
+                'item_quantity' => $this->quantity($lines->sum('quantity')),
+                'item_count' => (string) $lines->count(),
+                'authorized_representative' => $this->bid->assignee?->name ?? '',
+                ...BidApplicationText::quotationValues($this->bid->quotation),
+            ],
+        );
     }
 
     /**

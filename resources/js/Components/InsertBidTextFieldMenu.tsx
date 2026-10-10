@@ -85,6 +85,7 @@ type InsertBidTextFieldMenuProps = {
     allowCreate?: boolean;
     groupOrder?: readonly string[];
     pages?: InsertFieldPage[];
+    triggerLabel?: string;
 };
 
 export default function InsertBidTextFieldMenu({
@@ -97,6 +98,7 @@ export default function InsertBidTextFieldMenu({
     allowCreate = true,
     groupOrder = BID_TEXT_FIELD_GROUP_ORDER,
     pages = [],
+    triggerLabel,
 }: InsertBidTextFieldMenuProps) {
     const searchRef = useRef<HTMLInputElement>(null);
     const [query, setQuery] = useState('');
@@ -348,18 +350,15 @@ export default function InsertBidTextFieldMenu({
                 }}
             >
                 <DropdownMenuTrigger asChild>
-                    <Button type="button" variant="outline" size="icon-sm" title="Insert a field that fills in from the project, contractor, or a product">
-                        <BracesIcon />
+                    <Button type="button" variant="outline" size={triggerLabel ? 'sm' : 'icon-sm'} title="Insert a field that fills in from the project, contractor, or a product" aria-label={triggerLabel ?? 'Insert a field'}>
+                        <BracesIcon data-icon="inline-start" />
+                        {triggerLabel}
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                     align="start"
                     collisionPadding={12}
-                    className="z-[200] w-96 p-0"
-                    onOpenAutoFocus={(event) => {
-                        event.preventDefault();
-                        requestAnimationFrame(() => searchRef.current?.focus());
-                    }}
+                    className="w-96 max-w-[calc(100vw-24px)] p-0"
                     onCloseAutoFocus={(event) => event.preventDefault()}
                     onKeyDown={(event) => {
                         if (event.target === searchRef.current) {

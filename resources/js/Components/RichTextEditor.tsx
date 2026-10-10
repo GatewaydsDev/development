@@ -1,5 +1,8 @@
 import { Button } from '@/Components/ui/button';
 import StickyDocumentToolbar from '@/Components/StickyDocumentToolbar';
+import TextInput from '@/Components/TextInput';
+import InputLabel from '@/Components/InputLabel';
+import { Dialog, DialogDescription, DialogPanel, DialogTitle } from '@headlessui/react';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -17,6 +20,8 @@ import {
 import { Separator } from '@/Components/ui/separator';
 import { Toggle } from '@/Components/ui/toggle';
 import { cn } from '@/lib/utils';
+import { CellSelection } from '@tiptap/pm/tables';
+import { PRINT_LAYOUT_FONT_CHOICES, printLayoutTextCase } from '@/lib/printLayoutGeometry';
 import { blockMoveModeKey, RichTextBlockDrag } from '@/Components/richTextBlockDrag';
 import { enablePositionCanvas, evenCanvasSpacing, PositionCanvas, PositionItem } from '@/Components/richTextPositionCanvas';
 import Color from '@tiptap/extension-color';
@@ -29,11 +34,14 @@ import TextAlign from '@tiptap/extension-text-align';
 import TextStyle from '@tiptap/extension-text-style';
 import Underline from '@tiptap/extension-underline';
 import { Editor, EditorContent, useEditor } from '@tiptap/react';
+import { Extension } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import {
     ImportedBlockStyles,
     ImportedTextStyles,
     richTextLayoutExtensions,
+    selectedTableColumn,
+    resizeTableColumn,
 } from '@/Components/richTextImportedStyles';
 import {
     AlignCenterIcon,
@@ -61,6 +69,7 @@ import {
     ListIcon,
     ListOrderedIcon,
     MinusIcon,
+    MoveIcon,
     PaintBucketIcon,
     PilcrowIcon,
     QuoteIcon,
@@ -137,13 +146,9 @@ const TEXT_COLORS = [
 
 const FONT_SIZES = [10, 12, 14, 16, 18, 20, 24, 28, 32] as const;
 
-const FONT_FAMILIES = [
-    { label: 'Arial', value: 'Arial, Helvetica, sans-serif' },
-    { label: 'Verdana', value: 'Verdana, Geneva, sans-serif' },
-    { label: 'Georgia', value: 'Georgia, serif' },
-    { label: 'Times New Roman', value: "'Times New Roman', Times, serif" },
-    { label: 'Courier New', value: "'Courier New', Courier, monospace" },
-] as const;
+const FONT_FAMILIES = PRINT_LAYOUT_FONT_CHOICES
+    .filter((choice) => choice.id !== 'default')
+    .map((choice) => ({ label: choice.label, value: choice.stack }));
 
 const LINE_SPACING = [
     { label: 'Single', value: '1' },
@@ -330,7 +335,7 @@ function applyBlockStyle(
         .command(({ tr, state }) => {
             let changed = false;
 
-            state.doc.nodesBetween(from, to, (node, pos) => {
+            const apply = (node: import('@tiptap/pm/model').Node, pos: number) => {
                 if (
                     node.type.name !== 'paragraph' &&
                     node.type.name !== 'heading' &&
@@ -344,11 +349,138 @@ function applyBlockStyle(
                     ...attrs,
                 });
                 changed = true;
-            });
+            };
+            if (state.selection instanceof CellSelection) {
+                state.selection.forEachCell((cell, pos) => {
+                    cell.descendants((node, offset) => apply(node, pos + 1 + offset));
+                });
+            } else {
+                state.doc.nodesBetween(from, to, apply);
+            }
 
             return changed;
         })
         .run();
+}
+
+function toggleInlineEmphasis(editor: Editor, type: 'bold' | 'italic'): boolean {
+    let imported = false;
+    const { from, to } = editor.state.selection;
+    editor.state.doc.nodesBetween(from, to, (node) => {
+        if (node.attrs.pdfFontSrc || node.attrs.fontSynthesis === 'none'
+            || node.marks.some(mark => mark.attrs.fontSynthesis === 'none')) imported = true;
+    });
+    const chain = editor.chain().focus();
+    if (imported) chain.setMark('textStyle', { fontSynthesis: 'weight style' });
+    return (type === 'bold' ? chain.toggleBold() : chain.toggleItalic()).run();
+}
+
+const ImportedInlineEmphasis = Extension.create({
+    name: 'importedInlineEmphasis',
+    priority: 1100,
+    addKeyboardShortcuts() {
+        return {
+            'Mod-b': () => toggleInlineEmphasis(this.editor, 'bold'),
+            'Mod-i': () => toggleInlineEmphasis(this.editor, 'italic'),
+        };
+    },
+});
+
+function applyTextColor(editor: Editor, color: string | null) {
+    if (!(editor.state.selection instanceof CellSelection)) {
+        if (color) editor.chain().focus().setColor(color).run();
+        else editor.chain().focus().unsetColor().run();
+        return;
+    }
+    const { tr, schema, selection } = editor.state;
+    selection.forEachCell((cell, pos) => {
+        tr.setNodeMarkup(pos, undefined, { ...cell.attrs, color });
+        cell.descendants((node, offset) => {
+            const at = pos + 1 + offset;
+            if (node.type.name === 'paragraph' || node.type.name === 'heading') {
+                tr.setNodeMarkup(at, undefined, { ...node.attrs, color });
+            }
+            if (node.isText) {
+                const existing = node.marks.find((mark) => mark.type === schema.marks.textStyle);
+                tr.removeMark(at, at + node.nodeSize, schema.marks.textStyle);
+                const attrs = { ...existing?.attrs, color };
+                if (Object.values(attrs).some(Boolean)) {
+                    tr.addMark(at, at + node.nodeSize, schema.marks.textStyle.create(attrs));
+                }
+            }
+        });
+    });
+    editor.view.dispatch(tr);
+    editor.view.focus();
+}
+
+function applyEditorTextCase(editor: Editor, mode: string) {
+    const { state } = editor;
+    const ranges: Array<{ from: number; to: number }> = [];
+    if (state.selection instanceof CellSelection) {
+        state.selection.forEachCell((cell, pos) => ranges.push({ from: pos + 1, to: pos + cell.nodeSize - 1 }));
+    } else if (state.selection.empty && state.selection.$from.parent.isTextblock) {
+        ranges.push({ from: state.selection.$from.start(), to: state.selection.$from.end() });
+    } else {
+        ranges.push({ from: state.selection.from, to: state.selection.to });
+    }
+    const changes: Array<{ from: number; to: number; text: string; marks: import('@tiptap/pm/model').Node['marks'] }> = [];
+    const tr = state.tr;
+    for (const range of ranges) {
+        const caseState = { hasWord: false, capitalizeNext: false };
+        state.doc.nodesBetween(range.from, range.to, (node, pos) => {
+            if (node.type.name === 'hardBreak') {
+                caseState.hasWord = false;
+                caseState.capitalizeNext = false;
+            }
+            if (node.isTextblock) {
+                caseState.hasWord = false;
+                caseState.capitalizeNext = false;
+                if (range.from <= pos + 1 && range.to >= pos + node.nodeSize - 1) {
+                    tr.setNodeMarkup(pos, undefined, { ...node.attrs, editorTextCase: mode, textTransform: null });
+                }
+            }
+            if (!node.isText && node.type.name !== 'bidTextField') return;
+            const parent = state.doc.resolve(pos);
+            const partial = range.from > parent.start() || range.to < parent.end();
+            const existing = node.marks.find(mark => mark.type === state.schema.marks.textStyle);
+            const marks = partial || existing?.attrs.textCase || existing?.attrs.textTransform
+                ? [...node.marks.filter(mark => mark.type !== state.schema.marks.textStyle),
+                    state.schema.marks.textStyle.create({
+                        ...existing?.attrs,
+                        textCase: mode === 'original' && !partial ? null : mode,
+                        textTransform: 'none',
+                    })]
+                : node.marks;
+            if (node.type.name === 'bidTextField') {
+                tr.setNodeMarkup(pos, undefined, { ...node.attrs, textCase: mode }, marks);
+                caseState.hasWord = true;
+                return;
+            }
+            const from = Math.max(pos, range.from);
+            const to = Math.min(pos + node.nodeSize, range.to);
+            if (from >= to) return;
+            const source = (node.text ?? '').slice(from - pos, to - pos);
+            let text = '';
+            for (const part of source.split(/(\{\{\s*[a-z0-9_]+\s*\}\})/gi)) {
+                if (mode === 'original') {
+                    text += part;
+                } else if (/^\{\{/.test(part)) {
+                    text += part;
+                    caseState.hasWord = true;
+                } else {
+                    text += printLayoutTextCase(part, mode, caseState);
+                }
+            }
+            changes.push({ from, to, text, marks });
+        });
+    }
+    for (const change of changes.sort((a, b) => b.from - a.from)) {
+        if (change.text) tr.replaceWith(change.from, change.to, state.schema.text(change.text, change.marks));
+        else tr.delete(change.from, change.to);
+    }
+    editor.view.dispatch(tr);
+    editor.view.focus();
 }
 
 function applyFootnote(editor: Editor) {
@@ -707,6 +839,7 @@ function ToolbarStyleMenu({
     icon,
     onChange,
     onOpenChange,
+    includeDefault = true,
 }: {
     label: string;
     value: string | null;
@@ -715,6 +848,7 @@ function ToolbarStyleMenu({
     icon: ReactNode;
     onChange: (value: string | null) => void;
     onOpenChange: (open: boolean) => void;
+    includeDefault?: boolean;
 }) {
     const current = choices.find((choice) => choice.value === value)?.label
         ?? (value ? 'Custom' : 'Default');
@@ -745,7 +879,7 @@ function ToolbarStyleMenu({
                 value={value || 'default'}
                 onValueChange={(next) => onChange(next === 'default' ? null : next)}
             >
-                <DropdownMenuRadioItem value="default">Default</DropdownMenuRadioItem>
+                {includeDefault ? <DropdownMenuRadioItem value="default">Default</DropdownMenuRadioItem> : null}
                 {choices.map((choice) => (
                     <DropdownMenuRadioItem key={choice.value} value={choice.value}>
                         {choice.label}
@@ -928,6 +1062,7 @@ export default function RichTextEditor({
     const [uploadingPictures, setUploadingPictures] = useState(false);
     const [pictureDropActive, setPictureDropActive] = useState(false);
     const [movingBlocks, setMovingBlocks] = useState(false);
+    const [columnWidthDraft, setColumnWidthDraft] = useState<string | null>(null);
     const placeDroppedPicturesRef = useRef<
         (files: File[], x: number, y: number) => void
     >(() => {});
@@ -941,6 +1076,10 @@ export default function RichTextEditor({
     const cursorBeforePictures = useRef<number | null>(null);
     const savedImagePos = useRef<number | null>(null);
     const [, refreshToolbar] = useReducer((tick: number) => tick + 1, 0);
+    const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+    const [linkUrl, setLinkUrl] = useState('');
+    const [linkError, setLinkError] = useState<string | null>(null);
+    const linkSelection = useRef<{ from: number; to: number } | null>(null);
     const editor = useEditor({
         extensions: [
             StarterKit.configure({
@@ -952,6 +1091,7 @@ export default function RichTextEditor({
             Color,
             ImportedTextStyles,
             ImportedBlockStyles,
+            ImportedInlineEmphasis,
             ...richTextLayoutExtensions,
             PositionCanvas,
             PositionItem,
@@ -1062,8 +1202,10 @@ export default function RichTextEditor({
                       source: field.source || field.key,
                       sourceLabel: field.label || field.name || field.key,
                   }))
-                : mergeBidTextPlaceholders(placeholderFields),
-        [placeholderCatalog, placeholderFields],
+                : mergeBidTextPlaceholders(placeholderFields).filter(
+                      (field) => field.group !== 'Contractor' || Boolean(placeholderValues[field.key]?.trim()),
+                  ),
+        [placeholderCatalog, placeholderFields, placeholderValues],
     );
 
     const insertPlaceholder = (key: string) => {
@@ -1076,23 +1218,26 @@ export default function RichTextEditor({
         }
 
         const previous = editor.getAttributes('link').href as string | undefined;
-        const url = window.prompt('Enter a URL', previous || 'https://');
+        linkSelection.current = {
+            from: editor.state.selection.from,
+            to: editor.state.selection.to,
+        };
+        setLinkUrl(previous || 'https://');
+        setLinkError(null);
+        setLinkDialogOpen(true);
+    };
 
-        if (url === null) {
+    const saveLink = () => {
+        if (!editor || !linkSelection.current) return;
+        const chain = editor.chain().setTextSelection(linkSelection.current).extendMarkRange('link');
+        const url = linkUrl.trim();
+        const saved = url === '' ? chain.unsetLink().run() : chain.setLink({ href: url }).run();
+        if (!saved) {
+            setLinkError('Enter a valid, safe URL such as https://example.com.');
             return;
         }
-
-        if (url.trim() === '') {
-            editor.chain().focus().extendMarkRange('link').unsetLink().run();
-            return;
-        }
-
-        editor
-            .chain()
-            .focus()
-            .extendMarkRange('link')
-            .setLink({ href: url.trim() })
-            .run();
+        setLinkDialogOpen(false);
+        requestAnimationFrame(() => editor.commands.focus());
     };
 
     const insertLayoutSection = (section: LayoutSection) =>
@@ -1155,6 +1300,8 @@ export default function RichTextEditor({
                     backgroundColor:
                         cell.type.name === 'tableHeader' && settings.headerBackground
                             ? settings.headerBackground
+                            : cell.attrs.backgroundColor
+                            ? cell.attrs.backgroundColor
                             : index % 2 === 0 && settings.labelBackground
                             ? settings.labelBackground
                             : null,
@@ -1777,6 +1924,43 @@ export default function RichTextEditor({
     return (
         <BidTextFieldValuesContext.Provider value={placeholderValues}>
         <div className="flex flex-col gap-2">
+        <Dialog open={linkDialogOpen} onClose={() => setLinkDialogOpen(false)} className="relative z-50">
+            <div className="fixed inset-0 bg-black/50" aria-hidden="true" />
+            <div className="fixed inset-0 flex items-center justify-center p-4">
+                <DialogPanel className="flex w-full max-w-md flex-col gap-4 rounded-xl border border-border bg-background p-6 text-foreground shadow-lg">
+                    <DialogTitle className="text-lg font-semibold">Edit link</DialogTitle>
+                    <DialogDescription className="text-sm text-muted-foreground">
+                        Enter a URL for the selected text. Leave it blank to remove the link.
+                    </DialogDescription>
+                    <form className="flex flex-col gap-4" onSubmit={(event) => {
+                        event.preventDefault();
+                        saveLink();
+                    }}>
+                        <div className="flex flex-col gap-1">
+                            <InputLabel htmlFor={`${id ?? 'rich-text-editor'}-link-url`} value="URL" />
+                            <TextInput
+                                id={`${id ?? 'rich-text-editor'}-link-url`}
+                                type="text"
+                                inputMode="url"
+                                spellCheck={false}
+                                autoCapitalize="none"
+                                autoCorrect="off"
+                                data-autofocus
+                                value={linkUrl}
+                                onChange={(event) => { setLinkUrl(event.target.value); setLinkError(null); }}
+                                aria-invalid={Boolean(linkError)}
+                                aria-describedby={linkError ? `${id ?? 'rich-text-editor'}-link-error` : undefined}
+                            />
+                            {linkError ? <p id={`${id ?? 'rich-text-editor'}-link-error`} role="alert" className="text-sm text-destructive">{linkError}</p> : null}
+                        </div>
+                        <div className="flex justify-end gap-2">
+                            <Button type="button" variant="outline" onClick={() => setLinkDialogOpen(false)}>Cancel</Button>
+                            <Button type="submit">Save link</Button>
+                        </div>
+                    </form>
+                </DialogPanel>
+            </div>
+        </Dialog>
         <div
             ref={editorFrameRef}
             data-rich-text-frame
@@ -1870,6 +2054,27 @@ export default function RichTextEditor({
                     <Redo2Icon />
                 </Button>
                 <Separator orientation="vertical" className="mx-1 h-6" />
+                {allowBlockDrag ? (
+                    <Button
+                        type="button"
+                        variant={movingBlocks ? 'secondary' : 'outline'}
+                        size="sm"
+                        data-labeled-command
+                        aria-pressed={movingBlocks}
+                        disabled={!editor}
+                        title={movingBlocks ? 'Switch to editing text and resizing table columns' : 'Drag items on the ruler grid, snapping every 10px'}
+                        onClick={() => {
+                            if (!editor) return;
+                            const next = !movingBlocks;
+                            if (next) enablePositionCanvas(editor);
+                            editor.view.dispatch(editor.state.tr.setMeta(blockMoveModeKey, next));
+                            setMovingBlocks(next);
+                        }}
+                    >
+                        <MoveIcon data-icon="inline-start" />
+                        {movingBlocks ? 'Edit text' : 'Move items'}
+                    </Button>
+                ) : null}
                 <ToolbarMenu
                     onOpenChange={handleMenuOpenChange}
                     side="bottom"
@@ -2013,6 +2218,21 @@ export default function RichTextEditor({
                     onOpenChange={handleMenuOpenChange}
                     onChange={(lineHeight) => editor && applyBlockStyle(editor, { lineHeight })}
                 />
+                <ToolbarStyleMenu
+                    label="Text case"
+                    includeDefault={false}
+                    value={textStyle.textCase ?? (blockStyle.editorTextCase !== 'original' ? blockStyle.editorTextCase : (blockStyle.textTransform === 'uppercase' || blockStyle.textTransform === 'lowercase' ? blockStyle.textTransform : 'original'))}
+                    choices={[
+                        { label: 'As entered', value: 'original' },
+                        { label: 'UPPERCASE', value: 'uppercase' },
+                        { label: 'lowercase', value: 'lowercase' },
+                        { label: 'camelCase', value: 'camel' },
+                    ]}
+                    docked={false}
+                    icon={<TypeIcon />}
+                    onOpenChange={handleMenuOpenChange}
+                    onChange={(mode) => editor && applyEditorTextCase(editor, mode ?? 'original')}
+                />
                 <Button
                     type="button"
                     variant="ghost"
@@ -2042,7 +2262,7 @@ export default function RichTextEditor({
                     size="sm"
                     pressed={Boolean(editor?.isActive('bold'))}
                     onPressedChange={() =>
-                        editor?.chain().focus().toggleBold().run()
+                        editor && toggleInlineEmphasis(editor, 'bold')
                     }
                     aria-label="Bold"
                     title="Make the selected text bold"
@@ -2053,7 +2273,7 @@ export default function RichTextEditor({
                     size="sm"
                     pressed={Boolean(editor?.isActive('italic'))}
                     onPressedChange={() =>
-                        editor?.chain().focus().toggleItalic().run()
+                        editor && toggleInlineEmphasis(editor, 'italic')
                     }
                     aria-label="Italic"
                     title="Make the selected text italic"
@@ -2111,13 +2331,7 @@ export default function RichTextEditor({
                     {TEXT_COLORS.map((swatch) => (
                         <DropdownMenuItem
                             key={swatch.value}
-                            onClick={() =>
-                                editor
-                                    ?.chain()
-                                    .focus()
-                                    .setColor(swatch.value)
-                                    .run()
-                            }
+                            onClick={() => editor && applyTextColor(editor, swatch.value)}
                         >
                             <span
                                 className="size-4 rounded-sm border border-border"
@@ -2141,19 +2355,11 @@ export default function RichTextEditor({
                                     | string
                                     | undefined) || '#111111'
                             }
-                            onChange={(event) =>
-                                editor
-                                    ?.chain()
-                                    .focus()
-                                    .setColor(event.target.value)
-                                    .run()
-                            }
+                            onChange={(event) => editor && applyTextColor(editor, event.target.value)}
                         />
                     </div>
                     <DropdownMenuItem
-                        onClick={() =>
-                            editor?.chain().focus().unsetColor().run()
-                        }
+                        onClick={() => editor && applyTextColor(editor, null)}
                     >
                         Default color
                     </DropdownMenuItem>
@@ -2840,6 +3046,40 @@ export default function RichTextEditor({
                 </ToolbarMenu>
                 {editor?.isActive('table') ? (
                     <>
+                        <label
+                            className="flex items-center gap-2 text-sm text-muted-foreground"
+                            onMouseDown={(event) => event.stopPropagation()}
+                        >
+                            Column width
+                            <input
+                                type="number"
+                                min={48}
+                                max={4000}
+                                step={1}
+                                aria-label="Selected table column width in pixels"
+                                title="Set this column's width in pixels, or drag its edge in Edit text mode"
+                                className="h-8 w-20 rounded-md border border-input bg-background px-2 text-sm text-foreground"
+                                value={columnWidthDraft ?? selectedTableColumn(editor.view)?.width ?? ''}
+                                onFocus={(event) => setColumnWidthDraft(event.currentTarget.value)}
+                                onChange={(event) => setColumnWidthDraft(event.target.value)}
+                                onBlur={(event) => {
+                                    const column = selectedTableColumn(editor.view);
+                                    const width = Number(event.target.value);
+                                    if (!column || !resizeTableColumn(editor.view, column.tablePos, column.column, width)) {
+                                        toast.error('Choose a table cell and enter a column width between 48 and 4000 pixels.');
+                                    }
+                                    setColumnWidthDraft(null);
+                                }}
+                                onKeyDown={(event) => {
+                                    event.stopPropagation();
+                                    if (event.key === 'Enter') {
+                                        event.preventDefault();
+                                        event.currentTarget.blur();
+                                    }
+                                }}
+                            />
+                            px
+                        </label>
                         {currentTableHasHeaders(editor) ? (
                             <ToolbarMenu
                                 onOpenChange={handleMenuOpenChange}
@@ -3181,36 +3421,6 @@ export default function RichTextEditor({
                 className="hidden"
                 onChange={(event) => onPicturesChosen(event, true)}
             />
-            {allowBlockDrag ? (
-                <div className="flex items-center gap-3 border-b border-border px-4 py-2">
-                    <Button
-                        type="button"
-                        variant={movingBlocks ? 'secondary' : 'outline'}
-                        size="sm"
-                        aria-pressed={movingBlocks}
-                        disabled={!editor}
-                        onClick={() => {
-                            if (!editor) {
-                                return;
-                            }
-
-                            const next = !movingBlocks;
-                            if (next) {
-                                enablePositionCanvas(editor);
-                            }
-                            editor.view.dispatch(editor.state.tr.setMeta(blockMoveModeKey, next));
-                            setMovingBlocks(next);
-                        }}
-                    >
-                        {movingBlocks ? 'Edit text' : 'Move items'}
-                    </Button>
-                    <span className="text-sm text-muted-foreground">
-                        {movingBlocks
-                            ? 'Drag to position items. Snaps every 10px; rulers are in pixels.'
-                            : 'Switch to Move items to drag content directly.'}
-                    </span>
-                </div>
-            ) : null}
             <div className={allowBlockDrag ? 'overflow-x-auto' : undefined}>
                 <EditorContent editor={editor} />
             </div>

@@ -23,6 +23,7 @@ class Bid extends Model
         'bid_scope_text_template_id',
         'scope_of_work_text',
         'print_layout_id',
+        'print_layout_version',
         'include_signature',
     ];
 

@@ -43,6 +43,16 @@ class QuotationDocument
         return 'quotation';
     }
 
+    protected function documentLayoutId(): ?int
+    {
+        return $this->quotation->print_layout_id;
+    }
+
+    protected function injectsLayoutElements(): bool
+    {
+        return ! filled($this->quotation->layout_header);
+    }
+
     public static function for(Quotation $quotation, ?User $user = null): self
     {
         $quotation->load(['contractor.contacts', 'contacts', 'project', 'lineItems', 'creator', 'revisions.user', 'tables.fields.field', 'tables.fields.product']);
@@ -82,6 +92,8 @@ class QuotationDocument
 
         return [
             'mode' => $mode,
+            ...BidApplicationText::quotationValues($this->quotation),
+            ...BidApplicationText::contractorValues($this->quotation->contractor),
             'year' => now()->year,
             'generatedAt' => now(),
             'generatedBy' => $this->user?->name ?: $this->quotation->creator?->name,
@@ -100,6 +112,7 @@ class QuotationDocument
             'quotedAt' => $this->quotation->quoted_at?->format('F j, Y'),
             'validUntil' => $this->quotation->valid_until?->format('F j, Y'),
             'notes' => $this->displayHtml($this->quotation->notes),
+            'layoutHeader' => $this->displayHtml($this->quotation->layout_header, fill: true),
             'proposalTitle' => $this->proposalHeading(),
             'pricingConditions' => $this->displayHtml($this->quotation->pricing_conditions, fill: true),
             'pricingBasis' => $this->displayHtml($this->quotation->pricing_basis, fill: true),
@@ -192,22 +205,26 @@ class QuotationDocument
             'footerHeight' => 360,
         ]);
 
-        $header = $section->addHeader();
-        $headerTable = $header->addTable(['borderSize' => 0, 'cellMargin' => 0]);
-        $headerTable->addRow();
-        $logoPath = DocumentLogo::wordPath();
-        if ($logoPath) {
-            DocumentLogo::addWordImage($headerTable->addCell(1400, ['valign' => 'center']), $logoPath, 36);
+        if (! filled($this->quotation->layout_header)) {
+            $header = $section->addHeader();
+            $headerTable = $header->addTable(['borderSize' => 0, 'cellMargin' => 0]);
+            $headerTable->addRow();
+            $logoPath = DocumentLogo::wordPath();
+            if ($logoPath) {
+                DocumentLogo::addWordImage($headerTable->addCell(1400, ['valign' => 'center']), $logoPath, 36);
+            }
+            $headerTable->addCell($logoPath ? 5600 : 7000)->addText(
+                $this->companyName(),
+                ['bold' => true, 'size' => 11, 'color' => $this->wordColor('brand')],
+            );
+            $headerTable->addCell(3800, ['valign' => 'center'])->addText(
+                'Quotation',
+                ['bold' => true, 'size' => 11, 'color' => $this->wordColor('brand_mid')],
+                ['alignment' => Jc::END],
+            );
+        } else {
+            $this->addHtml($section, $this->displayHtml($this->quotation->layout_header, fill: true));
         }
-        $headerTable->addCell($logoPath ? 5600 : 7000)->addText(
-            $this->companyName(),
-            ['bold' => true, 'size' => 11, 'color' => $this->wordColor('brand')],
-        );
-        $headerTable->addCell(3800, ['valign' => 'center'])->addText(
-            'Quotation',
-            ['bold' => true, 'size' => 11, 'color' => $this->wordColor('brand_mid')],
-            ['alignment' => Jc::END],
-        );
 
         $footer = $section->addFooter();
         $footer->addPreserveText(
@@ -293,14 +310,6 @@ class QuotationDocument
                 $table->addCell(6800, ['bgColor' => $bg])->addText($item['value'], ['size' => 9]);
             }
             $section->addTextBreak(1);
-        }
-
-        if ($this->displayHtml($this->quotation->pricing_conditions, fill: true)) {
-            $section->addTextBreak(1);
-            $this->addHtml($section, BidApplicationText::fill(
-                $this->quotation->pricing_conditions,
-                $this->fieldValues(),
-            ));
         }
 
         if ($this->quotation->include_authorization ?? true) {
@@ -710,8 +719,16 @@ class QuotationDocument
             ?? $this->quotation->contractor?->primaryContact();
         $latestRevision = $this->quotation->revisions->first();
         $quantity = $this->quotation->lineItems->sum(fn (QuotationLineItem $item): float => (float) $item->quantity);
+        $validityDate = $this->quotation->quoted_at ?? $this->quotation->created_at ?? now();
 
         return [
+            'validity_30' => $validityDate->copy()->addDays(30)->format('F j, Y'),
+            ...BidApplicationText::contractorValues($this->quotation->contractor),
+            'contractor_contact_name' => $contact?->name ?: '',
+            'validity_60' => $validityDate->copy()->addDays(60)->format('F j, Y'),
+            'validity_90' => $validityDate->copy()->addDays(90)->format('F j, Y'),
+            'authorized_representative' => $this->user?->name ?: $this->quotation->creator?->name ?: '',
+            'document_year' => (string) now()->year,
             'quotation_number' => (string) $this->quotation->quotation_number,
             'quotation_title' => (string) $this->quotation->title,
             'quoted_on' => $this->quotation->quoted_at?->format('F j, Y') ?: '',
@@ -747,6 +764,7 @@ class QuotationDocument
             'contractor_phone' => $contact?->phone_number ?: '',
             'latest_revision' => $latestRevision?->number ?: '',
             'company_name' => $this->companyName(),
+            'company_speciality' => $this->company?->speciality ?? '',
             'company_legal_name' => $this->company?->legal_name ?: $this->companyName(),
             'company_phone' => $this->company?->contact_phone_number ?: $this->company?->phone_number ?: '',
             'company_email' => $this->company?->email ?: '',

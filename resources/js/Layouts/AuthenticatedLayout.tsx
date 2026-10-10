@@ -1,6 +1,10 @@
 import DashboardSidebar from '@/Components/DashboardSidebar';
 import DashboardSnapDrawer from '@/Components/DashboardSnapDrawer';
 import NavLink from '@/Components/NavLink';
+import {
+    RevisionAssignmentListener,
+    RevisionAssignmentsMenu,
+} from '@/Components/RevisionAssignments';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
 import ThemeModeToggle from '@/Components/ThemeModeToggle';
 import UserAvatar from '@/Components/UserAvatar';
@@ -427,6 +431,7 @@ export default function Authenticated({
 
     return (
         <div className="min-h-screen bg-muted/30 text-foreground">
+            <RevisionAssignmentListener userId={user.id} />
             {/* Full-height sidebar covering the whole left side (desktop) */}
             <DashboardSidebar
                 collapsed={sidebarCollapsed}
@@ -480,6 +485,8 @@ export default function Authenticated({
 
                         <div className="hidden gap-2 lg:ms-6 lg:flex lg:items-center lg:gap-4">
                             <ThemeModeToggle />
+
+                            <RevisionAssignmentsMenu />
 
                             {canManageNotifications && (
                             <DropdownMenu>
@@ -582,7 +589,8 @@ export default function Authenticated({
                             )}
                         </div>
 
-                        <div className="-me-2 flex items-center lg:hidden">
+                        <div className="-me-2 flex items-center gap-2 lg:hidden">
+                            <RevisionAssignmentsMenu />
                             <button
                                 onClick={() =>
                                     setShowingNavigationDropdown(

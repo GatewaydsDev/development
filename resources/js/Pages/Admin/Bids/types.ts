@@ -15,6 +15,10 @@ export type BidProjectOption = {
     project_number?: string | null;
     contractor_name?: string | null;
     contractor_contact_name?: string | null;
+    contractor_email?: string | null;
+    contractor_phone?: string | null;
+    contractor_address?: string | null;
+    contractor_website?: string | null;
     site_address?: string | null;
     estimated_start_date?: string | null;
     estimated_end_date?: string | null;
@@ -31,6 +35,7 @@ export type BidTextTemplateOption = {
 
 export type BidCompanyOption = {
     name: string;
+    speciality?: string | null;
     legal_name?: string | null;
     email?: string | null;
     phone?: string | null;
@@ -79,6 +84,7 @@ export type BidQuotationLineOption = {
 };
 
 export type BidQuotationOption = {
+    field_values?: Record<string, string>;
     id: number;
     uuid: string;
     name: string;
@@ -211,6 +217,7 @@ export type BidPayload = {
     bid_scope_text_template_id?: number | null;
     scope_of_work_text?: string | null;
     print_layout_id?: number | null;
+    print_layout_version?: string | null;
     include_signature?: boolean;
     created_at?: string | null;
     updated_at?: string | null;
@@ -308,6 +315,7 @@ export type BidFormData = {
     bid_scope_text_template_id: string;
     scope_of_work_text: string;
     print_layout_id: string;
+    print_layout_version: string;
     include_signature: boolean;
     revisions: BidRevisionFormData[];
     stages: BidStageFormData[];
@@ -941,6 +949,7 @@ export const bidToFormData = (bid?: BidPayload): BidFormData => ({
         : '',
     scope_of_work_text: bid?.scope_of_work_text ?? '',
     print_layout_id: bid?.print_layout_id ? String(bid.print_layout_id) : '',
+    print_layout_version: bid?.print_layout_version ?? '',
     include_signature: bid?.include_signature ?? true,
     revisions:
         bid?.revisions?.map((revision) => ({

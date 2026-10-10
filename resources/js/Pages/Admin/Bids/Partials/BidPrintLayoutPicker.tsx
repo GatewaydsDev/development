@@ -11,25 +11,35 @@ export default function BidPrintLayoutPicker({
     assignedLayoutId,
     value,
     onSelect,
+    document = 'bid',
+    disabled = false,
 }: {
     layouts: PrintLayoutOption[];
     assignedLayoutId?: number | null;
     value: string;
     onSelect: (id: string) => void;
+    document?: 'bid' | 'quotation';
+    disabled?: boolean;
 }) {
     const assigned = layouts.find((layout) => layout.id === assignedLayoutId);
     const selectedId = value || (assigned ? String(assigned.id) : '');
 
     return (
-        <section aria-labelledby="bid-print-layout-heading" className="flex flex-col gap-3">
+        <section aria-labelledby={`${document}-print-layout-heading`} className="flex flex-col gap-3">
             <div className="flex flex-col gap-1">
-                <h3 id="bid-print-layout-heading" className="text-sm font-medium">Print layout</h3>
+                <h3 id={`${document}-print-layout-heading`} className="text-sm font-medium">Print layout</h3>
                 <p className="text-sm text-muted-foreground">
                     Choose a layout card to load its text, tables and images.
-                    You will confirm before replacing the bid information.
+                    Select the current card again to reload its latest saved version.
+                    You will confirm before replacing the {document === 'bid' ? 'bid information' : 'quotation header'}.
                     Use Layout sections in the editor toolbar to add one piece at a time.
                 </p>
             </div>
+            {layouts.length === 0 ? (
+                <p role="status" className="text-sm text-muted-foreground">
+                    No layouts are assigned to {document}s. Enable a {document} output under Assign documents in Print Layouts to make a layout available here.
+                </p>
+            ) : null}
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                 {layouts.map((layout) => {
                     const id = String(layout.id);
@@ -46,9 +56,8 @@ export default function BidPrintLayoutPicker({
                                 type="button"
                                 aria-pressed={selected}
                                 aria-label={`Select ${layout.name}`}
-                                onClick={() => {
-                                    if (!selected) onSelect(id);
-                                }}
+                                disabled={disabled}
+                                onClick={() => onSelect(id)}
                                 className="flex h-full w-full flex-col gap-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                             >
                                 <PrintLayoutThumbnail
@@ -60,7 +69,7 @@ export default function BidPrintLayoutPicker({
                                 </CardHeader>
                                 <CardContent className="flex w-full flex-wrap items-center justify-between gap-2 pb-4">
                                     <span className="text-xs text-muted-foreground">
-                                        {layout.id === assignedLayoutId ? 'Assigned default for bids' : 'Saved print layout'}
+                                        {layout.id === assignedLayoutId ? `Assigned default for ${document}s` : 'Saved print layout'}
                                     </span>
                                     {selected ? (
                                         <Badge variant="success">
@@ -79,9 +88,9 @@ export default function BidPrintLayoutPicker({
                     {assigned ? `Default: ${assigned.name}` : 'No default layout assigned'}
                 </span>
                 {value === '' ? (
-                    <Badge variant="outline">Using default</Badge>
+                    assigned ? <Badge variant="outline">Using default</Badge> : null
                 ) : (
-                    <Button type="button" variant="outline" size="sm" onClick={() => onSelect('')}>
+                    <Button type="button" variant="outline" size="sm" disabled={disabled} onClick={() => onSelect('')}>
                         Use default
                     </Button>
                 )}

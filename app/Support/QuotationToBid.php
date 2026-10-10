@@ -136,7 +136,7 @@ class QuotationToBid
      */
     public static function optionPayload(Quotation $quotation): array
     {
-        $quotation->loadMissing(['contractor', 'project', 'lineItems']);
+        $quotation->loadMissing(['contractor', 'project', 'lineItems', 'revisions']);
 
         $contractorName = $quotation->contractor?->name
             ?: 'Contractor';
@@ -149,6 +149,7 @@ class QuotationToBid
             'title' => $quotation->title,
             'project_id' => $quotation->project_id,
             'notes' => $quotation->notes,
+            'field_values' => BidApplicationText::quotationValues($quotation),
             'line_items' => $quotation->lineItems
                 ->map(fn (QuotationLineItem $item): array => [
                     'description' => $item->description,

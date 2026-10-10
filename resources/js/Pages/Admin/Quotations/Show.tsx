@@ -1,4 +1,6 @@
+import { RevisionReviewPanel } from '@/Components/RevisionAssignments';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import type { RevisionAssignment } from '@/types';
 import DirectoryFieldLabel from '@/Components/DirectoryFieldLabel';
 import {
     AlertDialog,
@@ -46,6 +48,7 @@ import {
 type ShowProps = {
     quotation: QuotationPayload;
     options: QuotationOptions;
+    assignedRevisions?: RevisionAssignment[];
 };
 
 function DetailItem({
@@ -67,7 +70,11 @@ function DetailItem({
     );
 }
 
-export default function Show({ quotation, options }: ShowProps) {
+export default function Show({
+    quotation,
+    options,
+    assignedRevisions = [],
+}: ShowProps) {
     const [isConvertOpen, setIsConvertOpen] = useState(false);
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const pricingBasisHtml = !isEmptyHtml(quotation.pricing_basis)
@@ -228,6 +235,8 @@ export default function Show({ quotation, options }: ShowProps) {
 
             <div className="py-6 sm:py-8">
                 <div className="mx-auto flex max-w-[96rem] flex-col gap-6 px-4 sm:px-6 lg:px-8">
+                    <RevisionReviewPanel assignments={assignedRevisions} />
+
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2 text-base font-semibold text-foreground">
@@ -284,7 +293,7 @@ export default function Show({ quotation, options }: ShowProps) {
                                             key={
                                                 revision.id ?? revision.number
                                             }
-                                            className="grid gap-3 rounded-lg border border-border bg-muted/30 p-4 sm:grid-cols-[8rem_10rem_minmax(10rem,0.9fr)_minmax(0,1fr)] sm:items-start"
+                                            className="grid gap-3 rounded-lg border border-border bg-muted/30 p-4 sm:grid-cols-2 lg:grid-cols-[8rem_10rem_minmax(10rem,0.9fr)_minmax(10rem,0.9fr)_minmax(0,1fr)] sm:items-start"
                                         >
                                             <div>
                                                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -310,6 +319,15 @@ export default function Show({ quotation, options }: ShowProps) {
                                                 <p className="mt-1 text-sm text-foreground">
                                                     {revision.user?.name ||
                                                         'Not set'}
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                                    Responsible
+                                                </p>
+                                                <p className="mt-1 text-sm text-foreground">
+                                                    {revision.responsible_user
+                                                        ?.name || 'Not set'}
                                                 </p>
                                             </div>
                                             {revision.notes ? (
@@ -560,29 +578,6 @@ export default function Show({ quotation, options }: ShowProps) {
                             </CardContent>
                         </Card>
                     ))}
-
-                    {!isEmptyHtml(quotation.pricing_conditions) ? (
-                        <Card>
-                            <CardContent>
-                                <div
-                                    className="rich-text-content text-sm text-foreground"
-                                    dangerouslySetInnerHTML={{
-                                        __html: fillQuotationPlaceholders(
-                                            quotation.pricing_conditions ?? '',
-                                            quotationInsertValues(
-                                                quotationToFormData(
-                                                    quotation,
-                                                    options,
-                                                ),
-                                                options,
-                                                quotation,
-                                            ),
-                                        ),
-                                    }}
-                                />
-                            </CardContent>
-                        </Card>
-                    ) : null}
 
                     {quotation.include_authorization !== false ? (
                     <Card>

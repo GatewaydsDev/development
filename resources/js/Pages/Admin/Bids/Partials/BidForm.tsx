@@ -4,6 +4,8 @@ import FormActionFab from '@/Components/FormActionFab';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
+import { flushPendingTextAutoSaves } from '@/Components/TextAutoSave';
+import { saveDocumentDraft } from '@/lib/saveDocumentDraft';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -92,6 +94,7 @@ const schema = z.object({
     bid_shipping_text_template_id: z.string(),
     bid_scope_text_template_id: z.string(),
     print_layout_id: z.string(),
+    print_layout_version: z.string(),
     include_signature: z.boolean(),
     scope_of_work_text: z
         .string()
@@ -242,6 +245,7 @@ export default function BidForm({
     onSelectedProjectNameChange,
 }: BidFormProps) {
     const { auth } = usePage<PageProps>().props;
+    const [savedBid, setSavedBid] = useState<BidPayload | undefined>(bid);
     const currentUserId = auth.user?.id ? String(auth.user.id) : '';
     const defaultValues = useMemo(() => {
         const values = bidToFormData(bid);
@@ -278,6 +282,7 @@ export default function BidForm({
         setValue,
         setError,
         getValues,
+        reset,
         formState: { errors: validationErrors, isSubmitting },
     } = useForm<BidFormData>({
         resolver: zodResolver(schema),
@@ -302,7 +307,7 @@ export default function BidForm({
         replace: replaceScopes,
     } = useFieldArray({ control, name: 'scopes' });
 
-    const isCreate = !bid;
+    const isCreate = !savedBid;
     const [selectedPreBidId, setSelectedPreBidId] = useState('');
     const [pendingDelete, setPendingDelete] = useState<{
         type: 'revision' | 'stage' | 'scope';
@@ -316,6 +321,8 @@ export default function BidForm({
         control,
         defaultValue: defaultValues,
     }) as BidFormData;
+    const savedBaseline = useRef(JSON.stringify(defaultValues));
+    const hasUnsavedChanges = JSON.stringify(data) !== savedBaseline.current;
     const selectedProject = options.projects.find(
         (project) => String(project.id) === (data.project_id ?? ''),
     );
@@ -494,9 +501,7 @@ export default function BidForm({
         applyQuotation(quotation);
     }, [importQuotationUuid, quotations]);
 
-    const submit = handleSubmit(
-        (values) => {
-            const payload = {
+    const bidPayload = (values: BidFormData) => ({
                 ...values,
                 assigned_to: values.assigned_to.trim() || null,
                 quotation_id: values.quotation_id.trim() || null,
@@ -506,6 +511,7 @@ export default function BidForm({
                     values.bid_scope_text_template_id.trim() || null,
                 scope_of_work_text: values.scope_of_work_text,
                 print_layout_id: values.print_layout_id.trim() || null,
+                print_layout_version: values.print_layout_version || null,
                 stages: values.stages.filter(
                     (stage) => stage.stage_type_id.trim() !== '',
                 ),
@@ -584,7 +590,44 @@ export default function BidForm({
                             pricing.notes.trim() !== '' ||
                             pricing.revision_date.trim() !== '',
                     ),
-            };
+            });
+
+    const applyServerErrors = (serverErrors: Record<string, string>) => {
+        Object.entries(serverErrors).forEach(([field, message]) => {
+            setError(field as FieldPath<BidFormData>, { type: 'server', message });
+        });
+    };
+    const saveCurrent = () => new Promise<boolean>((resolve) => {
+        void handleSubmit(async () => {
+            try {
+                if (!(await flushPendingTextAutoSaves())) throw new Error('The current bid text could not be saved. Try again before updating the layout.');
+                const values = getValues();
+                const result = await saveDocumentDraft<BidPayload>(
+                    savedBid ? route('admin.bids.update', savedBid.uuid) : action,
+                    savedBid ? 'patch' : method, bidPayload(values), applyServerErrors,
+                );
+                setSavedBid(result);
+                const savedValues = { ...values, revisions: bidToFormData(result).revisions };
+                savedBaseline.current = JSON.stringify(savedValues);
+                reset(savedValues);
+                toast.success('Current bid changes saved. The new layout will remain a draft until you save again.');
+                resolve(true);
+            } catch (error) {
+                toast.error(error instanceof Error ? error.message : 'The bid could not be saved. Your edits are unchanged.');
+                resolve(false);
+            }
+        }, () => {
+            toast.error('Check the highlighted bid fields before saving and updating the layout.');
+            resolve(false);
+        })();
+    });
+    const submit = handleSubmit(
+        async (values) => {
+            if (!(await flushPendingTextAutoSaves())) {
+                toast.error('The current bid text could not be saved. Try again before saving the bid.');
+                return;
+            }
+            const payload = bidPayload(values);
 
             const submitOptions = {
                 onError: (serverErrors: Record<string, string>) => {
@@ -601,8 +644,8 @@ export default function BidForm({
                 },
             };
 
-            if (method === 'patch') {
-                router.patch(action, payload, submitOptions);
+            if (savedBid) {
+                router.patch(route('admin.bids.update', savedBid.uuid), payload, submitOptions);
                 return;
             }
 
@@ -626,16 +669,20 @@ export default function BidForm({
         );
 
         return {
+            bid_date: data.stages[data.stages.length - 1]?.stage_date
+                || savedBid?.created_at || new Date().toLocaleDateString('en-CA'),
             authorized_representative: assignee?.name ?? '',
-            quotation_number: quotation
-                ? `${quotation.quotation_number} — ${quotation.title}`
-                : '',
+            ...quotation?.field_values,
+            quotation_number: quotation?.quotation_number ?? '',
+            quotation_title: quotation?.title ?? '',
         };
     }, [
         options.assignees,
         quotations,
         data.assigned_to,
         data.quotation_id,
+        data.stages,
+        savedBid?.created_at,
     ]);
     return (
         <form onSubmit={submit} className="flex w-full min-w-0 max-w-full flex-col gap-6 pr-4 pb-28 sm:pr-20 lg:pb-6">
@@ -1104,6 +1151,9 @@ export default function BidForm({
                 extraFieldValues={extraFieldValues}
                 printLayoutId={data.print_layout_id ?? ''}
                 onPrintLayoutIdChange={(id) => setData('print_layout_id', id)}
+                printLayoutVersion={data.print_layout_version ?? ''}
+                onPrintLayoutVersionChange={(version) => setData('print_layout_version', version)}
+                hasUnsavedChanges={hasUnsavedChanges} onSaveCurrent={saveCurrent}
                 value={data.notes ?? ''}
                 templateId={data.bid_shipping_text_template_id ?? ''}
                 error={errorMessage(validationErrors, 'notes')}
@@ -1112,9 +1162,13 @@ export default function BidForm({
                     setData('bid_shipping_text_template_id', id)
                 }
                 autoSave={{
-                    persistKey: bid ? `bid:${bid.id}` : null,
-                    url: bid ? route('admin.bids.autosave', bid.uuid) : null,
+                    persistKey: savedBid ? `bid:${savedBid.id}` : null,
+                    url: savedBid ? route('admin.bids.autosave', savedBid.uuid) : null,
                     field: 'notes',
+                    extraData: {
+                        print_layout_id: data.print_layout_id || null,
+                        print_layout_version: data.print_layout_version || null,
+                    },
                     unavailableMessage:
                         'AutoSave on. Add the bid to start saving this text.',
                 }}
@@ -1122,14 +1176,14 @@ export default function BidForm({
 
             <FormActionFab
                 cancelHref={route('admin.bids.index')}
-                saveLabel={bid ? 'Save bid' : 'Add bid'}
+                saveLabel={savedBid ? 'Save bid' : 'Add bid'}
                 disabled={isSubmitting}
                 printHref={
-                    bid
-                        ? route('admin.bids.print', bid.uuid)
+                    savedBid
+                        ? route('admin.bids.print', savedBid.uuid)
                         : undefined
                 }
-                printLabel={bid ? 'Print bid' : 'Print'}
+                printLabel={savedBid ? 'Print bid' : 'Print'}
                 showPrint={true}
             />
 

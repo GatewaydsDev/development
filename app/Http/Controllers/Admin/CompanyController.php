@@ -26,6 +26,7 @@ class CompanyController extends Controller
                     'id' => $company->id,
                     'uuid' => $company->uuid,
                     'name' => $company->name,
+                    'speciality' => $company->speciality,
                     'legal_name' => $company->legal_name,
                     'logo_url' => $company->logo_path
                         ? asset('storage/'.$company->logo_path)
@@ -87,6 +88,7 @@ class CompanyController extends Controller
 
         return $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'speciality' => ['nullable', 'string', 'max:255'],
             'legal_name' => ['nullable', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
             'phone_number' => ['nullable', 'string', 'max:50'],

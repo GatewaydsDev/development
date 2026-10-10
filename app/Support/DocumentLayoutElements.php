@@ -2,9 +2,12 @@
 
 namespace App\Support;
 
+use App\Models\BidTextField;
+use Illuminate\Support\Carbon;
+
 class DocumentLayoutElements
 {
-    public const TYPES = ['text', 'image', 'divider', 'spacer', 'date', 'company', 'table'];
+    public const TYPES = ['text', 'image', 'divider', 'spacer', 'date', 'validity', 'company', 'table'];
 
     public const ZONES = ['header', 'intro', 'body', 'footer'];
 
@@ -19,6 +22,24 @@ class DocumentLayoutElements
         'georgia' => 'Georgia, serif',
         'times' => '"Times New Roman", Times, serif',
         'courier' => '"Courier New", Courier, monospace',
+        'geist' => '"Geist Variable", Arial, sans-serif',
+        'calibri' => 'Calibri, Candara, Arial, sans-serif',
+        'aptos' => 'Aptos, Calibri, Arial, sans-serif',
+        'segoe' => '"Segoe UI", Tahoma, Arial, sans-serif',
+        'century_gothic' => '"Century Gothic", "Apple Gothic", Arial, sans-serif',
+        'lucida_sans' => '"Lucida Sans Unicode", "Lucida Grande", sans-serif',
+        'arial_narrow' => '"Arial Narrow", Arial, sans-serif',
+        'cambria' => 'Cambria, Georgia, serif',
+        'palatino' => '"Palatino Linotype", Palatino, "Book Antiqua", serif',
+        'garamond' => 'Garamond, "Baskerville Old Face", "Times New Roman", serif',
+        'baskerville' => 'Baskerville, "Baskerville Old Face", Georgia, serif',
+        'bookman' => '"Bookman Old Style", "URW Bookman", Georgia, serif',
+        'consolas' => 'Consolas, "Courier New", monospace',
+        'menlo' => 'Menlo, Monaco, Consolas, monospace',
+        'lucida_console' => '"Lucida Console", Monaco, monospace',
+        'impact' => 'Impact, "Arial Black", sans-serif',
+        'arial_black' => '"Arial Black", Arial, sans-serif',
+        'comic_sans' => '"Comic Sans MS", "Comic Sans", cursive',
     ];
 
     public const DEFAULT_HEADER_HEIGHT = 160;
@@ -27,10 +48,11 @@ class DocumentLayoutElements
 
     public const ALIGNMENTS = ['left', 'center', 'right', 'justify'];
 
-    public const MAX_ELEMENTS = 150;
+    public const MAX_ELEMENTS = 1000;
 
     public const COMPANY_FIELDS = [
         'company_name' => 'Company name',
+        'company_speciality' => 'Company speciality',
         'company_legal_name' => 'Legal name',
         'company_address' => 'Address',
         'company_phone' => 'Phone',
@@ -44,6 +66,7 @@ class DocumentLayoutElements
 
     public const FIELDS = [
         'company_name' => ['label' => 'Company name', 'group' => 'Company', 'sample' => 'Gateway Door Systems'],
+        'company_speciality' => ['label' => 'Company speciality', 'group' => 'Company', 'sample' => 'Commercial door systems'],
         'company_address' => ['label' => 'Company address', 'group' => 'Company', 'sample' => '245 Market Street · Portland, OR 97201'],
         'company_phone' => ['label' => 'Company phone', 'group' => 'Company', 'sample' => '(503) 555-0142'],
         'company_email' => ['label' => 'Company email', 'group' => 'Company', 'sample' => 'info@example.com'],
@@ -59,9 +82,18 @@ class DocumentLayoutElements
         'project_name' => ['label' => 'Project name', 'group' => 'Project', 'sample' => 'Northwest Commons'],
         'project_number' => ['label' => 'Project number', 'group' => 'Project', 'sample' => 'P-2025-014'],
         'project_address' => ['label' => 'Project address', 'group' => 'Project', 'sample' => '245 Market Street, Portland, OR'],
+        'contractor_name' => ['label' => 'Contractor company', 'group' => 'Contractor', 'sample' => 'Harbor Facilities'],
+        'contractor_contact_name' => ['label' => 'Contractor contact', 'group' => 'Contractor', 'sample' => 'Alex Morgan'],
+        'contractor_email' => ['label' => 'Contractor email', 'group' => 'Contractor', 'sample' => 'contact@example.com'],
+        'contractor_phone' => ['label' => 'Contractor phone', 'group' => 'Contractor', 'sample' => '(503) 555-0100'],
+        'contractor_address' => ['label' => 'Contractor address', 'group' => 'Contractor', 'sample' => '125 Harbor Street, Portland, OR'],
+        'contractor_website' => ['label' => 'Contractor website', 'group' => 'Contractor', 'sample' => 'www.example.com'],
         'bid_number' => ['label' => 'Bid number', 'group' => 'Bid', 'sample' => 'P-2025-014'],
         'bid_date' => ['label' => 'Bid date', 'group' => 'Bid', 'sample' => 'October 7, 2025'],
         'bid_stage' => ['label' => 'Bid stage', 'group' => 'Bid', 'sample' => 'Proposal'],
+        'validity_30' => ['label' => 'Validity date (30 days)', 'group' => 'Document', 'sample' => 'November 6, 2025'],
+        'validity_60' => ['label' => 'Validity date (60 days)', 'group' => 'Document', 'sample' => 'December 6, 2025'],
+        'validity_90' => ['label' => 'Validity date (90 days)', 'group' => 'Document', 'sample' => 'January 5, 2026'],
     ];
 
     /**
@@ -74,12 +106,51 @@ class DocumentLayoutElements
         $company = self::companyValues();
         $catalog = [];
 
-        foreach (self::FIELDS as $key => $meta) {
+        $fields = self::FIELDS;
+        foreach (BidApplicationText::PLACEHOLDERS as $key => $label) {
+            if (isset($fields[$key])) {
+                continue;
+            }
+            $group = match (true) {
+                in_array($key, BidApplicationText::QUOTATION_FIELDS, true) => 'Quotation',
+                str_starts_with($key, 'company_') => 'Company',
+                str_starts_with($key, 'contractor_'), str_starts_with($key, 'customer_') => 'Contractor',
+                in_array($key, ['project_name', 'project_number', 'project_address', 'site_address', 'scope_of_work', 'estimated_start_date', 'estimated_end_date'], true) => 'Project',
+                in_array($key, ['today', 'authorized_representative'], true) => 'Bid',
+                default => 'Totals on this bid',
+            };
+            $alias = match ($key) {
+                'customer_name' => 'contractor_contact_name',
+                'customer_company' => 'contractor_name',
+                'site_address' => 'project_address',
+                'today' => 'generated_date',
+                default => null,
+            };
+            $fields[$key] = [
+                'label' => $label, 'group' => $group,
+                'sample' => $alias ? self::FIELDS[$alias]['sample'] : '{{'.$key.'}}',
+            ];
+        }
+        $samples = [];
+        foreach ($fields as $key => $meta) {
+            $samples[$key] = ($company[$key] ?? '') !== '' ? $company[$key] : $meta['sample'];
             $catalog[] = [
                 'key' => $key,
                 'label' => $meta['label'],
                 'group' => $meta['group'],
-                'sample' => ($company[$key] ?? '') !== '' ? $company[$key] : $meta['sample'],
+                'sample' => $samples[$key],
+            ];
+        }
+
+        foreach (BidTextField::query()->orderBy('name')->get(['key', 'name', 'source', 'value']) as $field) {
+            if (isset($fields[$field->key])) {
+                continue;
+            }
+            $catalog[] = [
+                'key' => $field->key, 'label' => $field->name, 'group' => 'Your fields',
+                'source' => (string) $field->source,
+                'sourceLabel' => BidApplicationText::PLACEHOLDERS[$field->source] ?? '',
+                'sample' => $samples[$field->source] ?? ($field->value ?: '{{'.$field->key.'}}'),
             ];
         }
 
@@ -106,6 +177,7 @@ class DocumentLayoutElements
 
         return [
             'company_name' => (string) $company->name,
+            'company_speciality' => (string) $company->speciality,
             'company_address' => $address,
             'company_phone' => (string) ($company->contact_phone_number ?: $company->phone_number),
             'company_email' => (string) $company->email,
@@ -125,8 +197,19 @@ class DocumentLayoutElements
         $company = self::companyValues();
         $pick = fn (string $key, string $fallback = ''): string => (string) ($data[$key] ?? $fallback);
 
+        $validityBase = Carbon::parse($data['bidDate'] ?? $data['quotedAt'] ?? now());
+
         return [
+            ...array_combine(BidApplicationText::QUOTATION_FIELDS,
+                array_map(fn (string $key): string => $pick($key), BidApplicationText::QUOTATION_FIELDS)),
+            'contractor_name' => $pick('contractor_name'),
+            'contractor_contact_name' => $pick('contractor_contact_name'),
+            'contractor_email' => $pick('contractor_email'),
+            'contractor_phone' => $pick('contractor_phone'),
+            'contractor_address' => $pick('contractor_address'),
+            'contractor_website' => $pick('contractor_website'),
             'company_name' => $company['company_name'] ?? $pick('companyName'),
+            'company_speciality' => $company['company_speciality'] ?? $pick('companySpeciality'),
             'company_address' => $company['company_address'] ?? $pick('companyAddress'),
             'company_phone' => $company['company_phone'] ?? $pick('companyPhone'),
             'company_email' => $company['company_email'] ?? $pick('companyEmail'),
@@ -145,6 +228,9 @@ class DocumentLayoutElements
             'bid_number' => $pick('bidNumber'),
             'bid_date' => $pick('bidDate'),
             'bid_stage' => $pick('stageLabel'),
+            'validity_30' => $validityBase->copy()->addDays(30)->format('F j, Y'),
+            'validity_60' => $validityBase->copy()->addDays(60)->format('F j, Y'),
+            'validity_90' => $validityBase->copy()->addDays(90)->format('F j, Y'),
         ];
     }
 
@@ -181,6 +267,67 @@ class DocumentLayoutElements
         }
 
         return $clean;
+    }
+
+    private static function indexedStyles(mixed $styles, int $limit): array
+    {
+        if (! is_array($styles)) {
+            return [];
+        }
+
+        $styles = array_intersect_key($styles, array_fill_keys(range(0, $limit - 1), true));
+        if ($styles === []) {
+            return [];
+        }
+        $rows = [];
+        for ($index = 0; $index <= max(array_keys($styles)); $index++) {
+            $rows[] = $styles[$index] ?? null;
+        }
+
+        return $rows;
+    }
+
+    private static function rowStyles(mixed $styles, int $limit = 60, bool $pdf = false): array
+    {
+        return array_map(function ($style) use ($pdf): ?array {
+            if (! is_array($style)) {
+                return null;
+            }
+            $clean = [];
+            foreach (['bold', 'italic', 'underline'] as $key) {
+                if (isset($style[$key]) && in_array($style[$key], [true, false, 0, 1, '0', '1'], true)) {
+                    $clean[$key] = (bool) $style[$key];
+                }
+            }
+            if (isset($style['font_family']) && is_string($style['font_family']) && array_key_exists($style['font_family'], self::FONT_FAMILIES)) {
+                $clean['font_family'] = $style['font_family'];
+            }
+            if (isset($style['font_size']) && is_numeric($style['font_size'])) {
+                $clean['font_size'] = $pdf ? max(1, min(200, (float) $style['font_size'])) : max(8, min(48, (int) $style['font_size']));
+            }
+            if (isset($style['color']) && is_string($style['color']) && preg_match('/^#[A-Fa-f0-9]{6}$/', $style['color'])) {
+                $clean['color'] = strtolower($style['color']);
+            }
+            if (isset($style['line_height']) && is_numeric($style['line_height']) && in_array((float) $style['line_height'], [1.0, 1.15, 1.35, 1.5, 2.0], true)) {
+                $clean['line_height'] = (float) $style['line_height'];
+            }
+            if (in_array($style['align'] ?? null, self::ALIGNMENTS, true)) {
+                $clean['align'] = $style['align'];
+            }
+            if (in_array($style['text_case'] ?? null, ['original', 'camel', 'uppercase', 'lowercase'], true)) {
+                $clean['text_case'] = $style['text_case'];
+            }
+
+            return $clean ?: null;
+        }, self::indexedStyles($styles, $limit));
+    }
+
+    private static function cellStyles(mixed $styles, bool $pdf = false): array
+    {
+        return array_map(
+            fn ($row): ?array => is_array($row) ? self::rowStyles($row, 12, $pdf) : null,
+            self::indexedStyles($styles, 60),
+        );
     }
 
     /**
@@ -256,7 +403,8 @@ class DocumentLayoutElements
             $id = preg_replace('/[^A-Za-z0-9_-]/', '', (string) ($element['id'] ?? ''));
             $src = (string) ($element['src'] ?? '');
 
-            $width = max(5, min(100, (int) ($element['width'] ?? 100)));
+            $pdfPage = is_string($element['pdf_page'] ?? null) && preg_match('/^[A-Za-z0-9_-]{1,40}$/', $element['pdf_page']) === 1;
+            $width = $pdfPage ? max(0.1, min(100, (float) ($element['width'] ?? 100))) : max(5, min(100, (int) ($element['width'] ?? 100)));
             $align = in_array($element['align'] ?? null, self::ALIGNMENTS, true) ? $element['align'] : 'left';
             $hasPosition = isset($element['x'], $element['y']) && is_numeric($element['x']) && is_numeric($element['y']);
             $x = $hasPosition
@@ -266,33 +414,100 @@ class DocumentLayoutElements
                     'right' => 100 - $width,
                     default => 0.0,
                 };
-            $y = $hasPosition ? (int) $element['y'] : $cursor;
+            $y = $hasPosition ? (float) $element['y'] : $cursor;
             $cursor = $y + self::estimateHeight($element) + 6;
 
             $clean[] = [
                 'id' => $id !== '' ? substr($id, 0, 40) : 'el-'.$index,
-                'x' => round(max(0, min(100 - $width, $x)), 1),
-                'y' => max(0, min(2000, $y)),
+                'x' => round(max(0, min(100 - $width, $x)), $pdfPage ? 6 : 1),
+                'y' => $pdfPage ? round(max(0, min(4000, $y)), 4) : (int) max(0, min(2000, $y)),
                 'type' => $element['type'],
                 'zone' => in_array($element['zone'] ?? null, ['intro', 'body', 'footer'], true) ? $element['zone'] : 'header',
                 'content' => mb_substr((string) ($element['content'] ?? ''), 0, 1000),
                 'src' => EditorImage::isStoredSrc($src) ? $src : '',
                 'align' => $align,
                 'width' => $width,
-                'height' => max(1, min(400, (int) ($element['height'] ?? 16))),
-                'font_size' => max(8, min(48, (int) ($element['font_size'] ?? 12))),
+                'height' => $pdfPage ? max(1, min(4000, (float) ($element['height'] ?? 16))) : max(1, min(400, (int) ($element['height'] ?? 16))),
+                'font_size' => $pdfPage ? max(1, min(200, (float) ($element['font_size'] ?? 12))) : max(8, min(48, (int) ($element['font_size'] ?? 12))),
+                ...($pdfPage ? [
+                    'pdf_page' => $element['pdf_page'],
+                    'pdf_page_height' => max(60, min(4000, (float) ($element['pdf_page_height'] ?? 160))),
+                    'pdf_background' => $element['type'] === 'image' && ! empty($element['pdf_background']),
+                    'pdf_font_src' => ImportedPdfFont::family($element['pdf_font_src'] ?? null) ? $element['pdf_font_src'] : null,
+                    'pdf_font_name' => mb_substr((string) ($element['pdf_font_name'] ?? ''), 0, 120),
+                    ...(isset($element['pdf_text_runs']) && is_array($element['pdf_text_runs']) ? [
+                        'pdf_text_runs' => array_map(static fn (array $run): array => [
+                            'line' => max(0, min(199, (int) ($run['line'] ?? 0))),
+                            'offset' => max(0, min(10000, (int) ($run['offset'] ?? 0))),
+                            'length' => max(1, min(10000, (int) ($run['length'] ?? 1))),
+                            'x' => max(0, min(700, (float) ($run['x'] ?? 0))),
+                            'y' => max(0, min(4000, (float) ($run['y'] ?? 0))),
+                            'width' => max(0.1, min(700, (float) ($run['width'] ?? 1))),
+                            'height' => max(1, min(200, (float) ($run['height'] ?? 12))),
+                            'font_size' => max(1, min(200, (float) ($run['font_size'] ?? 12))),
+                            'font_family' => array_key_exists($run['font_family'] ?? '', self::FONT_FAMILIES) ? $run['font_family'] : 'default',
+                            'pdf_font_src' => ImportedPdfFont::family($run['pdf_font_src'] ?? null) ? $run['pdf_font_src'] : null,
+                            'pdf_font_name' => mb_substr((string) ($run['pdf_font_name'] ?? ''), 0, 120),
+                            'bold' => (bool) ($run['bold'] ?? false),
+                            'italic' => (bool) ($run['italic'] ?? false),
+                            'color' => DocumentAppearance::normalize($run['color'] ?? '#000000'),
+                        ], array_values(array_filter(array_slice($element['pdf_text_runs'], 0, 1000), 'is_array'))),
+                    ] : []),
+                    ...(isset($element['pdf_line_count']) ? [
+                        'pdf_line_count' => max(1, min(200, (int) $element['pdf_line_count'])),
+                    ] : []),
+                    ...(isset($element['pdf_line_spacing']) ? [
+                        'pdf_line_spacing' => max(0.5, min(400, (float) $element['pdf_line_spacing'])),
+                    ] : []),
+                    ...(isset($element['pdf_list_lines']) && is_array($element['pdf_list_lines']) ? [
+                        'pdf_list_lines' => array_map(fn ($count): int => max(1, min(200, (int) $count)), array_slice(array_values($element['pdf_list_lines']), 0, 200)),
+                    ] : []),
+                    ...(in_array($element['pdf_bullet_style'] ?? null, ['disc', 'circle', 'square'], true) ? [
+                        'pdf_bullet_style' => $element['pdf_bullet_style'],
+                    ] : []),
+                ] : []),
                 'font_family' => array_key_exists($element['font_family'] ?? null, self::FONT_FAMILIES) ? $element['font_family'] : 'default',
                 'text_case' => DocumentTextCase::normalize((string) ($element['text_case'] ?? 'original')),
                 'fields' => self::companyFields($element['fields'] ?? null),
                 'items' => self::tableItems($element['items'] ?? null),
                 'header_row' => (bool) ($element['header_row'] ?? false),
                 'header_color' => DocumentAppearance::normalize($element['header_color'] ?? '#ffffff'),
+                'stripe_direction' => in_array($element['stripe_direction'] ?? null, ['rows', 'columns'], true) ? $element['stripe_direction'] : 'none',
+                'table_background' => DocumentAppearance::normalize((string) ($element['table_background'] ?? ''), ''),
+                'column_colors' => array_map(
+                    fn ($color) => $color === null ? null : DocumentAppearance::normalize((string) $color, ''),
+                    array_slice(is_array($element['column_colors'] ?? null) ? array_values($element['column_colors']) : [], 0, 6),
+                ),
+                'row_styles' => self::rowStyles($element['row_styles'] ?? null, 60, $pdfPage),
+                'cell_styles' => self::cellStyles($element['cell_styles'] ?? null, $pdfPage),
+                'stripe_color_a' => DocumentAppearance::normalize((string) ($element['stripe_color_a'] ?? ''), '#ffffff'),
+                'stripe_color_b' => DocumentAppearance::normalize((string) ($element['stripe_color_b'] ?? ''), '#f3f4f6'),
                 'cells' => isset($element['cells']) && is_array($element['cells'])
-                    ? array_map(fn ($row) => array_map(fn ($cell) => mb_substr((string) $cell, 0, 300), array_slice(is_array($row) ? array_values($row) : [], 0, 4)), array_slice(array_values($element['cells']), 0, 20))
+                    ? array_map(fn ($row) => array_map(fn ($cell) => mb_substr((string) $cell, 0, 300), array_slice(is_array($row) ? array_values($row) : [], 0, 12)), array_slice(array_values($element['cells']), 0, 60))
                     : null,
                 'label_bg' => DocumentAppearance::normalize((string) ($element['label_bg'] ?? ''), ''),
                 'border_color' => DocumentAppearance::normalize((string) ($element['border_color'] ?? ''), '#cbd5e1'),
                 'label_width' => max(10, min(70, (int) ($element['label_width'] ?? 30))),
+                'column_widths' => array_values(array_filter(array_slice((array) ($element['column_widths'] ?? []), 0, 12),
+                    fn ($value): bool => is_numeric($value) && $value > 0 && $value <= 100)),
+                'row_heights' => array_values(array_filter(array_slice((array) ($element['row_heights'] ?? []), 0, 60),
+                    fn ($value): bool => is_numeric($value) && $value >= 1 && $value <= 4000)),
+                'cell_backgrounds' => array_map(fn ($row) => array_map(
+                    fn ($color) => DocumentAppearance::normalize((string) $color, '#ffffff'),
+                    array_slice(is_array($row) ? array_values($row) : [], 0, 12)),
+                    array_slice((array) ($element['cell_backgrounds'] ?? []), 0, 60)),
+                'cell_borders' => array_map(fn ($row) => array_map(function ($borders) {
+                    $clean = [];
+                    foreach (['top', 'right', 'bottom', 'left'] as $side) {
+                        $value = is_array($borders) ? ($borders[$side] ?? 'none') : 'none';
+                        $clean[$side] = is_string($value) && preg_match('/^(none|(?:\\d+(?:\\.\\d+)?)px solid #[A-Fa-f0-9]{6})$/', $value) ? $value : 'none';
+                    }
+                    return $clean;
+                }, array_slice(is_array($row) ? array_values($row) : [], 0, 12)), array_slice((array) ($element['cell_borders'] ?? []), 0, 60)),
+                'cell_spans' => array_map(fn ($row) => array_map(fn ($span) => [
+                    'rows' => max(0, min(60, (int) ($span['rows'] ?? 1))),
+                    'columns' => max(0, min(12, (int) ($span['columns'] ?? 1))),
+                ], array_slice(is_array($row) ? array_values($row) : [], 0, 12)), array_slice((array) ($element['cell_spans'] ?? []), 0, 60)),
                 'layout' => ($element['layout'] ?? null) === 'table' ? 'table' : 'lines',
                 'border' => (bool) ($element['border'] ?? true),
                 'show_labels' => (bool) ($element['show_labels'] ?? false),
@@ -303,6 +518,7 @@ class DocumentLayoutElements
                 'underline' => (bool) ($element['underline'] ?? false),
                 'line_height' => in_array((float) ($element['line_height'] ?? 1.35), [1.0, 1.15, 1.35, 1.5, 2.0], true) ? (float) ($element['line_height'] ?? 1.35) : 1.35,
                 'list_style' => in_array($element['list_style'] ?? null, ['bullet', 'numbered'], true) ? $element['list_style'] : 'none',
+                'validity_days' => in_array((int) ($element['validity_days'] ?? 30), [30, 60, 90], true) ? (int) ($element['validity_days'] ?? 30) : 30,
                 'color' => DocumentAppearance::normalize((string) ($element['color'] ?? ''), '#111827'),
             ];
         }
@@ -313,8 +529,48 @@ class DocumentLayoutElements
     /**
      * @param  list<array<string, mixed>>  $elements
      */
+    public static function resolveTableFields(string $text, array $elements): string
+    {
+        return preg_replace_callback(
+            '/\{\{\s*table_cell:([A-Za-z0-9_-]+):(\d+):(\d+)\s*\}\}/',
+            function (array $match) use ($elements): string {
+                $row = (int) $match[2];
+                $column = (int) $match[3];
+                if ($row < 1 || $column < 1) {
+                    return '[Missing table cell]';
+                }
+                foreach ($elements as $table) {
+                    if (($table['id'] ?? null) !== $match[1] || ($table['type'] ?? null) !== 'table') {
+                        continue;
+                    }
+                    if (is_array($table['cells'] ?? null)) {
+                        return $table['cells'][$row - 1][$column - 1] ?? '[Missing table cell]';
+                    }
+                    $pairs = min(3, max(1, (int) ($table['columns'] ?? 2)));
+                    if ($column > $pairs * 2) {
+                        return '[Missing table cell]';
+                    }
+                    $item = $table['items'][($row - 1) * $pairs + intdiv($column - 1, 2)] ?? null;
+
+                    return $item[$column % 2 === 1 ? 'label' : 'value'] ?? '[Missing table cell]';
+                }
+
+                return '[Missing table cell]';
+            },
+            $text,
+        ) ?? $text;
+    }
+
     public static function render(array $elements, string $zone, string $bannerColor = '#065f46', array $values = [], string $background = '', int $headerHeight = self::DEFAULT_HEADER_HEIGHT): string
     {
+        $sources = $elements;
+        $elements = array_map(function (array $element) use ($sources): array {
+            if ($element['type'] === 'text') {
+                $element['content'] = self::resolveTableFields($element['content'], $sources);
+            }
+
+            return $element;
+        }, $elements);
         $items = array_filter(
             $elements,
             fn (array $element): bool => ($element['zone'] ?? 'header') === $zone,
@@ -383,8 +639,63 @@ class DocumentLayoutElements
     /**
      * @param  array<int, array<string, mixed>>  $items
      */
+    private static function tableStripeColor(array $element, int $row, int $column, ?int $sourceRow = null): string
+    {
+        $direction = $element['stripe_direction'] ?? 'none';
+
+        if (! in_array($direction, ['rows', 'columns'], true)) {
+            return $element['cell_backgrounds'][$sourceRow ?? $row][$column] ?? $element['table_background'] ?? '';
+        }
+
+        $index = $direction === 'columns' ? $column : $row;
+
+        return $index % 2 === 0
+            ? ($element['stripe_color_a'] ?? '#ffffff')
+            : ($element['stripe_color_b'] ?? '#f3f4f6');
+    }
+
+    private static function tableTextStyle(array $element, int $row, int $column, string $color, bool $header = false, bool $label = false, ?int $cellColumn = null): array
+    {
+        return array_replace($element, [
+            'bold' => $header || $label || $element['bold'],
+            'italic' => $label ? false : $element['italic'],
+            'color' => ($element['column_colors'][$column] ?? null) ?: ($header ? $element['header_color'] : $color),
+        ], $element['row_styles'][$row] ?? [], $element['cell_styles'][$row][$cellColumn ?? $column] ?? []);
+    }
+
+    private static function tableTextCss(array $style): string
+    {
+        $family = self::FONT_FAMILIES[$style['font_family'] ?? 'default'] ?? '';
+
+        return ($family !== '' ? 'font-family:'.str_replace('"', "'", $family).';' : '')
+            .'font-size:'.$style['font_size'].'px;color:'.$style['color'].';'
+            .'font-weight:'.($style['bold'] ? 'bold' : 'normal').';'
+            .'font-style:'.($style['italic'] ? 'italic' : 'normal').';'
+            .'text-decoration:'.(! empty($style['underline']) ? 'underline' : 'none').';'
+            .'line-height:'.($style['line_height'] ?? 1.35).';text-align:'.$style['align'].';';
+    }
+
     private static function renderFreeHeader(array $items, string $bannerColor, array $values, int $headerHeight): string
     {
+        $hasPdf = collect($items)->contains(fn (array $element): bool => isset($element['pdf_page']));
+        if ($hasPdf) {
+            $pages = [];
+            foreach ($items as $element) {
+                $pages[$element['pdf_page'] ?? 'layout'][] = $element;
+            }
+            $html = '';
+            foreach ($pages as $page) {
+                $height = $page[0]['pdf_page_height'] ?? $headerHeight;
+                $content = '';
+                foreach ($page as $element) {
+                    $inner = self::renderElement(['width' => 100] + $element, false, $values);
+                    $content .= '<div style="position:absolute;left:'.$element['x'].'%;top:'.$element['y'].'px;width:'.$element['width'].'%;">'.$inner.'</div>';
+                }
+                $html .= '<div data-pdf-page="true" style="position:relative;width:700px;height:'.$height.'px;background:#ffffff;">'.$content.'</div>';
+            }
+
+            return '<div class="layout-elements layout-elements-header">'.$html.'</div>';
+        }
         $html = '';
 
         foreach ($items as $element) {
@@ -416,6 +727,23 @@ class DocumentLayoutElements
     /**
      * @param  array<string, mixed>  $element
      */
+    private static function pdfTextLines(string $content, array $element): array
+    {
+        $lines = preg_split('/\r?\n/', $content);
+        if (! isset($element['pdf_line_count'])) {
+            return $lines;
+        }
+        $counts = in_array($element['list_style'] ?? 'none', ['bullet', 'numbered'], true) ? ($element['pdf_list_lines'] ?? null) : null;
+        $length = max(count($lines), $counts !== null ? count($counts) : $element['pdf_line_count']);
+        $output = [];
+        for ($index = 0; $index < $length; $index++) {
+            $line = ($lines[$index] ?? '') !== '' ? $lines[$index] : "\u{00a0}";
+            $output[] = $line.($counts !== null ? str_repeat("\n\u{00a0}", max(0, ($counts[$index] ?? 1) - 1)) : '');
+        }
+
+        return $output;
+    }
+
     private static function renderElement(array $element, bool $banner = false, array $values = []): string
     {
         $align = $element['align'];
@@ -424,11 +752,15 @@ class DocumentLayoutElements
             'right' => '0 0 0 auto',
             default => '0',
         };
-        $wrapper = sprintf('width:%d%%;margin:%s;text-align:%s;', $element['width'], $margin, $align);
+        $wrapper = 'width:'.$element['width'].'%;margin:'.$margin.';text-align:'.$align.';';
         $family = self::FONT_FAMILIES[$element['font_family'] ?? 'default'] ?? '';
+        if ($pdfFont = ImportedPdfFont::family($element['pdf_font_src'] ?? null)) {
+            $family = $pdfFont;
+        }
         $family = $family !== '' ? 'font-family:'.str_replace('"', "'", $family).';' : '';
         $color = $banner && $element['color'] === '#111827' ? 'inherit' : $element['color'];
-        $textExtras = 'line-height:'.($element['line_height'] ?? 1.35).';'
+        $lineHeight = isset($element['pdf_line_spacing']) ? $element['pdf_line_spacing'] / $element['font_size'] : ($element['line_height'] ?? 1.35);
+        $textExtras = 'line-height:'.$lineHeight.';'
             .'text-decoration:'.(! empty($element['underline']) ? 'underline' : 'none').';';
 
         switch ($element['type']) {
@@ -437,7 +769,7 @@ class DocumentLayoutElements
                     return '';
                 }
 
-                return '<div style="'.$wrapper.'padding:4px 0;"><img src="'.e($element['src']).'" alt="" style="width:100%;height:auto;"></div>';
+                return '<div style="'.$wrapper.'padding:'.(! empty($element['pdf_background']) ? '0' : '4px 0').';"><img src="'.e($element['src']).'" alt="" style="display:block;width:100%;height:auto;"></div>';
 
             case 'divider':
                 return '<div style="'.$wrapper.'height:0;margin-top:6px;margin-bottom:6px;border-top:'.$element['height'].'px solid '.$color.';"></div>';
@@ -446,25 +778,54 @@ class DocumentLayoutElements
                 return '<div style="height:'.$element['height'].'px;"></div>';
 
             case 'table':
+                $columnCount = $element['cells'] !== null ? count($element['cells'][0] ?? []) : min(3, $element['columns']) * 2;
+                $widths = $element['column_widths'];
+                if (count($widths) === $columnCount && array_sum($widths) > 0) {
+                    $total = array_sum($widths);
+                    $widths = array_map(fn ($width) => $width / $total * 100, $widths);
+                } else {
+                    $widths = array_map(fn ($index) => $element['cells'] !== null ? 100 / max(1, $columnCount)
+                        : ($index % 2 === 0 ? $element['label_width'] : 100 - $element['label_width']) / ($columnCount / 2),
+                        range(0, max(0, $columnCount - 1)));
+                }
                 if ($element['cells'] !== null) {
-                    $html = '<table style="'.$wrapper.'border-collapse:collapse;table-layout:fixed;"><tbody>';
+                    $tableBackground = $element['row_heights'] !== [] ? 'background-color:'.($element['table_background'] ?: 'transparent').';' : '';
+                    $html = '<table style="'.$wrapper.$tableBackground.'border-collapse:collapse;table-layout:fixed;"><tbody>';
                     $border = $element['border'] ? '1px solid '.$element['border_color'] : 'none';
                     foreach ($element['cells'] as $rowIndex => $row) {
                         $html .= '<tr>';
                         $header = $rowIndex === 0 && $element['header_row'];
                         $tag = $header ? 'th' : 'td';
-                        $style = $header ? 'background-color:'.($element['label_bg'] ?: '#065f46').';font-weight:700;' : '';
-                        foreach ($row as $cell) {
-                            $html .= '<'.$tag.' style="'.$style.$family.$textExtras.'text-align:'.$align.';font-weight:'.($header || $element['bold'] ? 'bold' : 'normal').';font-style:'.($element['italic'] ? 'italic' : 'normal').';padding:6px 10px;border:'.$border.';font-size:'.$element['font_size'].'px;color:'.($header ? $element['header_color'] : $color).';">'
-                                .e(DocumentTextCase::transform(self::replaceFields($cell, $values), $element['text_case'])).'</'.$tag.'>';
+                        foreach ($row as $columnIndex => $cell) {
+                            $span = $element['cell_spans'][$rowIndex][$columnIndex] ?? ['rows' => 1, 'columns' => 1];
+                            if ($span['rows'] === 0 || $span['columns'] === 0) {
+                                continue;
+                            }
+                            $background = $header
+                                ? ($element['label_bg'] ?: '#065f46')
+                                : self::tableStripeColor($element, $rowIndex - ($element['header_row'] ? 1 : 0), $columnIndex, $rowIndex);
+                            $style = $background !== '' ? 'background-color:'.$background.';' : '';
+                            $textStyle = self::tableTextStyle($element, $rowIndex, $columnIndex, $color, $header);
+                            $height = isset($element['row_heights'][$rowIndex]) ? 'height:'.array_sum(array_slice($element['row_heights'], $rowIndex, $span['rows'])).'px;' : '';
+                            $padding = $element['row_heights'] !== [] ? '2px 6px' : '6px 10px';
+                            $cellBorders = '';
+                            if ($element['border']) {
+                                foreach ($element['cell_borders'][$rowIndex][$columnIndex] ?? [] as $side => $value) {
+                                    $cellBorders .= 'border-'.$side.':'.$value.';';
+                                }
+                            }
+                            $cellWidth = array_sum(array_slice($widths, $columnIndex, $span['columns']));
+                            $html .= '<'.$tag.' colspan="'.$span['columns'].'" rowspan="'.$span['rows'].'" style="width:'.$cellWidth.'%;'.$height.$style.self::tableTextCss($textStyle).'white-space:pre-line;overflow-wrap:anywhere;padding:'.$padding.';border:'.$border.';'.$cellBorders.'">'
+                                .e(DocumentTextCase::transform(self::replaceFields($cell, $values), $textStyle['text_case'])).'</'.$tag.'>';
                         }
                         $html .= '</tr>';
                     }
+
                     return $html.'</tbody></table>';
                 }
                 $rows = [];
 
-                foreach ($element['items'] as $item) {
+                foreach ($element['items'] as $index => $item) {
                     $value = trim(self::replaceFields($item['value'], $values));
                     $label = trim(self::replaceFields($item['label'], $values));
 
@@ -472,7 +833,7 @@ class DocumentLayoutElements
                         continue;
                     }
 
-                    $rows[] = [$label, $value];
+                    $rows[] = [$label, $value, $index];
                 }
 
                 if ($rows === []) {
@@ -481,19 +842,24 @@ class DocumentLayoutElements
 
                 $pairs = $element['columns'] > 3 ? 3 : $element['columns'];
                 $line = $element['border'] ? 'border:1px solid '.$element['border_color'].';' : '';
-                $labelWidth = (int) round($element['label_width'] / $pairs);
-                $valueWidth = (int) round((100 - $element['label_width']) / $pairs);
                 $labelBg = $element['label_bg'] !== '' ? 'background:'.$element['label_bg'].';' : '';
-                $base = sprintf('%sfont-size:%dpx;color:%s;%spadding:6px 10px;vertical-align:middle;%s', $family, $element['font_size'], $color, $textExtras, $line);
-                $case = fn (string $text): string => e(DocumentTextCase::transform($text, $element['text_case']));
+                $base = 'padding:6px 10px;vertical-align:middle;'.$line;
                 $html = '<table style="'.$wrapper.'border-collapse:collapse;table-layout:fixed;"><tbody>';
 
-                foreach (array_chunk($rows, $pairs) as $chunk) {
+                foreach (array_chunk($rows, $pairs) as $rowIndex => $chunk) {
                     $html .= '<tr>';
                     for ($i = 0; $i < $pairs; $i++) {
-                        $row = $chunk[$i] ?? ['', ''];
-                        $html .= '<td style="width:'.$labelWidth.'%;font-weight:bold;'.$labelBg.$base.'">'.$case($row[0]).'</td>';
-                        $html .= '<td style="width:'.$valueWidth.'%;font-weight:'.($element['bold'] ? 'bold' : 'normal').';font-style:'.($element['italic'] ? 'italic' : 'normal').';'.$base.'">'.$case($row[1]).'</td>';
+                        $labelWidth = $widths[$i * 2];
+                        $valueWidth = $widths[$i * 2 + 1];
+                        $row = $chunk[$i] ?? ['', '', -1];
+                        $labelStripe = self::tableStripeColor($element, $rowIndex, $i * 2);
+                        $valueStripe = self::tableStripeColor($element, $rowIndex, $i * 2 + 1);
+                        $labelBackground = $labelStripe !== '' ? 'background-color:'.$labelStripe.';' : $labelBg;
+                        $valueBackground = $valueStripe !== '' ? 'background-color:'.$valueStripe.';' : '';
+                        $labelStyle = self::tableTextStyle($element, $row[2], $i * 2, $color, false, true, 0);
+                        $valueStyle = self::tableTextStyle($element, $row[2], $i * 2 + 1, $color, false, false, 1);
+                        $html .= '<td style="width:'.$labelWidth.'%;'.$labelBackground.$base.self::tableTextCss($labelStyle).'">'.e(DocumentTextCase::transform($row[0], $labelStyle['text_case'])).'</td>';
+                        $html .= '<td style="width:'.$valueWidth.'%;'.$valueBackground.$base.self::tableTextCss($valueStyle).'">'.e(DocumentTextCase::transform($row[1], $valueStyle['text_case'])).'</td>';
                     }
                     $html .= '</tr>';
                 }
@@ -556,40 +922,73 @@ class DocumentLayoutElements
             case 'date':
                 $content = now()->format('F j, Y');
                 break;
+            case 'validity':
+                $key = 'validity_'.($element['validity_days'] ?? 30);
+                $content = $values[$key] ?? now()->addDays($element['validity_days'] ?? 30)->format('F j, Y');
+                break;
 
             default:
                 $content = self::replaceFields((string) $element['content'], $values);
         }
 
-        if (trim($content) === '') {
+        if (trim($content) === '' && ! isset($element['pdf_line_count'])) {
             return '';
         }
 
         $style = sprintf(
-            '%s%sfont-size:%dpx;color:%s;font-weight:%s;font-style:%s;padding:2px 0;%s',
+            '%s%sfont-size:%spx;color:%s;font-weight:%s;font-style:%s;padding:%s;%s',
             $wrapper,
             $family,
             $element['font_size'],
             $color,
             $element['bold'] ? 'bold' : 'normal',
             $element['italic'] ? 'italic' : 'normal',
+            isset($element['pdf_page']) ? '0' : '2px 0',
             $textExtras,
         );
+        if (isset($element['pdf_page'])) {
+            $style .= 'white-space:pre;';
+        }
 
         if ($element['type'] === 'text' && in_array($element['list_style'] ?? 'none', ['bullet', 'numbered'], true)) {
             $tag = $element['list_style'] === 'numbered' ? 'ol' : 'ul';
-            $list = $tag === 'ol' ? 'decimal' : 'disc';
-            $items = array_map(
-                fn (string $line): string => '<li style="padding:2px 0;">'.e(DocumentTextCase::transform($line, $element['text_case'])).'</li>',
-                preg_split('/\r?\n/', $content),
-            );
+            $list = $tag === 'ol' ? 'decimal' : ($element['pdf_bullet_style'] ?? 'disc');
+            $lines = self::pdfTextLines($content, $element);
+            $padding = isset($element['pdf_page']) ? '0' : '2px 0';
+            $items = array_map(fn (string $line): string => '<li style="padding:'.$padding.';">'
+                .str_replace(["\r\n", "\n"], '<br>', e(DocumentTextCase::transform($line, $element['text_case']))).'</li>', $lines);
 
             return '<div style="'.$style.'padding:0;"><'.$tag.' style="margin:0;padding-left:20px;list-style-type:'.$list.';">'.implode('', $items).'</'.$tag.'></div>';
         }
 
-        $content = DocumentTextCase::transform($content, $element['text_case']);
+        if (! empty($element['pdf_text_runs'])) {
+            $lines = self::pdfTextLines($content, $element);
+            $runs = $element['pdf_text_runs'];
+            $html = '';
+            $caseStates = [];
+            foreach ($runs as $index => $run) {
+                $last = ! array_filter(array_slice($runs, $index + 1), fn (array $next): bool => $next['line'] === $run['line']);
+                $text = mb_substr($lines[$run['line']] ?? '', $run['offset'], $last ? null : $run['length']);
+                $font = ImportedPdfFont::family($run['pdf_font_src'] ?? null);
+                $runFamily = ($font ? '"'.$font.'", ' : '').self::FONT_FAMILIES[$run['font_family']];
+                $attribute = $font ? ' data-pdf-font-src="'.e($run['pdf_font_src']).'"' : '';
+                $y = isset($element['pdf_line_spacing']) ? $run['y'] : $run['line'] * $element['font_size'] * ($element['line_height'] ?? 1.35);
+                $caseStates[$run['line']] ??= ['capitalizeNext' => false, 'hasWord' => false];
+                $html .= '<span'.$attribute.' style="position:absolute;left:'.$run['x'].'px;top:'.$y.'px;width:'.$run['width'].'px;min-height:'.$run['height'].'px;font-family:'.e($runFamily).';font-size:'.$run['font_size'].'px;font-weight:'.($run['bold'] ? 'bold' : 'normal').';font-style:'.($run['italic'] ? 'italic' : 'normal').';color:'.$run['color'].';line-height:1;white-space:pre;font-synthesis:none;">'
+                    .e(DocumentTextCase::transform($text, $element['text_case'], $caseStates[$run['line']])).'</span>';
+            }
 
-        return '<div style="'.$style.'">'.nl2br(e($content)).'</div>';
+            return '<div style="'.$style.'position:relative;height:'.$element['height'].'px;">'.$html.'</div>';
+        }
+
+        $content = DocumentTextCase::transform(implode("\n", self::pdfTextLines($content, $element)), $element['text_case']);
+
+        $fontAttribute = ImportedPdfFont::family($element['pdf_font_src'] ?? null)
+            ? ' data-pdf-font-src="'.e($element['pdf_font_src']).'"' : '';
+
+        $html = isset($element['pdf_line_count']) ? str_replace(["\r\n", "\n"], '<br>', e($content)) : nl2br(e($content));
+
+        return '<div'.$fontAttribute.' style="'.$style.'">'.$html.'</div>';
     }
 
     /**

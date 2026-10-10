@@ -64,16 +64,18 @@ trait UsesDocumentAppearance
         );
 
         if ($appearance->elements === [] || ! $this->injectsLayoutElements()) {
-            return $html;
+            return ImportedPdfFont::styles(EditorImage::forDocument($html, $format), $format);
         }
 
-        return DocumentLayoutElements::inject(
+        $html = DocumentLayoutElements::inject(
             EditorImage::forDocument($html, $format),
             $appearance->elements,
             $appearance->headerBackground,
             DocumentLayoutElements::fieldValues($data),
             $appearance->zoneColors,
         );
+
+        return ImportedPdfFont::styles(EditorImage::forDocument($html, $format), $format);
     }
 
     protected function transformWordText(string $path): string

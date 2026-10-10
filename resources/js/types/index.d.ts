@@ -109,10 +109,15 @@ export type PageProps<
             unreadCount: number;
             latestUnread: AppNotification[];
         };
+        revisionAssignments?: {
+            count: number;
+            items: RevisionAssignment[];
+        };
     };
     session: {
         idleTimeoutMinutes: number;
     };
+    realtime?: RealtimeConfig | null;
     flash?: {
         success?: string | null;
         error?: string | null;
@@ -135,3 +140,29 @@ export type PageProps<
         } | null;
     };
 };
+
+export interface RevisionAssignment {
+    uuid: string;
+    number: string;
+    title: string | null;
+    status: string | null;
+    notes: string | null;
+    response: 'accepted' | 'declined' | null;
+    assigned_at: string | null;
+    responded_at: string | null;
+    assigned_by: string | null;
+    responsible: string | null;
+    quotation: {
+        uuid: string;
+        number: string | null;
+        title: string | null;
+        url: string;
+    } | null;
+}
+
+export interface RealtimeConfig {
+    key: string;
+    host: string | null;
+    port: number;
+    scheme: string;
+}

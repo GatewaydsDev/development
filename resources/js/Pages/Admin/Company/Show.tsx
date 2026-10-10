@@ -28,6 +28,7 @@ type Company = {
     id: number;
     uuid: string;
     name: string;
+    speciality: string | null;
     legal_name: string | null;
     logo_url: string | null;
     email: string | null;
@@ -51,6 +52,7 @@ type ShowProps = {
 
 type CompanyFormData = {
     name: string;
+    speciality: string;
     legal_name: string;
     email: string;
     phone_number: string;
@@ -74,9 +76,11 @@ export default function Show({ company }: ShowProps) {
         null,
     );
     const [selectedLogoName, setSelectedLogoName] = useState<string | null>(null);
+    const [failedLogoUrl, setFailedLogoUrl] = useState<string | null>(null);
     const { data, setData, errors, processing, post, setError, clearErrors } =
         useForm<CompanyFormData>({
             name: company?.name ?? '',
+            speciality: company?.speciality ?? '',
             legal_name: company?.legal_name ?? '',
             email: company?.email ?? '',
             phone_number: company?.phone_number ?? '',
@@ -132,6 +136,7 @@ export default function Show({ company }: ShowProps) {
         }
 
         clearErrors('logo');
+        setFailedLogoUrl(null);
         setData('logo', file);
         setData('remove_logo', false);
         setSelectedLogoName(file?.name ?? null);
@@ -202,7 +207,7 @@ export default function Show({ company }: ShowProps) {
                                     }
                                     disabled={processing}
                                 />
-                                <div className="grid min-w-0 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+                                <div className="grid min-w-0 gap-5">
                                     <div className="flex flex-col gap-2">
                                         <InputLabel
                                             htmlFor="name"
@@ -222,6 +227,24 @@ export default function Show({ company }: ShowProps) {
                                             }
                                         />
                                         <InputError message={errors.name} />
+                                    </div>
+
+                                    <div className="flex flex-col gap-2">
+                                        <InputLabel
+                                            htmlFor="speciality"
+                                            value="Company speciality"
+                                            className="text-emerald-700 dark:text-emerald-300"
+                                        />
+                                        <TextInput
+                                            id="speciality"
+                                            value={data.speciality}
+                                            maxLength={255}
+                                            className={inputClassName}
+                                            onChange={(event) =>
+                                                setData('speciality', event.target.value)
+                                            }
+                                        />
+                                        <InputError message={errors.speciality} />
                                     </div>
 
                                     <div className="flex flex-col gap-2">
@@ -271,17 +294,19 @@ export default function Show({ company }: ShowProps) {
                                 <div className="rounded-xl border border-border bg-background p-4 sm:p-5">
                                     <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
                                         <div className="group/logo flex size-64 shrink-0 items-center justify-center self-start overflow-hidden rounded-2xl border border-border bg-muted/40 transition duration-700 ease-out hover:border-emerald-500/30 hover:shadow-lg hover:shadow-emerald-950/10 sm:size-72 lg:size-80">
-                                            {logoPreviewUrl ? (
+                                            {logoPreviewUrl && failedLogoUrl !== logoPreviewUrl ? (
                                                 <img
+                                                    key={logoPreviewUrl}
                                                     src={logoPreviewUrl}
                                                     alt="Company logo preview"
+                                                    onError={() => setFailedLogoUrl(logoPreviewUrl)}
                                                     className="size-full object-contain p-5 transition duration-700 ease-out group-hover/logo:scale-110 sm:p-6"
                                                 />
                                             ) : (
-                                                <div className="flex flex-col items-center gap-3 text-muted-foreground">
-                                                    <ImageIcon className="size-14 sm:size-16" />
+                                                <div role="img" aria-label="No company logo selected" className="flex flex-col items-center gap-3 text-muted-foreground">
+                                                    <ImageIcon aria-hidden="true" className="size-14 sm:size-16" />
                                                     <span className="text-sm">
-                                                        No logo
+                                                        No company logo selected
                                                     </span>
                                                 </div>
                                             )}
@@ -310,6 +335,11 @@ export default function Show({ company }: ShowProps) {
                                                 className="block w-full rounded-md border border-border bg-background text-sm text-foreground file:me-4 file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary-foreground hover:file:bg-primary/90"
                                             />
                                             <InputError message={errors.logo} />
+                                            {logoPreviewUrl && failedLogoUrl === logoPreviewUrl ? (
+                                                <p role="alert" className="text-sm text-destructive">
+                                                    The company logo could not be loaded. Choose another image to replace it.
+                                                </p>
+                                            ) : null}
 
                                             {selectedLogoName && (
                                                 <p className="text-sm text-muted-foreground">

@@ -6,14 +6,20 @@ import TableHeader from '@tiptap/extension-table-header';
 import TableRow from '@tiptap/extension-table-row';
 import '@tiptap/extension-text-style';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
-import type { EditorView } from '@tiptap/pm/view';
+import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view';
+import { CellSelection, TableMap } from '@tiptap/pm/tables';
+import { loadPdfFont, pdfFontFamily } from '@/lib/printLayoutPdf';
+import { toast } from 'sonner';
 
 const textStyleAttributes = {
     fontSize: 'font-size',
     fontFamily: 'font-family',
+    fontSynthesis: 'font-synthesis',
+    textTransform: 'text-transform',
     backgroundColor: 'background-color',
     lineHeight: 'line-height',
     letterSpacing: 'letter-spacing',
+    opacity: 'opacity',
 } as const;
 
 const blockStyleAttributes = {
@@ -30,6 +36,7 @@ const blockStyleAttributes = {
     paddingLeft: 'padding-left',
     textIndent: 'text-indent',
     textTransform: 'text-transform',
+    whiteSpace: 'white-space',
     border: 'border',
     borderTop: 'border-top',
     borderRight: 'border-right',
@@ -64,17 +71,63 @@ function columnWidths(element: HTMLElement): number[] | null {
     if (fromAttribute) {
         const values = fromAttribute
             .split(',')
-            .map((value) => Number.parseInt(value, 10))
-            .filter((value) => Number.isFinite(value) && value > 0);
+            .map((value) => Number.parseFloat(value))
+            .filter((value) => Number.isFinite(value) && value >= 0);
 
         if (values.length > 0) {
             return values;
         }
     }
 
-    const width = Number.parseInt(element.style.width, 10);
+    const width = Number.parseFloat(element.style.width);
+    const colspan = Math.max(1, Number(element.getAttribute('colspan')) || 1);
 
-    return Number.isFinite(width) && width > 0 ? [width] : null;
+    return Number.isFinite(width) && width > 0
+        ? Array.from({ length: colspan }, () => width / colspan)
+        : null;
+}
+
+export function selectedTableColumn(view: EditorView) {
+    const selection = view.state.selection;
+    const resolved = selection instanceof CellSelection ? selection.$headCell : selection.$from;
+    for (let depth = resolved.depth; depth > 0; depth -= 1) {
+        if (resolved.node(depth).type.name !== 'table') continue;
+        if (!(selection instanceof CellSelection) && resolved.depth < depth + 1) return null;
+        const table = resolved.node(depth);
+        const tablePos = resolved.before(depth);
+        const cellPos = selection instanceof CellSelection ? selection.$headCell.pos : resolved.before(depth + 2);
+        const map = TableMap.get(table);
+        const column = map.findCell(cellPos - tablePos - 1).left;
+        const cell = view.state.doc.nodeAt(cellPos);
+        if (!cell || !['tableCell', 'tableHeader'].includes(cell.type.name)) return null;
+        const element = view.nodeDOM(cellPos);
+        const measured = element instanceof HTMLElement ? element.offsetWidth / (cell?.attrs.colspan || 1) : 48;
+        return { tablePos, column, width: cell?.attrs.colwidth?.[0] || Math.round(measured) };
+    }
+    return null;
+}
+
+export function resizeTableColumn(view: EditorView, tablePos: number, column: number, width: number): boolean {
+    const table = view.state.doc.nodeAt(tablePos);
+    if (!table || table.type.name !== 'table' || !Number.isFinite(width) || width < 48 || width > 4000) return false;
+    const map = TableMap.get(table);
+    if (column < 0 || column >= map.width) return false;
+    const transaction = view.state.tr;
+    const visited = new Set<number>();
+    for (let row = 0; row < map.height; row += 1) {
+        const offset = map.map[row * map.width + column];
+        if (visited.has(offset)) continue;
+        visited.add(offset);
+        const cell = table.nodeAt(offset);
+        if (!cell) continue;
+        const widths: number[] = cell.attrs.colwidth
+            ? [...cell.attrs.colwidth]
+            : Array.from({ length: cell.attrs.colspan }, () => 0);
+        widths[column - map.findCell(offset).left] = Math.round(width);
+        transaction.setNodeMarkup(tablePos + 1 + offset, undefined, { ...cell.attrs, colwidth: widths });
+    }
+    view.dispatch(transaction);
+    return true;
 }
 
 function columnWidthAttribute(existing: Record<string, unknown> | undefined) {
@@ -82,13 +135,18 @@ function columnWidthAttribute(existing: Record<string, unknown> | undefined) {
         ...existing,
         parseHTML: (element: HTMLElement) => columnWidths(element),
         renderHTML: (attributes: { colwidth?: number[] | null }) => {
-            const width = attributes.colwidth?.[0];
+            const widths = attributes.colwidth;
 
-            if (!width) {
+            if (!widths?.length) {
                 return {};
             }
 
-            return { style: `width: ${Math.round(width)}px` };
+            return {
+                colwidth: widths.join(','),
+                ...(widths.every((width) => width > 0)
+                    ? { style: `width: ${widths.reduce((sum, width) => sum + width, 0)}px` }
+                    : {}),
+            };
         },
     };
 }
@@ -132,6 +190,11 @@ function tableRowFromEvent(view: EditorView, event: MouseEvent) {
 
 const cellColorAttributes = {
     ...styleAttributes({
+        borderTop: 'border-top',
+        borderRight: 'border-right',
+        borderBottom: 'border-bottom',
+        borderLeft: 'border-left',
+        fontWeight: 'font-weight',
         paddingTop: 'padding-top',
         paddingRight: 'padding-right',
         paddingBottom: 'padding-bottom',
@@ -168,7 +231,16 @@ export const ImportedTextStyles = Extension.create({
         return [
             {
                 types: ['textStyle'],
-                attributes: styleAttributes(textStyleAttributes),
+                attributes: {
+                    ...styleAttributes(textStyleAttributes),
+                    textCase: {
+                        default: null,
+                        parseHTML: (element: HTMLElement) => element.getAttribute('data-text-case'),
+                        renderHTML: (attributes: { textCase?: string }) =>
+                            ['original', 'camel', 'uppercase', 'lowercase'].includes(attributes.textCase ?? '')
+                                ? { 'data-text-case': attributes.textCase } : {},
+                    },
+                },
             },
         ];
     },
@@ -179,8 +251,40 @@ export const ImportedBlockStyles = Extension.create({
     addGlobalAttributes() {
         return [
             {
+                types: ['bulletList', 'orderedList'],
+                attributes: styleAttributes({
+                    listStyleType: 'list-style-type',
+                    marginTop: 'margin-top',
+                    marginRight: 'margin-right',
+                    marginBottom: 'margin-bottom',
+                    marginLeft: 'margin-left',
+                    paddingLeft: 'padding-left',
+                }),
+            },
+            {
                 types: ['paragraph', 'heading', 'blockquote', 'listItem'],
-                attributes: styleAttributes(blockStyleAttributes),
+                attributes: {
+                    ...styleAttributes(blockStyleAttributes),
+                    editorTextCase: {
+                        default: 'original',
+                        parseHTML: (element: HTMLElement) => element.getAttribute('data-editor-text-case') || 'original',
+                        renderHTML: (attributes: { editorTextCase?: string }) =>
+                            ['camel', 'uppercase', 'lowercase'].includes(attributes.editorTextCase ?? '')
+                                ? { 'data-editor-text-case': attributes.editorTextCase }
+                                : {},
+                    },
+                    pdfFontSrc: {
+                        default: null,
+                        parseHTML: (element: HTMLElement) => {
+                            const src = element.getAttribute('data-pdf-font-src');
+                            if (!src || !pdfFontFamily(src)) return null;
+                            void loadPdfFont(src).catch(() => toast.error('An imported font could not be loaded. Restore its font asset or choose another font.'));
+                            return src;
+                        },
+                        renderHTML: (attributes: { pdfFontSrc?: string }) => attributes.pdfFontSrc && pdfFontFamily(attributes.pdfFontSrc)
+                            ? { 'data-pdf-font-src': attributes.pdfFontSrc } : {},
+                    },
+                },
             },
         ];
     },
@@ -189,6 +293,7 @@ export const ImportedBlockStyles = Extension.create({
 export const StyledHorizontalRule = HorizontalRule.extend({
     addAttributes() {
         return {
+            ...styleAttributes({ marginTop: 'margin-top', marginBottom: 'margin-bottom' }),
             color: {
                 default: null,
                 parseHTML: (element: HTMLElement) => {
@@ -425,6 +530,44 @@ export const TableRowResize = Extension.create({
 let rowDrag = false;
 
 export const richTextLayoutExtensions = [
+    Extension.create({
+        name: 'tableColumnSelectors',
+        addProseMirrorPlugins() {
+            return [new Plugin({
+                props: {
+                    decorations(state) {
+                        const widgets: Decoration[] = [];
+                        state.doc.descendants((table, pos) => {
+                            if (table.type.name !== 'table') return;
+                            const map = TableMap.get(table);
+                            for (let column = 0; column < map.width; column++) {
+                                const first = pos + 1 + map.map[column];
+                                const last = pos + 1 + map.map[(map.height - 1) * map.width + column];
+                                widgets.push(Decoration.widget(first + 1, (view) => {
+                                    const button = document.createElement('button');
+                                    button.type = 'button';
+                                    button.className = 'table-column-selector';
+                                    button.setAttribute('aria-label', `Select column ${column + 1}`);
+                                    button.title = `Select all cells in column ${column + 1}`;
+                                    button.addEventListener('mousedown', (event) => event.preventDefault());
+                                    button.addEventListener('click', (event) => {
+                                        event.preventDefault();
+                                        event.stopPropagation();
+                                        view.dispatch(view.state.tr.setSelection(CellSelection.colSelection(
+                                            view.state.doc.resolve(first), view.state.doc.resolve(last),
+                                        )));
+                                        view.focus();
+                                    });
+                                    return button;
+                                }, { key: `column-${pos}-${column}-${last}`, stopEvent: () => true }));
+                            }
+                        });
+                        return DecorationSet.create(state.doc, widgets);
+                    },
+                },
+            })];
+        },
+    }),
     ColoredSection,
     StyledHorizontalRule,
     Table.configure({
