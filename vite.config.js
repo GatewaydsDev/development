@@ -13,6 +13,15 @@ export default defineConfig({
     build: {
         rollupOptions: {
             output: {
+                // Servers often send .mjs as application/octet-stream, which browsers
+                // refuse to run as a module (e.g. the pdf.js worker), so emit .js.
+                assetFileNames(assetInfo) {
+                    const name = assetInfo.names?.[0] ?? assetInfo.name ?? '';
+
+                    return name.endsWith('.mjs')
+                        ? 'assets/[name]-[hash].js'
+                        : 'assets/[name]-[hash][extname]';
+                },
                 manualChunks(id) {
                     if (!id.includes('node_modules')) {
                         return;
