@@ -13,6 +13,7 @@ class Company extends Model
     protected $fillable = [
         'uuid',
         'name',
+        'speciality',
         'legal_name',
         'logo_path',
         'email',

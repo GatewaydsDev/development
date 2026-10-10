@@ -68,6 +68,52 @@ function makeQuotation(User $admin, ?Project $project = null, array $overrides =
     return $quotation->fresh(['lineItems', 'project', 'contractor']);
 }
 
+test('quotation field tokens resolve in loaded layouts and quote output', function () {
+    $admin = quotationAdmin();
+    $quote = makeQuotation($admin, quotationProject($admin), ['valid_until' => '2026-10-15']);
+    $quote->revisions()->create(['number' => 'Q2', 'revision_date' => '2026-09-16', 'user_id' => $admin->id]);
+    $tokens = implode(' | ', array_map(fn ($key) => '{{'.$key.'}}', \App\Support\BidApplicationText::QUOTATION_FIELDS));
+    $quote->update(['layout_header' => '<p>'.$tokens.'</p>']);
+    foreach (['print', 'pdf', 'word'] as $mode) {
+        $data = \App\Support\QuotationDocument::for($quote->fresh(), $admin)->viewData($mode);
+        expect($data['layoutHeader'])->toContain($quote->quotation_number, 'RF door quotation', 'September 15, 2026', 'October 15, 2026', '$1,250.00', 'Q2')
+            ->not->toContain('{{');
+        expect(\App\Support\DocumentLayoutElements::fieldValues($data)['quoted_on'])->toBe('September 15, 2026');
+    }
+});
+
+test('removed quotation details are omitted from print pdf and word without losing stored text', function () {
+    $admin = quotationAdmin();
+    $quote = makeQuotation($admin, quotationProject($admin), [
+        'notes' => '<p>Proposal content retained</p>',
+        'pricing_basis' => '<p>Pricing basis retained</p>',
+        'pricing_conditions' => '<p>Removed quotation details marker</p>',
+    ]);
+    $this->actingAs($admin)->get(route('admin.quotations.print', $quote))
+        ->assertOk()
+        ->assertSee('Proposal content retained')
+        ->assertSee('Pricing basis retained')
+        ->assertSee('Authorization')
+        ->assertDontSee('Removed quotation details marker');
+    $pdf = \App\Support\QuotationDocument::for($quote, $admin)->pdfResponse()->getContent();
+    $pdfText = (new \Smalot\PdfParser\Parser)->parseContent($pdf)->getText();
+    expect($pdfText)->toContain('Proposal content retained', 'Pricing basis retained')
+        ->not->toContain('Removed quotation details marker');
+    $response = \App\Support\QuotationDocument::for($quote, $admin)->wordResponse();
+    $path = $response->getFile()->getPathname();
+    try {
+        $zip = new ZipArchive;
+        expect($zip->open($path))->toBeTrue();
+        $xml = $zip->getFromName('word/document.xml');
+        $zip->close();
+        expect($xml)->toContain('Proposal content retained', 'Pricing basis retained', 'Authorization')
+            ->not->toContain('Removed quotation details marker');
+    } finally {
+        unlink($path);
+    }
+    expect($quote->fresh()->pricing_conditions)->toContain('Removed quotation details marker');
+});
+
 test('an admin can save a quotation for a contractor', function () {
     $admin = quotationAdmin();
     $project = quotationProject($admin);
@@ -120,7 +166,7 @@ test('an admin can save a quotation for a contractor', function () {
         ->assertSee('class="hero-brand"', false)
         ->assertSee('<p class="hero-label">Proposal</p>', false)
         ->assertSee('<h1 class="document-title">Harbor RF quote</h1>', false)
-        ->assertSee('JOB CONDITIONS', false)
+        ->assertDontSee('JOB CONDITIONS', false)
         ->assertSee('Site conditions', false)
         ->assertSee('Pricing Basis', false)
         ->assertDontSee('Base Bid', false)
@@ -184,6 +230,81 @@ test('an admin can save a quotation for a contractor', function () {
         ->assertDontSee('Quote proposal based', false);
 
     expect(QuotationTitle::query()->where('name', 'Harbor RF quote')->exists())->toBeTrue();
+});
+
+test('quotation rich text larger than a MySQL text column survives create and update', function () {
+    $admin = quotationAdmin();
+    $project = quotationProject($admin);
+    $html = '<p>'.str_repeat('Editable PDF text. ', 5000).'</p>';
+    $payload = [
+        'contractor_id' => $project->contractors()->first()->id, 'project_id' => $project->id,
+        'title' => 'Large PDF quotation', 'status' => 'draft',
+        'notes' => $html, 'line_items' => [], 'revisions' => [],
+    ];
+    expect(strlen($html))->toBeGreaterThan(65535)->toBeLessThan(250000);
+    $response = $this->actingAs($admin)->postJson(route('admin.quotations.store'), $payload)->assertCreated();
+    $quotation = Quotation::findOrFail($response->json('document.id'));
+    expect($quotation->notes)->toBe(\App\Support\BidApplicationText::sanitize($html));
+    $payload['notes'] .= '<p>Updated PDF text</p>';
+    $this->patchJson(route('admin.quotations.update', $quotation), $payload)->assertOk();
+    expect($quotation->fresh()->notes)->toBe(\App\Support\BidApplicationText::sanitize($payload['notes']));
+});
+
+test('quotation company speciality is available to the editor and printed layout fields', function () {
+    $admin = quotationAdmin();
+    $project = quotationProject($admin);
+    \App\Models\Company::create([
+        'name' => 'Gateway Doors', 'speciality' => 'Commercial door systems', 'is_active' => true,
+    ]);
+    $this->actingAs($admin)->get(route('admin.quotations.create'))->assertOk()
+        ->assertInertia(fn (\Inertia\Testing\AssertableInertia $page) => $page
+            ->where('options.company.speciality', 'Commercial door systems'));
+    $quotation = Quotation::create([
+        'contractor_id' => $project->contractors()->first()->id,
+        'project_id' => $project->id, 'created_by' => $admin->id,
+        'title' => 'Speciality quotation', 'status' => 'draft',
+        'layout_header' => '<table><tr><td>{{company_speciality}}</td><td>Neighbor</td></tr></table>',
+    ]);
+    foreach (['print', 'pdf', 'word'] as $mode) {
+        expect(\App\Support\QuotationDocument::for($quotation, $admin)->viewData($mode)['layoutHeader'])
+            ->toContain('Commercial door systems', 'Neighbor')->not->toContain('{{company_speciality}}');
+    }
+});
+
+test('quotation layout headers save independently and retain their loaded version until reloaded', function () {
+    $admin = quotationAdmin();
+    $project = quotationProject($admin);
+    $layout = \App\Models\PrintLayout::query()->firstOrFail();
+    $version = \App\Support\PrintLayoutCatalog::forDocument('quotation')['printLayouts'][0]['version'];
+    $header = '<div data-position-canvas="true" data-height="160" style="position:relative;width:700px;height:160px;">'
+        .'<div data-position-item="true" data-x="84" data-y="36" data-width="350" style="position:absolute;left:84px;top:36px;width:350px;">'
+        .'<p style="font-size:24px;color:#9333ea;">Saved header {{quotation_title}} {{validity_30}}</p></div></div>';
+    $payload = [
+        'contractor_id' => $project->contractors()->first()->id, 'project_id' => $project->id,
+        'title' => 'Header quotation', 'status' => 'draft', 'quoted_at' => '2024-01-31',
+        'notes' => '<p>Original proposal</p>', 'pricing_conditions' => '<p>Original pricing</p>',
+        'print_layout_id' => $layout->id, 'print_layout_version' => $version, 'layout_header' => $header,
+        'line_items' => [], 'revisions' => [],
+    ];
+    $response = $this->actingAs($admin)->postJson(route('admin.quotations.store'), $payload)
+        ->assertCreated()->assertJsonPath('document.print_layout_version', $version);
+    $quotation = Quotation::findOrFail($response->json('document.id'));
+    $layout->update(['design' => ['elements' => [['type' => 'text', 'zone' => 'header', 'content' => 'Library changed later']]]]);
+    $this->get(route('admin.quotations.edit', $quotation))->assertInertia(fn (Assert $page) => $page
+        ->where('quotation.print_layout_version', $version)
+        ->where('quotation.layout_header', fn ($html) => str_contains($html, 'data-x="84"'))
+        ->where('options.printLayouts.0.version', fn ($next) => $next !== $version));
+    $this->get(route('admin.quotations.print', $quotation))->assertOk()
+        ->assertSee('Saved header Header quotation March 1, 2024', false)
+        ->assertDontSee('Original pricing')->assertSee('Original proposal')
+        ->assertDontSee('Library changed later')
+        ->assertSee('data-y="36"', false);
+    $payload['layout_header'] = '<p>Updated quotation header</p><script>alert("bad")</script>';
+    $this->patchJson(route('admin.quotations.update', $quotation), $payload)->assertOk();
+    expect($quotation->fresh()->layout_header)->toContain('Updated quotation header')->not->toContain('<script');
+    $payload['print_layout_id'] = null;
+    $this->patchJson(route('admin.quotations.update', $quotation), $payload)->assertOk();
+    expect($quotation->fresh()->print_layout_id)->toBeNull();
 });
 
 test('a base bid description is required only when qty size and price are set', function () {
@@ -605,6 +726,110 @@ test('a quotation can store revisions like a bid', function () {
         ->assertDontSee('Issued for owner review', false);
 });
 
+test('a quotation revision stores a super admin as the responsible user', function () {
+    $admin = quotationAdmin();
+    $responsible = quotationAdmin();
+    $regularLevel = UserLevel::firstOrCreate(['name' => UserLevel::USER]);
+    $regular = User::factory()->create(['level_id' => $regularLevel->id, 'name' => 'Regular Person']);
+    $adminLevelUser = User::factory()->create([
+        'level_id' => UserLevel::firstOrCreate(['name' => UserLevel::ADMIN])->id,
+    ]);
+    $administratorUser = User::factory()->create([
+        'level_id' => UserLevel::firstOrCreate(['name' => UserLevel::ADMINISTRATOR])->id,
+    ]);
+    $project = quotationProject($admin);
+    $contractorId = $project->contractors()->first()?->id;
+
+    $this->actingAs($admin)
+        ->get(route('admin.quotations.create'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('options.revisionResponsibleUsers', fn ($users) => collect($users)->pluck('id')->contains($responsible->id)
+                && collect($users)->pluck('id')->contains($adminLevelUser->id)
+                && collect($users)->pluck('id')->contains($administratorUser->id)
+                && ! collect($users)->pluck('id')->contains($regular->id)));
+
+    $payload = fn (int $responsibleId): array => [
+        'contractor_id' => $contractorId,
+        'project_id' => $project->id,
+        'title' => 'Responsible revision quote',
+        'status' => 'draft',
+        'line_items' => [],
+        'revisions' => [[
+            'number' => 'A',
+            'revision_date' => '2026-09-15',
+            'responsible_user_id' => $responsibleId,
+        ]],
+    ];
+
+    $this->actingAs($admin)
+        ->post(route('admin.quotations.store'), $payload($regular->id))
+        ->assertSessionHasErrors('revisions.0.responsible_user_id');
+
+    $this->actingAs($admin)
+        ->post(route('admin.quotations.store'), $payload($responsible->id))
+        ->assertSessionHasNoErrors();
+
+    $quotation = Quotation::query()->where('title', 'Responsible revision quote')->with('revisions')->firstOrFail();
+
+    expect($quotation->revisions->first()?->responsible_user_id)->toBe($responsible->id);
+
+    $this->actingAs($admin)
+        ->get(route('admin.quotations.edit', $quotation))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('quotation.revisions.0.responsible_user_id', $responsible->id)
+            ->where('quotation.revisions.0.responsible_user.name', $responsible->name));
+});
+
+test('quotation revision statuses and titles can be added and stored on a revision', function () {
+    $admin = quotationAdmin();
+    $project = quotationProject($admin);
+
+    $this->actingAs($admin)
+        ->post(route('admin.quotation-revision-statuses.store'), ['name' => 'Waiting on owner'])
+        ->assertSessionHasNoErrors();
+    $this->actingAs($admin)
+        ->post(route('admin.quotation-revision-titles.store'), ['name' => 'Hardware update'])
+        ->assertSessionHasNoErrors();
+    $this->actingAs($admin)
+        ->post(route('admin.quotation-revision-titles.store'), ['name' => 'hardware update'])
+        ->assertSessionHasNoErrors();
+
+    $status = \App\Models\QuotationRevisionStatus::query()->where('name', 'Waiting on owner')->firstOrFail();
+    $title = \App\Models\QuotationRevisionTitle::query()->where('name', 'Hardware update')->firstOrFail();
+
+    expect(\App\Models\QuotationRevisionTitle::query()->count())->toBe(1)
+        ->and(\App\Models\QuotationRevisionStatus::query()->pluck('name')->all())->toContain('Pending', 'Approved');
+
+    $this->actingAs($admin)
+        ->get(route('admin.quotations.create'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('options.revisionTitles.0.name', 'Hardware update')
+            ->has('options.revisionStatuses', 6));
+
+    $this->actingAs($admin)
+        ->post(route('admin.quotations.store'), [
+            'contractor_id' => $project->contractors()->first()?->id,
+            'project_id' => $project->id,
+            'title' => 'Status revision quote',
+            'status' => 'draft',
+            'line_items' => [],
+            'revisions' => [[
+                'number' => 'B',
+                'status_id' => $status->id,
+                'title_id' => $title->id,
+            ]],
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect();
+
+    $revision = Quotation::query()->where('title', 'Status revision quote')->firstOrFail()->revisions()->firstOrFail();
+
+    expect($revision->status_id)->toBe($status->id)
+        ->and($revision->title_id)->toBe($title->id);
+});
+
 test('converting a quotation copies revisions onto the bid', function () {
     $admin = quotationAdmin();
     $project = quotationProject($admin, 'Harbor RF Upgrade');
@@ -846,7 +1071,7 @@ test('a quotation print fills a product field inserted in the text', function ()
     $token = QuotationField::insertToken($product->id, 'STC rating');
     $quotation = makeQuotation($admin, null, [
         'title' => 'Product field quote',
-        'pricing_conditions' => '<p>Acoustic rating {{'.$token.'}}</p>',
+        'pricing_basis' => '<p>Acoustic rating {{'.$token.'}}</p>',
     ]);
 
     $this->actingAs($admin)
@@ -881,4 +1106,115 @@ test('a quotation autosave keeps the text and leaves the rest of the quotation a
         ->and($fresh->pricing_conditions)->not->toContain('<script')
         ->and($fresh->notes)->toBe('Leave this note')
         ->and($fresh->title)->toBe('Autosave quote');
+});
+
+test('assigning a revision notifies the responsible user who can accept or decline it', function () {
+    \Illuminate\Support\Facades\Event::fake([
+        \App\Events\QuotationRevisionAssigned::class,
+        \App\Events\QuotationRevisionResponded::class,
+    ]);
+
+    $admin = quotationAdmin();
+    $maria = quotationAdmin();
+    $maria->update(['name' => 'Maria']);
+    $project = quotationProject($admin);
+
+    $this->actingAs($admin)
+        ->post(route('admin.quotations.store'), [
+            'contractor_id' => $project->contractors()->first()?->id,
+            'project_id' => $project->id,
+            'title' => 'Assigned revision quote',
+            'status' => 'draft',
+            'line_items' => [],
+            'revisions' => [[
+                'number' => 'A',
+                'revision_date' => '2026-09-15',
+                'responsible_user_id' => $maria->id,
+            ]],
+        ])
+        ->assertSessionHasNoErrors();
+
+    $revision = Quotation::query()->where('title', 'Assigned revision quote')->firstOrFail()->revisions()->firstOrFail();
+
+    expect($revision->responsible_assigned_by_id)->toBe($admin->id)
+        ->and($revision->responsible_assigned_at)->not->toBeNull()
+        ->and($revision->responsible_response)->toBeNull();
+
+    \Illuminate\Support\Facades\Event::assertDispatched(
+        \App\Events\QuotationRevisionAssigned::class,
+        fn ($event) => $event->revision->is($revision)
+            && $event->broadcastOn()[0]->name === 'private-App.Models.User.'.$maria->id,
+    );
+
+    $this->actingAs($maria)
+        ->get(route('dashboard'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('auth.revisionAssignments.count', 1)
+            ->where('auth.revisionAssignments.items.0.uuid', $revision->uuid)
+            ->where('auth.revisionAssignments.items.0.assigned_by', $admin->name));
+
+    $this->actingAs($maria)
+        ->get(route('admin.quotations.show', $revision->quotation->uuid))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('assignedRevisions', 1)
+            ->where('assignedRevisions.0.uuid', $revision->uuid));
+
+    $this->actingAs($admin)
+        ->get(route('admin.quotations.show', $revision->quotation->uuid))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->has('assignedRevisions', 0));
+
+    $this->actingAs($admin)
+        ->post(route('admin.quotation-revisions.respond', $revision->uuid), ['response' => 'accepted'])
+        ->assertForbidden();
+
+    $this->actingAs($maria)
+        ->post(route('admin.quotation-revisions.respond', $revision->uuid), ['response' => 'maybe'])
+        ->assertSessionHasErrors('response');
+
+    $this->actingAs($maria)
+        ->post(route('admin.quotation-revisions.respond', $revision->uuid), ['response' => 'accepted'])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect();
+
+    $revision->refresh()->load('status');
+
+    expect($revision->responsible_response)->toBe('accepted')
+        ->and($revision->responsible_responded_at)->not->toBeNull()
+        ->and($revision->status?->name)->toBe('Accepted');
+
+    \Illuminate\Support\Facades\Event::assertDispatched(
+        \App\Events\QuotationRevisionResponded::class,
+        fn ($event) => $event->broadcastOn()[0]->name === 'private-App.Models.User.'.$admin->id,
+    );
+
+    $this->actingAs($maria)
+        ->get(route('dashboard'))
+        ->assertInertia(fn (Assert $page) => $page->where('auth.revisionAssignments.count', 0));
+});
+
+test('revision assignment broadcasting failures do not block saving', function () {
+    config(['broadcasting.default' => 'reverb', 'broadcasting.connections.reverb.options.host' => '127.0.0.1', 'broadcasting.connections.reverb.options.port' => 1]);
+
+    $admin = quotationAdmin();
+    $maria = quotationAdmin();
+    $project = quotationProject($admin);
+
+    $this->actingAs($admin)
+        ->post(route('admin.quotations.store'), [
+            'contractor_id' => $project->contractors()->first()?->id,
+            'project_id' => $project->id,
+            'title' => 'Offline broadcast quote',
+            'status' => 'draft',
+            'line_items' => [],
+            'revisions' => [[
+                'number' => 'A',
+                'responsible_user_id' => $maria->id,
+            ]],
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect();
+
+    expect(Quotation::query()->where('title', 'Offline broadcast quote')->exists())->toBeTrue();
 });

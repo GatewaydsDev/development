@@ -4,8 +4,11 @@ namespace App\Support;
 
 use App\Models\BidTextField;
 use App\Models\Company;
+use App\Models\Contractor;
 use App\Models\Project;
+use App\Models\Quotation;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 use PhpOffice\PhpWord\IOFactory;
 use Throwable;
@@ -31,20 +34,57 @@ class BidApplicationText
         'project_number' => 'Project number',
         'customer_name' => 'Contractor contact',
         'customer_company' => 'Contractor company',
+        'contractor_name' => 'Contractor company',
+        'contractor_contact_name' => 'Contractor contact',
+        'contractor_email' => 'Contractor email',
+        'contractor_phone' => 'Contractor phone',
+        'contractor_address' => 'Contractor address',
+        'contractor_website' => 'Contractor website',
         'project_address' => 'Project address',
         'site_address' => 'Site address',
         'scope_of_work' => 'Scope of work',
         'estimated_start_date' => 'Estimated start date',
         'estimated_end_date' => 'Estimated end date',
         'company_name' => 'Company name',
+        'company_speciality' => 'Company speciality',
         'company_legal_name' => 'Company legal name',
         'company_phone' => 'Company phone',
         'company_email' => 'Company email',
         'company_address' => 'Company address',
         'today' => 'Today\'s date',
+        'validity_30' => 'Validity date (30 days)',
+        'validity_60' => 'Validity date (60 days)',
+        'validity_90' => 'Validity date (90 days)',
         'authorized_representative' => 'Authorized representative',
-        'quotation_number' => 'Source quotation',
+        'quotation_number' => 'Quotation number',
+        'quotation_title' => 'Quotation title',
+        'quoted_on' => 'Quoted on',
+        'valid_until' => 'Valid until',
+        'base_bid_total' => 'Base Bid total',
+        'latest_revision' => 'Latest revision',
     ];
+
+    public const QUOTATION_FIELDS = [
+        'quotation_number', 'quotation_title', 'quoted_on', 'valid_until', 'base_bid_total', 'latest_revision',
+    ];
+
+    /** @return array<string, string> */
+    public static function quotationValues(?Quotation $quotation): array
+    {
+        if (! $quotation) {
+            return array_fill_keys(self::QUOTATION_FIELDS, '');
+        }
+        $quotation->loadMissing(['lineItems', 'revisions']);
+
+        return [
+            'quotation_number' => (string) $quotation->quotation_number,
+            'quotation_title' => (string) $quotation->title,
+            'quoted_on' => $quotation->quoted_at?->format('F j, Y') ?? '',
+            'valid_until' => $quotation->valid_until?->format('F j, Y') ?? '',
+            'base_bid_total' => '$'.number_format($quotation->total(), 2),
+            'latest_revision' => (string) ($quotation->revisions->first()?->number ?? ''),
+        ];
+    }
 
     /**
      * @var list<string>
@@ -81,6 +121,19 @@ class BidApplicationText
             return null;
         }
 
+        $html = preg_replace_callback(
+            '/(<span\b[^>]*\bdata-text-case=["\'](camel|uppercase|lowercase)["\'][^>]*>)(\{\{\s*([a-z0-9_]+)\s*\}\})(<\/span>)/i',
+            function (array $matches) use ($values): string {
+                $value = $values[strtolower($matches[4])] ?? null;
+                if (! is_string($value) || trim($value) === '') {
+                    return $matches[0];
+                }
+
+                return $matches[1].nl2br(e(DocumentTextCase::transform($value, strtolower($matches[2]))), false).$matches[5];
+            },
+            $html,
+        );
+
         return preg_replace_callback(
             '/\{\{\s*([a-z0-9_]+)\s*\}\}/i',
             function (array $matches) use ($values): string {
@@ -104,6 +157,24 @@ class BidApplicationText
         }
 
         return trim(html_entity_decode(strip_tags((string) $html), ENT_QUOTES | ENT_HTML5, 'UTF-8')) === '';
+    }
+
+    /** @return array<string, string> */
+    public static function contractorValues(?Contractor $contractor): array
+    {
+        $contact = $contractor?->primaryContact();
+
+        return [
+            'contractor_name' => (string) ($contractor?->name ?? ''),
+            'contractor_contact_name' => (string) ($contact?->name ?? ''),
+            'contractor_email' => (string) ($contact?->email ?? ''),
+            'contractor_phone' => (string) ($contact?->phone_number ?? ''),
+            'contractor_address' => $contractor ? static::formatAddress(
+                $contractor->address_line_1, $contractor->address_line_2,
+                $contractor->city, $contractor->state, $contractor->postal_code, $contractor->country,
+            ) : '',
+            'contractor_website' => (string) ($contractor?->website ?? ''),
+        ];
     }
 
     /**
@@ -149,6 +220,7 @@ class BidApplicationText
         $contact = $contractor?->primaryContact();
 
         $base = [
+            ...static::contractorValues($contractor),
             'project_name' => (string) $project->name,
             'project_number' => (string) ($project->project_number ?? ''),
             'customer_name' => (string) ($contact?->name ?? ''),
@@ -159,6 +231,7 @@ class BidApplicationText
             'estimated_start_date' => $project->estimated_start_date?->format('F j, Y') ?? '',
             'estimated_end_date' => $project->estimated_end_date?->format('F j, Y') ?? '',
             'company_name' => (string) ($company?->name ?: 'Gateway Door Systems'),
+            'company_speciality' => (string) ($company?->speciality ?? ''),
             'company_legal_name' => (string) ($company?->legal_name ?: $company?->name ?: 'Gateway Door Systems'),
             'company_phone' => (string) ($company?->contact_phone_number ?: $company?->phone_number ?: ''),
             'company_email' => (string) ($company?->email ?? ''),
@@ -176,6 +249,10 @@ class BidApplicationText
         ];
 
         $merged = array_merge($base, array_filter($screen, fn ($value) => is_string($value) && trim($value) !== ''));
+        $validityBase = Carbon::parse($screen['bid_date'] ?? now());
+        foreach ([30, 60, 90] as $days) {
+            $merged['validity_'.$days] = $validityBase->copy()->addDays($days)->format('F j, Y');
+        }
 
         return array_merge(BidTextField::aliasedValues($merged), $merged);
     }

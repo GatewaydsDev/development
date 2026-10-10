@@ -17,6 +17,7 @@ export type TextAutoSaveConfig = {
     url: string | null;
     field: string;
     unavailableMessage: string;
+    extraData?: Record<string, string | null>;
 };
 
 const saveDelayMs = 1200;
@@ -76,6 +77,7 @@ export default function TextAutoSave({
     url,
     field,
     unavailableMessage,
+    extraData = {},
 }: TextAutoSaveConfig & { html: string }) {
     const [choice, setChoice] = useState<AutoSaveChoice | null>(() =>
         readChoice(persistKey),
@@ -93,10 +95,16 @@ export default function TextAutoSave({
     const timer = useRef<number | null>(null);
     const urlRef = useRef(url);
     const fieldRef = useRef(field);
+    const extraDataRef = useRef(extraData);
+    const dataKey = JSON.stringify(extraData);
+    const savedDataKey = useRef(dataKey);
+    const baselineDataKey = useRef(dataKey);
+    const inFlight = useRef<Promise<boolean> | null>(null);
 
     latestHtml.current = html;
     urlRef.current = url;
     fieldRef.current = field;
+    extraDataRef.current = extraData;
 
     const clearTimer = () => {
         if (timer.current !== null) {
@@ -105,7 +113,7 @@ export default function TextAutoSave({
         }
     };
 
-    const saveNow = async (body: string): Promise<boolean> => {
+    const sendSave = async (body: string): Promise<boolean> => {
         const endpoint = urlRef.current;
 
         if (!endpoint) {
@@ -113,6 +121,8 @@ export default function TextAutoSave({
         }
 
         setStatus('saving');
+        const metadata = extraDataRef.current;
+        const metadataKey = JSON.stringify(metadata);
 
         try {
             const response = await fetch(endpoint, {
@@ -125,13 +135,10 @@ export default function TextAutoSave({
                     'X-XSRF-TOKEN': csrfToken(),
                 },
                 body: JSON.stringify({
+                    ...metadata,
                     [fieldRef.current]: body,
                 }),
             });
-
-            if (latestHtml.current !== body) {
-                return true;
-            }
 
             if (!response.ok) {
                 setStatus('error');
@@ -139,25 +146,52 @@ export default function TextAutoSave({
                 return false;
             }
 
+            if (latestHtml.current !== body || JSON.stringify(extraDataRef.current) !== metadataKey) {
+                return true;
+            }
+
             savedHtml.current = body;
+            savedDataKey.current = metadataKey;
             setStatus('saved');
             return true;
         } catch {
-            if (latestHtml.current === body) {
-                setStatus('error');
-            }
-
+            setStatus('error');
             return false;
+        }
+    };
+
+    const saveNow = async (): Promise<boolean> => {
+        while (inFlight.current) {
+            if (!(await inFlight.current)) {
+                return false;
+            }
+        }
+        if (
+            latestHtml.current === savedHtml.current &&
+            JSON.stringify(extraDataRef.current) === savedDataKey.current
+        ) {
+            return true;
+        }
+        const request = sendSave(latestHtml.current);
+        inFlight.current = request;
+        try {
+            return await request;
+        } finally {
+            if (inFlight.current === request) inFlight.current = null;
         }
     };
 
     const flush = async (): Promise<boolean> => {
         clearTimer();
+        if (!urlRef.current) {
+            return true;
+        }
+        if (inFlight.current && !(await inFlight.current)) {
+            return false;
+        }
 
-        while (latestHtml.current !== savedHtml.current) {
-            const body = latestHtml.current;
-
-            if (!(await saveNow(body))) {
+        while (latestHtml.current !== savedHtml.current || JSON.stringify(extraDataRef.current) !== savedDataKey.current) {
+            if (!(await saveNow())) {
                 return false;
             }
         }
@@ -169,7 +203,7 @@ export default function TextAutoSave({
     flushRef.current = flush;
 
     const scheduleSave = (body: string) => {
-        if (!urlRef.current || body === savedHtml.current) {
+        if (!urlRef.current || (body === savedHtml.current && JSON.stringify(extraDataRef.current) === savedDataKey.current)) {
             return;
         }
 
@@ -177,16 +211,17 @@ export default function TextAutoSave({
         setStatus('saving');
         timer.current = window.setTimeout(() => {
             timer.current = null;
-            void saveNow(latestHtml.current);
+            void saveNow();
         }, saveDelayMs);
     };
 
     useEffect(() => {
-        if (html === baseline.current) {
+        if (html === baseline.current && dataKey === baselineDataKey.current) {
             return;
         }
 
         baseline.current = html;
+        baselineDataKey.current = dataKey;
         setEngaged(true);
 
         if (!asked.current) {
@@ -199,7 +234,7 @@ export default function TextAutoSave({
         if (choice === 'on') {
             scheduleSave(html);
         }
-    }, [html, choice]);
+    }, [html, choice, dataKey]);
 
     useEffect(() => () => clearTimer(), []);
 

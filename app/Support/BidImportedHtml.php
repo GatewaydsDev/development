@@ -34,6 +34,7 @@ class BidImportedHtml
         'font-family',
         'font-weight',
         'font-style',
+        'font-synthesis',
         'font-variant',
         'text-align',
         'text-decoration',
@@ -41,6 +42,7 @@ class BidImportedHtml
         'text-indent',
         'line-height',
         'letter-spacing',
+        'opacity',
         'white-space',
         'vertical-align',
         'direction',
@@ -978,7 +980,7 @@ class BidImportedHtml
             $extra['font-size'] = $htmlSizes[$size];
         }
 
-        $allowed = ['href', 'style', 'colspan', 'rowspan', 'alt', 'data-bid-field', 'data-colored-section', 'data-image-gallery', 'data-rich-image', 'data-image-caption', 'data-image-gap', 'data-position-canvas', 'data-position-item', 'data-x', 'data-y', 'data-width', 'data-height'];
+        $allowed = ['href', 'style', 'colspan', 'rowspan', 'colwidth', 'alt', 'data-bid-field', 'data-text-case', 'data-editor-text-case', 'data-colored-section', 'data-image-gallery', 'data-rich-image', 'data-image-caption', 'data-image-gap', 'data-position-canvas', 'data-position-item', 'data-x', 'data-y', 'data-width', 'data-height', 'data-pdf-page', 'data-pdf-background', 'data-pdf-font-src'];
         $attributes = [];
 
         foreach ($element->attributes ?? [] as $attribute) {
@@ -1012,6 +1014,23 @@ class BidImportedHtml
                     $element->removeAttribute($name);
                 }
 
+                continue;
+            }
+
+            if ($lower === 'data-pdf-font-src' && ! ImportedPdfFont::family($value)) {
+                $element->removeAttribute($name);
+                continue;
+            }
+
+            if ($lower === 'colwidth' && (
+                ! in_array(strtolower($element->tagName), ['td', 'th'], true)
+                || ! preg_match('/^\d{1,4}(?:\.\d{1,16})?(?:,\d{1,4}(?:\.\d{1,16})?){0,99}$/', $value)
+            )) {
+                $element->removeAttribute($name);
+                continue;
+            }
+            if (in_array($lower, ['data-text-case', 'data-editor-text-case'], true) && ! in_array($value, ['original', 'camel', 'uppercase', 'lowercase'], true)) {
+                $element->removeAttribute($name);
                 continue;
             }
 

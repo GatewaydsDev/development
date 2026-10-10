@@ -70,6 +70,8 @@ class BidController extends Controller
                 'quotation_id' => $validated['quotation_id'] ?? null,
                 'assigned_to' => $validated['assigned_to'] ?? null,
                 'notes' => $this->admin()->shippingText($validated),
+                'print_layout_version' => $validated['print_layout_version'] ?? null,
+                'print_layout_id' => $validated['print_layout_id'] ?? null,
                 'bid_shipping_text_template_id' => $validated['bid_shipping_text_template_id'] ?? null,
                 'bid_scope_text_template_id' => $validated['bid_scope_text_template_id'] ?? null,
                 'scope_of_work_text' => $this->admin()->scopeOfWorkText($validated),
@@ -107,10 +109,12 @@ class BidController extends Controller
                 'project_id' => $validated['project_id'],
                 'quotation_id' => $validated['quotation_id'] ?? null,
                 'assigned_to' => $validated['assigned_to'] ?? null,
-                'notes' => $this->admin()->shippingText($validated),
+                'notes' => $this->admin()->shippingText($validated, $bid),
+                'print_layout_version' => $validated['print_layout_version'] ?? $bid->print_layout_version,
+                'print_layout_id' => array_key_exists('print_layout_id', $validated) ? $validated['print_layout_id'] : $bid->print_layout_id,
                 'bid_shipping_text_template_id' => $validated['bid_shipping_text_template_id'] ?? null,
                 'bid_scope_text_template_id' => $validated['bid_scope_text_template_id'] ?? null,
-                'scope_of_work_text' => $this->admin()->scopeOfWorkText($validated),
+                'scope_of_work_text' => $this->admin()->scopeOfWorkText($validated, $bid),
             ])->save();
 
             $this->admin()->syncBidRelations($bid, $validated, $user);

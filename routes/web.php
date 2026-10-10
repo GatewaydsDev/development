@@ -18,6 +18,7 @@ use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ProfessionController;
 use App\Http\Controllers\Admin\ProjectController;
 use App\Http\Controllers\Admin\QuotationController;
+use App\Http\Controllers\Admin\QuotationRevisionAssignmentController;
 use App\Http\Controllers\Admin\ServiceController;
 use App\Http\Controllers\Admin\SignatureController;
 use App\Http\Controllers\Admin\SkillController;
@@ -160,12 +161,16 @@ Route::middleware(['auth', 'prevent-back-history'])
             ->name('user-activities.index');
         Route::get('/document-settings', [DocumentSettingController::class, 'edit'])
             ->name('document-settings.edit');
+        Route::get('/document-layouts/{document}', [DocumentSettingController::class, 'catalog'])
+            ->name('document-layouts.catalog');
         Route::post('/document-settings', [DocumentSettingController::class, 'store'])
             ->name('document-settings.store');
         Route::post('/document-settings/import', [DocumentSettingController::class, 'importFile'])
             ->name('document-settings.import');
         Route::post('/document-settings/images', [DocumentSettingController::class, 'uploadImage'])
             ->name('document-settings.images');
+        Route::post('/document-settings/pdf-fonts', [DocumentSettingController::class, 'uploadPdfFont'])
+            ->name('document-settings.pdf-fonts');
         Route::patch('/document-settings/{layout}', [DocumentSettingController::class, 'update'])
             ->name('document-settings.update');
 
@@ -360,10 +365,16 @@ Route::middleware(['auth', 'prevent-back-history'])
             ->name('quotations.store');
         Route::post('/quotation-titles', [QuotationController::class, 'storeTitle'])
             ->name('quotation-titles.store');
+        Route::post('/quotation-revision-statuses', [QuotationController::class, 'storeRevisionStatus'])
+            ->name('quotation-revision-statuses.store');
+        Route::post('/quotation-revision-titles', [QuotationController::class, 'storeRevisionTitle'])
+            ->name('quotation-revision-titles.store');
+        Route::post('/quotation-revisions/{revision:uuid}/respond', [QuotationRevisionAssignmentController::class, 'respond'])
+            ->name('quotation-revisions.respond');
         Route::post('/quotation-fields', [QuotationController::class, 'storeField'])
             ->name('quotation-fields.store');
+        // Access is checked in the controller so assigned revision reviewers can open it.
         Route::get('/quotations/{quotation}', [QuotationController::class, 'show'])
-            ->middleware('can:view-quotations')
             ->name('quotations.show');
         Route::get('/quotations/{quotation}/print', [QuotationController::class, 'print'])
             ->middleware('can:view-quotations')

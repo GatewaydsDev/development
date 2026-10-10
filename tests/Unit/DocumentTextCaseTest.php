@@ -18,6 +18,26 @@ test('html text casing preserves markup and handles words split across inline ta
     expect($transformed)->toContain('.sample { color: red; }');
 });
 
+test('unicode casing matches editor character boundaries without damaging symbols', function () {
+    expect(DocumentTextCase::transform('Été À PARIS', 'uppercase'))->toBe('ÉTÉ À PARIS')
+        ->and(DocumentTextCase::transform('Été À PARIS', 'lowercase'))->toBe('été à paris')
+        ->and(DocumentTextCase::transform('Door 𐐀ESERET', 'camel'))->toBe('door𐐀eseret')
+        ->and(DocumentTextCase::transform('ΟΣ WORK', 'camel'))->toBe('οσWork')
+        ->and(DocumentTextCase::transform('Door 😀 SYSTEM', 'camel'))->toBe('door😀System');
+});
+
+test('camel casing continues across styled fragments and resets for a new paragraph', function () {
+    $state = null;
+    expect(DocumentTextCase::transform('First ', 'camel', $state))->toBe('first')
+        ->and(DocumentTextCase::transform('WO', 'camel', $state))->toBe('Wo')
+        ->and(DocumentTextCase::transform('RD', 'camel', $state))->toBe('rd');
+    $state = null;
+    expect(DocumentTextCase::transform('OTHER LINE', 'camel', $state))->toBe('otherLine');
+    expect(DocumentTextCase::transform("FIRST LINE\nSECOND LINE", 'camel'))->toBe("firstLine\nsecondLine")
+        ->and(DocumentTextCase::transformHtml('<p>First Line<br>Second Line</p>', 'camel'))
+        ->toContain('<p>firstLine<br>secondLine</p>');
+});
+
 test('html casing preserves ampersands and angle brackets as text', function () {
     $transformed = DocumentTextCase::transformHtml('<p>Doors &amp; frames &lt;required&gt;</p>', 'uppercase');
 
@@ -45,7 +65,8 @@ test('word document text casing handles words split across text runs', function 
             'word/document.xml',
             '<?xml version="1.0" encoding="UTF-8"?>'
                 .'<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
-                .'<w:body><w:p><w:r><w:t>Project </w:t></w:r><w:r><w:t>Title &amp; &lt;Details&gt;</w:t></w:r></w:p></w:body>'
+                .'<w:body><w:p><w:r><w:t>Project </w:t></w:r><w:r><w:t>Title &amp; &lt;Details&gt;</w:t></w:r>'
+                .'<w:r><w:br/><w:t>Second Line</w:t></w:r></w:p></w:body>'
                 .'</w:document>',
         );
         $archive->close();
@@ -67,7 +88,8 @@ test('word document text casing handles words split across text runs', function 
             $text .= $textNode->nodeValue;
         }
 
-        expect($text)->toBe('projectTitle&<details>');
+        expect($text)->toBe('projectTitle&<details>secondLine')
+            ->and($xpath->query('//w:br')->length)->toBe(1);
     } finally {
         unlink($path);
     }

@@ -1,7 +1,17 @@
 import { Button } from "@/Components/ui/button";
 import StickyDocumentToolbar from "@/Components/StickyDocumentToolbar";
+import InsertBidTextFieldMenu from "@/Components/InsertBidTextFieldMenu";
+import { BID_TEXT_PLACEHOLDERS, BID_TEXT_FIELD_GROUP_ORDER, placeholderToken } from "@/Pages/Admin/Bids/bidText";
 import { ToggleGroup, ToggleGroupItem } from "@/Components/ui/toggle-group";
+import {
+    DropdownMenu, DropdownMenuContent, DropdownMenuGroup,
+    DropdownMenuItem, DropdownMenuTrigger,
+} from "@/Components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { layoutColumnWidths, resizedLayoutColumns } from "@/lib/printLayoutGeometry";
+import { layoutTableCell, layoutTableDimensions, layoutTableField, resolveLayoutTableFields } from "@/lib/printLayoutTableFields";
+import { layoutPages, loadPdfFont, pdfTextFont, pdfTextLines, pdfTextLineHeight, pdfRunText, pdfRunY, pdfFontSources, type PdfLayoutElement } from "@/lib/printLayoutPdf";
+import { PRINT_LAYOUT_FONTS, PRINT_LAYOUT_FONT_CHOICES, PRINT_LAYOUT_WIDTH, printLayoutTextCase, tableStripeColor, tableTextStyle, TABLE_TEXT_STYLE_KEYS, type TableStriping, type TableTextStyle, type TextCaseState } from "@/lib/printLayoutGeometry";
 import {
     AlignCenterIcon,
     AlignLeftIcon,
@@ -37,34 +47,12 @@ import {
 } from "react";
 
 export type ElementType =
-    "text" | "image" | "divider" | "spacer" | "date" | "company" | "table";
+    "text" | "image" | "divider" | "spacer" | "date" | "validity" | "company" | "table";
 export type ElementZone = "header" | "intro" | "body" | "footer";
 export type ElementCase = "original" | "camel" | "uppercase" | "lowercase";
 
 export function transformCase(value: string, textCase: ElementCase): string {
-    if (textCase === "uppercase") {
-        return value.toUpperCase();
-    }
-
-    if (textCase === "lowercase") {
-        return value.toLowerCase();
-    }
-
-    if (textCase === "camel") {
-        return value
-            .split(/[\s_-]+/u)
-            .filter(Boolean)
-            .map((word, index) => {
-                const lower = word.toLowerCase();
-
-                return index === 0
-                    ? lower
-                    : `${lower.charAt(0).toUpperCase()}${lower.slice(1)}`;
-            })
-            .join("");
-    }
-
-    return value;
+    return printLayoutTextCase(value, textCase);
 }
 
 export type MergeField = {
@@ -72,10 +60,12 @@ export type MergeField = {
     label: string;
     group: string;
     sample: string;
+    source?: string;
+    sourceLabel?: string;
 };
 
 export function fillFields(value: string, fields: MergeField[]): string {
-    return value.replace(/\{\{\s*([a-z_]+)\s*\}\}/g, (_match, key: string) => {
+    return value.replace(/\{\{\s*([a-z0-9_]+)\s*\}\}/g, (_match, key: string) => {
         return fields.find((field) => field.key === key)?.sample ?? "";
     });
 }
@@ -88,7 +78,7 @@ const caseChoices: Array<{ id: ElementCase; label: string }> = [
 ];
 export type ElementAlign = "left" | "center" | "right" | "justify";
 
-export type LayoutElement = {
+export type LayoutElement = TableStriping & PdfLayoutElement & {
     id: string;
     type: ElementType;
     zone: ElementZone;
@@ -104,6 +94,7 @@ export type LayoutElement = {
     underline?: boolean;
     line_height?: number;
     list_style?: "none" | "bullet" | "numbered";
+    validity_days?: 30 | 60 | 90;
     text_case: ElementCase;
     inline?: boolean;
     x?: number;
@@ -140,6 +131,7 @@ const tools: Array<{
     { type: "table", label: "Info table", icon: TableIcon },
     { type: "company", label: "Company info", icon: BuildingIcon },
     { type: "date", label: "Date", icon: CalendarIcon },
+    { type: "validity", label: "Validity", icon: CalendarIcon },
     { type: "divider", label: "Divider", icon: MinusIcon },
     { type: "spacer", label: "Spacer", icon: MoveVerticalIcon },
 ];
@@ -185,6 +177,7 @@ function handleStyle(element: LayoutElement) {
 const defaultWidth: Partial<Record<ElementType, number>> = {
     text: 50,
     date: 30,
+    validity: 30,
     company: 50,
     table: 60,
     image: 30,
@@ -243,14 +236,51 @@ const elementLabel = (element: LayoutElement) =>
         divider: "Divider",
         spacer: "Spacer",
         date: "Date",
+        validity: "Validity",
         company: "Company info",
         table: "Info table",
     })[element.type];
 
+function TableRowSelector({ row, onSelect }: { row: number; onSelect: (row: number) => void }) {
+    return <button type="button" className="table-row-selector"
+        aria-label={`Select row ${row + 1}`} title={`Select row ${row + 1} to format its text`}
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={(event) => { event.stopPropagation(); onSelect(row); }} />;
+}
+
+function previewTableItems(element: LayoutElement, fields: MergeField[]) {
+    return (element.items ?? []).map((item, index) => ({
+        index,
+        label: fillFields(item.label, fields).trim(),
+        value: fillFields(item.value, fields).trim(),
+        dynamic: item.value.includes("{{"),
+    })).filter((row) => !(row.value === "" && row.dynamic) && (row.label !== "" || row.value !== ""));
+}
+
+function tableCellPosition(element: LayoutElement, cell: { row: number; column: number }, fields: MergeField[]) {
+    if (element.cells) return { row: cell.row + 1, column: cell.column + 1 };
+    const pairs = Math.min(3, Math.max(1, element.columns ?? 2));
+    const visibleIndex = previewTableItems(element, fields).findIndex((item) => item.index === cell.row);
+    const position = Math.max(0, visibleIndex === -1 ? cell.row : visibleIndex);
+    return { row: Math.floor(position / pairs) + 1, column: position % pairs * 2 + cell.column + 1 };
+}
+
 export function ElementPreview({
     element,
     fields = [],
+    selectedColumn,
+    selectedRow,
+    onSelectRow,
+    selectedCell,
+    onSelectCell,
+    sourceElements = [],
 }: {
+    sourceElements?: LayoutElement[];
+    selectedCell?: { row: number; column: number };
+    onSelectCell?: (row: number, column: number) => void;
+    selectedRow?: number;
+    onSelectRow?: (row: number) => void;
+    selectedColumn?: number;
     element: LayoutElement;
     fields?: MergeField[];
     applyCase?: (value: string) => string;
@@ -286,7 +316,7 @@ export function ElementPreview({
 
     if (element.type === "image") {
         return element.src ? (
-            <div style={{ ...box, padding: "4px 0" }}>
+            <div style={{ ...box, padding: element.pdf_background ? 0 : "4px 0" }}>
                 <img
                     src={element.src}
                     alt=""
@@ -298,29 +328,63 @@ export function ElementPreview({
     }
 
     if (element.type === "table") {
+        const widths = layoutColumnWidths(element);
         if (element.cells) {
             return (
-                <table style={{ ...box, borderCollapse: "collapse", tableLayout: "fixed" }}>
+                <table style={{ ...box, backgroundColor: element.table_background, borderCollapse: "collapse", tableLayout: "fixed" }}>
                     <tbody>
                         {element.cells.map((row, r) => (
                             <tr key={r}>
-                                {row.map((cell, c) => (
-                                    <td key={c} style={{
-                                        padding: "6px 10px",
+                                {row.map((cell, c) => {
+                                    const span = element.cell_spans?.[r]?.[c];
+                                    if (span && (!span.rows || !span.columns)) return null;
+                                    const style = tableTextStyle(element, r, c, r === 0 && element.header_row);
+                                    return (
+                                    <td key={c}
+                                        colSpan={span?.columns}
+                                        rowSpan={span?.rows}
+                                        data-table-row={onSelectCell ? r : undefined}
+                                        data-table-column={onSelectCell ? c : undefined}
+                                        tabIndex={onSelectCell ? 0 : undefined}
+                                        aria-label={onSelectCell ? `Row ${r + 1}, column ${c + 1} cell` : undefined}
+                                        onClick={onSelectCell ? (event) => { event.stopPropagation(); onSelectCell(r, c); } : undefined}
+                                        onKeyDown={onSelectCell ? (event) => {
+                                            if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
+                                                event.preventDefault(); event.stopPropagation(); onSelectCell(r, c);
+                                            }
+                                        } : undefined}
+                                        style={{
+                                        width: `${widths.slice(c, c + (span?.columns ?? 1)).reduce((sum, value) => sum + value, 0)}%`,
+                                        height: element.row_heights?.slice(r, r + (span?.rows ?? 1)).reduce((sum, value) => sum + value, 0),
+                                        position: "relative",
+                                        padding: element.row_heights?.length ? "2px 6px" : "6px 10px",
                                         border: element.border ? `1px solid ${element.border_color ?? "#cbd5e1"}` : "none",
-                                        fontFamily: fontStack(element.font_family),
-                                        fontSize: element.font_size,
-                                        color: r === 0 && element.header_row ? element.header_color || "#ffffff" : element.color,
-                                        backgroundColor: r === 0 && element.header_row ? element.label_bg || "#065f46" : undefined,
-                                        fontWeight: r === 0 && element.header_row ? 700 : element.bold ? 700 : 400,
-                                        fontStyle: element.italic ? "italic" : "normal",
-                                        textAlign: element.align,
-                                        textDecoration: element.underline ? "underline" : undefined,
-                                        lineHeight: element.line_height ?? 1.35,
+                                        ...(element.border ? {
+                                            borderTop: element.cell_borders?.[r]?.[c]?.top,
+                                            borderRight: element.cell_borders?.[r]?.[c]?.right,
+                                            borderBottom: element.cell_borders?.[r]?.[c]?.bottom,
+                                            borderLeft: element.cell_borders?.[r]?.[c]?.left,
+                                        } : {}),
+                                        fontFamily: fontStack(style.font_family),
+                                        fontSize: style.font_size,
+                                        color: style.color,
+                                        backgroundColor: r === 0 && element.header_row
+                                            ? element.label_bg || "#065f46"
+                                            : tableStripeColor(element, r - (element.header_row ? 1 : 0), c, r),
+                                        fontWeight: style.bold ? 700 : 400,
+                                        fontStyle: style.italic ? "italic" : "normal",
+                                        textAlign: style.align,
+                                        textDecoration: style.underline ? "underline" : undefined,
+                                        lineHeight: style.line_height ?? 1.35,
+                                        whiteSpace: "pre-line",
+                                        overflowWrap: "anywhere",
+                                        outline: c === selectedColumn || r === selectedRow || (selectedCell?.row === r && selectedCell.column === c) ? "2px solid #059669" : undefined,
+                                        outlineOffset: -2,
                                     }}>
-                                        {transformCase(fillFields(cell, fields), element.text_case) || "\u00a0"}
+                                        {c === 0 && onSelectRow ? <TableRowSelector row={r} onSelect={onSelectRow} /> : null}
+                                        {transformCase(fillFields(cell, fields), style.text_case ?? element.text_case) || "\u00a0"}
                                     </td>
-                                ))}
+                                ); })}
                             </tr>
                         ))}
                     </tbody>
@@ -328,18 +392,7 @@ export function ElementPreview({
             );
         }
         const pairs = Math.min(3, Math.max(1, element.columns ?? 2));
-        const labelWidth = element.label_width ?? 30;
-        const rows = (element.items ?? [])
-            .map((item) => ({
-                label: fillFields(item.label, fields).trim(),
-                value: fillFields(item.value, fields).trim(),
-                dynamic: item.value.includes("{{"),
-            }))
-            .filter(
-                (row) =>
-                    !(row.value === "" && row.dynamic) &&
-                    (row.label !== "" || row.value !== ""),
-            );
+        const rows = previewTableItems(element, fields);
 
         if (rows.length === 0) {
             return null;
@@ -349,9 +402,10 @@ export function ElementPreview({
             ? `1px solid ${element.border_color ?? "#cbd5e1"}`
             : undefined;
         const base = {
-            fontFamily: fontStack(element.font_family),
+            fontFamily: pdfTextFont(element),
             fontSize: element.font_size,
             color: element.color,
+            fontSynthesis: element.pdf_font_src ? "none" : undefined,
             lineHeight: element.line_height ?? 1.35,
             textDecoration: element.underline ? "underline" : undefined,
             padding: "6px 10px",
@@ -374,41 +428,71 @@ export function ElementPreview({
                 <tbody>
                     {chunks.map((chunk, rowIndex) => (
                         <tr key={rowIndex}>
-                            {Array.from({ length: pairs }).map((_, index) => (
+                            {Array.from({ length: pairs }).map((_, index) => {
+                                const row = chunk[index]?.index;
+                                const labelStyle = tableTextStyle(element, row ?? -1, index * 2, false, true, 0);
+                                const valueStyle = tableTextStyle(element, row ?? -1, index * 2 + 1, false, false, 1);
+                                const cellProps = (column: number) => row !== undefined && onSelectCell ? {
+                                    "data-table-row": row,
+                                    "data-table-column": column,
+                                    tabIndex: 0,
+                                    "aria-label": `Row ${row + 1}, ${column === 0 ? "name" : "value"} cell`,
+                                    onClick: (event: React.MouseEvent<HTMLTableCellElement>) => {
+                                        event.stopPropagation(); onSelectCell(row, column);
+                                    },
+                                    onKeyDown: (event: React.KeyboardEvent<HTMLTableCellElement>) => {
+                                        if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
+                                            event.preventDefault(); event.stopPropagation(); onSelectCell(row, column);
+                                        }
+                                    },
+                                } : {};
+                                const cellStyle = (style: TableTextStyle) => ({
+                                    fontFamily: fontStack(style.font_family),
+                                    fontSize: style.font_size, color: style.color,
+                                    fontWeight: style.bold ? 700 : 400,
+                                    fontStyle: style.italic ? "italic" : "normal",
+                                    textDecoration: style.underline ? "underline" : undefined,
+                                    textAlign: style.align, lineHeight: style.line_height ?? 1.35,
+                                });
+                                return (
                                 <Fragment key={index}>
                                     <td
+                                        {...cellProps(0)}
                                         style={{
                                             ...base,
-                                            width: `${labelWidth / pairs}%`,
-                                            fontWeight: 700,
+                                            ...cellStyle(labelStyle),
+                                            position: "relative",
+                                            width: `${widths[index * 2]}%`,
+                                            outline: index * 2 === selectedColumn || (selectedRow !== undefined && row === selectedRow) || (selectedCell?.row === row && selectedCell?.column === 0) ? "2px solid #059669" : undefined,
+                                            outlineOffset: -2,
                                             background:
-                                                element.label_bg || undefined,
+                                                tableStripeColor(element, rowIndex, index * 2) ?? (element.label_bg || undefined),
                                         }}
                                     >
+                                        {row !== undefined && onSelectRow ? <TableRowSelector row={row} onSelect={onSelectRow} /> : null}
                                         {transformCase(
                                             chunk[index]?.label ?? "",
-                                            element.text_case,
+                                            labelStyle.text_case ?? element.text_case,
                                         )}
                                     </td>
                                     <td
+                                        {...cellProps(1)}
                                         style={{
                                             ...base,
-                                            width: `${(100 - labelWidth) / pairs}%`,
-                                            fontWeight: element.bold
-                                                ? 700
-                                                : 400,
-                                            fontStyle: element.italic
-                                                ? "italic"
-                                                : "normal",
+                                            ...cellStyle(valueStyle),
+                                            width: `${widths[index * 2 + 1]}%`,
+                                            background: tableStripeColor(element, rowIndex, index * 2 + 1),
+                                            outline: index * 2 + 1 === selectedColumn || (selectedRow !== undefined && row === selectedRow) || (selectedCell?.row === row && selectedCell?.column === 1) ? "2px solid #059669" : undefined,
+                                            outlineOffset: -2,
                                         }}
                                     >
                                         {transformCase(
                                             chunk[index]?.value ?? "",
-                                            element.text_case,
+                                            valueStyle.text_case ?? element.text_case,
                                         )}
                                     </td>
                                 </Fragment>
-                            ))}
+                            ); })}
                         </tr>
                     ))}
                 </tbody>
@@ -435,7 +519,7 @@ export function ElementPreview({
         }
 
         const textStyle = {
-            fontFamily: fontStack(element.font_family),
+            fontFamily: pdfTextFont(element),
             fontSize: element.font_size,
             color: element.color,
             fontWeight: element.bold ? 700 : 400,
@@ -515,45 +599,68 @@ export function ElementPreview({
         );
     }
 
+    const validityDate = new Date();
+    validityDate.setDate(validityDate.getDate() + (element.validity_days ?? 30));
     const content =
+        element.type === "validity"
+            ? validityDate.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
+            :
         element.type === "date"
             ? new Date().toLocaleDateString("en-US", {
                   year: "numeric",
                   month: "long",
                   day: "numeric",
               })
-            : fillFields(element.content, fields);
+            : fillFields(resolveLayoutTableFields(element.content, sourceElements), fields);
 
-    return content.trim() === "" ? null : (
+    const lines = pdfTextLines(content, element);
+    const runCaseStates: Record<number, TextCaseState> = {};
+    return content.trim() === "" && !element.pdf_line_count ? null : (
         <div
             style={{
                 ...box,
-                fontFamily: fontStack(element.font_family),
+                fontFamily: pdfTextFont(element),
                 fontSize: element.font_size,
                 color: element.color,
                 fontWeight: element.bold ? 700 : 400,
                 fontStyle: element.italic ? "italic" : "normal",
-                lineHeight: element.line_height ?? 1.35,
+                lineHeight: pdfTextLineHeight(element),
                 textDecoration: element.underline ? "underline" : undefined,
-                padding: element.type === "text" && element.list_style && element.list_style !== "none" ? 0 : "2px 0",
+                padding: element.pdf_page || (element.type === "text" && element.list_style && element.list_style !== "none") ? 0 : "2px 0",
+                fontSynthesis: element.pdf_font_src ? "none" : undefined,
                 whiteSpace: "pre-line",
             }}
         >
             {element.type === "text" && element.list_style && element.list_style !== "none" ? (
                 element.list_style === "numbered" ? (
                     <ol style={{ margin: 0, paddingLeft: 20, listStyleType: "decimal" }}>
-                        {content.split(/\r?\n/).map((line, index) => (
-                            <li key={index} style={{ padding: "2px 0" }}>{transformCase(line, element.text_case) || "\u00a0"}</li>
+                        {lines.map((line, index) => (
+                            <li key={index} style={{ padding: element.pdf_page ? 0 : "2px 0" }}>{transformCase(line, element.text_case) || "\u00a0"}</li>
                         ))}
                     </ol>
                 ) : (
-                    <ul style={{ margin: 0, paddingLeft: 20, listStyleType: "disc" }}>
-                        {content.split(/\r?\n/).map((line, index) => (
-                            <li key={index} style={{ padding: "2px 0" }}>{transformCase(line, element.text_case) || "\u00a0"}</li>
+                    <ul style={{ margin: 0, paddingLeft: 20, listStyleType: element.pdf_bullet_style ?? "disc" }}>
+                        {lines.map((line, index) => (
+                            <li key={index} style={{ padding: element.pdf_page ? 0 : "2px 0" }}>{transformCase(line, element.text_case) || "\u00a0"}</li>
                         ))}
                     </ul>
                 )
-            ) : transformCase(content, element.text_case)}
+            ) : content.trim() === "" && element.pdf_line_count ? (
+                <div aria-label={`Blank imported paragraph, ${element.pdf_line_count} lines`}>
+                    {lines.map((_, index) => <div key={index} className="border-b border-dashed border-slate-300 text-[10px] text-slate-400"
+                        style={{ height: index === lines.length - 1 ? element.font_size : element.pdf_line_spacing ?? element.font_size }}>Empty line {index + 1}</div>)}
+                </div>
+            ) : element.pdf_text_runs?.length ? (
+                <div style={{ position: "relative", height: element.height }}>
+                    {element.pdf_text_runs.map((run, index) => <span key={index} style={{
+                        position: "absolute", left: run.x, top: pdfRunY(run, element), width: run.width, minHeight: run.height,
+                        fontFamily: pdfTextFont(run), fontSize: run.font_size, color: run.color,
+                        fontWeight: run.bold ? 700 : 400, fontStyle: run.italic ? "italic" : "normal",
+                        fontSynthesis: run.pdf_font_src ? "none" : undefined, lineHeight: 1, whiteSpace: "pre",
+                    }}>{printLayoutTextCase(pdfRunText(lines, element.pdf_text_runs!, index), element.text_case,
+                        runCaseStates[run.line] ??= { hasWord: false, capitalizeNext: false })}</span>)}
+                </div>
+            ) : transformCase(lines.join("\n"), element.text_case)}
         </div>
     );
 }
@@ -565,7 +672,9 @@ export function ElementsReadOnly({
     inBanner = false,
     background = "",
     headerHeight = 160,
+    textCase = "original",
 }: {
+    textCase?: ElementCase;
     headerHeight?: number;
     elements: LayoutElement[];
     zone: ElementZone;
@@ -574,6 +683,13 @@ export function ElementsReadOnly({
     inBanner?: boolean;
     background?: string;
 }) {
+    const [fontError, setFontError] = useState<string | null>(null);
+    useEffect(() => {
+        let active = true;
+        Promise.all(pdfFontSources(elements).map(loadPdfFont))
+            .catch(() => { if (active) setFontError("An imported font could not be loaded. Review the font assets before printing."); });
+        return () => { active = false; };
+    }, [elements]);
     const items = elements.filter((element) => element.zone === zone);
 
     if (items.length === 0) {
@@ -582,8 +698,10 @@ export function ElementsReadOnly({
 
     if (zone === "header") {
         return (
-            <div className="relative" style={{ height: headerHeight }}>
-                {items.map((element) => (
+            <div>
+            {fontError ? <p role="alert" className="text-sm text-destructive">{fontError}</p> : null}
+            {layoutPages(items, headerHeight).map((page) => <div key={page.id} className="relative" style={{ width: PRINT_LAYOUT_WIDTH, height: page.height }}>
+                {page.elements.map((element) => (
                     <div
                         key={element.id}
                         style={{
@@ -596,9 +714,11 @@ export function ElementsReadOnly({
                         <ElementPreview
                             element={{ ...element, width: 100 }}
                             fields={fields}
+                            sourceElements={elements}
                         />
                     </div>
                 ))}
+            </div>)}
             </div>
         );
     }
@@ -610,6 +730,7 @@ export function ElementsReadOnly({
         >
             {items.map((element) => (
                 <ElementPreview
+                    sourceElements={elements}
                     key={element.id}
                     element={element}
                     fields={fields}
@@ -670,7 +791,11 @@ export function useLayoutElements(
     setHeaderHeight: (height: number) => void = () => {},
 ) {
     const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [selectedColumn, setSelectedColumn] = useState<{ id: string; index: number } | null>(null);
+    const [selectedRow, setSelectedRow] = useState<{ id: string; index: number } | null>(null);
+    const [selectedCell, setSelectedCell] = useState<{ id: string; row: number; column: number } | null>(null);
     const [targetZone, setTargetZone] = useState<ElementZone>("header");
+    const [targetPage, setTargetPage] = useState<string | undefined>();
     const [uploading, setUploading] = useState(false);
     const [uploadError, setUploadError] = useState<string | null>(null);
     const [dragId, setDragId] = useState<string | null>(null);
@@ -679,12 +804,83 @@ export function useLayoutElements(
     const canvasRefs = useRef<Partial<Record<ElementZone, HTMLDivElement | null>>>({});
 
     const selected = elements.find((element) => element.id === selectedId);
+    useEffect(() => {
+        let active = true;
+        Promise.all(pdfFontSources(elements).map(loadPdfFont))
+            .catch(() => { if (active) setUploadError("An imported font could not be loaded. Choose another font or restore its asset."); });
+        return () => { active = false; };
+    }, [elements]);
+    const rowCount = selected?.type === "table" ? (selected.cells?.length ?? selected.items?.length ?? 0) : 0;
+    const activeRow = selectedRow?.id === selectedId && selectedRow.index < rowCount ? selectedRow : null;
+    const activeCell = selectedCell?.id === selectedId && selectedCell.row < rowCount &&
+        selectedCell.column < (selected?.cells?.[selectedCell.row]?.length ?? 2) ? selectedCell : null;
+    useEffect(() => {
+        if (selectedRow && (selectedRow.id !== selectedId || selectedRow.index >= rowCount)) {
+            setSelectedRow(null);
+        }
+    }, [selectedId, selectedRow, rowCount]);
+    useEffect(() => {
+        if (selectedCell && !activeCell) setSelectedCell(null);
+    }, [selectedCell, activeCell]);
+    const selectRow = (id: string, index: number | null) => {
+        setSelectedId(id);
+        setSelectedColumn(null);
+        setSelectedCell(null);
+        setSelectedRow(index === null ? null : { id, index });
+    };
+    const selectColumn = (column: typeof selectedColumn) => {
+        setSelectedRow(null);
+        setSelectedCell(null);
+        setSelectedColumn(column);
+    };
+    const selectCell = (id: string, row: number, column: number) => {
+        setSelectedId(id);
+        setSelectedRow(null);
+        setSelectedColumn(null);
+        setSelectedCell({ id, row, column });
+    };
 
     const update = (id: string, patch: Partial<LayoutElement>) =>
         onChange(
-            elements.map((element) =>
-                element.id === id ? { ...element, ...patch } : element,
-            ),
+            elements.map((element) => {
+                if (element.id !== id) return element;
+                if (activeCell?.id === id || activeRow?.id === id) {
+                    const style: TableTextStyle = Object.fromEntries(
+                        TABLE_TEXT_STYLE_KEYS.filter((key) => patch[key] !== undefined).map((key) => [key, patch[key]]),
+                    );
+                    const rest = Object.fromEntries(Object.entries(patch).filter(([key]) =>
+                        !TABLE_TEXT_STYLE_KEYS.some((styleKey) => styleKey === key)));
+                    if (!Object.keys(style).length) return { ...element, ...patch };
+                    if (activeCell?.id === id) {
+                        return { ...element, ...rest, cell_styles: Array.from({ length: rowCount }, (_, row) =>
+                            row === activeCell.row
+                                ? Array.from({ length: element.cells?.[row]?.length ?? 2 }, (_, column) =>
+                                    column === activeCell.column
+                                        ? { ...element.cell_styles?.[row]?.[column], ...style }
+                                        : element.cell_styles?.[row]?.[column] ?? null)
+                                : element.cell_styles?.[row] ?? null) };
+                    }
+                    return { ...element, ...rest, row_styles: Array.from({ length: rowCount }, (_, index) =>
+                        index === activeRow?.index ? { ...element.row_styles?.[index], ...style } : element.row_styles?.[index] ?? null) };
+                }
+                if (patch.font_family && element.pdf_font_src) {
+                    return { ...element, ...patch, pdf_font_src: undefined, pdf_font_name: undefined,
+                        pdf_text_runs: element.pdf_text_runs?.map(run => ({ ...run, font_family: patch.font_family, pdf_font_src: undefined, pdf_font_name: undefined })) };
+                }
+                if (element.pdf_text_runs) {
+                    const runStyle = Object.fromEntries(["font_size", "font_family", "color", "bold", "italic"]
+                        .filter(key => Object.prototype.hasOwnProperty.call(patch, key))
+                        .map(key => [key, patch[key as keyof LayoutElement]]));
+                    if (Object.keys(runStyle).length) return { ...element, ...patch,
+                        pdf_text_runs: element.pdf_text_runs.map(run => ({ ...run, ...runStyle,
+                            ...(patch.bold !== undefined || patch.italic !== undefined ? { pdf_font_src: undefined, pdf_font_name: undefined } : {}) })) };
+                }
+                return selectedColumn?.id === id && patch.color
+                        ? { ...element, ...Object.fromEntries(Object.entries(patch).filter(([key]) => key !== "color")),
+                            column_colors: Array.from({ length: element.cells?.[0]?.length ?? (element.columns ?? 2) * 2 },
+                                (_, index) => index === selectedColumn.index ? patch.color! : element.column_colors?.[index] ?? null) }
+                        : { ...element, ...patch };
+            }),
         );
 
     const visibleToolbarBottom = () => Math.max(
@@ -696,6 +892,11 @@ export function useLayoutElements(
 
     const add = (type: ElementType, zone: ElementZone = targetZone, grid = false) => {
         const element = createElement(type, zone);
+        const pageElement = elements.find((item) => item.pdf_page === targetPage && targetPage);
+        if (pageElement) {
+            element.pdf_page = pageElement.pdf_page;
+            element.pdf_page_height = pageElement.pdf_page_height;
+        }
         if (grid) {
             element.cells = [["", ""], ["", ""]];
             element.width = 94;
@@ -770,7 +971,7 @@ export function useLayoutElements(
             return;
         }
 
-        const siblings = elements.filter((item) => item.zone === element.zone);
+        const siblings = elements.filter((item) => item.zone === element.zone && item.pdf_page === element.pdf_page && !item.pdf_background);
         const siblingIndex = siblings.findIndex((item) => item.id === id);
         const other = siblings[siblingIndex + direction];
 
@@ -849,6 +1050,32 @@ export function useLayoutElements(
         } finally {
             setUploading(false);
         }
+    };
+
+    const startColumnResize = (event: ReactPointerEvent<HTMLElement>, element: LayoutElement, column: number) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const handle = event.currentTarget;
+        const width = handle.parentElement?.getBoundingClientRect().width;
+        if (!width) return;
+        const start = event.clientX;
+        const widths = layoutColumnWidths(element);
+        setSelectedId(element.id);
+        handle.setPointerCapture(event.pointerId);
+        const move = (event: PointerEvent) => update(element.id, {
+            column_widths: resizedLayoutColumns(widths, column, widths[column] + (event.clientX - start) / width * 100),
+        });
+        const stop = () => {
+            handle.removeEventListener("pointermove", move);
+            handle.removeEventListener("pointerup", stop);
+            handle.removeEventListener("pointercancel", stop);
+            handle.removeEventListener("lostpointercapture", stop);
+            if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId);
+        };
+        handle.addEventListener("pointermove", move);
+        handle.addEventListener("pointerup", stop);
+        handle.addEventListener("pointercancel", stop);
+        handle.addEventListener("lostpointercapture", stop);
     };
 
     const startResize = (
@@ -936,6 +1163,9 @@ export function useLayoutElements(
         }
 
         const box = canvas.getBoundingClientRect();
+        if (box.width <= 0) return;
+        event.preventDefault();
+        node.setPointerCapture(event.pointerId);
         const startX = event.clientX;
         const startY = event.clientY;
         const originX = element.x ?? 0;
@@ -952,7 +1182,6 @@ export function useLayoutElements(
 
             if (!dragging) {
                 dragging = true;
-                node.setPointerCapture(event.pointerId);
             }
 
             update(element.id, {
@@ -973,17 +1202,22 @@ export function useLayoutElements(
             node.removeEventListener("pointermove", onMove);
             node.removeEventListener("pointerup", onUp);
             node.removeEventListener("pointercancel", onUp);
+            node.removeEventListener("lostpointercapture", onUp);
+            if (node.hasPointerCapture(event.pointerId)) {
+                node.releasePointerCapture(event.pointerId);
+            }
         };
 
         node.addEventListener("pointermove", onMove);
         node.addEventListener("pointerup", onUp);
         node.addEventListener("pointercancel", onUp);
+        node.addEventListener("lostpointercapture", onUp);
     };
 
     const importElements = (incoming: LayoutElement[], replace: boolean) => {
         const next = replace ? incoming : [...elements, ...incoming];
         onChange(next);
-        setSelectedId(incoming[0]?.id ?? null);
+        setSelectedId(incoming.find((element) => !element.pdf_background)?.id ?? null);
     };
 
     const seedStandardSections = () => {
@@ -1020,13 +1254,27 @@ export function useLayoutElements(
         setZoneColor,
         seedStandardSections,
         importElements,
+        removePage: (id: string) => {
+            onChange(elements.filter((element) => (element.pdf_page ?? "layout") !== id));
+            setSelectedId(null);
+            setTargetPage(undefined);
+        },
         elements,
         fields,
         selectedId,
+        selectedColumn,
+        setSelectedColumn: selectColumn,
+        selectedRow: activeRow,
+        selectedCell: activeCell,
+        selectCell,
+        selectRow,
+        rowCount,
         setSelectedId,
         selected,
         targetZone,
         setTargetZone,
+        targetPage,
+        setTargetPage,
         uploading,
         uploadError,
         dragId,
@@ -1041,12 +1289,13 @@ export function useLayoutElements(
         dropOn,
         handleFile,
         startResize,
+        startColumnResize,
         startMove,
         headerHeight,
         setHeaderHeight,
         evenSpacing: () => {
             const rows: Array<{ top: number; bottom: number; items: LayoutElement[] }> = [];
-            const sorted = elements.filter((item) => item.zone === "header")
+            const sorted = elements.filter((item) => item.zone === "header" && item.pdf_page === targetPage && !item.pdf_background)
                 .map((item) => {
                     const node = Array.from(document.querySelectorAll<HTMLElement>("[data-element-id]"))
                         .find((node) => node.dataset.elementId === item.id);
@@ -1098,7 +1347,7 @@ export function LayoutElementsFileInput({
     );
 }
 
-type ImportMode = "text" | "layout";
+type ImportMode = "text" | "layout" | "pdf";
 
 function xsrfToken(): string {
     return decodeURIComponent(
@@ -1111,12 +1360,18 @@ function xsrfToken(): string {
 
 export function ImportPanel({
     controller,
+    pdfOnly = false,
+    onImported,
+    onBusyChange,
 }: {
     controller: LayoutElementsController;
+    pdfOnly?: boolean;
+    onImported?: (elements: LayoutElement[], filename: string, notes: string[]) => void;
+    onBusyChange?: (busy: boolean) => void;
 }) {
     const [file, setFile] = useState<File | null>(null);
-    const [mode, setMode] = useState<ImportMode>("text");
-    const [replace, setReplace] = useState(false);
+    const [mode, setMode] = useState<ImportMode>("pdf");
+    const [replace, setReplace] = useState(pdfOnly);
     const [busy, setBusy] = useState(false);
     const [message, setMessage] = useState<{
         tone: "ok" | "error";
@@ -1130,9 +1385,46 @@ export function ImportPanel({
         }
 
         setBusy(true);
+        onBusyChange?.(true);
         setMessage(null);
 
         try {
+            if (mode === "pdf") {
+                if (!file.name.toLowerCase().endsWith(".pdf")) throw new Error("Choose a PDF for the faithful page import, or select a Word/text import mode.");
+                const { readPdfLayout } = await import("@/lib/importPdfLayout");
+                const imported = await readPdfLayout(file);
+                const incoming = imported.pages.flatMap((page) => page.elements);
+                if (incoming.length + (replace ? 0 : controller.elements.length) > 1000) throw new Error("The resulting layout exceeds 1,000 components. Replace the existing layout or use a smaller PDF.");
+                const upload = async (name: "image" | "font", blob: Blob, filename: string) => {
+                    const body = new FormData();
+                    body.append(name, blob, filename);
+                    if (name === "image") body.append("lossless", "1");
+                    const response = await fetch(route(name === "image" ? "admin.document-settings.images" : "admin.document-settings.pdf-fonts"), {
+                        method: "POST", credentials: "same-origin",
+                        headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest", "X-XSRF-TOKEN": xsrfToken() }, body,
+                    });
+                    const payload = await response.json();
+                    if (!response.ok || typeof payload.url !== "string") throw new Error(payload.errors?.[name]?.[0] ?? payload.message ?? `Could not store imported ${name}.`);
+                    return payload.url as string;
+                };
+                const fontUrls = new Map<string, string>();
+                for (const [name, data] of imported.fonts) {
+                    fontUrls.set(name, await upload("font", new Blob([new Uint8Array(data).buffer], { type: "application/octet-stream" }), "font.ttf"));
+                }
+                for (const page of imported.pages) page.elements[0].src = await upload("image", page.background, "page.png");
+                incoming.forEach((element) => {
+                    if (element.pdf_font_src) element.pdf_font_src = fontUrls.get(element.pdf_font_src);
+                    for (const run of element.pdf_text_runs ?? []) {
+                        if (run.pdf_font_src) run.pdf_font_src = fontUrls.get(run.pdf_font_src);
+                    }
+                });
+                await Promise.all([...fontUrls.values()].map(loadPdfFont));
+                if (onImported) onImported(incoming, file.name, imported.notes);
+                else controller.importElements(incoming, replace);
+                controller.setTargetPage(incoming[0]?.pdf_page);
+                setMessage({ tone: "ok", lines: [`Imported ${imported.pages.length} pages with blank editable text. Review each page, then save.`, ...imported.notes] });
+                return;
+            }
             const body = new FormData();
             body.append("file", file);
             body.append("mode", mode);
@@ -1186,6 +1478,7 @@ export function ImportPanel({
             });
         } finally {
             setBusy(false);
+            onBusyChange?.(false);
         }
     };
 
@@ -1195,20 +1488,21 @@ export function ImportPanel({
                 <FileUpIcon className="mt-0.5 size-5 shrink-0 text-emerald-700" />
                 <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-foreground">
-                        Import from an existing document
+                        {pdfOnly ? "Upload a PDF to create your layout" : "Import from an existing document"}
                     </p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                        Choose a PDF or Word file. The header and footer
-                        sections are generated for you as components.
+                        Import every PDF page with automatic editable tables, original row and column colors,
+                        and blank editable text in the original positions.{!pdfOnly ? " Word/text import is also available." : ""}
                     </p>
 
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                         <input
                             ref={inputRef}
                             type="file"
-                            accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                            accept={pdfOnly ? ".pdf,application/pdf" : ".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
                             className="sr-only"
-                            aria-label="PDF or Word file"
+                            disabled={busy}
+                            aria-label={pdfOnly ? "PDF file for new layout" : "PDF or Word file"}
                             onChange={(event) => {
                                 setFile(event.target.files?.[0] ?? null);
                                 setMessage(null);
@@ -1218,26 +1512,32 @@ export function ImportPanel({
                             type="button"
                             variant="outline"
                             size="sm"
+                            disabled={busy}
                             className="gap-1.5"
                             onClick={() => inputRef.current?.click()}
                         >
                             <UploadIcon />
-                            Choose PDF or Word file
+                            {pdfOnly ? "Choose PDF file" : "Choose PDF or Word file"}
                         </Button>
                         <span className="max-w-xs truncate text-xs text-muted-foreground">
                             {file ? file.name : "No file selected"}
                         </span>
                     </div>
 
-                    <fieldset className="mt-3">
+                    {!pdfOnly ? <fieldset className="mt-3">
                         <legend className="text-xs font-medium text-foreground">
                             What to copy
                         </legend>
                         <div className="mt-1 flex flex-wrap gap-x-5 gap-y-1 text-sm">
                             <label className="inline-flex items-center gap-2">
+                                <input type="radio" name="import-mode" disabled={busy} checked={mode === "pdf"} onChange={() => setMode("pdf")} className="accent-emerald-700" />
+                                PDF pages: editable tables, original colors, blank text
+                            </label>
+                            <label className="inline-flex items-center gap-2">
                                 <input
                                     type="radio"
                                     name="import-mode"
+                                    disabled={busy}
                                     checked={mode === "text"}
                                     onChange={() => setMode("text")}
                                     className="accent-emerald-700"
@@ -1248,6 +1548,7 @@ export function ImportPanel({
                                 <input
                                     type="radio"
                                     name="import-mode"
+                                    disabled={busy}
                                     checked={mode === "layout"}
                                     onChange={() => setMode("layout")}
                                     className="accent-emerald-700"
@@ -1255,11 +1556,12 @@ export function ImportPanel({
                                 Section layout only (no text)
                             </label>
                         </div>
-                    </fieldset>
+                    </fieldset> : null}
 
-                    <label className="mt-3 inline-flex items-center gap-2 text-sm">
+                    {!pdfOnly ? <label className="mt-3 inline-flex items-center gap-2 text-sm">
                         <input
                             type="checkbox"
+                            disabled={busy}
                             checked={replace}
                             onChange={(event) =>
                                 setReplace(event.target.checked)
@@ -1267,7 +1569,7 @@ export function ImportPanel({
                             className="size-4 rounded accent-emerald-700"
                         />
                         Replace the whole layout (header, body and footer)
-                    </label>
+                    </label> : null}
 
                     <div className="mt-3">
                         <Button
@@ -1278,7 +1580,7 @@ export function ImportPanel({
                             className="gap-1.5 bg-emerald-700 text-white hover:bg-emerald-800"
                         >
                             <FileUpIcon />
-                            {busy ? "Reading file…" : "Generate sections"}
+                            {busy ? "Importing pages…" : pdfOnly ? "Create layout from PDF" : "Import document"}
                         </Button>
                     </div>
 
@@ -1302,6 +1604,8 @@ export function ImportPanel({
         </div>
     );
 }
+
+type TableFieldSelection = { elementId: string; tableId: string; row: number; column: number };
 
 export default function LayoutElementsEditor({
     controller,
@@ -1334,6 +1638,23 @@ export default function LayoutElementsEditor({
         startResize,
     } = controller;
     const editorRef = useRef<HTMLDivElement>(null);
+    const [tableFieldSelection, setTableFieldSelection] = useState<TableFieldSelection | null>(null);
+    const selectedCellPosition = selected && controller.selectedCell
+        ? tableCellPosition(selected, controller.selectedCell, controller.fields) : null;
+    const visiblePairIndex = selected && controller.selectedCell && !selected.cells
+        ? previewTableItems(selected, controller.fields).findIndex((item) => item.index === controller.selectedCell?.row)
+        : 0;
+    const formattingElement = selected && controller.selectedCell?.id === selected.id
+        ? { ...selected, ...tableTextStyle(selected, controller.selectedCell.row,
+            selected.cells ? controller.selectedCell.column : Math.max(0, visiblePairIndex) % Math.min(3, selected.columns ?? 2) * 2 + controller.selectedCell.column,
+            !!selected.cells && controller.selectedCell.row === 0 && selected.header_row,
+            !selected.cells && controller.selectedCell.column === 0, controller.selectedCell.column) }
+        : selected && controller.selectedRow?.id === selected.id
+        ? { ...selected, ...tableTextStyle(selected, controller.selectedRow.index, 0,
+            !!selected.cells && controller.selectedRow.index === 0 && selected.header_row) }
+        : selected && controller.selectedColumn?.id === selected.id
+            ? { ...selected, color: selected.column_colors?.[controller.selectedColumn.index] || selected.color }
+            : selected;
 
     return (
         <div ref={editorRef} className="flex flex-col gap-4">
@@ -1423,8 +1744,58 @@ export default function LayoutElementsEditor({
                 </span>
             </div>
 
+            {selected?.type === "table" ? (
+                <div className="flex flex-wrap items-center gap-2 px-3 py-2 text-xs font-medium">
+                    <label htmlFor="table-text-scope">Format text in</label>
+                    <select aria-label="Table text formatting scope"
+                        id="table-text-scope"
+                        className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                        value={controller.selectedCell ? `cell-${controller.selectedCell.row}-${controller.selectedCell.column}` : controller.selectedRow?.index ?? ""}
+                        onChange={(event) => {
+                            if (event.target.value.startsWith("cell-")) {
+                                const [, row, column] = event.target.value.split("-");
+                                controller.selectCell(selected.id, Number(row), Number(column));
+                            } else {
+                                controller.selectRow(selected.id, event.target.value === "" ? null : Number(event.target.value));
+                            }
+                        }}>
+                        <option value="">Whole table</option>
+                        {Array.from({ length: controller.rowCount }, (_, index) =>
+                            <option key={index} value={index}>{selected.cells ? "Row" : "Name/value pair"} {index + 1}</option>)}
+                        {Array.from({ length: controller.rowCount }, (_, row) =>
+                            <optgroup key={row} label={`${selected.cells ? "Row" : "Name/value pair"} ${row + 1} cells`}>
+                                {Array.from({ length: selected.cells?.[row]?.length ?? 2 }, (_, column) => {
+                                    if (selected.cell_spans?.[row]?.[column]?.columns === 0) return null;
+                                    const position = tableCellPosition(selected, { row, column }, controller.fields);
+                                    return <option key={column} value={`cell-${row}-${column}`}>
+                                        Row {position.row}, column {position.column}{!selected.cells ? column === 0 ? " (name)" : " (value)" : ""}
+                                    </option>;
+                                })}
+                            </optgroup>)}
+                    </select>
+                    {controller.selectedCell ? (
+                        <Button type="button" variant="outline" size="sm"
+                            onClick={() => update(selected.id, { cell_styles: selected.cell_styles?.map((row, r) =>
+                                r === controller.selectedCell?.row ? row?.map((style, c) =>
+                                    c === controller.selectedCell?.column ? null : style) ?? null : row) })}>
+                            Reset cell formatting
+                        </Button>
+                    ) : null}
+                    {controller.selectedRow ? (
+                        <Button type="button" variant="outline" size="sm"
+                            onClick={() => update(selected.id, { row_styles: selected.row_styles?.map((style, index) =>
+                                index === controller.selectedRow?.index ? null : style) })}>
+                            Reset row formatting
+                        </Button>
+                    ) : null}
+                </div>
+            ) : null}
             <LayoutTextToolbar
-                element={selected}
+                element={formattingElement}
+                scope={selectedCellPosition ? `Row ${selectedCellPosition.row}, column ${selectedCellPosition.column}. Text changes apply only to this cell.`
+                    : controller.selectedRow ? `${selected?.cells ? "Row" : "Name/value pair"} ${controller.selectedRow.index + 1}. Text changes apply only to this ${selected?.cells ? "row" : "pair"}.`
+                    : controller.selectedColumn ? `Column ${controller.selectedColumn.index + 1}. Font color applies only to this column.`
+                    : undefined}
                 onChange={(patch) => selected && update(selected.id, patch)}
             />
             </div>
@@ -1444,13 +1815,29 @@ export default function LayoutElementsEditor({
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
                 <div className="min-w-0">{children}</div>
 
+                <div className="min-w-0">
+                <StickyDocumentToolbar scopeRef={editorRef} propertiesPanel>
                 <aside
                     aria-label="Element properties"
-                    className="h-fit rounded-xl border border-border bg-background p-4 xl:sticky xl:top-4"
+                    className="rounded-xl border border-border bg-background p-4"
                 >
+                    {selected && controller.selectedColumn?.id === selected.id ? (
+                        <div className="mb-3 flex items-center gap-2 text-sm">
+                            <span>Column {controller.selectedColumn.index + 1}: font color applies unless a row or cell overrides it.</span>
+                            <Button type="button" variant="outline" size="sm" onClick={() => controller.setSelectedColumn(null)}>Whole table</Button>
+                        </div>
+                    ) : null}
                     {selected ? (
                         <ElementInspector
-                            element={selected}
+                            tableFieldSelection={tableFieldSelection}
+                            onTableFieldSelection={setTableFieldSelection}
+                            elements={elements}
+                            element={formattingElement ?? selected}
+                            onSelectRow={(row) => controller.selectRow(selected.id, row)}
+                            onSelectCell={(row, column) => controller.selectCell(selected.id, row, column)}
+                            selectedRow={controller.selectedRow?.index}
+                            selectedCell={controller.selectedCell}
+                            selectedColumn={controller.selectedColumn?.id === selected.id ? controller.selectedColumn.index : undefined}
                             uploading={uploading}
                             fields={controller.fields}
                             onChange={(patch) => update(selected.id, patch)}
@@ -1467,6 +1854,8 @@ export default function LayoutElementsEditor({
                         </p>
                     )}
                 </aside>
+                </StickyDocumentToolbar>
+                </div>
             </div>
         </div>
     );
@@ -1475,11 +1864,13 @@ export default function LayoutElementsEditor({
 function LayoutTextToolbar({
     element,
     onChange,
+    scope,
 }: {
+    scope?: string;
     element?: LayoutElement;
     onChange: (patch: Partial<LayoutElement>) => void;
 }) {
-    const enabled = element && ["text", "date", "company", "table"].includes(element.type);
+    const enabled = element && ["text", "date", "validity", "company", "table"].includes(element.type);
     const fieldClass = "h-9 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50";
     const labelClass = "flex flex-col gap-1 text-xs font-medium text-foreground";
 
@@ -1489,18 +1880,19 @@ function LayoutTextToolbar({
                 <label className={labelClass}>
                     Font
                     <select aria-label="Layout font" disabled={!enabled} className={fieldClass}
-                        value={element?.font_family ?? "default"}
+                        value={element?.pdf_font_src ? "pdf-imported" : element?.font_family ?? "default"}
                         onChange={(event) => onChange({ font_family: event.target.value })}>
+                        {element?.pdf_font_src ? <option value="pdf-imported">Imported: {element.pdf_font_name}</option> : null}
                         {fontChoices.map((font) => <option key={font.id} value={font.id}>{font.label}</option>)}
                     </select>
                 </label>
                 <label className={labelClass}>
                     Font size (px)
-                    <input aria-label="Layout font size" type="number" min={8} max={48}
+                    <input aria-label="Layout font size" type="number" min={element?.pdf_page ? 1 : 8} max={element?.pdf_page ? 200 : 48} step={element?.pdf_page ? "any" : 1}
                         disabled={!enabled} className={cn(fieldClass, "w-24")} value={element?.font_size ?? 12}
                         onChange={(event) => {
                             const size = event.target.valueAsNumber;
-                            if (Number.isInteger(size) && size >= 8 && size <= 48) onChange({ font_size: size });
+                            if (Number.isFinite(size) && size >= (element?.pdf_page ? 1 : 8) && size <= (element?.pdf_page ? 200 : 48)) onChange({ font_size: size });
                         }} />
                 </label>
                 <label className={labelClass}>
@@ -1512,8 +1904,9 @@ function LayoutTextToolbar({
                 <label className={labelClass}>
                     Line spacing
                     <select aria-label="Layout line spacing" disabled={!enabled} className={fieldClass}
-                        value={element?.line_height ?? 1.35}
-                        onChange={(event) => onChange({ line_height: Number(event.target.value) })}>
+                        value={element?.pdf_line_spacing ? "pdf-original" : element?.line_height ?? 1.35}
+                        onChange={(event) => { if (event.target.value !== "pdf-original") onChange({ line_height: Number(event.target.value), pdf_line_spacing: undefined }); }}>
+                        {element?.pdf_line_spacing ? <option value="pdf-original">Original PDF ({Number(element.pdf_line_spacing.toFixed(2))}px)</option> : null}
                         <option value={1}>Single</option>
                         <option value={1.15}>1.15</option>
                         <option value={1.35}>Default (1.35)</option>
@@ -1555,7 +1948,7 @@ function LayoutTextToolbar({
                 </label>
             </div>
             <p className="text-xs text-muted-foreground">
-                {enabled ? `Formatting ${elementLabel(element)}. Changes apply to the entire element.`
+                {enabled ? scope ?? `Formatting ${elementLabel(element)}. Changes apply to the entire element.`
                     : "Select a text, date, company info, or table element to enable formatting. Bullets and numbering use one item per line."}
             </p>
         </div>
@@ -1568,7 +1961,23 @@ function ElementInspector({
     fields,
     onChange,
     onPickImage,
+    onSelectRow,
+    selectedRow,
+    selectedCell,
+    selectedColumn,
+    onSelectCell,
+    elements,
+    tableFieldSelection,
+    onTableFieldSelection,
 }: {
+    selectedColumn?: number;
+    tableFieldSelection: TableFieldSelection | null;
+    onTableFieldSelection: (selection: TableFieldSelection) => void;
+    elements: LayoutElement[];
+    onSelectCell: (row: number, column: number) => void;
+    onSelectRow: (row: number) => void;
+    selectedRow?: number;
+    selectedCell?: { row: number; column: number } | null;
     element: LayoutElement;
     fields: MergeField[];
     uploading: boolean;
@@ -1579,17 +1988,51 @@ function ElementInspector({
         element.type === "text" ||
         element.type === "table" ||
         element.type === "date" ||
+        element.type === "validity" ||
         element.type === "company";
     const hasHeight = element.type === "spacer" || element.type === "divider";
     const fieldClass =
         "mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50";
     const labelClass = "block text-xs font-medium text-foreground";
+    const inspectorRef = useRef<HTMLDivElement>(null);
+    const textRef = useRef<HTMLTextAreaElement>(null);
+    const insertableFields = fields.filter((field) =>
+        field.key !== "contractor_name" && field.key !== "contractor_contact_name",
+    ).map((field) => {
+        const bidField = BID_TEXT_PLACEHOLDERS.find((item) => item.key === field.key);
+        return bidField ? { ...field, label: bidField.label, group: bidField.group } : field;
+    });
+    const focusTarget = element.type !== "table"
+        ? null
+        : selectedCell
+            ? `[data-focus-cell="${selectedCell.row}-${selectedCell.column}"]`
+            : selectedRow !== undefined
+                ? `[data-focus-row="${selectedRow}"]`
+                : selectedColumn !== undefined && element.cells
+                    ? `[data-focus-cell="0-${selectedColumn}"]`
+                    : null;
+
+    useEffect(() => {
+        const container = inspectorRef.current;
+        if (!focusTarget || !container || container.contains(document.activeElement)) return;
+        const target = container.querySelector<HTMLElement>(focusTarget);
+        if (!target) return;
+        target.focus({ preventScroll: true });
+        target.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        if (target instanceof HTMLInputElement) target.select();
+    }, [focusTarget, element.id]);
 
     return (
-        <div className="space-y-4">
+        <div ref={inspectorRef} className="space-y-4">
             <p className="text-sm font-semibold text-foreground">
                 {elementLabel(element)} properties
             </p>
+
+            {element.type === "table" ? (
+                selectedCell ? <TableCellFields element={element} cell={selectedCell} fields={fields}
+                    onChange={onChange} fieldClass={fieldClass} labelClass={labelClass} />
+                    : <p className="text-xs text-muted-foreground">Select a specific table cell to add or remove its document fields.</p>
+            ) : null}
 
             {element.type === "table" && element.cells ? (
                 <div className="space-y-3">
@@ -1602,7 +2045,7 @@ function ElementInspector({
                         <input type="checkbox" checked={element.header_row ?? false}
                             onChange={(event) => onChange({
                                 header_row: event.target.checked,
-                                label_bg: element.header_row ? element.label_bg : "#065f46",
+                                label_bg: element.label_bg || "#065f46",
                                 header_color: element.header_color || "#ffffff",
                             })} />
                         Use first row as header
@@ -1610,14 +2053,14 @@ function ElementInspector({
                     <div className="grid grid-cols-2 gap-2">
                         {element.header_row ? (
                             <>
-                                <label className={labelClass}>Header background
-                                    <input type="color" className={fieldClass} value={element.label_bg || "#065f46"}
-                                        onChange={(event) => onChange({ label_bg: event.target.value })} />
-                                </label>
-                                <label className={labelClass}>Header text color
-                                    <input type="color" className={fieldClass} value={element.header_color || "#ffffff"}
-                                        onChange={(event) => onChange({ header_color: event.target.value })} />
-                                </label>
+                                <div className={labelClass}>Header background
+                                    <ColorSelect label="Header background" value={element.label_bg || "#065f46"}
+                                        onChange={(color) => onChange({ label_bg: color })} />
+                                </div>
+                                <div className={labelClass}>Header text color
+                                    <ColorSelect label="Header text color" value={element.header_color || "#ffffff"}
+                                        onChange={(color) => onChange({ header_color: color })} />
+                                </div>
                             </>
                         ) : null}
                         <label className={labelClass}>Border color
@@ -1626,11 +2069,11 @@ function ElementInspector({
                         </label>
                     </div>
                     <div className="flex gap-2">
-                        <Button type="button" variant="outline" size="sm" disabled={element.cells.length >= 20}
+                        <Button type="button" variant="outline" size="sm" disabled={element.cells.length >= 60}
                             onClick={() => onChange({ cells: [...element.cells!, Array(element.cells![0].length).fill("")] })}>
                             Add row
                         </Button>
-                        <Button type="button" variant="outline" size="sm" disabled={element.cells[0].length >= 4}
+                        <Button type="button" variant="outline" size="sm" disabled={element.cells[0].length >= 12}
                             onClick={() => onChange({ cells: element.cells!.map((row) => [...row, ""]) })}>
                             Add column
                         </Button>
@@ -1639,29 +2082,83 @@ function ElementInspector({
                         {(["Rows", "Columns"] as const).map((label) => (
                             <label key={label} className={labelClass}>
                                 {label}
-                                <input type="number" min={1} max={label === "Rows" ? 20 : 4}
+                                <input type="number" min={1} max={label === "Rows" ? 60 : 12}
                                     value={label === "Rows" ? element.cells!.length : element.cells![0].length}
                                     className={fieldClass}
                                     onChange={(event) => {
                                         const value = event.target.valueAsNumber;
-                                        if (!Number.isInteger(value) || value < 1 || value > (label === "Rows" ? 20 : 4)) return;
+                                        if (!Number.isInteger(value) || value < 1 || value > (label === "Rows" ? 60 : 12)) return;
                                         const rows = label === "Rows" ? value : element.cells!.length;
                                         const cols = label === "Columns" ? value : element.cells![0].length;
-                                        onChange({ cells: Array.from({ length: rows }, (_, r) =>
+                                        onChange({
+                                            row_styles: element.row_styles?.slice(0, rows),
+                                            cell_styles: element.cell_styles?.slice(0, rows).map((row) => row?.slice(0, cols) ?? null),
+                                            cell_backgrounds: element.cell_backgrounds?.slice(0, rows).map(row => row.slice(0, cols)),
+                                            cell_borders: element.cell_borders?.slice(0, rows).map(row => row.slice(0, cols)),
+                                            cell_spans: element.cell_spans?.slice(0, rows).map((row, r) => row.slice(0, cols).map((span, c) => ({
+                                                rows: Math.min(span.rows, rows - r), columns: Math.min(span.columns, cols - c),
+                                            }))),
+                                            row_heights: element.row_heights?.slice(0, rows),
+                                            cells: Array.from({ length: rows }, (_, r) =>
                                             Array.from({ length: cols }, (_, c) => element.cells?.[r]?.[c] ?? "")) });
                                     }} />
                             </label>
                         ))}
                     </div>
                     {element.cells.map((row, r) => (
-                        <div key={r} className="grid gap-2" style={{ gridTemplateColumns: `repeat(${row.length}, minmax(0, 1fr))` }}>
-                            {row.map((cell, c) => (
-                                <input key={c} aria-label={`Row ${r + 1}, column ${c + 1}`} maxLength={300}
+                        <div key={r} className="flex flex-col gap-1">
+                        <button type="button" aria-pressed={selectedRow === r} data-focus-row={r}
+                            className="self-start text-xs font-medium underline underline-offset-2"
+                            onClick={() => onSelectRow(r)}>Row {r + 1}</button>
+                        <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${row.length}, minmax(0, 1fr))` }}>
+                            {row.map((cell, c) => element.cell_spans?.[r]?.[c]?.columns === 0 ? null : (
+                                <input key={c} data-focus-cell={`${r}-${c}`} aria-label={`Row ${r + 1}, column ${c + 1}`} maxLength={300}
                                     placeholder={`R${r + 1} C${c + 1}`} value={cell} className={fieldClass}
+                                    onFocus={() => onSelectCell(r, c)}
                                     onChange={(event) => onChange({ cells: element.cells!.map((row, ri) => row.map((value, ci) => ri === r && ci === c ? event.target.value : value)) })} />
                             ))}
                         </div>
+                        </div>
                     ))}
+                </div>
+            ) : null}
+            {element.type === "table" ? (
+                <div className="space-y-3">
+                    <div className={labelClass}>Table background
+                        <ColorSelect label="Table background" allowNone value={element.table_background || ""}
+                            onChange={(color) => onChange({ table_background: color })} />
+                    </div>
+                    <label className={labelClass}>
+                        Alternating background
+                        <select className={fieldClass} value={element.stripe_direction ?? "none"}
+                            onChange={(event) => onChange({
+                                stripe_direction: event.target.value as NonNullable<LayoutElement["stripe_direction"]>,
+                                ...(event.target.value === "columns" && (!element.stripe_color_a || element.stripe_color_a.toLowerCase() === "#ffffff")
+                                    ? {
+                                        stripe_color_a: "#f3f4f6",
+                                        stripe_color_b: !element.stripe_color_b || element.stripe_color_b.toLowerCase() === "#f3f4f6" ? "#ffffff" : element.stripe_color_b,
+                                    } : {}),
+                            })}>
+                            <option value="none">None</option>
+                            <option value="rows">Horizontal — alternate rows</option>
+                            <option value="columns">Vertical — alternate columns</option>
+                        </select>
+                    </label>
+                    {element.stripe_direction && element.stripe_direction !== "none" ? (
+                        <div className="grid grid-cols-2 gap-2">
+                            <div className={labelClass}>First color
+                                <ColorSelect label="First color" value={element.stripe_color_a || "#ffffff"}
+                                    onChange={(color) => onChange({ stripe_color_a: color })} />
+                            </div>
+                            <div className={labelClass}>Second color
+                                <ColorSelect label="Second color" value={element.stripe_color_b || "#f3f4f6"}
+                                    onChange={(color) => onChange({ stripe_color_b: color })} />
+                            </div>
+                        </div>
+                    ) : null}
+                    <p className="text-xs text-muted-foreground">
+                        The header keeps its own background. Alternating colors override the table background when enabled.
+                    </p>
                 </div>
             ) : null}
             {element.type === "table" && !element.cells ? (
@@ -1669,9 +2166,32 @@ function ElementInspector({
                     element={element}
                     fields={fields}
                     onChange={onChange}
+                    onSelectRow={onSelectRow}
+                    onSelectCell={onSelectCell}
+                    selectedRow={selectedRow}
                     labelClass={labelClass}
                     fieldClass={fieldClass}
                 />
+            ) : null}
+            {element.type === "table" ? (
+                <div className="flex flex-col gap-2">
+                    <p className="text-xs text-muted-foreground">Drag a column boundary in the preview or enter its width. The adjacent column adjusts; the table stays the same size.</p>
+                    {layoutColumnWidths(element).map((width, column) => (
+                        <label key={column} className={labelClass}>
+                            Column {column + 1} width (%)
+                            <input type="number" min={1} max={99} step={0.1}
+                                aria-label={`Column ${column + 1} width (%)`}
+                                className={fieldClass} value={Number(width.toFixed(2))}
+                                disabled={layoutColumnWidths(element).length === 1}
+                                onChange={(event) => {
+                                    const value = event.currentTarget.valueAsNumber;
+                                    if (Number.isFinite(value)) onChange({
+                                        column_widths: resizedLayoutColumns(layoutColumnWidths(element), column, value),
+                                    });
+                                }} />
+                        </label>
+                    ))}
+                </div>
             ) : null}
 
             {element.type === "company" ? (
@@ -1685,59 +2205,75 @@ function ElementInspector({
             ) : null}
 
             {element.type === "text" ? (
-                <label className={labelClass}>
-                    Text
-                    <textarea
-                        rows={4}
-                        maxLength={1000}
-                        value={element.content}
-                        onChange={(event) =>
-                            onChange({ content: event.target.value })
-                        }
-                        className={fieldClass}
-                    />
-                    <span className="mt-2 block">Insert a field</span>
-                    <select
-                        value=""
-                        aria-label="Insert a field"
-                        onChange={(event) => {
-                            if (event.target.value) {
-                                onChange({
-                                    content: `${element.content}{{${event.target.value}}}`,
-                                });
+                <div className={labelClass}>
+                    <label>
+                        Text
+                        <textarea
+                            ref={textRef}
+                            rows={element.pdf_line_count ?? 4}
+                            maxLength={1000}
+                            value={element.content}
+                            onChange={(event) =>
+                                onChange({ content: event.target.value })
                             }
+                            className={fieldClass}
+                        />
+                    </label>
+                    {element.pdf_text_runs?.length ? <span className="mt-1 block text-xs font-normal text-muted-foreground">
+                        Imported paragraph: {element.pdf_line_count} lines. Enter one replacement line per original line. Original positions and inline font styles are retained; formatting controls can override them.
+                    </span> : null}
+                    <span className="mt-2 block">Insert a field</span>
+                    <InsertBidTextFieldMenu
+                        triggerLabel="Choose a field"
+                        fields={insertableFields}
+                        allowCreate={false}
+                        intro="Insert a field that fills in when this layout is used"
+                        searchPlaceholder="Search totals, project, contractor, company…"
+                        groupOrder={[...BID_TEXT_FIELD_GROUP_ORDER, "Document"]}
+                        onInsert={(key) => {
+                            const textarea = textRef.current;
+                            const start = textarea?.selectionStart ?? element.content.length;
+                            const end = textarea?.selectionEnd ?? start;
+                            const token = placeholderToken(key);
+                            onChange({ content: element.content.slice(0, start) + token + element.content.slice(end) });
+                            requestAnimationFrame(() => {
+                                textarea?.focus();
+                                textarea?.setSelectionRange(start + token.length, start + token.length);
+                            });
                         }}
-                        className={fieldClass}
-                    >
-                        <option value="">Choose a field…</option>
-                        {Array.from(
-                            new Set(fields.map((field) => field.group)),
-                        ).map((group) => (
-                            <optgroup key={group} label={group}>
-                                {fields
-                                    .filter((field) => field.group === group)
-                                    .map((field) => (
-                                        <option
-                                            key={field.key}
-                                            value={field.key}
-                                        >
-                                            {field.label}
-                                        </option>
-                                    ))}
-                            </optgroup>
-                        ))}
-                    </select>
+                    />
                     <span className="mt-1 block text-[11px] font-normal text-muted-foreground">
                         Fields appear as {"{{field_name}}"} and are replaced
                         with real values when the document is generated.
                     </span>
-                </label>
+                </div>
+            ) : null}
+
+            {element.type === "text" ? (
+                <TableFieldPicker key={element.id} element={element} elements={elements}
+                    fields={fields} onChange={onChange} fieldClass={fieldClass} labelClass={labelClass}
+                    selection={tableFieldSelection} onSelectionChange={onTableFieldSelection} />
             ) : null}
 
             {element.type === "date" ? (
                 <p className="text-xs text-muted-foreground">
                     Shows the date the document is generated.
                 </p>
+            ) : null}
+            {element.type === "validity" ? (
+                <label className={labelClass}>
+                    Validity period
+                    <select aria-label="Validity period" value={element.validity_days ?? 30}
+                        className={fieldClass}
+                        onChange={(event) => onChange({ validity_days: Number(event.target.value) as 30 | 60 | 90 })}>
+                        <option value={30}>30 days</option>
+                        <option value={60}>60 days</option>
+                        <option value={90}>90 days</option>
+                    </select>
+                    <span className="mt-1 block font-normal text-muted-foreground">
+                        Expiration date is calculated from the bid/document date. Preview uses today.
+                    </span>
+                </label>
             ) : null}
 
             {element.type === "image" ? (
@@ -1833,7 +2369,7 @@ function ElementInspector({
                     <label className={labelClass}>
                         Font family
                         <select
-                            value={element.font_family ?? "default"}
+                            value={element.pdf_font_src ? "pdf-imported" : element.font_family ?? "default"}
                             onChange={(event) =>
                                 onChange({ font_family: event.target.value })
                             }
@@ -1842,6 +2378,7 @@ function ElementInspector({
                                 fontFamily: fontStack(element.font_family),
                             }}
                         >
+                            {element.pdf_font_src ? <option value="pdf-imported">Imported: {element.pdf_font_name}</option> : null}
                             {fontChoices.map((choice) => (
                                 <option
                                     key={choice.id}
@@ -1858,15 +2395,16 @@ function ElementInspector({
                             Font size (px)
                             <input
                                 type="number"
-                                min={8}
-                                max={48}
+                                min={element.pdf_page ? 1 : 8}
+                                max={element.pdf_page ? 200 : 48}
+                                step={element.pdf_page ? "any" : 1}
                                 value={element.font_size}
                                 onChange={(event) =>
                                     onChange({
                                         font_size: Math.max(
-                                            8,
+                                            element.pdf_page ? 1 : 8,
                                             Math.min(
-                                                48,
+                                                element.pdf_page ? 200 : 48,
                                                 Number(event.target.value) ||
                                                     12,
                                             ),
@@ -1924,10 +2462,11 @@ function ElementInspector({
                     <label className={labelClass}>
                         Line spacing
                         <select
-                            value={element.line_height ?? 1.35}
-                            onChange={(event) => onChange({ line_height: Number(event.target.value) })}
+                            value={element.pdf_line_spacing ? "pdf-original" : element.line_height ?? 1.35}
+                            onChange={(event) => { if (event.target.value !== "pdf-original") onChange({ line_height: Number(event.target.value), pdf_line_spacing: undefined }); }}
                             className={fieldClass}
                         >
+                            {element.pdf_line_spacing ? <option value="pdf-original">Original PDF ({Number(element.pdf_line_spacing.toFixed(2))}px)</option> : null}
                             <option value={1}>Single</option>
                             <option value={1.15}>1.15</option>
                             <option value={1.35}>Default (1.35)</option>
@@ -1992,37 +2531,20 @@ function ElementInspector({
     );
 }
 
-const fontChoices = [
-    { id: "default", label: "Default", stack: undefined },
-    {
-        id: "helvetica",
-        label: "Helvetica",
-        stack: "Helvetica, Arial, sans-serif",
-    },
-    { id: "arial", label: "Arial", stack: "Arial, Helvetica, sans-serif" },
-    { id: "verdana", label: "Verdana", stack: "Verdana, Geneva, sans-serif" },
-    { id: "tahoma", label: "Tahoma", stack: "Tahoma, Geneva, sans-serif" },
-    {
-        id: "trebuchet",
-        label: "Trebuchet MS",
-        stack: '"Trebuchet MS", Helvetica, sans-serif',
-    },
-    { id: "georgia", label: "Georgia", stack: "Georgia, serif" },
-    {
-        id: "times",
-        label: "Times New Roman",
-        stack: '"Times New Roman", Times, serif',
-    },
-    {
-        id: "courier",
-        label: "Courier New",
-        stack: '"Courier New", Courier, monospace',
-    },
-];
+const fontChoices = PRINT_LAYOUT_FONT_CHOICES;
 
 const colorChoices = [
     { value: "#000000", label: "Black" },
     { value: "#ffffff", label: "White" },
+    { value: "#f3f4f6", label: "Light gray" },
+    { value: "#e5e7eb", label: "Silver" },
+    { value: "#cbd5e1", label: "Slate gray" },
+    { value: "#dbeafe", label: "Light blue" },
+    { value: "#dcfce7", label: "Light green" },
+    { value: "#fef3c7", label: "Light yellow" },
+    { value: "#ffedd5", label: "Light orange" },
+    { value: "#ede9fe", label: "Light purple" },
+    { value: "#fce7f3", label: "Light pink" },
     { value: "#64748b", label: "Gray" },
     { value: "#dc2626", label: "Red" },
     { value: "#ea580c", label: "Orange" },
@@ -2039,104 +2561,118 @@ const colorChoices = [
 function ColorSelect({
     value,
     onChange,
+    label = "Text color",
+    allowNone = false,
 }: {
     value: string;
     onChange: (color: string) => void;
+    label?: string;
+    allowNone?: boolean;
 }) {
-    const [open, setOpen] = useState(false);
-    const rootRef = useRef<HTMLDivElement>(null);
+    const customRef = useRef<HTMLInputElement>(null);
     const current = value.toLowerCase();
     const known = colorChoices.find((choice) => choice.value === current);
     const options = known
         ? colorChoices
         : [{ value: current, label: `Custom (${current})` }, ...colorChoices];
-    const label = known?.label ?? `Custom (${current})`;
-
-    useEffect(() => {
-        if (!open) {
-            return;
-        }
-
-        const close = (event: Event) => {
-            if (!rootRef.current?.contains(event.target as Node)) {
-                setOpen(false);
-            }
-        };
-
-        document.addEventListener("pointerdown", close);
-
-        return () => document.removeEventListener("pointerdown", close);
-    }, [open]);
+    const selectedLabel = current === "" ? "No background" : known?.label ?? `Custom (${current})`;
 
     const swatch = (color: string) => (
         <span
             className="size-5 shrink-0 rounded border border-slate-400/70"
-            style={{ backgroundColor: color }}
+            style={{ backgroundColor: color || "transparent" }}
         />
     );
 
     return (
-        <div ref={rootRef} className="relative mt-1">
-            <button
-                type="button"
-                aria-haspopup="listbox"
-                aria-expanded={open}
-                onClick={() => setOpen((state) => !state)}
-                onKeyDown={(event) => {
-                    if (event.key === "Escape") {
-                        setOpen(false);
-                    }
-                }}
-                className="flex w-full items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-left text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-            >
-                {swatch(current)}
-                <span className="flex-1 truncate">{label}</span>
-                <span
-                    aria-hidden="true"
-                    className="text-xs text-muted-foreground"
-                >
-                    ▾
-                </span>
-            </button>
-            {open ? (
-                <ul
-                    role="listbox"
-                    className="absolute z-30 mt-1 max-h-64 w-full overflow-auto rounded-md border border-border bg-background py-1 shadow-lg"
-                >
-                    {options.map((choice) => (
-                        <li
-                            key={choice.value}
-                            role="option"
-                            aria-selected={choice.value === current}
-                            onClick={() => {
-                                onChange(choice.value);
-                                setOpen(false);
-                            }}
-                            className={cn(
-                                "flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm hover:bg-muted",
-                                choice.value === current &&
-                                    "bg-emerald-50 font-medium dark:bg-emerald-950/30",
-                            )}
-                        >
-                            {swatch(choice.value)}
-                            {choice.label}
-                        </li>
-                    ))}
-                </ul>
-            ) : null}
+        <div className="mt-1">
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button type="button" variant="outline" className="w-full justify-start" aria-label={label}>
+                        {swatch(current)}
+                        <span className="flex-1 truncate">{selectedLabel}</span>
+                        <span aria-hidden="true">▾</span>
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                    <DropdownMenuGroup>
+                        {allowNone ? <DropdownMenuItem onSelect={() => onChange("")}>No background</DropdownMenuItem> : null}
+                        {options.filter((choice) => choice.value).map((choice) => (
+                            <DropdownMenuItem key={choice.value} onSelect={() => onChange(choice.value)}>
+                                {swatch(choice.value)}
+                                {choice.label}
+                            </DropdownMenuItem>
+                        ))}
+                        <DropdownMenuItem onSelect={() => customRef.current?.click()}>Custom color…</DropdownMenuItem>
+                    </DropdownMenuGroup>
+                </DropdownMenuContent>
+            </DropdownMenu>
+            <input ref={customRef} type="color" tabIndex={-1} aria-label={`Custom ${label}`}
+                className="sr-only" value={current || "#ffffff"}
+                onChange={(event) => onChange(event.target.value)} />
         </div>
     );
 }
 
 function fontStack(id?: string) {
-    return fontChoices.find((choice) => choice.id === id)?.stack;
+    return PRINT_LAYOUT_FONTS[id ?? "default"] ?? PRINT_LAYOUT_FONTS.default;
+}
+
+function LayoutRulers({
+    height,
+    selected,
+}: {
+    height: number;
+    selected?: LayoutElement;
+}) {
+    const x = (selected?.x ?? 0) * PRINT_LAYOUT_WIDTH / 100;
+    const y = selected?.y ?? 0;
+    return (
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 select-none text-slate-700 print:hidden">
+            <div className="absolute left-0 top-0 flex h-7 w-10 items-center justify-center bg-slate-100 text-[10px]">
+                px
+            </div>
+            <div data-layout-ruler="horizontal" className="absolute left-10 top-0 h-7 border-b border-slate-300 bg-slate-100"
+                style={{ width: PRINT_LAYOUT_WIDTH }}>
+                {Array.from({ length: PRINT_LAYOUT_WIDTH / 10 + 1 }, (_, index) => {
+                    const value = index * 10;
+                    const major = value % 50 === 0;
+                    return (
+                        <span key={value} data-ruler-value={value} className="absolute bottom-0 border-l border-slate-400"
+                            style={{ left: value, height: major ? 10 : 5 }}>
+                            {major ? <span className={cn("absolute -top-4 text-[10px] leading-none", value === PRINT_LAYOUT_WIDTH ? "right-1" : "left-1")}>{value}</span> : null}
+                        </span>
+                    );
+                })}
+                {selected ? <span data-ruler-selection="x" className="absolute inset-y-0 border-l-2 border-emerald-700" style={{ left: x }} /> : null}
+            </div>
+            <div data-layout-ruler="vertical" className="absolute left-0 top-7 w-10 border-r border-slate-300 bg-slate-100"
+                style={{ height }}>
+                {Array.from({ length: Math.floor(height / 10) + 1 }, (_, index) => {
+                    const value = index * 10;
+                    const major = value % 50 === 0;
+                    return (
+                        <span key={value} data-ruler-value={value} className="absolute right-0 border-t border-slate-400"
+                            style={{ top: value, width: major ? 10 : 5 }}>
+                            {major ? <span className="absolute right-3 top-1 text-[10px] leading-none">{value}</span> : null}
+                        </span>
+                    );
+                })}
+                {selected ? <span data-ruler-selection="y" className="absolute inset-x-0 border-t-2 border-emerald-700" style={{ top: y }} /> : null}
+            </div>
+        </div>
+    );
 }
 
 export function PreviewZone({
     controller,
     zone,
     applyCase,
+    textCase = "original",
+    page,
 }: {
+    page?: { id: string; height: number };
+    textCase?: ElementCase;
     controller: LayoutElementsController;
     zone: ElementZone;
     applyCase: (value: string) => string;
@@ -2151,13 +2687,28 @@ export function PreviewZone({
     } = controller;
     const zoneColor = zoneColors[zone];
     const meta = zones.find((item) => item.id === zone)!;
-    const items = elements.filter((element) => element.zone === zone);
-    const active = targetZone === zone;
+    const zoneItems = elements.filter((element) => element.zone === zone);
+    if (!page && zoneItems.some((element) => element.pdf_page)) {
+        return <div className="space-y-6">
+            {layoutPages(zoneItems, controller.headerHeight).map((item, index) => <div key={item.id}>
+                <div className="mb-2 flex items-center justify-between gap-2">
+                    <p className="text-sm font-semibold">Page {index + 1}</p>
+                    <Button type="button" variant="outline" size="sm" aria-label={`Remove page ${index + 1}`}
+                        onClick={() => controller.removePage(item.id)}>Remove page</Button>
+                </div>
+                <PreviewZone controller={controller} zone={zone} applyCase={applyCase} textCase={textCase} page={item} />
+            </div>)}
+        </div>;
+    }
+    const items = page ? zoneItems.filter((element) => (element.pdf_page ?? "layout") === page.id) : zoneItems;
+    const selected = items.find((element) => element.id === selectedId);
+    const active = targetZone === zone && (!page || controller.targetPage === (page.id === "layout" ? undefined : page.id));
+    const canvasHeight = page?.height ?? controller.headerHeight;
 
     return (
         <section
             aria-label={meta.label}
-            onClick={() => setTargetZone(zone)}
+            onClick={() => { setTargetZone(zone); controller.setTargetPage(page?.id === "layout" ? undefined : page?.id); }}
             style={
                 zone !== "header" && zoneColor
                     ? { backgroundColor: zoneColor }
@@ -2165,7 +2716,8 @@ export function PreviewZone({
             }
             className={cn(
                 "relative transition",
-                zone === "header" ? "pb-3" : "px-5 py-3 sm:px-8",
+                zone === "header" && "pl-10 pr-3 pt-7",
+                zone !== "header" && "px-5 py-3 sm:px-8",
                 active &&
                     (zone === "header"
                         ? "border-white bg-white/20"
@@ -2175,11 +2727,12 @@ export function PreviewZone({
                     "border-slate-300 bg-slate-50/40 hover:border-emerald-300",
             )}
         >
+            {zone === "header" ? <LayoutRulers height={canvasHeight} selected={selected} /> : null}
             <div
-                ref={(node) => { controller.canvasRefs.current[zone] = node; }}
+                ref={(node) => { if (active) controller.canvasRefs.current[zone] = node; }}
                 data-canvas
                 className="relative"
-                style={{ height: controller.headerHeight }}
+                style={{ width: PRINT_LAYOUT_WIDTH, height: canvasHeight, background: page ? "#ffffff" : undefined }}
             >
                 {items.length === 0 ? (
                     <p className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-[11px] opacity-80">
@@ -2193,8 +2746,8 @@ export function PreviewZone({
                     return (
                         <div
                             key={element.id}
-                            role="button"
-                            tabIndex={0}
+                            role={element.pdf_background ? undefined : "button"}
+                            tabIndex={element.pdf_background ? -1 : 0}
                             data-element-id={element.id}
                             aria-pressed={isSelected}
                             aria-label={`${elementLabel(element)} component`}
@@ -2203,12 +2756,20 @@ export function PreviewZone({
                                 left: `${element.x ?? 0}%`,
                                 top: element.y ?? 0,
                                 width: `${element.width}%`,
-                                zIndex: isSelected ? 10 : 1,
+                                zIndex: element.pdf_background ? 0 : isSelected ? 10 : 1,
+                                pointerEvents: element.pdf_background ? "none" : undefined,
                             }}
                             onPointerDown={(event) => {
                                 event.stopPropagation();
                                 setTargetZone(zone);
+                                controller.setTargetPage(element.pdf_page);
                                 setSelectedId(element.id);
+                                const cell = (event.target as HTMLElement).closest<HTMLElement>("[data-table-row][data-table-column]");
+                                if (cell) {
+                                    controller.selectCell(element.id, Number(cell.dataset.tableRow), Number(cell.dataset.tableColumn));
+                                } else {
+                                    controller.selectRow(element.id, null);
+                                }
                                 controller.startMove(event, element);
                             }}
                             onClick={(event) => event.stopPropagation()}
@@ -2261,18 +2822,55 @@ export function PreviewZone({
                                     : "cursor-pointer hover:shadow-[0_0_0_1px_rgba(255,255,255,0.8),0_0_0_2px_rgba(5,150,105,0.5)]",
                             )}
                         >
+                            {element.type === "table" ? (
+                                <div className="absolute left-0 top-0 flex w-full print:hidden">
+                                    {Array.from({ length: element.cells?.[0]?.length ?? (element.columns ?? 2) * 2 }, (_, column) => (
+                                        <button key={column} type="button"
+                                            aria-label={`Select column ${column + 1}`}
+                                            aria-pressed={controller.selectedColumn?.id === element.id && controller.selectedColumn.index === column}
+                                            title={`Click the top edge to select column ${column + 1}`}
+                                            className="table-column-selector"
+                                            style={{
+                                                position: "relative", left: 0,
+                                                flex: layoutColumnWidths(element)[column],
+                                                width: "auto",
+                                            }}
+                                            onPointerDown={(event) => event.stopPropagation()}
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                setSelectedId(element.id);
+                                                controller.setSelectedColumn({ id: element.id, index: column });
+                                            }} />
+                                    ))}
+                                </div>
+                            ) : null}
+                            {element.type === "table" && isSelected ? layoutColumnWidths(element).slice(0, -1).map((_, column) => (
+                                <span key={column} role="separator" aria-orientation="vertical"
+                                    aria-label={`Resize column ${column + 1}`} data-resize-handle
+                                    title={`Drag to resize columns ${column + 1} and ${column + 2}`}
+                                    className="absolute top-0 h-full w-3 -translate-x-1/2 cursor-col-resize touch-none border-l border-primary/50 hover:bg-primary/20"
+                                    style={{ left: `${layoutColumnWidths(element).slice(0, column + 1).reduce((sum, value) => sum + value, 0)}%`, zIndex: 5 }}
+                                    onPointerDown={(event) => controller.startColumnResize(event, element, column)} />
+                            )) : null}
                             {(element.type === "image" && !element.src) ||
                             (element.type === "text" &&
-                                element.content.trim() === "") ? (
-                                <div className="rounded border border-dashed border-slate-300 px-3 py-3 text-center text-[11px] text-slate-400">
+                                element.content.trim() === "" && !element.pdf_line_count) ? (
+                                <div className="overflow-hidden rounded border border-dashed border-slate-300 text-center text-[11px] text-slate-400"
+                                    style={element.pdf_page ? { height: Math.max(10, element.height), lineHeight: `${Math.max(10, element.height)}px` } : { padding: "12px" }}>
                                     {element.type === "image"
                                         ? "Empty image"
                                         : "Empty text"}
                                 </div>
                             ) : (
                                 <ElementPreview
+                                    sourceElements={elements}
                                     element={{ ...element, width: 100 }}
                                     fields={controller.fields}
+                                    selectedColumn={controller.selectedColumn?.id === element.id ? controller.selectedColumn.index : undefined}
+                                    selectedRow={controller.selectedRow?.id === element.id ? controller.selectedRow.index : undefined}
+                                    onSelectRow={(row) => controller.selectRow(element.id, row)}
+                                    selectedCell={controller.selectedCell?.id === element.id ? controller.selectedCell : undefined}
+                                    onSelectCell={(row, column) => controller.selectCell(element.id, row, column)}
                                 />
                             )}
                             {isSelected && element.type !== "spacer" ? (
@@ -2310,7 +2908,7 @@ export function PreviewZone({
                         </div>
                     );
                 })}
-                <span
+                {!page ? <span
                     role="separator"
                     aria-label="Drag to change header height"
                     title="Drag to change header height"
@@ -2338,8 +2936,15 @@ export function PreviewZone({
                         handle.addEventListener("pointerup", onUp);
                     }}
                     className="absolute -bottom-3 left-1/2 z-20 h-2 w-16 -translate-x-1/2 cursor-ns-resize touch-none rounded-full bg-white/80 shadow ring-1 ring-black/20"
-                />
+                /> : null}
             </div>
+            {zone === "header" && !page ? (
+                <p className="relative mt-4 pb-2 text-xs print:hidden">
+                    {selected
+                        ? `X: ${Number(((selected.x ?? 0) * PRINT_LAYOUT_WIDTH / 100).toFixed(2))}px · Y: ${selected.y ?? 0}px · Width: ${Number((selected.width * PRINT_LAYOUT_WIDTH / 100).toFixed(2))}px`
+                        : "Rulers in pixels. Select a component to see its position and width."}
+                </p>
+            ) : null}
         </section>
     );
 }
@@ -2521,13 +3126,143 @@ function CompanyFieldsEditor({
     );
 }
 
+function TableCellFields({ element, cell, fields, onChange, fieldClass, labelClass }: {
+    element: LayoutElement;
+    cell: { row: number; column: number };
+    fields: MergeField[];
+    onChange: (patch: Partial<LayoutElement>) => void;
+    fieldClass: string;
+    labelClass: string;
+}) {
+    const content = element.cells?.[cell.row]?.[cell.column]
+        ?? element.items?.[cell.row]?.[cell.column === 0 ? "label" : "value"];
+    if (content === undefined) return null;
+    const { row, column } = tableCellPosition(element, cell, fields);
+    const references = Array.from(content.matchAll(/\{\{\s*([a-z0-9_]+)\s*\}\}/g));
+    const setContent = (value: string) => onChange(element.cells
+        ? { cells: element.cells.map((values, r) => values.map((text, c) => r === cell.row && c === cell.column ? value : text)) }
+        : { items: element.items?.map((item, index) => index === cell.row
+            ? { ...item, [cell.column === 0 ? "label" : "value"]: value } : item) });
+    const available = fields.some((field) => content.length + `{{${field.key}}}`.length <= 300);
+
+    return <div className="space-y-3">
+        <p className="text-sm font-semibold">Table fields: row {row}, column {column}</p>
+        <label className={labelClass}>Cell text
+            <textarea aria-label="Selected cell text" value={content} rows={2} maxLength={300}
+                className={fieldClass} onChange={(event) => setContent(event.target.value)} />
+        </label>
+        <label className={labelClass}>Field name
+            <select aria-label="Field name for selected cell" value="" disabled={!available}
+                className={fieldClass} onChange={(event) => {
+                    if (event.target.value) setContent(content + `{{${event.target.value}}}`);
+                }}>
+                <option value="">Choose a field to add</option>
+                {Array.from(new Set(fields.map((field) => field.group))).map((group) =>
+                    <optgroup key={group} label={group}>
+                        {fields.filter((field) => field.group === group).map((field) =>
+                            <option key={field.key} value={field.key}
+                                disabled={content.length + `{{${field.key}}}`.length > 300}>{field.label}</option>)}
+                    </optgroup>)}
+            </select>
+        </label>
+        {!fields.length ? <p className="text-xs text-muted-foreground">No document fields are available.</p>
+            : !available ? <p role="alert" className="text-xs text-destructive">Not enough space to add a field. Cell text is limited to 300 characters.</p> : null}
+        {references.length ? <ul className="space-y-2">
+            {references.map((match) => {
+                const field = fields.find((item) => item.key === match[1]);
+                return <li key={match.index} className="flex items-center justify-between gap-2 text-sm">
+                    <span className="min-w-0 break-words">{field?.label ?? match[1]}</span>
+                    <Button type="button" variant="outline" size="sm" aria-label={`Remove ${field?.label ?? match[1]} field`}
+                        onClick={() => setContent(content.slice(0, match.index) + content.slice(match.index! + match[0].length))}>
+                        Remove
+                    </Button>
+                </li>;
+            })}
+        </ul> : <p className="text-xs text-muted-foreground">No fields in this cell.</p>}
+        <p className="break-words text-xs text-muted-foreground" aria-live="polite">Preview: {fillFields(content, fields) || "(empty)"}</p>
+        <p className="text-xs text-muted-foreground">Fields use real bid or quotation data when the layout is loaded. Adding or removing a field changes only this cell.</p>
+    </div>;
+}
+
+function TableFieldPicker({ element, elements, fields, onChange, fieldClass, labelClass, selection, onSelectionChange }: {
+    selection: TableFieldSelection | null;
+    onSelectionChange: (selection: TableFieldSelection) => void;
+    element: LayoutElement;
+    elements: LayoutElement[];
+    fields: MergeField[];
+    onChange: (patch: Partial<LayoutElement>) => void;
+    fieldClass: string;
+    labelClass: string;
+}) {
+    const tables = elements.filter((item) => item.type === "table");
+    const { tableId, row, column } = selection?.elementId === element.id
+        ? selection : { tableId: "", row: 1, column: 1 };
+    const select = (patch: Partial<Omit<TableFieldSelection, "elementId">>) =>
+        onSelectionChange({ elementId: element.id, tableId, row, column, ...patch });
+    const table = tables.find((item) => item.id === tableId);
+    const dimensions = table ? layoutTableDimensions(table) : { rows: 0, columns: 0 };
+    const value = table ? layoutTableCell(table, row, column) : null;
+    const token = table ? layoutTableField(table.id, row, column) : "";
+    const tooLong = element.content.length + token.length > 1000;
+    const missing = resolveLayoutTableFields(element.content, elements).includes("[Missing table cell]");
+
+    return <div className="flex flex-col gap-3">
+        <p className="text-sm font-semibold">Table field</p>
+        <label className={labelClass}>Source table
+            <select aria-label="Table field source" value={tableId} className={fieldClass}
+                onChange={(event) => select({ tableId: event.target.value, row: 1, column: 1 })}>
+                <option value="">Choose a table</option>
+                {tables.map((item, index) => {
+                    const size = layoutTableDimensions(item);
+                    const sample = fillFields(layoutTableCell(item, 1, 1) ?? "", fields).slice(0, 30);
+                    return <option key={item.id} value={item.id}>
+                        Table {index + 1}{sample ? `: ${sample}` : ""} ({size.rows} rows, {size.columns} columns)
+                    </option>;
+                })}
+            </select>
+        </label>
+        {!tables.length ? <p className="text-xs text-muted-foreground">Add a table to this layout first.</p> : null}
+        <div className="flex gap-2">
+            <label className={cn(labelClass, "min-w-0 flex-1")}>Row
+                <select aria-label="Table field row" value={row} disabled={!table} className={fieldClass}
+                    onChange={(event) => select({ row: Number(event.target.value) })}>
+                    {Array.from({ length: dimensions.rows }, (_, index) =>
+                        <option key={index} value={index + 1}>Row {index + 1}</option>)}
+                </select>
+            </label>
+            <label className={cn(labelClass, "min-w-0 flex-1")}>Column
+                <select aria-label="Table field column" value={column} disabled={!table} className={fieldClass}
+                    onChange={(event) => select({ column: Number(event.target.value) })}>
+                    {Array.from({ length: dimensions.columns }, (_, index) =>
+                        <option key={index} value={index + 1}>Column {index + 1}{!table?.cells ? index % 2 === 0 ? " (name)" : " (value)" : ""}</option>)}
+                </select>
+            </label>
+        </div>
+        {table ? <p className="break-words text-xs text-muted-foreground" aria-live="polite">
+            {value === null ? "This cell does not exist. Choose another row or column."
+                : `Cell value: ${fillFields(value, fields) || "(empty)"}`}
+        </p> : null}
+        <Button type="button" variant="outline" size="sm" disabled={!table || value === null || tooLong}
+            onClick={() => onChange({ content: element.content + token })}>Insert table field</Button>
+        {tooLong ? <p role="alert" className="text-xs text-destructive">Not enough space to insert this field. Text is limited to 1,000 characters.</p> : null}
+        {missing ? <p role="alert" className="text-xs text-destructive">A referenced table cell is missing. Remove its field from the text or restore the source table/cell.</p> : null}
+        <p className="text-xs text-muted-foreground">Uses the source cell's text, including merge fields, with this text component's formatting. Row and column numbers refer to the saved table, before empty information rows are hidden.</p>
+    </div>;
+}
+
 function TableEditor({
     element,
     fields,
     onChange,
     labelClass,
     fieldClass,
+    onSelectRow,
+    selectedRow,
+    onSelectCell,
 }: {
+    onSelectCell: (row: number, column: number) => void;
+    onSelectRow: (row: number) => void;
+    selectedRow?: number;
     element: LayoutElement;
     fields: MergeField[];
     onChange: (patch: Partial<LayoutElement>) => void;
@@ -2553,7 +3288,12 @@ function TableEditor({
 
         const next = [...items];
         [next[index], next[target]] = [next[target], next[index]];
-        setItems(next);
+        const styles = Array.from({ length: items.length }, (_, i) => element.row_styles?.[i] ?? null);
+        [styles[index], styles[target]] = [styles[target], styles[index]];
+        const cellStyles = Array.from({ length: items.length }, (_, i) => element.cell_styles?.[i] ?? null);
+        [cellStyles[index], cellStyles[target]] = [cellStyles[target], cellStyles[index]];
+        onChange({ items: next, row_styles: styles, cell_styles: cellStyles });
+        onSelectCell(target, 1);
     };
 
     return (
@@ -2572,10 +3312,15 @@ function TableEditor({
                             key={index}
                             className="space-y-1 rounded-md border border-border bg-muted/30 p-2"
                         >
+                            <button type="button" aria-pressed={selectedRow === index} data-focus-row={index}
+                                className="text-xs font-medium underline underline-offset-2"
+                                onClick={() => onSelectRow(index)}>Row {index + 1}</button>
                             <input
                                 aria-label="Name"
+                                data-focus-cell={`${index}-0`}
                                 value={item.label}
                                 placeholder="Name"
+                                onFocus={() => onSelectCell(index, 0)}
                                 onChange={(event) =>
                                     patchItem(index, {
                                         label: event.target.value,
@@ -2585,8 +3330,10 @@ function TableEditor({
                             />
                             <input
                                 aria-label="Value"
+                                data-focus-cell={`${index}-1`}
                                 value={item.value}
                                 placeholder="Value or {{field}}"
+                                onFocus={() => onSelectCell(index, 1)}
                                 onChange={(event) =>
                                     patchItem(index, {
                                         value: event.target.value,
@@ -2638,11 +3385,14 @@ function TableEditor({
                                 <button
                                     type="button"
                                     aria-label="Remove row"
-                                    onClick={() =>
-                                        setItems(
-                                            items.filter((_, i) => i !== index),
-                                        )
-                                    }
+                                    onClick={() => {
+                                        onChange({
+                                            items: items.filter((_, i) => i !== index),
+                                            row_styles: element.row_styles?.filter((_, i) => i !== index),
+                                            cell_styles: element.cell_styles?.filter((_, i) => i !== index),
+                                        });
+                                        onSelectCell(Math.max(0, index - 1), 1);
+                                    }}
                                     className={cn(small, "text-red-600")}
                                 >
                                     ×
@@ -2705,6 +3455,7 @@ function TableEditor({
                                 10,
                                 Math.min(70, Number(event.target.value) || 30),
                             ),
+                            column_widths: undefined,
                         })
                     }
                     className={fieldClass}

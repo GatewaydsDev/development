@@ -178,6 +178,42 @@
     animation: bell-shake 700ms ease-in-out 2;
     transform-origin: top center;
   }
+
+  /* Rings for ~0.7s, then rests, so a waiting item stays noticeable without constant motion. */
+  @keyframes bell-ring-pause {
+    0%,
+    24%,
+    100% {
+      transform: rotate(0deg);
+    }
+    4% {
+      transform: rotate(14deg);
+    }
+    8% {
+      transform: rotate(-12deg);
+    }
+    12% {
+      transform: rotate(10deg);
+    }
+    16% {
+      transform: rotate(-8deg);
+    }
+    20% {
+      transform: rotate(5deg);
+    }
+  }
+
+  .animate-bell-ring-loop {
+    animation: bell-ring-pause 3s ease-in-out infinite;
+    transform-origin: top center;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-bell-ring-loop,
+    .animate-bell-shake {
+      animation: none;
+    }
+  }
 }
 
 @layer components {
@@ -594,6 +630,47 @@
     line-height: 1.5;
     color: var(--foreground);
     -webkit-overflow-scrolling: touch;
+  }
+
+  .table-column-selector {
+    position: absolute;
+    top: -8px;
+    left: 6px;
+    width: calc(100% - 12px);
+    height: 12px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M9 2h6v10h6l-9 10L3 12h6Z' fill='black' stroke='white' stroke-width='1.5'/%3E%3C/svg%3E") 12 22, pointer;
+    z-index: 2;
+  }
+
+  .table-column-selector:focus-visible {
+    outline: 2px solid var(--ring);
+  }
+
+  .table-row-selector {
+    position: absolute;
+    top: 4px;
+    bottom: 4px;
+    left: -8px;
+    width: 12px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .table-row-selector:focus-visible {
+    outline: 2px solid var(--ring);
+  }
+
+  .rich-text-content .tableWrapper:has(.table-column-selector) {
+    overflow: visible;
+  }
+
+  @media print {
+    .table-column-selector, .table-row-selector { display: none; }
   }
 
   .rich-position-stage {

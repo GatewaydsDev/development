@@ -5,21 +5,42 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\DocumentLayoutAssignment;
 use App\Models\PrintLayout;
+use App\Support\BidAccess;
 use App\Support\DocumentAppearance;
 use App\Support\DocumentLayoutElements;
 use App\Support\DocumentLayoutImporter;
 use App\Support\DocumentTextCase;
 use App\Support\EditorImage;
+use App\Support\PrintLayoutCatalog;
+use App\Support\QuotationAccess;
+use FontLib\Font;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class DocumentSettingController extends Controller
 {
+    public function catalog(Request $request, string $document): JsonResponse
+    {
+        abort_unless(in_array($document, ['bid', 'quotation'], true), 404);
+        $user = $request->user();
+        abort_unless(
+            $document === 'bid'
+                ? BidAccess::canCreate($user) || BidAccess::canUpdate($user)
+                : QuotationAccess::canCreate($user) || QuotationAccess::canUpdate($user),
+            403,
+        );
+
+        return response()->json(PrintLayoutCatalog::forDocument($document))
+            ->header('Cache-Control', 'private, no-store, no-cache, must-revalidate');
+    }
+
     public function edit(Request $request): Response
     {
         abort_unless($request->user()?->isSuperAdmin(), 403);
@@ -153,11 +174,34 @@ class DocumentSettingController extends Controller
 
         $validated = $request->validate([
             'image' => ['required', 'file', 'image', 'mimes:jpeg,jpg,png,gif,webp', 'max:5120'],
+            'lossless' => ['sometimes', 'boolean'],
         ]);
 
         return response()->json([
-            'url' => '/storage/'.EditorImage::store($validated['image']),
+            'url' => '/storage/'.(! empty($validated['lossless'])
+                ? $validated['image']->store('editor-images', 'public')
+                : EditorImage::store($validated['image'])),
         ]);
+    }
+
+    public function uploadPdfFont(Request $request): JsonResponse
+    {
+        abort_unless($request->user()?->isSuperAdmin(), 403);
+        $validated = $request->validate(['font' => ['required', 'file', 'max:2048']]);
+        $data = file_get_contents($validated['font']->getRealPath());
+        // PDF.js rebuilds embedded fonts as OpenType. Validate with the same parser used by PDF export.
+        try {
+            $font = Font::load($validated['font']->getRealPath());
+            $font->parse();
+            $font->close();
+        } catch (\Throwable $error) {
+            report($error);
+            throw ValidationException::withMessages(['font' => 'This embedded font cannot be used by the document renderer.']);
+        }
+        $path = 'editor-fonts/'.hash('sha256', $data).'.ttf';
+        Storage::disk('public')->put($path, $data);
+
+        return response()->json(['url' => '/storage/'.$path]);
     }
 
     /**
@@ -183,18 +227,94 @@ class DocumentSettingController extends Controller
             'zone_colors.body' => ['nullable', 'string', 'regex:/^#([A-Fa-f0-9]{6})$/'],
             'zone_colors.header_height' => ['nullable', 'integer', 'min:60'],
             'elements.*.x' => ['nullable', 'numeric', 'between:0,100'],
-            'elements.*.y' => ['nullable', 'integer', 'between:0,2000'],
+            'elements.*.y' => ['nullable', 'numeric', 'between:0,4000'],
+            'elements.*.pdf_page' => ['sometimes', 'string', 'max:40', 'regex:/^[A-Za-z0-9_-]+$/'],
+            'elements.*.pdf_page_height' => ['sometimes', 'numeric', 'between:60,4000'],
+            'elements.*.pdf_line_count' => ['sometimes', 'integer', 'between:1,200'],
+            'elements.*.pdf_line_spacing' => ['sometimes', 'nullable', 'numeric', 'between:0.5,400'],
+            'elements.*.pdf_list_lines' => ['sometimes', 'array', 'max:200'],
+            'elements.*.pdf_list_lines.*' => ['integer', 'between:1,200'],
+            'elements.*.pdf_bullet_style' => ['sometimes', 'string', Rule::in(['disc', 'circle', 'square'])],
+            'elements.*.pdf_background' => ['sometimes', 'boolean'],
+            'elements.*.pdf_font_src' => ['nullable', 'string', 'regex:#^/storage/editor-fonts/[a-f0-9]{64}\.ttf$#'],
+            'elements.*.pdf_font_name' => ['nullable', 'string', 'max:120'],
+            'elements.*.pdf_text_runs' => ['sometimes', 'array', 'max:1000'],
+            'elements.*.pdf_text_runs.*' => ['array'],
+            'elements.*.pdf_text_runs.*.line' => ['required', 'integer', 'between:0,199'],
+            'elements.*.pdf_text_runs.*.offset' => ['required', 'integer', 'between:0,10000'],
+            'elements.*.pdf_text_runs.*.length' => ['required', 'integer', 'between:1,10000'],
+            'elements.*.pdf_text_runs.*.x' => ['required', 'numeric', 'between:0,700'],
+            'elements.*.pdf_text_runs.*.y' => ['required', 'numeric', 'between:0,4000'],
+            'elements.*.pdf_text_runs.*.width' => ['required', 'numeric', 'between:0.1,700'],
+            'elements.*.pdf_text_runs.*.height' => ['required', 'numeric', 'between:1,200'],
+            'elements.*.pdf_text_runs.*.font_size' => ['required', 'numeric', 'between:1,200'],
+            'elements.*.pdf_text_runs.*.font_family' => ['nullable', 'string', Rule::in(array_keys(DocumentLayoutElements::FONT_FAMILIES))],
+            'elements.*.pdf_text_runs.*.pdf_font_src' => ['nullable', 'string', 'regex:#^/storage/editor-fonts/[a-f0-9]{64}\.ttf$#'],
+            'elements.*.pdf_text_runs.*.pdf_font_name' => ['nullable', 'string', 'max:120'],
+            'elements.*.pdf_text_runs.*.bold' => ['required', 'boolean'],
+            'elements.*.pdf_text_runs.*.italic' => ['required', 'boolean'],
+            'elements.*.pdf_text_runs.*.color' => ['required', 'string', 'regex:/^#([A-Fa-f0-9]{6})$/'],
             'zone_colors.footer' => ['nullable', 'string', 'regex:/^#([A-Fa-f0-9]{6})$/'],
             'elements' => ['sometimes', 'array', 'max:'.DocumentLayoutElements::MAX_ELEMENTS],
             'elements.*' => ['array'],
+            'elements.*.id' => ['sometimes', 'string', 'max:40', 'regex:/^[A-Za-z0-9_-]+$/', 'distinct'],
             'elements.*.type' => ['required', 'string', Rule::in(DocumentLayoutElements::TYPES)],
             'elements.*.zone' => ['required', 'string', Rule::in(DocumentLayoutElements::ZONES)],
             'elements.*.content' => ['nullable', 'string', 'max:1000'],
             'elements.*.items' => ['nullable', 'array', 'max:40'],
-            'elements.*.cells' => ['nullable', 'array', 'min:1', 'max:20'],
+            'elements.*.cells' => ['nullable', 'array', 'min:1', 'max:60'],
             'elements.*.header_row' => ['nullable', 'boolean'],
             'elements.*.header_color' => ['nullable', 'string', 'regex:/^#([A-Fa-f0-9]{6})$/'],
-            'elements.*.cells.*' => ['array', 'min:1', 'max:4'],
+            'elements.*.stripe_direction' => ['nullable', 'string', Rule::in(['none', 'rows', 'columns'])],
+            'elements.*.table_background' => ['nullable', 'string', 'regex:/^(#([A-Fa-f0-9]{6}))?$/'],
+            'elements.*.column_colors' => ['nullable', 'array', 'max:6'],
+            'elements.*.column_widths' => ['nullable', 'array', 'max:12'],
+            'elements.*.column_widths.*' => ['required', 'numeric', 'between:0.1,100'],
+            'elements.*.row_heights' => ['nullable', 'array', 'max:60'],
+            'elements.*.row_heights.*' => ['required', 'numeric', 'between:1,4000'],
+            'elements.*.cell_backgrounds' => ['nullable', 'array', 'max:60'],
+            'elements.*.cell_backgrounds.*' => ['array', 'max:12'],
+            'elements.*.cell_backgrounds.*.*' => ['string', 'regex:/^#[A-Fa-f0-9]{6}$/'],
+            'elements.*.cell_borders' => ['nullable', 'array', 'max:60'],
+            'elements.*.cell_borders.*' => ['array', 'max:12'],
+            'elements.*.cell_borders.*.*' => ['array:top,right,bottom,left'],
+            'elements.*.cell_borders.*.*.*' => ['string', 'regex:/^(none|(?:\\d+(?:\\.\\d+)?)px solid #[A-Fa-f0-9]{6})$/'],
+            'elements.*.cell_spans' => ['nullable', 'array', 'max:60'],
+            'elements.*.cell_spans.*' => ['array', 'max:12'],
+            'elements.*.cell_spans.*.*' => ['array:rows,columns'],
+            'elements.*.cell_spans.*.*.rows' => ['required', 'integer', 'between:0,60'],
+            'elements.*.cell_spans.*.*.columns' => ['required', 'integer', 'between:0,12'],
+            'elements.*.column_colors.*' => ['nullable', 'string', 'regex:/^#([A-Fa-f0-9]{6})$/'],
+            'elements.*.row_styles' => ['nullable', 'array', 'max:60'],
+            'elements.*.row_styles.*' => ['nullable', 'array:font_family,font_size,color,bold,italic,underline,line_height,align,text_case'],
+            'elements.*.row_styles.*.font_family' => ['sometimes', 'string', Rule::in(array_keys(DocumentLayoutElements::FONT_FAMILIES))],
+            'elements.*.row_styles.*.font_size' => Rule::forEach(fn ($value, string $attribute) =>
+                $request->input(implode('.', array_slice(explode('.', $attribute), 0, 2)).'.pdf_page')
+                    ? ['sometimes', 'numeric', 'between:1,200'] : ['sometimes', 'integer', 'between:8,48']),
+            'elements.*.row_styles.*.color' => ['sometimes', 'string', 'regex:/^#([A-Fa-f0-9]{6})$/'],
+            'elements.*.row_styles.*.bold' => ['sometimes', 'boolean'],
+            'elements.*.row_styles.*.italic' => ['sometimes', 'boolean'],
+            'elements.*.row_styles.*.underline' => ['sometimes', 'boolean'],
+            'elements.*.row_styles.*.line_height' => ['sometimes', 'numeric', Rule::in([1, 1.15, 1.35, 1.5, 2])],
+            'elements.*.row_styles.*.align' => ['sometimes', 'string', Rule::in(DocumentLayoutElements::ALIGNMENTS)],
+            'elements.*.row_styles.*.text_case' => ['sometimes', 'string', Rule::in(array_keys(DocumentTextCase::OPTIONS))],
+            'elements.*.cell_styles' => ['nullable', 'array', 'max:60'],
+            'elements.*.cell_styles.*' => ['nullable', 'array', 'max:12'],
+            'elements.*.cell_styles.*.*' => ['nullable', 'array:font_family,font_size,color,bold,italic,underline,line_height,align,text_case'],
+            'elements.*.cell_styles.*.*.font_family' => ['sometimes', 'string', Rule::in(array_keys(DocumentLayoutElements::FONT_FAMILIES))],
+            'elements.*.cell_styles.*.*.font_size' => Rule::forEach(fn ($value, string $attribute) =>
+                $request->input(implode('.', array_slice(explode('.', $attribute), 0, 2)).'.pdf_page')
+                    ? ['sometimes', 'numeric', 'between:1,200'] : ['sometimes', 'integer', 'between:8,48']),
+            'elements.*.cell_styles.*.*.color' => ['sometimes', 'string', 'regex:/^#([A-Fa-f0-9]{6})$/'],
+            'elements.*.cell_styles.*.*.bold' => ['sometimes', 'boolean'],
+            'elements.*.cell_styles.*.*.italic' => ['sometimes', 'boolean'],
+            'elements.*.cell_styles.*.*.underline' => ['sometimes', 'boolean'],
+            'elements.*.cell_styles.*.*.line_height' => ['sometimes', 'numeric', Rule::in([1, 1.15, 1.35, 1.5, 2])],
+            'elements.*.cell_styles.*.*.align' => ['sometimes', 'string', Rule::in(DocumentLayoutElements::ALIGNMENTS)],
+            'elements.*.cell_styles.*.*.text_case' => ['sometimes', 'string', Rule::in(array_keys(DocumentTextCase::OPTIONS))],
+            'elements.*.stripe_color_a' => ['nullable', 'string', 'regex:/^#([A-Fa-f0-9]{6})$/'],
+            'elements.*.stripe_color_b' => ['nullable', 'string', 'regex:/^#([A-Fa-f0-9]{6})$/'],
+            'elements.*.cells.*' => ['array', 'min:1', 'max:12'],
             'elements.*.cells.*.*' => ['nullable', 'string', 'max:300'],
             'elements.*.items.*' => ['array'],
             'elements.*.items.*.label' => ['nullable', 'string', 'max:300'],
@@ -210,15 +330,16 @@ class DocumentSettingController extends Controller
             'elements.*.fields.*' => ['string', Rule::in(array_keys(DocumentLayoutElements::COMPANY_FIELDS))],
             'elements.*.src' => ['nullable', 'string', 'max:255'],
             'elements.*.align' => ['nullable', 'string', Rule::in(DocumentLayoutElements::ALIGNMENTS)],
-            'elements.*.width' => ['nullable', 'integer', 'between:5,100'],
-            'elements.*.height' => ['nullable', 'integer', 'between:1,400'],
+            'elements.*.width' => ['nullable', 'numeric', 'between:0.1,100'],
+            'elements.*.height' => ['nullable', 'numeric', 'between:1,4000'],
             'elements.*.inline' => ['nullable', 'boolean'],
             'elements.*.bold' => ['nullable', 'boolean'],
             'elements.*.italic' => ['nullable', 'boolean'],
             'elements.*.underline' => ['nullable', 'boolean'],
             'elements.*.line_height' => ['nullable', 'numeric', Rule::in([1, 1.15, 1.35, 1.5, 2])],
             'elements.*.list_style' => ['nullable', 'string', Rule::in(['none', 'bullet', 'numbered'])],
-            'elements.*.font_size' => ['nullable', 'integer', 'between:8,48'],
+            'elements.*.validity_days' => ['nullable', 'integer', Rule::in([30, 60, 90])],
+            'elements.*.font_size' => ['nullable', 'numeric', 'between:1,200'],
             'elements.*.font_family' => ['nullable', 'string', 'in:'.implode(',', array_keys(DocumentLayoutElements::FONT_FAMILIES))],
             'elements.*.text_case' => ['nullable', 'string', Rule::in(array_keys(DocumentTextCase::OPTIONS))],
             'elements.*.color' => ['nullable', 'string', 'regex:/^#([A-Fa-f0-9]{6})$/'],
@@ -286,7 +407,10 @@ class DocumentSettingController extends Controller
      */
     private function syncAssignments(PrintLayout $layout, array $documentKeys): void
     {
-        DocumentLayoutAssignment::query()->whereIn('document_key', $documentKeys)->delete();
+        DocumentLayoutAssignment::query()
+            ->where('print_layout_id', $layout->id)
+            ->orWhereIn('document_key', $documentKeys)
+            ->delete();
 
         if ($documentKeys !== []) {
             $layout->assignments()->createMany(

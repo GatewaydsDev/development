@@ -5,6 +5,8 @@ import InputLabel from '@/Components/InputLabel';
 import MaskedDecimalInput from '@/Components/MaskedDecimalInput';
 import { flushPendingTextAutoSaves } from '@/Components/TextAutoSave';
 import TextInput from '@/Components/TextInput';
+import DocumentPrintLayoutEditor from '@/Components/DocumentPrintLayoutEditor';
+import { saveDocumentDraft } from '@/lib/saveDocumentDraft';
 import QuotationReusableTextSection from './QuotationReusableTextSection';
 import {
     AlertDialog,
@@ -28,7 +30,7 @@ import {
 import { zodResolver } from '@hookform/resolvers/zod';
 import { router, usePage } from '@inertiajs/react';
 import { PlusIcon, Trash2Icon } from 'lucide-react';
-import { type DragEvent, FormEventHandler, useMemo, useState } from 'react';
+import { type DragEvent, FormEventHandler, useMemo, useRef, useState } from 'react';
 import {
     FieldErrors,
     useFieldArray,
@@ -44,6 +46,7 @@ import {
     quotationInsertValues,
     quotationToFormData,
     QUOTATION_INSERT_FIELDS,
+    QUOTATION_LAYOUT_FIELD_KEYS,
     type QuotationFormData,
     type QuotationOptions,
     type QuotationPayload,
@@ -77,6 +80,9 @@ const schema = z.object({
     valid_until: z.string(),
     project_amount: z.string(),
     notes: z.string().max(250000),
+    print_layout_id: z.string(),
+    print_layout_version: z.string(),
+    layout_header: z.string().max(250000),
     proposal_title: z
         .string()
         .trim()
@@ -103,6 +109,9 @@ const schema = z.object({
                 .max(2000, 'Revision notes must be 2,000 characters or less.'),
             user_id: z.string(),
             user_name: z.string(),
+            responsible_user_id: z.string(),
+            status_id: z.string(),
+            title_id: z.string(),
         }),
     ),
     field_tables: z.array(
@@ -219,7 +228,21 @@ export default function QuotationForm({
     quotation,
 }: QuotationFormProps) {
     const { auth } = usePage<PageProps>().props;
+    const [savedQuotation, setSavedQuotation] = useState(quotation);
     const currentUserId = auth.user?.id ? String(auth.user.id) : '';
+    const revisionResponsibleOptions = options.revisionResponsibleUsers ?? [];
+    const revisionResponsibleNames = useMemo(
+        () =>
+            new Map(
+                (savedQuotation?.revisions ?? [])
+                    .filter((revision) => revision.responsible_user?.name)
+                    .map((revision) => [
+                        String(revision.responsible_user_id),
+                        revision.responsible_user?.name ?? '',
+                    ]),
+            ),
+        [savedQuotation],
+    );
     const defaultValues = useMemo(
         () => quotationToFormData(quotation, options),
         [quotation, options],
@@ -230,6 +253,8 @@ export default function QuotationForm({
         setError,
         clearErrors,
         control,
+        getValues,
+        reset,
         formState: { errors: validationErrors, isSubmitting },
     } = useForm<QuotationFormData>({
         resolver: zodResolver(schema),
@@ -262,6 +287,8 @@ export default function QuotationForm({
         control,
         defaultValue: defaultValues,
     }) as QuotationFormData;
+    const savedBaseline = useRef(JSON.stringify(defaultValues));
+    const hasUnsavedChanges = JSON.stringify(data) !== savedBaseline.current;
 
     const allContractors = options.contractors ?? [];
     const selectedContractor = allContractors.find(
@@ -286,72 +313,44 @@ export default function QuotationForm({
 
     const insertValues = quotationInsertValues(data, options, quotation);
 
-    const postQuotation = (values: QuotationFormData) => {
-        router[method](
-            action,
-            {
-                ...values,
-                revisions: values.revisions.filter(
-                    (revision) => revision.number.trim() !== '',
-                ),
-                line_items: values.line_items.filter(
-                    (item) =>
-                        item.description.trim() !== '' ||
-                        lineItemIsBaseBid(item),
-                ),
-                field_tables: [],
-            },
-            {
-                onError: (serverErrors: Record<string, string>) => {
-                    Object.entries(serverErrors).forEach(([field, message]) => {
-                        setError(field as keyof QuotationFormData, {
-                            type: 'server',
-                            message: String(message),
-                        });
-                    });
-                },
-            },
-        );
+    const quotationPayload = (values: QuotationFormData) => ({
+        ...values,
+        print_layout_id: values.print_layout_id || null,
+        print_layout_version: values.print_layout_version || null,
+        revisions: values.revisions.filter(
+            (revision) => revision.number.trim() !== '',
+        ),
+        line_items: values.line_items.filter(
+            (item) => item.description.trim() !== '' || lineItemIsBaseBid(item),
+        ),
+        field_tables: [],
+    });
+    const applyServerErrors = (serverErrors: Record<string, string>) => {
+        Object.entries(serverErrors).forEach(([field, message]) => {
+            setError(field as keyof QuotationFormData, {
+                type: 'server',
+                message,
+            });
+        });
     };
-
-    const submit: FormEventHandler = (event) => {
-        void handleSubmit((values) => {
-            clearErrors('contractor_id');
-
-            if (partyRole === 'contractor') {
-                if (values.contractor_id.trim() === '') {
-                    setError('contractor_id', {
-                        type: 'manual',
-                        message: 'Select a contractor.',
-                    });
-
-                    return;
-                }
-
-                postQuotation(values);
-
-                return;
-            }
-
-            if (values.contractor_id.trim() !== '') {
-                postQuotation(values);
-
-                return;
-            }
-
-            const ownerName = newPartyName.trim();
-
-            if (ownerName === '') {
-                setError('contractor_id', {
-                    type: 'manual',
-                    message: 'Enter the owner name.',
-                });
-
-                return;
-            }
-
-            setAddingParty(true);
-            setPartyError('');
+    const ensureParty = (
+        values: QuotationFormData,
+    ): Promise<QuotationFormData | null> => {
+        if (values.contractor_id.trim()) return Promise.resolve(values);
+        const ownerName = newPartyName.trim();
+        if (partyRole !== 'owner' || ownerName === '') {
+            setError('contractor_id', {
+                type: 'manual',
+                message:
+                    partyRole === 'owner'
+                        ? 'Enter the owner name.'
+                        : 'Select a contractor.',
+            });
+            return Promise.resolve(null);
+        }
+        setAddingParty(true);
+        setPartyError('');
+        return new Promise((resolve) => {
             router.post(
                 route('admin.contractors.store'),
                 { name: ownerName, role: 'owner' },
@@ -367,21 +366,18 @@ export default function QuotationForm({
                                 contractor.name.toLowerCase() ===
                                 ownerName.toLowerCase(),
                         );
-
                         if (!created) {
                             setPartyError(
                                 'The owner was saved, but it could not be selected. Choose that owner and save the quotation again.',
                             );
-
+                            resolve(null);
                             return;
                         }
-
                         const contactIds = defaultContactIds(created);
-
                         setValue('contractor_id', String(created.id));
                         setValue('contact_ids', contactIds);
                         setNewPartyName('');
-                        postQuotation({
+                        resolve({
                             ...values,
                             contractor_id: String(created.id),
                             contact_ids: contactIds,
@@ -394,15 +390,107 @@ export default function QuotationForm({
                                     'That owner could not be added.',
                             ),
                         );
+                        resolve(null);
                     },
-                    onFinish: () => setAddingParty(false),
+                    onCancel: () => resolve(null),
+                    onFinish: () => {
+                        setAddingParty(false);
+                        resolve(null);
+                    },
                 },
             );
+        });
+    };
+    const saveCurrent = () =>
+        new Promise<boolean>((resolve) => {
+            void handleSubmit(
+                async () => {
+                    try {
+                        const values = await ensureParty(getValues());
+                        if (!values)
+                            throw new Error(
+                                'Select or add the contractor/owner before saving and updating the layout.',
+                            );
+                        if (!(await flushPendingTextAutoSaves()))
+                            throw new Error(
+                                'The quotation text could not be saved. Try again before updating the layout.',
+                            );
+                        const result =
+                            await saveDocumentDraft<QuotationPayload>(
+                                savedQuotation
+                                    ? route(
+                                          'admin.quotations.update',
+                                          savedQuotation.uuid,
+                                      )
+                                    : action,
+                                savedQuotation ? 'patch' : method,
+                                quotationPayload(values),
+                                applyServerErrors,
+                            );
+                        setSavedQuotation(result);
+                        const savedValues = {
+                            ...values,
+                            quotation_number: result.quotation_number,
+                            revisions: quotationToFormData(result).revisions,
+                        };
+                        savedBaseline.current = JSON.stringify(savedValues);
+                        reset(savedValues);
+                        toast.success(
+                            'Current quotation changes saved. The new layout will remain a draft until you save again.',
+                        );
+                        resolve(true);
+                    } catch (error) {
+                        toast.error(
+                            error instanceof Error
+                                ? error.message
+                                : 'The quotation could not be saved. Your edits are unchanged.',
+                        );
+                        resolve(false);
+                    }
+                },
+                () => {
+                    toast.error(
+                        'Check the highlighted quotation fields before saving and updating the layout.',
+                    );
+                    resolve(false);
+                },
+            )();
+        });
+    const postQuotation = async (values: QuotationFormData) => {
+        if (!(await flushPendingTextAutoSaves())) {
+            toast.error(
+                'The quotation text could not be saved. Try again before saving the quotation.',
+            );
+            return;
+        }
+        router[savedQuotation ? 'patch' : method](
+            savedQuotation
+                ? route('admin.quotations.update', savedQuotation.uuid)
+                : action,
+            quotationPayload(values),
+            {
+                onError: (serverErrors: Record<string, string>) => {
+                    Object.entries(serverErrors).forEach(([field, message]) => {
+                        setError(field as keyof QuotationFormData, {
+                            type: 'server',
+                            message: String(message),
+                        });
+                    });
+                },
+            },
+        );
+    };
+
+    const submit: FormEventHandler = (event) => {
+        void handleSubmit(async (values) => {
+            clearErrors('contractor_id');
+            const withParty = await ensureParty(values);
+            if (withParty) await postQuotation(withParty);
         })(event);
     };
 
     const printQuotation = async () => {
-        if (!quotation) {
+        if (!savedQuotation) {
             return;
         }
 
@@ -427,7 +515,7 @@ export default function QuotationForm({
 
         printWindow.location.href = quotationDocumentHref(
             'admin.quotations.print',
-            quotation.uuid,
+            savedQuotation.uuid,
             data.proposal_title,
         );
     };
@@ -442,19 +530,19 @@ export default function QuotationForm({
         >
             <FormActionFab
                 cancelHref={route('admin.quotations.index')}
-                saveLabel={quotation ? 'Save quotation' : 'Add quotation'}
+                saveLabel={savedQuotation ? 'Save quotation' : 'Add quotation'}
                 disabled={isSubmitting}
                 printHref={
-                    quotation
+                    savedQuotation
                         ? quotationDocumentHref(
                               'admin.quotations.print',
-                              quotation.uuid,
+                              savedQuotation.uuid,
                               data.proposal_title,
                           )
                         : undefined
                 }
-                onPrint={quotation ? printQuotation : undefined}
-                printLabel={quotation ? 'Print quotation' : 'Print'}
+                onPrint={savedQuotation ? printQuotation : undefined}
+                printLabel={savedQuotation ? 'Print quotation' : 'Print'}
                 showPrint={true}
             />
 
@@ -931,6 +1019,67 @@ export default function QuotationForm({
                 </div>
             </section>
 
+            <section
+                aria-labelledby="quotation-layout-header-title"
+                className="flex min-w-0 flex-col gap-4"
+            >
+                <div>
+                    <h3
+                        id="quotation-layout-header-title"
+                        className="text-base font-semibold"
+                    >
+                        Quotation layout header
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                        Load and customize a print layout header. Proposal and
+                        pricing text stay unchanged.
+                    </p>
+                </div>
+                <DocumentPrintLayoutEditor
+                    document="quotation"
+                    catalog={{
+                        printLayouts: options.printLayouts ?? [],
+                        assignedPrintLayoutId: options.assignedPrintLayoutId,
+                    }}
+                    layoutId={data.print_layout_id}
+                    version={data.print_layout_version}
+                    onLayoutChange={(id, version) => {
+                        setValue('print_layout_id', id, { shouldDirty: true });
+                        setValue('print_layout_version', version, {
+                            shouldDirty: true,
+                        });
+                    }}
+                    literals={{
+                        company_name: options.company?.name ?? '',
+                        company_speciality: options.company?.speciality ?? '',
+                        company_legal_name: options.company?.legal_name ?? '',
+                        company_address: options.company?.address ?? '',
+                        company_phone: options.company?.phone ?? '',
+                        company_email: options.company?.email ?? '',
+                        company_contact_phone:
+                            options.company?.contact_phone ?? '',
+                        company_website: options.company?.website ?? '',
+                        company_contact_url: options.company?.contact_url ?? '',
+                    }}
+                    fieldKeys={QUOTATION_LAYOUT_FIELD_KEYS}
+                    hasUnsavedChanges={hasUnsavedChanges}
+                    onSaveCurrent={saveCurrent}
+                    id="quotation-layout-header"
+                    value={data.layout_header}
+                    onChange={(html) =>
+                        setValue('layout_header', html, { shouldDirty: true })
+                    }
+                    error={errorMessage(validationErrors, 'layout_header')}
+                    placeholder="Load a layout or write the quotation header…"
+                    placeholderCatalog="provided"
+                    placeholderFields={[...QUOTATION_INSERT_FIELDS]}
+                    placeholderValues={{
+                        ...insertValues,
+                        authorized_representative: auth.user?.name ?? '',
+                    }}
+                />
+            </section>
+
             <section className="flex min-w-0 flex-col gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
@@ -962,7 +1111,8 @@ export default function QuotationForm({
 
                 {revisionFields.length === 0 ? (
                     <div className="rounded-lg border border-dashed border-border bg-background/70 p-4 text-sm text-muted-foreground">
-                        No revisions added yet.
+                        No revisions added yet. Use Add revision to set its
+                        title, status, and responsible user.
                     </div>
                 ) : (
                     <div className="flex flex-col gap-4">
@@ -972,7 +1122,7 @@ export default function QuotationForm({
                             return (
                                 <div
                                     key={field.id}
-                                    className="grid min-w-0 gap-4 overflow-visible rounded-lg border border-emerald-200 bg-background p-4 dark:border-emerald-900/70 xl:grid-cols-[minmax(0,0.7fr)_minmax(0,0.9fr)_minmax(0,1.1fr)_minmax(0,1.3fr)_auto]"
+                                    className="grid min-w-0 gap-4 overflow-visible rounded-lg border border-emerald-200 bg-background p-4 dark:border-emerald-900/70 sm:grid-cols-2 xl:grid-cols-4"
                                 >
                                     <div className="flex flex-col gap-2">
                                         <InputLabel
@@ -999,6 +1149,54 @@ export default function QuotationForm({
                                             )}
                                         />
                                     </div>
+                                    <CreatableSelect
+                                        id={`quotation-revision-title-${index}`}
+                                        label="Title"
+                                        value={revision?.title_id ?? ''}
+                                        options={options.revisionTitles ?? []}
+                                        createRoute={route(
+                                            'admin.quotation-revision-titles.store',
+                                        )}
+                                        catalogKey="revisionTitles"
+                                        entityLabel="revision title"
+                                        placeholder="Select a title"
+                                        compact
+                                        showCreateFooter
+                                        error={errorMessage(
+                                            validationErrors,
+                                            `revisions.${index}.title_id`,
+                                        )}
+                                        onChange={(titleId) =>
+                                            setValue(
+                                                `revisions.${index}.title_id`,
+                                                titleId,
+                                            )
+                                        }
+                                    />
+                                    <CreatableSelect
+                                        id={`quotation-revision-status-${index}`}
+                                        label="Status"
+                                        value={revision?.status_id ?? ''}
+                                        options={options.revisionStatuses ?? []}
+                                        createRoute={route(
+                                            'admin.quotation-revision-statuses.store',
+                                        )}
+                                        catalogKey="revisionStatuses"
+                                        entityLabel="revision status"
+                                        placeholder="Select a status"
+                                        compact
+                                        showCreateFooter
+                                        error={errorMessage(
+                                            validationErrors,
+                                            `revisions.${index}.status_id`,
+                                        )}
+                                        onChange={(statusId) =>
+                                            setValue(
+                                                `revisions.${index}.status_id`,
+                                                statusId,
+                                            )
+                                        }
+                                    />
                                     <div className="flex flex-col gap-2">
                                         <InputLabel
                                             htmlFor={`quotation-revision-date-${index}`}
@@ -1036,21 +1234,97 @@ export default function QuotationForm({
                                     </div>
                                     <div className="flex flex-col gap-2">
                                         <InputLabel
+                                            htmlFor={`quotation-revision-responsible-${index}`}
+                                            value="Responsible"
+                                            className="text-emerald-700 dark:text-emerald-300"
+                                        />
+                                        <select
+                                            id={`quotation-revision-responsible-${index}`}
+                                            value={
+                                                revision?.responsible_user_id ??
+                                                ''
+                                            }
+                                            onChange={(event) =>
+                                                setValue(
+                                                    `revisions.${index}.responsible_user_id`,
+                                                    event.target.value,
+                                                )
+                                            }
+                                            className={`${inputClassName} min-w-0 max-w-full`}
+                                        >
+                                            <option value="">
+                                                Select a user
+                                            </option>
+                                            {revisionResponsibleOptions.map(
+                                                (user) => (
+                                                    <option
+                                                        key={user.id}
+                                                        value={String(user.id)}
+                                                    >
+                                                        {user.name}
+                                                    </option>
+                                                ),
+                                            )}
+                                            {revision?.responsible_user_id &&
+                                            !revisionResponsibleOptions.some(
+                                                (user) =>
+                                                    String(user.id) ===
+                                                    revision.responsible_user_id,
+                                            ) ? (
+                                                <option
+                                                    value={
+                                                        revision.responsible_user_id
+                                                    }
+                                                    disabled
+                                                >
+                                                    {revisionResponsibleNames.get(
+                                                        revision.responsible_user_id,
+                                                    ) ?? 'Unavailable user'}
+                                                </option>
+                                            ) : null}
+                                        </select>
+                                        <InputError
+                                            message={errorMessage(
+                                                validationErrors,
+                                                `revisions.${index}.responsible_user_id`,
+                                            )}
+                                        />
+                                    </div>
+                                    <div className="flex min-w-0 flex-col gap-2 sm:col-span-2">
+                                        <InputLabel
                                             htmlFor={`quotation-revision-notes-${index}`}
                                             value="Notes"
                                             className="text-emerald-700 dark:text-emerald-300"
                                         />
-                                        <TextInput
-                                            id={`quotation-revision-notes-${index}`}
-                                            value={revision?.notes ?? ''}
-                                            className={inputClassName}
-                                            onChange={(event) =>
-                                                setValue(
-                                                    `revisions.${index}.notes`,
-                                                    event.target.value,
-                                                )
-                                            }
-                                        />
+                                        <div className="flex min-w-0 items-start gap-2">
+                                            <TextInput
+                                                id={`quotation-revision-notes-${index}`}
+                                                value={revision?.notes ?? ''}
+                                                className={`${inputClassName} min-w-0 flex-1`}
+                                                onChange={(event) =>
+                                                    setValue(
+                                                        `revisions.${index}.notes`,
+                                                        event.target.value,
+                                                    )
+                                                }
+                                            />
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                className="h-11 shrink-0"
+                                                aria-label={`Remove revision ${index + 1}`}
+                                                onClick={() =>
+                                                    setPendingDeleteRevision({
+                                                        index,
+                                                        name: revision?.number
+                                                            ? `Revision ${revision.number}`
+                                                            : undefined,
+                                                    })
+                                                }
+                                            >
+                                                <Trash2Icon className="size-4" />
+                                            </Button>
+                                        </div>
                                         <InputError
                                             message={errorMessage(
                                                 validationErrors,
@@ -1058,57 +1332,11 @@ export default function QuotationForm({
                                             )}
                                         />
                                     </div>
-                                    <div className="flex items-start xl:pt-7">
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            aria-label={`Remove revision ${index + 1}`}
-                                            onClick={() =>
-                                                setPendingDeleteRevision({
-                                                    index,
-                                                    name: revision?.number
-                                                        ? `Revision ${revision.number}`
-                                                        : undefined,
-                                                })
-                                            }
-                                        >
-                                            <Trash2Icon className="size-4" />
-                                        </Button>
-                                    </div>
                                 </div>
                             );
                         })}
                     </div>
                 )}
-            </section>
-
-            <section className="flex min-w-0 flex-col gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
-                <QuotationReusableTextSection
-                    purpose="pricing"
-                    options={options}
-                    value={data.pricing_conditions}
-                    error={errorMessage(
-                        validationErrors,
-                        'pricing_conditions',
-                    )}
-                    showPlaceholders
-                    placeholderFields={[...QUOTATION_INSERT_FIELDS]}
-                    placeholderValues={insertValues}
-                    onChange={(html) =>
-                        setValue('pricing_conditions', html)
-                    }
-                    autoSave={{
-                        persistKey: quotation
-                            ? `quotation:${quotation.id}`
-                            : null,
-                        url: quotation
-                            ? route('admin.quotations.autosave', quotation.uuid)
-                            : null,
-                        field: 'pricing_conditions',
-                        unavailableMessage:
-                            'AutoSave on. Add the quotation to start saving this text.',
-                    }}
-                />
             </section>
 
             <section className="flex min-w-0 flex-col gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">

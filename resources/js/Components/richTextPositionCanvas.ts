@@ -4,8 +4,9 @@ import type { Editor } from '@tiptap/react';
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import { closeHistory } from '@tiptap/pm/history';
 import { blockMoveModeKey } from './richTextBlockDrag';
+import { PRINT_LAYOUT_WIDTH } from '@/lib/printLayoutGeometry';
 
-const CANVAS_WIDTH = 700;
+const CANVAS_WIDTH = PRINT_LAYOUT_WIDTH;
 const SNAP = 10;
 const coordinate = (value: unknown, fallback = 0) => {
     const number = Number(value);
@@ -18,20 +19,25 @@ export const PositionItem = Node.create({
     defining: true,
     selectable: true,
     addAttributes() {
-        return Object.fromEntries(['x', 'y', 'width', 'height'].map((name) => [
+        return { pdfBackground: {
+            default: false,
+            parseHTML: (element: HTMLElement) => element.getAttribute('data-pdf-background') === 'true',
+            renderHTML: () => ({}),
+        }, ...Object.fromEntries(['x', 'y', 'width', 'height'].map((name) => [
             name,
             {
                 default: name === 'width' ? CANVAS_WIDTH : 0,
                 parseHTML: (element: HTMLElement) => coordinate(element.getAttribute(`data-${name}`), name === 'width' ? CANVAS_WIDTH : 0),
                 renderHTML: () => ({}),
             },
-        ]));
+        ])) };
     },
     parseHTML: () => [{ tag: 'div[data-position-item]' }],
     renderHTML({ node, HTMLAttributes }) {
         const { x, y, width, height } = node.attrs;
         return ['div', mergeAttributes(HTMLAttributes, {
             'data-position-item': 'true',
+            ...(node.attrs.pdfBackground ? { 'data-pdf-background': 'true' } : {}),
             'data-x': x,
             'data-y': y,
             'data-width': width,
@@ -54,6 +60,9 @@ export const PositionItem = Node.create({
             dom.append(contentDOM, handle);
             let cleanup: (() => void) | null = null;
             const draw = () => {
+                dom.dataset.pdfBackground = String(node.attrs.pdfBackground);
+                handle.hidden = node.attrs.pdfBackground;
+                contentDOM.style.pointerEvents = node.attrs.pdfBackground ? 'none' : '';
                 dom.dataset.x = String(node.attrs.x);
                 dom.dataset.y = String(node.attrs.y);
                 dom.dataset.width = String(node.attrs.width);
@@ -147,6 +156,11 @@ export const PositionCanvas = Node.create({
     isolating: true,
     addAttributes() {
         return {
+            pdfPage: {
+                default: false,
+                parseHTML: (element: HTMLElement) => element.getAttribute('data-pdf-page') === 'true',
+                renderHTML: () => ({}),
+            },
             backgroundColor: {
                 default: null,
                 parseHTML: (element: HTMLElement) => element.style.backgroundColor || null,
@@ -163,6 +177,7 @@ export const PositionCanvas = Node.create({
     renderHTML({ node, HTMLAttributes }) {
         return ['div', mergeAttributes(HTMLAttributes, {
             'data-position-canvas': 'true',
+            ...(node.attrs.pdfPage ? { 'data-pdf-page': 'true' } : {}),
             'data-height': node.attrs.height,
             style: `position: relative; width: ${CANVAS_WIDTH}px; height: ${coordinate(node.attrs.height, 500)}px; background-color: ${node.attrs.backgroundColor || 'transparent'};`,
         }), 0];
@@ -173,6 +188,7 @@ export const PositionCanvas = Node.create({
             dom.className = 'rich-position-stage';
             const contentDOM = document.createElement('div');
             contentDOM.setAttribute('data-position-canvas', 'true');
+            if (node.attrs.pdfPage) contentDOM.dataset.pdfPage = 'true';
             contentDOM.style.cssText = `position:relative;width:${CANVAS_WIDTH}px;height:${node.attrs.height}px`;
             contentDOM.style.backgroundColor = node.attrs.backgroundColor || '';
             const rulers = document.createElement('div');
@@ -199,28 +215,6 @@ export const PositionCanvas = Node.create({
             draw(node.attrs.height);
             dom.append(rulers, contentDOM);
             let frame = 0;
-            let widthFrame = 0;
-            const fitWidth = () => {
-                const parent = dom.parentElement;
-                if (!parent) {
-                    return;
-                }
-                const style = getComputedStyle(parent);
-                const available = parent.clientWidth
-                    - Number.parseFloat(style.paddingLeft)
-                    - Number.parseFloat(style.paddingRight);
-                const scale = Math.max(0.1, (available - 38) / CANVAS_WIDTH);
-                dom.style.setProperty('zoom', String(scale));
-                dom.style.marginLeft = `${38 / scale}px`;
-                dom.style.marginRight = '0';
-            };
-            const widthObserver = new ResizeObserver(fitWidth);
-            widthFrame = requestAnimationFrame(() => {
-                if (dom.parentElement) {
-                    widthObserver.observe(dom.parentElement);
-                    fitWidth();
-                }
-            });
             const observer = new ResizeObserver(() => {
                 cancelAnimationFrame(frame);
                 frame = requestAnimationFrame(() => {
@@ -232,8 +226,8 @@ export const PositionCanvas = Node.create({
                     const bottom = Math.max(0, ...Array.from(contentDOM.children).map((child) =>
                         child instanceof HTMLElement ? child.offsetTop + child.scrollHeight : 0,
                     ));
-                    if (page?.type.name === 'positionCanvas' && bottom + 40 > page.attrs.height) {
-                        editor.view.dispatch(editor.state.tr.setNodeMarkup(pos, undefined, { ...page.attrs, height: Math.ceil(bottom + 40) }));
+                    if (page?.type.name === 'positionCanvas' && bottom > page.attrs.height) {
+                        editor.view.dispatch(editor.state.tr.setNodeMarkup(pos, undefined, { ...page.attrs, height: Math.ceil(bottom) }));
                     }
                 });
             });
@@ -262,9 +256,7 @@ export const PositionCanvas = Node.create({
                 },
                 destroy() {
                     cancelAnimationFrame(frame);
-                    cancelAnimationFrame(widthFrame);
                     observer.disconnect();
-                    widthObserver.disconnect();
                 },
                 ignoreMutation: (mutation) => mutation.type !== 'selection' && !contentDOM.contains(mutation.target),
             };
@@ -375,6 +367,7 @@ export function evenCanvasSpacing(editor: Editor): boolean {
         const rows: Array<{ top: number; bottom: number; items: Array<{ pos: number; y: number }> }> = [];
         const items: Array<{ pos: number; y: number; height: number }> = [];
         canvas.forEach((item, offset) => {
+            if (item.attrs.pdfBackground) return;
             const pos = canvasPos + offset + 1;
             const dom = editor.view.nodeDOM(pos);
             if (dom instanceof HTMLElement) {

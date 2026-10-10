@@ -194,6 +194,7 @@
             .toolbar { display: none !important; }
             .page { margin: 0; box-shadow: none; border-radius: 0; }
         }
+        {!! file_get_contents(resource_path('css/positioned-bid-content.css')) !!}
     </style>
 </head>
 <body>
@@ -215,6 +216,11 @@
     @endif
 
     <div class="page">
+        @if ($layoutHeader)
+            <div class="rich-text" style="padding:24px;">
+                {!! $layoutHeader !!}
+            </div>
+        @else
         <div class="hero">
             <div class="hero-brand">
                 @if ($logoPath)
@@ -241,6 +247,7 @@
             </table>
         </div>
         <div class="accent"></div>
+        @endif
 
         <div class="body">
             <table class="stats {{ $statColumns === 1 ? 'one' : ($statColumns === 2 ? 'two' : '') }}">
@@ -370,10 +377,6 @@
                 @endif
             @endforeach
 
-            @if ($pricingConditions)
-                <div class="rich-text">{!! $pricingConditions !!}</div>
-            @endif
-
             @if ($includeAuthorization)
             <h2 class="section-title">Authorization</h2>
             <p class="authorization-intro">
@@ -436,5 +439,19 @@
             @endif
         </div>
     </div>
+    @if ($mode === 'print')
+        <script>
+            const layoutCanvases = document.querySelectorAll('[data-position-canvas]');
+            const fitLayoutHeaders = () => layoutCanvases.forEach((canvas) => {
+                const width = parseFloat(canvas.style.width);
+                const available = canvas.parentElement.clientWidth;
+                if (width > 0 && available > 0) canvas.style.zoom = String(available / width);
+            });
+            const layoutObserver = new ResizeObserver(fitLayoutHeaders);
+            layoutCanvases.forEach((canvas) => layoutObserver.observe(canvas.parentElement));
+            fitLayoutHeaders();
+            window.addEventListener('afterprint', fitLayoutHeaders);
+        </script>
+    @endif
 </body>
 </html>

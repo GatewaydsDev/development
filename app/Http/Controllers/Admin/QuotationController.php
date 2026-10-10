@@ -8,20 +8,26 @@ use App\Models\Company;
 use App\Models\Contractor;
 use App\Models\ContractorContact;
 use App\Models\Product;
+use App\Models\PrintLayout;
 use App\Models\Project;
 use App\Models\Quotation;
 use App\Models\QuotationField;
 use App\Models\QuotationLineItem;
 use App\Models\QuotationProductField;
 use App\Models\QuotationRevision;
+use App\Models\QuotationRevisionStatus;
+use App\Models\QuotationRevisionTitle;
 use App\Models\QuotationTable;
 use App\Models\QuotationTitle;
 use App\Models\User;
 use App\Support\BidAccess;
 use App\Support\BidApplicationText;
+use App\Support\PrintLayoutCatalog;
 use App\Support\QuotationAccess;
 use App\Support\QuotationDocument;
 use App\Support\QuotationListVersion;
+use App\Support\QuotationRevisionAssignments;
+use App\Support\QuotationRevisionResponsible;
 use App\Support\QuotationToBid;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -110,6 +116,38 @@ class QuotationController extends Controller
         );
     }
 
+    public function storeRevisionStatus(Request $request): RedirectResponse
+    {
+        return $this->storeRevisionCatalogItem($request, QuotationRevisionStatus::class, 'Revision status');
+    }
+
+    public function storeRevisionTitle(Request $request): RedirectResponse
+    {
+        return $this->storeRevisionCatalogItem($request, QuotationRevisionTitle::class, 'Revision title');
+    }
+
+    /**
+     * @param  class-string<QuotationRevisionStatus|QuotationRevisionTitle>  $model
+     */
+    private function storeRevisionCatalogItem(Request $request, string $model, string $label): RedirectResponse
+    {
+        abort_unless(
+            QuotationAccess::canCreate($request->user()) || QuotationAccess::canUpdate($request->user()),
+            403,
+        );
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+        ]);
+
+        $item = $model::firstOrCreateByName($validated['name']);
+
+        return back()->with(
+            'success',
+            $item->wasRecentlyCreated ? "{$label} added successfully." : "{$label} already exists.",
+        );
+    }
+
     public function storeField(Request $request): RedirectResponse
     {
         abort_unless(
@@ -131,7 +169,7 @@ class QuotationController extends Controller
         );
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): RedirectResponse|JsonResponse
     {
         abort_unless(QuotationAccess::canCreate($request->user()), 403);
 
@@ -147,6 +185,9 @@ class QuotationController extends Controller
                 'quoted_at' => $validated['quoted_at'] ?? null,
                 'valid_until' => $validated['valid_until'] ?? null,
                 'notes' => $validated['notes'] ?? null,
+                'print_layout_id' => $validated['print_layout_id'] ?? null,
+                'print_layout_version' => $validated['print_layout_version'] ?? null,
+                'layout_header' => $validated['layout_header'] ?? null,
                 ...$this->proposalTitleAttributes($validated),
                 'pricing_conditions' => $validated['pricing_conditions'] ?? null,
                 'pricing_basis' => $validated['pricing_basis'] ?? null,
@@ -162,6 +203,10 @@ class QuotationController extends Controller
             return $quotation;
         });
 
+        if ($request->expectsJson()) {
+            return response()->json(['document' => $this->quotationPayload($quotation)], 201);
+        }
+
         return redirect()
             ->route('admin.quotations.index', ['highlight' => $quotation->uuid])
             ->with('success', 'Quotation saved successfully.');
@@ -169,13 +214,22 @@ class QuotationController extends Controller
 
     public function show(Request $request, Quotation $quotation): Response
     {
-        abort_unless(QuotationAccess::canView($request->user()), 403);
+        $assignedRevisions = $quotation->revisions()
+            ->where('responsible_user_id', $request->user()->id)
+            ->whereNull('responsible_response')
+            ->latest('responsible_assigned_at')
+            ->get();
 
-        $quotation->load(['contractor.contacts', 'contacts', 'project', 'lineItems', 'convertedBid', 'creator:id,name,signature_path', 'revisions.user:id,name', 'tables.fields.field', 'tables.fields.product']);
+        abort_unless(QuotationAccess::canView($request->user()) || $assignedRevisions->isNotEmpty(), 403);
+
+        $quotation->load(['contractor.contacts', 'contacts', 'project', 'lineItems', 'convertedBid', 'creator:id,name,signature_path', 'revisions.user:id,name', 'revisions.responsibleUser:id,name', 'revisions.status:id,name', 'revisions.title:id,name', 'tables.fields.field', 'tables.fields.product']);
 
         return Inertia::render('Admin/Quotations/Show', [
             'quotation' => $this->quotationPayload($quotation),
             'options' => $this->options($request->user()),
+            'assignedRevisions' => $assignedRevisions
+                ->map(fn (QuotationRevision $revision): array => QuotationRevisionAssignments::payload($revision))
+                ->values(),
         ]);
     }
 
@@ -228,7 +282,7 @@ class QuotationController extends Controller
     {
         abort_unless(QuotationAccess::canUpdate($request->user()), 403);
 
-        $quotation->load(['contractor.contacts', 'contacts', 'project', 'lineItems', 'convertedBid', 'creator:id,name,signature_path', 'revisions.user:id,name', 'tables.fields.field', 'tables.fields.product']);
+        $quotation->load(['contractor.contacts', 'contacts', 'project', 'lineItems', 'convertedBid', 'creator:id,name,signature_path', 'revisions.user:id,name', 'revisions.responsibleUser:id,name', 'revisions.status:id,name', 'revisions.title:id,name', 'tables.fields.field', 'tables.fields.product']);
 
         return Inertia::render('Admin/Quotations/Edit', [
             'quotation' => $this->quotationPayload($quotation),
@@ -236,7 +290,7 @@ class QuotationController extends Controller
         ]);
     }
 
-    public function update(Request $request, Quotation $quotation): RedirectResponse
+    public function update(Request $request, Quotation $quotation): RedirectResponse|JsonResponse
     {
         abort_unless(QuotationAccess::canUpdate($request->user()), 403);
 
@@ -252,6 +306,9 @@ class QuotationController extends Controller
                 'quoted_at' => $validated['quoted_at'] ?? null,
                 'valid_until' => $validated['valid_until'] ?? null,
                 'notes' => $validated['notes'] ?? null,
+                'print_layout_id' => array_key_exists('print_layout_id', $validated) ? $validated['print_layout_id'] : $quotation->print_layout_id,
+                'print_layout_version' => $validated['print_layout_version'] ?? $quotation->print_layout_version,
+                'layout_header' => array_key_exists('layout_header', $validated) ? $validated['layout_header'] : $quotation->layout_header,
                 ...$this->proposalTitleAttributes($validated),
                 'pricing_conditions' => $validated['pricing_conditions'] ?? null,
                 'pricing_basis' => $validated['pricing_basis'] ?? null,
@@ -263,6 +320,10 @@ class QuotationController extends Controller
             $this->syncRevisions($quotation, $validated['revisions'] ?? [], $request->user());
             $this->syncFieldTables($quotation, $validated['field_tables'] ?? []);
         });
+
+        if ($request->expectsJson()) {
+            return response()->json(['document' => $this->quotationPayload($quotation->fresh())]);
+        }
 
         return redirect()
             ->route('admin.quotations.index', ['highlight' => $quotation->uuid])
@@ -316,6 +377,9 @@ class QuotationController extends Controller
             'valid_until' => ['nullable', 'date', 'after_or_equal:quoted_at'],
             'project_amount' => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99'],
             'notes' => ['nullable', 'string', 'max:250000'],
+            'print_layout_id' => ['nullable', 'integer', Rule::exists(PrintLayout::class, 'id')],
+            'print_layout_version' => ['nullable', 'string', 'regex:/^[a-f0-9]{64}$/'],
+            'layout_header' => ['nullable', 'string', 'max:250000'],
             'proposal_title' => ['nullable', 'string', 'max:255'],
             'pricing_conditions' => ['nullable', 'string', 'max:250000'],
             'pricing_basis' => ['nullable', 'string', 'max:250000'],
@@ -345,6 +409,17 @@ class QuotationController extends Controller
             'revisions.*.number' => ['required', 'string', 'max:50', 'distinct'],
             'revisions.*.revision_date' => ['nullable', 'date'],
             'revisions.*.notes' => ['nullable', 'string', 'max:2000'],
+            'revisions.*.status_id' => ['nullable', 'integer', Rule::exists(QuotationRevisionStatus::class, 'id')],
+            'revisions.*.title_id' => ['nullable', 'integer', Rule::exists(QuotationRevisionTitle::class, 'id')],
+            'revisions.*.responsible_user_id' => [
+                'nullable',
+                'integer',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (! QuotationRevisionResponsible::eligibleUsers()->whereKey($value)->exists()) {
+                        $fail('The selected responsible user is not allowed.');
+                    }
+                },
+            ],
             'field_tables' => ['array'],
             'field_tables.*.title' => ['nullable', 'string', 'max:255'],
             'field_tables.*.fields' => ['array'],
@@ -374,6 +449,9 @@ class QuotationController extends Controller
         $validated['title'] = $catalogTitle->name;
 
         $validated['notes'] = $this->sanitizedHtml($validated['notes'] ?? null);
+        if (array_key_exists('layout_header', $validated)) {
+            $validated['layout_header'] = $this->sanitizedHtml($validated['layout_header']);
+        }
         $validated['proposal_title'] = $this->proposalTitleValue($validated['proposal_title'] ?? null);
         $validated['pricing_conditions'] = $this->sanitizedHtml($validated['pricing_conditions'] ?? null);
         $validated['pricing_basis'] = $this->sanitizedHtml($validated['pricing_basis'] ?? null);
@@ -497,31 +575,54 @@ class QuotationController extends Controller
 
             $attributes = [
                 'number' => trim((string) $revision['number']),
-                'revision_date' => $revision['revision_date'] ?: null,
+                'revision_date' => ($revision['revision_date'] ?? null) ?: null,
                 'notes' => $revision['notes'] ?? null,
+                'responsible_user_id' => filled($revision['responsible_user_id'] ?? null)
+                    ? (int) $revision['responsible_user_id']
+                    : null,
+                'status_id' => filled($revision['status_id'] ?? null) ? (int) $revision['status_id'] : null,
+                'title_id' => filled($revision['title_id'] ?? null) ? (int) $revision['title_id'] : null,
             ];
 
             if ($existing) {
                 $existingDate = $existing->revision_date?->toDateString();
                 $changed = $existing->number !== $attributes['number']
                     || $existingDate !== $attributes['revision_date']
-                    || trim((string) ($existing->notes ?? '')) !== trim((string) ($attributes['notes'] ?? ''));
+                    || trim((string) ($existing->notes ?? '')) !== trim((string) ($attributes['notes'] ?? ''))
+                    || $existing->responsible_user_id !== $attributes['responsible_user_id']
+                    || $existing->status_id !== $attributes['status_id']
+                    || $existing->title_id !== $attributes['title_id'];
 
                 if ($changed && $user) {
                     $attributes['user_id'] = $user->id;
                 }
 
+                $responsibleChanged = $existing->responsible_user_id !== $attributes['responsible_user_id'];
+
+                if ($responsibleChanged) {
+                    $attributes = [
+                        ...$attributes,
+                        ...QuotationRevisionAssignments::assignmentAttributes($attributes['responsible_user_id'], $user),
+                    ];
+                }
+
                 $existing->update($attributes);
                 $keptIds[] = $existing->id;
+
+                if ($responsibleChanged) {
+                    QuotationRevisionAssignments::notifyAssigned($existing);
+                }
 
                 continue;
             }
 
             $created = $quotation->revisions()->create([
                 ...$attributes,
+                ...QuotationRevisionAssignments::assignmentAttributes($attributes['responsible_user_id'], $user),
                 'user_id' => $user?->id,
             ]);
             $keptIds[] = $created->id;
+            QuotationRevisionAssignments::notifyAssigned($created);
         }
 
         $quotation->revisions()
@@ -616,7 +717,7 @@ class QuotationController extends Controller
      */
     public function quotationPayload(Quotation $quotation, bool $summary = false): array
     {
-        $quotation->loadMissing(['contractor.contacts', 'contacts', 'project', 'lineItems', 'convertedBid', 'bids', 'creator:id,name,signature_path', 'revisions.user:id,name', 'tables.fields.field', 'tables.fields.product', 'productFields.field', 'productFields.product']);
+        $quotation->loadMissing(['contractor.contacts', 'contacts', 'project', 'lineItems', 'convertedBid', 'bids', 'creator:id,name,signature_path', 'revisions.user:id,name', 'revisions.responsibleUser:id,name', 'revisions.status:id,name', 'revisions.title:id,name', 'tables.fields.field', 'tables.fields.product', 'productFields.field', 'productFields.product']);
 
         $contractor = $quotation->contractor;
         $selectedContacts = $quotation->contacts;
@@ -638,6 +739,9 @@ class QuotationController extends Controller
             'valid_until' => $quotation->valid_until?->toDateString(),
             'project_amount' => $quotation->project_amount,
             'notes' => $this->sanitizedHtml($quotation->notes),
+            'print_layout_id' => $quotation->print_layout_id,
+            'print_layout_version' => $quotation->print_layout_version,
+            'layout_header' => $summary ? null : $this->sanitizedHtml($quotation->layout_header),
             'proposal_title' => $quotation->proposalTitle(),
             'pricing_conditions' => $this->sanitizedHtml($quotation->pricing_conditions),
             'pricing_basis' => $this->sanitizedHtml($quotation->pricing_basis),
@@ -701,6 +805,19 @@ class QuotationController extends Controller
                         'name' => $revision->user->name,
                     ]
                     : null,
+                'responsible_user_id' => $revision->responsible_user_id,
+                'responsible_user' => $revision->responsibleUser
+                    ? [
+                        'id' => $revision->responsibleUser->id,
+                        'name' => $revision->responsibleUser->name,
+                    ]
+                    : null,
+                'responsible_response' => $revision->responsible_response,
+                'responsible_responded_at' => $revision->responsible_responded_at?->toISOString(),
+                'status_id' => $revision->status_id,
+                'status' => $revision->status ? ['id' => $revision->status->id, 'name' => $revision->status->name] : null,
+                'title_id' => $revision->title_id,
+                'title' => $revision->title ? ['id' => $revision->title->id, 'name' => $revision->title->name] : null,
             ])
             ->values()
             ->all();
@@ -757,7 +874,7 @@ class QuotationController extends Controller
     }
 
     /**
-     * @return array{name: string, legal_name: ?string, email: ?string, phone: ?string, address: string}
+     * @return array{name: string, speciality: ?string, legal_name: ?string, email: ?string, phone: ?string, address: string}
      */
     private function companyOption(): array
     {
@@ -768,9 +885,13 @@ class QuotationController extends Controller
 
         return [
             'name' => $company?->name ?: 'Gateway Door Systems',
+            'speciality' => $company?->speciality,
             'legal_name' => $company?->legal_name,
             'email' => $company?->email,
             'phone' => $company?->contact_phone_number ?: $company?->phone_number,
+            'contact_phone' => $company?->contact_phone_number,
+            'website' => $company?->website_url,
+            'contact_url' => $company?->contact_url,
             'address' => $company
                 ? BidApplicationText::formatAddress(
                     $company->address_line_1,
@@ -902,6 +1023,7 @@ class QuotationController extends Controller
     public function options(?User $user): array
     {
         return [
+            ...PrintLayoutCatalog::forDocument('quotation'),
             'can' => [
                 'create' => $user ? QuotationAccess::canCreate($user) : false,
                 'update' => $user ? QuotationAccess::canUpdate($user) : false,
@@ -909,6 +1031,9 @@ class QuotationController extends Controller
                 'convert_to_bid' => $user ? BidAccess::canCreate($user) : false,
             ],
             'nextQuotationNumber' => Quotation::nextNumber(),
+            'revisionResponsibleUsers' => QuotationRevisionResponsible::options(),
+            'revisionStatuses' => QuotationRevisionStatus::options(),
+            'revisionTitles' => QuotationRevisionTitle::options(),
             'proposalTextTemplates' => $this->textTemplates(BidTextTemplate::KIND_QUOTATION_PROPOSAL),
             'pricingTextTemplates' => $this->textTemplates(BidTextTemplate::KIND_QUOTATION_PRICING),
             'pricingBasisTextTemplates' => $this->textTemplates(BidTextTemplate::KIND_QUOTATION_PRICING_BASIS),

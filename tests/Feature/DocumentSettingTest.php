@@ -1,15 +1,51 @@
 <?php
 
 use App\Models\Company;
+use App\Models\BidTextField;
 use App\Models\DocumentLayoutAssignment;
 use App\Models\PrintLayout;
 use App\Models\User;
 use App\Models\UserLevel;
 use App\Support\DocumentAppearance;
 use App\Support\DocumentLayoutElements;
+use App\Support\BidApplicationText;
 use Illuminate\Http\UploadedFile;
 use Inertia\Testing\AssertableInertia as Assert;
 use PhpOffice\PhpWord\PhpWord;
+
+test('print layout field menu includes every bid field and saved custom fields', function () {
+    $field = BidTextField::create([
+        'name' => 'Proposal project', 'key' => 'proposal_project', 'source' => 'project_name', 'value' => '',
+    ]);
+    BidTextField::create(['name' => 'Delivery note', 'key' => 'delivery_note', 'value' => 'Deliver to loading dock']);
+    $catalog = collect(DocumentLayoutElements::fieldCatalog())->keyBy('key');
+
+    foreach (array_keys(BidApplicationText::PLACEHOLDERS) as $key) {
+        expect($catalog->has($key))->toBeTrue();
+    }
+    expect($catalog['proposal_project'])
+        ->toMatchArray([
+            'label' => $field->name, 'group' => 'Your fields',
+            'source' => 'project_name', 'sourceLabel' => 'Project name',
+            'sample' => $catalog['project_name']['sample'],
+        ])
+        ->and($catalog['delivery_note']['sample'])->toBe('Deliver to loading dock')
+        ->and($catalog->has('document_title'))->toBeTrue()
+        ->and($catalog->has('company_speciality'))->toBeTrue();
+    expect($catalog->where('group', 'Quotation')->keys()->all())
+        ->toBe(BidApplicationText::QUOTATION_FIELDS);
+
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $this->actingAs(User::factory()->create(['level_id' => $level->id]))
+        ->get(route('admin.document-settings.edit'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Admin/DocumentSettings/Edit')
+            ->where('fields', fn ($fields) => collect($fields)->contains('key', 'proposal_project')
+                && collect($fields)->contains('key', 'materials')
+                && collect($fields)->contains('key', 'authorized_representative'))
+        );
+});
 
 test('only super admins can view and manage print layouts', function () {
     $superAdminLevel = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
@@ -89,6 +125,146 @@ test('a saved layout can be shared by multiple document outputs', function () {
         );
 });
 
+test('document editor catalogs expose fresh content versions without giving layout management access', function () {
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $user = User::factory()->create(['level_id' => $level->id]);
+    $layout = PrintLayout::query()->firstOrFail();
+    $url = route('admin.document-layouts.catalog', 'bid');
+    $first = $this->actingAs($user)->getJson($url)->assertOk()
+        ->assertHeader('Cache-Control', 'max-age=0, must-revalidate, no-cache, no-store, private')->json('printLayouts.0');
+    expect($first['version'])->toHaveLength(64);
+    $this->getJson($url)->assertJsonPath('printLayouts.0.version', $first['version']);
+    $layout->update([
+        'design' => ['elements' => [['id' => 'changed', 'type' => 'text', 'content' => 'Latest wording', 'zone' => 'header', 'x' => 12, 'y' => 175, 'width' => 70, 'font_size' => 24]]],
+        'text_case' => 'uppercase',
+    ]);
+    $second = $this->getJson($url)->assertOk()->json('printLayouts.0');
+    expect($second['version'])->not->toBe($first['version'])
+        ->and($second['elements'][0]['content'])->toBe('Latest wording')
+        ->and($second['elements'][0]['x'])->toBe(12)
+        ->and($second['elements'][0]['y'])->toBe(175)
+        ->and($second['elements'][0]['font_size'])->toBe(24)
+        ->and($second['textCase'])->toBe('uppercase');
+    $this->getJson(route('admin.document-layouts.catalog', 'quotation'))
+        ->assertOk()->assertJsonPath('printLayouts.0.version', $second['version']);
+    $this->getJson(route('admin.document-layouts.catalog', 'project'))->assertNotFound();
+    $viewer = User::factory()->create(['level_id' => null]);
+    $this->actingAs($viewer)->getJson($url)->assertForbidden();
+});
+
+test('document pickers hide layouts with no assignments for their document type', function () {
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $admin = User::factory()->create(['level_id' => $level->id]);
+    $layout = PrintLayout::query()->firstOrFail();
+    $layout->assignments()->delete();
+    $layout->assignments()->createMany([
+        ['document_key' => 'bid.pdf'],
+        ['document_key' => 'quotation.word'],
+    ]);
+    $bidUrl = route('admin.document-layouts.catalog', 'bid');
+    $quoteUrl = route('admin.document-layouts.catalog', 'quotation');
+    $this->actingAs($admin)->getJson($bidUrl)->assertJsonPath('printLayouts.0.id', $layout->id);
+    $this->getJson($quoteUrl)->assertJsonPath('printLayouts.0.id', $layout->id);
+    $this->get(route('admin.bids.create'))->assertInertia(fn (Assert $page) => $page
+        ->where('options.printLayouts.0.id', $layout->id));
+    $payload = [
+        'name' => $layout->name, 'assignments' => ['quotation.word'],
+        'header_background_color' => '#ffffff', 'table_header_background_color' => '#065f46',
+        'text_case' => 'original',
+    ];
+    $this->patch(route('admin.document-settings.update', $layout), $payload)->assertSessionHasNoErrors();
+    $this->getJson($bidUrl)->assertJsonCount(0, 'printLayouts')->assertJsonPath('assignedPrintLayoutId', null);
+    $this->getJson($quoteUrl)->assertJsonPath('printLayouts.0.id', $layout->id);
+    $this->get(route('admin.bids.create'))->assertInertia(fn (Assert $page) => $page
+        ->has('options.printLayouts', 0));
+    $payload['assignments'] = [];
+    $this->patch(route('admin.document-settings.update', $layout), $payload)->assertSessionHasNoErrors();
+    $this->getJson($quoteUrl)->assertJsonCount(0, 'printLayouts');
+    expect(PrintLayout::query()->whereKey($layout->id)->exists())->toBeTrue();
+    $payload['assignments'] = ['bid.word'];
+    $this->patch(route('admin.document-settings.update', $layout), $payload)->assertSessionHasNoErrors();
+    $this->getJson($bidUrl)->assertJsonPath('printLayouts.0.id', $layout->id);
+    $this->getJson($quoteUrl)->assertJsonCount(0, 'printLayouts');
+});
+
+test('layout table column widths save and render consistently for grid and information tables', function () {
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $admin = User::factory()->create(['level_id' => $level->id]);
+    $layout = PrintLayout::query()->firstOrFail();
+    $elements = [
+        ['id' => 'grid-widths', 'type' => 'table', 'zone' => 'header', 'cells' => [['A', 'B', 'C'], ['D', 'E', 'F']], 'column_widths' => [45, 20, 35]],
+        ['id' => 'info-widths', 'type' => 'table', 'zone' => 'header', 'columns' => 1, 'items' => [['label' => 'Name', 'value' => 'Value']], 'column_widths' => [40, 60]],
+    ];
+    $payload = ['name' => $layout->name, 'assignments' => ['bid.print'], 'elements' => $elements,
+        'header_background_color' => '#ffffff', 'table_header_background_color' => '#065f46', 'text_case' => 'original'];
+    $this->actingAs($admin)->patch(route('admin.document-settings.update', $layout), $payload)->assertSessionHasNoErrors();
+    $saved = $layout->fresh()->design['elements'];
+    expect($saved[0]['column_widths'])->toBe([45, 20, 35])
+        ->and($saved[1]['column_widths'])->toBe([40, 60]);
+    $html = DocumentLayoutElements::render($saved, 'header');
+    expect($html)->toContain('width:45%;', 'width:20%;', 'width:35%;', 'width:40%;', 'width:60%;', '>A</td>', '>F</td>');
+    $payload['elements'][0]['column_widths'] = [-1, 101, 'invalid'];
+    $this->patch(route('admin.document-settings.update', $layout), $payload)
+        ->assertSessionHasErrors(['elements.0.column_widths.0', 'elements.0.column_widths.1', 'elements.0.column_widths.2']);
+});
+
+test('layout tables retain their own casing and resized columns under uppercase document settings', function (string $case, string $expected) {
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $admin = User::factory()->create(['level_id' => $level->id]);
+    $layout = PrintLayout::query()->firstOrFail();
+    $elements = [
+        ['id' => 'grid', 'type' => 'table', 'zone' => 'header', 'text_case' => $case,
+            'cells' => [['Mixed Name', 'Keep Value']], 'column_widths' => [65, 35],
+            'cell_styles' => [[null, ['text_case' => 'original']]]],
+        ['id' => 'info', 'type' => 'table', 'zone' => 'header', 'text_case' => $case,
+            'columns' => 1, 'items' => [['label' => 'Mixed Name', 'value' => 'Keep Value']],
+            'column_widths' => [40, 60], 'cell_styles' => [[null, ['text_case' => 'original']]]],
+    ];
+    $payload = ['name' => $layout->name, 'assignments' => ['bid.print'], 'elements' => $elements,
+        'header_background_color' => '#ffffff', 'table_header_background_color' => '#065f46', 'text_case' => 'uppercase'];
+    $this->actingAs($admin)->patch(route('admin.document-settings.update', $layout), $payload)->assertSessionHasNoErrors();
+    $saved = $layout->fresh()->design['elements'];
+    expect($saved[0]['text_case'])->toBe($case)
+        ->and($saved[1]['text_case'])->toBe($case)
+        ->and($saved[0]['column_widths'])->toBe([65, 35])
+        ->and($saved[1]['column_widths'])->toBe([40, 60]);
+    $html = DocumentLayoutElements::render($saved, 'header');
+    expect(substr_count($html, '>'.$expected.'</td>'))->toBe(2)
+        ->and(substr_count($html, '>Keep Value</td>'))->toBe(2)
+        ->and($html)->toContain('width:65%;', 'width:35%;', 'width:40%;', 'width:60%;');
+})->with([
+    'as entered' => ['original', 'Mixed Name'],
+    'lowercase' => ['lowercase', 'mixed name'],
+    'uppercase' => ['uppercase', 'MIXED NAME'],
+    'camel case' => ['camel', 'mixedName'],
+]);
+
+test('imported editable PDF tables retain row sizes and casing alongside non-table page graphics', function () {
+    $admin = User::factory()->create(['level_id' => UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN])->id]);
+    $layout = PrintLayout::query()->firstOrFail();
+    $elements = [
+        ['id' => 'background', 'type' => 'image', 'zone' => 'header', 'src' => '/storage/editor-images/page.png',
+            'pdf_page' => 'page', 'pdf_background' => true, 'pdf_page_height' => 900, 'width' => 100, 'height' => 900],
+        ['id' => 'editable-table', 'type' => 'table', 'zone' => 'header', 'pdf_page' => 'page', 'pdf_page_height' => 900,
+            'x' => 10, 'y' => 110, 'width' => 80, 'height' => 80, 'cells' => [['Mixed Name', 'Mixed Value'], ['', '']],
+            'text_case' => 'original', 'row_heights' => [30, 50], 'column_widths' => [40, 60], 'table_background' => '#ffffff'],
+    ];
+    $payload = ['name' => $layout->name, 'assignments' => ['quotation.print'], 'elements' => $elements,
+        'header_background_color' => '#ffffff', 'table_header_background_color' => '#065f46', 'text_case' => 'uppercase'];
+    $this->actingAs($admin)->patch(route('admin.document-settings.update', $layout), $payload)->assertSessionHasNoErrors();
+    $saved = $layout->fresh()->design['elements'];
+    $byId = collect($saved)->keyBy('id');
+    expect($byId['editable-table']['row_heights'])->toBe([30, 50])
+        ->and($byId['background']['src'])->toBe('/storage/editor-images/page.png');
+    expect(DocumentLayoutElements::render($saved, 'header'))->toContain(
+        'height:30px;', 'height:50px;', 'width:40%;', 'width:60%;',
+        'background-color:#ffffff;', '>Mixed Name</td>', '>Mixed Value</td>',
+    );
+    $payload['elements'][1]['row_heights'] = [0, 5000];
+    $this->patch(route('admin.document-settings.update', $layout), $payload)
+        ->assertSessionHasErrors(['elements.1.row_heights.0', 'elements.1.row_heights.1']);
+});
+
 test('updating assignments moves outputs from their previous layout', function () {
     $superAdminLevel = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
     $superAdmin = User::factory()->create(['level_id' => $superAdminLevel->id]);
@@ -116,6 +292,45 @@ test('updating assignments moves outputs from their previous layout', function (
     expect($assignedLayoutId)->not->toBe($previousLayout->id);
     expect(DocumentLayoutAssignment::query()->where('document_key', 'project.word')->value('print_layout_id'))
         ->toBe($newLayout->id);
+});
+
+test('unchecked document assignments are removed while other layouts stay assigned', function () {
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $admin = User::factory()->create(['level_id' => $level->id]);
+    $layout = DocumentLayoutAssignment::query()->where('document_key', 'bid.print')->firstOrFail()->layout;
+    $other = PrintLayout::create([
+        'name' => 'Other assigned layout',
+        'design' => [],
+        'header_background_color' => '#ffffff',
+        'table_header_background_color' => '#065f46',
+        'text_case' => 'original',
+    ]);
+    DocumentLayoutAssignment::query()->where('document_key', 'quotation.word')->delete();
+    $other->assignments()->create(['document_key' => 'quotation.word']);
+    $payload = [
+        'name' => 'Saved without unchecked assignments',
+        'assignments' => ['bid.print'],
+        'header_background_color' => '#ffffff',
+        'table_header_background_color' => '#065f46',
+        'text_case' => 'original',
+        'elements' => [['id' => 'text-one', 'type' => 'text', 'zone' => 'header', 'content' => 'Preserved layout text']],
+    ];
+    $this->actingAs($admin);
+    foreach ([['bid.print'], ['bid.print'], [], []] as $assignments) {
+        $payload['assignments'] = $assignments;
+        $this->patch(route('admin.document-settings.update', $layout), $payload)
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('admin.document-settings.edit', ['layout' => $layout->id]));
+        expect($layout->assignments()->pluck('document_key')->all())->toBe($assignments)
+            ->and(DocumentLayoutAssignment::query()->where('document_key', 'quotation.word')->value('print_layout_id'))->toBe($other->id)
+            ->and($layout->fresh()->design['elements'][0]['content'])->toBe('Preserved layout text');
+        $this->get(route('admin.document-settings.edit', ['layout' => $layout->id]))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('selectedLayoutId', $layout->id)
+                ->where('layouts', fn ($layouts) => collect($layouts)->firstWhere('id', $layout->id)['assignments'] === $assignments)
+            );
+    }
+    expect(DocumentAppearance::assignedLayoutId('bid', 'print'))->toBeNull();
 });
 
 test('an existing layout can be edited without replacing its custom design', function () {
@@ -429,6 +644,402 @@ test('print layout grid tables preserve editable rows and columns', function () 
     expect($html)->toContain('height:1250px');
 });
 
+test('print layout table striping persists with an independent header color', function (string $direction) {
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $admin = User::factory()->create(['level_id' => $level->id]);
+    $layout = PrintLayout::query()->firstOrFail();
+    $this->actingAs($admin)->patch(route('admin.document-settings.update', $layout), [
+        'name' => $layout->name,
+        'assignments' => ['bid.print', 'quotation.print'],
+        'header_background_color' => '#ffffff',
+        'table_header_background_color' => '#065f46',
+        'text_case' => 'original',
+        'elements' => [[
+            'id' => 'stripes', 'type' => 'table', 'zone' => 'header',
+            'cells' => [['Header A', 'Header B'], ['A1', 'B1'], ['A2', 'B2'], ['A3', 'B3']],
+            'header_row' => true, 'label_bg' => '#9333ea', 'header_color' => '#ffffff',
+            'stripe_direction' => $direction, 'stripe_color_a' => '#ffffff', 'stripe_color_b' => '#e5e7eb',
+        ]],
+    ])->assertSessionHasNoErrors();
+    $element = $layout->refresh()->design['elements'][0];
+    expect($element['stripe_direction'])->toBe($direction)
+        ->and($element['stripe_color_a'])->toBe('#ffffff')
+        ->and($element['stripe_color_b'])->toBe('#e5e7eb');
+    $html = DocumentLayoutElements::render([$element], 'header');
+    $dom = new DOMDocument;
+    $dom->loadHTML($html);
+    $rows = $dom->getElementsByTagName('tr');
+    foreach ($rows as $r => $row) {
+        foreach ($row->childNodes as $c => $cell) {
+            $expected = $r === 0 ? '#9333ea'
+                : (($direction === 'rows' ? $r - 1 : $c) % 2 === 0 ? '#ffffff' : '#e5e7eb');
+            expect($cell->getAttribute('style'))->toContain('background-color:'.$expected.';');
+        }
+    }
+})->with(['rows', 'columns']);
+
+test('information tables alternate each physical row or column', function (string $direction) {
+    $elements = DocumentLayoutElements::sanitize([[
+        'type' => 'table', 'columns' => 2, 'stripe_direction' => $direction,
+        'stripe_color_a' => '#ffffff', 'stripe_color_b' => '#e5e7eb', 'label_bg' => '#9333ea',
+        'items' => [
+            ['label' => 'One', 'value' => 'A'], ['label' => 'Two', 'value' => 'B'],
+            ['label' => 'Three', 'value' => 'C'], ['label' => 'Four', 'value' => 'D'],
+        ],
+    ]]);
+    $dom = new DOMDocument;
+    $dom->loadHTML(DocumentLayoutElements::render($elements, 'header'));
+    foreach ($dom->getElementsByTagName('tr') as $r => $row) {
+        foreach ($row->childNodes as $c => $cell) {
+            $expected = ($direction === 'rows' ? $r : $c) % 2 === 0 ? '#ffffff' : '#e5e7eb';
+            expect($cell->getAttribute('style'))->toContain('background-color:'.$expected.';');
+        }
+    }
+})->with(['rows', 'columns']);
+
+test('invalid table stripe settings normalize safely', function () {
+    $element = DocumentLayoutElements::sanitize([[
+        'type' => 'table', 'stripe_direction' => 'diagonal',
+        'stripe_color_a' => 'red;position:absolute', 'stripe_color_b' => 'invalid',
+    ]])[0];
+    expect($element['stripe_direction'])->toBe('none')
+        ->and($element['stripe_color_a'])->toBe('#ffffff')
+        ->and($element['stripe_color_b'])->toBe('#f3f4f6');
+});
+
+test('column font colors persist and override only their selected column including headers', function () {
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $admin = User::factory()->create(['level_id' => $level->id]);
+    $layout = PrintLayout::query()->firstOrFail();
+    $this->actingAs($admin)->patch(route('admin.document-settings.update', $layout), [
+        'name' => $layout->name, 'assignments' => ['bid.print'],
+        'header_background_color' => '#ffffff', 'table_header_background_color' => '#065f46',
+        'text_case' => 'original',
+        'elements' => [[
+            'id' => 'columns', 'type' => 'table', 'zone' => 'header',
+            'cells' => [['Header A', 'Header B'], ['A', 'B']],
+            'header_row' => true, 'header_color' => '#ffffff', 'color' => '#111827',
+            'column_colors' => [null, '#9333ea'],
+        ]],
+    ])->assertSessionHasNoErrors();
+    $element = $layout->refresh()->design['elements'][0];
+    expect($element['column_colors'])->toBe([null, '#9333ea']);
+    $dom = new DOMDocument;
+    $dom->loadHTML(DocumentLayoutElements::render([$element], 'header'));
+    foreach ($dom->getElementsByTagName('tr') as $r => $row) {
+        expect($row->childNodes[0]->getAttribute('style'))->toContain('color:'.($r === 0 ? '#ffffff' : 'inherit').';');
+        expect($row->childNodes[1]->getAttribute('style'))->toContain('color:#9333ea;');
+    }
+});
+
+test('table rows persist independent text formatting and explicit false overrides', function () {
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $admin = User::factory()->create(['level_id' => $level->id]);
+    $layout = PrintLayout::query()->firstOrFail();
+    $style = [
+        'font_family' => 'georgia', 'font_size' => 20, 'color' => '#9333ea',
+        'bold' => false, 'italic' => true, 'underline' => true,
+        'line_height' => 2, 'align' => 'right', 'text_case' => 'uppercase',
+    ];
+    $this->actingAs($admin)->patch(route('admin.document-settings.update', $layout), [
+        'name' => $layout->name, 'assignments' => ['bid.print', 'quotation.print'],
+        'header_background_color' => '#ffffff', 'table_header_background_color' => '#065f46',
+        'text_case' => 'original',
+        'elements' => [[
+            'id' => 'rows', 'type' => 'table', 'zone' => 'header',
+            'cells' => [['Header A', 'Header B'], ['Row A', 'Row B'], ['Last A', 'Last B']],
+            'bold' => true, 'header_row' => true, 'header_color' => '#ffffff',
+            'font_family' => 'arial', 'color' => '#000000', 'column_colors' => [null, '#2563eb'],
+            'row_styles' => [$style, null, ['bold' => false]],
+        ]],
+    ])->assertSessionHasNoErrors();
+    $element = $layout->refresh()->design['elements'][0];
+    expect($element['row_styles'][0])->toMatchArray($style)
+        ->and($element['row_styles'][1])->toBeNull()
+        ->and($element['row_styles'][2])->toBe(['bold' => false]);
+    $dom = new DOMDocument;
+    $dom->loadHTML(DocumentLayoutElements::render([$element], 'header'));
+    $rows = $dom->getElementsByTagName('tr');
+    foreach ($rows->item(0)->childNodes as $cell) {
+        expect($cell->getAttribute('style'))->toContain(
+            'font-family:Georgia, serif;', 'font-size:20px;', 'color:#9333ea;',
+            'font-weight:normal;', 'font-style:italic;', 'text-decoration:underline;',
+            'line-height:2;', 'text-align:right;',
+        )->and($cell->textContent)->toBe(strtoupper($cell->textContent));
+    }
+    expect($rows->item(1)->childNodes[0]->getAttribute('style'))->toContain('font-weight:bold;', 'font-size:12px;', 'color:#000000;')
+        ->and($rows->item(1)->childNodes[1]->getAttribute('style'))->toContain('color:#2563eb;')
+        ->and($rows->item(2)->childNodes[0]->getAttribute('style'))->toContain('font-weight:normal;');
+    expect(DocumentLayoutElements::sanitize([$element])[0]['row_styles'])->toEqual($element['row_styles']);
+});
+
+test('text table fields persist source ids and render the selected cell and merge fields', function () {
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $admin = User::factory()->create(['level_id' => $level->id]);
+    $layout = PrintLayout::query()->firstOrFail();
+    $this->actingAs($admin)->patch(route('admin.document-settings.update', $layout), [
+        'name' => $layout->name, 'assignments' => ['bid.print', 'quotation.print'],
+        'header_background_color' => '#ffffff', 'table_header_background_color' => '#065f46',
+        'text_case' => 'original',
+        'elements' => [
+            ['id' => 'source-table', 'type' => 'table', 'zone' => 'header',
+                'cells' => [['A', 'B'], ['Other', '{{project_name}} & <value>']]],
+            ['id' => 'linked-text', 'type' => 'text', 'zone' => 'header',
+                'content' => 'Selected: {{table_cell:source-table:2:2}}',
+                'font_size' => 20, 'font_family' => 'georgia'],
+        ],
+    ])->assertSessionHasNoErrors();
+    $elements = $layout->refresh()->design['elements'];
+    expect($elements[0]['id'])->toBe('source-table')
+        ->and($elements[1]['id'])->toBe('linked-text')
+        ->and($elements[1]['content'])->toBe('Selected: {{table_cell:source-table:2:2}}');
+    $html = DocumentLayoutElements::render($elements, 'header', values: ['project_name' => 'Real Project']);
+    expect($html)->toContain('Selected: Real Project &amp; &lt;value&gt;', 'font-size:20px;', 'font-family:Georgia, serif;')
+        ->not->toContain('table_cell:');
+    $elements[0]['cells'][1][1] = 'Changed';
+    expect(DocumentLayoutElements::render($elements, 'header'))->toContain('Selected: Changed');
+});
+
+test('document fields persist in one selected table cell and removal preserves its text and formatting', function (bool $grid) {
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $admin = User::factory()->create(['level_id' => $level->id]);
+    $layout = PrintLayout::query()->firstOrFail();
+    $content = 'Prefix {{project_name}} / {{customer_name}}';
+    $style = ['bold' => true, 'color' => '#ff0000'];
+    $table = $grid
+        ? ['cells' => [['Name', 'Keep', 'Project', $content]], 'cell_styles' => [[null, null, null, $style]]]
+        : ['columns' => 2, 'items' => [
+            ['label' => 'Name', 'value' => 'Keep'], ['label' => 'Project', 'value' => $content],
+        ], 'cell_styles' => [null, [null, $style]]];
+    $payload = [
+        'name' => $layout->name, 'assignments' => ['bid.print', 'quotation.print'],
+        'header_background_color' => '#ffffff', 'table_header_background_color' => '#065f46',
+        'text_case' => 'original',
+        'elements' => [array_merge(['id' => 'table', 'type' => 'table', 'zone' => 'header'], $table)],
+    ];
+    $this->actingAs($admin)->patch(route('admin.document-settings.update', $layout), $payload)->assertSessionHasNoErrors();
+    $element = $layout->refresh()->design['elements'][0];
+    expect($grid ? $element['cells'][0][3] : $element['items'][1]['value'])->toBe($content);
+    $dom = new DOMDocument;
+    $dom->loadHTML(DocumentLayoutElements::render([$element], 'header', values: [
+        'project_name' => 'Real Project', 'customer_name' => 'Real Customer',
+    ]));
+    $cells = $dom->getElementsByTagName('td');
+    expect($cells->item(0)->textContent)->toBe('Name')
+        ->and($cells->item(1)->textContent)->toBe('Keep')
+        ->and($cells->item(2)->textContent)->toBe('Project')
+        ->and($cells->item(3)->textContent)->toBe('Prefix Real Project / Real Customer')
+        ->and($cells->item(3)->getAttribute('style'))->toContain('font-weight:bold;', 'color:#ff0000;');
+    $remaining = 'Prefix  / {{customer_name}}';
+    if ($grid) {
+        $payload['elements'][0]['cells'][0][3] = $remaining;
+    } else {
+        $payload['elements'][0]['items'][1]['value'] = $remaining;
+    }
+    $this->patch(route('admin.document-settings.update', $layout), $payload)->assertSessionHasNoErrors();
+    $updated = $layout->refresh()->design['elements'][0];
+    expect($grid ? $updated['cells'][0][3] : $updated['items'][1]['value'])->toBe($remaining)
+        ->and($updated['cell_styles'])->toEqual($element['cell_styles']);
+    expect(DocumentLayoutElements::render([$updated], 'header', values: ['customer_name' => 'Real Customer']))
+        ->toContain('Prefix  / Real Customer')->not->toContain('{{project_name}}');
+})->with([true, false]);
+
+test('table fields resolve grid and information cells by stored row and physical column', function () {
+    $elements = DocumentLayoutElements::sanitize([
+        ['id' => 'grid', 'type' => 'table', 'cells' => [['A', ''], ['C', 'D']]],
+        ['id' => 'info', 'type' => 'table', 'columns' => 2, 'items' => [
+            ['label' => 'One', 'value' => 'A'], ['label' => 'Two', 'value' => 'B'],
+            ['label' => 'Three', 'value' => '{{project_name}}'],
+        ]],
+    ]);
+    expect(DocumentLayoutElements::resolveTableFields(
+        '{{table_cell:grid:2:2}}/{{table_cell:grid:1:2}}/{{table_cell:info:1:3}}/{{table_cell:info:2:2}}', $elements,
+    ))->toBe('D//Two/{{project_name}}');
+    foreach (['{{table_cell:missing:1:1}}', '{{table_cell:grid:0:1}}', '{{table_cell:grid:3:1}}', '{{table_cell:info:2:4}}'] as $token) {
+        expect(DocumentLayoutElements::resolveTableFields($token, $elements))->toBe('[Missing table cell]');
+    }
+});
+
+test('table fields retain the text components case and list formatting', function () {
+    $elements = DocumentLayoutElements::sanitize([
+        ['id' => 'source', 'type' => 'table', 'cells' => [["One\nTwo"]]],
+        ['id' => 'text', 'type' => 'text', 'content' => '{{table_cell:source:1:1}}', 'text_case' => 'uppercase', 'list_style' => 'bullet'],
+    ]);
+    expect(DocumentLayoutElements::render($elements, 'header'))->toContain('<ul', 'ONE', 'TWO')->not->toContain('table_cell:');
+});
+
+test('individual table cell formatting persists at the exact row and column', function () {
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $admin = User::factory()->create(['level_id' => $level->id]);
+    $layout = PrintLayout::query()->firstOrFail();
+    $style = [
+        'font_family' => 'georgia', 'font_size' => 20, 'color' => '#9333ea',
+        'bold' => true, 'italic' => true, 'underline' => true,
+        'line_height' => 2, 'align' => 'right', 'text_case' => 'uppercase',
+    ];
+    $this->actingAs($admin)->patch(route('admin.document-settings.update', $layout), [
+        'name' => $layout->name, 'assignments' => ['bid.print', 'quotation.print'],
+        'header_background_color' => '#ffffff', 'table_header_background_color' => '#065f46',
+        'text_case' => 'original',
+        'elements' => [[
+            'id' => 'cells', 'type' => 'table', 'zone' => 'header',
+            'cells' => [['Header A', 'Header B'], ['First A', 'First B'], ['Last A', 'Last B']],
+            'header_row' => true, 'font_family' => 'arial', 'color' => '#000000',
+            'column_colors' => [null, '#2563eb'],
+            'row_styles' => [null, ['font_size' => 14], null],
+            'cell_styles' => [[null, ['bold' => false]], [null, $style], null],
+        ]],
+    ])->assertSessionHasNoErrors();
+    $element = $layout->refresh()->design['elements'][0];
+    expect($element['cell_styles'][0])->toBe([null, ['bold' => false]])
+        ->and($element['cell_styles'][1][0])->toBeNull()
+        ->and($element['cell_styles'][1][1])->toMatchArray($style)
+        ->and($element['cell_styles'][2])->toBeNull();
+    $dom = new DOMDocument;
+    $dom->loadHTML(DocumentLayoutElements::render([$element], 'header'));
+    $rows = $dom->getElementsByTagName('tr');
+    expect($rows->item(0)->childNodes[0]->getAttribute('style'))->toContain('font-weight:bold;')
+        ->and($rows->item(0)->childNodes[1]->getAttribute('style'))->toContain('font-weight:normal;');
+    expect($rows->item(1)->childNodes[0]->getAttribute('style'))->toContain('font-size:14px;', 'font-weight:normal;', 'color:#000000;');
+    $cell = $rows->item(1)->childNodes[1];
+    expect($cell->getAttribute('style'))->toContain(
+        'font-family:Georgia, serif;', 'font-size:20px;', 'color:#9333ea;',
+        'font-weight:bold;', 'font-style:italic;', 'text-decoration:underline;',
+        'line-height:2;', 'text-align:right;',
+    )->and($cell->textContent)->toBe('FIRST B');
+    expect($rows->item(2)->childNodes[1]->getAttribute('style'))->toContain('font-size:12px;', 'color:#2563eb;', 'font-weight:normal;');
+    expect(DocumentLayoutElements::sanitize([$element])[0]['cell_styles'])->toEqual($element['cell_styles']);
+});
+
+test('invalid cell formatting is rejected without updating the layout', function (array $style, string $field) {
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $admin = User::factory()->create(['level_id' => $level->id]);
+    $layout = PrintLayout::query()->firstOrFail();
+    $before = $layout->design;
+    $this->actingAs($admin)->patch(route('admin.document-settings.update', $layout), [
+        'name' => $layout->name, 'assignments' => [],
+        'header_background_color' => '#ffffff', 'table_header_background_color' => '#065f46',
+        'text_case' => 'original',
+        'elements' => [[
+            'type' => 'table', 'zone' => 'header', 'cells' => [['A', 'B']],
+            'cell_styles' => [[null, $style]],
+        ]],
+    ])->assertSessionHasErrors('elements.0.cell_styles.0.1'.$field);
+    expect($layout->refresh()->design)->toBe($before);
+})->with([
+    'unsupported key' => [['position' => 'absolute'], ''],
+    'invalid font' => [['font_family' => 'invalid'], '.font_family'],
+    'invalid color' => [['color' => 'red;position:absolute'], '.color'],
+    'invalid size' => [['font_size' => 100], '.font_size'],
+]);
+
+test('information table cell styles keep name and value independent when empty pairs are skipped', function () {
+    $elements = DocumentLayoutElements::sanitize([[
+        'type' => 'table', 'columns' => 2, 'font_family' => 'arial',
+        'items' => [
+            ['label' => 'Hidden', 'value' => '{{company_phone}}'],
+            ['label' => 'One', 'value' => 'A'], ['label' => 'Two', 'value' => 'B'],
+        ],
+        'cell_styles' => [null, [null, ['bold' => true, 'font_family' => 'georgia', 'color' => '#9333ea']], [['bold' => false], null]],
+    ]]);
+    $dom = new DOMDocument;
+    $dom->loadHTML(DocumentLayoutElements::render($elements, 'header'));
+    $cells = $dom->getElementsByTagName('td');
+    expect($cells->item(0)->getAttribute('style'))->toContain('font-weight:bold;', 'font-family:Arial, Helvetica, sans-serif;')
+        ->and($cells->item(1)->getAttribute('style'))->toContain('font-weight:bold;', 'font-family:Georgia, serif;', 'color:#9333ea;')
+        ->and($cells->item(2)->getAttribute('style'))->toContain('font-weight:normal;', 'font-family:Arial, Helvetica, sans-serif;')
+        ->and($cells->item(3)->getAttribute('style'))->toContain('font-weight:normal;', 'font-family:Arial, Helvetica, sans-serif;');
+});
+
+test('cell style sanitization preserves sparse indices and removes unsupported properties', function () {
+    $element = DocumentLayoutElements::sanitize([[
+        'type' => 'table',
+        'cell_styles' => [2 => [3 => ['bold' => false, 'color' => 'invalid', 'position' => 'absolute']], 0 => null, 1 => [1 => ['font_family' => 'invalid']]],
+    ]])[0];
+    expect($element['cell_styles'])->toBe([null, [null, null], [null, null, null, ['bold' => false]]]);
+});
+
+test('information table row styles stay attached to their pair when empty fields are skipped', function () {
+    $elements = DocumentLayoutElements::sanitize([[
+        'type' => 'table', 'columns' => 2, 'font_family' => 'arial',
+        'items' => [
+            ['label' => 'Hidden', 'value' => '{{company_phone}}'],
+            ['label' => 'One', 'value' => 'A'], ['label' => 'Two', 'value' => 'B'],
+        ],
+        'row_styles' => [null, ['bold' => false, 'font_family' => 'georgia', 'color' => '#9333ea'], null],
+    ]]);
+    $dom = new DOMDocument;
+    $dom->loadHTML(DocumentLayoutElements::render($elements, 'header'));
+    $cells = $dom->getElementsByTagName('td');
+    foreach ([0, 1] as $index) {
+        expect($cells->item($index)->getAttribute('style'))->toContain('font-weight:normal;', 'font-family:Georgia, serif;', 'color:#9333ea;');
+    }
+    expect($cells->item(2)->getAttribute('style'))->toContain('font-weight:bold;', 'font-family:Arial, Helvetica, sans-serif;')
+        ->and($cells->item(3)->getAttribute('style'))->toContain('font-weight:normal;');
+});
+
+test('invalid row styles are sanitized without shifting row indices', function () {
+    $element = DocumentLayoutElements::sanitize([[
+        'type' => 'table', 'row_styles' => [null, [
+            'font_family' => '<script>', 'color' => 'red;position:absolute',
+            'bold' => 'invalid', 'line_height' => 99, 'align' => 'invalid', 'text_case' => 'invalid',
+            'width' => 100, 'font_size' => 100,
+        ], ['bold' => false]],
+    ]])[0];
+    expect($element['row_styles'])->toBe([null, ['font_size' => 48], ['bold' => false]]);
+});
+
+test('expanded print layout fonts persist and render their font stack', function (string $font) {
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $admin = User::factory()->create(['level_id' => $level->id]);
+    $layout = PrintLayout::query()->firstOrFail();
+    $this->actingAs($admin)->patch(route('admin.document-settings.update', $layout), [
+        'name' => $layout->name, 'assignments' => ['bid.print'],
+        'header_background_color' => '#ffffff', 'table_header_background_color' => '#065f46',
+        'text_case' => 'original',
+        'elements' => [[
+            'id' => 'font', 'type' => 'text', 'zone' => 'header',
+            'content' => 'Font sample', 'font_family' => $font,
+        ]],
+    ])->assertSessionHasNoErrors();
+    $element = $layout->refresh()->design['elements'][0];
+    expect($element['font_family'])->toBe($font);
+    $html = DocumentLayoutElements::render([$element], 'header');
+    expect($html)->toContain('font-family:'.str_replace('"', "'", DocumentLayoutElements::FONT_FAMILIES[$font]));
+})->with([
+    'geist', 'calibri', 'aptos', 'segoe', 'century_gothic', 'lucida_sans',
+    'arial_narrow', 'cambria', 'palatino', 'garamond', 'baskerville', 'bookman',
+    'consolas', 'menlo', 'lucida_console', 'impact', 'arial_black', 'comic_sans',
+]);
+
+test('solid table background persists separately from header and striped colors', function () {
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $admin = User::factory()->create(['level_id' => $level->id]);
+    $layout = PrintLayout::query()->firstOrFail();
+    $this->actingAs($admin)->patch(route('admin.document-settings.update', $layout), [
+        'name' => $layout->name, 'assignments' => ['bid.print'],
+        'header_background_color' => '#ffffff', 'table_header_background_color' => '#065f46',
+        'text_case' => 'original',
+        'elements' => [[
+            'id' => 'background', 'type' => 'table', 'zone' => 'header',
+            'cells' => [['Header A', 'Header B'], ['A', 'B']],
+            'header_row' => true, 'label_bg' => '#9333ea',
+            'table_background' => '#dbeafe', 'stripe_direction' => 'none',
+        ]],
+    ])->assertSessionHasNoErrors();
+    $element = $layout->refresh()->design['elements'][0];
+    expect($element['table_background'])->toBe('#dbeafe');
+    $html = DocumentLayoutElements::render([$element], 'header');
+    expect(substr_count($html, 'background-color:#dbeafe;'))->toBe(2)
+        ->and(substr_count($html, 'background-color:#9333ea;'))->toBe(2);
+    $element['stripe_direction'] = 'columns';
+    $element['stripe_color_a'] = '#f3f4f6';
+    $element['stripe_color_b'] = '#ffffff';
+    $html = DocumentLayoutElements::render([$element], 'header');
+    expect($html)->not->toContain('background-color:#dbeafe;')
+        ->and($html)->toContain('background-color:#f3f4f6;', 'background-color:#ffffff;');
+});
+
 test('print layout text controls persist and render formatted lists', function (string $listStyle, string $tag) {
     $level = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
     $admin = User::factory()->create(['level_id' => $level->id]);
@@ -470,6 +1081,53 @@ test('print layout text controls persist and render formatted lists', function (
     $this->patch(route('admin.document-settings.update', $layout), $payload)
         ->assertSessionHasErrors(['elements.0.line_height', 'elements.0.list_style']);
 })->with([['bullet', 'ul'], ['numbered', 'ol']]);
+
+test('validity periods persist and calculate from the document date', function (int $days, string $expected) {
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $admin = User::factory()->create(['level_id' => $level->id]);
+    $layout = PrintLayout::query()->firstOrFail();
+    $payload = [
+        'name' => $layout->name, 'assignments' => ['bid.print'],
+        'header_background_color' => '#ffffff',
+        'table_header_background_color' => '#065f46', 'text_case' => 'original',
+        'elements' => [['id' => 'validity', 'type' => 'validity', 'zone' => 'header', 'validity_days' => $days]],
+    ];
+    $this->actingAs($admin)->patch(route('admin.document-settings.update', $layout), $payload)
+        ->assertSessionHasNoErrors();
+    $elements = DocumentLayoutElements::sanitize($layout->refresh()->design['elements']);
+    expect($elements[0]['validity_days'])->toBe($days);
+    $this->get(route('admin.document-settings.edit', ['layout' => $layout->id]))
+        ->assertInertia(fn (Assert $page) => $page->where('layouts.0.elements.0.validity_days', $days));
+    $values = DocumentLayoutElements::fieldValues(['bidDate' => 'January 31, 2024']);
+    expect(DocumentLayoutElements::render($elements, 'header', values: $values))->toContain($expected);
+    $project = \App\Models\Project::create([
+        'name' => 'Validity test',
+        'project_status_id' => \App\Models\ProjectStatus::idFor('quoted'),
+        'priority' => 'normal', 'created_by' => $admin->id,
+    ]);
+    $bidValues = \App\Support\BidApplicationText::valuesFor(
+        $project, null, null, ['bid_date' => '2024-01-31'],
+    );
+    expect(\App\Support\BidApplicationText::fill('<p>{{validity_'.$days.'}}</p>', $bidValues))->toBe('<p>'.$expected.'</p>');
+    $bid = new \App\Models\Bid;
+    $bid->created_at = '2023-12-01';
+    $controller = app(\App\Http\Controllers\Admin\BidController::class);
+    $input = [
+        'project_id' => $project->id, 'notes' => '<p>{{validity_'.$days.'}}</p>',
+        'stages' => [['stage_date' => '2023-12-01'], ['stage_date' => '2024-01-31']],
+    ];
+    expect($controller->shippingText($input, $bid))->toContain($expected);
+    $input['stages'] = [['stage_date' => '']];
+    $bid->created_at = '2024-01-31';
+    expect($controller->shippingText($input, $bid))->toContain($expected);
+    $yearValues = DocumentLayoutElements::fieldValues(['bidDate' => '2024-12-15']);
+    expect($yearValues['validity_30'])->toBe('January 14, 2025')
+        ->and($yearValues['validity_60'])->toBe('February 13, 2025')
+        ->and($yearValues['validity_90'])->toBe('March 15, 2025');
+    $payload['elements'][0]['validity_days'] = 45;
+    $this->patch(route('admin.document-settings.update', $layout), $payload)
+        ->assertSessionHasErrors('elements.0.validity_days');
+})->with([[30, 'March 1, 2024'], [60, 'March 31, 2024'], [90, 'April 30, 2024']]);
 
 test('legacy layout text keeps its original formatting defaults', function () {
     $elements = DocumentLayoutElements::sanitize([['type' => 'text', 'content' => 'Legacy text']]);
