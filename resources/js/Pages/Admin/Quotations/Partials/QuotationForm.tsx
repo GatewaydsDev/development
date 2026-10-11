@@ -1061,8 +1061,8 @@ export default function QuotationForm({
                         Quotation layout header
                     </h3>
                     <p className="text-sm text-muted-foreground">
-                        Choose a print layout and its text, tables, and images
-                        are placed on the page automatically.
+                        Choose a print layout. Switching to another layout asks
+                        you to confirm before the page is replaced.
                     </p>
                 </div>
                 <DocumentPrintLayoutEditor

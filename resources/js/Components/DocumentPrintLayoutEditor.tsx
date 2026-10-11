@@ -208,13 +208,9 @@ export default function DocumentPrintLayoutEditor({
                 if (!layout && (latest.current.layoutId || acknowledged.current)) {
                     setPending(null);
                     setCheckError('The selected layout is no longer assigned to this document type. Its loaded content is unchanged; assign it again in Print Layouts or choose another layout.');
-                } else if (layout && layout.version !== acknowledged.current &&
+                } else if (!componentCanvas && layout && layout.version !== acknowledged.current &&
                     layout.version !== dismissed.current && !latest.current.pending) {
-                    if (componentCanvas && onDesignChangeRef.current && !canvasEdited.current && elementCount.current === 0) {
-                        placeLayoutRef.current(latest.current.layoutId || String(layout.id), layout);
-                    } else if (!componentCanvas) {
-                        setPending({ id: latest.current.layoutId, layout, kind: 'update' });
-                    }
+                    setPending({ id: latest.current.layoutId, layout, kind: 'update' });
                 }
             } catch (error) {
                 if (!controller.signal.aborted && mounted.current) {
@@ -237,13 +233,6 @@ export default function DocumentPrintLayoutEditor({
             document.removeEventListener('visibilitychange', onVisible);
         };
     }, [documentType, componentCanvas]);
-
-    useEffect(() => {
-        if (!componentCanvas || elementCount.current > 0) return;
-        const layout = activeLayout(initialCatalog, layoutId);
-        if (!layout?.elements.length) return;
-        placeLayoutRef.current(layoutId || String(layout.id), layout);
-    }, [componentCanvas, initialCatalog, layoutId]);
 
     const fetchLatest = async () => {
         ++requestSequence.current;
@@ -268,7 +257,12 @@ export default function DocumentPrintLayoutEditor({
                 toast.error('This layout is no longer available. Choose another saved layout.');
                 return;
             }
-            if (componentCanvas && onDesignChangeRef.current) {
+            const currentId = latest.current.layoutId
+                ? Number(latest.current.layoutId)
+                : next.assignedPrintLayoutId;
+            const switching = currentId != null && layout.id !== currentId;
+            const replacingWork = canvasEdited.current || elementCount.current > 0;
+            if (componentCanvas && onDesignChangeRef.current && !switching && !replacingWork) {
                 placeLayoutRef.current(id || String(layout.id), layout);
                 toast.success(`Loaded “${layout.name}”. Save the ${documentType} to keep it.`);
                 return;
@@ -328,6 +322,11 @@ export default function DocumentPrintLayoutEditor({
     };
     const selected = activeLayout(catalog, layoutId);
     const sections = useMemo(() => selected ? layoutSections(selected.elements, literals, fieldKeys) : [], [selected, literals, fieldKeys]);
+    const currentLayoutId = layoutId ? Number(layoutId) : catalog.assignedPrintLayoutId;
+    const switching = pending?.kind === 'select' && currentLayoutId != null && pending.layout.id !== currentLayoutId;
+    const replacedArea = componentCanvas
+        ? 'text, tables, and images on the page'
+        : documentType === 'bid' ? 'bid information' : 'quotation header';
 
     return (
         <div className="flex min-w-0 flex-col gap-3">
@@ -335,14 +334,14 @@ export default function DocumentPrintLayoutEditor({
                 layouts={catalog.printLayouts}
                 assignedLayoutId={catalog.assignedPrintLayoutId}
                 value={layoutId} document={documentType} disabled={busy}
-                confirm={!componentCanvas}
+                confirm
                 onSelect={(id) => void select(id)}
             />
             <p className="text-sm text-muted-foreground" role="status">
                 {busy
                     ? 'Placing the layout components…'
                     : componentCanvas
-                        ? 'Choosing a layout places its text, tables, and images on the page.'
+                        ? 'Choosing a different layout asks you to confirm before the page is replaced.'
                         : 'Saved layout changes are checked while this document editor is open.'}
             </p>
             {checkError ? <p role="alert" className="text-sm text-destructive">{checkError}</p> : null}
@@ -369,11 +368,18 @@ export default function DocumentPrintLayoutEditor({
                 <AlertDialogContent onEscapeKeyDown={(event) => { if (busy) event.preventDefault(); }}>
                     <AlertDialogHeader>
                         <AlertDialogTitle>
-                            {pending?.kind === 'update' ? 'A newer print layout is available' : 'Load the latest layout?'}
+                            {pending?.kind === 'update'
+                                ? 'A newer print layout is available'
+                                : switching
+                                    ? `Switch to “${pending?.layout.name}”?`
+                                    : `Reload “${pending?.layout.name}”?`}
                         </AlertDialogTitle>
                         <AlertDialogDescription>
-                            {pending?.kind === 'update' ? `“${pending.layout.name}” has changed since your current version. ` : ''}
-                            Loading it replaces only the {documentType === 'bid' ? 'bid information' : 'quotation header'}.
+                            {pending?.kind === 'update'
+                                ? `“${pending.layout.name}” has changed since your current version. Loading it replaces the ${replacedArea}.`
+                                : switching
+                                    ? `Switching to “${pending?.layout.name}” replaces the current ${replacedArea}.`
+                                    : `Reloading “${pending?.layout.name}” replaces the current ${replacedArea} with its latest saved version.`}
                             {hasUnsavedChanges
                                 ? ` Save your current ${documentType} changes first, or replace without saving.`
                                 : ' Other document fields will not be changed.'}
@@ -386,11 +392,17 @@ export default function DocumentPrintLayoutEditor({
                         </AlertDialogCancel>
                         <Button type="button" variant={hasUnsavedChanges ? 'outline' : 'default'}
                             disabled={busy} onClick={() => void apply(false)}>
-                            {hasUnsavedChanges ? 'Update without saving' : 'Update layout'}
+                            {hasUnsavedChanges
+                                ? (switching ? 'Switch without saving' : 'Update without saving')
+                                : pending?.kind === 'update'
+                                    ? 'Update layout'
+                                    : switching ? 'Switch layout' : 'Reload layout'}
                         </Button>
                         {hasUnsavedChanges ? (
                             <Button type="button" disabled={busy} onClick={() => void apply(true)}>
-                                {busy ? 'Saving and updating…' : 'Save changes, then update'}
+                                {busy
+                                    ? 'Saving and updating…'
+                                    : switching ? 'Save changes, then switch' : 'Save changes, then update'}
                             </Button>
                         ) : null}
                     </AlertDialogFooter>
