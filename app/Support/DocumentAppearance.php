@@ -81,11 +81,9 @@ class DocumentAppearance
         $document = self::normalizeDocument($document);
         $format = self::normalizeFormat($format);
         $layout = $layoutId ? PrintLayout::query()->find($layoutId) : null;
-        $layout ??= DocumentLayoutAssignment::query()
-            ->where('document_key', self::key($document, $format))
-            ->with('layout')
-            ->first()
-            ?->layout;
+        $layout ??= DocumentLayoutAssignment::defaultFor(self::key($document, $format))
+            ?->loadMissing('layout')
+            ->layout;
         $settings = $layout ?? DocumentSetting::forKey(self::key($document, $format));
 
         return new self(
@@ -105,9 +103,9 @@ class DocumentAppearance
 
     public static function assignedLayoutId(string $document, string $format): ?int
     {
-        return DocumentLayoutAssignment::query()
-            ->where('document_key', self::key(self::normalizeDocument($document), self::normalizeFormat($format)))
-            ->value('print_layout_id');
+        return DocumentLayoutAssignment::defaultFor(
+            self::key(self::normalizeDocument($document), self::normalizeFormat($format)),
+        )?->print_layout_id;
     }
 
     public static function defaults(): self

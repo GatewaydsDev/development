@@ -163,6 +163,62 @@ test('imported font assets and separate PDF pages survive saved document sanitiz
         ->and($pdf->getDomPDF()->getCanvas()->get_page_count())->toBe(2);
 });
 
+test('a saved layout keeps tables lists and text together', function () {
+    $this->actingAs(pdfLayoutAdmin());
+    $layout = PrintLayout::query()->firstOrFail();
+    $elements = [
+        [
+            'id' => 'page-image', 'type' => 'image', 'zone' => 'header', 'src' => '',
+            'pdf_page' => 'page-one', 'pdf_page_height' => 900, 'pdf_background' => true,
+            'x' => 0, 'y' => 0, 'width' => 100, 'height' => 900,
+        ],
+        [
+            'id' => 'imported-table', 'type' => 'table', 'zone' => 'header',
+            'pdf_page' => 'page-one', 'pdf_page_height' => 900,
+            'x' => 8, 'y' => 40, 'width' => 84, 'height' => 80,
+            'cells' => [["\n", ''], ['', '']],
+            'column_widths' => [40, 60], 'row_heights' => [36, 44],
+            'columns' => 2, 'line_height' => 1,
+        ],
+        [
+            'id' => 'imported-bullets', 'type' => 'text', 'zone' => 'header',
+            'pdf_page' => 'page-one', 'pdf_page_height' => 900,
+            'x' => 8, 'y' => 140, 'width' => 70, 'height' => 48,
+            'content' => "\n", 'list_style' => 'bullet', 'pdf_list_lines' => [1, 1],
+            'pdf_bullet_style' => 'disc', 'pdf_line_count' => 2, 'pdf_line_spacing' => 18,
+            'line_height' => 1,
+        ],
+        [
+            'id' => 'imported-numbers', 'type' => 'text', 'zone' => 'header',
+            'pdf_page' => 'page-one', 'pdf_page_height' => 900,
+            'x' => 8, 'y' => 200, 'width' => 70, 'height' => 48,
+            'content' => "\n", 'list_style' => 'numbered', 'pdf_list_lines' => [1, 1],
+            'pdf_line_count' => 2, 'pdf_line_spacing' => 18, 'line_height' => 1,
+        ],
+    ];
+
+    $this->patch(route('admin.document-settings.update', $layout), [
+        'name' => $layout->name,
+        'assignments' => ['bid.print'],
+        'header_background_color' => '#ffffff',
+        'table_header_background_color' => '#065f46',
+        'text_case' => 'original',
+        'elements' => $elements,
+    ])->assertSessionHasNoErrors();
+
+    $saved = $layout->fresh()->design['elements'];
+
+    expect($saved)->toHaveCount(4)
+        ->and($saved[0]['type'])->toBe('image')
+        ->and($saved[0]['pdf_background'])->toBeTrue()
+        ->and($saved[1]['type'])->toBe('table')
+        ->and($saved[1]['cells'])->toHaveCount(2)
+        ->and($saved[1]['column_widths'])->toBe([40, 60])
+        ->and($saved[2]['list_style'])->toBe('bullet')
+        ->and($saved[2]['pdf_list_lines'])->toBe([1, 1])
+        ->and($saved[3]['list_style'])->toBe('numbered');
+});
+
 test('blank PDF paragraphs and bullet lists retain original line counts spacing and list items', function () {
     $this->actingAs(pdfLayoutAdmin());
     $layout = PrintLayout::query()->firstOrFail();
@@ -184,7 +240,7 @@ test('blank PDF paragraphs and bullet lists retain original line counts spacing 
     $saved = $layout->refresh()->design['elements'];
     expect($saved[0]['pdf_line_count'])->toBe(3)
         ->and($saved[0]['pdf_line_spacing'])->toBe(17.25)
-        ->and($saved[0]['content'])->toBe('')
+        ->and($saved[0]['content'])->toBe("\n\n")
         ->and($saved[1]['pdf_list_lines'])->toBe([3, 1])
         ->and($saved[1]['list_style'])->toBe('bullet');
     $html = DocumentLayoutElements::render($saved, 'header');
@@ -264,7 +320,7 @@ test('mixed-style PDF paragraph slots retain exact geometry fonts and blank four
     ];
     $this->patch(route('admin.document-settings.update', $layout), $payload)->assertSessionHasNoErrors();
     $saved = $layout->refresh()->design['elements'][0];
-    expect($saved['content'])->toBe('')
+    expect($saved['content'])->toBe("\n\n\n")
         ->and($saved['pdf_line_count'])->toBe(4)
         ->and($saved['width'])->toBe(86.343971)
         ->and($saved['height'])->toBe(39.5752)

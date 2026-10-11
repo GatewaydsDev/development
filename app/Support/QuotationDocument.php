@@ -233,18 +233,24 @@ class QuotationDocument
             ['alignment' => Jc::CENTER],
         );
 
-        $section->addText('Quotation', ['bold' => true, 'size' => 26, 'color' => $this->wordColor('title')]);
-        $section->addText($this->documentTitle(), ['bold' => true, 'size' => 16, 'color' => $this->wordColor('brand')]);
+        $hasLayout = filled($this->quotation->layout_header);
+
+        if (! $hasLayout) {
+            $section->addText('Quotation', ['bold' => true, 'size' => 26, 'color' => $this->wordColor('title')]);
+            $section->addText($this->documentTitle(), ['bold' => true, 'size' => 16, 'color' => $this->wordColor('brand')]);
+        }
         $section->addText(
             $this->quotation->quotation_number.' · '.Quotation::statusLabel($this->quotation->status),
             ['size' => 11, 'color' => '4B5563'],
         );
 
-        $projectFields = $this->projectPrintFields();
-        if ($projectFields !== []) {
-            $section->addTextBreak(1);
-            $section->addText('Project information', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
-            $this->addMetaTable($section, $projectFields);
+        if (! $hasLayout) {
+            $projectFields = $this->projectPrintFields();
+            if ($projectFields !== []) {
+                $section->addTextBreak(1);
+                $section->addText('Project information', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
+                $this->addMetaTable($section, $projectFields);
+            }
         }
 
         $revisions = $this->revisionRows();
@@ -268,14 +274,16 @@ class QuotationDocument
             $section->addTextBreak(1);
         }
 
-        $contractorSection = $this->contractorPrintSection();
-        if ($contractorSection !== null) {
-            $section->addText($contractorSection['label'], ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
-            if ($contractorSection['fields'] !== []) {
-                $this->addMetaTable($section, $contractorSection['fields']);
-            }
-            foreach ($contractorSection['contacts'] as $contactFields) {
-                $this->addMetaTable($section, $contactFields);
+        if (! $hasLayout) {
+            $contractorSection = $this->contractorPrintSection();
+            if ($contractorSection !== null) {
+                $section->addText($contractorSection['label'], ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
+                if ($contractorSection['fields'] !== []) {
+                    $this->addMetaTable($section, $contractorSection['fields']);
+                }
+                foreach ($contractorSection['contacts'] as $contactFields) {
+                    $this->addMetaTable($section, $contactFields);
+                }
             }
         }
 

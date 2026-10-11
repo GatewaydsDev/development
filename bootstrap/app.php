@@ -20,6 +20,10 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->trustProxies(at: '*');
+        // Layout text, table cells, and imported paragraphs must round-trip exactly.
+        $middleware->trimStrings(except: [
+            fn (Request $request): bool => $request->exists('elements') || $request->exists('layout_elements'),
+        ]);
 
         $middleware->web(append: [
             LogUserPageAccess::class,

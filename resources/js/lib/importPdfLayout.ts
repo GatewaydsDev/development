@@ -43,7 +43,23 @@ type PdfImport = { pages: PendingPage[]; fonts: Map<string, Uint8Array>; notes: 
 const uid = () => `pdf-${crypto.randomUUID().replaceAll('-', '').slice(0, 24)}`;
 const normalize = (text: string) => text.replace(/\s+/g, '');
 
-export async function readPdfLayout(file: File): Promise<PdfImport> {
+export type PdfImportText = 'keep' | 'clean';
+
+function withoutPdfWording(element: LayoutElement): LayoutElement {
+    if (element.pdf_background || element.type === 'image') return element;
+    if (element.type === 'table') {
+        return { ...element, cells: (element.cells ?? []).map((row) => row.map(() => '')) };
+    }
+    if (element.type !== 'text') return element;
+    return {
+        ...element,
+        content: '',
+        pdf_text_runs: undefined,
+        pdf_line_count: element.pdf_line_count && element.pdf_line_count > 0 ? element.pdf_line_count : 1,
+    };
+}
+
+export async function readPdfLayout(file: File, options?: { text?: PdfImportText }): Promise<PdfImport> {
     if (file.size > 10 * 1024 * 1024) throw new Error('Choose a PDF smaller than 10 MB.');
     const task = getDocument({
         data: new Uint8Array(await file.arrayBuffer()), fontExtraProperties: true,
@@ -88,21 +104,25 @@ export async function readPdfLayout(file: File): Promise<PdfImport> {
                 if (op === OPS.transform) transform = Util.transform(transform, args);
                 if (op === OPS.setStrokeRGBColor && typeof args[0] === 'string') strokeColor = args[0];
                 if (op === OPS.setLineWidth) lineWidth = args[0];
-                if (op === OPS.constructPath && args[1]?.[0] && args[2]) {
+                if (op === OPS.constructPath && args[2]) {
                     const closed = [OPS.closeStroke, OPS.closeFillStroke, OPS.closeEOFillStroke].includes(args[0]);
                     const stroked = [OPS.stroke, OPS.closeStroke, OPS.fillStroke, OPS.eoFillStroke, OPS.closeFillStroke, OPS.closeEOFillStroke].includes(args[0]);
                     const filled = [OPS.fill, OPS.eoFill, OPS.fillStroke, OPS.eoFillStroke, OPS.closeFillStroke, OPS.closeEOFillStroke].includes(args[0]);
-                    const path = pdfPathLines(closed ? [...args[1][0], 4] : args[1][0], transform, strokeColor,
-                        lineWidth * Math.hypot(transform[0], transform[1]));
-                    if (stroked) tableLines.push(...path.lines);
-                    for (const rect of filled ? path.rectangles : []) {
-                        tableFills.push({ ...rect, color });
-                        if (rect.right - rect.left <= 3 || rect.bottom - rect.top <= 3) {
-                            tableLines.push({ x1: rect.right - rect.left <= 3 ? (rect.left + rect.right) / 2 : rect.left,
-                                x2: rect.right - rect.left <= 3 ? (rect.left + rect.right) / 2 : rect.right,
-                                y1: rect.bottom - rect.top <= 3 ? (rect.top + rect.bottom) / 2 : rect.top,
-                                y2: rect.bottom - rect.top <= 3 ? (rect.top + rect.bottom) / 2 : rect.bottom,
-                                color, width: Math.min(rect.right - rect.left, rect.bottom - rect.top) });
+                    const chunks = Array.isArray(args[1]) ? args[1] : args[1] ? [args[1]] : [];
+                    for (const chunk of chunks) {
+                        if (!chunk || typeof chunk.length !== 'number' || chunk.length < 2) continue;
+                        const path = pdfPathLines(closed ? [...chunk, 4] : chunk, transform, strokeColor,
+                            lineWidth * Math.hypot(transform[0], transform[1]));
+                        if (stroked) tableLines.push(...path.lines);
+                        for (const rect of filled ? path.rectangles : []) {
+                            tableFills.push({ ...rect, color });
+                            if (rect.right - rect.left <= 3 || rect.bottom - rect.top <= 3) {
+                                tableLines.push({ x1: rect.right - rect.left <= 3 ? (rect.left + rect.right) / 2 : rect.left,
+                                    x2: rect.right - rect.left <= 3 ? (rect.left + rect.right) / 2 : rect.right,
+                                    y1: rect.bottom - rect.top <= 3 ? (rect.top + rect.bottom) / 2 : rect.top,
+                                    y2: rect.bottom - rect.top <= 3 ? (rect.top + rect.bottom) / 2 : rect.bottom,
+                                    color, width: Math.min(rect.right - rect.left, rect.bottom - rect.top) });
+                            }
                         }
                     }
                 }
@@ -179,7 +199,7 @@ export async function readPdfLayout(file: File): Promise<PdfImport> {
                 const name = font.name ?? text.styles[item.fontName].fontFamily;
                 const family = /times|serif/i.test(name) ? 'times' : /courier|mono/i.test(name) ? 'courier' : 'arial';
                 fragments.push({ text: item.str, element: {
-                    ...base, id: uid(), type: 'text', x: x / PRINT_LAYOUT_WIDTH * 100, y,
+                    ...base, content: item.str, id: uid(), type: 'text', x: x / PRINT_LAYOUT_WIDTH * 100, y,
                     width: Math.max(0.1, Math.min(100 - x / PRINT_LAYOUT_WIDTH * 100, width / PRINT_LAYOUT_WIDTH * 100)),
                     height: size, font_size: size, font_family: family, line_height: 1,
                     bold: !!font.bold || /bold/i.test(name), italic: !!font.italic || /italic|oblique/i.test(name),
@@ -206,22 +226,29 @@ export async function readPdfLayout(file: File): Promise<PdfImport> {
             });
             // Remove table artwork from the raster so resized cells never leave the original grid underneath.
             context.fillStyle = '#ffffff';
-            for (const grid of grids) {
-                const border = Math.max(1, ...grid.lines.map(line => line.width)) / 2;
-                context.fillRect((grid.xs[0] - border) * resolution, (grid.ys[0] - border) * resolution,
-                    (grid.xs.at(-1)! - grid.xs[0] + border * 2) * resolution,
-                    (grid.ys.at(-1)! - grid.ys[0] + border * 2) * resolution);
+            for (const table of editable.tables) {
+                const x = (table.x ?? 0) / 100 * PRINT_LAYOUT_WIDTH;
+                const y = table.y ?? 0;
+                const width = (table.width ?? 0) / 100 * PRINT_LAYOUT_WIDTH;
+                const height = table.height ?? 0;
+                const pad = 2;
+                context.fillRect((x - pad) * resolution, (y - pad) * resolution, (width + pad * 2) * resolution, (height + pad * 2) * resolution);
             }
             const background = await new Promise<Blob>((resolve, reject) => canvas.toBlob(
                 (blob) => blob ? resolve(blob) : reject(new Error(`Could not render page ${number}.`)), 'image/png'));
             canvas.width = canvas.height = 0;
             elements.push(...editable.tables, ...groupPdfText(editable.remaining, regions));
+            if (options?.text === 'clean') {
+                for (let index = 0; index < elements.length; index++) elements[index] = withoutPdfWording(elements[index]);
+            }
             count += elements.length;
             if (count > 1000) throw new Error('This PDF requires more than 1,000 components. Split it into smaller PDFs before importing.');
             pages.push({ background, elements });
             page.cleanup();
         }
-        notes.add('PDF tables with vector borders or adjoining colored cells are imported automatically as editable tables, with original column proportions, row heights, merged cells, cell colors and borders. Table text stays blank and retains its original casing. Other graphics remain page backgrounds. Review detected tables and paragraph grouping before saving. Reimport older PDF layouts to create editable tables.');
+        notes.add(options?.text === 'clean'
+            ? 'Original PDF wording was removed. Tables and text stay in their positions as blank editable fields. Other graphics remain page backgrounds.'
+            : 'PDF tables with vector borders or adjoining colored cells are imported as editable tables, including their text, column proportions, row heights, merged cells, colors and borders. Lists stay lists. Other graphics remain page backgrounds.');
         notes.add('Embedded PDF fonts may contain only the original characters. Review replacement text for missing glyphs; choose a standard font if needed.');
         notes.add('Text baked into images or vector outlines cannot be detected or cleared. Review every imported background before saving.');
         return { pages, fonts, notes: [...notes] };

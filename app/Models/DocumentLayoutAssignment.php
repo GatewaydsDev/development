@@ -12,7 +12,21 @@ class DocumentLayoutAssignment extends Model
     protected $fillable = [
         'document_key',
         'print_layout_id',
+        'is_default',
     ];
+
+    protected $casts = [
+        'is_default' => 'boolean',
+    ];
+
+    public static function defaultFor(string $documentKey): ?self
+    {
+        return static::query()
+            ->where('document_key', $documentKey)
+            ->orderByDesc('is_default')
+            ->orderByDesc('id')
+            ->first();
+    }
 
     public function layout(): BelongsTo
     {

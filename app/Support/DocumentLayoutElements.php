@@ -308,8 +308,8 @@ class DocumentLayoutElements
             if (isset($style['color']) && is_string($style['color']) && preg_match('/^#[A-Fa-f0-9]{6}$/', $style['color'])) {
                 $clean['color'] = strtolower($style['color']);
             }
-            if (isset($style['line_height']) && is_numeric($style['line_height']) && in_array((float) $style['line_height'], [1.0, 1.15, 1.35, 1.5, 2.0], true)) {
-                $clean['line_height'] = (float) $style['line_height'];
+            if (isset($style['line_height']) && is_numeric($style['line_height'])) {
+                $clean['line_height'] = self::lineHeight($style['line_height']);
             }
             if (in_array($style['align'] ?? null, self::ALIGNMENTS, true)) {
                 $clean['align'] = $style['align'];
@@ -346,20 +346,31 @@ class DocumentLayoutElements
     }
 
     /**
-     * @return array{body: string, footer: string, header_height: int}
+     * @return array{body: string, footer: string, header_height: float}
      */
     public static function zoneColors(mixed $colors): array
     {
         $colors = is_array($colors) ? $colors : [];
         $clean = fn (mixed $value): string => is_string($value) && preg_match('/^#[A-Fa-f0-9]{6}$/', $value) === 1 ? strtolower($value) : '';
 
-        $height = (int) ($colors['header_height'] ?? 0);
+        $height = is_numeric($colors['header_height'] ?? null) ? (float) $colors['header_height'] : 0;
+        $height = $height > 0 ? round(max(60, min(4000, $height)), 2) : self::DEFAULT_HEADER_HEIGHT;
+        if (is_float($height) && fmod($height, 1.0) === 0.0) {
+            $height = (int) $height;
+        }
 
         return [
             'body' => $clean($colors['body'] ?? null),
             'footer' => $clean($colors['footer'] ?? null),
-            'header_height' => $height > 0 ? max(60, $height) : self::DEFAULT_HEADER_HEIGHT,
+            'header_height' => $height,
         ];
+    }
+
+    private static function lineHeight(mixed $value): float
+    {
+        $height = is_numeric($value) ? (float) $value : 1.35;
+
+        return round(max(0.5, min(4, $height)), 2);
     }
 
     /**
@@ -423,7 +434,7 @@ class DocumentLayoutElements
                 'y' => $pdfPage ? round(max(0, min(4000, $y)), 4) : (int) max(0, min(2000, $y)),
                 'type' => $element['type'],
                 'zone' => in_array($element['zone'] ?? null, ['intro', 'body', 'footer'], true) ? $element['zone'] : 'header',
-                'content' => mb_substr((string) ($element['content'] ?? ''), 0, 1000),
+                'content' => mb_substr((string) ($element['content'] ?? ''), 0, 20000),
                 'src' => EditorImage::isStoredSrc($src) ? $src : '',
                 'align' => $align,
                 'width' => $width,
@@ -476,14 +487,14 @@ class DocumentLayoutElements
                 'table_background' => DocumentAppearance::normalize((string) ($element['table_background'] ?? ''), ''),
                 'column_colors' => array_map(
                     fn ($color) => $color === null ? null : DocumentAppearance::normalize((string) $color, ''),
-                    array_slice(is_array($element['column_colors'] ?? null) ? array_values($element['column_colors']) : [], 0, 6),
+                    array_slice(is_array($element['column_colors'] ?? null) ? array_values($element['column_colors']) : [], 0, 12),
                 ),
                 'row_styles' => self::rowStyles($element['row_styles'] ?? null, 60, $pdfPage),
                 'cell_styles' => self::cellStyles($element['cell_styles'] ?? null, $pdfPage),
                 'stripe_color_a' => DocumentAppearance::normalize((string) ($element['stripe_color_a'] ?? ''), '#ffffff'),
                 'stripe_color_b' => DocumentAppearance::normalize((string) ($element['stripe_color_b'] ?? ''), '#f3f4f6'),
                 'cells' => isset($element['cells']) && is_array($element['cells'])
-                    ? array_map(fn ($row) => array_map(fn ($cell) => mb_substr((string) $cell, 0, 300), array_slice(is_array($row) ? array_values($row) : [], 0, 12)), array_slice(array_values($element['cells']), 0, 60))
+                    ? array_map(fn ($row) => array_map(fn ($cell) => mb_substr((string) $cell, 0, 2000), array_slice(is_array($row) ? array_values($row) : [], 0, 12)), array_slice(array_values($element['cells']), 0, 60))
                     : null,
                 'label_bg' => DocumentAppearance::normalize((string) ($element['label_bg'] ?? ''), ''),
                 'border_color' => DocumentAppearance::normalize((string) ($element['border_color'] ?? ''), '#cbd5e1'),
@@ -511,12 +522,12 @@ class DocumentLayoutElements
                 'layout' => ($element['layout'] ?? null) === 'table' ? 'table' : 'lines',
                 'border' => (bool) ($element['border'] ?? true),
                 'show_labels' => (bool) ($element['show_labels'] ?? false),
-                'columns' => max(1, min(4, (int) ($element['columns'] ?? 2))),
+                'columns' => max(1, min(12, (int) ($element['columns'] ?? 2))),
                 'inline' => (bool) ($element['inline'] ?? false),
                 'bold' => (bool) ($element['bold'] ?? false),
                 'italic' => (bool) ($element['italic'] ?? false),
                 'underline' => (bool) ($element['underline'] ?? false),
-                'line_height' => in_array((float) ($element['line_height'] ?? 1.35), [1.0, 1.15, 1.35, 1.5, 2.0], true) ? (float) ($element['line_height'] ?? 1.35) : 1.35,
+                'line_height' => self::lineHeight($element['line_height'] ?? 1.35),
                 'list_style' => in_array($element['list_style'] ?? null, ['bullet', 'numbered'], true) ? $element['list_style'] : 'none',
                 'validity_days' => in_array((int) ($element['validity_days'] ?? 30), [30, 60, 90], true) ? (int) ($element['validity_days'] ?? 30) : 30,
                 'color' => DocumentAppearance::normalize((string) ($element['color'] ?? ''), '#111827'),

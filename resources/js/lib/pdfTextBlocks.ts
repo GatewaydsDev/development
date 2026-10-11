@@ -5,6 +5,7 @@ type PositionedText = LayoutElement & { x: number; y: number };
 export type PdfTextFragment = { text: string; element: PositionedText };
 export type PdfTextRegion = { left: number; top: number; right: number; bottom: number };
 const bullet = /^\s*[•●▪◦‣⁃∙·]\s*/u;
+const numbered = /^\s*(?:\d+|[A-Za-z])[.)](?:\s+|$)/u;
 const px = (percent: number) => percent * PRINT_LAYOUT_WIDTH / 100;
 const sameStyle = (a: LayoutElement, b: LayoutElement) =>
     a.pdf_font_src === b.pdf_font_src && a.font_family === b.font_family &&
@@ -20,18 +21,29 @@ function paragraphCase(text: string): LayoutElement['text_case'] {
     return 'original';
 }
 
+function listItems(block: Array<{ text: string; bullet: boolean; numbered: boolean }>): string[] {
+    const items: string[] = [];
+    for (const line of block) {
+        const body = line.bullet ? line.text.replace(bullet, '') : line.numbered ? line.text.replace(numbered, '') : line.text;
+        if (line.bullet || line.numbered || items.length === 0) items.push(body);
+        else items[items.length - 1] += ` ${body}`;
+    }
+    return items;
+}
+
 export function groupPdfText(fragments: PdfTextFragment[], regions: PdfTextRegion[] = []): LayoutElement[] {
     const sorted = [...fragments].sort((a, b) =>
         Math.abs(a.element.y - b.element.y) < 1 ? a.element.x - b.element.x : a.element.y - b.element.y);
-    const lines: Array<{ text: string; fragments: PdfTextFragment[]; element: PositionedText; bullet: boolean; blocked: boolean; marker?: 'disc' | 'circle' | 'square' }> = [];
+    const lines: Array<{ text: string; fragments: PdfTextFragment[]; element: PositionedText; bullet: boolean; numbered: boolean; blocked: boolean; marker?: 'disc' | 'circle' | 'square' }> = [];
     for (let index = 0; index < sorted.length; index++) {
         const fragment = sorted[index];
         let element = { ...fragment.element };
         let text = fragment.text;
         const hasBullet = bullet.test(fragment.text);
+        const hasNumber = !hasBullet && numbered.test(fragment.text);
         const symbol = fragment.text.trim()[0];
         const marker = hasBullet ? (symbol === '▪' ? 'square' : symbol === '◦' ? 'circle' : 'disc') : undefined;
-        if (hasBullet && fragment.text.replace(bullet, '').trim() === '') {
+        if ((hasBullet || hasNumber) && fragment.text.replace(hasBullet ? bullet : numbered, '').trim() === '') {
             const next = sorted[index + 1];
             if (next && Math.abs(next.element.y - element.y) <= Math.max(2, element.font_size * 0.3) &&
                 next.element.x > element.x && px(next.element.x - element.x) < element.font_size * 4) {
@@ -58,7 +70,7 @@ export function groupPdfText(fragments: PdfTextFragment[], regions: PdfTextRegio
             previous.text += text;
             previous.fragments.push({ text, element });
         } else {
-            lines.push({ text, fragments: [{ text, element: { ...element } }], element, bullet: hasBullet, blocked, marker });
+            lines.push({ text, fragments: [{ text, element: { ...element } }], element, bullet: hasBullet, numbered: hasNumber, blocked, marker });
         }
     }
     const output: LayoutElement[] = [];
@@ -75,21 +87,26 @@ export function groupPdfText(fragments: PdfTextFragment[], regions: PdfTextRegio
             const separator = regions.some(region =>
                 region.top >= previous.element.y + previous.element.height - 1 && region.bottom <= next.element.y + 1 &&
                 region.left <= px(first.element.x + first.element.width) && region.right >= px(first.element.x));
-            if (first.blocked || next.blocked || !(first.bullet ? sameStyle(first.element, next.element) : sameParagraphStyle(first.element, next.element)) ||
+            const listed = first.bullet || first.numbered;
+            if (first.blocked || next.blocked || !(listed ? sameStyle(first.element, next.element) : sameParagraphStyle(first.element, next.element)) ||
                 separator ||
-                (first.bullet && !next.bullet
+                (listed && !(next.bullet || next.numbered)
                     ? indent < 0 || indent > first.element.font_size * 4
                     : Math.abs(indent) > first.element.font_size * 0.5) ||
                 gap < first.element.font_size * 0.8 || gap > Math.min(400, first.element.font_size * 2.2) ||
                 (spacing && Math.abs(gap - spacing) > first.element.font_size * 0.3) ||
                 (next.bullet && next.marker !== first.marker) ||
-                (!first.bullet && next.bullet)) break;
+                (first.bullet !== next.bullet) ||
+                (first.numbered !== next.numbered)) break;
             spacing ||= gap;
             block.push(next);
         }
-        const isList = first.bullet;
+        const isList = first.bullet || first.numbered;
         if (!isList && block.length < 3) {
-            output.push(...first.fragments.map(fragment => fragment.element));
+            output.push(...first.fragments.map((fragment) => ({
+                ...fragment.element,
+                content: fragment.text,
+            })));
             index++;
             continue;
         }
@@ -97,7 +114,7 @@ export function groupPdfText(fragments: PdfTextFragment[], regions: PdfTextRegio
         const top = Math.min(...block.flatMap(line => line.fragments.map(fragment => fragment.element.y)));
         const listLines: number[] = [];
         for (const line of block) {
-            if (line.bullet || !listLines.length) listLines.push(1);
+            if (line.bullet || line.numbered || !listLines.length) listLines.push(1);
             else listLines[listLines.length - 1]++;
         }
         output.push({
@@ -105,7 +122,7 @@ export function groupPdfText(fragments: PdfTextFragment[], regions: PdfTextRegio
             x: left, y: top,
             width: Math.max(...block.map(line => line.element.x + line.element.width)) - left,
             height: Math.max(...block.flatMap(line => line.fragments.map(fragment => fragment.element.y + fragment.element.height))) - top,
-            content: '\n'.repeat((isList ? listLines.length : block.length) - 1),
+            content: isList ? listItems(block).join('\n') : block.map((line) => line.text).join('\n'),
             pdf_line_count: block.length,
             pdf_line_spacing: spacing || first.element.font_size,
             ...(!isList ? {
@@ -127,7 +144,11 @@ export function groupPdfText(fragments: PdfTextFragment[], regions: PdfTextRegio
                     });
                 }),
             } : {}),
-            ...(isList ? { list_style: 'bullet', pdf_list_lines: listLines, pdf_bullet_style: first.marker } : {}),
+            ...(isList ? {
+                list_style: first.numbered ? 'numbered' as const : 'bullet' as const,
+                pdf_list_lines: listLines,
+                ...(first.bullet ? { pdf_bullet_style: first.marker } : {}),
+            } : {}),
         });
         index += block.length;
     }

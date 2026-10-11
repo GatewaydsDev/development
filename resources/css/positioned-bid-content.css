@@ -10,6 +10,15 @@
     box-sizing: border-box;
 }
 
+[data-position-canvas] > [data-position-item] {
+    z-index: 1;
+}
+
+[data-position-canvas] > [data-position-item]:has(table) {
+    z-index: 2;
+}
+
+[data-position-canvas] > [data-pdf-background="true"],
 [data-pdf-background="true"] {
     pointer-events: none;
     z-index: 0;

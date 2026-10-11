@@ -298,6 +298,10 @@ test('quotation layout headers save independently and retain their loaded versio
         ->assertSee('Saved header Header quotation March 1, 2024', false)
         ->assertDontSee('Original pricing')->assertSee('Original proposal')
         ->assertDontSee('Library changed later')
+        ->assertDontSee('<h1 class="document-title">', false)
+        ->assertDontSee('Project information', false)
+        ->assertDontSee('Project name', false)
+        ->assertDontSee('Harbor Facilities', false)
         ->assertSee('data-y="36"', false);
     $payload['layout_header'] = '<p>Updated quotation header</p><script>alert("bad")</script>';
     $this->patchJson(route('admin.quotations.update', $quotation), $payload)->assertOk();
@@ -305,6 +309,39 @@ test('quotation layout headers save independently and retain their loaded versio
     $payload['print_layout_id'] = null;
     $this->patchJson(route('admin.quotations.update', $quotation), $payload)->assertOk();
     expect($quotation->fresh()->print_layout_id)->toBeNull();
+});
+
+test('quotation layout components are stored and returned for the editor', function () {
+    $admin = quotationAdmin();
+    $project = quotationProject($admin);
+    $payload = [
+        'contractor_id' => $project->contractors()->first()->id, 'project_id' => $project->id,
+        'title' => 'Component quotation', 'status' => 'draft',
+        'layout_header' => '<div data-position-canvas="true">Header</div>',
+        'layout_elements' => [
+            'elements' => [[
+                'id' => 'table-1', 'type' => 'table', 'zone' => 'header',
+                'x' => 8, 'y' => 40, 'width' => 80, 'height' => 90, 'columns' => 2,
+                'cells' => [['Door', 'Price'], ['Install', '1200']],
+                'pdf_page' => 'page-1',
+            ]],
+            'header_height' => 420,
+            'header_background' => '#ffffff',
+            'text_case' => 'original',
+        ],
+        'line_items' => [], 'revisions' => [],
+    ];
+    $response = $this->actingAs($admin)->postJson(route('admin.quotations.store'), $payload)->assertCreated();
+    $quotation = Quotation::findOrFail($response->json('document.id'));
+    expect($quotation->layout_elements['elements'][0]['type'])->toBe('table')
+        ->and($quotation->layout_elements['elements'][0]['cells'][1][1])->toBe('1200')
+        ->and($quotation->layout_elements['header_height'])->toEqual(420);
+    $this->get(route('admin.quotations.edit', $quotation))->assertInertia(fn (Assert $page) => $page
+        ->where('quotation.layout_elements.elements.0.type', 'table')
+        ->where('quotation.layout_elements.elements.0.cells.0.0', 'Door'));
+    $payload['layout_elements']['elements'][0]['cells'][0][0] = 'Updated door';
+    $this->patchJson(route('admin.quotations.update', $quotation), $payload)->assertOk();
+    expect($quotation->fresh()->layout_elements['elements'][0]['cells'][0][0])->toBe('Updated door');
 });
 
 test('a base bid description is required only when qty size and price are set', function () {

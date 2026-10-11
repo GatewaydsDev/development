@@ -1,7 +1,7 @@
-import { PRINT_LAYOUT_WIDTH, printLayoutTextCase, tableStripeColor, tableTextStyle, type TableStriping, type TextCaseState } from '@/lib/printLayoutGeometry';
+import { PRINT_LAYOUT_WIDTH, printLayoutTextCase, tableEdgeBorder, tableStripeColor, tableTextStyle, type TableStriping, type TextCaseState } from '@/lib/printLayoutGeometry';
 import { resolveLayoutTableFields } from '@/lib/printLayoutTableFields';
 import { layoutColumnWidths } from '@/lib/printLayoutGeometry';
-import { layoutPages, pdfTextFont, pdfTextLines, pdfTextLineHeight, pdfRunText, pdfRunY, type PdfLayoutElement } from '@/lib/printLayoutPdf';
+import { layoutPages, pdfTextFont, pdfTextLines, pdfTextLineHeight, pdfRunText, type PdfLayoutElement } from '@/lib/printLayoutPdf';
 
 export type PrintLayoutElement = TableStriping & PdfLayoutElement & {
     id: string;
@@ -114,7 +114,7 @@ const resolve = (
 ) => {
     let out = '';
     let last = 0;
-    const pattern = /\{\{\s*([a-z0-9_]+)\s*\}\}/g;
+    const pattern = /\{\{\s*([a-z0-9_]+)\s*}}/g;
     let match: RegExpExecArray | null;
 
     while ((match = pattern.exec(text)) !== null) {
@@ -139,7 +139,7 @@ const resolve = (
     return out + escapeHtml(applyCase(text.slice(last), mode, caseState));
 };
 
-const plain = (html: string) => html.replace(/\{\{[^}]*\}\}/g, 'x').replace(/&[a-z]+;/g, 'x');
+const plain = (html: string) => html.replace(/\{\{[^}]*}}/g, 'x').replace(/&[a-z]+;/g, 'x');
 
 const wrap = (html: string, element: PrintLayoutElement) => {
     let out = html;
@@ -190,7 +190,7 @@ const paragraph = (html: string, element: PrintLayoutElement, align = true) =>
     `<p${element.text_case && ['camel', 'uppercase', 'lowercase'].includes(element.text_case) ? ` data-editor-text-case="${element.text_case}"` : ''}${element.pdf_font_src ? ` data-pdf-font-src="${escapeHtml(element.pdf_font_src)}"` : ''}${paragraphStyle(element, align)}>${wrap((html || (element.pdf_page ? '&nbsp;' : '')).replace(/\r?\n/g, '<br>'), element)}</p>`;
 
 const preview = (text: string) => {
-    const clean = text.replace(/\{\{\s*([a-z_]+)\s*\}\}/g, '[$1]').trim();
+    const clean = text.replace(/\{\{\s*([a-z_]+)\s*}}/g, '[$1]').trim();
 
     return clean.length > 34 ? `${clean.slice(0, 34)}…` : clean;
 };
@@ -241,13 +241,15 @@ function build(
                         .map((line) => resolve(line, literals, element.text_case, fieldKeys));
                     return `<${tag} style="margin: 0; padding-left: 20px; list-style-type: ${list}">${lines.map((line) => `<li${itemStyle}>${paragraph(line || '&nbsp;', element)}</li>`).join('')}</${tag}>`;
                 })()
-                : element.pdf_text_runs?.length ? element.pdf_text_runs.map((run, index) => {
-                    const lines = pdfTextLines(element.content ?? '', element);
-                    const text = resolve(pdfRunText(lines, element.pdf_text_runs!, index), literals, element.text_case, fieldKeys,
+                : element.pdf_text_runs?.length ? [...element.pdf_text_runs.reduce((lines, run, index) => {
+                    const textLines = pdfTextLines(element.content ?? '', element);
+                    const text = resolve(pdfRunText(textLines, element.pdf_text_runs!, index), literals, element.text_case, fieldKeys,
                         runCaseStates[run.line] ??= { hasWord: false, capitalizeNext: false });
-                    const y = pdfRunY(run, element);
-                    return `<div data-position-item="true" data-x="${run.x}" data-y="${y}" data-width="${run.width}" data-height="${run.height}" style="position:absolute;left:${run.x}px;top:${y}px;width:${run.width}px;min-height:${run.height}px;">${paragraph(text, { ...element, ...run, pdf_line_spacing: undefined, line_height: 1 })}</div>`;
-                }).join('')
+                    const line = lines.get(run.line) ?? [];
+                    line.push(paragraph(text, { ...element, ...run, pdf_line_spacing: undefined, line_height: 1 }));
+                    lines.set(run.line, line);
+                    return lines;
+                }, new Map<number, string[]>())].sort(([left], [right]) => left - right).map(([, parts]) => parts.join('')).join('')
                 : paragraph(pdfTextLines(html, element).join('\n'), element),
         };
     }
@@ -260,7 +262,7 @@ function build(
                 ...base,
                 h: element.row_heights?.length === element.cells.length ? element.row_heights.reduce((sum, height) => sum + height, 0) : element.cells.length * 32,
                 label: `Table (${element.cells.length} rows)`,
-                html: `<table${element.table_background ? ` style="background-color:${escapeHtml(element.table_background)}"` : ''}><tbody>${element.cells.map((row, index) => `<tr${element.row_heights?.[index] ? ` style="height:${element.row_heights[index]}px"` : ''}>${row.map((cell, column) => {
+                html: `<table class="rich-text-table"${element.table_background ? ` style="background-color:${escapeHtml(element.table_background)}"` : ''}><tbody>${element.cells.map((row, index) => `<tr${element.row_heights?.[index] ? ` style="height:${element.row_heights[index]}px"` : ''}>${row.map((cell, column) => {
                     const span = element.cell_spans?.[index]?.[column];
                     if (span && (!span.rows || !span.columns)) return '';
                     const header = index === 0 && element.header_row;
@@ -274,11 +276,12 @@ function build(
                         ...(background ? [`background-color: ${background}`] : []),
                         ...(header ? ['font-weight: normal'] : []),
                     ].join('; ');
-                    const borders = element.border ? element.cell_borders?.[index]?.[column] : undefined;
-                    const borderCss = borders ? Object.entries(borders).map(([side, value]) => `border-${side}:${value}`).join(';') : '';
+                    const borderCss = (['top', 'right', 'bottom', 'left'] as const)
+                        .map((side) => `border-${side}:${tableEdgeBorder(element, index, column, side)}`)
+                        .join(';');
                     const colwidth = widths.slice(column, column + (span?.columns ?? 1)).map(width => Math.max(1, Math.round(innerWidth * width / 100))).join(',');
                     return `<${tag} data-layout-column="${column}" colwidth="${colwidth}"${span ? ` colspan="${span.columns}" rowspan="${span.rows}"` : ''} style="${css};${borderCss}">${paragraph(resolve(cell, literals, style.text_case, fieldKeys) || '&nbsp;', style)}</${tag}>`;
-                }).join('')}</tr>`).join('')}</tbody></table><p></p>`,
+                }).join('')}</tr>`).filter((row) => row.includes('<td') || row.includes('<th')).join('')}</tbody></table><p></p>`,
                 table: {
                     borderless: !element.border, borderColor: element.border_color || '#cbd5e1', labelBackground: '',
                     headerBackground: element.header_row ? element.label_bg || '#065f46' : undefined,
@@ -376,16 +379,17 @@ function build(
         const middle = (element.x ?? 0) + (element.width ?? 30) / 2;
         const margin =
             middle > 65
-                ? 'margin-left: auto; '
+                ? 'margin-left: auto'
                 : middle > 35
-                  ? 'margin-left: auto; margin-right: auto; '
+                  ? 'margin-left: auto; margin-right: auto'
                   : '';
+        const imageStyle = [margin, `width: ${width}px`].filter(Boolean).join('; ');
 
         return {
             ...base,
             h: Math.round(width * 0.6),
             label: 'Image',
-            html: `<div data-rich-image="true" style="${margin}width: ${width}px"><img src="${escapeHtml(element.src)}" alt="" style="width: 100%; height: auto; max-width: 100%;"><div data-image-caption="true"><p></p></div></div>`,
+            html: `<div data-image-gallery="row" data-image-gap="0" style="gap: 0"><div data-rich-image="true" style="${imageStyle}"><img src="${escapeHtml(element.src)}" alt="" style="width: 100%; height: ${element.pdf_background ? `${element.height ?? 24}px` : 'auto'}; max-width: 100%; object-fit: ${element.pdf_background ? 'fill' : 'contain'}"><div data-image-caption="true"><p></p></div></div></div>`,
         };
     }
 
@@ -399,7 +403,7 @@ function build(
     }
 
     if (element.type === 'spacer') {
-        return { ...base, h: element.height ?? 24, label: 'Spacer', html: '<p style="font-size: 0px; line-height: 0; margin: 0"></p>' };
+        return { ...base, h: element.height ?? 24, label: 'Spacer', html: '<p style="font-size: 0; line-height: 0; margin: 0"></p>' };
     }
 
     return null;
@@ -407,6 +411,358 @@ function build(
 
 const overlapsX = (a: Built, b: Built) =>
     a.x < b.x + b.w - 0.5 && b.x < a.x + a.w - 0.5;
+
+type EditorMark = { type: string; attrs?: Record<string, string> };
+type EditorNode = {
+    type: string;
+    text?: string;
+    attrs?: Record<string, unknown>;
+    marks?: EditorMark[];
+    content?: EditorNode[];
+};
+
+const textMarks = (element: PrintLayoutElement): EditorMark[] => {
+    const style: Record<string, string> = {};
+    if (element.font_size) style.fontSize = `${element.font_size}px`;
+    if (element.color) style.color = element.color;
+    if (element.font_family) style.fontFamily = pdfTextFont(element);
+    const marks: EditorMark[] = [];
+    if (element.bold) marks.push({ type: 'bold' });
+    if (element.italic) marks.push({ type: 'italic' });
+    if (element.underline) marks.push({ type: 'underline' });
+    if (Object.keys(style).length > 0) marks.push({ type: 'textStyle', attrs: style });
+    return marks;
+};
+
+const inlineNodes = (
+    text: string,
+    element: PrintLayoutElement,
+    literals: Record<string, string>,
+    fieldKeys: Record<string, string>,
+    caseState: TextCaseState,
+): EditorNode[] => {
+    const nodes: EditorNode[] = [];
+    const marks = textMarks(element);
+    const pushText = (value: string) => {
+        const cased = applyCase(value, element.text_case, caseState);
+        if (cased !== '') nodes.push({ type: 'text', text: cased, ...(marks.length ? { marks } : {}) });
+    };
+    let last = 0;
+    const pattern = /\{\{\s*([a-z0-9_]+)\s*}}/gi;
+    let match: RegExpExecArray | null;
+    while ((match = pattern.exec(text)) !== null) {
+        pushText(text.slice(last, match.index));
+        last = match.index + match[0].length;
+        const key = match[1].toLowerCase();
+        if (Object.prototype.hasOwnProperty.call(literals, key)) {
+            pushText(literals[key]);
+        } else {
+            nodes.push({
+                type: 'bidTextField',
+                attrs: {
+                    key: fieldKeys[key] ?? key,
+                    textCase: ['camel', 'uppercase', 'lowercase'].includes(element.text_case ?? '') ? element.text_case : 'original',
+                },
+            });
+            caseState.hasWord = true;
+            caseState.capitalizeNext = false;
+        }
+    }
+    pushText(text.slice(last));
+    return nodes;
+};
+
+const paragraphNode = (
+    text: string,
+    element: PrintLayoutElement,
+    literals: Record<string, string>,
+    fieldKeys: Record<string, string>,
+    caseState: TextCaseState = { hasWord: false, capitalizeNext: false },
+): EditorNode => {
+    const content = inlineNodes(text, element, literals, fieldKeys, caseState);
+    return {
+        type: 'paragraph',
+        ...(element.align && element.align !== 'left' ? { attrs: { textAlign: element.align } } : {}),
+        ...(content.length ? { content } : {}),
+    };
+};
+
+const blocksFor = (
+    element: PrintLayoutElement,
+    literals: Record<string, string>,
+    fieldKeys: Record<string, string>,
+): EditorNode[] => {
+    if (element.type === 'text' || element.type === 'date' || element.type === 'validity') {
+        const source = element.type === 'validity'
+            ? `{{validity_${element.validity_days ?? 30}}}`
+            : element.type === 'date' ? '{{generated_date}}' : element.content ?? '';
+        if (plain(source).trim() === '' && !element.pdf_page && !element.pdf_text_runs?.length) return [];
+        if (element.type === 'text' && element.list_style && element.list_style !== 'none') {
+            const lines = pdfTextLines(source, element);
+            return [{
+                type: element.list_style === 'numbered' ? 'orderedList' : 'bulletList',
+                content: lines.map((line) => ({
+                    type: 'listItem',
+                    content: [paragraphNode(line === '\u00a0' ? '' : line, element, literals, fieldKeys)],
+                })),
+            }];
+        }
+        if (element.pdf_text_runs?.length) {
+            const lines = pdfTextLines(source, element);
+            const grouped = new Map<number, EditorNode[]>();
+            const states: Record<number, TextCaseState> = {};
+            element.pdf_text_runs.forEach((run, index) => {
+                const line = grouped.get(run.line) ?? [];
+                line.push(...inlineNodes(
+                    pdfRunText(lines, element.pdf_text_runs!, index),
+                    { ...element, ...run, pdf_line_spacing: undefined, line_height: 1 },
+                    literals,
+                    fieldKeys,
+                    states[run.line] ??= { hasWord: false, capitalizeNext: false },
+                ));
+                grouped.set(run.line, line);
+            });
+            return [...grouped.entries()].sort(([left], [right]) => left - right).map(([, content]) => ({
+                type: 'paragraph',
+                ...(content.length ? { content } : {}),
+            }));
+        }
+        return pdfTextLines(source, element).map((line) => paragraphNode(line === '\u00a0' ? '' : line, element, literals, fieldKeys));
+    }
+
+    if (element.type === 'table' && element.cells?.length) {
+        const matrix = element.cells;
+        const columns = Math.max(...matrix.map((row) => row.length));
+        const widths = layoutColumnWidths({ ...element, cells: matrix.map((row) => row.concat(Array(Math.max(0, columns - row.length)).fill(''))) });
+        const innerWidth = pageWidthPx * (element.width ?? 100) / 100;
+        const covered = matrix.map((row) => Array<boolean>(Math.max(columns, row.length)).fill(false));
+        const rows: EditorNode[] = [];
+        let valid = true;
+        matrix.forEach((row, rowIndex) => {
+            if (!valid) return;
+            const cells: EditorNode[] = [];
+            let used = 0;
+            for (let column = 0; column < columns; column += 1) {
+                if (covered[rowIndex]?.[column]) continue;
+                const span = element.cell_spans?.[rowIndex]?.[column];
+                const rowspan = span ? span.rows : 1;
+                const colspan = span ? span.columns : 1;
+                if (rowspan < 1 || colspan < 1 || rowIndex + rowspan > matrix.length || column + colspan > columns) {
+                    valid = false;
+                    return;
+                }
+                for (let nextRow = rowIndex; nextRow < rowIndex + rowspan; nextRow += 1) {
+                    for (let nextColumn = column; nextColumn < column + colspan; nextColumn += 1) {
+                        if (nextRow !== rowIndex || nextColumn !== column) covered[nextRow][nextColumn] = true;
+                    }
+                }
+                const style = { ...element, ...tableTextStyle(element, rowIndex, column, rowIndex === 0 && !!element.header_row) };
+                const colwidth = Array.from({ length: colspan }, (_, offset) => Math.max(1, Math.round(innerWidth * (widths[column + offset] ?? (100 / columns)) / 100)));
+                const background = tableStripeColor(element, rowIndex - (element.header_row ? 1 : 0), column, rowIndex) || element.table_background || '#ffffff';
+                const borderAttrs = Object.fromEntries((['top', 'right', 'bottom', 'left'] as const).map((side) => [
+                    `border${side[0].toUpperCase()}${side.slice(1)}`,
+                    tableEdgeBorder(element, rowIndex, column, side),
+                ]));
+                cells.push({
+                    type: rowIndex === 0 && element.header_row ? 'tableHeader' : 'tableCell',
+                    attrs: {
+                        colspan,
+                        rowspan,
+                        colwidth,
+                        backgroundColor: background,
+                        ...borderAttrs,
+                    },
+                    content: (row[column] ?? '').split(/\r?\n/).map((line) => paragraphNode(line, style, literals, fieldKeys)),
+                });
+                used += colspan;
+            }
+            if (cells.length === 0) return;
+            if (used !== columns) {
+                valid = false;
+                return;
+            }
+            rows.push({
+                type: 'tableRow',
+                ...(element.row_heights?.[rowIndex] ? { attrs: { height: `${element.row_heights[rowIndex]}px` } } : {}),
+                content: cells,
+            });
+        });
+        if (!valid) {
+            return [{
+                type: 'table',
+                content: matrix.map((row, rowIndex) => ({
+                    type: 'tableRow',
+                    content: Array.from({ length: columns }, (_, column) => ({
+                        type: 'tableCell',
+                        attrs: {
+                            colspan: 1,
+                            rowspan: 1,
+                            colwidth: [Math.max(48, Math.round(innerWidth / columns))],
+                            backgroundColor: tableStripeColor(element, rowIndex, column, rowIndex) || element.table_background || '#ffffff',
+                            borderTop: tableEdgeBorder(element, rowIndex, column, 'top'),
+                            borderRight: tableEdgeBorder(element, rowIndex, column, 'right'),
+                            borderBottom: tableEdgeBorder(element, rowIndex, column, 'bottom'),
+                            borderLeft: tableEdgeBorder(element, rowIndex, column, 'left'),
+                        },
+                        content: [paragraphNode(row[column] ?? '', element, literals, fieldKeys)],
+                    })),
+                })),
+            }];
+        }
+        return [{ type: 'table', content: rows }];
+    }
+
+    if (element.type === 'table') {
+        const rows = (element.items ?? []).map((item, index) => ({
+            index,
+            label: item.label,
+            value: item.value,
+        })).filter((row) => plain(row.label).trim() !== '' || plain(row.value).trim() !== '');
+        if (rows.length === 0) return [];
+        const pairs = Math.min(3, Math.max(1, element.columns ?? 2));
+        const body: EditorNode[] = [];
+        for (let index = 0; index < rows.length; index += pairs) {
+            const cells: EditorNode[] = [];
+            for (let column = 0; column < pairs; column += 1) {
+                const row = rows[index + column];
+                cells.push({
+                    type: 'tableCell',
+                    attrs: { colspan: 1, rowspan: 1 },
+                    content: [paragraphNode(row?.label ?? '', { ...element, ...tableTextStyle(element, row?.index ?? index, column * 2, false, true, 0) }, literals, fieldKeys)],
+                }, {
+                    type: 'tableCell',
+                    attrs: { colspan: 1, rowspan: 1 },
+                    content: [paragraphNode(row?.value ?? '', { ...element, ...tableTextStyle(element, row?.index ?? index, column * 2 + 1, false, false, 1) }, literals, fieldKeys)],
+                });
+            }
+            body.push({ type: 'tableRow', content: cells });
+        }
+        return [{ type: 'table', content: body }];
+    }
+
+    if (element.type === 'company') {
+        const keys = (element.fields ?? ['company_name', 'company_address', 'company_phone', 'company_email']).filter((key) => literals[key]?.trim());
+        if (keys.length === 0) return [];
+        if (element.layout === 'table') {
+            const columns = Math.max(1, Math.min(4, element.columns ?? 2));
+            const body: EditorNode[] = [];
+            for (let index = 0; index < keys.length; index += columns) {
+                body.push({
+                    type: 'tableRow',
+                    content: Array.from({ length: columns }, (_, column) => {
+                        const key = keys[index + column];
+                        const text = !key ? '' : !element.show_labels ? literals[key] : `${COMPANY_LABELS[key] ?? key}: ${literals[key]}`;
+                        return { type: 'tableCell', attrs: { colspan: 1, rowspan: 1 }, content: [paragraphNode(text, element, literals, fieldKeys)] };
+                    }),
+                });
+            }
+            return [{ type: 'table', content: body }];
+        }
+        return keys.map((key) => paragraphNode(
+            !element.show_labels ? literals[key] : `${COMPANY_LABELS[key] ?? key}: ${literals[key]}`,
+            element,
+            literals,
+            fieldKeys,
+        ));
+    }
+
+    if (element.type === 'image' && element.src) {
+        const width = Math.round(((element.width ?? 30) / 100) * pageWidthPx);
+        return [{
+            type: 'imageGallery',
+            attrs: { layout: 'row', gap: 0 },
+            content: [{
+                type: 'richImage',
+                attrs: {
+                    src: element.src,
+                    alt: '',
+                    width,
+                    height: element.pdf_background ? element.height ?? null : null,
+                },
+                content: [{ type: 'paragraph' }],
+            }],
+        }];
+    }
+
+    if (element.type === 'divider') return [{ type: 'horizontalRule' }];
+    if (element.type === 'spacer') return [{ type: 'paragraph' }];
+    return [];
+};
+
+export function editorLayoutDocument(
+    layout: PrintLayoutOption,
+    literals: Record<string, string>,
+    fieldKeys: Record<string, string> = EDITOR_KEYS,
+): EditorNode | null {
+    const pages = layout.elements.some((element) => element.pdf_page)
+        ? layoutPages(layout.elements, layout.headerHeight ?? 160)
+        : [{ id: 'layout', height: layout.headerHeight ?? 160, elements: layout.elements }];
+    const content = pages.flatMap((page) => {
+        const items = page.elements.flatMap((element) => {
+            if (element.zone && element.zone !== 'header') return [];
+            const blocks = blocksFor(element, literals, fieldKeys);
+            if (blocks.length === 0) return [];
+            const width = Number((((element.width ?? 100) / 100) * pageWidthPx).toFixed(2));
+            const height = element.type === 'spacer' || element.type === 'divider' || element.type === 'table' || element.type === 'image' || element.pdf_page
+                ? element.height ?? 24
+                : 0;
+            return [{
+                type: 'positionItem',
+                attrs: {
+                    pdfBackground: !!element.pdf_background,
+                    x: Number((((element.x ?? 0) / 100) * pageWidthPx).toFixed(2)),
+                    y: element.y ?? 0,
+                    width,
+                    height,
+                },
+                content: blocks,
+            }];
+        });
+        if (items.length === 0) return [];
+        return [{
+            type: 'positionCanvas',
+            attrs: {
+                pdfPage: page.elements.some((element) => element.pdf_page),
+                height: page.height,
+                backgroundColor: layout.headerBackground || null,
+            },
+            content: items,
+        }];
+    });
+    return content.length > 0 ? { type: 'doc', content } : null;
+}
+
+export function quotationComponentsHtml(
+    design: {
+        elements: PrintLayoutElement[];
+        header_height?: number;
+        header_background?: string;
+        text_case?: string;
+    },
+    literals: Record<string, string>,
+    fieldKeys?: Record<string, string>,
+): string {
+    if (!design.elements.length || typeof DOMParser === 'undefined') {
+        return '';
+    }
+
+    try {
+        const layout: PrintLayoutOption = {
+            id: 0,
+            name: 'Quotation',
+            elements: design.elements,
+            headerHeight: design.header_height,
+            headerBackground: design.header_background,
+            textCase: design.text_case,
+        };
+
+        return positionedLayoutSections(layout, literals, fieldKeys)
+            .map((section) => section.html)
+            .join('');
+    } catch {
+        return '';
+    }
+}
 
 export function positionedLayoutSections(
     layout: PrintLayoutOption,
@@ -481,7 +837,9 @@ export function positionedLayoutSections(
         const x = Number((item.x * pageWidthPx / 100).toFixed(2));
         const width = Number((item.w * pageWidthPx / 100).toFixed(2));
         const height = element.type === 'spacer' || element.pdf_page ? element.height ?? 24 : 0;
-        children.push(`<div data-position-item="true"${element.pdf_background ? ' data-pdf-background="true"' : ''} data-x="${x}" data-y="${item.y}" data-width="${width}" data-height="${height}" style="position: absolute; left: ${x}px; top: ${item.y}px; width: ${width}px; min-height: ${height}px">${content || '<p></p>'}</div>`);
+        const stack = element.pdf_background ? 0 : element.type === 'table' ? 2 : 1;
+        const boxStyle = `position: absolute; left: ${x}px; top: ${item.y}px; width: ${width}px; min-height: ${height}px; z-index: ${stack}`;
+        children.push(`<div data-position-item="true"${element.pdf_background ? ' data-pdf-background="true"' : ''} data-x="${x}" data-y="${item.y}" data-width="${width}" data-height="${height}" style="${boxStyle}">${content || '<p></p>'}</div>`);
     });
     if (!children.length) {
         return [];

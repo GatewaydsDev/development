@@ -271,6 +271,7 @@
                 </tr>
             </table>
 
+            @if (! $layoutHeader)
             <h1 class="document-title">{{ $title }}</h1>
 
             @if (count($projectFields) > 0)
@@ -287,6 +288,7 @@
                         </tr>
                     @endforeach
                 </table>
+            @endif
             @endif
 
             @if ($mode !== 'print' && count($revisions) > 0)
@@ -313,7 +315,7 @@
                 </div>
             @endif
 
-            @if ($contractorSection)
+            @if (! $layoutHeader && $contractorSection)
                 <h2 class="section-title">{{ $contractorSection['label'] }}</h2>
                 @if (count($contractorSection['fields']) > 0)
                     <table class="meta">

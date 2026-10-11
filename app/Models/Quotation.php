@@ -38,6 +38,7 @@ class Quotation extends Model
         'print_layout_id',
         'print_layout_version',
         'layout_header',
+        'layout_elements',
         'proposal_title',
         'pricing_conditions',
         'pricing_basis',
@@ -52,6 +53,7 @@ class Quotation extends Model
             'valid_until' => 'date',
             'project_amount' => 'decimal:2',
             'include_authorization' => 'boolean',
+            'layout_elements' => 'array',
         ];
     }
 

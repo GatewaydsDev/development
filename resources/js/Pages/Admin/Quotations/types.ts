@@ -1,5 +1,56 @@
-import type { PrintLayoutOption } from '@/Pages/Admin/Bids/layoutSections';
+import type { PrintLayoutElement, PrintLayoutOption } from '@/Pages/Admin/Bids/layoutSections';
 import { QUOTATION_TEXT_FIELDS } from '@/Pages/Admin/Bids/bidText';
+
+export type QuotationLayoutDesign = {
+    elements: PrintLayoutElement[];
+    header_height?: number;
+    header_background?: string;
+    text_case?: string;
+};
+
+const cloneLayoutElements = (elements: PrintLayoutElement[]): PrintLayoutElement[] => {
+    try {
+        return structuredClone(elements);
+    } catch {
+        return elements.map((element) => ({ ...element }));
+    }
+};
+
+export const quotationLayoutDesign = (
+    quotation?: QuotationPayload,
+    options?: QuotationOptions,
+): QuotationLayoutDesign => {
+    const saved = quotation?.layout_elements;
+
+    if (saved && Array.isArray(saved.elements)) {
+        return {
+            elements: cloneLayoutElements(saved.elements),
+            header_height: typeof saved.header_height === 'number' ? saved.header_height : undefined,
+            header_background: saved.header_background || undefined,
+            text_case: saved.text_case || undefined,
+        };
+    }
+
+    const layout = options?.printLayouts?.find(
+        (item) => item.id === quotation?.print_layout_id,
+    );
+
+    if (layout?.elements.length) {
+        return {
+            elements: cloneLayoutElements(layout.elements),
+            header_height: typeof layout.headerHeight === 'number' ? layout.headerHeight : undefined,
+            header_background: layout.headerBackground || undefined,
+            text_case: layout.textCase || undefined,
+        };
+    }
+
+    return {
+        elements: [],
+        header_height: 160,
+        header_background: '#ffffff',
+        text_case: 'original',
+    };
+};
 
 export type QuotationLineItemFormData = {
     description: string;
@@ -100,6 +151,7 @@ export type QuotationFormData = {
     print_layout_id: string;
     print_layout_version: string;
     layout_header: string;
+    layout_elements: QuotationLayoutDesign;
     pricing_conditions: string;
     pricing_basis: string;
     include_authorization: boolean;
@@ -225,6 +277,7 @@ export type QuotationPayload = {
     print_layout_id?: number | null;
     print_layout_version?: string | null;
     layout_header?: string | null;
+    layout_elements?: QuotationLayoutDesign | null;
     proposal_title?: string | null;
     pricing_conditions?: string | null;
     pricing_basis?: string | null;
@@ -388,6 +441,7 @@ export const quotationToFormData = (
     print_layout_id: quotation?.print_layout_id ? String(quotation.print_layout_id) : '',
     print_layout_version: quotation?.print_layout_version ?? '',
     layout_header: quotation?.layout_header ?? '',
+    layout_elements: quotationLayoutDesign(quotation, options),
     proposal_title:
         quotation?.proposal_title?.trim() || DEFAULT_PROPOSAL_TITLE,
     pricing_conditions: `${fieldTablesToHtml(

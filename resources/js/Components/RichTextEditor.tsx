@@ -2,7 +2,7 @@ import { Button } from '@/Components/ui/button';
 import StickyDocumentToolbar from '@/Components/StickyDocumentToolbar';
 import TextInput from '@/Components/TextInput';
 import InputLabel from '@/Components/InputLabel';
-import { Dialog, DialogDescription, DialogPanel, DialogTitle } from '@headlessui/react';
+import { Description, Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -462,7 +462,7 @@ function applyEditorTextCase(editor: Editor, mode: string) {
             if (from >= to) return;
             const source = (node.text ?? '').slice(from - pos, to - pos);
             let text = '';
-            for (const part of source.split(/(\{\{\s*[a-z0-9_]+\s*\}\})/gi)) {
+            for (const part of source.split(/(\{\{\s*[a-z0-9_]+\s*}})/gi)) {
                 if (mode === 'original') {
                     text += part;
                 } else if (/^\{\{/.test(part)) {
@@ -896,6 +896,7 @@ type RichTextEditorProps = {
         key: number;
         sections: LayoutSection[];
         replace?: boolean;
+        document?: { type: string; content?: unknown[] } | null;
     } | null;
     layoutName?: string;
     allowBlockDrag?: boolean;
@@ -1325,6 +1326,23 @@ export default function RichTextEditor({
         }
 
         lastLoadKey.current = layoutLoad.key;
+        if (layoutLoad.document) {
+            const expectsTable = JSON.stringify(layoutLoad.document).includes('"type":"table"');
+            try {
+                editor.commands.setContent(layoutLoad.document as Parameters<typeof editor.commands.setContent>[0], true);
+                let sawTable = false;
+                editor.state.doc.descendants((node) => {
+                    sawTable ||= node.type.name === 'table';
+                });
+                if (!expectsTable || sawTable) {
+                    editor.commands.focus('start');
+                    return;
+                }
+                editor.commands.clearContent();
+            } catch {
+                editor.commands.clearContent();
+            }
+        }
         if (layoutLoad.replace) {
             editor.commands.clearContent();
         }
@@ -1929,9 +1947,9 @@ export default function RichTextEditor({
             <div className="fixed inset-0 flex items-center justify-center p-4">
                 <DialogPanel className="flex w-full max-w-md flex-col gap-4 rounded-xl border border-border bg-background p-6 text-foreground shadow-lg">
                     <DialogTitle className="text-lg font-semibold">Edit link</DialogTitle>
-                    <DialogDescription className="text-sm text-muted-foreground">
+                    <Description className="text-sm text-muted-foreground">
                         Enter a URL for the selected text. Leave it blank to remove the link.
-                    </DialogDescription>
+                    </Description>
                     <form className="flex flex-col gap-4" onSubmit={(event) => {
                         event.preventDefault();
                         saveLink();
