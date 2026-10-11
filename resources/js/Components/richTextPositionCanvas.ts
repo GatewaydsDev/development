@@ -15,7 +15,7 @@ const coordinate = (value: unknown, fallback = 0) => {
 
 export const PositionItem = Node.create({
     name: 'positionItem',
-    content: 'block+',
+    content: '(block | richImage)+',
     defining: true,
     selectable: true,
     addAttributes() {
@@ -42,7 +42,7 @@ export const PositionItem = Node.create({
             'data-y': y,
             'data-width': width,
             'data-height': height,
-            style: `position: absolute; left: ${coordinate(x)}px; top: ${coordinate(y)}px; width: ${coordinate(width, CANVAS_WIDTH)}px; min-height: ${coordinate(height)}px;`,
+            style: `position: absolute; left: ${coordinate(x)}px; top: ${coordinate(y)}px; width: ${coordinate(width, CANVAS_WIDTH)}px; min-height: ${coordinate(height)}px; z-index: ${node.attrs.pdfBackground ? 0 : node.firstChild?.type.name === 'table' ? 2 : 1};`,
         }), 0];
     },
     addNodeView() {
@@ -67,7 +67,8 @@ export const PositionItem = Node.create({
                 dom.dataset.y = String(node.attrs.y);
                 dom.dataset.width = String(node.attrs.width);
                 dom.dataset.height = String(node.attrs.height);
-                dom.style.cssText = `position:absolute;left:${coordinate(node.attrs.x)}px;top:${coordinate(node.attrs.y)}px;width:${coordinate(node.attrs.width, CANVAS_WIDTH)}px;min-height:${coordinate(node.attrs.height)}px`;
+                const stack = node.attrs.pdfBackground ? 0 : node.firstChild?.type.name === 'table' ? 2 : 1;
+                dom.style.cssText = `position:absolute;left:${coordinate(node.attrs.x)}px;top:${coordinate(node.attrs.y)}px;width:${coordinate(node.attrs.width, CANVAS_WIDTH)}px;min-height:${coordinate(node.attrs.height)}px;z-index:${stack}`;
             };
             const saveSize = (width: number, height: number) => {
                 const pos = getPos();

@@ -20,12 +20,11 @@ export function pdfPathLines(
         [matrix[0] * x + matrix[2] * y + matrix[4], matrix[1] * x + matrix[3] * y + matrix[5]];
     let start: [number, number] | null = null;
     let current: [number, number] | null = null;
-    let curved = false;
     let subpathCurved = false;
     const segment = (end: [number, number]) => {
         if (current && (near(current[0], end[0]) || near(current[1], end[1]))) {
             lines.push({ x1: current[0], y1: current[1], x2: end[0], y2: end[1], color, width });
-        } else if (current) curved = subpathCurved = true;
+        } else if (current) subpathCurved = true;
         current = end;
         points.push(end);
     };
@@ -46,12 +45,15 @@ export function pdfPathLines(
             }
         }
         else if (op === 2 || op === 3) {
-            curved = subpathCurved = true;
+            subpathCurved = true;
             index += op === 2 ? 6 : 4;
             current = point(data[index - 2], data[index - 1]);
         } else return { lines: [], rectangles: [] };
     }
-    return { lines: curved ? [] : lines.filter(line => Math.hypot(line.x2 - line.x1, line.y2 - line.y1) > 3), rectangles };
+        return {
+            lines: lines.filter(line => Math.hypot(line.x2 - line.x1, line.y2 - line.y1) > 3),
+            rectangles,
+        };
 }
 
 function covers(lines: PdfTableLine[], vertical: boolean, position: number, start: number, end: number): PdfTableLine | null {
@@ -73,35 +75,98 @@ function covers(lines: PdfTableLine[], vertical: boolean, position: number, star
     return null;
 }
 
-export function detectPdfTables(lines: PdfTableLine[]): PdfTableGrid[] {
-    if (lines.length > 5000) throw new Error('This PDF page has too many vector edges to safely detect editable tables.');
+function edgeStroke(lines: PdfTableLine[], vertical: boolean, position: number, start: number, end: number): PdfTableLine | null {
+    const exact = covers(lines, vertical, position, start, end);
+    if (exact) return exact;
+    const span = Math.max(0, end - start);
+    let best: PdfTableLine | null = null;
+    let overlap = 0;
+    for (const line of lines) {
+        const positionDelta = vertical ? Math.min(Math.abs(line.x1 - position), Math.abs(line.x2 - position)) : Math.min(Math.abs(line.y1 - position), Math.abs(line.y2 - position));
+        const aligned = vertical ? near(line.x1, line.x2) : near(line.y1, line.y2);
+        if (!aligned || positionDelta > 2.5) continue;
+        const lineStart = Math.min(vertical ? line.y1 : line.x1, vertical ? line.y2 : line.x2);
+        const lineEnd = Math.max(vertical ? line.y1 : line.x1, vertical ? line.y2 : line.x2);
+        const covered = Math.min(end, lineEnd) - Math.max(start, lineStart);
+        if (covered > overlap) {
+            overlap = covered;
+            best = line;
+        }
+    }
+    return best && overlap >= Math.min(span, Math.max(4, span * 0.45)) ? best : null;
+}
+
+function gridFromLines(group: PdfTableLine[]): PdfTableGrid | 'oversized' | null {
+    const xs = coordinates(group.filter(line => near(line.x1, line.x2)).map(line => line.x1));
+    const ys = coordinates(group.filter(line => near(line.y1, line.y2)).map(line => line.y1));
+    if (xs.length < 2 || ys.length < 2 || (xs.length - 1) * (ys.length - 1) < 2) return null;
+    const left = xs[0], right = xs.at(-1)!, top = ys[0], bottom = ys.at(-1)!;
+    if (right - left < 30 || bottom - top < 12) return null;
+    if (!covers(group, true, left, top, bottom) || !covers(group, true, right, top, bottom) ||
+        !covers(group, false, top, left, right) || !covers(group, false, bottom, left, right)) return null;
+    if (xs.length > 13 || ys.length > 61) return 'oversized';
+    return { xs, ys, lines: group };
+}
+
+function splitByGap(group: PdfTableLine[], axis: 'x' | 'y'): PdfTableLine[][] {
+    const vertical = axis === 'x';
+    const positions = coordinates(group
+        .filter(line => vertical ? near(line.x1, line.x2) : near(line.y1, line.y2))
+        .map(line => vertical ? (line.x1 + line.x2) / 2 : (line.y1 + line.y2) / 2));
+    let best = 0;
+    let at = -1;
+    for (let index = 1; index < positions.length; index++) {
+        const gap = positions[index] - positions[index - 1];
+        if (gap > best) {
+            best = gap;
+            at = index;
+        }
+    }
+    if (best < 16 || at < 0) return [];
+    const middle = (positions[at - 1] + positions[at]) / 2;
+    const before = group.filter(line => (vertical ? Math.max(line.x1, line.x2) : Math.max(line.y1, line.y2)) < middle);
+    const after = group.filter(line => (vertical ? Math.min(line.x1, line.x2) : Math.min(line.y1, line.y2)) > middle);
+    return before.length >= 4 && after.length >= 4 ? [before, after] : [];
+}
+
+function collectPdfTables(lines: PdfTableLine[], depth = 0): PdfTableGrid[] {
     const connected = (a: PdfTableLine, b: PdfTableLine) =>
         Math.max(Math.min(a.x1, a.x2), Math.min(b.x1, b.x2)) <= Math.min(Math.max(a.x1, a.x2), Math.max(b.x1, b.x2)) + tolerance &&
         Math.max(Math.min(a.y1, a.y2), Math.min(b.y1, b.y2)) <= Math.min(Math.max(a.y1, a.y2), Math.max(b.y1, b.y2)) + tolerance;
     const remaining = new Set(lines);
     const tables: PdfTableGrid[] = [];
+    const rejected: PdfTableLine[][] = [];
     while (remaining.size) {
         const first = remaining.values().next().value!;
         remaining.delete(first);
         const group = [first];
         for (let index = 0; index < group.length; index++) {
-            for (const line of remaining) {
-                if (connected(group[index], line)) { remaining.delete(line); group.push(line); }
+            const pool = [...remaining];
+            for (const line of pool) {
+                if (remaining.has(line) && connected(group[index], line)) {
+                    remaining.delete(line);
+                    group.push(line);
+                }
             }
         }
-        const xs = coordinates(group.filter(line => near(line.x1, line.x2)).map(line => line.x1));
-        const ys = coordinates(group.filter(line => near(line.y1, line.y2)).map(line => line.y1));
-        if (xs.length < 2 || ys.length < 2 || (xs.length - 1) * (ys.length - 1) < 2) continue;
-        const left = xs[0], right = xs.at(-1)!, top = ys[0], bottom = ys.at(-1)!;
-        if (right - left < 30 || bottom - top < 12) continue;
-        if (!covers(group, true, left, top, bottom) || !covers(group, true, right, top, bottom) ||
-            !covers(group, false, top, left, right) || !covers(group, false, bottom, left, right)) continue;
-        if (xs.length > 13 || ys.length > 61) {
+        const grid = gridFromLines(group);
+        if (grid === 'oversized') {
             throw new Error('A detected PDF table exceeds 12 columns or 60 rows. Split that table in the source PDF before importing.');
         }
-        tables.push({ xs, ys, lines: group });
+        if (grid) tables.push(grid);
+        else if (depth < 6) rejected.push(group);
+    }
+    for (const group of rejected) {
+        const parts = splitByGap(group, 'y');
+        const pieces = parts.length ? parts : splitByGap(group, 'x');
+        for (const piece of pieces) tables.push(...collectPdfTables(piece, depth + 1));
     }
     return tables;
+}
+
+export function detectPdfTables(lines: PdfTableLine[]): PdfTableGrid[] {
+    if (lines.length > 5000) throw new Error('This PDF page has too many vector edges to safely detect editable tables.');
+    return collectPdfTables(lines);
 }
 
 export function editablePdfTables(
@@ -138,20 +203,24 @@ export function editablePdfTables(
                     assigned.add(key(nr, nc)); group.push([nr, nc]);
                 }
             }
-            const bottomRow = Math.max(...group.map(([r]) => r));
-            const rightColumn = Math.max(...group.map(([, c]) => c));
+            let bottomRow = Math.max(...group.map(([r]) => r));
+            let rightColumn = Math.max(...group.map(([, c]) => c));
             if (group.some(([r, c]) => r < row || c < column) ||
                 group.length !== (bottomRow - row + 1) * (rightColumn - column + 1)) {
-                throw new Error('A PDF table has an irregular merged cell. Use rectangular cells in the source PDF before importing.');
+                for (const [r, c] of group) {
+                    if (r !== row || c !== column) assigned.delete(key(r, c));
+                }
+                bottomRow = row;
+                rightColumn = column;
             }
             spans[row][column] = { rows: bottomRow - row + 1, columns: rightColumn - column + 1 };
             colors[row][column] = background((xs[column] + xs[rightColumn + 1]) / 2, (ys[row] + ys[bottomRow + 1]) / 2);
             const css = (line: PdfTableLine | null) => line && line.width > 0 ? `${Number(Math.max(0.2, line.width).toFixed(3))}px solid ${line.color}` : 'none';
             borders[row][column] = {
-                left: css(covers(lines, true, xs[column], ys[row], ys[bottomRow + 1])),
-                right: css(covers(lines, true, xs[rightColumn + 1], ys[row], ys[bottomRow + 1])),
-                top: css(covers(lines, false, ys[row], xs[column], xs[rightColumn + 1])),
-                bottom: css(covers(lines, false, ys[bottomRow + 1], xs[column], xs[rightColumn + 1])),
+                left: css(edgeStroke(lines, true, xs[column], ys[row], ys[bottomRow + 1])),
+                right: css(edgeStroke(lines, true, xs[rightColumn + 1], ys[row], ys[bottomRow + 1])),
+                top: css(edgeStroke(lines, false, ys[row], xs[column], xs[rightColumn + 1])),
+                bottom: css(edgeStroke(lines, false, ys[bottomRow + 1], xs[column], xs[rightColumn + 1])),
             };
             const text = fragments.filter(fragment => {
                 const x = (fragment.element.x ?? 0) * 7, y = fragment.element.y ?? 0;
@@ -160,9 +229,12 @@ export function editablePdfTables(
             }).sort((a, b) => (a.element.y ?? 0) - (b.element.y ?? 0) || (a.element.x ?? 0) - (b.element.x ?? 0));
             text.forEach(fragment => used.add(fragment));
             const first = text[0]?.element;
-            // Imported cell text stays blank; its typography and original line breaks remain editable.
             const lineYs = coordinates(text.map(fragment => fragment.element.y ?? 0));
-            cells[row][column] = '\n'.repeat(Math.max(0, lineYs.length - 1));
+            cells[row][column] = lineYs.map((lineY) => text
+                .filter(fragment => Math.abs((fragment.element.y ?? 0) - lineY) <= tolerance)
+                .map(fragment => fragment.text.trim())
+                .filter(Boolean)
+                .join(' ')).join('\n');
             const raw = text.map(fragment => fragment.text).join(' ');
             styles[row][column] = {
                 font_size: first?.font_size ?? base.font_size, font_family: first?.font_family ?? base.font_family,

@@ -972,6 +972,16 @@
     background-color: #ffffff;
   }
 
+  .rich-text-content [data-position-canvas] td,
+  .rich-text-content [data-position-canvas] th {
+    min-width: 0;
+  }
+
+  .rich-text-content [data-position-canvas] .tableWrapper {
+    overflow: visible;
+    margin: 0;
+  }
+
   .rich-text-content tr:nth-child(even of tr:has(td)) td {
     background-color: #f3f4f6;
   }

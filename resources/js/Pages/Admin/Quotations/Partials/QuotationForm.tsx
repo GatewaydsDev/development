@@ -6,8 +6,8 @@ import MaskedDecimalInput from '@/Components/MaskedDecimalInput';
 import { flushPendingTextAutoSaves } from '@/Components/TextAutoSave';
 import TextInput from '@/Components/TextInput';
 import DocumentPrintLayoutEditor from '@/Components/DocumentPrintLayoutEditor';
+import { quotationComponentsHtml } from '@/Pages/Admin/Bids/layoutSections';
 import { saveDocumentDraft } from '@/lib/saveDocumentDraft';
-import QuotationReusableTextSection from './QuotationReusableTextSection';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -83,6 +83,12 @@ const schema = z.object({
     print_layout_id: z.string(),
     print_layout_version: z.string(),
     layout_header: z.string().max(250000),
+    layout_elements: z.object({
+        elements: z.array(z.any()).max(1000),
+        header_height: z.number().min(60).max(4000).optional(),
+        header_background: z.string().max(32).optional(),
+        text_case: z.string().max(20).optional(),
+    }),
     proposal_title: z
         .string()
         .trim()
@@ -312,11 +318,29 @@ export default function QuotationForm({
     };
 
     const insertValues = quotationInsertValues(data, options, quotation);
+    const layoutLiterals = {
+        company_name: options.company?.name ?? '',
+        company_speciality: options.company?.speciality ?? '',
+        company_legal_name: options.company?.legal_name ?? '',
+        company_address: options.company?.address ?? '',
+        company_phone: options.company?.phone ?? '',
+        company_email: options.company?.email ?? '',
+        company_contact_phone: options.company?.contact_phone ?? '',
+        company_website: options.company?.website ?? '',
+        company_contact_url: options.company?.contact_url ?? '',
+    };
 
     const quotationPayload = (values: QuotationFormData) => ({
         ...values,
         print_layout_id: values.print_layout_id || null,
         print_layout_version: values.print_layout_version || null,
+        layout_header: values.layout_elements.elements.length
+            ? quotationComponentsHtml(
+                  values.layout_elements,
+                  layoutLiterals,
+                  QUOTATION_LAYOUT_FIELD_KEYS,
+              ) || values.layout_header
+            : values.layout_header,
         revisions: values.revisions.filter(
             (revision) => revision.number.trim() !== '',
         ),
@@ -407,14 +431,20 @@ export default function QuotationForm({
                 async () => {
                     try {
                         const values = await ensureParty(getValues());
-                        if (!values)
-                            throw new Error(
+                        if (!values) {
+                            toast.error(
                                 'Select or add the contractor/owner before saving and updating the layout.',
                             );
-                        if (!(await flushPendingTextAutoSaves()))
-                            throw new Error(
+                            resolve(false);
+                            return;
+                        }
+                        if (!(await flushPendingTextAutoSaves())) {
+                            toast.error(
                                 'The quotation text could not be saved. Try again before updating the layout.',
                             );
+                            resolve(false);
+                            return;
+                        }
                         const result =
                             await saveDocumentDraft<QuotationPayload>(
                                 savedQuotation
@@ -1031,11 +1061,12 @@ export default function QuotationForm({
                         Quotation layout header
                     </h3>
                     <p className="text-sm text-muted-foreground">
-                        Load and customize a print layout header. Proposal and
-                        pricing text stay unchanged.
+                        Choose a print layout and its text, tables, and images
+                        are placed on the page automatically.
                     </p>
                 </div>
                 <DocumentPrintLayoutEditor
+                    componentCanvas
                     document="quotation"
                     catalog={{
                         printLayouts: options.printLayouts ?? [],
@@ -1043,24 +1074,18 @@ export default function QuotationForm({
                     }}
                     layoutId={data.print_layout_id}
                     version={data.print_layout_version}
+                    design={data.layout_elements}
+                    onDesignChange={(design, html) => {
+                        setValue('layout_elements', design, { shouldDirty: true });
+                        setValue('layout_header', html, { shouldDirty: true });
+                    }}
                     onLayoutChange={(id, version) => {
                         setValue('print_layout_id', id, { shouldDirty: true });
                         setValue('print_layout_version', version, {
                             shouldDirty: true,
                         });
                     }}
-                    literals={{
-                        company_name: options.company?.name ?? '',
-                        company_speciality: options.company?.speciality ?? '',
-                        company_legal_name: options.company?.legal_name ?? '',
-                        company_address: options.company?.address ?? '',
-                        company_phone: options.company?.phone ?? '',
-                        company_email: options.company?.email ?? '',
-                        company_contact_phone:
-                            options.company?.contact_phone ?? '',
-                        company_website: options.company?.website ?? '',
-                        company_contact_url: options.company?.contact_url ?? '',
-                    }}
+                    literals={layoutLiterals}
                     fieldKeys={QUOTATION_LAYOUT_FIELD_KEYS}
                     hasUnsavedChanges={hasUnsavedChanges}
                     onSaveCurrent={saveCurrent}

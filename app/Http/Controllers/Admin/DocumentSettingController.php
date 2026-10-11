@@ -48,9 +48,8 @@ class DocumentSettingController extends Controller
         $document = DocumentAppearance::normalizeDocument((string) $request->query('document', 'bid'));
         $format = DocumentAppearance::normalizeFormat((string) $request->query('format', 'print'));
         $layouts = PrintLayout::query()->with('assignments')->orderBy('name')->get();
-        $assignedLayoutId = DocumentLayoutAssignment::query()
-            ->where('document_key', DocumentAppearance::key($document, $format))
-            ->value('print_layout_id');
+        $assignedLayoutId = DocumentLayoutAssignment::defaultFor(DocumentAppearance::key($document, $format))
+            ?->print_layout_id;
         $requestedLayoutId = $request->query('layout');
         $selectedLayoutId = $requestedLayoutId !== null
             ? (int) $requestedLayoutId
@@ -118,12 +117,22 @@ class DocumentSettingController extends Controller
     {
         abort_unless($request->user()?->isSuperAdmin(), 403);
 
+        $layoutId = $request->input('layout_id');
+        if (is_numeric($layoutId)) {
+            $existing = PrintLayout::query()->find((int) $layoutId);
+            if ($existing) {
+                return $this->update($request, $existing);
+            }
+        }
+
         $validated = $this->validateLayout($request);
-        $layout = DB::transaction(function () use ($request, $validated): PrintLayout {
+        $elements = $request->exists('elements') ? $request->input('elements') : null;
+        $zoneColors = $request->exists('zone_colors') ? $request->input('zone_colors') : null;
+        $layout = DB::transaction(function () use ($request, $validated, $elements, $zoneColors): PrintLayout {
             $attributes = $this->layoutAttributes($validated);
             $layout = PrintLayout::query()->create([
                 ...$attributes,
-                'design' => $this->designWithColors(null, $attributes, $validated['elements'] ?? null, $validated['zone_colors'] ?? null),
+                'design' => $this->designWithColors(null, $attributes, $elements, $zoneColors),
                 'created_by' => $request->user()?->id,
             ]);
             $this->syncAssignments($layout, $validated['assignments'] ?? []);
@@ -139,11 +148,13 @@ class DocumentSettingController extends Controller
         abort_unless($request->user()?->isSuperAdmin(), 403);
 
         $validated = $this->validateLayout($request);
-        DB::transaction(function () use ($layout, $validated): void {
+        $elements = $request->exists('elements') ? $request->input('elements') : null;
+        $zoneColors = $request->exists('zone_colors') ? $request->input('zone_colors') : null;
+        DB::transaction(function () use ($layout, $validated, $elements, $zoneColors): void {
             $attributes = $this->layoutAttributes($validated);
             $layout->update([
                 ...$attributes,
-                'design' => $this->designWithColors($layout->design, $attributes, $validated['elements'] ?? null, $validated['zone_colors'] ?? null),
+                'design' => $this->designWithColors($layout->design, $attributes, $elements, $zoneColors),
             ]);
             $this->syncAssignments($layout, $validated['assignments'] ?? []);
         });
@@ -225,7 +236,7 @@ class DocumentSettingController extends Controller
             'text_case' => ['required', 'string', Rule::in(array_keys(DocumentTextCase::OPTIONS))],
             'zone_colors' => ['sometimes', 'array'],
             'zone_colors.body' => ['nullable', 'string', 'regex:/^#([A-Fa-f0-9]{6})$/'],
-            'zone_colors.header_height' => ['nullable', 'integer', 'min:60'],
+            'zone_colors.header_height' => ['nullable', 'numeric', 'min:60', 'max:4000'],
             'elements.*.x' => ['nullable', 'numeric', 'between:0,100'],
             'elements.*.y' => ['nullable', 'numeric', 'between:0,4000'],
             'elements.*.pdf_page' => ['sometimes', 'string', 'max:40', 'regex:/^[A-Za-z0-9_-]+$/'],
@@ -243,9 +254,9 @@ class DocumentSettingController extends Controller
             'elements.*.pdf_text_runs.*.line' => ['required', 'integer', 'between:0,199'],
             'elements.*.pdf_text_runs.*.offset' => ['required', 'integer', 'between:0,10000'],
             'elements.*.pdf_text_runs.*.length' => ['required', 'integer', 'between:1,10000'],
-            'elements.*.pdf_text_runs.*.x' => ['required', 'numeric', 'between:0,700'],
+            'elements.*.pdf_text_runs.*.x' => ['required', 'numeric', 'between:0,4000'],
             'elements.*.pdf_text_runs.*.y' => ['required', 'numeric', 'between:0,4000'],
-            'elements.*.pdf_text_runs.*.width' => ['required', 'numeric', 'between:0.1,700'],
+            'elements.*.pdf_text_runs.*.width' => ['required', 'numeric', 'between:0.1,4000'],
             'elements.*.pdf_text_runs.*.height' => ['required', 'numeric', 'between:1,200'],
             'elements.*.pdf_text_runs.*.font_size' => ['required', 'numeric', 'between:1,200'],
             'elements.*.pdf_text_runs.*.font_family' => ['nullable', 'string', Rule::in(array_keys(DocumentLayoutElements::FONT_FAMILIES))],
@@ -260,14 +271,14 @@ class DocumentSettingController extends Controller
             'elements.*.id' => ['sometimes', 'string', 'max:40', 'regex:/^[A-Za-z0-9_-]+$/', 'distinct'],
             'elements.*.type' => ['required', 'string', Rule::in(DocumentLayoutElements::TYPES)],
             'elements.*.zone' => ['required', 'string', Rule::in(DocumentLayoutElements::ZONES)],
-            'elements.*.content' => ['nullable', 'string', 'max:1000'],
+            'elements.*.content' => ['nullable', 'string', 'max:20000'],
             'elements.*.items' => ['nullable', 'array', 'max:40'],
             'elements.*.cells' => ['nullable', 'array', 'min:1', 'max:60'],
             'elements.*.header_row' => ['nullable', 'boolean'],
             'elements.*.header_color' => ['nullable', 'string', 'regex:/^#([A-Fa-f0-9]{6})$/'],
             'elements.*.stripe_direction' => ['nullable', 'string', Rule::in(['none', 'rows', 'columns'])],
             'elements.*.table_background' => ['nullable', 'string', 'regex:/^(#([A-Fa-f0-9]{6}))?$/'],
-            'elements.*.column_colors' => ['nullable', 'array', 'max:6'],
+            'elements.*.column_colors' => ['nullable', 'array', 'max:12'],
             'elements.*.column_widths' => ['nullable', 'array', 'max:12'],
             'elements.*.column_widths.*' => ['required', 'numeric', 'between:0.1,100'],
             'elements.*.row_heights' => ['nullable', 'array', 'max:60'],
@@ -295,7 +306,7 @@ class DocumentSettingController extends Controller
             'elements.*.row_styles.*.bold' => ['sometimes', 'boolean'],
             'elements.*.row_styles.*.italic' => ['sometimes', 'boolean'],
             'elements.*.row_styles.*.underline' => ['sometimes', 'boolean'],
-            'elements.*.row_styles.*.line_height' => ['sometimes', 'numeric', Rule::in([1, 1.15, 1.35, 1.5, 2])],
+            'elements.*.row_styles.*.line_height' => ['sometimes', 'numeric', 'between:0.5,4'],
             'elements.*.row_styles.*.align' => ['sometimes', 'string', Rule::in(DocumentLayoutElements::ALIGNMENTS)],
             'elements.*.row_styles.*.text_case' => ['sometimes', 'string', Rule::in(array_keys(DocumentTextCase::OPTIONS))],
             'elements.*.cell_styles' => ['nullable', 'array', 'max:60'],
@@ -309,13 +320,13 @@ class DocumentSettingController extends Controller
             'elements.*.cell_styles.*.*.bold' => ['sometimes', 'boolean'],
             'elements.*.cell_styles.*.*.italic' => ['sometimes', 'boolean'],
             'elements.*.cell_styles.*.*.underline' => ['sometimes', 'boolean'],
-            'elements.*.cell_styles.*.*.line_height' => ['sometimes', 'numeric', Rule::in([1, 1.15, 1.35, 1.5, 2])],
+            'elements.*.cell_styles.*.*.line_height' => ['sometimes', 'numeric', 'between:0.5,4'],
             'elements.*.cell_styles.*.*.align' => ['sometimes', 'string', Rule::in(DocumentLayoutElements::ALIGNMENTS)],
             'elements.*.cell_styles.*.*.text_case' => ['sometimes', 'string', Rule::in(array_keys(DocumentTextCase::OPTIONS))],
             'elements.*.stripe_color_a' => ['nullable', 'string', 'regex:/^#([A-Fa-f0-9]{6})$/'],
             'elements.*.stripe_color_b' => ['nullable', 'string', 'regex:/^#([A-Fa-f0-9]{6})$/'],
             'elements.*.cells.*' => ['array', 'min:1', 'max:12'],
-            'elements.*.cells.*.*' => ['nullable', 'string', 'max:300'],
+            'elements.*.cells.*.*' => ['nullable', 'string', 'max:2000'],
             'elements.*.items.*' => ['array'],
             'elements.*.items.*.label' => ['nullable', 'string', 'max:300'],
             'elements.*.items.*.value' => ['nullable', 'string', 'max:300'],
@@ -325,10 +336,10 @@ class DocumentSettingController extends Controller
             'elements.*.layout' => ['nullable', 'string', Rule::in(['lines', 'table'])],
             'elements.*.border' => ['nullable', 'boolean'],
             'elements.*.show_labels' => ['nullable', 'boolean'],
-            'elements.*.columns' => ['nullable', 'integer', 'between:1,4'],
+            'elements.*.columns' => ['nullable', 'integer', 'between:1,12'],
             'elements.*.fields' => ['nullable', 'array'],
             'elements.*.fields.*' => ['string', Rule::in(array_keys(DocumentLayoutElements::COMPANY_FIELDS))],
-            'elements.*.src' => ['nullable', 'string', 'max:255'],
+            'elements.*.src' => ['nullable', 'string', 'max:500'],
             'elements.*.align' => ['nullable', 'string', Rule::in(DocumentLayoutElements::ALIGNMENTS)],
             'elements.*.width' => ['nullable', 'numeric', 'between:0.1,100'],
             'elements.*.height' => ['nullable', 'numeric', 'between:1,4000'],
@@ -336,7 +347,7 @@ class DocumentSettingController extends Controller
             'elements.*.bold' => ['nullable', 'boolean'],
             'elements.*.italic' => ['nullable', 'boolean'],
             'elements.*.underline' => ['nullable', 'boolean'],
-            'elements.*.line_height' => ['nullable', 'numeric', Rule::in([1, 1.15, 1.35, 1.5, 2])],
+            'elements.*.line_height' => ['nullable', 'numeric', 'between:0.5,4'],
             'elements.*.list_style' => ['nullable', 'string', Rule::in(['none', 'bullet', 'numbered'])],
             'elements.*.validity_days' => ['nullable', 'integer', Rule::in([30, 60, 90])],
             'elements.*.font_size' => ['nullable', 'numeric', 'between:1,200'],
@@ -407,18 +418,36 @@ class DocumentSettingController extends Controller
      */
     private function syncAssignments(PrintLayout $layout, array $documentKeys): void
     {
-        DocumentLayoutAssignment::query()
-            ->where('print_layout_id', $layout->id)
-            ->orWhereIn('document_key', $documentKeys)
+        $documentKeys = array_values(array_unique($documentKeys));
+        $removedKeys = $layout->assignments()
+            ->when($documentKeys !== [], fn ($query) => $query->whereNotIn('document_key', $documentKeys))
+            ->pluck('document_key');
+
+        $layout->assignments()
+            ->when($documentKeys !== [], fn ($query) => $query->whereNotIn('document_key', $documentKeys))
             ->delete();
 
-        if ($documentKeys !== []) {
-            $layout->assignments()->createMany(
-                collect($documentKeys)
-                    ->unique()
-                    ->map(fn (string $documentKey): array => ['document_key' => $documentKey])
-                    ->all(),
+        foreach ($documentKeys as $documentKey) {
+            DocumentLayoutAssignment::query()
+                ->where('document_key', $documentKey)
+                ->where('print_layout_id', '!=', $layout->id)
+                ->update(['is_default' => false]);
+            $layout->assignments()->updateOrCreate(
+                ['document_key' => $documentKey],
+                ['is_default' => true],
             );
+        }
+
+        foreach ($removedKeys as $documentKey) {
+            if (DocumentLayoutAssignment::query()->where('document_key', $documentKey)->where('is_default', true)->exists()) {
+                continue;
+            }
+
+            DocumentLayoutAssignment::query()
+                ->where('document_key', $documentKey)
+                ->orderBy('id')
+                ->first()
+                ?->update(['is_default' => true]);
         }
     }
 

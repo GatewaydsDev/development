@@ -79,6 +79,28 @@ export function tableTextStyle(
     };
 }
 
+const tableBorderSides = ['top', 'right', 'bottom', 'left'] as const;
+
+export function tableEdgeBorder(
+    element: TableStriping & { border?: boolean; border_color?: string },
+    row: number,
+    column: number,
+    side: (typeof tableBorderSides)[number],
+): string {
+    const own = element.cell_borders?.[row]?.[column]?.[side];
+    if (own && own !== 'none') return own;
+    if (element.border === false) return 'none';
+    for (const borders of element.cell_borders ?? []) {
+        for (const cell of borders ?? []) {
+            for (const edge of tableBorderSides) {
+                const value = cell?.[edge];
+                if (value && value !== 'none') return value;
+            }
+        }
+    }
+    return element.border_color ? `1px solid ${element.border_color}` : '0.6px solid #d7dee5';
+}
+
 export function tableStripeColor(
     element: TableStriping,
     row: number,

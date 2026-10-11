@@ -8,7 +8,7 @@ import {
     DropdownMenuItem, DropdownMenuTrigger,
 } from "@/Components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { layoutColumnWidths, resizedLayoutColumns } from "@/lib/printLayoutGeometry";
+import { layoutColumnWidths, resizedLayoutColumns, tableEdgeBorder } from "@/lib/printLayoutGeometry";
 import { layoutTableCell, layoutTableDimensions, layoutTableField, resolveLayoutTableFields } from "@/lib/printLayoutTableFields";
 import { layoutPages, loadPdfFont, pdfTextFont, pdfTextLines, pdfTextLineHeight, pdfRunText, pdfRunY, pdfFontSources, type PdfLayoutElement } from "@/lib/printLayoutPdf";
 import { PRINT_LAYOUT_FONTS, PRINT_LAYOUT_FONT_CHOICES, PRINT_LAYOUT_WIDTH, printLayoutTextCase, tableStripeColor, tableTextStyle, TABLE_TEXT_STYLE_KEYS, type TableStriping, type TableTextStyle, type TextCaseState } from "@/lib/printLayoutGeometry";
@@ -37,11 +37,11 @@ import {
     UploadIcon,
 } from "lucide-react";
 import {
-    DragEvent,
     Fragment,
     PointerEvent as ReactPointerEvent,
     ReactNode,
     useEffect,
+    useId,
     useRef,
     useState,
 } from "react";
@@ -65,7 +65,7 @@ export type MergeField = {
 };
 
 export function fillFields(value: string, fields: MergeField[]): string {
-    return value.replace(/\{\{\s*([a-z0-9_]+)\s*\}\}/g, (_match, key: string) => {
+    return value.replace(/\{\{\s*([a-z0-9_]+)\s*}}/g, (_match, key: string) => {
         return fields.find((field) => field.key === key)?.sample ?? "";
     });
 }
@@ -160,18 +160,6 @@ export function groupRows(list: LayoutElement[]): LayoutElement[][] {
 
 function newId(): string {
     return `el-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-}
-
-function handleStyle(element: LayoutElement) {
-    if (element.align === "right") {
-        return { right: `calc(${element.width}% - 4px)` };
-    }
-
-    if (element.align === "center") {
-        return { left: `calc(${50 + element.width / 2}% - 4px)` };
-    }
-
-    return { left: `calc(${element.width}% - 4px)` };
 }
 
 const defaultWidth: Partial<Record<ElementType, number>> = {
@@ -321,7 +309,12 @@ export function ElementPreview({
                     src={element.src}
                     alt=""
                     draggable={false}
-                    style={{ width: "100%", height: "auto" }}
+                    style={{
+                        width: "100%",
+                        height: element.pdf_background ? "100%" : "auto",
+                        objectFit: element.pdf_background ? "fill" : undefined,
+                        display: "block",
+                    }}
                 />
             </div>
         ) : null;
@@ -358,13 +351,10 @@ export function ElementPreview({
                                         height: element.row_heights?.slice(r, r + (span?.rows ?? 1)).reduce((sum, value) => sum + value, 0),
                                         position: "relative",
                                         padding: element.row_heights?.length ? "2px 6px" : "6px 10px",
-                                        border: element.border ? `1px solid ${element.border_color ?? "#cbd5e1"}` : "none",
-                                        ...(element.border ? {
-                                            borderTop: element.cell_borders?.[r]?.[c]?.top,
-                                            borderRight: element.cell_borders?.[r]?.[c]?.right,
-                                            borderBottom: element.cell_borders?.[r]?.[c]?.bottom,
-                                            borderLeft: element.cell_borders?.[r]?.[c]?.left,
-                                        } : {}),
+                                        borderTop: tableEdgeBorder(element, r, c, "top"),
+                                        borderRight: tableEdgeBorder(element, r, c, "right"),
+                                        borderBottom: tableEdgeBorder(element, r, c, "bottom"),
+                                        borderLeft: tableEdgeBorder(element, r, c, "left"),
                                         fontFamily: fontStack(style.font_family),
                                         fontSize: style.font_size,
                                         color: style.color,
@@ -672,7 +662,6 @@ export function ElementsReadOnly({
     inBanner = false,
     background = "",
     headerHeight = 160,
-    textCase = "original",
 }: {
     textCase?: ElementCase;
     headerHeight?: number;
@@ -1081,7 +1070,7 @@ export function useLayoutElements(
     const startResize = (
         event: ReactPointerEvent<HTMLElement>,
         element: LayoutElement,
-        axis: "width" | "height",
+        edge: "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw",
     ) => {
         event.preventDefault();
         event.stopPropagation();
@@ -1099,49 +1088,67 @@ export function useLayoutElements(
         ).getBoundingClientRect().width;
         const startX = event.clientX;
         const startY = event.clientY;
+        const originX = element.x ?? 0;
+        const originY = element.y ?? 0;
         const startWidth = element.width;
         const startHeight = element.height;
-        const factor = 1;
-        const direction = 1;
+        const west = edge.includes("w");
+        const east = edge.includes("e");
+        const north = edge.includes("n");
+        const south = edge.includes("s");
+        const minWidth = element.pdf_page ? 0.1 : 5;
+        const maxHeight = element.pdf_page ? 4000 : 400;
+        const round = (value: number) =>
+            element.pdf_page
+                ? Math.round(value * 100) / 100
+                : Math.round(value);
 
         const onMove = (moveEvent: PointerEvent) => {
-            if (axis === "width") {
-                const delta =
-                    ((moveEvent.clientX - startX) / containerWidth) *
-                    100 *
-                    factor *
-                    direction;
-                update(element.id, {
-                    width: Math.round(
-                        Math.max(
-                            5,
-                            Math.min(
-                                100 - (element.x ?? 0),
-                                startWidth + delta,
-                            ),
-                        ),
-                    ),
-                });
-            } else {
-                update(element.id, {
-                    height: Math.round(
-                        Math.max(
-                            1,
-                            Math.min(
-                                400,
-                                startHeight + (moveEvent.clientY - startY),
-                            ),
-                        ),
-                    ),
-                });
+            if (containerWidth <= 0) {
+                return;
             }
+
+            const dx = ((moveEvent.clientX - startX) / containerWidth) * 100;
+            const dy = moveEvent.clientY - startY;
+            const patch: Partial<LayoutElement> = {};
+            const right = originX + startWidth;
+            const bottom = originY + startHeight;
+
+            if (west) {
+                const nextX = Math.max(0, Math.min(right - minWidth, originX + dx));
+                patch.x = round(nextX);
+                patch.width = round(right - nextX);
+            } else if (east) {
+                patch.width = round(
+                    Math.max(minWidth, Math.min(100 - originX, startWidth + dx)),
+                );
+            }
+
+            if (north) {
+                const nextY = Math.max(0, Math.min(bottom - 1, originY + dy));
+                patch.y = round(nextY);
+                patch.height = round(Math.max(1, Math.min(maxHeight, bottom - nextY)));
+            } else if (south) {
+                patch.height = round(
+                    Math.max(1, Math.min(maxHeight, startHeight + dy)),
+                );
+            }
+
+            update(element.id, patch);
         };
         const onUp = () => {
             handle.removeEventListener("pointermove", onMove);
             handle.removeEventListener("pointerup", onUp);
+            handle.removeEventListener("pointercancel", onUp);
+            handle.removeEventListener("lostpointercapture", onUp);
+            if (handle.hasPointerCapture(event.pointerId)) {
+                handle.releasePointerCapture(event.pointerId);
+            }
         };
         handle.addEventListener("pointermove", onMove);
         handle.addEventListener("pointerup", onUp);
+        handle.addEventListener("pointercancel", onUp);
+        handle.addEventListener("lostpointercapture", onUp);
     };
 
     const startMove = (
@@ -1371,7 +1378,9 @@ export function ImportPanel({
 }) {
     const [file, setFile] = useState<File | null>(null);
     const [mode, setMode] = useState<ImportMode>("pdf");
+    const [pdfText, setPdfText] = useState<"keep" | "clean">("keep");
     const [replace, setReplace] = useState(pdfOnly);
+    const pdfTextChoice = useId();
     const [busy, setBusy] = useState(false);
     const [message, setMessage] = useState<{
         tone: "ok" | "error";
@@ -1390,11 +1399,17 @@ export function ImportPanel({
 
         try {
             if (mode === "pdf") {
-                if (!file.name.toLowerCase().endsWith(".pdf")) throw new Error("Choose a PDF for the faithful page import, or select a Word/text import mode.");
+                if (!file.name.toLowerCase().endsWith(".pdf")) {
+                    setMessage({ tone: "error", lines: ["Choose a PDF for the faithful page import, or select a Word/text import mode."] });
+                    return;
+                }
                 const { readPdfLayout } = await import("@/lib/importPdfLayout");
-                const imported = await readPdfLayout(file);
+                const imported = await readPdfLayout(file, { text: pdfText });
                 const incoming = imported.pages.flatMap((page) => page.elements);
-                if (incoming.length + (replace ? 0 : controller.elements.length) > 1000) throw new Error("The resulting layout exceeds 1,000 components. Replace the existing layout or use a smaller PDF.");
+                if (incoming.length + (replace ? 0 : controller.elements.length) > 1000) {
+                    setMessage({ tone: "error", lines: ["The resulting layout exceeds 1,000 components. Replace the existing layout or use a smaller PDF."] });
+                    return;
+                }
                 const upload = async (name: "image" | "font", blob: Blob, filename: string) => {
                     const body = new FormData();
                     body.append(name, blob, filename);
@@ -1422,7 +1437,7 @@ export function ImportPanel({
                 if (onImported) onImported(incoming, file.name, imported.notes);
                 else controller.importElements(incoming, replace);
                 controller.setTargetPage(incoming[0]?.pdf_page);
-                setMessage({ tone: "ok", lines: [`Imported ${imported.pages.length} pages with blank editable text. Review each page, then save.`, ...imported.notes] });
+                setMessage({ tone: "ok", lines: [`Imported ${imported.pages.length} pages. ${pdfText === "clean" ? "The original wording was removed and the text positions are blank." : "Tables, lists, text, and images are editable components."} Review each page, then save.`, ...imported.notes] });
                 return;
             }
             const body = new FormData();
@@ -1449,11 +1464,15 @@ export function ImportPanel({
             } | null;
 
             if (!response.ok || !payload?.elements) {
-                throw new Error(
-                    payload?.errors?.file?.[0] ??
-                        payload?.message ??
-                        "Could not import that file.",
-                );
+                setMessage({
+                    tone: "error",
+                    lines: [
+                        payload?.errors?.file?.[0] ??
+                            payload?.message ??
+                            "Could not import that file.",
+                    ],
+                });
+                return;
             }
 
             controller.importElements(payload.elements, replace);
@@ -1491,8 +1510,8 @@ export function ImportPanel({
                         {pdfOnly ? "Upload a PDF to create your layout" : "Import from an existing document"}
                     </p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                        Import every PDF page with automatic editable tables, original row and column colors,
-                        and blank editable text in the original positions.{!pdfOnly ? " Word/text import is also available." : ""}
+                        Import every PDF page with editable tables and the original colors.
+                        Keep the wording, or clean it and leave blank text in the same positions.{!pdfOnly ? " Word/text import is also available." : ""}
                     </p>
 
                     <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -1524,6 +1543,22 @@ export function ImportPanel({
                         </span>
                     </div>
 
+                    {mode === "pdf" ? <fieldset className="mt-3">
+                        <legend className="text-xs font-medium text-foreground">
+                            PDF text
+                        </legend>
+                        <div className="mt-1 flex flex-wrap gap-x-5 gap-y-1 text-sm">
+                            <label className="inline-flex items-center gap-2">
+                                <input type="radio" name={pdfTextChoice} disabled={busy} checked={pdfText === "keep"} onChange={() => setPdfText("keep")} className="accent-emerald-700" />
+                                Import with text
+                            </label>
+                            <label className="inline-flex items-center gap-2">
+                                <input type="radio" name={pdfTextChoice} disabled={busy} checked={pdfText === "clean"} onChange={() => setPdfText("clean")} className="accent-emerald-700" />
+                                Clean the text
+                            </label>
+                        </div>
+                    </fieldset> : null}
+
                     {!pdfOnly ? <fieldset className="mt-3">
                         <legend className="text-xs font-medium text-foreground">
                             What to copy
@@ -1531,7 +1566,7 @@ export function ImportPanel({
                         <div className="mt-1 flex flex-wrap gap-x-5 gap-y-1 text-sm">
                             <label className="inline-flex items-center gap-2">
                                 <input type="radio" name="import-mode" disabled={busy} checked={mode === "pdf"} onChange={() => setMode("pdf")} className="accent-emerald-700" />
-                                PDF pages: editable tables, original colors, blank text
+                                PDF pages: editable tables and original colors
                             </label>
                             <label className="inline-flex items-center gap-2">
                                 <input
@@ -1618,15 +1653,10 @@ export default function LayoutElementsEditor({
 }) {
     const {
         elements,
-        selectedId,
-        setSelectedId,
         selected,
         targetZone,
-        setTargetZone,
         uploading,
         uploadError,
-        dragId,
-        setDragId,
         fileInputRef,
         pendingImageFor,
         update,
@@ -1634,8 +1664,6 @@ export default function LayoutElementsEditor({
         remove,
         duplicate,
         move,
-        dropOn,
-        startResize,
     } = controller;
     const editorRef = useRef<HTMLDivElement>(null);
     const [tableFieldSelection, setTableFieldSelection] = useState<TableFieldSelection | null>(null);
@@ -2211,7 +2239,7 @@ function ElementInspector({
                         <textarea
                             ref={textRef}
                             rows={element.pdf_line_count ?? 4}
-                            maxLength={1000}
+                            maxLength={20000}
                             value={element.content}
                             onChange={(event) =>
                                 onChange({ content: event.target.value })
@@ -2756,6 +2784,14 @@ export function PreviewZone({
                                 left: `${element.x ?? 0}%`,
                                 top: element.y ?? 0,
                                 width: `${element.width}%`,
+                                height:
+                                    element.pdf_page ||
+                                    element.type === "table" ||
+                                    element.type === "image" ||
+                                    element.type === "spacer" ||
+                                    element.type === "divider"
+                                        ? element.height
+                                        : undefined,
                                 zIndex: element.pdf_background ? 0 : isSelected ? 10 : 1,
                                 pointerEvents: element.pdf_background ? "none" : undefined,
                             }}
@@ -2873,38 +2909,35 @@ export function PreviewZone({
                                     onSelectCell={(row, column) => controller.selectCell(element.id, row, column)}
                                 />
                             )}
-                            {isSelected && element.type !== "spacer" ? (
-                                <span
-                                    role="separator"
-                                    data-resize-handle
-                                    aria-label="Drag to resize width"
-                                    onPointerDown={(event) =>
-                                        controller.startResize(
-                                            event,
-                                            element,
-                                            "width",
-                                        )
-                                    }
-                                    className="absolute -right-2 top-1/2 z-10 h-8 w-3 -translate-y-1/2 cursor-ew-resize touch-none rounded-full border-2 border-white bg-emerald-600 shadow"
-                                />
-                            ) : null}
-                            {isSelected &&
-                            (element.type === "spacer" ||
-                                element.type === "divider") ? (
-                                <span
-                                    role="separator"
-                                    data-resize-handle
-                                    aria-label="Drag to resize height"
-                                    onPointerDown={(event) =>
-                                        controller.startResize(
-                                            event,
-                                            element,
-                                            "height",
-                                        )
-                                    }
-                                    className="absolute -bottom-2 left-1/2 z-10 h-3 w-8 -translate-x-1/2 cursor-ns-resize touch-none rounded-full border-2 border-white bg-emerald-600 shadow"
-                                />
-                            ) : null}
+                            {isSelected && !element.pdf_background
+                                ? (
+                                      [
+                                          ["n", "Resize from the top", "absolute -top-1.5 left-1/2 z-10 h-3 w-8 -translate-x-1/2 cursor-ns-resize"],
+                                          ["s", "Resize from the bottom", "absolute -bottom-1.5 left-1/2 z-10 h-3 w-8 -translate-x-1/2 cursor-ns-resize"],
+                                          ["e", "Resize from the right", "absolute -right-1.5 top-1/2 z-10 h-8 w-3 -translate-y-1/2 cursor-ew-resize"],
+                                          ["w", "Resize from the left", "absolute -left-1.5 top-1/2 z-10 h-8 w-3 -translate-y-1/2 cursor-ew-resize"],
+                                          ["nw", "Resize from the top left", "absolute -left-1.5 -top-1.5 z-10 size-3 cursor-nwse-resize"],
+                                          ["ne", "Resize from the top right", "absolute -right-1.5 -top-1.5 z-10 size-3 cursor-nesw-resize"],
+                                          ["sw", "Resize from the bottom left", "absolute -bottom-1.5 -left-1.5 z-10 size-3 cursor-nesw-resize"],
+                                          ["se", "Resize from the bottom right", "absolute -bottom-1.5 -right-1.5 z-10 size-3 cursor-nwse-resize"],
+                                      ] as const
+                                  ).map(([edge, label, handleClass]) => (
+                                      <span
+                                          key={edge}
+                                          role="separator"
+                                          data-resize-handle
+                                          aria-label={label}
+                                          onPointerDown={(event) =>
+                                              controller.startResize(
+                                                  event,
+                                                  element,
+                                                  edge,
+                                              )
+                                          }
+                                          className={`${handleClass} touch-none rounded-full border-2 border-white bg-emerald-600 shadow`}
+                                      />
+                                  ))
+                                : null}
                         </div>
                     );
                 })}
@@ -3138,7 +3171,7 @@ function TableCellFields({ element, cell, fields, onChange, fieldClass, labelCla
         ?? element.items?.[cell.row]?.[cell.column === 0 ? "label" : "value"];
     if (content === undefined) return null;
     const { row, column } = tableCellPosition(element, cell, fields);
-    const references = Array.from(content.matchAll(/\{\{\s*([a-z0-9_]+)\s*\}\}/g));
+    const references = Array.from(content.matchAll(/\{\{\s*([a-z0-9_]+)\s*}}/g));
     const setContent = (value: string) => onChange(element.cells
         ? { cells: element.cells.map((values, r) => values.map((text, c) => r === cell.row && c === cell.column ? value : text)) }
         : { items: element.items?.map((item, index) => index === cell.row

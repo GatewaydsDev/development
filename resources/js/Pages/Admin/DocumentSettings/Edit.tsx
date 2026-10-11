@@ -215,7 +215,6 @@ function emptyLayout(defaults: DocumentSettings): LayoutForm {
 }
 
 export default function Edit({
-    selected,
     selectedLayoutId,
     documents,
     formats,
@@ -233,11 +232,11 @@ export default function Edit({
         setData,
         setDefaults,
         post,
-        patch,
         processing,
         errors,
         isDirty,
         clearErrors,
+        transform,
     } = useForm<LayoutForm>(
         initialLayout
             ? {
@@ -261,6 +260,7 @@ export default function Edit({
                   ...settings,
               },
     );
+    const [layoutName, setLayoutName] = useState(initialLayout?.name ?? "New print layout");
     const elementsController = useLayoutElements(
         data.elements,
         (elements) => setData("elements", elements),
@@ -272,24 +272,30 @@ export default function Edit({
             footer: data.zone_colors?.footer ?? "",
         },
         (zone, color) => {
-            if (zone === "header") {
-                setData("header_background_color", color);
-            } else {
-                setData("zone_colors", {
-                    ...data.zone_colors,
-                    body: data.zone_colors?.body ?? "",
-                    footer: data.zone_colors?.footer ?? "",
-                    [zone]: color,
-                });
-            }
+            setData((current) =>
+                zone === "header"
+                    ? { ...current, header_background_color: color }
+                    : {
+                          ...current,
+                          zone_colors: {
+                              body: current.zone_colors?.body ?? "",
+                              footer: current.zone_colors?.footer ?? "",
+                              header_height: current.zone_colors?.header_height,
+                              [zone]: color,
+                          },
+                      },
+            );
         },
         data.zone_colors?.header_height ?? 160,
         (height) =>
-            setData("zone_colors", {
-                body: data.zone_colors?.body ?? "",
-                footer: data.zone_colors?.footer ?? "",
-                header_height: height,
-            }),
+            setData((current) => ({
+                ...current,
+                zone_colors: {
+                    body: current.zone_colors?.body ?? "",
+                    footer: current.zone_colors?.footer ?? "",
+                    header_height: height,
+                },
+            })),
     );
     const [search, setSearch] = useState("");
     const [previewLayout, setPreviewLayout] = useState<
@@ -329,27 +335,6 @@ export default function Edit({
         data.header_background_color,
         defaults.header_background_color,
     );
-    const tableHeaderColor = normalizeHex(
-        data.table_header_background_color,
-        defaults.table_header_background_color,
-    );
-    const previewColumns = useMemo(() => {
-        const currentDocument = selected.document;
-
-        if (currentDocument === "catalog") {
-            return ["Model", "Type", "Price"];
-        }
-
-        if (currentDocument.endsWith("_list")) {
-            return ["Name", "Number", "Status"];
-        }
-
-        if (currentDocument === "quotation") {
-            return ["Item", "Qty", "Amount"];
-        }
-
-        return ["Service", "Product", "Total"];
-    }, [selected.document]);
 
     const loadLayout = (layout: LayoutRecord) => {
         const values: LayoutForm = {
@@ -364,6 +349,7 @@ export default function Edit({
         };
         setData(values);
         setDefaults(values);
+        setLayoutName(values.name);
         clearErrors();
         setNewLayoutPdfNotes([]);
     };
@@ -384,8 +370,10 @@ export default function Edit({
         );
     };
 
+    const nameChanged = layoutName.trim() !== data.name;
+
     const selectLayout = (layout: LayoutRecord) => {
-        if (isDirty) {
+        if (isDirty || nameChanged) {
             setPendingLayoutChange({ kind: "select", layout });
             return;
         }
@@ -397,6 +385,7 @@ export default function Edit({
         const values = emptyLayout(defaults);
         setData(values);
         setDefaults(values);
+        setLayoutName(values.name);
         clearErrors();
         setNewLayoutPdfNotes([]);
         setNewLayoutDialog(false);
@@ -404,7 +393,7 @@ export default function Edit({
     };
 
     const addLayout = () => {
-        if (isDirty) {
+        if (isDirty || nameChanged) {
             setPendingLayoutChange({ kind: "new" });
             return;
         }
@@ -413,12 +402,21 @@ export default function Edit({
 
     const submit: FormEventHandler = (event) => {
         event.preventDefault();
+        const payload: LayoutForm = {
+            ...data,
+            name: layoutName.trim(),
+        };
+        transform(() => payload);
 
         const onSuccess = (page: { props: Record<string, unknown> }) => {
             const updatedProps = page.props as unknown as EditProps;
-            const savedLayout = updatedProps.layouts.find(
-                (layout) => layout.id === updatedProps.selectedLayoutId,
-            );
+            const savedLayout =
+                updatedProps.layouts.find(
+                    (layout) => layout.id === payload.layout_id,
+                ) ??
+                updatedProps.layouts.find(
+                    (layout) => layout.id === updatedProps.selectedLayoutId,
+                );
 
             if (savedLayout) {
                 loadLayout(savedLayout);
@@ -430,29 +428,34 @@ export default function Edit({
             toast.error(first ?? "The layout could not be saved.");
         };
 
+        const options = {
+            preserveScroll: true,
+            preserveState: "errors" as const,
+            onSuccess,
+            onError,
+        };
+
         if (data.layout_id === null) {
-            post(route("admin.document-settings.store"), {
-                preserveScroll: true,
-                onSuccess,
-                onError,
-            });
+            post(route("admin.document-settings.store"), options);
 
             return;
         }
 
-        patch(route("admin.document-settings.update", data.layout_id), {
-            preserveScroll: true,
-            onSuccess,
-            onError,
-        });
+        post(
+            route("admin.document-settings.update", {
+                layout: data.layout_id,
+            }),
+            options,
+        );
     };
 
     const toggleAssignment = (key: string) => {
-        const assignments = data.assignments.includes(key)
-            ? data.assignments.filter((assignment) => assignment !== key)
-            : [...data.assignments, key];
-
-        setData("assignments", assignments);
+        setData((current) => ({
+            ...current,
+            assignments: current.assignments.includes(key)
+                ? current.assignments.filter((assignment) => assignment !== key)
+                : [...current.assignments, key],
+        }));
     };
 
     return (
@@ -706,6 +709,14 @@ export default function Edit({
                         <form
                             id="print-layouts-form"
                             onSubmit={submit}
+                            onKeyDown={(event) => {
+                                if (
+                                    event.key === "Enter" &&
+                                    event.target instanceof HTMLInputElement
+                                ) {
+                                    event.preventDefault();
+                                }
+                            }}
                             className="space-y-6"
                         >
                             <FormActionFab
@@ -734,10 +745,9 @@ export default function Edit({
                                             />
                                             <TextInput
                                                 id="layout-name"
-                                                value={data.name}
+                                                value={layoutName}
                                                 onChange={(event) =>
-                                                    setData(
-                                                        "name",
+                                                    setLayoutName(
                                                         event.target.value,
                                                     )
                                                 }
@@ -754,8 +764,13 @@ export default function Edit({
                                                 Assign to documents and outputs
                                             </legend>
                                             <p className="mt-1 text-xs text-muted-foreground">
-                                                The same layout can be shared
-                                                across multiple combinations.
+                                                Check every document that should
+                                                offer this layout. Several
+                                                layouts can be offered for the
+                                                same document. Saving makes this
+                                                layout the default for each
+                                                output you check, and the others
+                                                stay available.
                                             </p>
                                             {data.assignments.length === 0 ? (
                                                 <p
@@ -824,70 +839,6 @@ export default function Edit({
                                                 message={errors.assignments}
                                             />
                                         </fieldset>
-                                    </CardContent>
-                                </Card>
-
-                                <Card className="overflow-hidden shadow-sm">
-                                    <CardHeader className="border-b border-border">
-                                        <div className="flex items-start justify-between gap-3">
-                                            <div>
-                                                <CardTitle>
-                                                    Live preview
-                                                </CardTitle>
-                                                <CardDescription className="mt-1">
-                                                    Use the toolbar to add
-                                                    components to the header,
-                                                    then select one in the
-                                                    preview to edit or drag it.
-                                                </CardDescription>
-                                            </div>
-                                            <span className="rounded-full border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground">
-                                                Sample
-                                            </span>
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent className="space-y-4 p-4 sm:p-6">
-                                        {newLayoutPdfNotes.length ? <ul role="status" className="space-y-1 text-sm text-muted-foreground">
-                                            {newLayoutPdfNotes.map((note) => <li key={note}>{note}</li>)}
-                                        </ul> : null}
-                                        <LayoutElementsFileInput
-                                            controller={elementsController}
-                                        />
-                                        <ImportPanel controller={elementsController} />
-                                        <LayoutElementsEditor
-                                            controller={elementsController}
-                                            error={errors.elements}
-                                        >
-                                            <div className="rounded-xl bg-muted/40 p-4 sm:p-6">
-                                                <DocumentPreview
-                                                    fullPage
-                                                    documentLabel={
-                                                        data.assignments[0]
-                                                            ? (assignmentOptions.find(
-                                                                  (option) =>
-                                                                      option.id ===
-                                                                      data
-                                                                          .assignments[0],
-                                                              )?.document ??
-                                                              "Bid")
-                                                            : "Bid"
-                                                    }
-                                                    textCase={data.text_case}
-                                                    headerColor={headerColor}
-                                                    tableHeaderColor={
-                                                        tableHeaderColor
-                                                    }
-                                                    columns={previewColumns}
-                                                    elements={data.elements}
-                                                    zoneColors={
-                                                        data.zone_colors
-                                                    }
-                                                    controller={
-                                                        elementsController
-                                                    }
-                                                />
-                                            </div>
-                                        </LayoutElementsEditor>
                                     </CardContent>
                                 </Card>
 
@@ -975,6 +926,55 @@ export default function Edit({
                                         </div>
                                     </CardContent>
                                 </Card>
+
+                                <Card className="overflow-hidden shadow-sm">
+                                    <CardHeader className="border-b border-border">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div>
+                                                <CardTitle>
+                                                    Live preview
+                                                </CardTitle>
+                                                <CardDescription className="mt-1">
+                                                    Use the toolbar to add
+                                                    components to the header,
+                                                    then select one in the
+                                                    preview to edit or drag it.
+                                                </CardDescription>
+                                            </div>
+                                            <span className="rounded-full border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                                                Sample
+                                            </span>
+                                        </div>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4 p-4 sm:p-6">
+                                        {newLayoutPdfNotes.length ? <ul role="status" className="space-y-1 text-sm text-muted-foreground">
+                                            {newLayoutPdfNotes.map((note) => <li key={note}>{note}</li>)}
+                                        </ul> : null}
+                                        <LayoutElementsFileInput
+                                            controller={elementsController}
+                                        />
+                                        <ImportPanel controller={elementsController} />
+                                        <LayoutElementsEditor
+                                            controller={elementsController}
+                                            error={errors.elements}
+                                        >
+                                            <div className="rounded-xl bg-muted/40 p-4 sm:p-6">
+                                                <DocumentPreview
+                                                    fullPage
+                                                    textCase={data.text_case}
+                                                    headerColor={headerColor}
+                                                    elements={data.elements}
+                                                    zoneColors={
+                                                        data.zone_colors
+                                                    }
+                                                    controller={
+                                                        elementsController
+                                                    }
+                                                />
+                                            </div>
+                                        </LayoutElementsEditor>
+                                    </CardContent>
+                                </Card>
                             </div>
                         </form>
                     </section>
@@ -1019,16 +1019,18 @@ export default function Edit({
                             <div className="flex items-start justify-between gap-3">
                                 <div>
                                     <DialogTitle className="text-lg font-semibold">Add new layout</DialogTitle>
-                                    <p className="mt-1 text-sm text-muted-foreground">Start blank or upload a PDF to reuse its design with blank editable text on every page.</p>
+                                    <p className="mt-1 text-sm text-muted-foreground">Start blank or upload a PDF to reuse its design. Choose whether the PDF text stays or is cleared.</p>
                                 </div>
                                 <Button type="button" variant="ghost" size="icon" aria-label="Cancel new layout" disabled={newLayoutImportBusy}
                                     onClick={() => setNewLayoutDialog(false)}><XIcon /></Button>
                             </div>
                             <ImportPanel controller={elementsController} pdfOnly onBusyChange={setNewLayoutImportBusy}
                                 onImported={(elements, filename, notes) => {
+                                    const name = filename.replace(/\.pdf$/i, "").slice(0, 120);
                                     const blank = emptyLayout(defaults);
                                     setDefaults(blank);
-                                    setData({ ...blank, name: filename.replace(/\.pdf$/i, "").slice(0, 120), elements });
+                                    setLayoutName(name);
+                                    setData({ ...blank, name, elements });
                                     clearErrors();
                                     setNewLayoutPdfNotes(notes);
                                     elementsController.setSelectedId(elements.find((element) => element.type === "text")?.id ?? null);
@@ -1081,24 +1083,10 @@ export default function Edit({
                                 <div className="max-h-[calc(100dvh-7rem)] overflow-y-auto bg-slate-100 p-4 dark:bg-slate-950 sm:p-8">
                                     <div className="mx-auto max-w-4xl">
                                         <DocumentPreview
-                                            documentLabel={
-                                                previewLayout.assignments[0]
-                                                    ? (assignmentOptions.find(
-                                                          (option) =>
-                                                              option.id ===
-                                                              previewLayout
-                                                                  .assignments[0],
-                                                      )?.document ?? "Bid")
-                                                    : "Bid"
-                                            }
                                             textCase={previewLayout.text_case}
                                             headerColor={
                                                 previewLayout.header_background_color
                                             }
-                                            tableHeaderColor={
-                                                previewLayout.table_header_background_color
-                                            }
-                                            columns={previewColumns}
                                             elements={previewLayout.elements}
                                             zoneColors={
                                                 previewLayout.zone_colors
@@ -1118,11 +1106,8 @@ export default function Edit({
 }
 
 function DocumentPreview({
-    documentLabel,
     textCase,
     headerColor,
-    tableHeaderColor,
-    columns,
     elements,
     controller,
     fields,
@@ -1130,24 +1115,15 @@ function DocumentPreview({
     fullPage = false,
 }: {
     zoneColors?: ZoneColors;
-    documentLabel: string;
     textCase: TextCase;
     headerColor: string;
-    tableHeaderColor: string;
-    columns: string[];
     elements: LayoutElement[];
     controller?: LayoutElementsController;
     fields?: MergeField[];
     fullPage?: boolean;
 }) {
     const headerText = contrastColor(headerColor);
-    const tableText = contrastColor(tableHeaderColor);
     const caseText = (value: string) => applyTextCase(value, textCase);
-    const previewRows = [
-        ["Automatic entrance system", "A-01", "$2,500.00"],
-        ["Fire-rated door assembly", "B-14", "$1,840.00"],
-        ["Installation and commissioning", "S-02", "$680.00"],
-    ];
 
     return (
         <article

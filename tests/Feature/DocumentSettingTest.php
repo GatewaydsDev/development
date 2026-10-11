@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\UserLevel;
 use App\Support\DocumentAppearance;
 use App\Support\DocumentLayoutElements;
+use App\Support\PrintLayoutCatalog;
 use App\Support\BidApplicationText;
 use Illuminate\Http\UploadedFile;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -91,6 +92,39 @@ test('only super admins can view and manage print layouts', function () {
             'text_case' => 'uppercase',
         ])
         ->assertForbidden();
+});
+
+test('saving an existing layout can post to the document settings address', function () {
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $admin = User::factory()->create(['level_id' => $level->id]);
+    $layout = PrintLayout::query()->firstOrFail();
+
+    $this->actingAs($admin)
+        ->patch(route('admin.document-settings.store'), [
+            'layout_id' => $layout->id,
+            'name' => 'Updated from the settings address',
+            'assignments' => ['bid.print'],
+            'header_background_color' => '#112233',
+            'table_header_background_color' => '#065f46',
+            'text_case' => 'original',
+            'elements' => [],
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect(route('admin.document-settings.edit', ['layout' => $layout->id]));
+
+    expect($layout->fresh()->name)->toBe('Updated from the settings address')
+        ->and(PrintLayout::query()->count())->toBe(1);
+
+    $this->post(route('admin.document-settings.update', $layout), [
+        'name' => 'Updated with a post',
+        'assignments' => ['bid.print'],
+        'header_background_color' => '#112233',
+        'table_header_background_color' => '#065f46',
+        'text_case' => 'original',
+        'elements' => [],
+    ])->assertSessionHasNoErrors();
+
+    expect($layout->fresh()->name)->toBe('Updated with a post');
 });
 
 test('a saved layout can be shared by multiple document outputs', function () {
@@ -285,13 +319,48 @@ test('updating assignments moves outputs from their previous layout', function (
 
     $newLayout = PrintLayout::query()->where('name', 'Shared output layout')->firstOrFail();
 
-    $assignedLayoutId = DocumentLayoutAssignment::query()
-        ->where('document_key', 'quotation.pdf')
-        ->value('print_layout_id');
-    expect($assignedLayoutId)->toBe($newLayout->id);
-    expect($assignedLayoutId)->not->toBe($previousLayout->id);
-    expect(DocumentLayoutAssignment::query()->where('document_key', 'project.word')->value('print_layout_id'))
-        ->toBe($newLayout->id);
+    expect(DocumentAppearance::assignedLayoutId('quotation', 'pdf'))->toBe($newLayout->id)
+        ->and(DocumentAppearance::assignedLayoutId('quotation', 'pdf'))->not->toBe($previousLayout->id)
+        ->and($previousLayout->assignments()->where('document_key', 'quotation.pdf')->exists())->toBeTrue()
+        ->and(DocumentAppearance::assignedLayoutId('project', 'word'))->toBe($newLayout->id);
+});
+
+test('every layout assigned to quotations is offered on the quotation form', function () {
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $admin = User::factory()->create(['level_id' => $level->id]);
+    $first = DocumentLayoutAssignment::query()->where('document_key', 'quotation.print')->firstOrFail()->layout;
+    $second = PrintLayout::query()->create([
+        'name' => 'Second quotation layout',
+        'design' => ['elements' => []],
+        'header_background_color' => '#1e3a8a',
+        'table_header_background_color' => '#0f172a',
+        'text_case' => 'original',
+    ]);
+    $payload = [
+        'name' => $second->name,
+        'assignments' => ['quotation.print', 'quotation.pdf', 'quotation.word'],
+        'header_background_color' => '#1e3a8a',
+        'table_header_background_color' => '#0f172a',
+        'text_case' => 'original',
+    ];
+
+    $this->actingAs($admin)
+        ->post(route('admin.document-settings.update', $second), $payload)
+        ->assertSessionHasNoErrors();
+
+    $ids = collect(PrintLayoutCatalog::forDocument('quotation')['printLayouts'])->pluck('id');
+    expect($ids)->toContain($first->id)
+        ->and($ids)->toContain($second->id)
+        ->and(DocumentAppearance::assignedLayoutId('quotation', 'print'))->toBe($second->id)
+        ->and($first->assignments()->where('document_key', 'quotation.print')->exists())->toBeTrue();
+
+    $this->get(route('admin.quotations.create'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where(
+            'options.printLayouts',
+            fn ($layouts) => collect($layouts)->pluck('id')->contains($first->id)
+                && collect($layouts)->pluck('id')->contains($second->id),
+        ));
 });
 
 test('unchecked document assignments are removed while other layouts stay assigned', function () {
@@ -331,6 +400,66 @@ test('unchecked document assignments are removed while other layouts stay assign
             );
     }
     expect(DocumentAppearance::assignedLayoutId('bid', 'print'))->toBeNull();
+});
+
+test('saving a layout keeps its components and document assignments on that layout', function () {
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $admin = User::factory()->create(['level_id' => $level->id]);
+    $layout = PrintLayout::query()->firstOrFail();
+    $other = PrintLayout::query()->create([
+        'name' => 'Unrelated catalog layout',
+        'design' => [],
+        'header_background_color' => '#ffffff',
+        'table_header_background_color' => '#065f46',
+        'text_case' => 'original',
+    ]);
+    DocumentLayoutAssignment::query()->where('document_key', 'catalog.word')->delete();
+    $other->assignments()->create(['document_key' => 'catalog.word']);
+
+    $this->actingAs($admin)->post(route('admin.document-settings.update', $layout), [
+        'layout_id' => $layout->id,
+        'name' => 'Customer install',
+        'assignments' => ['quotation.print', 'quotation.pdf', 'quotation.word'],
+        'header_background_color' => '#ffffff',
+        'table_header_background_color' => '#065f46',
+        'text_case' => 'original',
+        'zone_colors' => ['body' => '#f8fafc', 'footer' => '', 'header_height' => 905.88],
+        'elements' => [[
+            'id' => 'kept-text', 'type' => 'text', 'zone' => 'header',
+            'content' => "  PRICE QUOTATION\nInstall bid  ",
+            'x' => 3.5, 'y' => 37.75, 'width' => 40.25, 'height' => 20.5,
+            'pdf_page' => 'pdf-pageone', 'pdf_page_height' => 905.88,
+        ], [
+            'id' => 'kept-table', 'type' => 'table', 'zone' => 'header',
+            'cells' => [['Project', '  Harbor  '], ['', '']],
+            'pdf_page' => 'pdf-pageone', 'pdf_page_height' => 905.88,
+            'column_colors' => ['#111111', '#222222', '#333333', '#444444', '#555555', '#666666', '#777777'],
+        ]],
+    ])->assertSessionHasNoErrors()
+        ->assertRedirect(route('admin.document-settings.edit', ['layout' => $layout->id]));
+
+    $saved = $layout->fresh();
+    expect($saved->name)->toBe('Customer install')
+        ->and($saved->assignments()->pluck('document_key')->sort()->values()->all())
+        ->toBe(['quotation.pdf', 'quotation.print', 'quotation.word'])
+        ->and($saved->design['elements'][0]['content'])->toBe("  PRICE QUOTATION\nInstall bid  ")
+        ->and($saved->design['elements'][1]['cells'][0][1])->toBe('  Harbor  ')
+        ->and($saved->design['elements'][1]['column_colors'][6])->toBe('#777777')
+        ->and($saved->design['zone_colors']['header_height'])->toBe(905.88)
+        ->and($saved->design['zone_colors']['body'])->toBe('#f8fafc')
+        ->and(DocumentLayoutAssignment::query()->where('document_key', 'catalog.word')->value('print_layout_id'))->toBe($other->id);
+
+    $this->get(route('admin.document-settings.edit', ['layout' => $layout->id]))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('selectedLayoutId', $layout->id)
+            ->where('layouts', function ($layouts) use ($layout) {
+                $savedLayout = collect($layouts)->firstWhere('id', $layout->id);
+
+                return $savedLayout['name'] === 'Customer install'
+                    && collect($savedLayout['assignments'])->sort()->values()->all() === ['quotation.pdf', 'quotation.print', 'quotation.word']
+                    && $savedLayout['elements'][0]['content'] === "  PRICE QUOTATION\nInstall bid  "
+                    && $savedLayout['elements'][1]['cells'][0][1] === '  Harbor  ';
+            }));
 });
 
 test('an existing layout can be edited without replacing its custom design', function () {
@@ -986,7 +1115,7 @@ test('invalid row styles are sanitized without shifting row indices', function (
             'width' => 100, 'font_size' => 100,
         ], ['bold' => false]],
     ]])[0];
-    expect($element['row_styles'])->toBe([null, ['font_size' => 48], ['bold' => false]]);
+    expect($element['row_styles'])->toBe([null, ['font_size' => 48, 'line_height' => 4.0], ['bold' => false]]);
 });
 
 test('expanded print layout fonts persist and render their font stack', function (string $font) {

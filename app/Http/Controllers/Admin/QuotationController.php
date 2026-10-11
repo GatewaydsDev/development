@@ -22,6 +22,9 @@ use App\Models\QuotationTitle;
 use App\Models\User;
 use App\Support\BidAccess;
 use App\Support\BidApplicationText;
+use App\Support\DocumentAppearance;
+use App\Support\DocumentLayoutElements;
+use App\Support\DocumentTextCase;
 use App\Support\PrintLayoutCatalog;
 use App\Support\QuotationAccess;
 use App\Support\QuotationDocument;
@@ -188,6 +191,7 @@ class QuotationController extends Controller
                 'print_layout_id' => $validated['print_layout_id'] ?? null,
                 'print_layout_version' => $validated['print_layout_version'] ?? null,
                 'layout_header' => $validated['layout_header'] ?? null,
+                'layout_elements' => $validated['layout_elements'] ?? null,
                 ...$this->proposalTitleAttributes($validated),
                 'pricing_conditions' => $validated['pricing_conditions'] ?? null,
                 'pricing_basis' => $validated['pricing_basis'] ?? null,
@@ -309,6 +313,7 @@ class QuotationController extends Controller
                 'print_layout_id' => array_key_exists('print_layout_id', $validated) ? $validated['print_layout_id'] : $quotation->print_layout_id,
                 'print_layout_version' => $validated['print_layout_version'] ?? $quotation->print_layout_version,
                 'layout_header' => array_key_exists('layout_header', $validated) ? $validated['layout_header'] : $quotation->layout_header,
+                'layout_elements' => array_key_exists('layout_elements', $validated) ? $validated['layout_elements'] : $quotation->layout_elements,
                 ...$this->proposalTitleAttributes($validated),
                 'pricing_conditions' => $validated['pricing_conditions'] ?? null,
                 'pricing_basis' => $validated['pricing_basis'] ?? null,
@@ -380,6 +385,11 @@ class QuotationController extends Controller
             'print_layout_id' => ['nullable', 'integer', Rule::exists(PrintLayout::class, 'id')],
             'print_layout_version' => ['nullable', 'string', 'regex:/^[a-f0-9]{64}$/'],
             'layout_header' => ['nullable', 'string', 'max:250000'],
+            'layout_elements' => ['nullable', 'array'],
+            'layout_elements.elements' => ['nullable', 'array', 'max:1000'],
+            'layout_elements.header_height' => ['nullable', 'numeric', 'between:60,4000'],
+            'layout_elements.header_background' => ['nullable', 'string', 'max:32'],
+            'layout_elements.text_case' => ['nullable', 'string', 'max:20'],
             'proposal_title' => ['nullable', 'string', 'max:255'],
             'pricing_conditions' => ['nullable', 'string', 'max:250000'],
             'pricing_basis' => ['nullable', 'string', 'max:250000'],
@@ -451,6 +461,9 @@ class QuotationController extends Controller
         $validated['notes'] = $this->sanitizedHtml($validated['notes'] ?? null);
         if (array_key_exists('layout_header', $validated)) {
             $validated['layout_header'] = $this->sanitizedHtml($validated['layout_header']);
+        }
+        if (array_key_exists('layout_elements', $validated)) {
+            $validated['layout_elements'] = $this->storedLayoutElements($validated['layout_elements']);
         }
         $validated['proposal_title'] = $this->proposalTitleValue($validated['proposal_title'] ?? null);
         $validated['pricing_conditions'] = $this->sanitizedHtml($validated['pricing_conditions'] ?? null);
@@ -742,6 +755,7 @@ class QuotationController extends Controller
             'print_layout_id' => $quotation->print_layout_id,
             'print_layout_version' => $quotation->print_layout_version,
             'layout_header' => $summary ? null : $this->sanitizedHtml($quotation->layout_header),
+            'layout_elements' => $summary ? null : $quotation->layout_elements,
             'proposal_title' => $quotation->proposalTitle(),
             'pricing_conditions' => $this->sanitizedHtml($quotation->pricing_conditions),
             'pricing_basis' => $this->sanitizedHtml($quotation->pricing_basis),
@@ -912,6 +926,30 @@ class QuotationController extends Controller
         return $sanitized && ! BidApplicationText::isEmpty($sanitized)
             ? $sanitized
             : null;
+    }
+
+    /**
+     * @return array{elements: list<array<string, mixed>>, header_height: float, header_background: string, text_case: string}|null
+     */
+    private function storedLayoutElements(mixed $design): ?array
+    {
+        if (! is_array($design)) {
+            return null;
+        }
+
+        $height = is_numeric($design['header_height'] ?? null) ? (float) $design['header_height'] : 160;
+
+        return [
+            'elements' => DocumentLayoutElements::sanitize($design['elements'] ?? []),
+            'header_height' => round(max(60, min(4000, $height)), 2),
+            'header_background' => DocumentAppearance::normalize(
+                is_string($design['header_background'] ?? null) ? $design['header_background'] : null,
+                '#ffffff',
+            ),
+            'text_case' => DocumentTextCase::normalize(
+                is_string($design['text_case'] ?? null) ? $design['text_case'] : null,
+            ),
+        ];
     }
 
     private function quotationDocument(Request $request, Quotation $quotation): QuotationDocument

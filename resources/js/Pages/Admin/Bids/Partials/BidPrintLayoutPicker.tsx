@@ -13,6 +13,7 @@ export default function BidPrintLayoutPicker({
     onSelect,
     document = 'bid',
     disabled = false,
+    confirm = true,
 }: {
     layouts: PrintLayoutOption[];
     assignedLayoutId?: number | null;
@@ -20,6 +21,7 @@ export default function BidPrintLayoutPicker({
     onSelect: (id: string) => void;
     document?: 'bid' | 'quotation';
     disabled?: boolean;
+    confirm?: boolean;
 }) {
     const assigned = layouts.find((layout) => layout.id === assignedLayoutId);
     const selectedId = value || (assigned ? String(assigned.id) : '');
@@ -29,10 +31,9 @@ export default function BidPrintLayoutPicker({
             <div className="flex flex-col gap-1">
                 <h3 id={`${document}-print-layout-heading`} className="text-sm font-medium">Print layout</h3>
                 <p className="text-sm text-muted-foreground">
-                    Choose a layout card to load its text, tables and images.
-                    Select the current card again to reload its latest saved version.
-                    You will confirm before replacing the {document === 'bid' ? 'bid information' : 'quotation header'}.
-                    Use Layout sections in the editor toolbar to add one piece at a time.
+                    {confirm
+                        ? `Choose a layout card to load its text, tables and images. Select the current card again to reload its latest saved version. You will confirm before replacing the ${document === 'bid' ? 'bid information' : 'quotation header'}. Use Layout sections in the editor toolbar to add one piece at a time.`
+                        : 'Choose a layout card and its text, tables, and images are placed on the page. Select the current card again to reload the latest saved version.'}
                 </p>
             </div>
             {layouts.length === 0 ? (

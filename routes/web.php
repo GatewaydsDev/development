@@ -163,7 +163,7 @@ Route::middleware(['auth', 'prevent-back-history'])
             ->name('document-settings.edit');
         Route::get('/document-layouts/{document}', [DocumentSettingController::class, 'catalog'])
             ->name('document-layouts.catalog');
-        Route::post('/document-settings', [DocumentSettingController::class, 'store'])
+        Route::match(['post', 'patch'], '/document-settings', [DocumentSettingController::class, 'store'])
             ->name('document-settings.store');
         Route::post('/document-settings/import', [DocumentSettingController::class, 'importFile'])
             ->name('document-settings.import');
@@ -171,7 +171,7 @@ Route::middleware(['auth', 'prevent-back-history'])
             ->name('document-settings.images');
         Route::post('/document-settings/pdf-fonts', [DocumentSettingController::class, 'uploadPdfFont'])
             ->name('document-settings.pdf-fonts');
-        Route::patch('/document-settings/{layout}', [DocumentSettingController::class, 'update'])
+        Route::match(['post', 'patch'], '/document-settings/{layout}', [DocumentSettingController::class, 'update'])
             ->name('document-settings.update');
 
         Route::get('/account', [AccountController::class, 'edit'])
