@@ -172,6 +172,33 @@ export function detectPdfTables(lines: PdfTableLine[]): PdfTableGrid[] {
     return collectPdfTables(lines);
 }
 
+function sampledCellColor(
+    background: (x: number, y: number) => string,
+    left: number, right: number, top: number, bottom: number,
+): string {
+    const samples: string[] = [];
+    for (const x of [0.2, 0.5, 0.8]) {
+        for (const y of [0.35, 0.65]) {
+            samples.push(background(left + (right - left) * x, top + (bottom - top) * y).toLowerCase());
+        }
+    }
+    const counts = new Map<string, number>();
+    for (const sample of samples) {
+        if (paintIsWhite(sample)) continue;
+        counts.set(sample, (counts.get(sample) ?? 0) + 1);
+    }
+    let best = '';
+    let count = 0;
+    for (const [color, votes] of counts) if (votes > count) { best = color; count = votes; }
+    if (best && count >= 2) return best;
+    const all = new Map<string, number>();
+    for (const sample of samples) all.set(sample, (all.get(sample) ?? 0) + 1);
+    let common = samples[0] ?? '#ffffff';
+    let commonCount = 0;
+    for (const [color, votes] of all) if (votes > commonCount) { common = color; commonCount = votes; }
+    return common;
+}
+
 export function editablePdfTables(
     grids: PdfTableGrid[], fragments: PdfTextFragment[], base: LayoutElement,
     background: (x: number, y: number) => string,
@@ -248,11 +275,13 @@ export function editablePdfTables(
                     : raw && raw === raw.toLowerCase() && raw !== raw.toUpperCase() ? 'lowercase' : 'original',
             };
         }
+        const cellBackgrounds = completeRowBackgrounds(colors);
+        const cellBorders = completeTableEdges(borders, cellBackgrounds);
         return { ...base, id: `pdf-${crypto.randomUUID().replaceAll('-', '').slice(0, 24)}`, type: 'table' as const,
             pdf_background: false, pdf_font_src: undefined, pdf_font_name: undefined,
             x: xs[0] / PRINT_LAYOUT_WIDTH * 100, y: ys[0],
             width: (xs.at(-1)! - xs[0]) / PRINT_LAYOUT_WIDTH * 100, height: ys.at(-1)! - ys[0],
-            cells, cell_styles: styles, cell_spans: spans, cell_backgrounds: colors, cell_borders: borders,
+            cells, cell_styles: styles, cell_spans: spans, cell_backgrounds: cellBackgrounds, cell_borders: cellBorders,
             column_widths: xs.slice(1).map((x, index) => (x - xs[index]) / (xs.at(-1)! - xs[0]) * 100),
             row_heights: ys.slice(1).map((y, index) => y - ys[index]), border: true, table_background: '#ffffff',
             text_case: 'original' as const, line_height: 1,
