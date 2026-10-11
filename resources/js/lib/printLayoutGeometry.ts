@@ -80,21 +80,120 @@ export function tableTextStyle(
 }
 
 const tableBorderSides = ['top', 'right', 'bottom', 'left'] as const;
+type TableBorderSide = (typeof tableBorderSides)[number];
+type CellBorder = { top: string; right: string; bottom: string; left: string };
+
+function hexChannels(color: string): [number, number, number] | null {
+    const match = color.trim().match(/#([0-9a-f]{3}|[0-9a-f]{6})\b/i);
+    if (!match) return null;
+    const hex = match[1].length === 3 ? match[1].split('').map(channel => channel + channel).join('') : match[1];
+    return [parseInt(hex.slice(0, 2), 16), parseInt(hex.slice(2, 4), 16), parseInt(hex.slice(4, 6), 16)];
+}
+
+function colorLuminance(color: string): number | null {
+    const channels = hexChannels(color);
+    if (!channels) return null;
+    return (0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]) / 255;
+}
+
+/** Near-white paints are gaps in a sampled row, not a stripe. Light gray stays distinct. */
+export function paintIsWhite(color: string | undefined): boolean {
+    const channels = color ? hexChannels(color) : null;
+    return !!channels && channels.every(channel => channel >= 250);
+}
+
+/** A white stroke disappears on a light cell. The same stroke can still show on a dark header. */
+export function borderIsVisible(value: string | undefined, background?: string): boolean {
+    if (!value || value === 'none') return false;
+    const luminance = colorLuminance(value);
+    if (luminance === null || luminance < 0.93) return true;
+    const backgroundLuminance = background ? colorLuminance(background) : null;
+    return backgroundLuminance !== null && backgroundLuminance < 0.75;
+}
+
+function mostCommon(values: string[]): string {
+    const counts = new Map<string, number>();
+    for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1);
+    let best = '';
+    let count = 0;
+    for (const [value, votes] of counts) if (votes > count) { best = value; count = votes; }
+    return best;
+}
+
+/**
+ * A PDF grid line is often detected on only part of a row or column.
+ * Copy the visible stroke across that whole edge so the line does not stop early.
+ */
+export function completeTableEdges(borders: CellBorder[][], backgrounds?: string[][]): CellBorder[][] {
+    const rows = borders.length;
+    const columns = borders[0]?.length ?? 0;
+    const next = borders.map(row => row.map(cell => ({ ...cell })));
+    for (let row = 0; row < rows; row++) {
+        for (const side of ['top', 'bottom'] as const) {
+            const chosen = mostCommon(next[row].map(cell => borderIsVisible(cell[side]) ? cell[side] : '').filter(Boolean));
+            if (!chosen) continue;
+            next[row].forEach((cell, column) => {
+                if (!borderIsVisible(cell[side], backgrounds?.[row]?.[column])) cell[side] = chosen;
+            });
+        }
+    }
+    for (let column = 0; column < columns; column++) {
+        for (const side of ['left', 'right'] as const) {
+            const chosen = mostCommon(next.map(row => borderIsVisible(row[column]?.[side]) ? row[column][side] : '').filter(Boolean));
+            if (!chosen) continue;
+            next.forEach((row, rowIndex) => {
+                if (row[column] && !borderIsVisible(row[column][side], backgrounds?.[rowIndex]?.[column])) row[column][side] = chosen;
+            });
+        }
+    }
+    return next;
+}
+
+/**
+ * Paint a sampled row so a stripe reaches every column.
+ * A balanced label/value pattern (gray, white, gray, white) is left alone.
+ * A dark bar with a different accent at the end keeps that accent and fills the gap in between.
+ */
+export function completeRowBackgrounds(colors: string[][]): string[][] {
+    return colors.map(row => {
+        const next = [...row];
+        const first = next[0];
+        const last = next[next.length - 1];
+        if (next.length > 2 && first && last && !paintIsWhite(first) && !paintIsWhite(last) && first.toLowerCase() !== last.toLowerCase()) {
+            let accent = next.length - 1;
+            while (accent > 0 && (next[accent] ?? '').toLowerCase() === last.toLowerCase()) accent -= 1;
+            for (let index = 0; index <= accent; index++) {
+                if (!next[index] || paintIsWhite(next[index])) next[index] = first;
+            }
+            return next;
+        }
+        const colored = next.filter(color => color && !paintIsWhite(color));
+        const best = mostCommon(colored.map(color => color.toLowerCase()));
+        const bestCount = best ? colored.filter(color => color.toLowerCase() === best).length : 0;
+        const whites = next.length - colored.length;
+        if (best && bestCount > whites) return next.map(color => !color || paintIsWhite(color) ? best : color);
+        return next;
+    });
+}
 
 export function tableEdgeBorder(
     element: TableStriping & { border?: boolean; border_color?: string },
     row: number,
     column: number,
-    side: (typeof tableBorderSides)[number],
+    side: TableBorderSide,
 ): string {
-    const own = element.cell_borders?.[row]?.[column]?.[side];
-    if (own && own !== 'none') return own;
+    const background = element.cell_backgrounds?.[row]?.[column];
+    const borders = element.cell_borders;
+    if (borders?.length) {
+        const own = completeTableEdges(borders, element.cell_backgrounds)[row]?.[column]?.[side];
+        if (borderIsVisible(own, background)) return own!;
+    }
     if (element.border === false) return 'none';
-    for (const borders of element.cell_borders ?? []) {
-        for (const cell of borders ?? []) {
-            for (const edge of tableBorderSides) {
-                const value = cell?.[edge];
-                if (value && value !== 'none') return value;
+    for (const edge of element.cell_borders ?? []) {
+        for (const cell of edge ?? []) {
+            for (const edgeSide of tableBorderSides) {
+                const value = cell?.[edgeSide];
+                if (borderIsVisible(value)) return value!;
             }
         }
     }
@@ -107,7 +206,14 @@ export function tableStripeColor(
     column: number,
     sourceRow = row,
 ): string | undefined {
-    if (!element.stripe_direction || element.stripe_direction === 'none') return element.cell_backgrounds?.[sourceRow]?.[column] || element.table_background || undefined;
+    if (!element.stripe_direction || element.stripe_direction === 'none') {
+        const rowColors = element.cell_backgrounds?.[sourceRow];
+        if (rowColors?.length) {
+            const color = completeRowBackgrounds([rowColors])[0]?.[column];
+            if (color) return color;
+        }
+        return element.table_background || undefined;
+    }
     const index = element.stripe_direction === 'columns' ? column : row;
     return index % 2 === 0
         ? element.stripe_color_a || '#ffffff'

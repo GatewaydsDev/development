@@ -33,6 +33,7 @@ export type PrintLayoutElement = TableStriping & PdfLayoutElement & {
     y?: number;
     width?: number;
     height?: number;
+    orientation?: 'horizontal' | 'vertical';
     font_size?: number;
     font_family?: string;
     text_case?: string;
@@ -394,6 +395,17 @@ function build(
     }
 
     if (element.type === 'divider') {
+        if (element.orientation === 'vertical') {
+            const length = element.height ?? 120;
+
+            return {
+                ...base,
+                h: length,
+                label: 'Vertical divider',
+                html: `<div style="width:100%;height:${length}px;background:${element.color || '#111827'}"></div>`,
+            };
+        }
+
         return {
             ...base,
             h: (element.height ?? 2) + 12,
@@ -836,7 +848,9 @@ export function positionedLayoutSections(
             .join('');
         const x = Number((item.x * pageWidthPx / 100).toFixed(2));
         const width = Number((item.w * pageWidthPx / 100).toFixed(2));
-        const height = element.type === 'spacer' || element.pdf_page ? element.height ?? 24 : 0;
+        const height = element.type === 'spacer' || element.pdf_page || (element.type === 'divider' && element.orientation === 'vertical')
+            ? element.height ?? 24
+            : 0;
         const stack = element.pdf_background ? 0 : element.type === 'table' ? 2 : 1;
         const boxStyle = `position: absolute; left: ${x}px; top: ${item.y}px; width: ${width}px; min-height: ${height}px; z-index: ${stack}`;
         children.push(`<div data-position-item="true"${element.pdf_background ? ' data-pdf-background="true"' : ''} data-x="${x}" data-y="${item.y}" data-width="${width}" data-height="${height}" style="${boxStyle}">${content || '<p></p>'}</div>`);

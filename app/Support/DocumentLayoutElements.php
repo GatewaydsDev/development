@@ -382,7 +382,9 @@ class DocumentLayoutElements
 
         return match ($element['type'] ?? 'text') {
             'image' => 80,
-            'divider' => max(1, (int) ($element['height'] ?? 2)) + 12,
+            'divider' => ($element['orientation'] ?? '') === 'vertical'
+                ? max(1, (int) ($element['height'] ?? 120))
+                : max(1, (int) ($element['height'] ?? 2)) + 12,
             'spacer' => max(1, (int) ($element['height'] ?? 16)),
             'table' => isset($element['cells'])
                 ? max(1, count($element['cells'])) * 32
@@ -415,7 +417,11 @@ class DocumentLayoutElements
             $src = (string) ($element['src'] ?? '');
 
             $pdfPage = is_string($element['pdf_page'] ?? null) && preg_match('/^[A-Za-z0-9_-]{1,40}$/', $element['pdf_page']) === 1;
-            $width = $pdfPage ? max(0.1, min(100, (float) ($element['width'] ?? 100))) : max(5, min(100, (int) ($element['width'] ?? 100)));
+            $verticalDivider = ($element['type'] ?? null) === 'divider' && ($element['orientation'] ?? null) === 'vertical';
+            $width = $pdfPage ? max(0.1, min(100, (float) ($element['width'] ?? 100)))
+                : ($verticalDivider
+                    ? round(max(0.15, min(20, (float) ($element['width'] ?? 0.3))), 2)
+                    : max(5, min(100, (int) ($element['width'] ?? 100))));
             $align = in_array($element['align'] ?? null, self::ALIGNMENTS, true) ? $element['align'] : 'left';
             $hasPosition = isset($element['x'], $element['y']) && is_numeric($element['x']) && is_numeric($element['y']);
             $x = $hasPosition
@@ -433,6 +439,9 @@ class DocumentLayoutElements
                 'x' => round(max(0, min(100 - $width, $x)), $pdfPage ? 6 : 1),
                 'y' => $pdfPage ? round(max(0, min(4000, $y)), 4) : (int) max(0, min(2000, $y)),
                 'type' => $element['type'],
+                ...($element['type'] === 'divider' ? [
+                    'orientation' => $verticalDivider ? 'vertical' : 'horizontal',
+                ] : []),
                 'zone' => in_array($element['zone'] ?? null, ['intro', 'body', 'footer'], true) ? $element['zone'] : 'header',
                 'content' => mb_substr((string) ($element['content'] ?? ''), 0, 20000),
                 'src' => EditorImage::isStoredSrc($src) ? $src : '',
@@ -783,6 +792,10 @@ class DocumentLayoutElements
                 return '<div style="'.$wrapper.'padding:'.(! empty($element['pdf_background']) ? '0' : '4px 0').';"><img src="'.e($element['src']).'" alt="" style="display:block;width:100%;height:auto;"></div>';
 
             case 'divider':
+                if (($element['orientation'] ?? 'horizontal') === 'vertical') {
+                    return '<div style="width:100%;height:'.max(1, (int) $element['height']).'px;background:'.$color.';"></div>';
+                }
+
                 return '<div style="'.$wrapper.'height:0;margin-top:6px;margin-bottom:6px;border-top:'.$element['height'].'px solid '.$color.';"></div>';
 
             case 'spacer':

@@ -128,8 +128,8 @@
             .toolbar-inner { width: min(100% - 1rem, 100%); max-width: 100%; margin: 0 auto; padding: 12px 16px; display: flex; justify-content: space-between; gap: 12px; align-items: center; }
             .toolbar strong { display: block; font-size: 15px; }
             .actions { display: flex; flex-wrap: wrap; gap: 8px; }
-            .actions a, .actions button { appearance: none; border: 0; border-radius: 999px; padding: 9px 14px; font: inherit; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; color: {{ $c['title'] }}; background: {{ $c['highlight_bg'] }}; }
-            .actions .primary { background: {{ $c['button'] }}; }
+            .actions a, .actions button { appearance: none; border: 1px solid #d1d5db; border-radius: 999px; padding: 9px 14px; font: inherit; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; color: #111827; background: #ffffff; }
+            .actions .primary { color: #ffffff; background: #065f46; border-color: #065f46; }
             .page { width: min(100% - 1rem, 100%); max-width: 100%; margin: 24px auto 40px; overflow: hidden; border-radius: 20px; box-shadow: 0 24px 60px rgba(15, 23, 42, 0.14); }
             @media (min-width: 768px) {
                 .toolbar-inner, .page { width: min(100% - 1.5rem, 960px); max-width: 960px; }

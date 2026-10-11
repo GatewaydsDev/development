@@ -32,7 +32,7 @@ export default function BidPrintLayoutPicker({
                 <h3 id={`${document}-print-layout-heading`} className="text-sm font-medium">Print layout</h3>
                 <p className="text-sm text-muted-foreground">
                     {confirm
-                        ? `Choose a layout card to load its text, tables and images. Select the current card again to reload its latest saved version. You will confirm before replacing the ${document === 'bid' ? 'bid information' : 'quotation header'}. Use Layout sections in the editor toolbar to add one piece at a time.`
+                        ? `Choose a layout card to load its text, tables and images. Select the current card again to reload its latest saved version. You will confirm before switching layouts and replacing the ${document === 'bid' ? 'bid information' : 'layout on the page'}.${document === 'bid' ? ' Use Layout sections in the editor toolbar to add one piece at a time.' : ''}`
                         : 'Choose a layout card and its text, tables, and images are placed on the page. Select the current card again to reload the latest saved version.'}
                 </p>
             </div>

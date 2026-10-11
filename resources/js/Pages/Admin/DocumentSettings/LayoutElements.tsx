@@ -96,6 +96,7 @@ export type LayoutElement = TableStriping & PdfLayoutElement & {
     list_style?: "none" | "bullet" | "numbered";
     validity_days?: 30 | 60 | 90;
     text_case: ElementCase;
+    orientation?: "horizontal" | "vertical";
     inline?: boolean;
     x?: number;
     y?: number;
@@ -218,16 +219,18 @@ function createElement(type: ElementType, zone: ElementZone): LayoutElement {
 }
 
 const elementLabel = (element: LayoutElement) =>
-    ({
-        text: "Text",
-        image: "Image",
-        divider: "Divider",
-        spacer: "Spacer",
-        date: "Date",
-        validity: "Validity",
-        company: "Company info",
-        table: "Info table",
-    })[element.type];
+    element.type === "divider" && element.orientation === "vertical"
+        ? "Vertical divider"
+        : ({
+              text: "Text",
+              image: "Image",
+              divider: "Divider",
+              spacer: "Spacer",
+              date: "Date",
+              validity: "Validity",
+              company: "Company info",
+              table: "Info table",
+          })[element.type];
 
 function TableRowSelector({ row, onSelect }: { row: number; onSelect: (row: number) => void }) {
     return <button type="button" className="table-row-selector"
@@ -290,6 +293,19 @@ export function ElementPreview({
     }
 
     if (element.type === "divider") {
+        if (element.orientation === "vertical") {
+            return (
+                <div
+                    style={{
+                        width: "100%",
+                        height: "100%",
+                        minHeight: element.height,
+                        backgroundColor: element.color || "#111827",
+                    }}
+                />
+            );
+        }
+
         return (
             <div
                 style={{
@@ -779,7 +795,8 @@ export function useLayoutElements(
     headerHeight = 160,
     setHeaderHeight: (height: number) => void = () => {},
 ) {
-    const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [selectedId, setSelectedIdState] = useState<string | null>(null);
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [selectedColumn, setSelectedColumn] = useState<{ id: string; index: number } | null>(null);
     const [selectedRow, setSelectedRow] = useState<{ id: string; index: number } | null>(null);
     const [selectedCell, setSelectedCell] = useState<{ id: string; row: number; column: number } | null>(null);
@@ -791,6 +808,21 @@ export function useLayoutElements(
     const fileInputRef = useRef<HTMLInputElement>(null);
     const pendingImageFor = useRef<string | null>(null);
     const canvasRefs = useRef<Partial<Record<ElementZone, HTMLDivElement | null>>>({});
+    const setSelectedId = (id: string | null) => {
+        setSelectedIdState(id);
+        setSelectedIds(id ? [id] : []);
+    };
+    const toggleSelected = (id: string) => {
+        const base = selectedIds.length > 0 ? selectedIds : selectedId ? [selectedId] : [];
+        const next = base.includes(id) ? base.filter((item) => item !== id) : [...base, id];
+        setSelectedIds(next);
+        setSelectedIdState(next[next.length - 1] ?? null);
+    };
+    const replaceSelection = (ids: string[]) => {
+        const next = [...new Set(ids)];
+        setSelectedIds(next);
+        setSelectedIdState(next[next.length - 1] ?? null);
+    };
 
     const selected = elements.find((element) => element.id === selectedId);
     useEffect(() => {
@@ -812,7 +844,8 @@ export function useLayoutElements(
         if (selectedCell && !activeCell) setSelectedCell(null);
     }, [selectedCell, activeCell]);
     const selectRow = (id: string, index: number | null) => {
-        setSelectedId(id);
+        setSelectedIdState(id);
+        setSelectedIds((current) => current.includes(id) ? current : [id]);
         setSelectedColumn(null);
         setSelectedCell(null);
         setSelectedRow(index === null ? null : { id, index });
@@ -823,7 +856,8 @@ export function useLayoutElements(
         setSelectedColumn(column);
     };
     const selectCell = (id: string, row: number, column: number) => {
-        setSelectedId(id);
+        setSelectedIdState(id);
+        setSelectedIds((current) => current.includes(id) ? current : [id]);
         setSelectedRow(null);
         setSelectedColumn(null);
         setSelectedCell({ id, row, column });
@@ -879,8 +913,8 @@ export function useLayoutElements(
         )).map((node) => node.getBoundingClientRect().bottom),
     );
 
-    const add = (type: ElementType, zone: ElementZone = targetZone, grid = false) => {
-        const element = createElement(type, zone);
+    const add = (type: ElementType, zone: ElementZone = targetZone, grid = false, patch: Partial<LayoutElement> = {}) => {
+        const element = { ...createElement(type, zone), ...patch };
         const pageElement = elements.find((item) => item.pdf_page === targetPage && targetPage);
         if (pageElement) {
             element.pdf_page = pageElement.pdf_page;
@@ -941,6 +975,17 @@ export function useLayoutElements(
         }
 
         onChange(next);
+        setSelectedId(null);
+    };
+
+    const removeSelected = () => {
+        const ids = new Set(selectedIds.length > 0 ? selectedIds : selectedId ? [selectedId] : []);
+
+        if (ids.size === 0) {
+            return;
+        }
+
+        onChange(elements.filter((element) => !ids.has(element.id)));
         setSelectedId(null);
     };
 
@@ -1096,10 +1141,10 @@ export function useLayoutElements(
         const east = edge.includes("e");
         const north = edge.includes("n");
         const south = edge.includes("s");
-        const minWidth = element.pdf_page ? 0.1 : 5;
+        const minWidth = element.pdf_page || (element.type === "divider" && element.orientation === "vertical") ? 0.1 : 5;
         const maxHeight = element.pdf_page ? 4000 : 400;
         const round = (value: number) =>
-            element.pdf_page
+            element.pdf_page || (element.type === "divider" && element.orientation === "vertical")
                 ? Math.round(value * 100) / 100
                 : Math.round(value);
 
@@ -1154,6 +1199,7 @@ export function useLayoutElements(
     const startMove = (
         event: ReactPointerEvent<HTMLElement>,
         element: LayoutElement,
+        moveIds: string[] = [element.id],
     ) => {
         if (
             event.button !== 0 ||
@@ -1175,8 +1221,14 @@ export function useLayoutElements(
         node.setPointerCapture(event.pointerId);
         const startX = event.clientX;
         const startY = event.clientY;
-        const originX = element.x ?? 0;
-        const originY = element.y ?? 0;
+        const snapshot = elements;
+        const origins = snapshot.filter((item) =>
+            moveIds.includes(item.id) &&
+            !item.pdf_background &&
+            item.zone === element.zone &&
+            (item.pdf_page ?? undefined) === (element.pdf_page ?? undefined),
+        );
+        const moving = origins.length > 0 ? origins : [element];
         let dragging = false;
 
         const onMove = (moveEvent: PointerEvent) => {
@@ -1187,23 +1239,29 @@ export function useLayoutElements(
                 return;
             }
 
-            if (!dragging) {
-                dragging = true;
-            }
-
-            update(element.id, {
-                x:
-                    Math.round(
-                        Math.max(
-                            0,
-                            Math.min(
-                                100 - element.width,
-                                originX + (dx / box.width) * 100,
-                            ),
-                        ) * 2,
-                    ) / 2,
-                y: Math.round(Math.max(0, Math.min(2000, originY + dy))),
+            dragging = true;
+            let shiftX = (dx / box.width) * 100;
+            let shiftY = dy;
+            moving.forEach((origin) => {
+                const x = origin.x ?? 0;
+                const y = origin.y ?? 0;
+                shiftX = Math.min(shiftX, 100 - origin.width - x);
+                shiftX = Math.max(shiftX, -x);
+                shiftY = Math.min(shiftY, 2000 - y);
+                shiftY = Math.max(shiftY, -y);
             });
+            const placed = new Map(moving.map((origin) => [
+                origin.id,
+                {
+                    x: Math.round(((origin.x ?? 0) + shiftX) * 2) / 2,
+                    y: Math.round(Math.max(0, (origin.y ?? 0) + shiftY)),
+                },
+            ]));
+            onChange(snapshot.map((item) => {
+                const next = placed.get(item.id);
+
+                return next ? { ...item, ...next } : item;
+            }));
         };
         const onUp = () => {
             node.removeEventListener("pointermove", onMove);
@@ -1219,6 +1277,59 @@ export function useLayoutElements(
         node.addEventListener("pointerup", onUp);
         node.addEventListener("pointercancel", onUp);
         node.addEventListener("lostpointercapture", onUp);
+    };
+
+    const alignHorizontally = (mode: "left" | "center" | "right") => {
+        const ids = selectedIds.length > 0 ? selectedIds : selectedId ? [selectedId] : [];
+        const chosen = elements.filter((item) => ids.includes(item.id) && !item.pdf_background);
+        const anchor = elements.find((item) => item.id === selectedId) ?? chosen[0];
+
+        if (!anchor || chosen.length === 0) {
+            return;
+        }
+
+        const targets = chosen.filter((item) =>
+            item.zone === anchor.zone && (item.pdf_page ?? undefined) === (anchor.pdf_page ?? undefined),
+        );
+        const group = targets.length > 0 ? targets : chosen;
+        const left = Math.min(...group.map((item) => item.x ?? 0));
+        const right = Math.max(...group.map((item) => (item.x ?? 0) + item.width));
+        const center = (left + right) / 2;
+        const placed = new Map(group.map((item) => {
+            const raw = group.length === 1
+                ? mode === "left" ? 0 : mode === "right" ? 100 - item.width : (100 - item.width) / 2
+                : mode === "left" ? left : mode === "right" ? right - item.width : center - item.width / 2;
+
+            return [item.id, Math.round(Math.max(0, Math.min(100 - item.width, raw)) * 2) / 2] as const;
+        }));
+        onChange(elements.map((item) => placed.has(item.id) ? { ...item, x: placed.get(item.id) } : item));
+    };
+
+    const nudgeSelected = (dx: number, dy: number) => {
+        const ids = new Set(selectedIds.length > 0 ? selectedIds : selectedId ? [selectedId] : []);
+        const moving = elements.filter((item) => ids.has(item.id) && !item.pdf_background);
+
+        if (moving.length === 0) {
+            return;
+        }
+
+        let shiftX = dx;
+        let shiftY = dy;
+        moving.forEach((item) => {
+            const x = item.x ?? 0;
+            const y = item.y ?? 0;
+            shiftX = Math.min(shiftX, 100 - item.width - x);
+            shiftX = Math.max(shiftX, -x);
+            shiftY = Math.min(shiftY, 2000 - y);
+            shiftY = Math.max(shiftY, -y);
+        });
+        onChange(elements.map((item) => moving.some((origin) => origin.id === item.id)
+            ? {
+                ...item,
+                x: Math.round(((item.x ?? 0) + shiftX) * 2) / 2,
+                y: Math.round(Math.max(0, (item.y ?? 0) + shiftY)),
+            }
+            : item));
     };
 
     const importElements = (incoming: LayoutElement[], replace: boolean) => {
@@ -1269,6 +1380,7 @@ export function useLayoutElements(
         elements,
         fields,
         selectedId,
+        selectedIds,
         selectedColumn,
         setSelectedColumn: selectColumn,
         selectedRow: activeRow,
@@ -1277,6 +1389,10 @@ export function useLayoutElements(
         selectRow,
         rowCount,
         setSelectedId,
+        toggleSelected,
+        replaceSelection,
+        alignHorizontally,
+        nudgeSelected,
         selected,
         targetZone,
         setTargetZone,
@@ -1291,6 +1407,7 @@ export function useLayoutElements(
         update,
         add,
         remove,
+        removeSelected,
         duplicate,
         move,
         dropOn,
@@ -1710,6 +1827,31 @@ export default function LayoutElementsEditor({
                         {tool.label}
                     </Button>
                 ))}
+                <Button type="button" variant="outline" size="sm" className="gap-1.5" disabled={uploading}
+                    onClick={() => add("divider", targetZone, false, {
+                        orientation: "vertical",
+                        width: (2 / PRINT_LAYOUT_WIDTH) * 100,
+                        height: 120,
+                        x: 48,
+                    })}>
+                    <MinusIcon className="rotate-90" />
+                    Vertical divider
+                </Button>
+                <div role="group" aria-label="Horizontal alignment" className="flex items-center gap-1">
+                    <span className="px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Align</span>
+                    {([
+                        ["left", "Align left", AlignLeftIcon],
+                        ["center", "Align center", AlignCenterIcon],
+                        ["right", "Align right", AlignRightIcon],
+                    ] as const).map(([mode, label, Icon]) => (
+                        <Button key={mode} type="button" variant="outline" size="sm" className="px-2"
+                            aria-label={label} title={label}
+                            disabled={controller.selectedIds.length === 0}
+                            onClick={() => controller.alignHorizontally(mode)}>
+                            <Icon />
+                        </Button>
+                    ))}
+                </div>
                 <Button type="button" variant="outline" size="sm" disabled={uploading}
                     onClick={() => add("table", targetZone, true)}>
                     <TableIcon data-icon="inline-start" />
@@ -1856,6 +1998,12 @@ export default function LayoutElementsEditor({
                         </div>
                     ) : null}
                     {selected ? (
+                        <>
+                            {controller.selectedIds.length > 1 ? (
+                                <p className="mb-3 text-sm text-muted-foreground">
+                                    {controller.selectedIds.length} components selected. Horizontal alignment uses this group. These fields edit the last component you clicked.
+                                </p>
+                            ) : null}
                         <ElementInspector
                             tableFieldSelection={tableFieldSelection}
                             onTableFieldSelection={setTableFieldSelection}
@@ -1874,11 +2022,12 @@ export default function LayoutElementsEditor({
                                 fileInputRef.current?.click();
                             }}
                         />
+                        </>
                     ) : (
                         <p className="text-sm text-muted-foreground">
                             Select an element to edit its text, size, and
-                            alignment. Drag a selected element in the preview to
-                            move it.
+                            alignment. Shift-click or drag across the page to
+                            select several, then align them horizontally.
                         </p>
                     )}
                 </aside>
@@ -2358,7 +2507,7 @@ function ElementInspector({
                 </div>
             ) : null}
 
-            {element.type !== "spacer" ? (
+            {element.type !== "spacer" && !(element.type === "divider" && element.orientation === "vertical") ? (
                 <label className={labelClass}>
                     Width ({element.width}%)
                     <input
@@ -2374,7 +2523,34 @@ function ElementInspector({
                 </label>
             ) : null}
 
-            {hasHeight ? (
+            {element.type === "divider" && element.orientation === "vertical" ? (
+                <>
+                    <label className={labelClass}>
+                        Length ({element.height}px)
+                        <input
+                            type="range"
+                            min={20}
+                            max={400}
+                            value={element.height}
+                            onChange={(event) => onChange({ height: Number(event.target.value) })}
+                            className="mt-1 w-full accent-emerald-700"
+                        />
+                    </label>
+                    <label className={labelClass}>
+                        Thickness ({Math.max(1, Math.round(element.width / 100 * PRINT_LAYOUT_WIDTH))}px)
+                        <input
+                            type="range"
+                            min={1}
+                            max={12}
+                            value={Math.max(1, Math.round(element.width / 100 * PRINT_LAYOUT_WIDTH))}
+                            onChange={(event) => onChange({
+                                width: Number(event.target.value) / PRINT_LAYOUT_WIDTH * 100,
+                            })}
+                            className="mt-1 w-full accent-emerald-700"
+                        />
+                    </label>
+                </>
+            ) : hasHeight ? (
                 <label className={labelClass}>
                     {element.type === "divider"
                         ? `Thickness (${element.height}px)`
@@ -2713,6 +2889,7 @@ export function PreviewZone({
         setTargetZone,
         zoneColors,
     } = controller;
+    const [marquee, setMarquee] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
     const zoneColor = zoneColors[zone];
     const meta = zones.find((item) => item.id === zone)!;
     const zoneItems = elements.filter((element) => element.zone === zone);
@@ -2761,6 +2938,61 @@ export function PreviewZone({
                 data-canvas
                 className="relative"
                 style={{ width: PRINT_LAYOUT_WIDTH, height: canvasHeight, background: page ? "#ffffff" : undefined }}
+                onPointerDown={(event) => {
+                    if (event.button !== 0) return;
+                    const target = event.target as HTMLElement;
+                    if (target.closest("[data-element-id], [data-resize-handle], [role='separator']")) return;
+                    const canvas = event.currentTarget;
+                    const box = canvas.getBoundingClientRect();
+                    const startX = event.clientX;
+                    const startY = event.clientY;
+                    const additive = event.shiftKey || event.metaKey || event.ctrlKey;
+                    const base = additive ? controller.selectedIds : [];
+                    event.preventDefault();
+                    canvas.setPointerCapture(event.pointerId);
+                    let dragged = false;
+                    const paint = (clientX: number, clientY: number) => {
+                        const left = Math.min(startX, clientX) - box.left;
+                        const top = Math.min(startY, clientY) - box.top;
+                        setMarquee({
+                            left,
+                            top,
+                            width: Math.abs(clientX - startX),
+                            height: Math.abs(clientY - startY),
+                        });
+                    };
+                    const onMove = (moveEvent: PointerEvent) => {
+                        if (Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY) < 4) return;
+                        dragged = true;
+                        paint(moveEvent.clientX, moveEvent.clientY);
+                    };
+                    const onUp = (upEvent: PointerEvent) => {
+                        canvas.removeEventListener("pointermove", onMove);
+                        canvas.removeEventListener("pointerup", onUp);
+                        canvas.removeEventListener("pointercancel", onUp);
+                        setMarquee(null);
+                        if (!dragged) {
+                            if (!additive) controller.replaceSelection([]);
+                            return;
+                        }
+                        const left = Math.min(startX, upEvent.clientX);
+                        const right = Math.max(startX, upEvent.clientX);
+                        const top = Math.min(startY, upEvent.clientY);
+                        const bottom = Math.max(startY, upEvent.clientY);
+                        const hits = items.filter((item) => !item.pdf_background).flatMap((item) => {
+                            const node = canvas.querySelector<HTMLElement>(`[data-element-id="${item.id}"]`);
+                            if (!node) return [];
+                            const rect = node.getBoundingClientRect();
+                            const intersects = rect.left < right && rect.right > left && rect.top < bottom && rect.bottom > top;
+
+                            return intersects ? [item.id] : [];
+                        });
+                        controller.replaceSelection(additive ? [...base, ...hits] : hits);
+                    };
+                    canvas.addEventListener("pointermove", onMove);
+                    canvas.addEventListener("pointerup", onUp);
+                    canvas.addEventListener("pointercancel", onUp);
+                }}
             >
                 {items.length === 0 ? (
                     <p className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-[11px] opacity-80">
@@ -2769,7 +3001,8 @@ export function PreviewZone({
                     </p>
                 ) : null}
                 {items.map((element) => {
-                    const isSelected = element.id === selectedId;
+                    const isSelected = controller.selectedIds.includes(element.id);
+                    const verticalDivider = element.type === "divider" && element.orientation === "vertical";
 
                     return (
                         <div
@@ -2783,8 +3016,9 @@ export function PreviewZone({
                                 position: "absolute",
                                 left: `${element.x ?? 0}%`,
                                 top: element.y ?? 0,
-                                width: `${element.width}%`,
+                                width: verticalDivider ? `${element.width}%` : `${element.width}%`,
                                 height:
+                                    verticalDivider ||
                                     element.pdf_page ||
                                     element.type === "table" ||
                                     element.type === "image" ||
@@ -2799,14 +3033,24 @@ export function PreviewZone({
                                 event.stopPropagation();
                                 setTargetZone(zone);
                                 controller.setTargetPage(element.pdf_page);
-                                setSelectedId(element.id);
+                                const multi = event.shiftKey || event.metaKey || event.ctrlKey;
+                                const moveIds = multi
+                                    ? controller.selectedIds
+                                    : controller.selectedIds.includes(element.id)
+                                        ? controller.selectedIds
+                                        : [element.id];
+                                if (multi) {
+                                    controller.toggleSelected(element.id);
+                                } else if (!controller.selectedIds.includes(element.id)) {
+                                    setSelectedId(element.id);
+                                }
                                 const cell = (event.target as HTMLElement).closest<HTMLElement>("[data-table-row][data-table-column]");
-                                if (cell) {
+                                if (cell && !multi) {
                                     controller.selectCell(element.id, Number(cell.dataset.tableRow), Number(cell.dataset.tableColumn));
-                                } else {
+                                } else if (!multi) {
                                     controller.selectRow(element.id, null);
                                 }
-                                controller.startMove(event, element);
+                                if (!multi) controller.startMove(event, element, moveIds);
                             }}
                             onClick={(event) => event.stopPropagation()}
                             onKeyDown={(event) => {
@@ -2815,40 +3059,19 @@ export function PreviewZone({
                                 }
 
                                 const step = event.shiftKey ? 10 : 1;
-                                const nudge: Record<
-                                    string,
-                                    Partial<LayoutElement>
-                                > = {
-                                    ArrowLeft: {
-                                        x: Math.max(
-                                            0,
-                                            (element.x ?? 0) - step / 4,
-                                        ),
-                                    },
-                                    ArrowRight: {
-                                        x: Math.min(
-                                            100 - element.width,
-                                            (element.x ?? 0) + step / 4,
-                                        ),
-                                    },
-                                    ArrowUp: {
-                                        y: Math.max(0, (element.y ?? 0) - step),
-                                    },
-                                    ArrowDown: { y: (element.y ?? 0) + step },
-                                };
+                                const dx = event.key === "ArrowLeft" ? -step / 4 : event.key === "ArrowRight" ? step / 4 : 0;
+                                const dy = event.key === "ArrowUp" ? -step : event.key === "ArrowDown" ? step : 0;
 
-                                if (nudge[event.key]) {
+                                if (dx !== 0 || dy !== 0) {
                                     event.preventDefault();
-                                    controller.update(
-                                        element.id,
-                                        nudge[event.key],
-                                    );
+                                    controller.nudgeSelected(dx, dy);
                                 } else if (
                                     event.key === "Delete" ||
                                     event.key === "Backspace"
                                 ) {
                                     event.preventDefault();
-                                    controller.remove(element.id);
+                                    if (controller.selectedIds.length > 1) controller.removeSelected();
+                                    else controller.remove(element.id);
                                 }
                             }}
                             className={cn(
@@ -2880,7 +3103,7 @@ export function PreviewZone({
                                     ))}
                                 </div>
                             ) : null}
-                            {element.type === "table" && isSelected ? layoutColumnWidths(element).slice(0, -1).map((_, column) => (
+                            {element.type === "table" && element.id === selectedId ? layoutColumnWidths(element).slice(0, -1).map((_, column) => (
                                 <span key={column} role="separator" aria-orientation="vertical"
                                     aria-label={`Resize column ${column + 1}`} data-resize-handle
                                     title={`Drag to resize columns ${column + 1} and ${column + 2}`}
@@ -2909,7 +3132,7 @@ export function PreviewZone({
                                     onSelectCell={(row, column) => controller.selectCell(element.id, row, column)}
                                 />
                             )}
-                            {isSelected && !element.pdf_background
+                            {element.id === selectedId && !element.pdf_background
                                 ? (
                                       [
                                           ["n", "Resize from the top", "absolute -top-1.5 left-1/2 z-10 h-3 w-8 -translate-x-1/2 cursor-ns-resize"],
@@ -2941,6 +3164,13 @@ export function PreviewZone({
                         </div>
                     );
                 })}
+                {marquee ? (
+                    <div
+                        aria-hidden="true"
+                        className="pointer-events-none absolute z-30 border border-emerald-600 bg-emerald-600/15"
+                        style={{ left: marquee.left, top: marquee.top, width: marquee.width, height: marquee.height }}
+                    />
+                ) : null}
                 {!page ? <span
                     role="separator"
                     aria-label="Drag to change header height"
@@ -2973,9 +3203,11 @@ export function PreviewZone({
             </div>
             {zone === "header" && !page ? (
                 <p className="relative mt-4 pb-2 text-xs print:hidden">
-                    {selected
+                    {controller.selectedIds.length > 1
+                        ? `${controller.selectedIds.length} components selected. Drag the group, or use Align to line up their left, center, or right edges.`
+                        : selected
                         ? `X: ${Number(((selected.x ?? 0) * PRINT_LAYOUT_WIDTH / 100).toFixed(2))}px · Y: ${selected.y ?? 0}px · Width: ${Number((selected.width * PRINT_LAYOUT_WIDTH / 100).toFixed(2))}px`
-                        : "Rulers in pixels. Select a component to see its position and width."}
+                        : "Shift-click or drag across empty space to select several components. Use Align to line them up horizontally."}
                 </p>
             ) : null}
         </section>

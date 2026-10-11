@@ -1,6 +1,6 @@
 import type { LayoutElement } from '@/Pages/Admin/DocumentSettings/LayoutElements';
 import type { PdfTextFragment, PdfTextRegion } from './pdfTextBlocks';
-import { PRINT_LAYOUT_WIDTH, type TableTextStyle } from './printLayoutGeometry';
+import { completeRowBackgrounds, completeTableEdges, paintIsWhite, PRINT_LAYOUT_WIDTH, type TableTextStyle } from './printLayoutGeometry';
 
 export type PdfTableLine = { x1: number; y1: number; x2: number; y2: number; color: string; width: number };
 export type PdfTableFill = PdfTextRegion & { color: string };
@@ -88,12 +88,15 @@ function edgeStroke(lines: PdfTableLine[], vertical: boolean, position: number, 
         const lineStart = Math.min(vertical ? line.y1 : line.x1, vertical ? line.y2 : line.x2);
         const lineEnd = Math.max(vertical ? line.y1 : line.x1, vertical ? line.y2 : line.x2);
         const covered = Math.min(end, lineEnd) - Math.max(start, lineStart);
-        if (covered > overlap) {
+        const enough = covered >= Math.min(span, Math.max(4, span * 0.45));
+        const visible = line.width > 0;
+        const bestVisible = (best?.width ?? 0) > 0;
+        if (enough && (!best || (visible && !bestVisible) || (visible === bestVisible && covered > overlap))) {
             overlap = covered;
             best = line;
         }
     }
-    return best && overlap >= Math.min(span, Math.max(4, span * 0.45)) ? best : null;
+    return best;
 }
 
 function gridFromLines(group: PdfTableLine[]): PdfTableGrid | 'oversized' | null {
@@ -214,7 +217,9 @@ export function editablePdfTables(
                 rightColumn = column;
             }
             spans[row][column] = { rows: bottomRow - row + 1, columns: rightColumn - column + 1 };
-            colors[row][column] = background((xs[column] + xs[rightColumn + 1]) / 2, (ys[row] + ys[bottomRow + 1]) / 2);
+            colors[row][column] = sampledCellColor(
+                background, xs[column], xs[rightColumn + 1], ys[row], ys[bottomRow + 1],
+            );
             const css = (line: PdfTableLine | null) => line && line.width > 0 ? `${Number(Math.max(0.2, line.width).toFixed(3))}px solid ${line.color}` : 'none';
             borders[row][column] = {
                 left: css(edgeStroke(lines, true, xs[column], ys[row], ys[bottomRow + 1])),
