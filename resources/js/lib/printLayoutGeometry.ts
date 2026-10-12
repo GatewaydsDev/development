@@ -1,4 +1,33 @@
 export const PRINT_LAYOUT_WIDTH = 700;
+
+export const PRINT_PAGE_SIZES = {
+    letter: { label: "Letter", widthMm: 215.9, heightMm: 279.4 },
+    legal: { label: "Legal", widthMm: 215.9, heightMm: 355.6 },
+    tabloid: { label: "Tabloid", widthMm: 279.4, heightMm: 431.8 },
+    a3: { label: "A3", widthMm: 297, heightMm: 420 },
+    a4: { label: "A4", widthMm: 210, heightMm: 297 },
+    a5: { label: "A5", widthMm: 148, heightMm: 210 },
+} as const;
+
+export type PrintPageId = keyof typeof PRINT_PAGE_SIZES;
+export type PrintPageOrientation = "portrait" | "landscape";
+
+export function printPageSize(paper?: string | null, orientation?: string | null) {
+    const id: PrintPageId = paper && paper in PRINT_PAGE_SIZES ? paper as PrintPageId : "letter";
+    const size = PRINT_PAGE_SIZES[id];
+    const landscape = orientation === "landscape";
+    const widthMm = landscape ? size.heightMm : size.widthMm;
+    const heightMm = landscape ? size.widthMm : size.heightMm;
+
+    return {
+        id,
+        label: size.label,
+        orientation: landscape ? "landscape" as const : "portrait" as const,
+        widthMm,
+        heightMm,
+        pixelHeight: Math.round(PRINT_LAYOUT_WIDTH * heightMm / widthMm * 100) / 100,
+    };
+}
 export const PRINT_LAYOUT_FONT = 'Arial, Helvetica, sans-serif';
 
 export type TableTextStyle = {

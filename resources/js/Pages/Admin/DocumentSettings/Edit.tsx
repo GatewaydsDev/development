@@ -24,7 +24,7 @@ import {
 } from "@/Components/ui/card";
 import FormActionFab from "@/Components/FormActionFab";
 import { cn } from "@/lib/utils";
-import { PRINT_LAYOUT_WIDTH } from "@/lib/printLayoutGeometry";
+import { PRINT_LAYOUT_WIDTH, PRINT_PAGE_SIZES, printPageSize, type PrintPageId, type PrintPageOrientation } from "@/lib/printLayoutGeometry";
 import LayoutElementsEditor, {
     ElementsReadOnly,
     ImportPanel,
@@ -64,6 +64,8 @@ type DocumentSettings = {
 type LayoutRecord = DocumentSettings & {
     id: number;
     name: string;
+    paper: PrintPageId;
+    orientation: PrintPageOrientation;
     assignments: string[];
     elements: LayoutElement[];
     zone_colors: ZoneColors;
@@ -90,6 +92,8 @@ type FormatOption = {
 type LayoutForm = DocumentSettings & {
     layout_id: number | null;
     name: string;
+    paper: PrintPageId;
+    orientation: PrintPageOrientation;
     assignments: string[];
     elements: LayoutElement[];
     zone_colors: ZoneColors;
@@ -208,6 +212,8 @@ function emptyLayout(defaults: DocumentSettings): LayoutForm {
     return {
         layout_id: null,
         name: "New print layout",
+        paper: "letter",
+        orientation: "portrait",
         assignments: [],
         elements: defaultElements(),
         zone_colors: { body: "", footer: "" },
@@ -250,11 +256,15 @@ export default function Edit({
                   table_header_background_color:
                       initialLayout.table_header_background_color,
                   text_case: initialLayout.text_case,
+                  paper: initialLayout.paper ?? "letter",
+                  orientation: initialLayout.orientation ?? "portrait",
                   zone_colors: initialLayout.zone_colors,
               }
             : {
                   layout_id: null,
                   name: "New print layout",
+                  paper: "letter",
+                  orientation: "portrait",
                   assignments: [],
                   elements: defaultElements(),
                   zone_colors: { body: "", footer: "" },
@@ -297,6 +307,7 @@ export default function Edit({
                     header_height: height,
                 },
             })),
+        printPageSize(data.paper, data.orientation),
     );
     const [search, setSearch] = useState("");
     const [previewLayout, setPreviewLayout] = useState<
@@ -340,6 +351,33 @@ export default function Edit({
         data.header_background_color,
         defaults.header_background_color,
     );
+    const knownPageHeights = (Object.keys(PRINT_PAGE_SIZES) as PrintPageId[]).flatMap((id) =>
+        (["portrait", "landscape"] as const).map((orientation) => printPageSize(id, orientation).pixelHeight),
+    );
+    const applyPaper = (paper: PrintPageId, orientation: PrintPageOrientation) => {
+        const sheet = printPageSize(paper, orientation);
+        setData((current) => {
+            const currentHeight = current.zone_colors?.header_height ?? 160;
+            const matchesSheet = knownPageHeights.some((height) => Math.abs(height - currentHeight) < 0.2);
+            const headerHeight = matchesSheet || currentHeight < sheet.pixelHeight
+                ? sheet.pixelHeight
+                : currentHeight;
+
+            return {
+                ...current,
+                paper,
+                orientation,
+                zone_colors: {
+                    body: current.zone_colors?.body ?? "",
+                    footer: current.zone_colors?.footer ?? "",
+                    header_height: headerHeight,
+                },
+                elements: current.elements.map((element) =>
+                    element.pdf_page ? { ...element, pdf_page_height: sheet.pixelHeight } : element,
+                ),
+            };
+        });
+    };
 
     const loadLayout = (layout: LayoutRecord) => {
         const values: LayoutForm = {
@@ -350,6 +388,8 @@ export default function Edit({
             header_background_color: layout.header_background_color,
             table_header_background_color: layout.table_header_background_color,
             text_case: layout.text_case,
+            paper: layout.paper ?? "letter",
+            orientation: layout.orientation ?? "portrait",
             zone_colors: layout.zone_colors,
         };
         setData(values);
@@ -782,6 +822,43 @@ export default function Edit({
                                             />
                                             <InputError message={errors.name} />
                                         </div>
+
+                                        <div className="grid gap-4 sm:grid-cols-2">
+                                            <div>
+                                                <InputLabel htmlFor="layout-paper" value="Page size" />
+                                                <select
+                                                    id="layout-paper"
+                                                    value={data.paper}
+                                                    onChange={(event) => applyPaper(event.target.value as PrintPageId, data.orientation)}
+                                                    className="mt-1.5 h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
+                                                >
+                                                    {(Object.entries(PRINT_PAGE_SIZES) as Array<[PrintPageId, (typeof PRINT_PAGE_SIZES)[PrintPageId]]>).map(([id, size]) => (
+                                                        <option key={id} value={id}>
+                                                            {size.label} ({size.widthMm} × {size.heightMm} mm)
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                <InputError message={errors.paper} />
+                                            </div>
+                                            <div>
+                                                <InputLabel htmlFor="layout-orientation" value="Orientation" />
+                                                <select
+                                                    id="layout-orientation"
+                                                    value={data.orientation}
+                                                    onChange={(event) => applyPaper(data.paper, event.target.value as PrintPageOrientation)}
+                                                    className="mt-1.5 h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
+                                                >
+                                                    <option value="portrait">Portrait</option>
+                                                    <option value="landscape">Landscape</option>
+                                                </select>
+                                                <InputError message={errors.orientation} />
+                                            </div>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">
+                                            The page on this screen and the printed page both use {printPageSize(data.paper, data.orientation).label}
+                                            {" "}
+                                            {data.orientation}, {printPageSize(data.paper, data.orientation).widthMm} × {printPageSize(data.paper, data.orientation).heightMm} mm.
+                                        </p>
 
                                         <fieldset>
                                             <legend className="text-sm font-medium text-foreground">

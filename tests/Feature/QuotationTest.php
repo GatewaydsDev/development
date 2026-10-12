@@ -144,6 +144,35 @@ test('a saved quotation layout is printed without the old sections underneath', 
     }
 });
 
+test('a quotation print uses the layout page size', function () {
+    $admin = quotationAdmin();
+    $layout = \App\Models\PrintLayout::query()->firstOrFail();
+    $layout->update([
+        'design' => array_merge($layout->design ?? [], [
+            'paper' => 'a4',
+            'orientation' => 'portrait',
+        ]),
+    ]);
+    $quote = makeQuotation($admin, quotationProject($admin), [
+        'print_layout_id' => $layout->id,
+        'layout_header' => '<div data-position-canvas="true" style="width:700px;height:990px">A4 layout</div>',
+    ]);
+
+    $this->actingAs($admin)->get(route('admin.quotations.print', $quote))
+        ->assertOk()
+        ->assertSee('size: A4 portrait', false)
+        ->assertSee('margin: 0', false)
+        ->assertSee('A4 layout', false);
+
+    expect(\App\Support\QuotationDocument::for($quote->fresh(), $admin)->pdfResponse()->getStatusCode())->toBe(200);
+
+    $plain = makeQuotation($admin, quotationProject($admin));
+    $this->get(route('admin.quotations.print', $plain))
+        ->assertOk()
+        ->assertDontSee('size: A4 portrait', false)
+        ->assertSee('margin: 16mm 14mm 16mm', false);
+});
+
 test('an admin can save a quotation for a contractor', function () {
     $admin = quotationAdmin();
     $project = quotationProject($admin);

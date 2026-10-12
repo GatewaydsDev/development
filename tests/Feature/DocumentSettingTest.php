@@ -1286,3 +1286,37 @@ test('a chosen layout overrides the one assigned to the document', function () {
         ->and($default->elements)->not->toEqual($chosen->elements)
         ->and(DocumentAppearance::assignedLayoutId('bid', 'print'))->toBe($assigned->id);
 });
+
+test('a print layout stores the chosen page size', function () {
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $admin = User::factory()->create(['level_id' => $level->id]);
+
+    $this->actingAs($admin)
+        ->post(route('admin.document-settings.store'), [
+            'name' => 'A4 proposal',
+            'assignments' => [],
+            'header_background_color' => '#112233',
+            'table_header_background_color' => '#065f46',
+            'text_case' => 'original',
+            'paper' => 'a4',
+            'orientation' => 'landscape',
+            'elements' => [],
+        ])
+        ->assertSessionHasNoErrors();
+
+    $layout = PrintLayout::query()->where('name', 'A4 proposal')->firstOrFail();
+    expect($layout->design['paper'])->toBe('a4')
+        ->and($layout->design['orientation'])->toBe('landscape');
+
+    $this->actingAs($admin)
+        ->post(route('admin.document-settings.store'), [
+            'name' => 'Unknown paper',
+            'assignments' => [],
+            'header_background_color' => '#112233',
+            'table_header_background_color' => '#065f46',
+            'text_case' => 'original',
+            'paper' => 'poster',
+            'elements' => [],
+        ])
+        ->assertSessionHasErrors('paper');
+});

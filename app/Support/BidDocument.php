@@ -133,14 +133,17 @@ class BidDocument
             'bidTotal' => $this->money($totals['grand_total']),
             'scopeTotal' => $this->money($totals['grand_total']),
             'colors' => $this->cssColors($mode),
+            'paper' => PrintPaper::forLayout($this->bid->print_layout_id),
         ];
     }
 
     public function pdfResponse(): Response
     {
         $data = $this->viewData(mode: 'pdf');
+        $fitted = $this->hasCustomLayout();
         $pdf = Pdf::loadHTML($this->transformViewHtml('admin.bids.document', $data, 'pdf'))
-            ->setPaper('letter', 'portrait')
+            ->setPaper($fitted ? $data['paper']['dompdf'] : 'letter', $fitted ? $data['paper']['orientation'] : 'portrait')
+            ->setOption('dpi', $fitted ? $data['paper']['dpi'] : 96)
             ->setOption('isRemoteEnabled', false)
             ->setOption('isHtml5ParserEnabled', true)
             ->setOption('defaultFont', 'DejaVu Sans');
@@ -187,15 +190,12 @@ class BidDocument
             'bgColor' => $this->wordColor('table_header_bg'),
         ]);
 
-        $section = $phpWord->addSection([
-            'orientation' => 'portrait',
-            'marginTop' => 720,
-            'marginBottom' => 720,
-            'marginLeft' => 720,
-            'marginRight' => 720,
-            'headerHeight' => 360,
-            'footerHeight' => 360,
-        ]);
+        $paper = PrintPaper::forLayout($this->bid->print_layout_id);
+        $section = $phpWord->addSection(PrintPaper::wordSection(
+            $paper['id'],
+            $paper['orientation'],
+            $this->hasCustomLayout(),
+        ));
 
         $header = $section->addHeader();
         $headerTable = $header->addTable(['borderSize' => 0, 'cellMargin' => 0]);

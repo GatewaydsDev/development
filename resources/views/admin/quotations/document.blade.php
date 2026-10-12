@@ -5,7 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ $title }} Quotation</title>
     <style>
-        @page { margin: 16mm 14mm 16mm; }
+        @page {
+            @if ($layoutHeader)
+                size: {{ $paper['css'] }};
+                margin: 0;
+            @else
+                margin: 16mm 14mm 16mm;
+            @endif
+        }
+        @if ($layoutHeader)
+            .layout-sheet { padding: 0; }
+            [data-position-canvas] ~ [data-position-canvas] {
+                break-before: page;
+                page-break-before: always;
+            }
+        @endif
         * { box-sizing: border-box; }
         html, body {
             margin: 0;
@@ -217,7 +231,7 @@
 
     <div class="page">
         @if ($layoutHeader)
-            <div class="rich-text" style="padding:24px;">
+            <div class="rich-text layout-sheet">
                 {!! $layoutHeader !!}
             </div>
         @else
@@ -446,14 +460,20 @@
     @if ($mode === 'print')
         <script>
             const layoutCanvases = document.querySelectorAll('[data-position-canvas]');
+            const paperWidthPx = {{ $paper['width_mm'] }} * 96 / 25.4;
             const fitLayoutHeaders = () => layoutCanvases.forEach((canvas) => {
                 const width = parseFloat(canvas.style.width);
                 const available = canvas.parentElement.clientWidth;
                 if (width > 0 && available > 0) canvas.style.zoom = String(available / width);
             });
+            const fitPrintedPage = () => layoutCanvases.forEach((canvas) => {
+                const width = parseFloat(canvas.style.width);
+                if (width > 0) canvas.style.zoom = String(paperWidthPx / width);
+            });
             const layoutObserver = new ResizeObserver(fitLayoutHeaders);
             layoutCanvases.forEach((canvas) => layoutObserver.observe(canvas.parentElement));
             fitLayoutHeaders();
+            window.addEventListener('beforeprint', fitPrintedPage);
             window.addEventListener('afterprint', fitLayoutHeaders);
         </script>
     @endif

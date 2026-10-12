@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { layoutColumnWidths, resizedLayoutColumns, tableEdgeBorder } from "@/lib/printLayoutGeometry";
 import { layoutTableCell, layoutTableDimensions, layoutTableField, resolveLayoutTableFields } from "@/lib/printLayoutTableFields";
 import { layoutPages, listBlockHeight, listKeepsOriginalSpace, listLineSpacing, listLineUnits, listTextItems, joinListItems, loadPdfFont, pdfTextFont, pdfTextLines, pdfTextLineHeight, pdfRunText, pdfRunY, pdfFontSources, type ListTextItem, type PdfLayoutElement } from "@/lib/printLayoutPdf";
-import { PRINT_LAYOUT_FONTS, PRINT_LAYOUT_FONT_CHOICES, PRINT_LAYOUT_WIDTH, printLayoutTextCase, tableStripeColor, tableTextStyle, TABLE_TEXT_STYLE_KEYS, type TableStriping, type TableTextStyle, type TextCaseState } from "@/lib/printLayoutGeometry";
+import { PRINT_LAYOUT_FONTS, PRINT_LAYOUT_FONT_CHOICES, PRINT_LAYOUT_WIDTH, printLayoutTextCase, printPageSize, tableStripeColor, tableTextStyle, TABLE_TEXT_STYLE_KEYS, type TableStriping, type TableTextStyle, type TextCaseState } from "@/lib/printLayoutGeometry";
 import {
     AlignCenterIcon,
     AlignLeftIcon,
@@ -864,6 +864,7 @@ export function useLayoutElements(
     setZoneColor: (zone: ElementZone, color: string) => void = () => {},
     headerHeight = 160,
     setHeaderHeight: (height: number) => void = () => {},
+    pageSheet: ReturnType<typeof printPageSize> | null = null,
 ) {
     const [selectedId, setSelectedIdState] = useState<string | null>(null);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -1499,6 +1500,7 @@ export function useLayoutElements(
         startMove,
         headerHeight,
         setHeaderHeight,
+        pageSheet,
         evenSpacing: () => {
             const rows: Array<{ top: number; bottom: number; items: LayoutElement[] }> = [];
             const sorted = elements.filter((item) => item.zone === "header" && item.pdf_page === targetPage && !item.pdf_background)
@@ -3100,7 +3102,10 @@ export function PreviewZone({
         return <div className="space-y-6">
             {layoutPages(zoneItems, controller.headerHeight).map((item, index) => <div key={item.id}>
                 <div className="mb-2 flex items-center justify-between gap-2">
-                    <p className="text-sm font-semibold">Page {index + 1}</p>
+                    <p className="text-sm font-semibold">
+                        Page {index + 1}
+                        {controller.pageSheet ? ` · ${controller.pageSheet.label}${controller.pageSheet.orientation === "landscape" ? " landscape" : ""} · ${controller.pageSheet.widthMm} × ${controller.pageSheet.heightMm} mm` : ""}
+                    </p>
                     <Button type="button" variant="outline" size="sm" aria-label={`Remove page ${index + 1}`}
                         onClick={() => controller.removePage(item.id)}>Remove page</Button>
                 </div>
@@ -3111,7 +3116,8 @@ export function PreviewZone({
     const items = page ? zoneItems.filter((element) => (element.pdf_page ?? "layout") === page.id) : zoneItems;
     const selected = items.find((element) => element.id === selectedId);
     const active = targetZone === zone && (!page || controller.targetPage === (page.id === "layout" ? undefined : page.id));
-    const canvasHeight = page?.height ?? controller.headerHeight;
+    const sheetHeight = controller.pageSheet?.pixelHeight ?? 0;
+    const canvasHeight = Math.max(page?.height ?? controller.headerHeight, page ? 0 : sheetHeight);
 
     return (
         <section
@@ -3135,11 +3141,16 @@ export function PreviewZone({
                     "border-slate-300 bg-slate-50/40 hover:border-emerald-300",
             )}
         >
+            {zone === "header" && !page && controller.pageSheet ? (
+                <p className="absolute left-10 top-1 text-xs font-medium text-slate-500">
+                    {controller.pageSheet.label}{controller.pageSheet.orientation === "landscape" ? " landscape" : ""} · {controller.pageSheet.widthMm} × {controller.pageSheet.heightMm} mm
+                </p>
+            ) : null}
             {zone === "header" ? <LayoutRulers height={canvasHeight} selected={selected} /> : null}
             <div
                 ref={(node) => { if (active) controller.canvasRefs.current[zone] = node; }}
                 data-canvas
-                className="relative"
+                className="relative border border-slate-300 bg-white shadow-sm"
                 style={{ width: PRINT_LAYOUT_WIDTH, height: canvasHeight, background: page ? "#ffffff" : undefined }}
                 onPointerDown={(event) => {
                     if (event.button !== 0) return;
@@ -3197,6 +3208,19 @@ export function PreviewZone({
                     canvas.addEventListener("pointercancel", onUp);
                 }}
             >
+                {zone === "header" && !page && controller.pageSheet && canvasHeight > controller.pageSheet.pixelHeight + 1
+                    ? Array.from({ length: Math.floor(canvasHeight / controller.pageSheet.pixelHeight) }, (_, index) => (
+                        <div
+                            key={`page-break-${index}`}
+                            className="pointer-events-none absolute inset-x-0 z-20 border-t-2 border-dashed border-emerald-600"
+                            style={{ top: controller.pageSheet!.pixelHeight * (index + 1) }}
+                        >
+                            <span className="absolute right-2 -top-4 bg-white px-1 text-[10px] font-semibold text-emerald-700">
+                                Page {index + 2}
+                            </span>
+                        </div>
+                    ))
+                    : null}
                 {items.length === 0 ? (
                     <p className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-[11px] opacity-80">
                         Use the toolbar to add a component to the visible area,
