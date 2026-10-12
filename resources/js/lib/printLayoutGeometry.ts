@@ -283,6 +283,11 @@ export function explicitTableBackground(
 }
 
 export function growLayoutTable(element: PaintableTable, rows: number, cols: number) {
+    const previousWidths = element.column_widths;
+    const column_widths = previousWidths?.length
+        ? Array.from({ length: cols }, (_, column) => previousWidths[column] ?? 100 / cols)
+        : previousWidths;
+
     return {
         cells: Array.from({ length: rows }, (_, row) => Array.from({ length: cols }, (_, column) => element.cells[row]?.[column] ?? '')),
         row_heights: element.row_heights?.length
@@ -290,6 +295,7 @@ export function growLayoutTable(element: PaintableTable, rows: number, cols: num
             : element.row_heights,
         row_backgrounds: element.row_backgrounds?.slice(0, rows),
         column_backgrounds: element.column_backgrounds?.slice(0, cols),
+        column_widths,
         table_background: headerColorLeaked(element) ? '#ffffff' : element.table_background,
     };
 }

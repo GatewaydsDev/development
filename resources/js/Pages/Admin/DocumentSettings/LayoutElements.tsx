@@ -961,6 +961,7 @@ export function useLayoutElements(
         const before = elements.find((element) => element.id === id);
         const next = elements.map((element) => {
                 if (element.id !== id) return element;
+                if (patch.cells) return { ...element, ...patch };
                 if (activeCell?.id === id || activeRow?.id === id) {
                     const style: TableTextStyle = Object.fromEntries(
                         TABLE_TEXT_STYLE_KEYS.filter((key) => patch[key] !== undefined).map((key) => [key, patch[key]]),
@@ -2436,10 +2437,19 @@ function TableSizeField({
     onCommit: (value: number) => void;
 }) {
     const [draft, setDraft] = useState(String(value));
+    const commitRef = useRef(onCommit);
+    commitRef.current = onCommit;
 
     useEffect(() => {
         setDraft(String(value));
     }, [value]);
+
+    useEffect(() => {
+        const next = Number(draft);
+        if (!Number.isInteger(next) || next < 1 || next > max || next === value) return;
+        const timer = window.setTimeout(() => commitRef.current(next), 400);
+        return () => window.clearTimeout(timer);
+    }, [draft, max, value]);
 
     const commit = () => {
         const next = Number(draft);
@@ -2463,7 +2473,10 @@ function TableSizeField({
                 onChange={(event) => setDraft(event.target.value)}
                 onBlur={commit}
                 onKeyDown={(event) => {
-                    if (event.key === "Enter") event.currentTarget.blur();
+                    if (event.key === "Enter") {
+                        event.preventDefault();
+                        event.currentTarget.blur();
+                    }
                 }}
             />
         </label>
@@ -2586,11 +2599,11 @@ function ElementInspector({
                     </div>
                     <div className="flex gap-2">
                         <Button type="button" variant="outline" size="sm" disabled={element.cells.length >= 60}
-                            onClick={() => onChange(growLayoutTable(element as LayoutElement & { cells: string[][] }, element.cells!.length + 1, element.cells![0].length))}>
+                            onClick={() => resizeLayoutGrid(element as LayoutElement & { cells: string[][] }, element.cells!.length + 1, element.cells![0].length, onChange)}>
                             Add row
                         </Button>
                         <Button type="button" variant="outline" size="sm" disabled={element.cells[0].length >= 12}
-                            onClick={() => onChange(growLayoutTable(element as LayoutElement & { cells: string[][] }, element.cells!.length, element.cells![0].length + 1))}>
+                            onClick={() => resizeLayoutGrid(element as LayoutElement & { cells: string[][] }, element.cells!.length, element.cells![0].length + 1, onChange)}>
                             Add column
                         </Button>
                     </div>
