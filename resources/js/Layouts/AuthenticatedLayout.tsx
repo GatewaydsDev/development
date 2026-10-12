@@ -439,7 +439,7 @@ export default function Authenticated({
                     setSidebarCollapsed((value) => !value)
                 }
                 className={cn(
-                    'hidden shrink-0 rounded-none border-y-0 border-l-0 border-r border-border bg-card shadow-none transition-all duration-300 lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex lg:overflow-y-auto',
+                    'hidden shrink-0 rounded-none border-y-0 border-l-0 border-r border-[#cfe0d6] shadow-none transition-all duration-300 lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex lg:overflow-hidden dark:border-white/10',
                     sidebarCollapsed ? 'lg:w-16' : 'lg:w-72 xl:w-80',
                 )}
             />
