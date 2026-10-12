@@ -51,7 +51,7 @@ import { FormEventHandler, useMemo, useRef, useState } from "react";
 
 type TextCase = "original" | "camel" | "uppercase" | "lowercase";
 
-type ZoneColors = { body: string; footer: string; header_height?: number };
+type ZoneColors = { body: string; footer: string; top?: string; header_height?: number };
 
 const defaultElements = (): LayoutElement[] => [];
 
@@ -281,6 +281,7 @@ export default function Edit({
             intro: "",
             body: data.zone_colors?.body ?? "",
             footer: data.zone_colors?.footer ?? "",
+            top: data.zone_colors?.top ?? "",
         },
         (zone, color) => {
             setData((current) =>
@@ -291,6 +292,7 @@ export default function Edit({
                           zone_colors: {
                               body: current.zone_colors?.body ?? "",
                               footer: current.zone_colors?.footer ?? "",
+                              top: current.zone_colors?.top ?? "",
                               header_height: current.zone_colors?.header_height,
                               [zone]: color,
                           },
@@ -304,6 +306,7 @@ export default function Edit({
                 zone_colors: {
                     body: current.zone_colors?.body ?? "",
                     footer: current.zone_colors?.footer ?? "",
+                    top: current.zone_colors?.top ?? "",
                     header_height: height,
                 },
             })),
@@ -370,6 +373,7 @@ export default function Edit({
                 zone_colors: {
                     body: current.zone_colors?.body ?? "",
                     footer: current.zone_colors?.footer ?? "",
+                    top: current.zone_colors?.top ?? "",
                     header_height: headerHeight,
                 },
                 elements: current.elements.map((element) =>
@@ -752,6 +756,7 @@ export default function Edit({
                                             zone_colors: {
                                                 body: "",
                                                 footer: "",
+                                                top: "",
                                             },
                                         });
                                     }}
@@ -1288,6 +1293,15 @@ function DocumentPreview({
                 fullPage && "mx-auto max-w-4xl",
             )}
         >
+            <div className="overflow-x-auto border-b border-slate-200">
+                <p className="px-3 pt-2 text-xs font-semibold text-slate-600">Header</p>
+                <p className="px-3 pb-1 text-[11px] text-slate-400">Above the page. The page stays where it is.</p>
+                {controller ? (
+                    <PreviewZone controller={controller} zone="top" applyCase={caseText} textCase={textCase} />
+                ) : (
+                    <ElementsReadOnly elements={elements} zone="top" fields={fields} textCase={textCase} />
+                )}
+            </div>
             <div className="overflow-x-auto">
                 <header style={{ width: PRINT_LAYOUT_WIDTH + (controller ? 52 : 0), backgroundColor: headerColor, color: headerText }}>
                     {controller ? (
@@ -1320,6 +1334,15 @@ function DocumentPreview({
                 <p className="pt-2 text-center text-[11px] text-slate-400">
                     The rest of the document is added by the system.
                 </p>
+            </div>
+            <div className="overflow-x-auto border-t border-slate-200">
+                <p className="px-3 pt-2 text-xs font-semibold text-slate-600">Footer</p>
+                <p className="px-3 pb-1 text-[11px] text-slate-400">Below the page. The page stays where it is.</p>
+                {controller ? (
+                    <PreviewZone controller={controller} zone="footer" applyCase={caseText} textCase={textCase} />
+                ) : (
+                    <ElementsReadOnly elements={elements} zone="footer" fields={fields} textCase={textCase} />
+                )}
             </div>
         </article>
     );

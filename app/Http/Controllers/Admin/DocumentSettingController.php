@@ -303,6 +303,7 @@ class DocumentSettingController extends Controller
             'elements.*.pdf_text_runs.*.italic' => ['required', 'boolean'],
             'elements.*.pdf_text_runs.*.color' => ['required', 'string', 'regex:/^#([A-Fa-f0-9]{6})$/'],
             'zone_colors.footer' => ['nullable', 'string', 'regex:/^#([A-Fa-f0-9]{6})$/'],
+            'zone_colors.top' => ['nullable', 'string', 'regex:/^#([A-Fa-f0-9]{6})$/'],
             'elements' => ['sometimes', 'array', 'max:'.DocumentLayoutElements::MAX_ELEMENTS],
             'elements.*' => ['array'],
             'elements.*.id' => ['sometimes', 'string', 'max:40', 'regex:/^[A-Za-z0-9_-]+$/', 'distinct'],

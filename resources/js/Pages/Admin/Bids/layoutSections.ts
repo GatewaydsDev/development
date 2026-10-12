@@ -711,9 +711,10 @@ export function editorLayoutDocument(
     literals: Record<string, string>,
     fieldKeys: Record<string, string> = EDITOR_KEYS,
 ): EditorNode | null {
-    const pages = layout.elements.some((element) => element.pdf_page)
-        ? layoutPages(layout.elements, layout.headerHeight ?? 160)
-        : [{ id: 'layout', height: layout.headerHeight ?? 160, elements: layout.elements }];
+    const canvasElements = layout.elements.filter((element) => !element.zone || element.zone === 'header');
+    const pages = canvasElements.some((element) => element.pdf_page)
+        ? layoutPages(canvasElements, layout.headerHeight ?? 160)
+        : [{ id: 'layout', height: layout.headerHeight ?? 160, elements: canvasElements }];
     const content = pages.flatMap((page) => {
         const items = page.elements.flatMap((element) => {
             if (element.zone && element.zone !== 'header') return [];
@@ -746,7 +747,39 @@ export function editorLayoutDocument(
             content: items,
         }];
     });
-    return content.length > 0 ? { type: 'doc', content } : null;
+    const band = (zone: 'top' | 'footer') => {
+        const items = layout.elements.filter((element) => element.zone === zone).flatMap((element) => {
+            const blocks = blocksFor(element, literals, fieldKeys);
+            if (blocks.length === 0) return [];
+            const width = Number((((element.width ?? 100) / 100) * pageWidthPx).toFixed(2));
+            const height = element.type === 'spacer' || element.type === 'divider' || element.type === 'table' || element.type === 'image'
+                ? element.height ?? 24
+                : 0;
+
+            return [{
+                type: 'positionItem',
+                attrs: {
+                    pdfBackground: false,
+                    x: Number((((element.x ?? 0) / 100) * pageWidthPx).toFixed(2)),
+                    y: element.y ?? 0,
+                    width,
+                    height,
+                },
+                content: blocks,
+            }];
+        });
+        if (items.length === 0) return [];
+        const height = Math.max(72, ...items.map((item) => Number(item.attrs.y) + Number(item.attrs.height) + 16));
+
+        return [{
+            type: 'positionCanvas',
+            attrs: { pdfPage: false, height, backgroundColor: null },
+            content: items,
+        }];
+    };
+    const document = [...band('top'), ...content, ...band('footer')];
+
+    return document.length > 0 ? { type: 'doc', content: document } : null;
 }
 
 export function quotationComponentsHtml(
@@ -781,19 +814,67 @@ export function quotationComponentsHtml(
     }
 }
 
+function bandMarkup(
+    elements: PrintLayoutElement[],
+    zone: 'top' | 'footer',
+    literals: Record<string, string>,
+    fieldKeys?: Record<string, string>,
+): string {
+    const items = elements.filter((element) => element.zone === zone).flatMap((element, index) => {
+        const item = build(element, index, literals, fieldKeys);
+        return item ? [item] : [];
+    });
+    if (!items.length) {
+        return '';
+    }
+    const bottom = Math.max(72, ...items.map((item) => item.y + Math.max(item.h, 24) + 16));
+    const html = items.map((item) => {
+        const left = Number((item.x * pageWidthPx / 100).toFixed(2));
+        const width = Number((item.w * pageWidthPx / 100).toFixed(2));
+
+        return `<div style="position:absolute;left:${left}px;top:${item.y}px;width:${width}px">${item.html}</div>`;
+    }).join('');
+
+    return `<div data-layout-band="${zone}" style="position:relative;width:${pageWidthPx}px;height:${bottom}px">${html}</div>`;
+}
+
+function attachBands(
+    sections: LayoutSection[],
+    layout: PrintLayoutOption,
+    literals: Record<string, string>,
+    fieldKeys?: Record<string, string>,
+): LayoutSection[] {
+    const header = bandMarkup(layout.elements, 'top', literals, fieldKeys);
+    const footer = bandMarkup(layout.elements, 'footer', literals, fieldKeys);
+    if (!header && !footer) {
+        return sections;
+    }
+    if (!sections.length) {
+        return [{ id: `layout-${layout.id}-bands`, label: layout.name, html: header + footer }];
+    }
+
+    return sections.map((section, index) => ({
+        ...section,
+        html: (index === 0 ? header : '') + section.html + (index === sections.length - 1 ? footer : ''),
+    }));
+}
+
 export function positionedLayoutSections(
     layout: PrintLayoutOption,
     literals: Record<string, string>,
     fieldKeys?: Record<string, string>,
     pdfPage = false,
 ): LayoutSection[] {
-    if (!pdfPage && layout.elements.some((element) => element.pdf_page)) {
-        return layoutPages(layout.elements, layout.headerHeight ?? 160).flatMap((page, index) =>
+    const canvasElements = layout.elements.filter((element) => !element.zone || element.zone === 'header');
+    if (!pdfPage && canvasElements.some((element) => element.pdf_page)) {
+        const sections = layoutPages(canvasElements, layout.headerHeight ?? 160).flatMap((page, index) =>
             positionedLayoutSections({ ...layout, elements: page.elements, headerHeight: page.height }, literals, fieldKeys, true)
                 .map((section) => ({
                     ...section, id: `${section.id}-${page.id}`, label: `${layout.name} — page ${index + 1}`,
                     html: section.html.replace('data-position-canvas="true"', 'data-position-canvas="true" data-pdf-page="true"'),
                 })));
+
+        return attachBands(sections, layout, literals, fieldKeys);
     }
     const children: string[] = [];
     const bottom = layout.headerHeight ?? 160;
@@ -860,14 +941,13 @@ export function positionedLayoutSections(
         const boxStyle = `position: absolute; left: ${x}px; top: ${item.y}px; width: ${width}px; min-height: ${height}px; z-index: ${stack}`;
         children.push(`<div data-position-item="true"${element.pdf_background ? ' data-pdf-background="true"' : ''} data-x="${x}" data-y="${item.y}" data-width="${width}" data-height="${height}" style="${boxStyle}">${content || '<p></p>'}</div>`);
     });
-    if (!children.length) {
-        return [];
-    }
-    return [{
+    const sections = children.length ? [{
         id: `layout-${layout.id}`,
         label: layout.name,
         html: `<div data-position-canvas="true" data-height="${bottom}" style="position: relative; width: ${pageWidthPx}px; height: ${bottom}px; background-color: ${layout.headerBackground || '#ffffff'}">${children.join('')}</div>`,
-    }];
+    }] : [];
+
+    return pdfPage ? sections : attachBands(sections, layout, literals, fieldKeys);
 }
 
 export function layoutSections(
@@ -1016,5 +1096,11 @@ export function layoutSections(
         });
     });
 
-    return sections;
+    const bandSections = (zone: 'top' | 'footer'): LayoutSection[] => {
+        const html = bandMarkup(elements, zone, literals, fieldKeys);
+
+        return html ? [{ id: `layout-band-${zone}`, label: zone === 'top' ? 'Header' : 'Footer', html }] : [];
+    };
+
+    return [...bandSections('top'), ...sections, ...bandSections('footer')];
 }
