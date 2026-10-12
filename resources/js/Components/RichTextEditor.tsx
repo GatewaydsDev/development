@@ -682,12 +682,25 @@ function labelCurrentTableHeaders(editor: Editor) {
         return;
     }
 
-    const inserts: number[] = [];
+    const inserts: Array<{ pos: number; label: string }> = [];
 
-    table.descendants((node, pos) => {
-        if (node.type.name === 'tableHeader' && node.textContent === '') {
-            inserts.push(tablePos + 1 + pos + 1);
+    table.forEach((row, rowOffset) => {
+        if (row.type.name !== 'tableRow') {
+            return;
         }
+
+        let column = 0;
+
+        row.forEach((cell, cellOffset) => {
+            if (cell.type.name === 'tableHeader' && cell.textContent === '') {
+                inserts.push({
+                    pos: tablePos + 1 + rowOffset + 1 + cellOffset + 1,
+                    label: `Column ${column + 1}`,
+                });
+            }
+
+            column += cell.attrs.colspan || 1;
+        });
     });
 
     if (inserts.length === 0) {
@@ -697,10 +710,101 @@ function labelCurrentTableHeaders(editor: Editor) {
     let { tr } = editor.state;
 
     for (let index = inserts.length - 1; index >= 0; index -= 1) {
-        tr = tr.insertText(`Column ${index + 1}`, inserts[index]);
+        tr = tr.insertText(inserts[index].label, inserts[index].pos);
     }
 
     editor.view.dispatch(tr);
+}
+
+function currentHeaderPaint(editor: Editor): { backgroundColor: string | null; color: string | null } | null {
+    const { $from } = editor.state.selection;
+
+    for (let depth = $from.depth; depth > 0; depth -= 1) {
+        if ($from.node(depth).type.name !== 'table') {
+            continue;
+        }
+
+        let paint: { backgroundColor: string | null; color: string | null } | null = null;
+
+        $from.node(depth).descendants((node) => {
+            if (paint || node.type.name !== 'tableHeader') {
+                return;
+            }
+
+            paint = {
+                backgroundColor: node.attrs.backgroundColor ?? null,
+                color: node.attrs.color ?? null,
+            };
+        });
+
+        return paint;
+    }
+
+    return null;
+}
+
+function paintBlankHeaders(
+    editor: Editor,
+    background: string | null,
+    color: string | null,
+) {
+    if (!background) {
+        return;
+    }
+
+    const { $from } = editor.state.selection;
+    let tablePos: number | null = null;
+
+    for (let depth = $from.depth; depth > 0; depth -= 1) {
+        if ($from.node(depth).type.name === 'table') {
+            tablePos = $from.before(depth);
+            break;
+        }
+    }
+
+    if (tablePos === null) {
+        return;
+    }
+
+    const table = editor.state.doc.nodeAt(tablePos);
+
+    if (!table) {
+        return;
+    }
+
+    let { tr } = editor.state;
+    let changed = false;
+
+    table.descendants((node, pos) => {
+        if (node.type.name !== 'tableHeader' || node.attrs.backgroundColor) {
+            return;
+        }
+
+        changed = true;
+        tr = tr.setNodeMarkup(tablePos + 1 + pos, undefined, {
+            ...node.attrs,
+            backgroundColor: background,
+            color,
+        });
+    });
+
+    if (changed) {
+        editor.view.dispatch(tr);
+    }
+}
+
+function addTableColumn(editor: Editor) {
+    const paint = currentHeaderPaint(editor);
+
+    if (!editor.chain().focus().addColumnAfter().run()) {
+        return;
+    }
+
+    if (paint) {
+        paintBlankHeaders(editor, paint.backgroundColor, paint.color);
+    }
+
+    labelCurrentTableHeaders(editor);
 }
 
 function currentTableHasHeaders(editor: Editor) {
@@ -1079,6 +1183,10 @@ export default function RichTextEditor({
     const [, refreshToolbar] = useReducer((tick: number) => tick + 1, 0);
     const [linkDialogOpen, setLinkDialogOpen] = useState(false);
     const [linkUrl, setLinkUrl] = useState('');
+    const [tableRows, setTableRows] = useState('3');
+    const [tableColumns, setTableColumns] = useState('3');
+    const [tableUsesHeader, setTableUsesHeader] = useState(true);
+    const [tableHidesBorders, setTableHidesBorders] = useState(false);
     const [linkError, setLinkError] = useState<string | null>(null);
     const linkSelection = useRef<{ from: number; to: number } | null>(null);
     const editor = useEditor({
@@ -1124,6 +1232,20 @@ export default function RichTextEditor({
                         for (let depth = resolved.depth; depth > 0; depth -= 1) {
                             if (resolved.node(depth).type.name === 'richImage') {
                                 return 'Add text';
+                            }
+
+                            if (
+                                resolved.node(depth).type.name === 'tableCell' ||
+                                resolved.node(depth).type.name === 'tableHeader'
+                            ) {
+                                if (node.content.size > 0) {
+                                    return '';
+                                }
+
+                                const row = resolved.index(depth - 2) + 1;
+                                const column = resolved.index(depth - 1) + 1;
+
+                                return `Row ${row}, column ${column}`;
                             }
                         }
                     }
@@ -1355,6 +1477,7 @@ export default function RichTextEditor({
     }, [layoutLoad?.key, editor]);
 
     const insertTable = (
+        rows: number,
         columns: number,
         withHeader = true,
         withoutBorders = false,
@@ -1363,30 +1486,25 @@ export default function RichTextEditor({
             return;
         }
 
-        const count = Math.min(6, Math.max(2, columns));
+        const rowCount = Math.min(20, Math.max(1, Math.round(Number.isFinite(rows) ? rows : 3)));
+        const columnCount = Math.min(8, Math.max(1, Math.round(Number.isFinite(columns) ? columns : 3)));
 
         editor
             .chain()
             .focus()
             .insertTable({
-                rows: 3,
-                cols: count,
+                rows: rowCount,
+                cols: columnCount,
                 withHeaderRow: withHeader,
             })
             .run();
 
-        if (!withHeader) {
-            if (withoutBorders) {
-                setCurrentTableBorders(editor, 'none');
-            }
+        if (withHeader) {
+            const headerColor = LAYOUT_COLORS[0];
 
-            return;
+            fillCurrentTableHeaders(editor, headerColor.value, headerColor.text);
+            labelCurrentTableHeaders(editor);
         }
-
-        const headerColor = LAYOUT_COLORS[0];
-
-        fillCurrentTableHeaders(editor, headerColor.value, headerColor.text);
-        labelCurrentTableHeaders(editor);
 
         if (withoutBorders) {
             setCurrentTableBorders(editor, 'none');
@@ -2908,6 +3026,7 @@ export default function RichTextEditor({
                 ) : null}
                 <ToolbarMenu
                     onOpenChange={handleMenuOpenChange}
+                    contentClassName="w-80"
                     trigger={
                         <Button type="button" variant="outline" size="icon-sm" title="Add a table, colored section, or colored line">
                             <TableIcon />
@@ -2915,74 +3034,86 @@ export default function RichTextEditor({
                     }
                 >
                     <DropdownMenuLabel>Insert a table</DropdownMenuLabel>
-                    <DropdownMenuSub>
-                        <DropdownMenuSubTrigger>
-                            <TableIcon />
-                            Table with headers
-                        </DropdownMenuSubTrigger>
-                        <DropdownMenuSubContent>
-                            {[2, 3, 4, 5, 6].map((columns) => (
-                                <DropdownMenuItem
-                                    key={columns}
-                                    onClick={() => insertTable(columns, true)}
-                                >
-                                    {columns} columns
-                                </DropdownMenuItem>
+                    <div
+                        className="grid gap-2 px-2 py-1.5"
+                        onKeyDown={(event) => event.stopPropagation()}
+                    >
+                        <div className="grid grid-cols-2 gap-2">
+                            <label className="grid gap-1 text-xs font-medium">
+                                Rows
+                                <input
+                                    type="number"
+                                    min={1}
+                                    max={20}
+                                    aria-label="Table rows"
+                                    value={tableRows}
+                                    className="h-8 rounded-md border border-border bg-background px-2 text-sm"
+                                    onChange={(event) => setTableRows(event.target.value)}
+                                />
+                            </label>
+                            <label className="grid gap-1 text-xs font-medium">
+                                Columns
+                                <input
+                                    type="number"
+                                    min={1}
+                                    max={8}
+                                    aria-label="Table columns"
+                                    value={tableColumns}
+                                    className="h-8 rounded-md border border-border bg-background px-2 text-sm"
+                                    onChange={(event) => setTableColumns(event.target.value)}
+                                />
+                            </label>
+                        </div>
+                        <label className="flex items-center gap-2 text-xs">
+                            <input
+                                type="checkbox"
+                                checked={tableUsesHeader}
+                                onChange={(event) => setTableUsesHeader(event.target.checked)}
+                            />
+                            First row is the header
+                        </label>
+                        <label className="flex items-center gap-2 text-xs">
+                            <input
+                                type="checkbox"
+                                checked={tableHidesBorders}
+                                onChange={(event) => setTableHidesBorders(event.target.checked)}
+                            />
+                            Hide borders
+                        </label>
+                        <div className="max-h-40 overflow-auto rounded-md border border-border" aria-hidden="true">
+                            {Array.from({ length: Math.min(6, Math.max(1, Number(tableRows) || 1)) }, (_, row) => (
+                                <div key={row} className="grid" style={{ gridTemplateColumns: `repeat(${Math.min(8, Math.max(1, Number(tableColumns) || 1))}, minmax(0, 1fr))` }}>
+                                    {Array.from({ length: Math.min(8, Math.max(1, Number(tableColumns) || 1)) }, (_, column) => {
+                                        const header = tableUsesHeader && row === 0;
+
+                                        return (
+                                            <div
+                                                key={column}
+                                                className="truncate border-b border-r border-border px-1 py-1 text-[10px] leading-tight last:border-r-0"
+                                                style={header ? { backgroundColor: LAYOUT_COLORS[0].value, color: LAYOUT_COLORS[0].text } : undefined}
+                                            >
+                                                {header ? `Column ${column + 1}` : `Row ${row + 1}, column ${column + 1}`}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             ))}
-                        </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                    <DropdownMenuSub>
-                        <DropdownMenuSubTrigger>
-                            <Columns3Icon />
-                            Summary, no header
-                        </DropdownMenuSubTrigger>
-                        <DropdownMenuSubContent>
-                            {[2, 3, 4, 5, 6].map((columns) => (
-                                <DropdownMenuItem
-                                    key={columns}
-                                    onClick={() => insertTable(columns, false)}
-                                >
-                                    {columns} columns
-                                </DropdownMenuItem>
-                            ))}
-                        </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                    <DropdownMenuSub>
-                        <DropdownMenuSubTrigger>
-                            <TableIcon />
-                            Borderless table with headers
-                        </DropdownMenuSubTrigger>
-                        <DropdownMenuSubContent>
-                            {[2, 3, 4, 5, 6].map((columns) => (
-                                <DropdownMenuItem
-                                    key={columns}
-                                    onClick={() =>
-                                        insertTable(columns, true, true)
-                                    }
-                                >
-                                    {columns} columns
-                                </DropdownMenuItem>
-                            ))}
-                        </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                    <DropdownMenuSub>
-                        <DropdownMenuSubTrigger>
-                            <TableIcon />
-                            Borderless table, no header
-                        </DropdownMenuSubTrigger>
-                        <DropdownMenuSubContent>
-                            {[2, 3, 4, 5, 6].map((columns) => (
-                                <DropdownMenuItem
-                                    key={columns}
-                                    onClick={() =>
-                                        insertTable(columns, false, true)
-                                    }
-                                >
-                                    {columns} columns
-                                </DropdownMenuItem>
-                            ))}
-                        </DropdownMenuSubContent>
-                    </DropdownMenuSub>
+                        </div>
+                        {(Number(tableRows) || 1) > 6 ? (
+                            <p className="text-[11px] text-muted-foreground">The table will include every row you entered. This sample shows the first six.</p>
+                        ) : null}
+                        <p className="text-[11px] leading-snug text-muted-foreground">
+                            {tableUsesHeader
+                                ? 'Every column in the first row uses the same header color.'
+                                : 'Each cell shows its row and column while it is empty.'}
+                        </p>
+                    </div>
+                    <DropdownMenuItem
+                        onClick={() => insertTable(Number(tableRows), Number(tableColumns), tableUsesHeader, tableHidesBorders)}
+                    >
+                        <TableIcon />
+                        Create table
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuLabel>Insert a boxed note</DropdownMenuLabel>
                     <DropdownMenuItem onClick={() => applyBoxedNote()}>
@@ -3238,10 +3369,8 @@ export default function RichTextEditor({
                             type="button"
                             variant="ghost"
                             size="sm"
-                            title="Add column"
-                            onClick={() =>
-                                editor.chain().focus().addColumnAfter().run()
-                            }
+                            title="Add a column. A header row keeps its color on the new column."
+                            onClick={() => addTableColumn(editor)}
                         >
                             <Columns3Icon />
                             Add column
