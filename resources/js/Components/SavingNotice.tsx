@@ -2,66 +2,107 @@ import { router } from '@inertiajs/react';
 import { LoaderCircleIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+type NoticeKind = 'saving' | 'dashboard';
+
+const counts: Record<NoticeKind, number> = { saving: 0, dashboard: 0 };
 let pending = 0;
+let noticeKind: NoticeKind = 'saving';
 const listeners = new Set<() => void>();
-const savingVisits = new WeakSet<object>();
+const savingVisits = new WeakMap<object, NoticeKind>();
 
 const notify = () => {
     listeners.forEach((listener) => listener());
 };
 
-export function beginSaving() {
-    pending += 1;
+const publish = (kind: NoticeKind, delta: number) => {
+    counts[kind] = Math.max(0, counts[kind] + delta);
+    pending = counts.saving + counts.dashboard;
+    if (counts.saving > 0) {
+        noticeKind = 'saving';
+    } else if (counts.dashboard > 0) {
+        noticeKind = 'dashboard';
+    }
     notify();
+};
+
+export function beginSaving(kind: NoticeKind = 'saving') {
+    publish(kind, 1);
 }
 
-export function endSaving() {
-    pending = Math.max(0, pending - 1);
-    notify();
+export function endSaving(kind: NoticeKind = 'saving') {
+    publish(kind, -1);
 }
 
-const isSaveVisit = (visit: { method: string; url: string | URL; prefetch?: boolean }) => {
-    const method = visit.method.toLowerCase();
+const visitPath = (url: string | URL) => {
+    if (typeof url !== 'string') {
+        return url.pathname;
+    }
 
+    try {
+        return new URL(url, window.location.origin).pathname;
+    } catch {
+        return url;
+    }
+};
+
+const noticeForVisit = (visit: { method: string; url: string | URL; prefetch?: boolean }): NoticeKind | null => {
     if ('prefetch' in visit && visit.prefetch) {
-        return false;
+        return null;
+    }
+
+    const method = visit.method.toLowerCase();
+    const path = visitPath(visit.url).replace(/\/+$/, '') || '/';
+
+    const matches = (name: string) => path === `/${name}` || path.endsWith(`/${name}`);
+
+    if (method === 'post' && matches('login')) {
+        return 'dashboard';
     }
 
     if (method !== 'post' && method !== 'put' && method !== 'patch') {
-        return false;
+        return null;
     }
 
-    const url = typeof visit.url === 'string' ? visit.url : visit.url.href;
+    if (matches('logout') || matches('register') || matches('forgot-password') || matches('reset-password') || matches('confirm-password')) {
+        return null;
+    }
 
-    return !url.includes('/logout');
+    return 'saving';
 };
 
 export default function SavingNotice() {
     const [pendingSaves, setPendingSaves] = useState(pending);
+    const [kind, setKind] = useState<NoticeKind>(noticeKind);
     const [visible, setVisible] = useState(false);
     const saving = pendingSaves > 0;
 
     useEffect(() => {
-        const sync = () => setPendingSaves(pending);
+        const sync = () => {
+            setPendingSaves(pending);
+            setKind(noticeKind);
+        };
         listeners.add(sync);
         const stopStart = router.on('start', (event) => {
             const visit = event.detail.visit;
+            const nextKind = noticeForVisit(visit);
 
-            if (!isSaveVisit(visit) || savingVisits.has(visit)) {
+            if (!nextKind || savingVisits.has(visit)) {
                 return;
             }
 
-            savingVisits.add(visit);
-            beginSaving();
+            savingVisits.set(visit, nextKind);
+            beginSaving(nextKind);
         });
         const stopFinish = router.on('finish', (event) => {
             const visit = event.detail.visit;
+            const current = savingVisits.get(visit);
 
-            if (!savingVisits.has(visit)) {
+            if (!current) {
                 return;
             }
 
-            endSaving();
+            savingVisits.delete(visit);
+            endSaving(current);
         });
 
         return () => {
@@ -100,7 +141,7 @@ export default function SavingNotice() {
             <div className="w-full max-w-sm rounded-xl border border-border bg-background px-6 py-6 text-center shadow-2xl">
                 <LoaderCircleIcon className="mx-auto size-8 animate-spin text-emerald-700" />
                 <p id="saving-notice-title" className="mt-3 text-base font-semibold text-foreground">
-                    Saving data
+                    {kind === 'dashboard' ? 'Loading dashboard' : 'Saving data'}
                 </p>
                 <p id="saving-notice-description" className="mt-1 text-sm text-muted-foreground">
                     Please wait.
