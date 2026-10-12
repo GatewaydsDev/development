@@ -18,7 +18,74 @@ export type PdfLayoutElement = {
     pdf_list_lines?: number[];
     pdf_bullet_style?: 'disc' | 'circle' | 'square';
     pdf_text_runs?: PdfTextRun[];
+    list_flow?: 'original' | 'auto';
 };
+
+/** A line break inside one bullet. A normal newline still starts the next bullet. */
+export const LIST_CONTINUATION = '\u2028';
+
+export type ListTextItem = { lines: string[]; reserved: number };
+
+type ListSpacing = {
+    list_flow?: 'original' | 'auto';
+    pdf_list_lines?: number[];
+    pdf_line_spacing?: number;
+    font_size?: number;
+    line_height?: number;
+};
+
+export function listKeepsOriginalSpace(element: ListSpacing): boolean {
+    if (element.list_flow === 'auto') return false;
+    if (element.list_flow === 'original') return true;
+    return Boolean(element.pdf_list_lines?.length || element.pdf_line_spacing);
+}
+
+export function listLineSpacing(element: ListSpacing): number {
+    return element.pdf_line_spacing ?? (element.font_size ?? 12) * (element.line_height ?? 1.35);
+}
+
+export function listTextItems(content: string, element: ListSpacing): ListTextItem[] {
+    const counts = element.pdf_list_lines;
+    const slots = counts?.reduce((sum, count) => sum + count, 0) ?? 0;
+    if (!content.includes(LIST_CONTINUATION) && counts && counts.length > 0) {
+        const lines = content.split(/\r?\n/);
+        if (lines.length >= slots && lines.length !== counts.length) {
+            const items: ListTextItem[] = [];
+            let cursor = 0;
+            counts.forEach((count) => {
+                const grouped = lines.slice(cursor, cursor + count);
+                items.push({ lines: grouped.length ? grouped : [''], reserved: Math.max(1, count) });
+                cursor += count;
+            });
+            lines.slice(cursor).forEach((line) => items.push({ lines: [line], reserved: 1 }));
+            return items;
+        }
+    }
+
+    const items = content === '' ? [''] : content.split(/\r?\n/);
+    return items.map((item, index) => {
+        const lines = item.split(LIST_CONTINUATION);
+        return {
+            lines: lines.length ? lines : [''],
+            reserved: Math.max(1, counts?.[index] ?? lines.length),
+        };
+    });
+}
+
+export function listLineUnits(content: string, element: ListSpacing): number[] {
+    const original = listKeepsOriginalSpace(element);
+    return listTextItems(content, element).map((item) => original
+        ? Math.max(item.reserved, Math.max(1, item.lines.length))
+        : Math.max(1, item.lines.length));
+}
+
+export function listBlockHeight(content: string, element: ListSpacing): number {
+    return listLineUnits(content, element).reduce((sum, lines) => sum + lines * listLineSpacing(element), 0);
+}
+
+export function joinListItems(items: ListTextItem[]): string {
+    return items.map((item) => item.lines.join(LIST_CONTINUATION)).join('\n');
+}
 
 export function pdfRunText(lines: string[], runs: PdfTextRun[], index: number): string {
     const run = runs[index];

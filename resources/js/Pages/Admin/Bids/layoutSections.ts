@@ -1,7 +1,7 @@
 import { PRINT_LAYOUT_WIDTH, printLayoutTextCase, tableEdgeBorder, tableStripeColor, tableTextStyle, type TableStriping, type TextCaseState } from '@/lib/printLayoutGeometry';
 import { resolveLayoutTableFields } from '@/lib/printLayoutTableFields';
 import { layoutColumnWidths } from '@/lib/printLayoutGeometry';
-import { layoutPages, pdfTextFont, pdfTextLines, pdfTextLineHeight, pdfRunText, type PdfLayoutElement } from '@/lib/printLayoutPdf';
+import { layoutPages, listKeepsOriginalSpace, listLineSpacing, listTextItems, pdfTextFont, pdfTextLines, pdfTextLineHeight, pdfRunText, type PdfLayoutElement } from '@/lib/printLayoutPdf';
 
 export type PrintLayoutElement = TableStriping & PdfLayoutElement & {
     id: string;
@@ -237,10 +237,14 @@ function build(
                 ? (() => {
                     const tag = element.list_style === 'numbered' ? 'ol' : 'ul';
                     const list = element.list_style === 'numbered' ? 'decimal' : element.pdf_bullet_style ?? 'disc';
-                    const itemStyle = paragraphStyle({ ...element, type: 'listItem' });
-                    const lines = pdfTextLines(element.content ?? '', element)
-                        .map((line) => resolve(line, literals, element.text_case, fieldKeys));
-                    return `<${tag} style="margin: 0; padding-left: 20px; list-style-type: ${list}">${lines.map((line) => `<li${itemStyle}>${paragraph(line || '&nbsp;', element)}</li>`).join('')}</${tag}>`;
+                    const spacing = listLineSpacing(element);
+                    const original = listKeepsOriginalSpace(element);
+                    const items = listTextItems(element.content ?? '', element);
+                    return `<${tag} style="margin: 0; padding-left: 20px; list-style-type: ${list}">${items.map((item) => {
+                        const line = resolve(item.lines.join('\n'), literals, element.text_case, fieldKeys);
+                        const min = original ? `min-height:${Math.max(item.reserved, item.lines.length) * spacing}px;` : '';
+                        return `<li style="padding:${element.pdf_page ? '0' : '2px 0'};${min}">${paragraph(line || '&nbsp;', element)}</li>`;
+                    }).join('')}</${tag}>`;
                 })()
                 : element.pdf_text_runs?.length ? [...element.pdf_text_runs.reduce((lines, run, index) => {
                     const textLines = pdfTextLines(element.content ?? '', element);
@@ -510,12 +514,11 @@ const blocksFor = (
             : element.type === 'date' ? '{{generated_date}}' : element.content ?? '';
         if (plain(source).trim() === '' && !element.pdf_page && !element.pdf_text_runs?.length) return [];
         if (element.type === 'text' && element.list_style && element.list_style !== 'none') {
-            const lines = pdfTextLines(source, element);
             return [{
                 type: element.list_style === 'numbered' ? 'orderedList' : 'bulletList',
-                content: lines.map((line) => ({
+                content: listTextItems(source, element).map((item) => ({
                     type: 'listItem',
-                    content: [paragraphNode(line === '\u00a0' ? '' : line, element, literals, fieldKeys)],
+                    content: [paragraphNode(item.lines.join('\n'), element, literals, fieldKeys)],
                 })),
             }];
         }

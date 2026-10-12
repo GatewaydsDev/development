@@ -538,6 +538,7 @@ class DocumentLayoutElements
                 'underline' => (bool) ($element['underline'] ?? false),
                 'line_height' => self::lineHeight($element['line_height'] ?? 1.35),
                 'list_style' => in_array($element['list_style'] ?? null, ['bullet', 'numbered'], true) ? $element['list_style'] : 'none',
+                ...(in_array($element['list_flow'] ?? null, ['original', 'auto'], true) ? ['list_flow' => $element['list_flow']] : []),
                 'validity_days' => in_array((int) ($element['validity_days'] ?? 30), [30, 60, 90], true) ? (int) ($element['validity_days'] ?? 30) : 30,
                 'color' => DocumentAppearance::normalize((string) ($element['color'] ?? ''), '#111827'),
             ];
@@ -747,6 +748,58 @@ class DocumentLayoutElements
     /**
      * @param  array<string, mixed>  $element
      */
+    private static function listFlowOriginal(array $element): bool
+    {
+        if (($element['list_flow'] ?? null) === 'auto') {
+            return false;
+        }
+        if (($element['list_flow'] ?? null) === 'original') {
+            return true;
+        }
+
+        return isset($element['pdf_list_lines']) || isset($element['pdf_line_spacing']);
+    }
+
+    /**
+     * @return list<array{lines: list<string>, reserved: int}>
+     */
+    private static function listTextItems(string $content, array $element): array
+    {
+        $counts = isset($element['pdf_list_lines']) && is_array($element['pdf_list_lines'])
+            ? array_map(fn ($count): int => max(1, (int) $count), $element['pdf_list_lines'])
+            : null;
+        $slots = $counts === null ? 0 : array_sum($counts);
+        if (! str_contains($content, "\u{2028}") && $counts !== null && $counts !== []) {
+            $lines = preg_split('/\r?\n/', $content) ?: [''];
+            if (count($lines) >= $slots && count($lines) !== count($counts)) {
+                $items = [];
+                $cursor = 0;
+                foreach ($counts as $count) {
+                    $grouped = array_slice($lines, $cursor, $count);
+                    $items[] = ['lines' => $grouped === [] ? [''] : array_values($grouped), 'reserved' => $count];
+                    $cursor += $count;
+                }
+                foreach (array_slice($lines, $cursor) as $line) {
+                    $items[] = ['lines' => [$line], 'reserved' => 1];
+                }
+
+                return $items;
+            }
+        }
+
+        $items = $content === '' ? [''] : (preg_split('/\r?\n/', $content) ?: ['']);
+        $output = [];
+        foreach ($items as $index => $item) {
+            $lines = preg_split('/\x{2028}/u', (string) $item) ?: [''];
+            $output[] = [
+                'lines' => $lines === [] ? [''] : array_values($lines),
+                'reserved' => max(1, $counts[$index] ?? count($lines)),
+            ];
+        }
+
+        return $output;
+    }
+
     private static function pdfTextLines(string $content, array $element): array
     {
         $lines = preg_split('/\r?\n/', $content);
@@ -977,12 +1030,27 @@ class DocumentLayoutElements
         if ($element['type'] === 'text' && in_array($element['list_style'] ?? 'none', ['bullet', 'numbered'], true)) {
             $tag = $element['list_style'] === 'numbered' ? 'ol' : 'ul';
             $list = $tag === 'ol' ? 'decimal' : ($element['pdf_bullet_style'] ?? 'disc');
-            $lines = self::pdfTextLines($content, $element);
             $padding = isset($element['pdf_page']) ? '0' : '2px 0';
-            $items = array_map(fn (string $line): string => '<li style="padding:'.$padding.';">'
-                .str_replace(["\r\n", "\n"], '<br>', e(DocumentTextCase::transform($line, $element['text_case']))).'</li>', $lines);
+            $original = self::listFlowOriginal($element);
+            $spacing = isset($element['pdf_line_spacing'])
+                ? (float) $element['pdf_line_spacing']
+                : (float) $element['font_size'] * (float) ($element['line_height'] ?? 1.35);
+            $items = '';
+            foreach (self::listTextItems($content, $element) as $item) {
+                $lines = array_map(function (string $line) use ($element): string {
+                    $text = $line !== '' ? $line : "\u{00a0}";
 
-            return '<div style="'.$style.'padding:0;"><'.$tag.' style="margin:0;padding-left:20px;list-style-type:'.$list.';">'.implode('', $items).'</'.$tag.'></div>';
+                    return e(DocumentTextCase::transform($text, $element['text_case']));
+                }, $item['lines']);
+                $min = '';
+                if ($original) {
+                    $height = max($item['reserved'], count($item['lines'])) * $spacing;
+                    $min = 'min-height:'.rtrim(rtrim(number_format($height, 2, '.', ''), '0'), '.').'px;';
+                }
+                $items .= '<li style="padding:'.$padding.';'.$min.'">'.implode('<br>', $lines).'</li>';
+            }
+
+            return '<div style="'.$style.'padding:0;"><'.$tag.' style="margin:0;padding-left:20px;list-style-type:'.$list.';">'.$items.'</'.$tag.'></div>';
         }
 
         if (! empty($element['pdf_text_runs'])) {

@@ -244,9 +244,9 @@ test('blank PDF paragraphs and bullet lists retain original line counts spacing 
         ->and($saved[1]['pdf_list_lines'])->toBe([3, 1])
         ->and($saved[1]['list_style'])->toBe('bullet');
     $html = DocumentLayoutElements::render($saved, 'header');
-    expect($html)->toContain('line-height:1.38;', 'list-style-type:disc')
+    expect($html)->toContain('line-height:1.38;', 'list-style-type:disc', 'min-height:51.75px')
         ->and(substr_count($html, '<li '))->toBe(2)
-        ->and(preg_match_all('/<br\s*\/?>/', $html))->toBe(4);
+        ->and(preg_match_all('/<br\s*\/?>/', $html))->toBe(2);
     expect(BidImportedHtml::sanitize($html))->toContain('list-style-type: disc');
     $saved[1]['pdf_bullet_style'] = 'square';
     expect(DocumentLayoutElements::render($saved, 'header'))->toContain('list-style-type:square');
@@ -255,6 +255,16 @@ test('blank PDF paragraphs and bullet lists retain original line counts spacing 
     $replaced = DocumentLayoutElements::render($saved, 'header');
     expect($replaced)->toContain('First', 'Second', 'Third', 'First bullet', 'Second bullet')
         ->and(substr_count($replaced, '<li '))->toBe(2);
+    $saved[1]['content'] = "One\nTwo\nThree\nFour";
+    $grouped = DocumentLayoutElements::render([$saved[1]], 'header');
+    preg_match_all('/<li\b[^>]*>(.*?)<\/li>/s', $grouped, $groupedItems);
+    expect($groupedItems[1])->toHaveCount(2)
+        ->and($groupedItems[1][0])->toContain('One', 'Two', 'Three')
+        ->and($groupedItems[1][1])->toContain('Four')->not->toContain('Three');
+    $saved[1]['content'] = "First bullet\u{2028}still the first bullet\nSecond bullet";
+    $continued = DocumentLayoutElements::render([$saved[1]], 'header');
+    expect(substr_count($continued, '<li '))->toBe(2)
+        ->and($continued)->toContain('still the first bullet');
     $saved[1]['list_style'] = 'none';
     $plain = DocumentLayoutElements::render([$saved[1]], 'header');
     expect($plain)->not->toContain('<li ')
