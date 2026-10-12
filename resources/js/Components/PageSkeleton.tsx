@@ -1,9 +1,6 @@
-import { Skeleton } from '@/Components/ui/skeleton';
 import { router } from '@inertiajs/react';
 import { LoaderCircleIcon } from 'lucide-react';
-import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
-
-type SkeletonKind = 'dashboard' | 'list' | 'form' | 'detail' | 'public';
+import { useEffect, useState } from 'react';
 
 type LoadingVisit = {
     method: string;
@@ -14,61 +11,24 @@ type LoadingVisit = {
     showProgress?: boolean;
 };
 
+const CONTENT_SELECTOR = [
+    'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+    'p', 'li', 'td', 'th', 'dt', 'dd', 'label', 'button', 'a', 'span',
+    'small', 'strong', 'em', 'figcaption', 'blockquote', 'div',
+    'input', 'textarea', 'select', 'img', 'svg',
+].join(',');
+
+const BLOCK_SELECTOR = 'h1,h2,h3,h4,h5,h6,p,li,td,th,dt,dd,button,a,label,figcaption,blockquote';
+
+const TRANSPARENT_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+
 let pending = 0;
-let destination = '/';
 const listeners = new Set<() => void>();
 const trackedVisits = new WeakSet<object>();
+const restores: Array<() => void> = [];
 
 const notify = () => {
     listeners.forEach((listener) => listener());
-};
-
-const visitPath = (url: string | URL) => {
-    if (typeof url !== 'string') {
-        return url.pathname;
-    }
-
-    try {
-        return new URL(url, window.location.origin).pathname;
-    } catch {
-        return url;
-    }
-};
-
-const isWorkspace = (path: string) =>
-    path === '/dashboard' ||
-    path.startsWith('/administration') ||
-    path.startsWith('/profile') ||
-    path.startsWith('/appearance') ||
-    path.startsWith('/notifications');
-
-const skeletonKind = (path: string): SkeletonKind => {
-    if (!isWorkspace(path)) {
-        return 'public';
-    }
-
-    if (path === '/dashboard') {
-        return 'dashboard';
-    }
-
-    if (
-        /\/(create|edit|bulk)(\/|$)/.test(path) ||
-        path.includes('/document-settings') ||
-        path.includes('/access-control') ||
-        path.includes('/company') ||
-        path.includes('/signature') ||
-        path.includes('/account') ||
-        path.startsWith('/profile') ||
-        path.startsWith('/appearance')
-    ) {
-        return 'form';
-    }
-
-    if (/\/\d+(\/|$)/.test(path) || /\/[0-9a-f]{8}-[0-9a-f-]{27,}(\/|$)/i.test(path)) {
-        return 'detail';
-    }
-
-    return 'list';
 };
 
 const shouldShowSkeleton = (visit: LoadingVisit) => {
@@ -83,162 +43,191 @@ const shouldShowSkeleton = (visit: LoadingVisit) => {
     return visit.method.toLowerCase() === 'get';
 };
 
-function Bone({ className, style }: { className?: string; style?: CSSProperties }) {
-    return <Skeleton className={className} style={style} />;
-}
+const hasText = (element: HTMLElement) => (element.innerText ?? element.textContent ?? '').trim().length > 0;
 
-function PageTitle() {
-    return (
-        <div className="flex items-center justify-between gap-4">
-            <div className="space-y-2">
-                <Bone className="h-4 w-28" />
-                <Bone className="h-7 w-52" />
-            </div>
-            <Bone className="h-10 w-28" />
-        </div>
-    );
-}
+const isContentLeaf = (element: HTMLElement) => {
+    if (element.closest('svg')) {
+        return false;
+    }
 
-function StatRow() {
-    return (
-        <div className="grid grid-cols-3 gap-4">
-            {Array.from({ length: 3 }, (_, index) => (
-                <div key={index} className="space-y-3 rounded-xl bg-card p-4 ring-1 ring-foreground/10">
-                    <Bone className="h-4 w-24" />
-                    <Bone className="h-3 w-36" />
-                    <Bone className="h-8 w-16" />
-                </div>
-            ))}
-        </div>
-    );
-}
+    return ![...element.children].some((child) => {
+        if (!(child instanceof HTMLElement)) {
+            return false;
+        }
 
-function ListSkeleton() {
-    return (
-        <div className="mx-auto flex max-w-[96rem] flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-            <PageTitle />
-            <StatRow />
-            <div className="rounded-xl bg-card p-4 ring-1 ring-foreground/10">
-                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="space-y-2">
-                        <Bone className="h-5 w-32" />
-                        <Bone className="h-3 w-56" />
-                    </div>
-                    <Bone className="h-11 w-full sm:w-64" />
-                </div>
-                <div className="space-y-3">
-                    {Array.from({ length: 6 }, (_, index) => (
-                        <Bone key={index} className="h-12 w-full" />
-                    ))}
-                </div>
-            </div>
-        </div>
-    );
-}
+        return child.matches(CONTENT_SELECTOR) && (hasText(child) || child.matches('img, svg, input, textarea, select'));
+    });
+};
 
-function DashboardSkeleton() {
-    return (
-        <div className="flex flex-col gap-6 p-4 sm:p-6 lg:p-8">
-            <Bone className="h-16 w-full rounded-xl" />
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                {Array.from({ length: 4 }, (_, index) => (
-                    <div key={index} className="space-y-4 rounded-xl bg-card p-4 ring-1 ring-foreground/10">
-                        <Bone className="h-6 w-40" />
-                        <Bone className="h-4 w-56" />
-                        <div className="flex h-40 items-end gap-3">
-                            {Array.from({ length: 5 }, (_, bar) => (
-                                <Bone key={bar} className="w-full" style={{ height: `${40 + ((bar * 17) % 60)}%` }} />
-                            ))}
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-}
+const SHIMMER = 'linear-gradient(100deg, color-mix(in oklch, var(--foreground) 16%, var(--background)) 0%, color-mix(in oklch, var(--foreground) 16%, var(--background)) 32%, color-mix(in oklch, var(--foreground) 42%, var(--background)) 50%, color-mix(in oklch, var(--foreground) 16%, var(--background)) 68%, color-mix(in oklch, var(--foreground) 16%, var(--background)) 100%)';
 
-function FormSkeleton() {
-    return (
-        <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-            <PageTitle />
-            <div className="space-y-5 rounded-xl bg-card p-5 ring-1 ring-foreground/10">
-                {Array.from({ length: 6 }, (_, index) => (
-                    <div key={index} className="space-y-2">
-                        <Bone className="h-4 w-28" />
-                        <Bone className="h-11 w-full" />
-                    </div>
-                ))}
-                <div className="flex justify-end gap-3 pt-2">
-                    <Bone className="h-10 w-24" />
-                    <Bone className="h-10 w-28" />
-                </div>
-            </div>
-        </div>
-    );
-}
+const paintBlock = (element: HTMLElement, media = false) => {
+    element.classList.add(media ? 'page-skeleton-media' : 'page-skeleton-block');
+    element.style.setProperty('color', 'transparent', 'important');
+    element.style.setProperty('-webkit-text-fill-color', 'transparent', 'important');
+    element.style.setProperty('background-image', SHIMMER, 'important');
+    element.style.setProperty('background-size', '240% 100%', 'important');
+    element.style.setProperty('background-repeat', 'no-repeat', 'important');
+    element.style.setProperty('background-clip', 'border-box', 'important');
+    element.style.setProperty('-webkit-background-clip', 'border-box', 'important');
+    element.style.setProperty('animation', 'page-skeleton-shimmer 1.05s linear infinite', 'important');
+    element.style.setProperty('border-radius', '0.4rem', 'important');
+    element.style.setProperty('text-shadow', 'none', 'important');
+    element.style.setProperty('box-shadow', 'none', 'important');
 
-function DetailSkeleton() {
-    return (
-        <div className="mx-auto flex max-w-[96rem] flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-            <PageTitle />
-            <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-                <div className="space-y-4 rounded-xl bg-card p-5 ring-1 ring-foreground/10">
-                    <Bone className="h-6 w-40" />
-                    {Array.from({ length: 5 }, (_, index) => (
-                        <Bone key={index} className="h-10 w-full" />
-                    ))}
-                </div>
-                <div className="space-y-4 rounded-xl bg-card p-5 ring-1 ring-foreground/10">
-                    <Bone className="h-6 w-32" />
-                    <Bone className="h-24 w-full" />
-                    <Bone className="h-10 w-full" />
-                </div>
-            </div>
-        </div>
-    );
-}
+    element.querySelectorAll<HTMLElement>('*').forEach((child) => {
+        remember(child, () => {
+            child.style.setProperty('color', 'transparent', 'important');
+            child.style.setProperty('-webkit-text-fill-color', 'transparent', 'important');
+            child.style.setProperty('background-image', 'none', 'important');
+            child.style.setProperty('-webkit-text-fill-color', 'transparent', 'important');
 
-function PublicSkeleton() {
-    return (
-        <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-10 sm:px-6">
-            <div className="space-y-3">
-                <Bone className="h-5 w-32" />
-                <Bone className="h-10 w-2/3 max-w-xl" />
-                <Bone className="h-4 w-full max-w-2xl" />
-                <Bone className="h-4 w-4/5 max-w-lg" />
-            </div>
-            <div className="grid gap-4 md:grid-cols-3">
-                {Array.from({ length: 3 }, (_, index) => (
-                    <div key={index} className="space-y-3 rounded-xl bg-card p-5 ring-1 ring-foreground/10">
-                        <Bone className="h-8 w-8 rounded-full" />
-                        <Bone className="h-5 w-32" />
-                        <Bone className="h-4 w-full" />
-                        <Bone className="h-4 w-4/5" />
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-}
+            if (child instanceof SVGElement) {
+                child.style.setProperty('opacity', '0', 'important');
+            }
+        });
+    });
+};
 
-const skeletons: Record<SkeletonKind, () => ReactNode> = {
-    dashboard: DashboardSkeleton,
-    list: ListSkeleton,
-    form: FormSkeleton,
-    detail: DetailSkeleton,
-    public: PublicSkeleton,
+const remember = (element: HTMLElement, apply: () => void) => {
+    const previousClass = element.getAttribute('class');
+    const style = element.getAttribute('style');
+    const src = element instanceof HTMLImageElement ? element.getAttribute('src') : null;
+    const alt = element instanceof HTMLImageElement ? element.getAttribute('alt') : null;
+
+    apply();
+
+    restores.push(() => {
+        if (!element.isConnected) {
+            return;
+        }
+
+        if (previousClass === null) {
+            element.removeAttribute('class');
+        } else {
+            element.setAttribute('class', previousClass);
+        }
+
+        if (style === null) {
+            element.removeAttribute('style');
+        } else {
+            element.setAttribute('style', style);
+        }
+
+        if (element instanceof HTMLImageElement) {
+            if (src === null) {
+                element.removeAttribute('src');
+            } else {
+                element.setAttribute('src', src);
+            }
+
+            if (alt === null) {
+                element.removeAttribute('alt');
+            } else {
+                element.setAttribute('alt', alt);
+            }
+        }
+    });
+};
+
+const skeletonizePage = () => {
+    const main = document.querySelector('main');
+
+    if (!main || main.getAttribute('aria-busy') === 'true') {
+        return;
+    }
+
+    document.documentElement.setAttribute('data-page-skeleton', 'true');
+    main.setAttribute('aria-busy', 'true');
+    const previousPointer = main.style.pointerEvents;
+    main.style.pointerEvents = 'none';
+    restores.push(() => {
+        document.documentElement.removeAttribute('data-page-skeleton');
+
+        if (!main.isConnected) {
+            return;
+        }
+
+        main.removeAttribute('aria-busy');
+        main.style.pointerEvents = previousPointer;
+    });
+
+    main.querySelectorAll<HTMLElement>(CONTENT_SELECTOR).forEach((element) => {
+        if (element.closest('.page-skeleton-block, .page-skeleton-media')) {
+            return;
+        }
+
+        if (element instanceof SVGElement || element instanceof HTMLImageElement) {
+            if (element.closest(BLOCK_SELECTOR)) {
+                return;
+            }
+
+            const box = element.getBoundingClientRect();
+
+            if (box.width < 8 || box.height < 8) {
+                return;
+            }
+
+            if (element instanceof SVGElement && box.width < 36 && box.height < 36) {
+                remember(element, () => element.classList.add('page-skeleton-icon'));
+
+                return;
+            }
+
+            remember(element, () => {
+                paintBlock(element, true);
+
+                if (element instanceof HTMLImageElement) {
+                    element.alt = '';
+                    element.style.width = `${box.width}px`;
+                    element.style.height = `${box.height}px`;
+                    element.src = TRANSPARENT_PIXEL;
+                }
+            });
+
+            return;
+        }
+
+        if (element.parentElement?.closest('.page-skeleton-block, .page-skeleton-media')) {
+            return;
+        }
+
+        const insideBlock = Boolean(element.parentElement?.closest(BLOCK_SELECTOR));
+
+        if (element.matches(BLOCK_SELECTOR)) {
+            if (insideBlock || !hasText(element)) {
+                return;
+            }
+
+            remember(element, () => paintBlock(element));
+
+            return;
+        }
+
+        if (insideBlock || !isContentLeaf(element)) {
+            return;
+        }
+
+        if (!hasText(element) && !element.matches('input, textarea, select')) {
+            return;
+        }
+
+        remember(element, () => paintBlock(element));
+    });
+};
+
+const clearPageSkeleton = () => {
+    while (restores.length > 0) {
+        restores.pop()?.();
+    }
 };
 
 export default function PageSkeleton() {
     const [pendingLoads, setPendingLoads] = useState(pending);
-    const [path, setPath] = useState(destination);
     const [visible, setVisible] = useState(false);
 
     useEffect(() => {
-        const sync = () => {
-            setPendingLoads(pending);
-            setPath(destination);
-        };
+        const sync = () => setPendingLoads(pending);
         listeners.add(sync);
         const stopStart = router.on('start', (event) => {
             const visit = event.detail.visit as LoadingVisit;
@@ -248,14 +237,11 @@ export default function PageSkeleton() {
             }
 
             trackedVisits.add(visit);
-            destination = visitPath(visit.url);
             pending += 1;
             notify();
         });
         const stopFinish = router.on('finish', (event) => {
-            const visit = event.detail.visit;
-
-            if (!trackedVisits.has(visit)) {
+            if (!trackedVisits.has(event.detail.visit)) {
                 return;
             }
 
@@ -267,6 +253,7 @@ export default function PageSkeleton() {
             listeners.delete(sync);
             stopStart();
             stopFinish();
+            clearPageSkeleton();
         };
     }, []);
 
@@ -277,37 +264,35 @@ export default function PageSkeleton() {
             return;
         }
 
-        const timer = window.setTimeout(() => setVisible(true), 180);
+        const timer = window.setTimeout(() => setVisible(true), 160);
 
         return () => window.clearTimeout(timer);
     }, [pendingLoads]);
+
+    useEffect(() => {
+        if (!visible) {
+            clearPageSkeleton();
+
+            return;
+        }
+
+        skeletonizePage();
+
+        return () => clearPageSkeleton();
+    }, [visible]);
 
     if (!visible) {
         return null;
     }
 
-    const workspace = isWorkspace(window.location.pathname);
-    const collapsed = window.localStorage.getItem('sidebarCollapsed') === '1';
-    const kind = skeletonKind(path);
-    const Screen = skeletons[kind];
-
     return (
         <div
-            className={
-                'fixed overflow-y-auto bg-[color-mix(in_oklch,var(--muted)_30%,var(--background))] ' +
-                (workspace
-                    ? 'inset-x-0 bottom-0 top-16 z-[25] ' + (collapsed ? 'lg:left-16' : 'lg:left-72 xl:left-80')
-                    : 'inset-0 z-[60]')
-            }
+            className="pointer-events-none fixed bottom-5 right-5 z-[70] flex items-center gap-2 rounded-full border border-border bg-background/95 px-3 py-2 text-sm font-medium text-foreground shadow-lg"
             role="status"
             aria-live="polite"
-            aria-busy="true"
         >
-            <p className="flex items-center gap-2 px-4 pt-4 text-sm font-medium text-muted-foreground sm:px-6 lg:px-8">
-                <LoaderCircleIcon className="size-4 animate-spin text-emerald-700" />
-                Loading page
-            </p>
-            <Screen />
+            <LoaderCircleIcon className="size-4 animate-spin text-emerald-700" />
+            Loading page
         </div>
     );
 }
