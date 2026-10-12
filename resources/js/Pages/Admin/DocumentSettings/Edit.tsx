@@ -35,7 +35,7 @@ import LayoutElementsEditor, {
     PreviewZone,
     useLayoutElements,
 } from "./LayoutElements";
-import { Head, useForm } from "@inertiajs/react";
+import { Head, router, useForm } from "@inertiajs/react";
 import { toast } from "sonner";
 import {
     CheckIcon,
@@ -43,6 +43,7 @@ import {
     FileTextIcon,
     LayoutTemplateIcon,
     SearchIcon,
+    Trash2Icon,
     XIcon,
 } from "lucide-react";
 import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
@@ -301,6 +302,10 @@ export default function Edit({
     const [previewLayout, setPreviewLayout] = useState<
         LayoutRecord | LayoutForm | null
     >(null);
+    const [layoutToDelete, setLayoutToDelete] = useState<LayoutRecord | null>(
+        null,
+    );
+    const [deleting, setDeleting] = useState(false);
     const editorSectionRef = useRef<HTMLElement>(null);
 
     const selectedLayout = layouts.find(
@@ -618,18 +623,37 @@ export default function Edit({
                                                     ? ` +${layout.assignments.length - 2}`
                                                     : ""}
                                             </p>
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="sm"
-                                                className="shrink-0 gap-1.5"
-                                                onClick={() =>
-                                                    setPreviewLayout(layout)
-                                                }
-                                            >
-                                                <FileTextIcon />
-                                                Preview
-                                            </Button>
+                                            <span className="flex shrink-0 items-center gap-2">
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="gap-1.5"
+                                                    onClick={() =>
+                                                        setPreviewLayout(layout)
+                                                    }
+                                                >
+                                                    <FileTextIcon />
+                                                    Preview
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="gap-1.5 text-destructive"
+                                                    disabled={
+                                                        processing || deleting
+                                                    }
+                                                    onClick={() =>
+                                                        setLayoutToDelete(
+                                                            layout,
+                                                        )
+                                                    }
+                                                >
+                                                    <Trash2Icon />
+                                                    Delete
+                                                </Button>
+                                            </span>
                                         </CardContent>
                                     </Card>
                                 ))}
@@ -1006,6 +1030,56 @@ export default function Edit({
                             setPendingLayoutChange(null);
                         }}>
                             Discard changes
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog
+                open={layoutToDelete !== null}
+                onOpenChange={(open) => {
+                    if (!open && !deleting) {
+                        setLayoutToDelete(null);
+                    }
+                }}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            Delete {layoutToDelete?.name ?? "this layout"}?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Quotations using this layout will drop it and print
+                            without that design. This cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={deleting}>
+                            Keep layout
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            disabled={deleting || layoutToDelete === null}
+                            onClick={() => {
+                                if (!layoutToDelete) {
+                                    return;
+                                }
+                                setDeleting(true);
+                                router.delete(
+                                    route(
+                                        "admin.document-settings.destroy",
+                                        layoutToDelete.id,
+                                    ),
+                                    {
+                                        preserveScroll: true,
+                                        onFinish: () => {
+                                            setDeleting(false);
+                                            setLayoutToDelete(null);
+                                        },
+                                    },
+                                );
+                            }}
+                        >
+                            Delete layout
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

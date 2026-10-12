@@ -173,6 +173,8 @@ Route::middleware(['auth', 'prevent-back-history'])
             ->name('document-settings.pdf-fonts');
         Route::match(['post', 'patch'], '/document-settings/{layout}', [DocumentSettingController::class, 'update'])
             ->name('document-settings.update');
+        Route::delete('/document-settings/{layout}', [DocumentSettingController::class, 'destroy'])
+            ->name('document-settings.destroy');
 
         Route::get('/account', [AccountController::class, 'edit'])
             ->name('account.edit');

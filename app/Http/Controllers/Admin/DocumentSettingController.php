@@ -13,6 +13,7 @@ use App\Support\DocumentTextCase;
 use App\Support\EditorImage;
 use App\Support\PrintLayoutCatalog;
 use App\Support\QuotationAccess;
+use App\Support\QuotationPrintLayoutSync;
 use FontLib\Font;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -150,16 +151,47 @@ class DocumentSettingController extends Controller
         $validated = $this->validateLayout($request);
         $elements = $request->exists('elements') ? $request->input('elements') : null;
         $zoneColors = $request->exists('zone_colors') ? $request->input('zone_colors') : null;
-        DB::transaction(function () use ($layout, $validated, $elements, $zoneColors): void {
+        $updatedQuotations = DB::transaction(function () use ($layout, $validated, $elements, $zoneColors): int {
             $attributes = $this->layoutAttributes($validated);
             $layout->update([
                 ...$attributes,
                 'design' => $this->designWithColors($layout->design, $attributes, $elements, $zoneColors),
             ]);
             $this->syncAssignments($layout, $validated['assignments'] ?? []);
+            $layout->refresh();
+
+            return QuotationPrintLayoutSync::refresh($layout);
         });
 
-        return $this->savedResponse($layout);
+        $message = match ($updatedQuotations) {
+            0 => 'Print layout saved.',
+            1 => 'Print layout saved. 1 quotation now uses this layout.',
+            default => "Print layout saved. {$updatedQuotations} quotations now use this layout.",
+        };
+
+        return $this->savedResponse($layout, $message);
+    }
+
+    public function destroy(Request $request, PrintLayout $layout): RedirectResponse
+    {
+        abort_unless($request->user()?->isSuperAdmin(), 403);
+
+        $cleared = DB::transaction(function () use ($layout): int {
+            $cleared = QuotationPrintLayoutSync::detach($layout);
+            $layout->delete();
+
+            return $cleared;
+        });
+
+        $message = match ($cleared) {
+            0 => 'Print layout deleted.',
+            1 => 'Print layout deleted. 1 quotation no longer uses it.',
+            default => "Print layout deleted. {$cleared} quotations no longer use it.",
+        };
+
+        return redirect()
+            ->route('admin.document-settings.edit')
+            ->with('success', $message);
     }
 
     public function importFile(Request $request): JsonResponse
@@ -451,10 +483,10 @@ class DocumentSettingController extends Controller
         }
     }
 
-    private function savedResponse(PrintLayout $layout): RedirectResponse
+    private function savedResponse(PrintLayout $layout, string $message = 'Print layout saved.'): RedirectResponse
     {
         return redirect()
             ->route('admin.document-settings.edit', ['layout' => $layout->id])
-            ->with('success', 'Print layout saved.');
+            ->with('success', $message);
     }
 }

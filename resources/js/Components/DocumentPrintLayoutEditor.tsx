@@ -147,12 +147,14 @@ export default function DocumentPrintLayoutEditor({
     const mounted = useRef(true);
     const latest = useRef({ layoutId, pending, busy });
     const onDesignChangeRef = useRef(onDesignChange);
+    const onLayoutChangeRef = useRef(onLayoutChange);
     const literalsRef = useRef(literals);
     const fieldKeysRef = useRef(fieldKeys);
     const placeLayoutRef = useRef<(id: string, layout: PrintLayoutOption) => void>(() => {});
     const elementCount = useRef(design?.elements.length ?? 0);
     latest.current = { layoutId, pending, busy };
     onDesignChangeRef.current = onDesignChange;
+    onLayoutChangeRef.current = onLayoutChange;
     literalsRef.current = literals;
     fieldKeysRef.current = fieldKeys;
     elementCount.current = design?.elements.length ?? 0;
@@ -208,9 +210,31 @@ export default function DocumentPrintLayoutEditor({
                 if (!layout && (latest.current.layoutId || acknowledged.current)) {
                     setPending(null);
                     setCheckError('The selected layout is no longer assigned to this document type. Its loaded content is unchanged; assign it again in Print Layouts or choose another layout.');
-                } else if (!componentCanvas && layout && layout.version !== acknowledged.current &&
+                } else if (layout && layout.version !== acknowledged.current &&
                     layout.version !== dismissed.current && !latest.current.pending) {
-                    setPending({ id: latest.current.layoutId, layout, kind: 'update' });
+                    if (componentCanvas && latest.current.layoutId && onDesignChangeRef.current) {
+                        try {
+                            if (layout.elements.length === 0) {
+                                acknowledged.current = layout.version;
+                                dismissed.current = null;
+                                canvasEdited.current = false;
+                                onLayoutChangeRef.current(latest.current.layoutId, layout.version ?? '');
+                                onDesignChangeRef.current({
+                                    elements: [],
+                                    header_height: layout.headerHeight ?? 160,
+                                    header_background: layout.headerBackground ?? '#ffffff',
+                                    text_case: layout.textCase ?? 'original',
+                                }, '');
+                            } else {
+                                placeLayoutRef.current(latest.current.layoutId, layout);
+                            }
+                            toast.info(`“${layout.name}” was updated. This quotation is using the latest layout.`);
+                        } catch (error) {
+                            setCheckError(error instanceof Error ? error.message : 'The updated layout could not be placed.');
+                        }
+                    } else if (!componentCanvas) {
+                        setPending({ id: latest.current.layoutId, layout, kind: 'update' });
+                    }
                 }
             } catch (error) {
                 if (!controller.signal.aborted && mounted.current) {
@@ -341,7 +365,7 @@ export default function DocumentPrintLayoutEditor({
                 {busy
                     ? 'Placing the layout components…'
                     : componentCanvas
-                        ? 'Choosing a different layout asks you to confirm before the page is replaced.'
+                        ? 'Choosing a different layout asks you to confirm before the page is replaced. Saving a print layout updates every quotation that uses it.'
                         : 'Saved layout changes are checked while this document editor is open.'}
             </p>
             {checkError ? <p role="alert" className="text-sm text-destructive">{checkError}</p> : null}
