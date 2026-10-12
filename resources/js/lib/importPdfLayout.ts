@@ -4,7 +4,7 @@ import worker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import type { LayoutElement } from '@/Pages/Admin/DocumentSettings/LayoutElements';
 import { PRINT_LAYOUT_WIDTH } from './printLayoutGeometry';
 import { groupPdfText, type PdfTextFragment, type PdfTextRegion } from './pdfTextBlocks';
-import { detectPdfTables, editablePdfTables, pdfPathLines, type PdfTableLine, type PdfTableFill } from './pdfTables';
+import { detectPdfTables, pdfPathLines, pdfTableColorBands, type PdfTableLine, type PdfTableFill } from './pdfTables';
 
 GlobalWorkerOptions.workerSrc = worker;
 const standardFonts = import.meta.glob('/node_modules/pdfjs-dist/standard_fonts/*', { eager: true, query: '?url', import: 'default' });
@@ -219,14 +219,14 @@ export async function readPdfLayout(file: File, options?: { text?: PdfImportText
                 );
             }
             const grids = detectPdfTables(tableLines);
-            const editable = editablePdfTables(grids, fragments, { ...base, id: uid(), type: 'table' }, (x, y) => {
+            const editable = pdfTableColorBands(grids, fragments, { ...base, id: uid(), type: 'table' }, (x, y) => {
                 const pixel = context.getImageData(Math.max(0, Math.min(canvas.width - 1, Math.round(x * resolution))),
                     Math.max(0, Math.min(canvas.height - 1, Math.round(y * resolution))), 1, 1).data;
                 return '#' + Array.from(pixel.slice(0, 3)).map(value => value.toString(16).padStart(2, '0')).join('');
             });
-            // Remove table artwork from the raster so resized cells never leave the original grid underneath.
+            // Remove the original table artwork. Only the header and footer color bars are kept.
             context.fillStyle = '#ffffff';
-            for (const table of editable.tables) {
+            for (const table of editable.bounds) {
                 const x = (table.x ?? 0) / 100 * PRINT_LAYOUT_WIDTH;
                 const y = table.y ?? 0;
                 const width = (table.width ?? 0) / 100 * PRINT_LAYOUT_WIDTH;
@@ -237,7 +237,7 @@ export async function readPdfLayout(file: File, options?: { text?: PdfImportText
             const background = await new Promise<Blob>((resolve, reject) => canvas.toBlob(
                 (blob) => blob ? resolve(blob) : reject(new Error(`Could not render page ${number}.`)), 'image/png'));
             canvas.width = canvas.height = 0;
-            elements.push(...editable.tables, ...groupPdfText(editable.remaining, regions));
+            elements.push(...editable.bands, ...groupPdfText(editable.remaining, regions));
             if (options?.text === 'clean') {
                 for (let index = 0; index < elements.length; index++) elements[index] = withoutPdfWording(elements[index]);
             }
@@ -247,8 +247,8 @@ export async function readPdfLayout(file: File, options?: { text?: PdfImportText
             page.cleanup();
         }
         notes.add(options?.text === 'clean'
-            ? 'Original PDF wording was removed. Tables and text stay in their positions as blank editable fields. Other graphics remain page backgrounds.'
-            : 'PDF tables with vector borders or adjoining colored cells are imported as editable tables, including their text, column proportions, row heights, merged cells, colors and borders. Lists stay lists. Other graphics remain page backgrounds.');
+            ? 'Original PDF wording was removed. Each table leaves its header color, and its footer color when the last row is a separate band. Add the columns and rows yourself. Other graphics remain page backgrounds.'
+            : 'PDF tables are not copied. Each table leaves a header color bar, and a footer color bar when the last row has its own color. Add the columns and rows yourself. Lists stay lists. Other graphics remain page backgrounds.');
         notes.add('Embedded PDF fonts may contain only the original characters. Review replacement text for missing glyphs; choose a standard font if needed.');
         notes.add('Text baked into images or vector outlines cannot be detected or cleared. Review every imported background before saving.');
         return { pages, fonts, notes: [...notes] };

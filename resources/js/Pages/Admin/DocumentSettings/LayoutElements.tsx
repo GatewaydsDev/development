@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { layoutColumnWidths, resizedLayoutColumns, tableEdgeBorder } from "@/lib/printLayoutGeometry";
 import { layoutTableCell, layoutTableDimensions, layoutTableField, resolveLayoutTableFields } from "@/lib/printLayoutTableFields";
 import { layoutPages, listBlockHeight, listKeepsOriginalSpace, listLineSpacing, listLineUnits, listTextItems, joinListItems, loadPdfFont, pdfTextFont, pdfTextLines, pdfTextLineHeight, pdfRunText, pdfRunY, pdfFontSources, type ListTextItem, type PdfLayoutElement } from "@/lib/printLayoutPdf";
-import { PRINT_LAYOUT_FONTS, PRINT_LAYOUT_FONT_CHOICES, PRINT_LAYOUT_WIDTH, printLayoutTextCase, printPageSize, tableStripeColor, tableTextStyle, TABLE_TEXT_STYLE_KEYS, type TableStriping, type TableTextStyle, type TextCaseState } from "@/lib/printLayoutGeometry";
+import { PRINT_LAYOUT_FONTS, PRINT_LAYOUT_FONT_CHOICES, PRINT_LAYOUT_WIDTH, explicitTableBackground, growLayoutTable, layoutColumnBackground, layoutRowBackground, paintLayoutColumn, paintLayoutRow, printLayoutTextCase, printPageSize, tableStripeColor, tableTextStyle, TABLE_TEXT_STYLE_KEYS, type TableStriping, type TableTextStyle, type TextCaseState } from "@/lib/printLayoutGeometry";
 import {
     AlignCenterIcon,
     AlignLeftIcon,
@@ -456,7 +456,7 @@ export function ElementPreview({
                                         color: style.color,
                                         backgroundColor: r === 0 && element.header_row
                                             ? element.label_bg || "#065f46"
-                                            : tableStripeColor(element, r - (element.header_row ? 1 : 0), c, r),
+                                            : explicitTableBackground(element, r - (element.header_row ? 1 : 0), c, r),
                                         fontWeight: style.bold ? 700 : 400,
                                         fontStyle: style.italic ? "italic" : "normal",
                                         textAlign: style.align,
@@ -1638,7 +1638,7 @@ export function ImportPanel({
                 if (onImported) onImported(incoming, file.name, imported.notes);
                 else controller.importElements(incoming, replace);
                 controller.setTargetPage(incoming[0]?.pdf_page);
-                setMessage({ tone: "ok", lines: [`Imported ${imported.pages.length} pages. ${pdfText === "clean" ? "The original wording was removed and the text positions are blank." : "Tables, lists, text, and images are editable components."} Review each page, then save.`, ...imported.notes] });
+                setMessage({ tone: "ok", lines: [`Imported ${imported.pages.length} pages. ${pdfText === "clean" ? "The original wording was removed." : "Text outside tables stays editable."} Table columns were not copied — the header color is in place, and the footer color too when the PDF has one. Add the columns and rows yourself, then save.`, ...imported.notes] });
                 return;
             }
             const body = new FormData();
@@ -1711,7 +1711,7 @@ export function ImportPanel({
                         {pdfOnly ? "Upload a PDF to create your layout" : "Import from an existing document"}
                     </p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                        Import every PDF page with editable tables and the original colors.
+                        Import every PDF page. Table columns are not copied — you get the header color, and the footer color when the PDF has one, so you can build the table yourself.
                         Keep the wording, or clean it and leave blank text in the same positions.{!pdfOnly ? " Word/text import is also available." : ""}
                     </p>
 
@@ -1767,7 +1767,7 @@ export function ImportPanel({
                         <div className="mt-1 flex flex-wrap gap-x-5 gap-y-1 text-sm">
                             <label className="inline-flex items-center gap-2">
                                 <input type="radio" name="import-mode" disabled={busy} checked={mode === "pdf"} onChange={() => setMode("pdf")} className="accent-emerald-700" />
-                                PDF pages: editable tables and original colors
+                                PDF pages: header and footer colors, then build the table
                             </label>
                             <label className="inline-flex items-center gap-2">
                                 <input
@@ -2412,11 +2412,11 @@ function ElementInspector({
                     </div>
                     <div className="flex gap-2">
                         <Button type="button" variant="outline" size="sm" disabled={element.cells.length >= 60}
-                            onClick={() => onChange({ cells: [...element.cells!, Array(element.cells![0].length).fill("")] })}>
+                            onClick={() => onChange(growLayoutTable(element as LayoutElement & { cells: string[][] }, element.cells!.length + 1, element.cells![0].length))}>
                             Add row
                         </Button>
                         <Button type="button" variant="outline" size="sm" disabled={element.cells[0].length >= 12}
-                            onClick={() => onChange({ cells: element.cells!.map((row) => [...row, ""]) })}>
+                            onClick={() => onChange(growLayoutTable(element as LayoutElement & { cells: string[][] }, element.cells!.length, element.cells![0].length + 1))}>
                             Add column
                         </Button>
                     </div>
@@ -2435,14 +2435,11 @@ function ElementInspector({
                                         onChange({
                                             row_styles: element.row_styles?.slice(0, rows),
                                             cell_styles: element.cell_styles?.slice(0, rows).map((row) => row?.slice(0, cols) ?? null),
-                                            cell_backgrounds: element.cell_backgrounds?.slice(0, rows).map(row => row.slice(0, cols)),
                                             cell_borders: element.cell_borders?.slice(0, rows).map(row => row.slice(0, cols)),
                                             cell_spans: element.cell_spans?.slice(0, rows).map((row, r) => row.slice(0, cols).map((span, c) => ({
                                                 rows: Math.min(span.rows, rows - r), columns: Math.min(span.columns, cols - c),
                                             }))),
-                                            row_heights: element.row_heights?.slice(0, rows),
-                                            cells: Array.from({ length: rows }, (_, r) =>
-                                            Array.from({ length: cols }, (_, c) => element.cells?.[r]?.[c] ?? "")) });
+                                            ...growLayoutTable(element as LayoutElement & { cells: string[][] }, rows, cols) });
                                     }} />
                             </label>
                         ))}
@@ -2452,6 +2449,12 @@ function ElementInspector({
                         <button type="button" aria-pressed={selectedRow === r} data-focus-row={r}
                             className="self-start text-xs font-medium underline underline-offset-2"
                             onClick={() => onSelectRow(r)}>Row {r + 1}</button>
+                        {r === 0 && element.header_row ? null : (
+                            <div className={labelClass}>Row background
+                                <ColorSelect allowNone label={`Row ${r + 1} background`} value={layoutRowBackground(element as LayoutElement & { cells: string[][] }, r)}
+                                    onChange={(color) => onChange(paintLayoutRow(element as LayoutElement & { cells: string[][] }, r, color))} />
+                            </div>
+                        )}
                         <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${row.length}, minmax(0, 1fr))` }}>
                             {row.map((cell, c) => element.cell_spans?.[r]?.[c]?.columns === 0 ? null : (
                                 <input key={c} data-focus-cell={`${r}-${c}`} aria-label={`Row ${r + 1}, column ${c + 1}`} maxLength={300}
@@ -2499,7 +2502,7 @@ function ElementInspector({
                         </div>
                     ) : null}
                     <p className="text-xs text-muted-foreground">
-                        The header keeps its own background. Alternating colors override the table background when enabled.
+                        The header keeps its own background. A row background paints across that row. A column background paints down the body and covers the row color there. Clear either color to use the table background again. Alternating colors override both when enabled.
                     </p>
                 </div>
             ) : null}
@@ -2519,7 +2522,14 @@ function ElementInspector({
                 <div className="flex flex-col gap-2">
                     <p className="text-xs text-muted-foreground">Drag a column boundary in the preview or enter its width. The adjacent column adjusts; the table stays the same size.</p>
                     {layoutColumnWidths(element).map((width, column) => (
-                        <label key={column} className={labelClass}>
+                        <div key={column} className="flex flex-col gap-2">
+                            {element.cells ? (
+                                <div className={labelClass}>Column {column + 1} background
+                                    <ColorSelect allowNone label={`Column ${column + 1} background`} value={layoutColumnBackground(element as LayoutElement & { cells: string[][] }, column)}
+                                        onChange={(color) => onChange(paintLayoutColumn(element as LayoutElement & { cells: string[][] }, column, color))} />
+                                </div>
+                            ) : null}
+                            <label className={labelClass}>
                             Column {column + 1} width (%)
                             <input type="number" min={1} max={99} step={0.1}
                                 aria-label={`Column ${column + 1} width (%)`}
@@ -2532,6 +2542,7 @@ function ElementInspector({
                                     });
                                 }} />
                         </label>
+                        </div>
                     ))}
                 </div>
             ) : null}

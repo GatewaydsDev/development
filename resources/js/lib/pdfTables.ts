@@ -1,6 +1,6 @@
 import type { LayoutElement } from '@/Pages/Admin/DocumentSettings/LayoutElements';
 import type { PdfTextFragment, PdfTextRegion } from './pdfTextBlocks';
-import { completeRowBackgrounds, completeTableEdges, paintIsWhite, PRINT_LAYOUT_WIDTH, type TableTextStyle } from './printLayoutGeometry';
+import { paintIsWhite, PRINT_LAYOUT_WIDTH } from './printLayoutGeometry';
 
 export type PdfTableLine = { x1: number; y1: number; x2: number; y2: number; color: string; width: number };
 export type PdfTableFill = PdfTextRegion & { color: string };
@@ -75,31 +75,7 @@ function covers(lines: PdfTableLine[], vertical: boolean, position: number, star
     return null;
 }
 
-function edgeStroke(lines: PdfTableLine[], vertical: boolean, position: number, start: number, end: number): PdfTableLine | null {
-    const exact = covers(lines, vertical, position, start, end);
-    if (exact) return exact;
-    const span = Math.max(0, end - start);
-    let best: PdfTableLine | null = null;
-    let overlap = 0;
-    for (const line of lines) {
-        const positionDelta = vertical ? Math.min(Math.abs(line.x1 - position), Math.abs(line.x2 - position)) : Math.min(Math.abs(line.y1 - position), Math.abs(line.y2 - position));
-        const aligned = vertical ? near(line.x1, line.x2) : near(line.y1, line.y2);
-        if (!aligned || positionDelta > 2.5) continue;
-        const lineStart = Math.min(vertical ? line.y1 : line.x1, vertical ? line.y2 : line.x2);
-        const lineEnd = Math.max(vertical ? line.y1 : line.x1, vertical ? line.y2 : line.x2);
-        const covered = Math.min(end, lineEnd) - Math.max(start, lineStart);
-        const enough = covered >= Math.min(span, Math.max(4, span * 0.45));
-        const visible = line.width > 0;
-        const bestVisible = (best?.width ?? 0) > 0;
-        if (enough && (!best || (visible && !bestVisible) || (visible === bestVisible && covered > overlap))) {
-            overlap = covered;
-            best = line;
-        }
-    }
-    return best;
-}
-
-function gridFromLines(group: PdfTableLine[]): PdfTableGrid | 'oversized' | null {
+function gridFromLines(group: PdfTableLine[]): PdfTableGrid | null {
     const xs = coordinates(group.filter(line => near(line.x1, line.x2)).map(line => line.x1));
     const ys = coordinates(group.filter(line => near(line.y1, line.y2)).map(line => line.y1));
     if (xs.length < 2 || ys.length < 2 || (xs.length - 1) * (ys.length - 1) < 2) return null;
@@ -107,7 +83,6 @@ function gridFromLines(group: PdfTableLine[]): PdfTableGrid | 'oversized' | null
     if (right - left < 30 || bottom - top < 12) return null;
     if (!covers(group, true, left, top, bottom) || !covers(group, true, right, top, bottom) ||
         !covers(group, false, top, left, right) || !covers(group, false, bottom, left, right)) return null;
-    if (xs.length > 13 || ys.length > 61) return 'oversized';
     return { xs, ys, lines: group };
 }
 
@@ -153,9 +128,6 @@ function collectPdfTables(lines: PdfTableLine[], depth = 0): PdfTableGrid[] {
             }
         }
         const grid = gridFromLines(group);
-        if (grid === 'oversized') {
-            throw new Error('A detected PDF table exceeds 12 columns or 60 rows. Split that table in the source PDF before importing.');
-        }
         if (grid) tables.push(grid);
         else if (depth < 6) rejected.push(group);
     }
@@ -199,93 +171,136 @@ function sampledCellColor(
     return common;
 }
 
-export function editablePdfTables(
+function samePaint(a: string, b: string): boolean {
+    const channels = (color: string) => {
+        const match = color.trim().toLowerCase().match(/^#([0-9a-f]{6})$/);
+        if (!match) return null;
+        return [0, 2, 4].map((index) => parseInt(match[1].slice(index, index + 2), 16));
+    };
+    const left = channels(a);
+    const right = channels(b);
+    if (!left || !right) return a.toLowerCase() === b.toLowerCase();
+    return left.every((channel, index) => Math.abs(channel - right[index]) <= 18);
+}
+
+function contrastText(color: string): string {
+    const match = color.trim().toLowerCase().match(/^#([0-9a-f]{6})$/);
+    if (!match) return '#111111';
+    const [red, green, blue] = [0, 2, 4].map((index) => parseInt(match[1].slice(index, index + 2), 16));
+    const luminance = (0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255;
+    return luminance < 0.55 ? '#ffffff' : '#111111';
+}
+
+function fragmentsInBand(fragments: PdfTextFragment[], left: number, right: number, top: number, bottom: number) {
+    return fragments.filter((fragment) => {
+        const x = (fragment.element.x ?? 0) / 100 * PRINT_LAYOUT_WIDTH;
+        const y = (fragment.element.y ?? 0) + (fragment.element.height ?? fragment.element.font_size ?? 0) / 2;
+        return x >= left - tolerance && x <= right + tolerance && y >= top - tolerance && y <= bottom + tolerance;
+    });
+}
+
+function bandTextColor(fragments: PdfTextFragment[], left: number, right: number, top: number, bottom: number, fallback: string) {
+    const counts = new Map<string, number>();
+    for (const fragment of fragmentsInBand(fragments, left, right, top, bottom)) {
+        const color = (fragment.element.color || '').toLowerCase();
+        if (!color) continue;
+        counts.set(color, (counts.get(color) ?? 0) + 1);
+    }
+    let best = '';
+    let count = 0;
+    for (const [color, votes] of counts) if (votes > count) { best = color; count = votes; }
+    return best || fallback;
+}
+
+/** A footer is a colored last row that does not match the rows above it. */
+function footerBandColor(
+    background: (x: number, y: number) => string,
+    left: number, right: number, top: number, bottom: number, bodyTop: number, bodyBottom: number,
+): string | null {
+    const footer = sampledCellColor(background, left, right, top, bottom);
+    if (paintIsWhite(footer) || bodyBottom - bodyTop < 4) return null;
+    const body = sampledCellColor(background, left, right, bodyTop, bodyBottom);
+    return samePaint(footer, body) ? null : footer;
+}
+
+function colorBand(
+    base: LayoutElement, left: number, right: number, top: number, bottom: number, backgroundColor: string, textColor: string,
+): LayoutElement {
+    const height = Math.max(10, bottom - top);
+    return {
+        ...base,
+        id: `pdf-${crypto.randomUUID().replaceAll('-', '').slice(0, 24)}`,
+        type: 'table',
+        pdf_background: false,
+        pdf_font_src: undefined,
+        pdf_font_name: undefined,
+        x: left / PRINT_LAYOUT_WIDTH * 100,
+        y: top,
+        width: (right - left) / PRINT_LAYOUT_WIDTH * 100,
+        height,
+        cells: [['']],
+        header_row: true,
+        label_bg: backgroundColor,
+        header_color: textColor,
+        column_widths: [100],
+        row_heights: [height],
+        border: paintIsWhite(backgroundColor),
+        border_color: '#cbd5e1',
+        table_background: '#ffffff',
+        text_case: 'original',
+        line_height: 1,
+    };
+}
+
+export type PdfTableColorImport = {
+    bands: LayoutElement[];
+    /** Full table rectangles, in the same units as a layout table, so the original grid can be cleared. */
+    bounds: Array<Pick<LayoutElement, 'x' | 'y' | 'width' | 'height'>>;
+    remaining: PdfTextFragment[];
+};
+
+/**
+ * Keep each detected table's header color, and its footer color when the last row is its own band.
+ * Column and row structure stays out so the layout can be built by hand.
+ */
+export function pdfTableColorBands(
     grids: PdfTableGrid[], fragments: PdfTextFragment[], base: LayoutElement,
     background: (x: number, y: number) => string,
-): { tables: LayoutElement[]; remaining: PdfTextFragment[] } {
+): PdfTableColorImport {
     const used = new Set<PdfTextFragment>();
-    const tables = grids.map(grid => {
-        const { xs, ys, lines } = grid;
-        const columns = xs.length - 1, rows = ys.length - 1;
-        const cells = Array.from({ length: rows }, () => Array<string>(columns).fill(''));
-        const styles = Array.from({ length: rows }, () => Array<TableTextStyle | null>(columns).fill(null));
-        const spans = Array.from({ length: rows }, () => Array.from({ length: columns }, () => ({ rows: 0, columns: 0 })));
-        const colors = Array.from({ length: rows }, () => Array<string>(columns).fill('#ffffff'));
-        const borders = Array.from({ length: rows }, () => Array.from({ length: columns }, () => ({
-            top: 'none', right: 'none', bottom: 'none', left: 'none',
-        })));
-        const assigned = new Set<string>();
-        for (let row = 0; row < rows; row++) for (let column = 0; column < columns; column++) {
-            const key = (r: number, c: number) => `${r}:${c}`;
-            if (assigned.has(key(row, column))) continue;
-            const group: Array<[number, number]> = [[row, column]];
-            assigned.add(key(row, column));
-            for (let index = 0; index < group.length; index++) {
-                const [r, c] = group[index];
-                const neighbors: Array<[number, number, boolean]> = [
-                    [r, c + 1, !covers(lines, true, xs[c + 1], ys[r], ys[r + 1])],
-                    [r, c - 1, !covers(lines, true, xs[c], ys[r], ys[r + 1])],
-                    [r + 1, c, !covers(lines, false, ys[r + 1], xs[c], xs[c + 1])],
-                    [r - 1, c, !covers(lines, false, ys[r], xs[c], xs[c + 1])],
-                ];
-                for (const [nr, nc, open] of neighbors) {
-                    if (!open || nr < 0 || nc < 0 || nr >= rows || nc >= columns || assigned.has(key(nr, nc))) continue;
-                    assigned.add(key(nr, nc)); group.push([nr, nc]);
-                }
-            }
-            let bottomRow = Math.max(...group.map(([r]) => r));
-            let rightColumn = Math.max(...group.map(([, c]) => c));
-            if (group.some(([r, c]) => r < row || c < column) ||
-                group.length !== (bottomRow - row + 1) * (rightColumn - column + 1)) {
-                for (const [r, c] of group) {
-                    if (r !== row || c !== column) assigned.delete(key(r, c));
-                }
-                bottomRow = row;
-                rightColumn = column;
-            }
-            spans[row][column] = { rows: bottomRow - row + 1, columns: rightColumn - column + 1 };
-            colors[row][column] = sampledCellColor(
-                background, xs[column], xs[rightColumn + 1], ys[row], ys[bottomRow + 1],
-            );
-            const css = (line: PdfTableLine | null) => line && line.width > 0 ? `${Number(Math.max(0.2, line.width).toFixed(3))}px solid ${line.color}` : 'none';
-            borders[row][column] = {
-                left: css(edgeStroke(lines, true, xs[column], ys[row], ys[bottomRow + 1])),
-                right: css(edgeStroke(lines, true, xs[rightColumn + 1], ys[row], ys[bottomRow + 1])),
-                top: css(edgeStroke(lines, false, ys[row], xs[column], xs[rightColumn + 1])),
-                bottom: css(edgeStroke(lines, false, ys[bottomRow + 1], xs[column], xs[rightColumn + 1])),
-            };
-            const text = fragments.filter(fragment => {
-                const x = (fragment.element.x ?? 0) * 7, y = fragment.element.y ?? 0;
-                return x >= xs[column] - tolerance && x < xs[rightColumn + 1] - tolerance &&
-                    y >= ys[row] - tolerance && y < ys[bottomRow + 1] - tolerance;
-            }).sort((a, b) => (a.element.y ?? 0) - (b.element.y ?? 0) || (a.element.x ?? 0) - (b.element.x ?? 0));
-            text.forEach(fragment => used.add(fragment));
-            const first = text[0]?.element;
-            const lineYs = coordinates(text.map(fragment => fragment.element.y ?? 0));
-            cells[row][column] = lineYs.map((lineY) => text
-                .filter(fragment => Math.abs((fragment.element.y ?? 0) - lineY) <= tolerance)
-                .map(fragment => fragment.text.trim())
-                .filter(Boolean)
-                .join(' ')).join('\n');
-            const raw = text.map(fragment => fragment.text).join(' ');
-            styles[row][column] = {
-                font_size: first?.font_size ?? base.font_size, font_family: first?.font_family ?? base.font_family,
-                bold: first?.bold ?? false, italic: first?.italic ?? false, color: first?.color ?? '#111111',
-                line_height: 1, text_case: raw && raw === raw.toUpperCase() && raw !== raw.toLowerCase() ? 'uppercase'
-                    : raw && raw === raw.toLowerCase() && raw !== raw.toUpperCase() ? 'lowercase' : 'original',
-            };
+    const bands: LayoutElement[] = [];
+    const bounds: PdfTableColorImport['bounds'] = [];
+    for (const { xs, ys } of grids) {
+        const left = xs[0];
+        const right = xs.at(-1)!;
+        const top = ys[0];
+        const bottom = ys.at(-1)!;
+        bounds.push({
+            x: left / PRINT_LAYOUT_WIDTH * 100,
+            y: top,
+            width: (right - left) / PRINT_LAYOUT_WIDTH * 100,
+            height: bottom - top,
+        });
+        for (const fragment of fragmentsInBand(fragments, left, right, top, bottom)) used.add(fragment);
+        const rowCount = ys.length - 1;
+        const headerBottom = rowCount > 1 ? ys[1] : (bottom - top <= 48 ? bottom : top + Math.min(36, (bottom - top) * 0.18));
+        const headerBackground = sampledCellColor(background, left, right, top, headerBottom);
+        if (rowCount > 1 || !paintIsWhite(headerBackground)) {
+            bands.push(colorBand(
+                base, left, right, top, headerBottom, headerBackground,
+                bandTextColor(fragments, left, right, top, headerBottom, contrastText(headerBackground)),
+            ));
         }
-        const cellBackgrounds = completeRowBackgrounds(colors);
-        const cellBorders = completeTableEdges(borders, cellBackgrounds);
-        return { ...base, id: `pdf-${crypto.randomUUID().replaceAll('-', '').slice(0, 24)}`, type: 'table' as const,
-            pdf_background: false, pdf_font_src: undefined, pdf_font_name: undefined,
-            x: xs[0] / PRINT_LAYOUT_WIDTH * 100, y: ys[0],
-            width: (xs.at(-1)! - xs[0]) / PRINT_LAYOUT_WIDTH * 100, height: ys.at(-1)! - ys[0],
-            cells, cell_styles: styles, cell_spans: spans, cell_backgrounds: cellBackgrounds, cell_borders: cellBorders,
-            column_widths: xs.slice(1).map((x, index) => (x - xs[index]) / (xs.at(-1)! - xs[0]) * 100),
-            row_heights: ys.slice(1).map((y, index) => y - ys[index]), border: true, table_background: '#ffffff',
-            text_case: 'original' as const, line_height: 1,
-        };
-    });
-    return { tables, remaining: fragments.filter(fragment => !used.has(fragment)) };
+        const footerTop = rowCount > 1 ? ys[ys.length - 2] : bottom - Math.min(36, (bottom - top) * 0.18);
+        const footerBackground = footerTop > headerBottom
+            ? footerBandColor(background, left, right, footerTop, bottom, headerBottom, footerTop)
+            : null;
+        if (footerBackground) {
+            bands.push(colorBand(
+                base, left, right, footerTop, bottom, footerBackground,
+                bandTextColor(fragments, left, right, footerTop, bottom, contrastText(footerBackground)),
+            ));
+        }
+    }
+    return { bands, bounds, remaining: fragments.filter((fragment) => !used.has(fragment)) };
 }

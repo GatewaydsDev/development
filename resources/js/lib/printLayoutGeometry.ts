@@ -57,6 +57,10 @@ export type TableStriping = {
     row_styles?: Array<TableTextStyle | null>;
     column_colors?: Array<string | null>;
     table_background?: string;
+    /** Body-row colors, left to right across one row. Empty means the table background. */
+    row_backgrounds?: Array<string | null>;
+    /** Body-column colors, top to bottom. Empty means the row or table background. */
+    column_backgrounds?: Array<string | null>;
     stripe_direction?: 'none' | 'rows' | 'columns';
     stripe_color_a?: string;
     stripe_color_b?: string;
@@ -236,6 +240,10 @@ export function tableStripeColor(
     sourceRow = row,
 ): string | undefined {
     if (!element.stripe_direction || element.stripe_direction === 'none') {
+        const columnColor = element.column_backgrounds?.[column];
+        if (columnColor) return columnColor;
+        const rowColor = element.row_backgrounds?.[sourceRow];
+        if (rowColor) return rowColor;
         const rowColors = element.cell_backgrounds?.[sourceRow];
         if (rowColors?.length) {
             const color = completeRowBackgrounds([rowColors])[0]?.[column];
@@ -247,6 +255,74 @@ export function tableStripeColor(
     return index % 2 === 0
         ? element.stripe_color_a || '#ffffff'
         : element.stripe_color_b || '#f3f4f6';
+}
+
+type PaintableTable = TableStriping & { cells: string[][]; header_row?: boolean; label_bg?: string; id?: string };
+
+function headerColorLeaked(element: PaintableTable): boolean {
+    return !!element.header_row && !!element.label_bg && !!element.table_background
+        && element.table_background.toLowerCase() === element.label_bg.toLowerCase();
+}
+
+/** Body cells imported with the header color as the table background stay white until a color is chosen. */
+export function explicitTableBackground(
+    element: TableStriping & { header_row?: boolean; label_bg?: string; id?: string },
+    stripeRow: number,
+    column: number,
+    sourceRow = stripeRow,
+): string | undefined {
+    const color = tableStripeColor(element, stripeRow, column, sourceRow);
+    if (
+        element.id?.startsWith('pdf-') && element.header_row && sourceRow > 0
+        && !element.column_backgrounds?.[column] && !element.row_backgrounds?.[sourceRow]
+        && !element.cell_backgrounds?.[sourceRow]?.[column]
+        && (!element.stripe_direction || element.stripe_direction === 'none')
+        && element.label_bg && color?.toLowerCase() === element.label_bg.toLowerCase()
+    ) return '#ffffff';
+    return color;
+}
+
+export function growLayoutTable(element: PaintableTable, rows: number, cols: number) {
+    return {
+        cells: Array.from({ length: rows }, (_, row) => Array.from({ length: cols }, (_, column) => element.cells[row]?.[column] ?? '')),
+        row_heights: element.row_heights?.length
+            ? Array.from({ length: rows }, (_, row) => element.row_heights?.[row] ?? 28)
+            : element.row_heights,
+        row_backgrounds: element.row_backgrounds?.slice(0, rows),
+        column_backgrounds: element.column_backgrounds?.slice(0, cols),
+        table_background: headerColorLeaked(element) ? '#ffffff' : element.table_background,
+    };
+}
+
+export function layoutRowBackground(element: PaintableTable, row: number): string {
+    if (row === 0 && element.header_row) return element.label_bg || '#ffffff';
+    return element.row_backgrounds?.[row] || '';
+}
+
+export function layoutColumnBackground(element: PaintableTable, column: number): string {
+    return element.column_backgrounds?.[column] || '';
+}
+
+export function paintLayoutRow(element: PaintableTable, row: number, color: string) {
+    if (row === 0 && element.header_row) return { label_bg: color || '#ffffff' };
+    const row_backgrounds = Array.from({ length: element.cells.length }, (_, index) =>
+        index === row ? (color || null) : (element.row_backgrounds?.[index] ?? null));
+    return {
+        row_backgrounds,
+        stripe_direction: 'none' as const,
+        table_background: headerColorLeaked(element) ? '#ffffff' : element.table_background,
+    };
+}
+
+export function paintLayoutColumn(element: PaintableTable, column: number, color: string) {
+    const cols = element.cells[0]?.length ?? 0;
+    const column_backgrounds = Array.from({ length: cols }, (_, index) =>
+        index === column ? (color || null) : (element.column_backgrounds?.[index] ?? null));
+    return {
+        column_backgrounds,
+        stripe_direction: 'none' as const,
+        table_background: headerColorLeaked(element) ? '#ffffff' : element.table_background,
+    };
 }
 
 export type TextCaseState = { hasWord: boolean; capitalizeNext: boolean };
