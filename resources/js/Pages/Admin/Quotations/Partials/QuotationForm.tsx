@@ -512,11 +512,24 @@ export default function QuotationForm({
     };
 
     const submit: FormEventHandler = (event) => {
-        void handleSubmit(async (values) => {
-            clearErrors('contractor_id');
-            const withParty = await ensureParty(values);
-            if (withParty) await postQuotation(withParty);
-        })(event);
+        void handleSubmit(
+            async (values) => {
+                clearErrors('contractor_id');
+                const withParty = await ensureParty(values);
+                if (!withParty) {
+                    toast.error(
+                        'Select or add the contractor/owner before saving the quotation.',
+                    );
+                    return;
+                }
+                await postQuotation(withParty);
+            },
+            () => {
+                toast.error(
+                    'Check the highlighted quotation fields before saving.',
+                );
+            },
+        )(event);
     };
 
     const printQuotation = async () => {

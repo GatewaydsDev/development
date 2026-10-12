@@ -2,7 +2,7 @@ import { Button } from '@/Components/ui/button';
 import { cn } from '@/lib/utils';
 import { Link } from '@inertiajs/react';
 import { CheckIcon, MenuIcon, PrinterIcon, XIcon } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 type FormActionFabProps = {
@@ -30,6 +30,31 @@ export default function FormActionFab({
 }: FormActionFabProps) {
     const [isOpen, setIsOpen] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
+    const slotRef = useRef<HTMLSpanElement>(null);
+    const ownerFormRef = useRef<HTMLFormElement | null>(null);
+    const generatedFormId = useId();
+    const [ownerFormId, setOwnerFormId] = useState(form ?? '');
+
+    useLayoutEffect(() => {
+        if (form) {
+            const named = document.getElementById(form);
+            ownerFormRef.current = named instanceof HTMLFormElement ? named : null;
+            setOwnerFormId(form);
+            return;
+        }
+
+        const owner = slotRef.current?.closest('form');
+        if (!owner) {
+            return;
+        }
+
+        if (!owner.id) {
+            owner.id = generatedFormId;
+        }
+
+        ownerFormRef.current = owner;
+        setOwnerFormId(owner.id);
+    }, [form, generatedFormId]);
 
     const hasPrint = showPrint || Boolean(printHref) || Boolean(onPrint);
 
@@ -66,8 +91,17 @@ export default function FormActionFab({
             >
                 <Button
                     type="submit"
-                    form={form}
+                    form={ownerFormId || undefined}
                     disabled={disabled}
+                    onClick={(event) => {
+                        const owner = ownerFormRef.current;
+                        if (!owner) {
+                            return;
+                        }
+
+                        event.preventDefault();
+                        owner.requestSubmit();
+                    }}
                     className={cn(
                         'size-11 sm:size-13 landscape:size-10 rounded-full bg-emerald-600 text-white shadow-lg shadow-emerald-950/20 transition-all duration-300 ease-out hover:bg-emerald-700',
                         isOpen
@@ -188,9 +222,12 @@ export default function FormActionFab({
         </div>
     );
 
-    if (typeof document === 'undefined') {
-        return fab;
-    }
-
-    return createPortal(fab, document.body);
+    return (
+        <>
+            <span ref={slotRef} hidden />
+            {typeof document === 'undefined'
+                ? fab
+                : createPortal(fab, document.body)}
+        </>
+    );
 }
