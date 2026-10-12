@@ -114,6 +114,36 @@ test('removed quotation details are omitted from print pdf and word without losi
     expect($quote->fresh()->pricing_conditions)->toContain('Removed quotation details marker');
 });
 
+test('a saved quotation layout is printed without the old sections underneath', function () {
+    $admin = quotationAdmin();
+    $quote = makeQuotation($admin, quotationProject($admin), [
+        'notes' => '<p>Proposal content retained</p>',
+        'pricing_basis' => '<p>Pricing basis retained</p>',
+        'layout_header' => '<div data-position-canvas="true">Custom layout only</div>',
+    ]);
+
+    $this->actingAs($admin)->get(route('admin.quotations.print', $quote))
+        ->assertOk()
+        ->assertSee('Custom layout only', false)
+        ->assertDontSee('Proposal content retained', false)
+        ->assertDontSee('Pricing basis retained', false)
+        ->assertDontSee('Authorization', false)
+        ->assertDontSee('Quotation number', false);
+
+    $response = \App\Support\QuotationDocument::for($quote, $admin)->wordResponse();
+    $path = $response->getFile()->getPathname();
+    try {
+        $zip = new ZipArchive;
+        expect($zip->open($path))->toBeTrue();
+        $xml = $zip->getFromName('word/document.xml');
+        $zip->close();
+        expect($xml)->toContain('Custom layout only')
+            ->not->toContain('Proposal content retained', 'Pricing basis retained', 'Authorization');
+    } finally {
+        unlink($path);
+    }
+});
+
 test('an admin can save a quotation for a contractor', function () {
     $admin = quotationAdmin();
     $project = quotationProject($admin);
