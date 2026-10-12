@@ -498,6 +498,14 @@ class DocumentLayoutElements
                     fn ($color) => $color === null ? null : DocumentAppearance::normalize((string) $color, ''),
                     array_slice(is_array($element['column_colors'] ?? null) ? array_values($element['column_colors']) : [], 0, 12),
                 ),
+                'row_backgrounds' => array_map(
+                    fn ($color) => is_string($color) && $color !== '' ? DocumentAppearance::normalize($color, '') : null,
+                    array_slice(is_array($element['row_backgrounds'] ?? null) ? array_values($element['row_backgrounds']) : [], 0, 60),
+                ),
+                'column_backgrounds' => array_map(
+                    fn ($color) => is_string($color) && $color !== '' ? DocumentAppearance::normalize($color, '') : null,
+                    array_slice(is_array($element['column_backgrounds'] ?? null) ? array_values($element['column_backgrounds']) : [], 0, 12),
+                ),
                 'row_styles' => self::rowStyles($element['row_styles'] ?? null, 60, $pdfPage),
                 'cell_styles' => self::cellStyles($element['cell_styles'] ?? null, $pdfPage),
                 'stripe_color_a' => DocumentAppearance::normalize((string) ($element['stripe_color_a'] ?? ''), '#ffffff'),
@@ -658,6 +666,35 @@ class DocumentLayoutElements
     }
 
     /**
+     * @param  array<string, mixed>  $element
+     */
+    private static function bodyBackground(array $element, int $row, int $column): string
+    {
+        $color = self::tableStripeColor($element, $row - (! empty($element['header_row']) ? 1 : 0), $column, $row);
+        $id = (string) ($element['id'] ?? '');
+        $header = strtolower((string) ($element['label_bg'] ?? ''));
+        $cell = '';
+        if (isset($element['cell_backgrounds'][$row][$column])) {
+            $cell = (string) $element['cell_backgrounds'][$row][$column];
+        }
+        if (
+            str_starts_with($id, 'pdf-')
+            && ! empty($element['header_row'])
+            && $row > 0
+            && $cell === ''
+            && ($element['column_backgrounds'][$column] ?? null) === null
+            && ($element['row_backgrounds'][$row] ?? null) === null
+            && ($element['stripe_direction'] ?? 'none') === 'none'
+            && $header !== ''
+            && strtolower($color) === $header
+        ) {
+            return '#ffffff';
+        }
+
+        return $color;
+    }
+
+    /**
      * @param  array<int, array<string, mixed>>  $items
      */
     private static function tableStripeColor(array $element, int $row, int $column, ?int $sourceRow = null): string
@@ -665,6 +702,15 @@ class DocumentLayoutElements
         $direction = $element['stripe_direction'] ?? 'none';
 
         if (! in_array($direction, ['rows', 'columns'], true)) {
+            $columnColor = $element['column_backgrounds'][$column] ?? null;
+            if (is_string($columnColor) && $columnColor !== '') {
+                return $columnColor;
+            }
+            $rowColor = $element['row_backgrounds'][$sourceRow ?? $row] ?? null;
+            if (is_string($rowColor) && $rowColor !== '') {
+                return $rowColor;
+            }
+
             return $element['cell_backgrounds'][$sourceRow ?? $row][$column] ?? $element['table_background'] ?? '';
         }
 
@@ -880,7 +926,7 @@ class DocumentLayoutElements
                             }
                             $background = $header
                                 ? ($element['label_bg'] ?: '#065f46')
-                                : self::tableStripeColor($element, $rowIndex - ($element['header_row'] ? 1 : 0), $columnIndex, $rowIndex);
+                                : self::bodyBackground($element, $rowIndex, $columnIndex);
                             $style = $background !== '' ? 'background-color:'.$background.';' : '';
                             $textStyle = self::tableTextStyle($element, $rowIndex, $columnIndex, $color, $header);
                             $height = isset($element['row_heights'][$rowIndex]) ? 'height:'.array_sum(array_slice($element['row_heights'], $rowIndex, $span['rows'])).'px;' : '';

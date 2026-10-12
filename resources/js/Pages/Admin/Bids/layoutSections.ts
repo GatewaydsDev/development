@@ -1,4 +1,4 @@
-import { PRINT_LAYOUT_WIDTH, printLayoutTextCase, tableEdgeBorder, tableStripeColor, tableTextStyle, type TableStriping, type TextCaseState } from '@/lib/printLayoutGeometry';
+import { PRINT_LAYOUT_WIDTH, explicitTableBackground, printLayoutTextCase, tableEdgeBorder, tableStripeColor, tableTextStyle, type TableStriping, type TextCaseState } from '@/lib/printLayoutGeometry';
 import { resolveLayoutTableFields } from '@/lib/printLayoutTableFields';
 import { layoutColumnWidths } from '@/lib/printLayoutGeometry';
 import { layoutPages, listKeepsOriginalSpace, listLineSpacing, listTextItems, pdfTextFont, pdfTextLines, pdfTextLineHeight, pdfRunText, type PdfLayoutElement } from '@/lib/printLayoutPdf';
@@ -273,7 +273,7 @@ function build(
                     const header = index === 0 && element.header_row;
                     const tag = header ? 'th' : 'td';
                     const background = header ? element.label_bg || '#065f46'
-                        : tableStripeColor(element, index - (element.header_row ? 1 : 0), column, index);
+                        : explicitTableBackground(element, index - (element.header_row ? 1 : 0), column, index);
                     const style = { ...element, ...tableTextStyle(element, index, column, !!header) };
                     const css = [
                         `width: ${innerWidth * widths.slice(column, column + (span?.columns ?? 1)).reduce((sum, value) => sum + value, 0) / 100}px`,
@@ -573,7 +573,9 @@ const blocksFor = (
                 }
                 const style = { ...element, ...tableTextStyle(element, rowIndex, column, rowIndex === 0 && !!element.header_row) };
                 const colwidth = Array.from({ length: colspan }, (_, offset) => Math.max(1, Math.round(innerWidth * (widths[column + offset] ?? (100 / columns)) / 100)));
-                const background = tableStripeColor(element, rowIndex - (element.header_row ? 1 : 0), column, rowIndex) || element.table_background || '#ffffff';
+                const background = rowIndex === 0 && element.header_row
+                    ? element.label_bg || '#065f46'
+                    : explicitTableBackground(element, rowIndex - (element.header_row ? 1 : 0), column, rowIndex) || element.table_background || '#ffffff';
                 const borderAttrs = Object.fromEntries((['top', 'right', 'bottom', 'left'] as const).map((side) => [
                     `border${side[0].toUpperCase()}${side.slice(1)}`,
                     tableEdgeBorder(element, rowIndex, column, side),
@@ -613,7 +615,7 @@ const blocksFor = (
                             colspan: 1,
                             rowspan: 1,
                             colwidth: [Math.max(48, Math.round(innerWidth / columns))],
-                            backgroundColor: tableStripeColor(element, rowIndex, column, rowIndex) || element.table_background || '#ffffff',
+                            backgroundColor: explicitTableBackground(element, rowIndex, column, rowIndex) || element.table_background || '#ffffff',
                             borderTop: tableEdgeBorder(element, rowIndex, column, 'top'),
                             borderRight: tableEdgeBorder(element, rowIndex, column, 'right'),
                             borderBottom: tableEdgeBorder(element, rowIndex, column, 'bottom'),
@@ -833,7 +835,7 @@ export function positionedLayoutSections(
                         cell.style.backgroundColor = settings.labelBackground;
                     }
                     if (cell.tagName !== 'TH' && element.type === 'table') {
-                        const color = tableStripeColor(element, rowIndex - (element.cells && element.header_row ? 1 : 0), column, rowIndex);
+                        const color = explicitTableBackground(element, rowIndex - (element.cells && element.header_row ? 1 : 0), column, rowIndex);
                         if (color) cell.style.backgroundColor = color;
                     }
                 });

@@ -1120,17 +1120,22 @@ export default function Edit({
                     }
                 }}
             >
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>
-                            Delete {layoutToDelete?.name ?? "this layout"}?
+                <AlertDialogContent className="flex w-[calc(100%-2rem)] max-w-md flex-col gap-0 overflow-hidden p-0 sm:gap-0 sm:p-0 max-h-[min(20rem,calc(100dvh-2rem))]">
+                    <AlertDialogHeader className="min-h-0 flex-1 gap-3 overflow-y-auto px-6 pt-6 text-left">
+                        <AlertDialogTitle className="break-words">
+                            Delete this layout?
                         </AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Quotations using this layout will drop it and print
+                        <AlertDialogDescription className="break-words">
+                            {layoutToDelete?.name ? (
+                                <span className="font-medium text-foreground">{layoutToDelete.name}</span>
+                            ) : (
+                                "This layout"
+                            )}{" "}
+                            will be removed. Quotations using it will drop it and print
                             without that design. This cannot be undone.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
-                    <AlertDialogFooter>
+                    <AlertDialogFooter className="shrink-0 border-t border-border bg-background px-6 py-4">
                         <AlertDialogCancel disabled={deleting}>
                             Keep layout
                         </AlertDialogCancel>
