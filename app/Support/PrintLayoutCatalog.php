@@ -16,20 +16,30 @@ class PrintLayoutCatalog
                     array_map(fn (string $format): string => DocumentAppearance::key($document, $format), array_keys(DocumentAppearance::FORMATS)),
                 ))
                 ->orderBy('name')->get()
-                ->map(function (PrintLayout $layout): array {
-                    $payload = [
-                        'id' => $layout->id,
-                        'name' => $layout->name,
-                        'elements' => DocumentLayoutElements::sanitize($layout->design['elements'] ?? []),
-                        'headerHeight' => DocumentLayoutElements::zoneColors($layout->design['zone_colors'] ?? [])['header_height'],
-                        'headerBackground' => DocumentAppearance::normalize($layout->header_background_color),
-                        'tableHeaderBackground' => DocumentAppearance::normalize($layout->table_header_background_color),
-                        'textCase' => DocumentTextCase::normalize($layout->text_case),
-                    ];
-
-                    return [...$payload, 'version' => hash('sha256', json_encode($payload, JSON_THROW_ON_ERROR))];
-                })->values()->all(),
+                ->map(fn (PrintLayout $layout): array => [
+                    ...self::payload($layout),
+                    'version' => self::version($layout),
+                ])->values()->all(),
             'assignedPrintLayoutId' => DocumentAppearance::assignedLayoutId($document, 'print'),
         ];
+    }
+
+    /** @return array{id: int, name: string, elements: array, headerHeight: int|float, headerBackground: string, tableHeaderBackground: string, textCase: string} */
+    public static function payload(PrintLayout $layout): array
+    {
+        return [
+            'id' => $layout->id,
+            'name' => $layout->name,
+            'elements' => DocumentLayoutElements::sanitize($layout->design['elements'] ?? []),
+            'headerHeight' => DocumentLayoutElements::zoneColors($layout->design['zone_colors'] ?? [])['header_height'],
+            'headerBackground' => DocumentAppearance::normalize($layout->header_background_color),
+            'tableHeaderBackground' => DocumentAppearance::normalize($layout->table_header_background_color),
+            'textCase' => DocumentTextCase::normalize($layout->text_case),
+        ];
+    }
+
+    public static function version(PrintLayout $layout): string
+    {
+        return hash('sha256', json_encode(self::payload($layout), JSON_THROW_ON_ERROR));
     }
 }

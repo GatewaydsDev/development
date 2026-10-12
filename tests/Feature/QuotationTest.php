@@ -326,7 +326,7 @@ test('quotation layout headers save independently and retain their loaded versio
         ->where('options.printLayouts.0.version', fn ($next) => $next !== $version));
     $this->get(route('admin.quotations.print', $quotation))->assertOk()
         ->assertSee('Saved header Header quotation March 1, 2024', false)
-        ->assertDontSee('Original pricing')->assertSee('Original proposal')
+        ->assertDontSee('Original pricing')->assertDontSee('Original proposal')
         ->assertDontSee('Library changed later')
         ->assertDontSee('<h1 class="document-title">', false)
         ->assertDontSee('Project information', false)
@@ -1284,4 +1284,139 @@ test('revision assignment broadcasting failures do not block saving', function (
         ->assertRedirect();
 
     expect(Quotation::query()->where('title', 'Offline broadcast quote')->exists())->toBeTrue();
+});
+
+test('updating a print layout refreshes every quotation that uses it', function () {
+    $admin = quotationAdmin();
+    $project = quotationProject($admin, 'Harbor refresh');
+    $layout = \App\Models\PrintLayout::query()->firstOrFail();
+    $other = \App\Models\PrintLayout::query()->create([
+        'name' => 'Untouched layout',
+        'design' => ['elements' => [['id' => 'keep', 'type' => 'text', 'zone' => 'header', 'content' => 'Leave this heading']]],
+        'header_background_color' => '#1e3a8a',
+        'table_header_background_color' => '#0f172a',
+        'text_case' => 'original',
+    ]);
+    $using = Quotation::create([
+        'contractor_id' => $project->contractors()->first()->id,
+        'project_id' => $project->id,
+        'created_by' => $admin->id,
+        'title' => 'Uses the shared layout',
+        'status' => 'draft',
+        'print_layout_id' => $layout->id,
+        'print_layout_version' => 'old-version',
+        'layout_header' => '<p>Old snapshot heading</p>',
+        'layout_elements' => ['elements' => [], 'header_height' => 160, 'header_background' => '#ffffff', 'text_case' => 'original'],
+    ]);
+    $second = Quotation::create([
+        'contractor_id' => $project->contractors()->first()->id,
+        'project_id' => $project->id,
+        'created_by' => $admin->id,
+        'title' => 'Also uses the shared layout',
+        'status' => 'draft',
+        'print_layout_id' => $layout->id,
+        'layout_header' => '<p>Another old snapshot</p>',
+    ]);
+    $untouched = Quotation::create([
+        'contractor_id' => $project->contractors()->first()->id,
+        'project_id' => $project->id,
+        'created_by' => $admin->id,
+        'title' => 'Uses a different layout',
+        'status' => 'draft',
+        'print_layout_id' => $other->id,
+        'layout_header' => '<p>Leave this heading</p>',
+    ]);
+
+    $this->actingAs($admin)
+        ->patch(route('admin.document-settings.update', $layout), [
+            'name' => $layout->name,
+            'assignments' => $layout->assignments()->pluck('document_key')->all(),
+            'header_background_color' => $layout->header_background_color,
+            'table_header_background_color' => $layout->table_header_background_color,
+            'text_case' => 'original',
+            'elements' => [[
+                'id' => 'title',
+                'type' => 'text',
+                'zone' => 'header',
+                'content' => 'Refreshed layout heading {{project_name}}',
+                'x' => 8,
+                'y' => 24,
+                'width' => 80,
+            ]],
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect();
+
+    $version = \App\Support\PrintLayoutCatalog::version($layout->fresh());
+    $using->refresh();
+    $second->refresh();
+    $untouched->refresh();
+
+    expect($using->print_layout_version)->toBe($version)
+        ->and($using->layout_header)->toContain('Refreshed layout heading')
+        ->and($using->layout_header)->toContain('{{project_name}}')
+        ->and($using->layout_header)->not->toContain('Old snapshot heading')
+        ->and($using->layout_elements['elements'][0]['content'])->toBe('Refreshed layout heading {{project_name}}')
+        ->and($second->print_layout_version)->toBe($version)
+        ->and($second->layout_header)->toContain('Refreshed layout heading')
+        ->and($untouched->layout_header)->toBe('<p>Leave this heading</p>')
+        ->and($untouched->print_layout_id)->toBe($other->id);
+
+    $this->get(route('admin.quotations.print', $using))
+        ->assertOk()
+        ->assertSee('Refreshed layout heading Harbor refresh', false)
+        ->assertDontSee('Old snapshot heading', false);
+});
+
+test('deleting a print layout clears it from quotations that use it', function () {
+    $admin = quotationAdmin();
+    $project = quotationProject($admin);
+    $layout = \App\Models\PrintLayout::query()->firstOrFail();
+    $other = \App\Models\PrintLayout::query()->create([
+        'name' => 'Remaining layout',
+        'design' => ['elements' => []],
+        'header_background_color' => '#112233',
+        'table_header_background_color' => '#065f46',
+        'text_case' => 'original',
+    ]);
+    $using = Quotation::create([
+        'contractor_id' => $project->contractors()->first()->id,
+        'project_id' => $project->id,
+        'created_by' => $admin->id,
+        'title' => 'Drops the deleted layout',
+        'status' => 'draft',
+        'print_layout_id' => $layout->id,
+        'print_layout_version' => 'old-version',
+        'layout_header' => '<p>Deleted layout heading</p>',
+        'layout_elements' => ['elements' => [['id' => 'old', 'type' => 'text', 'content' => 'Deleted layout heading']]],
+    ]);
+    $untouched = Quotation::create([
+        'contractor_id' => $project->contractors()->first()->id,
+        'project_id' => $project->id,
+        'created_by' => $admin->id,
+        'title' => 'Keeps its own layout',
+        'status' => 'draft',
+        'print_layout_id' => $other->id,
+        'layout_header' => '<p>Still printed</p>',
+    ]);
+
+    $this->actingAs($admin)
+        ->delete(route('admin.document-settings.destroy', $layout))
+        ->assertSessionHasNoErrors()
+        ->assertRedirect(route('admin.document-settings.edit'));
+
+    $using->refresh();
+    $untouched->refresh();
+
+    expect(\App\Models\PrintLayout::query()->whereKey($layout->id)->exists())->toBeFalse()
+        ->and($using->print_layout_id)->toBeNull()
+        ->and($using->print_layout_version)->toBeNull()
+        ->and($using->layout_header)->toBeNull()
+        ->and($using->layout_elements)->toBeNull()
+        ->and($untouched->print_layout_id)->toBe($other->id)
+        ->and($untouched->layout_header)->toBe('<p>Still printed</p>');
+
+    $this->get(route('admin.quotations.print', $using))
+        ->assertOk()
+        ->assertDontSee('Deleted layout heading', false);
 });
