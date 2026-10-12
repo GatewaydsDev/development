@@ -176,8 +176,9 @@ const idleActivityEvents = [
 export default function Authenticated({
     header,
     stickyTitle,
+    fullWidth = false,
     children,
-}: PropsWithChildren<{ header?: ReactNode; stickyTitle?: string }>) {
+}: PropsWithChildren<{ header?: ReactNode; stickyTitle?: string; fullWidth?: boolean }>) {
     const page = usePage<PageProps>();
     const { auth, session, flash } = page.props;
     const user = auth.user;
@@ -1085,7 +1086,7 @@ export default function Authenticated({
                             ref={headerRef}
                             className="border-b border-border bg-card shadow-sm"
                         >
-                            <div className="mx-auto max-w-[96rem] px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
+                            <div className={cn('mx-auto w-full px-4 py-4 sm:px-6 sm:py-6 lg:px-8', !fullWidth && 'max-w-[96rem]')}>
                                 {header}
                             </div>
                         </header>
@@ -1103,7 +1104,7 @@ export default function Authenticated({
                             style={{ top: navHeight }}
                             aria-hidden="true"
                         >
-                            <div className="mx-auto max-w-[96rem] px-4 py-3 sm:px-6 lg:px-8">
+                            <div className={cn('mx-auto w-full px-4 py-3 sm:px-6 lg:px-8', !fullWidth && 'max-w-[96rem]')}>
                                 <p className="truncate text-lg font-semibold leading-tight text-emerald-700 dark:text-emerald-300">
                                     {compactTitle}
                                 </p>

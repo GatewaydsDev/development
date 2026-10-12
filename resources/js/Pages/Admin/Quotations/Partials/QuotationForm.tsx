@@ -556,7 +556,7 @@ export default function QuotationForm({
             onDragEnter={blockPictureDropSubmit}
             onDragOver={blockPictureDropSubmit}
             onDrop={blockPictureDropSubmit}
-            className="flex w-full min-w-0 max-w-full flex-col gap-6 pr-4 pb-28 sm:pr-20 lg:pb-6"
+            className="flex w-full min-w-0 max-w-none flex-col gap-6 pb-28 lg:pb-8"
         >
             <FormActionFab
                 cancelHref={route('admin.quotations.index')}

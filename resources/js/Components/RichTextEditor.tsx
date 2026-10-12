@@ -1010,6 +1010,7 @@ type RichTextEditorProps = {
     error?: string;
     id?: string;
     compact?: boolean;
+    roomy?: boolean;
     allowSideToolbar?: boolean;
     showPlaceholders?: boolean;
     placeholderFields?: Array<{
@@ -1140,6 +1141,7 @@ export default function RichTextEditor({
     error,
     id,
     compact = false,
+    roomy = false,
     allowSideToolbar = true,
     showPlaceholders = true,
     placeholderFields = [],
@@ -1158,6 +1160,7 @@ export default function RichTextEditor({
     const { i18n } = useTranslation();
     const documentLang = i18n.language?.startsWith('es') ? 'es' : 'en-US';
     const ignoreToolbarRefresh = useRef(false);
+    const tableInsertAt = useRef<number | null>(null);
     const editorFrameRef = useRef<HTMLDivElement>(null);
     const [commandHint, setCommandHint] = useState<{
         text: string;
@@ -1261,7 +1264,7 @@ export default function RichTextEditor({
                 id: id ?? 'rich-text-editor',
                 class: cn(
                     'rich-text-content px-4 py-3 focus:outline-none',
-                    compact ? 'min-h-32' : 'min-h-64',
+                    compact ? 'min-h-32' : roomy ? 'min-h-[42vh]' : 'min-h-64',
                 ),
                 spellcheck: 'true',
                 autocorrect: 'on',
@@ -1488,16 +1491,16 @@ export default function RichTextEditor({
 
         const rowCount = Math.min(20, Math.max(1, Math.round(Number.isFinite(rows) ? rows : 3)));
         const columnCount = Math.min(8, Math.max(1, Math.round(Number.isFinite(columns) ? columns : 3)));
+        const options = { rows: rowCount, cols: columnCount, withHeaderRow: withHeader };
+        const saved = tableInsertAt.current;
+        const safe = saved == null ? null : Math.max(1, Math.min(saved, editor.state.doc.content.size));
+        const inserted = safe == null
+            ? false
+            : editor.chain().focus().setTextSelection(safe).insertTable(options).run();
 
-        editor
-            .chain()
-            .focus()
-            .insertTable({
-                rows: rowCount,
-                cols: columnCount,
-                withHeaderRow: withHeader,
-            })
-            .run();
+        if (!inserted && !editor.chain().focus('end').insertTable(options).run()) {
+            return;
+        }
 
         if (withHeader) {
             const headerColor = LAYOUT_COLORS[0];
@@ -3028,7 +3031,17 @@ export default function RichTextEditor({
                     onOpenChange={handleMenuOpenChange}
                     contentClassName="w-80"
                     trigger={
-                        <Button type="button" variant="outline" size="icon-sm" title="Add a table, colored section, or colored line">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="icon-sm"
+                            title="Add a table, colored section, or colored line"
+                            onPointerDown={() => {
+                                if (editor && !editor.isDestroyed) {
+                                    tableInsertAt.current = editor.state.selection.from;
+                                }
+                            }}
+                        >
                             <TableIcon />
                         </Button>
                     }

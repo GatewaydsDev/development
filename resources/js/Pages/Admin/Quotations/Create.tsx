@@ -12,6 +12,7 @@ type CreateProps = {
 export default function Create({ options }: CreateProps) {
     return (
         <AuthenticatedLayout
+            fullWidth
             header={
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
@@ -55,8 +56,8 @@ export default function Create({ options }: CreateProps) {
         >
             <Head title="Add Quotation" />
 
-            <div className="py-6 sm:py-8">
-                <div className="mx-auto max-w-[96rem] px-4 sm:px-6 lg:px-8">
+            <div className="w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+                <div className="w-full">
                     <QuotationForm
                         action={route('admin.quotations.store')}
                         title="Quotation information"

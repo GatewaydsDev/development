@@ -21,6 +21,7 @@ export default function Edit({ quotation, options }: EditProps) {
 
     return (
         <AuthenticatedLayout
+            fullWidth
             header={
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
@@ -87,8 +88,8 @@ export default function Edit({ quotation, options }: EditProps) {
         >
             <Head title={`Edit ${quotation.quotation_number}`} />
 
-            <div className="py-6 sm:py-8">
-                <div className="mx-auto max-w-[96rem] px-4 sm:px-6 lg:px-8">
+            <div className="w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+                <div className="w-full">
                     <QuotationForm
                         action={route('admin.quotations.update', quotation.uuid)}
                         method="patch"

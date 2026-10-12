@@ -439,6 +439,7 @@ export default function QuotationReusableTextSection({
                 </div>
                 <RichTextEditor
                     id={copy.editorId}
+                    roomy
                     value={value}
                     onChange={onChange}
                     error={error}
