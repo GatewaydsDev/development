@@ -33,15 +33,20 @@ import {
     MoveVerticalIcon,
     Trash2Icon,
     TypeIcon,
+    EyeIcon,
     FileUpIcon,
     PlusIcon,
     UploadIcon,
+    XIcon,
 } from "lucide-react";
+import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
 import {
     Fragment,
     PointerEvent as ReactPointerEvent,
     ReactNode,
     MutableRefObject,
+    createContext,
+    useContext,
     useEffect,
     useId,
     useRef,
@@ -1854,6 +1859,64 @@ export function ImportPanel({
 
 type TableFieldSelection = { elementId: string; tableId: string; row: number; column: number };
 
+const openLayoutPreview = createContext<(() => void) | null>(null);
+
+function LayoutPreviewDialog({
+    open,
+    onClose,
+    controller,
+}: {
+    open: boolean;
+    onClose: () => void;
+    controller: LayoutElementsController;
+}) {
+    const headerColor = controller.zoneColors.header || "#ffffff";
+
+    return (
+        <Dialog open={open} onClose={onClose} className="relative z-50">
+            <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm" aria-hidden="true" />
+            <div className="fixed inset-0 overflow-y-auto p-3 sm:p-6">
+                <div className="flex min-h-full items-center justify-center">
+                    <DialogPanel className="w-full max-w-6xl overflow-hidden rounded-2xl border border-border bg-background shadow-2xl">
+                        <div className="flex items-center justify-between gap-4 border-b border-border px-5 py-4 sm:px-7">
+                            <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-300">
+                                    Document preview
+                                </p>
+                                <DialogTitle className="mt-1 text-lg font-semibold text-foreground">
+                                    Current layout
+                                </DialogTitle>
+                            </div>
+                            <Button type="button" variant="ghost" size="icon" aria-label="Close preview" onClick={onClose}>
+                                <XIcon />
+                            </Button>
+                        </div>
+                        <div className="max-h-[calc(100dvh-7rem)] overflow-y-auto bg-slate-100 p-4 dark:bg-slate-950 sm:p-8">
+                            {controller.elements.length === 0 ? (
+                                <p className="text-center text-sm text-muted-foreground">Add a component to preview this layout.</p>
+                            ) : (
+                                <article className="mx-auto overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-800 shadow-xl" style={{ width: PRINT_LAYOUT_WIDTH }}>
+                                    <ElementsReadOnly elements={controller.elements} zone="top" fields={controller.fields} />
+                                    <header style={{ width: PRINT_LAYOUT_WIDTH, backgroundColor: headerColor }}>
+                                        <ElementsReadOnly
+                                            elements={controller.elements}
+                                            zone="header"
+                                            fields={controller.fields}
+                                            inBanner
+                                            headerHeight={controller.headerHeight}
+                                        />
+                                    </header>
+                                    <ElementsReadOnly elements={controller.elements} zone="footer" fields={controller.fields} />
+                                </article>
+                            )}
+                        </div>
+                    </DialogPanel>
+                </div>
+            </div>
+        </Dialog>
+    );
+}
+
 export default function LayoutElementsEditor({
     controller,
     error,
@@ -1898,10 +1961,21 @@ export default function LayoutElementsEditor({
             ? { ...selected, color: selected.column_colors?.[controller.selectedColumn.index] || selected.color }
             : selected;
 
+    const [previewOpen, setPreviewOpen] = useState(false);
+    const showPreview = () => setPreviewOpen(true);
+
     return (
+        <openLayoutPreview.Provider value={showPreview}>
         <div ref={editorRef} className="flex flex-col gap-4">
             <StickyDocumentToolbar scopeRef={editorRef} className="rounded-xl border border-border">
             <div role="toolbar" aria-label="Print layout tools" className="flex flex-col">
+            <div className="flex items-center justify-between gap-3 border-b border-border px-2 py-2">
+                <p className="px-2 text-sm font-medium text-foreground">Layout</p>
+                <Button type="button" size="sm" className="gap-1.5" onClick={showPreview}>
+                    <EyeIcon />
+                    Preview
+                </Button>
+            </div>
             <div
                 role="group"
                 aria-label="Add and arrange components"
@@ -2099,7 +2173,7 @@ export default function LayoutElementsEditor({
                 </p>
             ) : null}
 
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_28rem]">
                 <div className="min-w-0">{children}</div>
 
                 <div className="min-w-0">
@@ -2152,6 +2226,8 @@ export default function LayoutElementsEditor({
                 </div>
             </div>
         </div>
+        <LayoutPreviewDialog open={previewOpen} onClose={() => setPreviewOpen(false)} controller={controller} />
+        </openLayoutPreview.Provider>
     );
 }
 
@@ -2392,7 +2468,7 @@ function ElementInspector({
         if (!target) return;
         target.focus({ preventScroll: true });
         target.scrollIntoView({ block: "nearest", behavior: "smooth" });
-        if (target instanceof HTMLInputElement) target.select();
+        if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) target.select();
     }, [focusTarget, element.id]);
 
     return (
@@ -2476,7 +2552,7 @@ function ElementInspector({
                         ))}
                     </div>
                     {element.cells.map((row, r) => (
-                        <div key={r} className="flex flex-col gap-1">
+                        <div key={r} className="space-y-2 rounded-md border border-border bg-muted/30 p-2">
                         <button type="button" aria-pressed={selectedRow === r} data-focus-row={r}
                             className="self-start text-xs font-medium underline underline-offset-2"
                             onClick={() => onSelectRow(r)}>Row {r + 1}</button>
@@ -2486,14 +2562,17 @@ function ElementInspector({
                                     onChange={(color) => onChange(paintLayoutRow(element as LayoutElement & { cells: string[][] }, r, color))} />
                             </div>
                         )}
-                        <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${row.length}, minmax(0, 1fr))` }}>
-                            {row.map((cell, c) => element.cell_spans?.[r]?.[c]?.columns === 0 ? null : (
-                                <input key={c} data-focus-cell={`${r}-${c}`} aria-label={`Row ${r + 1}, column ${c + 1}`} maxLength={300}
-                                    placeholder={`R${r + 1} C${c + 1}`} value={cell} className={fieldClass}
+                        {row.map((cell, c) => element.cell_spans?.[r]?.[c]?.columns === 0 ? null : (
+                            <label key={c} className={labelClass}>
+                                Column {c + 1}
+                                <textarea data-focus-cell={`${r}-${c}`} aria-label={`Row ${r + 1}, column ${c + 1}`}
+                                    rows={3} maxLength={300} value={cell}
+                                    placeholder="Cell text"
+                                    className={cn(fieldClass, "min-h-20 resize-y")}
                                     onFocus={() => onSelectCell(r, c)}
                                     onChange={(event) => onChange({ cells: element.cells!.map((row, ri) => row.map((value, ci) => ri === r && ci === c ? event.target.value : value)) })} />
-                            ))}
-                        </div>
+                            </label>
+                        ))}
                         </div>
                     ))}
                 </div>
@@ -3140,6 +3219,7 @@ export function PreviewZone({
     const zoneColor = zoneColors[zone];
     const meta = zones.find((item) => item.id === zone)!;
     const zoneItems = elements.filter((element) => element.zone === zone);
+    const showPreview = useContext(openLayoutPreview);
     if (!page && zoneItems.some((element) => element.pdf_page)) {
         return <div className="space-y-6">
             {layoutPages(zoneItems, controller.headerHeight).map((item, index) => <div key={item.id}>
@@ -3148,8 +3228,16 @@ export function PreviewZone({
                         Page {index + 1}
                         {controller.pageSheet ? ` · ${controller.pageSheet.label}${controller.pageSheet.orientation === "landscape" ? " landscape" : ""} · ${controller.pageSheet.widthMm} × ${controller.pageSheet.heightMm} mm` : ""}
                     </p>
-                    <Button type="button" variant="outline" size="sm" aria-label={`Remove page ${index + 1}`}
-                        onClick={() => controller.removePage(item.id)}>Remove page</Button>
+                    <span className="flex shrink-0 items-center gap-2">
+                        {showPreview ? (
+                            <Button type="button" size="sm" className="gap-1.5" onClick={showPreview}>
+                                <EyeIcon />
+                                Preview
+                            </Button>
+                        ) : null}
+                        <Button type="button" variant="outline" size="sm" aria-label={`Remove page ${index + 1}`}
+                            onClick={() => controller.removePage(item.id)}>Remove page</Button>
+                    </span>
                 </div>
                 <PreviewZone controller={controller} zone={zone} applyCase={applyCase} textCase={textCase} page={item} />
             </div>)}
@@ -3188,10 +3276,20 @@ export function PreviewZone({
                     "border-slate-300 bg-slate-50/40 hover:border-emerald-300",
             )}
         >
-            {zone === "header" && !page && controller.pageSheet ? (
-                <p className="absolute left-10 top-1 text-xs font-medium text-slate-500">
-                    {controller.pageSheet.label}{controller.pageSheet.orientation === "landscape" ? " landscape" : ""} · {controller.pageSheet.widthMm} × {controller.pageSheet.heightMm} mm
-                </p>
+            {zone === "header" && !page ? (
+                <div className="absolute left-10 right-3 top-0.5 z-30 flex items-center justify-between gap-2">
+                    <p className="text-xs font-medium text-slate-500">
+                        {controller.pageSheet
+                            ? `${controller.pageSheet.label}${controller.pageSheet.orientation === "landscape" ? " landscape" : ""} · ${controller.pageSheet.widthMm} × ${controller.pageSheet.heightMm} mm`
+                            : "Page"}
+                    </p>
+                    {showPreview ? (
+                        <Button type="button" size="sm" className="h-7 gap-1.5 px-2" onClick={(event) => { event.stopPropagation(); showPreview(); }}>
+                            <EyeIcon />
+                            Preview
+                        </Button>
+                    ) : null}
+                </div>
             ) : null}
             {zone === "header" ? <LayoutRulers height={canvasHeight} selected={selected} /> : null}
             <div
