@@ -145,14 +145,17 @@ class QuotationDocument
             'signatureSrc' => DocumentSignature::dataUri($this->representative()),
             'includeAuthorization' => (bool) ($this->quotation->include_authorization ?? true),
             'colors' => $this->cssColors($mode),
+            'paper' => PrintPaper::forLayout($this->quotation->print_layout_id),
         ];
     }
 
     public function pdfResponse(): Response
     {
         $data = $this->viewData(mode: 'pdf');
+        $fitted = filled($this->quotation->layout_header);
         $pdf = Pdf::loadHTML($this->transformViewHtml('admin.quotations.document', $data, 'pdf'))
-            ->setPaper('letter', 'portrait')
+            ->setPaper($fitted ? $data['paper']['dompdf'] : 'letter', $fitted ? $data['paper']['orientation'] : 'portrait')
+            ->setOption('dpi', $fitted ? $data['paper']['dpi'] : 96)
             ->setOption('isRemoteEnabled', false)
             ->setOption('isHtml5ParserEnabled', true)
             ->setOption('defaultFont', 'DejaVu Sans');
@@ -195,15 +198,13 @@ class QuotationDocument
             'alignment' => Jc::START,
         ]);
 
-        $section = $phpWord->addSection([
-            'orientation' => 'portrait',
-            'marginTop' => 720,
-            'marginBottom' => 720,
-            'marginLeft' => 720,
-            'marginRight' => 720,
-            'headerHeight' => 360,
-            'footerHeight' => 360,
-        ]);
+        $hasLayout = filled($this->quotation->layout_header);
+        $paper = PrintPaper::forLayout($this->quotation->print_layout_id);
+        $section = $phpWord->addSection(PrintPaper::wordSection(
+            $paper['id'],
+            $paper['orientation'],
+            $hasLayout,
+        ));
 
         $logoPath = null;
 
@@ -228,14 +229,14 @@ class QuotationDocument
             $this->addHtml($section, $this->displayHtml($this->quotation->layout_header, fill: true));
         }
 
-        $footer = $section->addFooter();
-        $footer->addPreserveText(
-            $this->footerLine().'  |  Page {PAGE} of {NUMPAGES}',
-            ['size' => 8, 'color' => '6B7280'],
-            ['alignment' => Jc::CENTER],
-        );
-
-        $hasLayout = filled($this->quotation->layout_header);
+        if (! $hasLayout) {
+            $footer = $section->addFooter();
+            $footer->addPreserveText(
+                $this->footerLine().'  |  Page {PAGE} of {NUMPAGES}',
+                ['size' => 8, 'color' => '6B7280'],
+                ['alignment' => Jc::CENTER],
+            );
+        }
 
         if (! $hasLayout) {
             $section->addText('Quotation', ['bold' => true, 'size' => 26, 'color' => $this->wordColor('title')]);

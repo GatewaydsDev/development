@@ -6,7 +6,12 @@
     <title>{{ $title }} Bid</title>
     <style>
         @page {
-            margin: 18mm 14mm 18mm;
+            @if ($customLayout)
+                size: {{ $paper['css'] }};
+                margin: 0;
+            @else
+                margin: 18mm 14mm 18mm;
+            @endif
         }
 
         * {
@@ -705,17 +710,17 @@
                 }
             }
 
-            @if ($mode === 'pdf')
-                [data-position-canvas] {
-                    transform: scale(0.8);
-                    transform-origin: top left;
-                }
-            @endif
+            @media print {
+                .page .body { padding: 0 !important; }
+            }
         @endif
 
         @media print {
             @page {
-                size: letter portrait;
+                size: {{ $customLayout ? $paper['css'] : 'letter portrait' }};
+                @if ($customLayout)
+                    margin: 0;
+                @endif
             }
 
             html, body {
@@ -743,10 +748,6 @@
 
             .page {
                 zoom: 1 !important;
-            }
-
-            [data-position-canvas] {
-                zoom: 0.8 !important;
             }
         }
         {!! file_get_contents(resource_path('css/positioned-bid-content.css')) !!}
@@ -973,7 +974,13 @@
             };
             const previewObserver = new ResizeObserver(fitPreview);
             canvases.forEach((canvas) => previewObserver.observe(canvas.parentElement));
+            const paperWidthPx = {{ $paper['width_mm'] }} * 96 / 25.4;
+            const fitPrintedPage = () => canvases.forEach((canvas) => {
+                const width = parseFloat(canvas.style.width);
+                if (width > 0) canvas.style.zoom = String(paperWidthPx / width);
+            });
             fitPreview();
+            window.addEventListener('beforeprint', fitPrintedPage);
             window.addEventListener('afterprint', fitPreview);
         </script>
     @endif

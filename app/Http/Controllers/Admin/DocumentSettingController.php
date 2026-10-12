@@ -12,6 +12,7 @@ use App\Support\DocumentLayoutImporter;
 use App\Support\DocumentTextCase;
 use App\Support\EditorImage;
 use App\Support\PrintLayoutCatalog;
+use App\Support\PrintPaper;
 use App\Support\QuotationAccess;
 use App\Support\QuotationPrintLayoutSync;
 use FontLib\Font;
@@ -96,6 +97,8 @@ class DocumentSettingController extends Controller
                 'header_background_color' => DocumentAppearance::normalize($layout->header_background_color),
                 'table_header_background_color' => DocumentAppearance::normalize($layout->table_header_background_color),
                 'text_case' => DocumentTextCase::normalize($layout->text_case),
+                'paper' => PrintPaper::normalize($layout->design['paper'] ?? null),
+                'orientation' => PrintPaper::orientation($layout->design['orientation'] ?? null),
                 'assignments' => $layout->assignments->pluck('document_key')->values()->all(),
                 'elements' => DocumentLayoutElements::sanitize($layout->design['elements'] ?? []),
                 'zone_colors' => DocumentLayoutElements::zoneColors($layout->design['zone_colors'] ?? []),
@@ -133,7 +136,7 @@ class DocumentSettingController extends Controller
             $attributes = $this->layoutAttributes($validated);
             $layout = PrintLayout::query()->create([
                 ...$attributes,
-                'design' => $this->designWithColors(null, $attributes, $elements, $zoneColors),
+                'design' => $this->designWithColors(null, $attributes, $elements, $zoneColors, $validated),
                 'created_by' => $request->user()?->id,
             ]);
             $this->syncAssignments($layout, $validated['assignments'] ?? []);
@@ -155,7 +158,7 @@ class DocumentSettingController extends Controller
             $attributes = $this->layoutAttributes($validated);
             $layout->update([
                 ...$attributes,
-                'design' => $this->designWithColors($layout->design, $attributes, $elements, $zoneColors),
+                'design' => $this->designWithColors($layout->design, $attributes, $elements, $zoneColors, $validated),
             ]);
             $this->syncAssignments($layout, $validated['assignments'] ?? []);
             $layout->refresh();
@@ -266,6 +269,8 @@ class DocumentSettingController extends Controller
             'header_background_color' => ['required', 'string', 'regex:/^#([A-Fa-f0-9]{6})$/'],
             'table_header_background_color' => ['required', 'string', 'regex:/^#([A-Fa-f0-9]{6})$/'],
             'text_case' => ['required', 'string', Rule::in(array_keys(DocumentTextCase::OPTIONS))],
+            'paper' => ['nullable', 'string', Rule::in(array_keys(PrintPaper::SIZES))],
+            'orientation' => ['nullable', 'string', Rule::in(['portrait', 'landscape'])],
             'zone_colors' => ['sometimes', 'array'],
             'zone_colors.body' => ['nullable', 'string', 'regex:/^#([A-Fa-f0-9]{6})$/'],
             'zone_colors.header_height' => ['nullable', 'numeric', 'min:60', 'max:4000'],
@@ -410,7 +415,7 @@ class DocumentSettingController extends Controller
      * @param  array<int, mixed>|null  $elements
      * @return array<string, mixed>
      */
-    private function designWithColors(?array $design, array $attributes, ?array $elements, ?array $zoneColors = null): array
+    private function designWithColors(?array $design, array $attributes, ?array $elements, ?array $zoneColors = null, array $validated = []): array
     {
         $design ??= [
             'paper' => 'letter',
@@ -435,6 +440,8 @@ class DocumentSettingController extends Controller
         $colors['header_background'] = $attributes['header_background_color'];
         $colors['table_header_background'] = $attributes['table_header_background_color'];
         $design['colors'] = $colors;
+        $design['paper'] = PrintPaper::normalize($validated['paper'] ?? ($design['paper'] ?? null));
+        $design['orientation'] = PrintPaper::orientation($validated['orientation'] ?? ($design['orientation'] ?? null));
         if ($elements !== null) {
             $design['elements'] = DocumentLayoutElements::sanitize($elements);
         }
