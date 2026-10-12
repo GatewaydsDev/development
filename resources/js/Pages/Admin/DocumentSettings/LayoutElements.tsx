@@ -2546,9 +2546,20 @@ function ElementInspector({
         if (!focusTarget || !container || container.contains(document.activeElement)) return;
         const target = container.querySelector<HTMLElement>(focusTarget);
         if (!target) return;
+        const scrollX = window.scrollX;
+        const scrollY = window.scrollY;
         target.focus({ preventScroll: true });
-        target.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        const scroller = container.closest<HTMLElement>("[data-document-properties]");
+        if (scroller) {
+            const field = target.getBoundingClientRect();
+            const box = scroller.getBoundingClientRect();
+            if (field.top < box.top || field.bottom > box.bottom) {
+                scroller.scrollTop += field.top - box.top - 12;
+            }
+        }
         if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) target.select();
+        window.scrollTo(scrollX, scrollY);
+        requestAnimationFrame(() => window.scrollTo(scrollX, scrollY));
     }, [focusTarget, element.id]);
 
     return (

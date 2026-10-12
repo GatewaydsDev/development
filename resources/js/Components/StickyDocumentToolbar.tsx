@@ -64,9 +64,9 @@ export default function StickyDocumentToolbar({
             ) + (propertiesPanel ? 8 : 0);
             const left = Math.max(rect.left, mainRect?.left ?? 0, 8);
             const right = Math.min(rect.right, mainRect?.right ?? window.innerWidth, window.innerWidth - 8);
-            const height = Math.max(content.scrollHeight, content.getBoundingClientRect().height);
+            const height = content.getBoundingClientRect().height;
             const scopeBottom = scope.getBoundingClientRect().bottom;
-            const visibleHeight = propertiesPanel ? Math.min(height, Math.max(0, window.innerHeight - top - 24)) : height;
+            const visibleHeight = propertiesPanel ? Math.min(height, Math.max(0, window.innerHeight - top - 120)) : height;
             const wideEnough = !propertiesPanel || window.matchMedia('(min-width: 1280px)').matches;
             const next = wideEnough && rect.top < top && scopeBottom > top + visibleHeight && right > left
                 ? { top, left, width: right - left, height }
@@ -88,13 +88,26 @@ export default function StickyDocumentToolbar({
         const titleObserver = new MutationObserver(schedule);
         if (main?.parentElement) titleObserver.observe(main.parentElement, { childList: true });
         if (propertiesPanel) titleObserver.observe(document.body, { childList: true });
+        const onWheel = (event: WheelEvent) => {
+            if (!propertiesPanel || event.deltaY === 0) return;
+            const node = contentRef.current;
+            if (!node) return;
+            const canUp = node.scrollTop > 0;
+            const canDown = node.scrollTop + node.clientHeight < node.scrollHeight - 1;
+            if ((event.deltaY < 0 && canUp) || (event.deltaY > 0 && canDown)) return;
+            event.preventDefault();
+            window.scrollBy(0, event.deltaY);
+        };
+        const wheelNode = contentRef.current;
         update();
+        wheelNode?.addEventListener('wheel', onWheel, { passive: false });
         window.addEventListener('scroll', schedule, { passive: true, capture: true });
         window.addEventListener('resize', schedule);
         return () => {
             observer.disconnect();
             titleObserver.disconnect();
             cancelAnimationFrame(frame);
+            wheelNode?.removeEventListener('wheel', onWheel);
             window.removeEventListener('scroll', schedule, true);
             window.removeEventListener('resize', schedule);
         };
@@ -108,6 +121,7 @@ export default function StickyDocumentToolbar({
             data-pinned={Boolean(position)}
             className={cn(
                 'bg-background',
+                propertiesPanel && 'max-h-[calc(100dvh-7.5rem)] overflow-y-auto overscroll-y-contain',
                 position && 'fixed z-[29] overflow-y-auto rounded-b-md shadow-md',
                 className,
             )}
@@ -115,7 +129,7 @@ export default function StickyDocumentToolbar({
                 top: position.top,
                 left: position.left,
                 width: position.width,
-                maxHeight: `calc(100vh - ${position.top}px - 24px)`,
+                maxHeight: `calc(100dvh - ${position.top}px - ${propertiesPanel ? '7.5rem' : '1.5rem'})`,
             } : undefined}
         >
             {children}
