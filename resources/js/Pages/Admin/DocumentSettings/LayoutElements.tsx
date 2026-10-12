@@ -2403,6 +2403,73 @@ function LayoutTextToolbar({
     );
 }
 
+function resizeLayoutGrid(
+    element: LayoutElement & { cells: string[][] },
+    rows: number,
+    cols: number,
+    onChange: (patch: Partial<LayoutElement>) => void,
+) {
+    onChange({
+        row_styles: element.row_styles?.slice(0, rows),
+        cell_styles: element.cell_styles?.slice(0, rows).map((row) => row?.slice(0, cols) ?? null),
+        cell_borders: element.cell_borders?.slice(0, rows).map((row) => row.slice(0, cols)),
+        cell_spans: element.cell_spans?.slice(0, rows).map((row, r) => row.slice(0, cols).map((span, c) => ({
+            rows: Math.min(span.rows, rows - r), columns: Math.min(span.columns, cols - c),
+        }))),
+        ...growLayoutTable(element, rows, cols),
+    });
+}
+
+function TableSizeField({
+    label,
+    value,
+    max,
+    fieldClass,
+    labelClass,
+    onCommit,
+}: {
+    label: string;
+    value: number;
+    max: number;
+    fieldClass: string;
+    labelClass: string;
+    onCommit: (value: number) => void;
+}) {
+    const [draft, setDraft] = useState(String(value));
+
+    useEffect(() => {
+        setDraft(String(value));
+    }, [value]);
+
+    const commit = () => {
+        const next = Number(draft);
+        if (!Number.isInteger(next) || next < 1 || next > max) {
+            setDraft(String(value));
+            return;
+        }
+        if (next !== value) onCommit(next);
+    };
+
+    return (
+        <label className={labelClass}>
+            {label}
+            <input
+                type="number"
+                min={1}
+                max={max}
+                aria-label={label}
+                value={draft}
+                className={fieldClass}
+                onChange={(event) => setDraft(event.target.value)}
+                onBlur={commit}
+                onKeyDown={(event) => {
+                    if (event.key === "Enter") event.currentTarget.blur();
+                }}
+            />
+        </label>
+    );
+}
+
 function ElementInspector({
     element,
     uploading,
@@ -2528,53 +2595,68 @@ function ElementInspector({
                         </Button>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
-                        {(["Rows", "Columns"] as const).map((label) => (
-                            <label key={label} className={labelClass}>
-                                {label}
-                                <input type="number" min={1} max={label === "Rows" ? 60 : 12}
-                                    value={label === "Rows" ? element.cells!.length : element.cells![0].length}
-                                    className={fieldClass}
-                                    onChange={(event) => {
-                                        const value = event.target.valueAsNumber;
-                                        if (!Number.isInteger(value) || value < 1 || value > (label === "Rows" ? 60 : 12)) return;
-                                        const rows = label === "Rows" ? value : element.cells!.length;
-                                        const cols = label === "Columns" ? value : element.cells![0].length;
-                                        onChange({
-                                            row_styles: element.row_styles?.slice(0, rows),
-                                            cell_styles: element.cell_styles?.slice(0, rows).map((row) => row?.slice(0, cols) ?? null),
-                                            cell_borders: element.cell_borders?.slice(0, rows).map(row => row.slice(0, cols)),
-                                            cell_spans: element.cell_spans?.slice(0, rows).map((row, r) => row.slice(0, cols).map((span, c) => ({
-                                                rows: Math.min(span.rows, rows - r), columns: Math.min(span.columns, cols - c),
-                                            }))),
-                                            ...growLayoutTable(element as LayoutElement & { cells: string[][] }, rows, cols) });
-                                    }} />
-                            </label>
-                        ))}
+                        <TableSizeField
+                            label="Rows"
+                            value={element.cells.length}
+                            max={60}
+                            fieldClass={fieldClass}
+                            labelClass={labelClass}
+                            onCommit={(value) => resizeLayoutGrid(element, value, element.cells![0].length, onChange)}
+                        />
+                        <TableSizeField
+                            label="Columns"
+                            value={element.cells[0].length}
+                            max={12}
+                            fieldClass={fieldClass}
+                            labelClass={labelClass}
+                            onCommit={(value) => resizeLayoutGrid(element, element.cells!.length, value, onChange)}
+                        />
                     </div>
-                    {element.cells.map((row, r) => (
-                        <div key={r} className="space-y-2 rounded-md border border-border bg-muted/30 p-2">
-                        <button type="button" aria-pressed={selectedRow === r} data-focus-row={r}
-                            className="self-start text-xs font-medium underline underline-offset-2"
-                            onClick={() => onSelectRow(r)}>Row {r + 1}</button>
-                        {r === 0 && element.header_row ? null : (
+                    <p className="text-xs text-muted-foreground">
+                        {element.header_row
+                            ? "The first row is the header. Every column in that row uses the header color, including columns you add."
+                            : "Each row lists its columns underneath. Turn on the header to color the first row."}
+                    </p>
+                    {element.cells.map((row, r) => {
+                        const header = r === 0 && !!element.header_row;
+                        const headerBg = element.label_bg || "#065f46";
+                        const headerText = element.header_color || "#ffffff";
+
+                        return (
+                        <div key={r} className="overflow-hidden rounded-lg border border-border">
+                        <div
+                            className="flex items-center justify-between gap-2 px-3 py-2"
+                            style={header ? { backgroundColor: headerBg, color: headerText } : undefined}
+                        >
+                            <button type="button" aria-pressed={selectedRow === r} data-focus-row={r}
+                                className="text-sm font-semibold underline underline-offset-2"
+                                onClick={() => onSelectRow(r)}>
+                                Row {r + 1}{header ? " · Header" : ""}
+                            </button>
+                            <span className="text-[11px]">{row.length} {row.length === 1 ? "column" : "columns"}</span>
+                        </div>
+                        <div className="space-y-3 p-3" style={header ? { backgroundColor: headerBg } : undefined}>
+                        {header ? null : (
                             <div className={labelClass}>Row background
                                 <ColorSelect allowNone label={`Row ${r + 1} background`} value={layoutRowBackground(element as LayoutElement & { cells: string[][] }, r)}
                                     onChange={(color) => onChange(paintLayoutRow(element as LayoutElement & { cells: string[][] }, r, color))} />
                             </div>
                         )}
                         {row.map((cell, c) => element.cell_spans?.[r]?.[c]?.columns === 0 ? null : (
-                            <label key={c} className={labelClass}>
-                                Column {c + 1}
+                            <label key={c} className={labelClass} style={header ? { color: headerText } : undefined}>
+                                Row {r + 1}, column {c + 1}
                                 <textarea data-focus-cell={`${r}-${c}`} aria-label={`Row ${r + 1}, column ${c + 1}`}
                                     rows={3} maxLength={300} value={cell}
-                                    placeholder="Cell text"
-                                    className={cn(fieldClass, "min-h-20 resize-y")}
+                                    placeholder={header ? `Header for column ${c + 1}` : "Cell text"}
+                                    className={cn(fieldClass, "min-h-20 resize-y bg-white text-slate-900")}
                                     onFocus={() => onSelectCell(r, c)}
                                     onChange={(event) => onChange({ cells: element.cells!.map((row, ri) => row.map((value, ci) => ri === r && ci === c ? event.target.value : value)) })} />
                             </label>
                         ))}
                         </div>
-                    ))}
+                        </div>
+                        );
+                    })}
                 </div>
             ) : null}
             {element.type === "table" ? (
