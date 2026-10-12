@@ -232,11 +232,18 @@ const elementLabel = (element: LayoutElement) =>
               table: "Info table",
           })[element.type];
 
+const keepsGroupSelection = (event: { shiftKey: boolean; metaKey: boolean; ctrlKey: boolean }) =>
+    event.shiftKey || event.metaKey || event.ctrlKey;
+
 function TableRowSelector({ row, onSelect }: { row: number; onSelect: (row: number) => void }) {
     return <button type="button" className="table-row-selector"
         aria-label={`Select row ${row + 1}`} title={`Select row ${row + 1} to format its text`}
         onPointerDown={(event) => event.stopPropagation()}
-        onClick={(event) => { event.stopPropagation(); onSelect(row); }} />;
+        onClick={(event) => {
+            event.stopPropagation();
+            if (keepsGroupSelection(event)) return;
+            onSelect(row);
+        }} />;
 }
 
 function previewTableItems(element: LayoutElement, fields: MergeField[]) {
@@ -356,7 +363,11 @@ export function ElementPreview({
                                         data-table-column={onSelectCell ? c : undefined}
                                         tabIndex={onSelectCell ? 0 : undefined}
                                         aria-label={onSelectCell ? `Row ${r + 1}, column ${c + 1} cell` : undefined}
-                                        onClick={onSelectCell ? (event) => { event.stopPropagation(); onSelectCell(r, c); } : undefined}
+                                        onClick={onSelectCell ? (event) => {
+                                            event.stopPropagation();
+                                            if (keepsGroupSelection(event)) return;
+                                            onSelectCell(r, c);
+                                        } : undefined}
                                         onKeyDown={onSelectCell ? (event) => {
                                             if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
                                                 event.preventDefault(); event.stopPropagation(); onSelectCell(r, c);
@@ -444,7 +455,9 @@ export function ElementPreview({
                                     tabIndex: 0,
                                     "aria-label": `Row ${row + 1}, ${column === 0 ? "name" : "value"} cell`,
                                     onClick: (event: React.MouseEvent<HTMLTableCellElement>) => {
-                                        event.stopPropagation(); onSelectCell(row, column);
+                                        event.stopPropagation();
+                                        if (keepsGroupSelection(event)) return;
+                                        onSelectCell(row, column);
                                     },
                                     onKeyDown: (event: React.KeyboardEvent<HTMLTableCellElement>) => {
                                         if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
@@ -817,6 +830,13 @@ export function useLayoutElements(
         const next = base.includes(id) ? base.filter((item) => item !== id) : [...base, id];
         setSelectedIds(next);
         setSelectedIdState(next[next.length - 1] ?? null);
+    };
+    const addSelected = (id: string) => {
+        setSelectedIds((current) => current.includes(id) ? current : [...current, id]);
+        setSelectedIdState(id);
+        setSelectedColumn(null);
+        setSelectedCell(null);
+        setSelectedRow(null);
     };
     const replaceSelection = (ids: string[]) => {
         const next = [...new Set(ids)];
@@ -1390,6 +1410,7 @@ export function useLayoutElements(
         rowCount,
         setSelectedId,
         toggleSelected,
+        addSelected,
         replaceSelection,
         alignHorizontally,
         nudgeSelected,
@@ -1838,7 +1859,9 @@ export default function LayoutElementsEditor({
                     Vertical divider
                 </Button>
                 <div role="group" aria-label="Horizontal alignment" className="flex items-center gap-1">
-                    <span className="px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Align</span>
+                    <span className="px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Align{controller.selectedIds.length > 1 ? ` (${controller.selectedIds.length})` : ""}
+                    </span>
                     {([
                         ["left", "Align left", AlignLeftIcon],
                         ["center", "Align center", AlignCenterIcon],
@@ -2115,9 +2138,9 @@ function LayoutTextToolbar({
                     <ToggleGroupItem value="bullet" aria-label="Layout bullets" title="Bullets"><ListIcon /></ToggleGroupItem>
                     <ToggleGroupItem value="numbered" aria-label="Layout numbered list" title="Numbered list"><ListOrderedIcon /></ToggleGroupItem>
                 </ToggleGroup>
-                <label className={labelClass}>
+                <label className={cn(labelClass, "min-w-48 flex-1")}>
                     Text case
-                    <select aria-label="Layout text case" disabled={!enabled} className={fieldClass}
+                    <select aria-label="Layout text case" disabled={!enabled} className={cn(fieldClass, "h-10 w-full min-w-48 px-3")}
                         value={element?.text_case ?? "original"}
                         onChange={(event) => onChange({ text_case: event.target.value as ElementCase })}>
                         {caseChoices.map((choice) => <option key={choice.id} value={choice.id}>{choice.label}</option>)}
@@ -2711,7 +2734,7 @@ function ElementInspector({
                                 text_case: event.target.value as ElementCase,
                             })
                         }
-                        className={fieldClass}
+                        className={cn(fieldClass, "h-11 px-3 text-base")}
                     >
                         {caseChoices.map((choice) => (
                             <option key={choice.id} value={choice.id}>
@@ -3029,28 +3052,32 @@ export function PreviewZone({
                                 zIndex: element.pdf_background ? 0 : isSelected ? 10 : 1,
                                 pointerEvents: element.pdf_background ? "none" : undefined,
                             }}
-                            onPointerDown={(event) => {
+                            onPointerDownCapture={(event) => {
+                                if (element.pdf_background || event.button !== 0 || !keepsGroupSelection(event)) return;
+                                event.preventDefault();
                                 event.stopPropagation();
                                 setTargetZone(zone);
                                 controller.setTargetPage(element.pdf_page);
-                                const multi = event.shiftKey || event.metaKey || event.ctrlKey;
-                                const moveIds = multi
+                                controller.addSelected(element.id);
+                            }}
+                            onPointerDown={(event) => {
+                                event.stopPropagation();
+                                if (keepsGroupSelection(event)) return;
+                                setTargetZone(zone);
+                                controller.setTargetPage(element.pdf_page);
+                                const moveIds = controller.selectedIds.includes(element.id)
                                     ? controller.selectedIds
-                                    : controller.selectedIds.includes(element.id)
-                                        ? controller.selectedIds
-                                        : [element.id];
-                                if (multi) {
-                                    controller.toggleSelected(element.id);
-                                } else if (!controller.selectedIds.includes(element.id)) {
+                                    : [element.id];
+                                if (!controller.selectedIds.includes(element.id)) {
                                     setSelectedId(element.id);
                                 }
                                 const cell = (event.target as HTMLElement).closest<HTMLElement>("[data-table-row][data-table-column]");
-                                if (cell && !multi) {
+                                if (cell) {
                                     controller.selectCell(element.id, Number(cell.dataset.tableRow), Number(cell.dataset.tableColumn));
-                                } else if (!multi) {
+                                } else {
                                     controller.selectRow(element.id, null);
                                 }
-                                if (!multi) controller.startMove(event, element, moveIds);
+                                controller.startMove(event, element, moveIds);
                             }}
                             onClick={(event) => event.stopPropagation()}
                             onKeyDown={(event) => {
@@ -3097,6 +3124,7 @@ export function PreviewZone({
                                             onPointerDown={(event) => event.stopPropagation()}
                                             onClick={(event) => {
                                                 event.stopPropagation();
+                                                if (keepsGroupSelection(event)) return;
                                                 setSelectedId(element.id);
                                                 controller.setSelectedColumn({ id: element.id, index: column });
                                             }} />

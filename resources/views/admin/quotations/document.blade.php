@@ -249,6 +249,7 @@
         <div class="accent"></div>
         @endif
 
+        @if (! $layoutHeader)
         <div class="body">
             <table class="stats {{ $statColumns === 1 ? 'one' : ($statColumns === 2 ? 'two' : '') }}">
                 <tr>
@@ -440,6 +441,7 @@
                 <p class="footnote">This quotation is valid until {{ $validUntil }}.</p>
             @endif
         </div>
+        @endif
     </div>
     @if ($mode === 'print')
         <script>

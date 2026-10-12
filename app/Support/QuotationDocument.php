@@ -205,6 +205,8 @@ class QuotationDocument
             'footerHeight' => 360,
         ]);
 
+        $logoPath = null;
+
         if (! filled($this->quotation->layout_header)) {
             $header = $section->addHeader();
             $headerTable = $header->addTable(['borderSize' => 0, 'cellMargin' => 0]);
@@ -238,13 +240,10 @@ class QuotationDocument
         if (! $hasLayout) {
             $section->addText('Quotation', ['bold' => true, 'size' => 26, 'color' => $this->wordColor('title')]);
             $section->addText($this->documentTitle(), ['bold' => true, 'size' => 16, 'color' => $this->wordColor('brand')]);
-        }
-        $section->addText(
-            $this->quotation->quotation_number.' · '.Quotation::statusLabel($this->quotation->status),
-            ['size' => 11, 'color' => '4B5563'],
-        );
-
-        if (! $hasLayout) {
+            $section->addText(
+                $this->quotation->quotation_number.' · '.Quotation::statusLabel($this->quotation->status),
+                ['size' => 11, 'color' => '4B5563'],
+            );
             $projectFields = $this->projectPrintFields();
             if ($projectFields !== []) {
                 $section->addTextBreak(1);
@@ -253,6 +252,7 @@ class QuotationDocument
             }
         }
 
+        if (! $hasLayout) {
         $revisions = $this->revisionRows();
         if ($revisions !== []) {
             $revisionColumns = $this->visibleRevisionColumns($revisions);
@@ -274,7 +274,6 @@ class QuotationDocument
             $section->addTextBreak(1);
         }
 
-        if (! $hasLayout) {
             $contractorSection = $this->contractorPrintSection();
             if ($contractorSection !== null) {
                 $section->addText($contractorSection['label'], ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
@@ -285,7 +284,6 @@ class QuotationDocument
                     $this->addMetaTable($section, $contactFields);
                 }
             }
-        }
 
         if ($this->displayHtml($this->quotation->notes)) {
             $section->addTextBreak(1);
@@ -322,6 +320,7 @@ class QuotationDocument
 
         if ($this->quotation->include_authorization ?? true) {
             $this->addAuthorizationSignatures($section);
+        }
         }
 
         $temp = tempnam(sys_get_temp_dir(), 'gds-quote-');
