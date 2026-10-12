@@ -1,5 +1,6 @@
 import type { LayoutElement } from '@/Pages/Admin/DocumentSettings/LayoutElements';
 import { PRINT_LAYOUT_WIDTH } from './printLayoutGeometry';
+import { LIST_CONTINUATION } from './printLayoutPdf';
 
 type PositionedText = LayoutElement & { x: number; y: number };
 export type PdfTextFragment = { text: string; element: PositionedText };
@@ -26,7 +27,7 @@ function listItems(block: Array<{ text: string; bullet: boolean; numbered: boole
     for (const line of block) {
         const body = line.bullet ? line.text.replace(bullet, '') : line.numbered ? line.text.replace(numbered, '') : line.text;
         if (line.bullet || line.numbered || items.length === 0) items.push(body);
-        else items[items.length - 1] += ` ${body}`;
+        else items[items.length - 1] += `${LIST_CONTINUATION}${body}`;
     }
     return items;
 }

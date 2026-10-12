@@ -381,6 +381,7 @@ class DocumentSettingController extends Controller
             'elements.*.underline' => ['nullable', 'boolean'],
             'elements.*.line_height' => ['nullable', 'numeric', 'between:0.5,4'],
             'elements.*.list_style' => ['nullable', 'string', Rule::in(['none', 'bullet', 'numbered'])],
+            'elements.*.list_flow' => ['nullable', 'string', Rule::in(['original', 'auto'])],
             'elements.*.validity_days' => ['nullable', 'integer', Rule::in([30, 60, 90])],
             'elements.*.font_size' => ['nullable', 'numeric', 'between:1,200'],
             'elements.*.font_family' => ['nullable', 'string', 'in:'.implode(',', array_keys(DocumentLayoutElements::FONT_FAMILIES))],

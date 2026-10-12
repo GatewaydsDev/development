@@ -10,7 +10,7 @@ import {
 import { cn } from "@/lib/utils";
 import { layoutColumnWidths, resizedLayoutColumns, tableEdgeBorder } from "@/lib/printLayoutGeometry";
 import { layoutTableCell, layoutTableDimensions, layoutTableField, resolveLayoutTableFields } from "@/lib/printLayoutTableFields";
-import { layoutPages, loadPdfFont, pdfTextFont, pdfTextLines, pdfTextLineHeight, pdfRunText, pdfRunY, pdfFontSources, type PdfLayoutElement } from "@/lib/printLayoutPdf";
+import { layoutPages, listBlockHeight, listKeepsOriginalSpace, listLineSpacing, listLineUnits, listTextItems, joinListItems, loadPdfFont, pdfTextFont, pdfTextLines, pdfTextLineHeight, pdfRunText, pdfRunY, pdfFontSources, type ListTextItem, type PdfLayoutElement } from "@/lib/printLayoutPdf";
 import { PRINT_LAYOUT_FONTS, PRINT_LAYOUT_FONT_CHOICES, PRINT_LAYOUT_WIDTH, printLayoutTextCase, tableStripeColor, tableTextStyle, TABLE_TEXT_STYLE_KEYS, type TableStriping, type TableTextStyle, type TextCaseState } from "@/lib/printLayoutGeometry";
 import {
     AlignCenterIcon,
@@ -34,12 +34,14 @@ import {
     Trash2Icon,
     TypeIcon,
     FileUpIcon,
+    PlusIcon,
     UploadIcon,
 } from "lucide-react";
 import {
     Fragment,
     PointerEvent as ReactPointerEvent,
     ReactNode,
+    MutableRefObject,
     useEffect,
     useId,
     useRef,
@@ -261,6 +263,73 @@ function tableCellPosition(element: LayoutElement, cell: { row: number; column: 
     const visibleIndex = previewTableItems(element, fields).findIndex((item) => item.index === cell.row);
     const position = Math.max(0, visibleIndex === -1 ? cell.row : visibleIndex);
     return { row: Math.floor(position / pairs) + 1, column: position % pairs * 2 + cell.column + 1 };
+}
+
+function LayoutList({ element, content }: { element: LayoutElement; content: string }) {
+    const items = listTextItems(content, element);
+    const spacing = listLineSpacing(element);
+    const original = listKeepsOriginalSpace(element);
+    const Tag = element.list_style === "numbered" ? "ol" : "ul";
+
+    return (
+        <Tag style={{ margin: 0, paddingLeft: 20, listStyleType: element.list_style === "numbered" ? "decimal" : element.pdf_bullet_style ?? "disc" }}>
+            {items.map((item, index) => (
+                <li
+                    key={index}
+                    style={{
+                        padding: element.pdf_page ? 0 : "2px 0",
+                        minHeight: original ? Math.max(item.reserved, item.lines.length) * spacing : undefined,
+                    }}
+                >
+                    {item.lines.map((line, lineIndex) => (
+                        <Fragment key={lineIndex}>
+                            {lineIndex > 0 ? <br /> : null}
+                            {transformCase(line, element.text_case) || "\u00a0"}
+                        </Fragment>
+                    ))}
+                </li>
+            ))}
+        </Tag>
+    );
+}
+
+function reflowListLayout(
+    elements: LayoutElement[],
+    before: LayoutElement,
+    after: LayoutElement,
+    headerHeight: number,
+    setHeaderHeight: (height: number) => void,
+): LayoutElement[] {
+    if (after.type !== "text" || !after.list_style || after.list_style === "none") {
+        return elements;
+    }
+    const flowOf = (item: LayoutElement) => item.list_flow ?? (listKeepsOriginalSpace(item) ? "original" : "auto");
+    const flowChanged = flowOf(before) !== flowOf(after) || before.list_style !== after.list_style;
+    if (!flowChanged && listLineUnits(before.content, before).join(",") === listLineUnits(after.content, after).join(",")) {
+        return elements;
+    }
+    const height = Math.max(1, listBlockHeight(after.content, after));
+    const delta = height - before.height;
+    const top = after.y ?? 0;
+    let shifted = elements.map((item) => {
+        if (item.id === after.id) return { ...item, height };
+        if (Math.abs(delta) < 0.5 || item.pdf_background) return item;
+        if (item.zone !== after.zone || (item.pdf_page ?? undefined) !== (after.pdf_page ?? undefined)) return item;
+        if ((item.y ?? 0) <= top + 0.5) return item;
+        return { ...item, y: Math.round(Math.max(0, (item.y ?? 0) + delta) * 100) / 100 };
+    });
+    if (after.pdf_page) {
+        const bottom = Math.max(...shifted.filter((item) => item.pdf_page === after.pdf_page).map((item) => (item.y ?? 0) + item.height));
+        const pageHeight = Math.max(after.pdf_page_height ?? 0, Math.ceil(bottom + 24));
+        if (pageHeight > (after.pdf_page_height ?? 0)) {
+            shifted = shifted.map((item) => item.pdf_page === after.pdf_page ? { ...item, pdf_page_height: pageHeight } : item);
+        }
+    } else if (after.zone === "header") {
+        const bottom = Math.max(0, ...shifted.filter((item) => item.zone === "header" && !item.pdf_page).map((item) => (item.y ?? 0) + (item.height || 24)));
+        setHeaderHeight(Math.max(headerHeight, Math.ceil(bottom + 24)));
+    }
+
+    return shifted;
 }
 
 export function ElementPreview({
@@ -651,19 +720,7 @@ export function ElementPreview({
             }}
         >
             {element.type === "text" && element.list_style && element.list_style !== "none" ? (
-                element.list_style === "numbered" ? (
-                    <ol style={{ margin: 0, paddingLeft: 20, listStyleType: "decimal" }}>
-                        {lines.map((line, index) => (
-                            <li key={index} style={{ padding: element.pdf_page ? 0 : "2px 0" }}>{transformCase(line, element.text_case) || "\u00a0"}</li>
-                        ))}
-                    </ol>
-                ) : (
-                    <ul style={{ margin: 0, paddingLeft: 20, listStyleType: element.pdf_bullet_style ?? "disc" }}>
-                        {lines.map((line, index) => (
-                            <li key={index} style={{ padding: element.pdf_page ? 0 : "2px 0" }}>{transformCase(line, element.text_case) || "\u00a0"}</li>
-                        ))}
-                    </ul>
-                )
+                <LayoutList element={element} content={content} />
             ) : content.trim() === "" && element.pdf_line_count ? (
                 <div aria-label={`Blank imported paragraph, ${element.pdf_line_count} lines`}>
                     {lines.map((_, index) => <div key={index} className="border-b border-dashed border-slate-300 text-[10px] text-slate-400"
@@ -883,9 +940,9 @@ export function useLayoutElements(
         setSelectedCell({ id, row, column });
     };
 
-    const update = (id: string, patch: Partial<LayoutElement>) =>
-        onChange(
-            elements.map((element) => {
+    const update = (id: string, patch: Partial<LayoutElement>) => {
+        const before = elements.find((element) => element.id === id);
+        const next = elements.map((element) => {
                 if (element.id !== id) return element;
                 if (activeCell?.id === id || activeRow?.id === id) {
                     const style: TableTextStyle = Object.fromEntries(
@@ -923,8 +980,12 @@ export function useLayoutElements(
                             column_colors: Array.from({ length: element.cells?.[0]?.length ?? (element.columns ?? 2) * 2 },
                                 (_, index) => index === selectedColumn.index ? patch.color! : element.column_colors?.[index] ?? null) }
                         : { ...element, ...patch };
-            }),
-        );
+            });
+        const after = next.find((element) => element.id === id);
+        const affectsList = ["content", "list_flow", "list_style", "pdf_line_spacing", "pdf_list_lines", "line_height", "font_size"]
+            .some((key) => Object.prototype.hasOwnProperty.call(patch, key));
+        onChange(before && after && affectsList ? reflowListLayout(next, before, after, headerHeight, setHeaderHeight) : next);
+    };
 
     const visibleToolbarBottom = () => Math.max(
         0,
@@ -2061,6 +2122,84 @@ export default function LayoutElementsEditor({
     );
 }
 
+function BulletTextFields({
+    element,
+    fieldClass,
+    listFocus,
+    onChange,
+}: {
+    element: LayoutElement;
+    fieldClass: string;
+    listFocus: MutableRefObject<{ index: number; start: number; end: number }>;
+    onChange: (patch: Partial<LayoutElement>) => void;
+}) {
+    const items = listTextItems(element.content, element);
+    const original = listKeepsOriginalSpace(element);
+    const write = (next: ListTextItem[], counts?: number[]) => onChange({
+        content: joinListItems(next),
+        ...(counts ? { pdf_list_lines: counts } : {}),
+    });
+
+    return (
+        <div className="flex flex-col gap-3">
+            {items.map((item, index) => (
+                <div key={index} className="flex flex-col gap-1">
+                    <span>{element.list_style === "numbered" ? `${index + 1}.` : "Bullet"} {index + 1}</span>
+                    <textarea
+                        aria-label={`${element.list_style === "numbered" ? "Numbered item" : "Bullet"} ${index + 1}`}
+                        rows={Math.max(2, original ? item.reserved : 2, item.lines.length)}
+                        maxLength={20000}
+                        value={item.lines.join("\n")}
+                        className={fieldClass}
+                        onSelect={(event) => {
+                            listFocus.current = { index, start: event.currentTarget.selectionStart, end: event.currentTarget.selectionEnd };
+                        }}
+                        onChange={(event) => {
+                            listFocus.current = { index, start: event.currentTarget.selectionStart, end: event.currentTarget.selectionEnd };
+                            write(items.map((current, itemIndex) => itemIndex === index
+                                ? { ...current, lines: event.target.value.length ? event.target.value.split(/\r?\n/) : [""] }
+                                : current));
+                        }}
+                    />
+                    <span className="font-normal text-muted-foreground">
+                        Enter keeps this text in the same bullet. A wrapped line is a continuation, not a new bullet.
+                    </span>
+                    <span className="flex flex-wrap gap-2">
+                        {index > 0 ? (
+                            <Button type="button" variant="outline" size="sm" onClick={() => {
+                                const next = items.map((current) => ({ ...current, lines: [...current.lines] }));
+                                next[index - 1].lines.push(...next[index].lines);
+                                next.splice(index, 1);
+                                write(next, element.pdf_list_lines?.filter((_, itemIndex) => itemIndex !== index));
+                            }}>
+                                Continue previous bullet
+                            </Button>
+                        ) : null}
+                        {items.length > 1 ? (
+                            <Button type="button" variant="outline" size="sm" onClick={() => {
+                                write(
+                                    items.filter((_, itemIndex) => itemIndex !== index),
+                                    element.pdf_list_lines?.filter((_, itemIndex) => itemIndex !== index),
+                                );
+                            }}>
+                                <Trash2Icon />
+                                Remove
+                            </Button>
+                        ) : null}
+                    </span>
+                </div>
+            ))}
+            <Button type="button" variant="outline" size="sm" className="w-fit gap-1.5" onClick={() => {
+                const next = [...items, { lines: [""], reserved: 1 }];
+                write(next, element.pdf_list_lines ? [...element.pdf_list_lines, 1] : undefined);
+            }}>
+                <PlusIcon />
+                {element.list_style === "numbered" ? "Add number" : "Add bullet"}
+            </Button>
+        </div>
+    );
+}
+
 function LayoutTextToolbar({
     element,
     onChange,
@@ -2196,6 +2335,7 @@ function ElementInspector({
     const labelClass = "block text-xs font-medium text-foreground";
     const inspectorRef = useRef<HTMLDivElement>(null);
     const textRef = useRef<HTMLTextAreaElement>(null);
+    const listFocus = useRef({ index: 0, start: 0, end: 0 });
     const insertableFields = fields.filter((field) =>
         field.key !== "contractor_name" && field.key !== "contractor_contact_name",
     ).map((field) => {
@@ -2406,20 +2546,29 @@ function ElementInspector({
 
             {element.type === "text" ? (
                 <div className={labelClass}>
-                    <label>
-                        Text
-                        <textarea
-                            ref={textRef}
-                            rows={element.pdf_line_count ?? 4}
-                            maxLength={20000}
-                            value={element.content}
-                            onChange={(event) =>
-                                onChange({ content: event.target.value })
-                            }
-                            className={fieldClass}
+                    {element.list_style && element.list_style !== "none" ? (
+                        <BulletTextFields
+                            element={element}
+                            fieldClass={fieldClass}
+                            listFocus={listFocus}
+                            onChange={onChange}
                         />
-                    </label>
-                    {element.pdf_text_runs?.length ? <span className="mt-1 block text-xs font-normal text-muted-foreground">
+                    ) : (
+                        <label>
+                            Text
+                            <textarea
+                                ref={textRef}
+                                rows={element.pdf_line_count ?? 4}
+                                maxLength={20000}
+                                value={element.content}
+                                onChange={(event) =>
+                                    onChange({ content: event.target.value })
+                                }
+                                className={fieldClass}
+                            />
+                        </label>
+                    )}
+                    {element.pdf_text_runs?.length && (!element.list_style || element.list_style === "none") ? <span className="mt-1 block text-xs font-normal text-muted-foreground">
                         Imported paragraph: {element.pdf_line_count} lines. Enter one replacement line per original line. Original positions and inline font styles are retained; formatting controls can override them.
                     </span> : null}
                     <span className="mt-2 block">Insert a field</span>
@@ -2431,10 +2580,24 @@ function ElementInspector({
                         searchPlaceholder="Search totals, project, contractor, company…"
                         groupOrder={[...BID_TEXT_FIELD_GROUP_ORDER, "Document"]}
                         onInsert={(key) => {
+                            const token = placeholderToken(key);
+                            if (element.list_style && element.list_style !== "none") {
+                                const items = listTextItems(element.content, element);
+                                const index = Math.min(listFocus.current.index, Math.max(0, items.length - 1));
+                                const text = items[index]?.lines.join("\n") ?? "";
+                                const start = listFocus.current.start;
+                                const end = listFocus.current.end;
+                                const nextText = text.slice(0, start) + token + text.slice(end);
+                                onChange({
+                                    content: joinListItems(items.map((item, itemIndex) => itemIndex === index
+                                        ? { ...item, lines: nextText.split(/\r?\n/) }
+                                        : item)),
+                                });
+                                return;
+                            }
                             const textarea = textRef.current;
                             const start = textarea?.selectionStart ?? element.content.length;
                             const end = textarea?.selectionEnd ?? start;
-                            const token = placeholderToken(key);
                             onChange({ content: element.content.slice(0, start) + token + element.content.slice(end) });
                             requestAnimationFrame(() => {
                                 textarea?.focus();
@@ -2719,7 +2882,24 @@ function ElementInspector({
                         <option value="numbered">Numbered list</option>
                     </select>
                     <span className="mt-1 block font-normal text-muted-foreground">
-                        Each line of text becomes one list item.
+                        Enter continues the same bullet. Add a bullet when the next line is a new item.
+                    </span>
+                </label>
+            ) : null}
+
+            {element.type === "text" && element.list_style && element.list_style !== "none" ? (
+                <label className={labelClass}>
+                    Bullet spacing
+                    <select
+                        value={element.list_flow ?? (listKeepsOriginalSpace(element) ? "original" : "auto")}
+                        onChange={(event) => onChange({ list_flow: event.target.value as LayoutElement["list_flow"] })}
+                        className={fieldClass}
+                    >
+                        <option value="original">Keep the original PDF spacing</option>
+                        <option value="auto">Auto-adjust with the rest of the layout</option>
+                    </select>
+                    <span className="mt-1 block font-normal text-muted-foreground">
+                        Original spacing holds each bullet in the space it used on the PDF. Auto-adjust moves the components below when a bullet grows or shrinks.
                     </span>
                 </label>
             ) : null}
