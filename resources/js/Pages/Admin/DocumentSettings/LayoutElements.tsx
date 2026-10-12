@@ -50,7 +50,7 @@ import {
 
 export type ElementType =
     "text" | "image" | "divider" | "spacer" | "date" | "validity" | "company" | "table";
-export type ElementZone = "header" | "intro" | "body" | "footer";
+export type ElementZone = "header" | "intro" | "body" | "footer" | "top";
 export type ElementCase = "original" | "camel" | "uppercase" | "lowercase";
 
 export function transformCase(value: string, textCase: ElementCase): string {
@@ -141,9 +141,19 @@ const tools: Array<{
 
 const zones: Array<{ id: ElementZone; label: string; hint: string }> = [
     {
-        id: "header",
+        id: "top",
         label: "Header",
-        hint: "Top of the page, on the header color. Replaces the standard header.",
+        hint: "Above the page. Components here do not move anything on the page.",
+    },
+    {
+        id: "header",
+        label: "Page",
+        hint: "The page itself. Drag components anywhere. Header and footer sit outside this area.",
+    },
+    {
+        id: "footer",
+        label: "Footer",
+        hint: "Below the page. Components here do not move anything on the page.",
     },
 ];
 
@@ -860,6 +870,7 @@ export function useLayoutElements(
         intro: "",
         body: "",
         footer: "",
+        top: "",
     },
     setZoneColor: (zone: ElementZone, color: string) => void = () => {},
     headerHeight = 160,
@@ -1856,6 +1867,8 @@ export default function LayoutElementsEditor({
         elements,
         selected,
         targetZone,
+        setTargetZone,
+        setTargetPage,
         uploading,
         uploadError,
         fileInputRef,
@@ -1895,8 +1908,26 @@ export default function LayoutElementsEditor({
                 className="flex flex-wrap items-center gap-2 p-2"
             >
                 <span className="px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Add
+                    Add to
                 </span>
+                <div role="group" aria-label="Where new components go" className="flex items-center gap-1">
+                    {([
+                        ["header", "Page"],
+                        ["top", "Header"],
+                        ["footer", "Footer"],
+                    ] as const).map(([zone, label]) => (
+                        <Button
+                            key={zone}
+                            type="button"
+                            size="sm"
+                            variant={targetZone === zone ? "default" : "outline"}
+                            aria-pressed={targetZone === zone}
+                            onClick={() => { setTargetZone(zone); setTargetPage(undefined); }}
+                        >
+                            {label}
+                        </Button>
+                    ))}
+                </div>
                 {tools.map((tool) => (
                     <Button
                         key={tool.type}
@@ -3128,7 +3159,11 @@ export function PreviewZone({
     const selected = items.find((element) => element.id === selectedId);
     const active = targetZone === zone && (!page || controller.targetPage === (page.id === "layout" ? undefined : page.id));
     const sheetHeight = controller.pageSheet?.pixelHeight ?? 0;
-    const canvasHeight = Math.max(page?.height ?? controller.headerHeight, page ? 0 : sheetHeight);
+    const band = zone === "top" || zone === "footer";
+    const contentBottom = items.reduce((max, item) => Math.max(max, (item.y ?? 0) + (item.height || 24)), 0);
+    const canvasHeight = band
+        ? Math.max(72, contentBottom + 16)
+        : Math.max(page?.height ?? controller.headerHeight, page ? 0 : sheetHeight);
 
     return (
         <section
@@ -3142,7 +3177,8 @@ export function PreviewZone({
             className={cn(
                 "relative transition",
                 zone === "header" && "pl-10 pr-3 pt-7",
-                zone !== "header" && "px-5 py-3 sm:px-8",
+                band && "py-1 pl-10 pr-3",
+                zone !== "header" && !band && "px-5 py-3 sm:px-8",
                 active &&
                     (zone === "header"
                         ? "border-white bg-white/20"
@@ -3233,9 +3269,10 @@ export function PreviewZone({
                     ))
                     : null}
                 {items.length === 0 ? (
-                    <p className="absolute inset-x-0 top-1/2 -translate-y-1/2 text-center text-[11px] opacity-80">
-                        Use the toolbar to add a component to the visible area,
-                        then drag it anywhere in the layout.
+                    <p className="absolute inset-x-0 top-1/2 -translate-y-1/2 px-4 text-center text-[11px] opacity-80">
+                        {band
+                            ? "Choose this area, then add a component. It stays outside the page, so the page layout does not move."
+                            : "Use the toolbar to add a component to the visible area, then drag it anywhere in the layout."}
                     </p>
                 ) : null}
                 {items.map((element) => {

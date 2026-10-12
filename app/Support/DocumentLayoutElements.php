@@ -9,9 +9,8 @@ class DocumentLayoutElements
 {
     public const TYPES = ['text', 'image', 'divider', 'spacer', 'date', 'validity', 'company', 'table'];
 
-    public const ZONES = ['header', 'intro', 'body', 'footer'];
+    public const ZONES = ['header', 'intro', 'body', 'footer', 'top'];
 
-    /** Sections currently enabled in the designer; others are kept off until they are built. */
     public const FONT_FAMILIES = [
         'default' => '',
         'helvetica' => 'Helvetica, Arial, sans-serif',
@@ -44,7 +43,8 @@ class DocumentLayoutElements
 
     public const DEFAULT_HEADER_HEIGHT = 160;
 
-    public const ACTIVE_ZONES = ['header'];
+    /** Page canvas, plus the header band (`top`) and footer band. Intro and body stay off. */
+    public const ACTIVE_ZONES = ['header', 'top', 'footer'];
 
     public const ALIGNMENTS = ['left', 'center', 'right', 'justify'];
 
@@ -346,7 +346,7 @@ class DocumentLayoutElements
     }
 
     /**
-     * @return array{body: string, footer: string, header_height: float}
+     * @return array{body: string, footer: string, top: string, header_height: float}
      */
     public static function zoneColors(mixed $colors): array
     {
@@ -362,6 +362,7 @@ class DocumentLayoutElements
         return [
             'body' => $clean($colors['body'] ?? null),
             'footer' => $clean($colors['footer'] ?? null),
+            'top' => $clean($colors['top'] ?? null),
             'header_height' => $height,
         ];
     }
@@ -442,7 +443,7 @@ class DocumentLayoutElements
                 ...($element['type'] === 'divider' ? [
                     'orientation' => $verticalDivider ? 'vertical' : 'horizontal',
                 ] : []),
-                'zone' => in_array($element['zone'] ?? null, ['intro', 'body', 'footer'], true) ? $element['zone'] : 'header',
+                'zone' => in_array($element['zone'] ?? null, ['intro', 'body', 'footer', 'top'], true) ? $element['zone'] : 'header',
                 'content' => mb_substr((string) ($element['content'] ?? ''), 0, 20000),
                 'src' => EditorImage::isStoredSrc($src) ? $src : '',
                 'align' => $align,
@@ -611,6 +612,10 @@ class DocumentLayoutElements
 
         if ($zone === 'header') {
             return self::renderFreeHeader($items, $bannerColor, $values, $headerHeight);
+        }
+
+        if ($zone === 'top' || $zone === 'footer') {
+            return self::renderBand($items, $zone, $values, $background);
         }
 
         $html = '';
@@ -789,6 +794,43 @@ class DocumentLayoutElements
         $text = DocumentAppearance::contrast($bannerColor);
 
         return '<div class="layout-elements layout-elements-header" style="position:relative;height:'.$height.'px;margin:0 0 12px 0;background:'.$bannerColor.';color:'.$text.';">'.$html.'</div>';
+    }
+
+    /**
+     * Header and footer bands sit outside the page canvas, using their own coordinates.
+     *
+     * @param  array<int, array<string, mixed>>  $items
+     */
+    private static function renderBand(array $items, string $zone, array $values, string $background): string
+    {
+        $html = '';
+        $bottom = 72;
+
+        foreach ($items as $element) {
+            $inner = self::renderElement(['width' => 100] + $element, false, $values);
+
+            if ($inner === '') {
+                continue;
+            }
+
+            $y = (float) ($element['y'] ?? 0);
+            $bottom = max($bottom, $y + (float) ($element['height'] ?? 24) + 16);
+            $html .= sprintf(
+                '<div style="position:absolute;left:%s%%;top:%spx;width:%s%%;">%s</div>',
+                rtrim(rtrim(number_format((float) ($element['x'] ?? 0), 1, '.', ''), '0'), '.') ?: '0',
+                rtrim(rtrim(number_format($y, 2, '.', ''), '0'), '.') ?: '0',
+                (string) $element['width'],
+                $inner,
+            );
+        }
+
+        if ($html === '') {
+            return '';
+        }
+
+        $fill = $background !== '' ? 'background:'.$background.';' : 'background:#ffffff;';
+
+        return '<div class="layout-elements layout-elements-'.$zone.'" style="position:relative;width:700px;height:'.(int) ceil($bottom).'px;margin:0;'.$fill.'">'.$html.'</div>';
     }
 
     /**
@@ -1147,11 +1189,12 @@ class DocumentLayoutElements
 
         $header = self::render($elements, 'header', $bannerColor, $values, headerHeight: (int) ($zoneColors['header_height'] ?? self::DEFAULT_HEADER_HEIGHT));
         $footer = self::render($elements, 'footer', values: $values, background: $zoneColors['footer'] ?? '');
+        $top = self::render($elements, 'top', values: $values, background: $zoneColors['top'] ?? '');
         $body = self::render($elements, 'body', values: $values, background: $zoneColors['body'] ?? '');
         $intro = self::render($elements, 'intro', values: $values);
 
         if ($body !== '') {
-            $replacement = $header.$intro.$body.$footer;
+            $replacement = $top.$header.$intro.$body.$footer;
             $count = 0;
             $html = preg_replace_callback(
                 '/(<body\b[^>]*>).*(<\/body>)/is',
@@ -1180,7 +1223,7 @@ class DocumentLayoutElements
             $count = 0;
             $html = preg_replace_callback(
                 '/<div\s+class="hero"/i',
-                fn (array $match): string => $hide.$header.$match[0],
+                fn (array $match): string => $hide.$top.$header.$match[0],
                 $html,
                 1,
                 $count,
@@ -1189,7 +1232,7 @@ class DocumentLayoutElements
             if ($count === 0) {
                 $html = preg_replace_callback(
                     '/<body\b[^>]*>/i',
-                    fn (array $match): string => $match[0].$header.($introPlaced ? '' : $intro),
+                    fn (array $match): string => $match[0].$top.$header.($introPlaced ? '' : $intro),
                     $html,
                     1,
                 ) ?? $html;
@@ -1202,6 +1245,15 @@ class DocumentLayoutElements
             if ($hidden === 0) {
                 $html = '<style>.hero{display:none!important}</style>'.$html;
             }
+        }
+
+        if ($header === '' && $top !== '') {
+            $html = preg_replace_callback(
+                '/<body\b[^>]*>/i',
+                fn (array $match): string => $match[0].$top,
+                $html,
+                1,
+            ) ?? $html;
         }
 
         if ($header === '' && $intro !== '' && ! $introPlaced) {
