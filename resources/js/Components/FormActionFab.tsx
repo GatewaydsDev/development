@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 import { Link } from '@inertiajs/react';
 import { CheckIcon, MenuIcon, PrinterIcon, XIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 type FormActionFabProps = {
     cancelHref: string;
@@ -50,10 +51,10 @@ export default function FormActionFab({
         };
     }, [isOpen]);
 
-    return (
+    const fab = (
         <div
             ref={rootRef}
-            className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-[max(0.75rem,env(safe-area-inset-right))] z-40 flex flex-col items-center gap-1.5 sm:bottom-8 sm:right-5 sm:gap-2 landscape:bottom-3 landscape:right-3 landscape:gap-1"
+            className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-[max(0.75rem,env(safe-area-inset-right))] z-[45] flex flex-col items-center gap-1.5 sm:bottom-8 sm:right-5 sm:gap-2 landscape:bottom-3 landscape:right-3 landscape:gap-1"
         >
             <div
                 className={cn(
@@ -186,4 +187,10 @@ export default function FormActionFab({
             </span>
         </div>
     );
+
+    if (typeof document === 'undefined') {
+        return fab;
+    }
+
+    return createPortal(fab, document.body);
 }
