@@ -2,6 +2,7 @@ import '../css/app.css';
 import '../css/dashboard-theme-overrides.css';
 import './i18n';
 
+import PageSkeleton from '@/Components/PageSkeleton';
 import SavingNotice from '@/Components/SavingNotice';
 import { ThemeProvider } from '@/Components/ThemeProvider';
 import { Toaster } from '@/Components/ui/sonner';
@@ -39,6 +40,7 @@ createInertiaApp({
             <ThemeProvider>
                 <TooltipProvider>
                     <App {...props} />
+                    <PageSkeleton />
                     <SavingNotice />
                     <Toaster />
                 </TooltipProvider>
