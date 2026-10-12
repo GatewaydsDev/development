@@ -5,6 +5,7 @@ import { Button } from '@/Components/ui/button';
 import { cn } from '@/lib/utils';
 import { PageProps } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
+import { useEffect, useRef } from 'react';
 import {
     ActivityIcon,
     BriefcaseIcon,
@@ -76,7 +77,9 @@ export default function DashboardSidebar({
     onToggleCollapse?: () => void;
     collapsed?: boolean;
 }) {
-    const { auth } = usePage<PageProps>().props;
+    const page = usePage<PageProps>();
+    const { auth } = page.props;
+    const navRef = useRef<HTMLElement>(null);
     const user = auth.user;
     const can = auth.can ?? {};
 
@@ -297,21 +300,43 @@ export default function DashboardSidebar({
         },
     ].filter((group) => group.items.length > 0);
 
+    useEffect(() => {
+        const frame = window.requestAnimationFrame(() => {
+            const container = navRef.current;
+            const node = container?.querySelector<HTMLElement>('[aria-current="page"]');
+
+            if (!node || !container) {
+                return;
+            }
+
+            const nodeRect = node.getBoundingClientRect();
+            const containerRect = container.getBoundingClientRect();
+
+            if (nodeRect.top < containerRect.top + 4) {
+                container.scrollTop -= containerRect.top - nodeRect.top + 12;
+            } else if (nodeRect.bottom > containerRect.bottom - 4) {
+                container.scrollTop += nodeRect.bottom - containerRect.bottom + 12;
+            }
+        });
+
+        return () => window.cancelAnimationFrame(frame);
+    }, [page.url, collapsed]);
+
     const displayLevel = user.level?.name ?? 'Standard Access';
 
     return (
         <aside
             className={cn(
-                'flex h-full w-full flex-col justify-between overflow-y-auto rounded-2xl border border-border bg-card shadow-sm transition-all duration-300',
+                'flex h-full w-full flex-col overflow-hidden rounded-2xl border border-[#cfe0d6] bg-[linear-gradient(180deg,#f4faf6_0%,#d7e8df_100%)] shadow-sm transition-all duration-300 dark:border-white/10 dark:bg-[linear-gradient(180deg,#1b342b_0%,#102019_100%)]',
                 collapsed ? 'p-2' : 'p-4 sm:p-5',
                 className,
             )}
         >
-            <div className="flex flex-col gap-5">
+            <div className="flex min-h-0 flex-1 flex-col gap-5">
                 {/* Brand / Logo Header */}
                 <div
                     className={cn(
-                        'flex items-center border-b border-border pb-4',
+                        'flex shrink-0 items-center border-b border-[#cfe0d6] pb-4 dark:border-white/10',
                         collapsed ? 'justify-center' : 'gap-3',
                     )}
                 >
@@ -345,7 +370,7 @@ export default function DashboardSidebar({
 
                 {/* Logged User Info Card */}
                 {collapsed ? (
-                    <div className="flex justify-center" title={user.name}>
+                    <div className="flex shrink-0 justify-center" title={user.name}>
                         <UserAvatar
                             name={user.name}
                             avatarUrl={user.avatar_url}
@@ -354,7 +379,7 @@ export default function DashboardSidebar({
                         />
                     </div>
                 ) : (
-                    <div className="dash-soft dash-border rounded-xl border p-3.5">
+                    <div className="dash-soft dash-border shrink-0 rounded-xl border bg-white/75 p-3.5 dark:bg-black/20">
                         <div className="flex items-start gap-3">
                             <UserAvatar
                                 name={user.name}
@@ -397,7 +422,7 @@ export default function DashboardSidebar({
                 )}
 
                 {/* Navigation Sections */}
-                <nav className="flex flex-col gap-5">
+                <nav ref={navRef} className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto">
                     {navigationGroups.map((group, index) => (
                         <div
                             key={group.label}
@@ -422,6 +447,7 @@ export default function DashboardSidebar({
                                         <Link
                                             key={item.title}
                                             href={item.href}
+                                            aria-current={isActive ? 'page' : undefined}
                                             onClick={onNavigate}
                                             title={
                                                 collapsed ? item.title : undefined
@@ -433,7 +459,7 @@ export default function DashboardSidebar({
                                                     : 'justify-between px-2.5',
                                                 isActive
                                                     ? 'dash-accent shadow-sm'
-                                                    : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                                                    : 'text-muted-foreground hover:bg-white/70 hover:text-foreground dark:hover:bg-white/10',
                                             )}
                                         >
                                             <div
@@ -479,7 +505,7 @@ export default function DashboardSidebar({
             </div>
 
             {/* Bottom Actions & User Account */}
-            <div className="sticky bottom-0 mt-6 flex flex-col gap-2 border-t border-border bg-card pt-4">
+            <div className="mt-4 flex shrink-0 flex-col gap-2 border-t border-[#cfe0d6] pt-4 dark:border-white/10">
                 {/* Log out */}
                 <Button
                     asChild
