@@ -6,6 +6,7 @@ use App\Models\Contractor;
 use App\Models\Project;
 use App\Models\ProjectScopeType;
 use App\Models\ProjectStatus;
+use App\Models\Quotation;
 use App\Models\User;
 use App\Models\UserLevel;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -117,6 +118,112 @@ test('a project can be created with a general contractor scopes and revisions', 
     expect($project->revisions->first()?->user_id)->toBe($admin->id);
     expect($project->service_type)->toBe('radio_frequency_doors');
     expect($project->project_number)->toBe('GDS-'.now()->year.'-0001');
+});
+
+test('a project can store more than one price for quotes and bids', function () {
+    $admin = projectAdmin();
+
+    $this->actingAs($admin)
+        ->post(route('admin.projects.store'), [
+            'name' => 'Window price options',
+            'project_number' => '',
+            'assigned_to' => '',
+            'status_id' => projectStatusId(),
+            'priority' => 'normal',
+            'site_address_line_1' => '',
+            'site_address_line_2' => '',
+            'site_city' => '',
+            'site_state' => '',
+            'site_postal_code' => '',
+            'site_country' => '',
+            'estimated_start_date' => '',
+            'estimated_end_date' => '',
+            'completed_at' => '',
+            'public_notes' => '',
+            'internal_notes' => '',
+            'contractors' => [],
+            'scopes' => [],
+            'revisions' => [],
+            'prices' => [
+                ['label' => '2 windows', 'amount' => '4500.00'],
+                ['label' => '3 windows', 'amount' => '6200.50'],
+                ['label' => '', 'amount' => ''],
+            ],
+        ])
+        ->assertSessionHasNoErrors();
+
+    $project = Project::query()->where('name', 'Window price options')->firstOrFail();
+
+    expect($project->prices)->toHaveCount(2);
+    expect($project->prices->pluck('label')->all())->toBe(['2 windows', '3 windows']);
+    expect($project->prices->pluck('amount')->all())->toBe(['4500.00', '6200.50']);
+});
+
+test('a quotation and a bid can select more than one project price', function () {
+    $admin = projectAdmin();
+    $contractor = Contractor::create(['name' => 'Window Contractor']);
+
+    $this->actingAs($admin)
+        ->post(route('admin.projects.store'), [
+            'name' => 'Selectable window prices',
+            'project_number' => '',
+            'assigned_to' => '',
+            'status_id' => projectStatusId(),
+            'priority' => 'normal',
+            'site_address_line_1' => '',
+            'site_address_line_2' => '',
+            'site_city' => '',
+            'site_state' => '',
+            'site_postal_code' => '',
+            'site_country' => '',
+            'estimated_start_date' => '',
+            'estimated_end_date' => '',
+            'completed_at' => '',
+            'public_notes' => '',
+            'internal_notes' => '',
+            'contractors' => [
+                ['contractor_id' => $contractor->id],
+            ],
+            'scopes' => [],
+            'revisions' => [],
+            'prices' => [
+                ['label' => '2 windows', 'amount' => '4500.00'],
+                ['label' => '3 windows', 'amount' => '6200.50'],
+            ],
+        ])
+        ->assertSessionHasNoErrors();
+
+    $project = Project::query()->where('name', 'Selectable window prices')->firstOrFail();
+    $priceIds = $project->prices->pluck('id')->all();
+
+    $this->actingAs($admin)
+        ->post(route('admin.quotations.store'), [
+            'contractor_id' => $contractor->id,
+            'project_id' => $project->id,
+            'title' => 'Window combination quote',
+            'status' => 'draft',
+            'project_amount' => '',
+            'project_price_ids' => $priceIds,
+            'line_items' => [],
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect();
+
+    $quotation = Quotation::query()->where('title', 'Window combination quote')->firstOrFail();
+
+    expect($quotation->projectPrices->pluck('id')->all())->toBe($priceIds);
+    expect($quotation->project_amount)->toBe('10700.50');
+
+    $this->actingAs($admin)
+        ->post(route('admin.bids.store'), [
+            'project_id' => $project->id,
+            'project_price_ids' => $priceIds,
+        ])
+        ->assertSessionHasNoErrors();
+
+    $bid = Bid::query()->where('project_id', $project->id)->firstOrFail();
+
+    expect($bid->projectPrices->pluck('id')->all())->toBe($priceIds);
 });
 
 test('new projects get the next gateway project number for the year', function () {

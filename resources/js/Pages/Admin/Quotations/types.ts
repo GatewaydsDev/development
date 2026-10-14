@@ -146,6 +146,7 @@ export type QuotationFormData = {
     quoted_at: string;
     valid_until: string;
     project_amount: string;
+    project_price_ids: string[];
     notes: string;
     proposal_title: string;
     print_layout_id: string;
@@ -175,6 +176,11 @@ export type QuotationProjectOption = {
     contractor_ids?: number[];
     label: string;
     site_address?: string | null;
+    prices?: Array<{
+        id: number;
+        label: string;
+        amount: string | number;
+    }>;
 };
 
 export type QuotationStatusOption = {
@@ -287,6 +293,7 @@ export type QuotationPayload = {
     total: number;
     contractor_id?: number;
     project_id?: number | null;
+    project_price_ids?: number[];
     contractor: {
         id: number;
         name: string | null;
@@ -437,6 +444,9 @@ export const quotationToFormData = (
         quotation?.project_amount === undefined
             ? ''
             : String(quotation.project_amount),
+    project_price_ids: (quotation?.project_price_ids ?? []).map((id) =>
+        String(id),
+    ),
     notes: quotation?.notes ?? '',
     print_layout_id: quotation?.print_layout_id ? String(quotation.print_layout_id) : '',
     print_layout_version: quotation?.print_layout_version ?? '',

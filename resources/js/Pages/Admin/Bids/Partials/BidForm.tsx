@@ -1,6 +1,7 @@
 import CreatableSelect from '@/Components/CreatableSelect';
 import Checkbox from '@/Components/Checkbox';
 import FormActionFab from '@/Components/FormActionFab';
+import ProjectPricePicker from '@/Components/ProjectPricePicker';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
@@ -86,6 +87,7 @@ const optionalMoneySchema = z
 
 const schema = z.object({
     project_id: z.string().trim().min(1, 'Select a project.'),
+    project_price_ids: z.array(z.string()),
     assigned_to: z.string(),
     quotation_id: z.string(),
     notes: z
@@ -357,6 +359,7 @@ export default function BidForm({
             )
         ) {
             setData('project_id', String(preBid.project_id));
+            setData('project_price_ids', []);
         }
 
         if (preBid.assigned_to) {
@@ -431,6 +434,16 @@ export default function BidForm({
 
         setData('quotation_id', String(quotation.id));
         setData('project_id', String(quotation.project_id));
+        setData(
+            'project_price_ids',
+            (quotation.project_price_ids ?? [])
+                .map((id) => String(id))
+                .filter((id) =>
+                    (project?.prices ?? []).some(
+                        (price) => String(price.id) === id,
+                    ),
+                ),
+        );
         replaceScopes(
             scopesFromProject(project, options.scopeTitles, options.products),
         );
@@ -505,6 +518,7 @@ export default function BidForm({
                 ...values,
                 assigned_to: values.assigned_to.trim() || null,
                 quotation_id: values.quotation_id.trim() || null,
+                project_price_ids: values.project_price_ids,
                 bid_shipping_text_template_id:
                     values.bid_shipping_text_template_id.trim() || null,
                 bid_scope_text_template_id:
@@ -717,6 +731,7 @@ export default function BidForm({
                                 onChange={(projectId) => {
                                     const previousProjectId = data.project_id;
                                     setData('project_id', projectId);
+                                    setData('project_price_ids', []);
 
                                     if (projectId === previousProjectId) {
                                         return;
@@ -813,6 +828,33 @@ export default function BidForm({
                                 {selectedProject.contractor_name ||
                                     'Not assigned on this project'}
                             </p>
+                        ) : null}
+                        {selectedProject ? (
+                            <div className="flex flex-col gap-3">
+                                <div>
+                                    <h3 className="text-sm font-semibold text-foreground">
+                                        Project price
+                                    </h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        Check every price from this project that
+                                        belongs on the bid, such as 2 windows
+                                        and 3 windows.
+                                    </p>
+                                </div>
+                                <ProjectPricePicker
+                                    prices={selectedProject.prices ?? []}
+                                    value={data.project_price_ids ?? []}
+                                    onChange={(ids) =>
+                                        setData('project_price_ids', ids)
+                                    }
+                                />
+                                <InputError
+                                    message={errorMessage(
+                                        validationErrors,
+                                        'project_price_ids',
+                                    )}
+                                />
+                            </div>
                         ) : null}
                         {quotations.length > 0 ? (
                             <div className="grid min-w-0 w-full gap-5 lg:grid-cols-[minmax(0,1.4fr)_auto] lg:items-end">

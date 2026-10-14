@@ -444,6 +444,9 @@ class DocumentLayoutElements
                     'orientation' => $verticalDivider ? 'vertical' : 'horizontal',
                 ] : []),
                 'zone' => in_array($element['zone'] ?? null, ['intro', 'body', 'footer', 'top'], true) ? $element['zone'] : 'header',
+                ...(in_array($element['layout_band'] ?? null, ['header', 'footer'], true) ? [
+                    'layout_band' => $element['layout_band'],
+                ] : []),
                 'content' => mb_substr((string) ($element['content'] ?? ''), 0, 20000),
                 'src' => EditorImage::isStoredSrc($src) ? $src : '',
                 'align' => $align,
@@ -1017,8 +1020,8 @@ class DocumentLayoutElements
                         $labelWidth = $widths[$i * 2];
                         $valueWidth = $widths[$i * 2 + 1];
                         $row = $chunk[$i] ?? ['', '', -1];
-                        $labelStripe = self::tableStripeColor($element, $rowIndex, $i * 2);
-                        $valueStripe = self::tableStripeColor($element, $rowIndex, $i * 2 + 1);
+                        $labelStripe = self::tableStripeColor($element, $rowIndex, $i * 2, $row[2]);
+                        $valueStripe = self::tableStripeColor($element, $rowIndex, $i * 2 + 1, $row[2]);
                         $labelBackground = $labelStripe !== '' ? 'background-color:'.$labelStripe.';' : $labelBg;
                         $valueBackground = $valueStripe !== '' ? 'background-color:'.$valueStripe.';' : '';
                         $labelStyle = self::tableTextStyle($element, $row[2], $i * 2, $color, false, true, 0);

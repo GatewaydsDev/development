@@ -211,16 +211,28 @@ export default function Show({ project, options }: ShowProps) {
                                     value={project.assignee?.name}
                                 />
                                 {options.can.viewSensitiveFields && (
-                                    <DetailItem
-                                        label="Budget amount"
-                                        value={
-                                            project.budget_amount
-                                                ? formatCurrency(
-                                                      project.budget_amount,
-                                                  )
-                                                : null
-                                        }
-                                    />
+                                    <div className="md:col-span-2 xl:col-span-4">
+                                        <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                                            Prices
+                                        </p>
+                                        {project.prices && project.prices.length > 0 ? (
+                                            <ul className="mt-2 flex flex-col gap-1 text-sm">
+                                                {project.prices.map((price) => (
+                                                    <li key={price.id}>
+                                                        {price.label}
+                                                        {' — '}
+                                                        {formatCurrency(price.amount)}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        ) : (
+                                            <p className="mt-2 text-sm text-muted-foreground">
+                                                {project.budget_amount
+                                                    ? formatCurrency(project.budget_amount)
+                                                    : 'No prices yet'}
+                                            </p>
+                                        )}
+                                    </div>
                                 )}
                                 <DetailItem
                                     label="Estimated start"

@@ -504,8 +504,16 @@
                     </td>
                     @if ($showBudget)
                         <td>
-                            <span class="meta-label">Budget amount</span>
-                            <span class="meta-value">{{ $budgetAmount ?: 'Not added yet' }}</span>
+                            <span class="meta-label">Prices</span>
+                            <span class="meta-value">
+                                @if (! empty($budgetPrices))
+                                    @foreach ($budgetPrices as $price)
+                                        <span class="block">{{ $price['label'] }} — {{ $price['amount'] }}</span>
+                                    @endforeach
+                                @else
+                                    {{ $budgetAmount ?: 'Not added yet' }}
+                                @endif
+                            </span>
                         </td>
                     @else
                         <td></td>

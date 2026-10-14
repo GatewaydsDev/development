@@ -152,6 +152,11 @@ class Project extends Model
         return $this->hasMany(Quotation::class)->latest();
     }
 
+    public function prices(): HasMany
+    {
+        return $this->hasMany(ProjectPrice::class)->orderBy('sort_order')->orderBy('id');
+    }
+
     public function assignee(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_to');
