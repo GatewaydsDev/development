@@ -20,6 +20,7 @@ use App\Models\PreBid;
 use App\Models\PrintLayout;
 use App\Models\Product;
 use App\Models\Project;
+use App\Models\ProjectPrice;
 use App\Models\ProjectScopeType;
 use App\Models\Quotation;
 use App\Models\Service;
@@ -300,6 +301,14 @@ class BidController extends Controller
     {
         $validated = $request->validate([
             'project_id' => ['required', 'integer', Rule::exists(Project::class, 'id')],
+            'project_price_ids' => ['nullable', 'array'],
+            'project_price_ids.*' => [
+                'integer',
+                'distinct',
+                Rule::exists(ProjectPrice::class, 'id')->where(
+                    fn ($query) => $query->where('project_id', $request->input('project_id')),
+                ),
+            ],
             'assigned_to' => ['nullable', 'integer', Rule::exists(User::class, 'id')],
             'notes' => ['nullable', 'string', 'max:250000'],
             'bid_shipping_text_template_id' => [
@@ -469,6 +478,17 @@ class BidController extends Controller
      */
     public function syncBidRelations(Bid $bid, array $validated, User $user): void
     {
+        if (array_key_exists('project_price_ids', $validated)) {
+            $bid->projectPrices()->sync(
+                collect($validated['project_price_ids'] ?? [])
+                    ->map(fn (mixed $id): int => (int) $id)
+                    ->filter(fn (int $id): bool => $id > 0)
+                    ->unique()
+                    ->values()
+                    ->all(),
+            );
+        }
+
         $this->syncRevisions($bid, $validated['revisions'] ?? [], $user);
 
         $stageIds = [];
@@ -800,6 +820,10 @@ class BidController extends Controller
         $currentStage = $bid->stages->last();
         $bid->loadMissing('quotation', 'assignee:id,name', 'revisions.user:id,name');
 
+        if (! $summary) {
+            $bid->loadMissing('projectPrices');
+        }
+
         return [
             'id' => $bid->id,
             'uuid' => $bid->uuid,
@@ -809,6 +833,9 @@ class BidController extends Controller
             'print_layout_id' => $summary ? null : $bid->print_layout_id,
             'print_layout_version' => $summary ? null : $bid->print_layout_version,
             'include_signature' => $bid->include_signature,
+            'project_price_ids' => $summary
+                ? []
+                : $bid->projectPrices->pluck('id')->values()->all(),
             'scope_of_work_text' => $summary ? null : BidApplicationText::sanitize($bid->scope_of_work_text),
             'created_at' => $bid->created_at?->toDateString(),
             'updated_at' => $bid->updated_at?->toDateString(),
@@ -1165,7 +1192,7 @@ class BidController extends Controller
         return [
             ...PrintLayoutCatalog::forDocument('bid'),
             'projects' => Project::query()
-                ->with(['scopes.product', 'scopes.service', 'contractors.contacts'])
+                ->with(['scopes.product', 'scopes.service', 'contractors.contacts', 'prices'])
                 ->orderBy('name')
                 ->get()
                 ->map(fn (Project $project): array => [
@@ -1187,6 +1214,14 @@ class BidController extends Controller
                     'estimated_start_date' => $project->estimated_start_date?->format('F j, Y'),
                     'estimated_end_date' => $project->estimated_end_date?->format('F j, Y'),
                     'site_state' => $project->site_state,
+                    'prices' => $project->prices
+                        ->map(fn (ProjectPrice $price): array => [
+                            'id' => $price->id,
+                            'label' => $price->label,
+                            'amount' => $price->amount,
+                        ])
+                        ->values()
+                        ->all(),
                     'scopes' => $project->scopes
                         ->map(fn ($scope): array => [
                             'type' => $scope->scope_type,

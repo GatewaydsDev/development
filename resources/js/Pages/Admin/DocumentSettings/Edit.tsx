@@ -587,7 +587,7 @@ export default function Edit({
                                     <Card
                                         key={layout.id}
                                         className={cn(
-                                            "group overflow-hidden transition duration-200 hover:-translate-y-0.5 hover:shadow-lg",
+                                            "group transition duration-200 hover:-translate-y-0.5 hover:shadow-lg",
                                             data.layout_id === layout.id
                                                 ? "border-emerald-600 ring-2 ring-emerald-600/20 dark:border-emerald-400"
                                                 : "border-border",
@@ -610,34 +610,30 @@ export default function Edit({
                                                     layout.table_header_background_color
                                                 }
                                             />
-                                            <div className="p-4 pb-2">
-                                                <div className="flex items-start justify-between gap-3">
-                                                    <div className="min-w-0">
-                                                        <CardTitle className="truncate text-base">
-                                                            {layout.name}
-                                                        </CardTitle>
-                                                        <CardDescription className="mt-1">
-                                                            {layout.assignments
-                                                                .length === 0
-                                                                ? "Not assigned to an output"
-                                                                : `${layout.assignments.length} assigned ${
-                                                                      layout
-                                                                          .assignments
-                                                                          .length ===
-                                                                      1
-                                                                          ? "output"
-                                                                          : "outputs"
-                                                                  }`}
-                                                        </CardDescription>
-                                                    </div>
-                                                    {data.layout_id ===
-                                                    layout.id ? (
-                                                        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
-                                                            <CheckIcon className="size-3.5" />
-                                                            Selected
-                                                        </span>
-                                                    ) : null}
-                                                </div>
+                                            <div className="space-y-2 p-4 pb-2">
+                                                <CardTitle className="break-words text-base leading-snug whitespace-normal">
+                                                    {layout.name}
+                                                </CardTitle>
+                                                <CardDescription>
+                                                    {layout.assignments
+                                                        .length === 0
+                                                        ? "Not assigned to an output"
+                                                        : `${layout.assignments.length} assigned ${
+                                                              layout
+                                                                  .assignments
+                                                                  .length ===
+                                                              1
+                                                                  ? "output"
+                                                                  : "outputs"
+                                                          }`}
+                                                </CardDescription>
+                                                {data.layout_id ===
+                                                layout.id ? (
+                                                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
+                                                        <CheckIcon className="size-3.5" />
+                                                        Selected
+                                                    </span>
+                                                ) : null}
                                             </div>
                                         </button>
                                         <CardContent className="flex items-center justify-between gap-3 pt-2">
@@ -799,7 +795,9 @@ export default function Edit({
                             <div className="space-y-6">
                                 <Card className="shadow-sm">
                                     <CardHeader>
-                                        <CardTitle>Layout details</CardTitle>
+                                        <CardTitle className="break-words whitespace-normal leading-snug">
+                                            {layoutName.trim() || "Untitled layout"}
+                                        </CardTitle>
                                         <CardDescription>
                                             Give this style a clear name and
                                             select every output that should use
@@ -1293,15 +1291,6 @@ function DocumentPreview({
                 fullPage && "mx-auto max-w-4xl",
             )}
         >
-            <div className="overflow-x-auto border-b border-slate-200">
-                <p className="px-3 pt-2 text-xs font-semibold text-slate-600">Header</p>
-                <p className="px-3 pb-1 text-[11px] text-slate-400">Above the page. The page stays where it is.</p>
-                {controller ? (
-                    <PreviewZone controller={controller} zone="top" applyCase={caseText} textCase={textCase} />
-                ) : (
-                    <ElementsReadOnly elements={elements} zone="top" fields={fields} textCase={textCase} />
-                )}
-            </div>
             <div className="overflow-x-auto">
                 <header style={{ width: PRINT_LAYOUT_WIDTH + (controller ? 52 : 0), backgroundColor: headerColor, color: headerText }}>
                     {controller ? (
@@ -1323,27 +1312,9 @@ function DocumentPreview({
                     )}
                 </header>
             </div>
-
-            <div
-                aria-hidden="true"
-                className={cn("space-y-3 p-5 sm:p-8", fullPage && "sm:p-12")}
-            >
-                <div className="h-2 w-1/3 rounded bg-slate-100" />
-                <div className="h-2 w-2/3 rounded bg-slate-100" />
-                <div className="h-2 w-1/2 rounded bg-slate-100" />
-                <p className="pt-2 text-center text-[11px] text-slate-400">
-                    The rest of the document is added by the system.
-                </p>
-            </div>
-            <div className="overflow-x-auto border-t border-slate-200">
-                <p className="px-3 pt-2 text-xs font-semibold text-slate-600">Footer</p>
-                <p className="px-3 pb-1 text-[11px] text-slate-400">Below the page. The page stays where it is.</p>
-                {controller ? (
-                    <PreviewZone controller={controller} zone="footer" applyCase={caseText} textCase={textCase} />
-                ) : (
-                    <ElementsReadOnly elements={elements} zone="footer" fields={fields} textCase={textCase} />
-                )}
-            </div>
+            <p className="border-t border-slate-200 px-3 py-2 text-center text-[11px] text-slate-400">
+                Header and footer are labeled on this page. The rest of the document is added by the system.
+            </p>
         </article>
     );
 }

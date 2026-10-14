@@ -106,16 +106,6 @@ function QuotationComponentCanvas({
             <LayoutElementsEditor controller={controller} error={error}>
                 <div className="rounded-xl bg-muted/40 p-4 sm:p-6">
                     <article className="mx-auto overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-800 shadow-xl shadow-slate-900/10">
-                        <div className="overflow-x-auto border-b border-slate-200">
-                            <p className="px-3 pt-2 text-xs font-semibold text-slate-600">Header</p>
-                            <p className="px-3 pb-1 text-[11px] text-slate-400">Above the page. The page stays where it is.</p>
-                            <PreviewZone
-                                controller={controller}
-                                zone="top"
-                                applyCase={(value) => transformCase(value, textCase)}
-                                textCase={textCase}
-                            />
-                        </div>
                         <div className="overflow-x-auto">
                             <header style={{ width: PRINT_LAYOUT_WIDTH + 52, backgroundColor: design.header_background || '#ffffff' }}>
                                 <PreviewZone
@@ -125,16 +115,6 @@ function QuotationComponentCanvas({
                                     textCase={textCase}
                                 />
                             </header>
-                        </div>
-                        <div className="overflow-x-auto border-t border-slate-200">
-                            <p className="px-3 pt-2 text-xs font-semibold text-slate-600">Footer</p>
-                            <p className="px-3 pb-1 text-[11px] text-slate-400">Below the page. The page stays where it is.</p>
-                            <PreviewZone
-                                controller={controller}
-                                zone="footer"
-                                applyCase={(value) => transformCase(value, textCase)}
-                                textCase={textCase}
-                            />
                         </div>
                     </article>
                 </div>

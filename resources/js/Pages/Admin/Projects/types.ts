@@ -111,6 +111,11 @@ export type ProjectPayload = {
     site_postal_code?: string | null;
     site_country?: string | null;
     budget_amount?: string | null;
+    prices?: Array<{
+        id: number;
+        label: string;
+        amount: string | number;
+    }>;
     internal_notes?: string | null;
     contractors: ProjectContractor[];
     scopes: ProjectScope[];
@@ -172,6 +177,12 @@ export type ProjectRevisionFormData = {
     user_name: string;
 };
 
+export type ProjectPriceFormData = {
+    id: string;
+    label: string;
+    amount: string;
+};
+
 export type ProjectFormData = {
     name: string;
     project_number: string;
@@ -188,6 +199,7 @@ export type ProjectFormData = {
     estimated_end_date: string;
     completed_at: string;
     budget_amount: string;
+    prices: ProjectPriceFormData[];
     public_notes: string;
     internal_notes: string;
     contractors: ProjectContractorFormData[];
@@ -218,6 +230,14 @@ export function optionLabel(value?: string | null) {
         .split('_')
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
         .join(' ');
+}
+
+export function blankPrice(): ProjectPriceFormData {
+    return {
+        id: '',
+        label: '',
+        amount: '',
+    };
 }
 
 export function blankScope(): ProjectScopeFormData {
@@ -293,6 +313,25 @@ export function projectToFormData(
         estimated_end_date: project?.estimated_end_date ?? '',
         completed_at: project?.completed_at ?? '',
         budget_amount: project?.budget_amount ?? '',
+        prices:
+            project?.prices && project.prices.length > 0
+                ? project.prices.map((price) => ({
+                      id: String(price.id),
+                      label: price.label ?? '',
+                      amount:
+                          price.amount === null || price.amount === undefined
+                              ? ''
+                              : String(price.amount),
+                  }))
+                : project?.budget_amount
+                  ? [
+                        {
+                            id: '',
+                            label: 'Budget',
+                            amount: String(project.budget_amount),
+                        },
+                    ]
+                  : [blankPrice()],
         public_notes: project?.public_notes ?? '',
         internal_notes: project?.internal_notes ?? '',
         contractors:

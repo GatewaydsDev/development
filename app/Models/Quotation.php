@@ -121,6 +121,13 @@ class Quotation extends Model
         return $this->belongsTo(Project::class);
     }
 
+    public function projectPrices(): BelongsToMany
+    {
+        return $this->belongsToMany(ProjectPrice::class, 'quotation_project_price')
+            ->orderBy('project_prices.sort_order')
+            ->orderBy('project_prices.id');
+    }
+
     public function convertedBid(): BelongsTo
     {
         return $this->belongsTo(Bid::class, 'converted_bid_id');

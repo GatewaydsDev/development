@@ -8,6 +8,7 @@ use App\Models\Company;
 use App\Models\Contractor;
 use App\Models\Product;
 use App\Models\Project;
+use App\Models\ProjectPrice;
 use App\Models\ProjectRevision;
 use App\Models\ProjectScope;
 use App\Models\ProjectScopeType;
@@ -31,6 +32,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -162,6 +164,7 @@ class ProjectController extends Controller
             ]);
 
             $this->syncProjectRelations($request, $project, $validated);
+            $this->syncPrices($project, $validated);
 
             return $project;
         });
@@ -182,6 +185,7 @@ class ProjectController extends Controller
             'scopes.product',
             'scopes.service',
             'revisions.user:id,name',
+            'prices',
             'status',
         ]);
 
@@ -202,6 +206,7 @@ class ProjectController extends Controller
             'scopes.product',
             'scopes.service',
             'revisions.user:id,name',
+            'prices',
             'status',
         ]);
 
@@ -223,6 +228,7 @@ class ProjectController extends Controller
             $project->save();
 
             $this->syncProjectRelations($request, $project, $validated);
+            $this->syncPrices($project, $validated);
         });
 
         return redirect()
@@ -446,6 +452,18 @@ class ProjectController extends Controller
                 ...$rules,
                 'budget_amount' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99'],
                 'internal_notes' => ['nullable', 'string', 'max:5000'],
+                'prices' => ['sometimes', 'array'],
+                'prices.*.id' => [
+                    'nullable',
+                    'integer',
+                    Rule::exists(ProjectPrice::class, 'id')->where(
+                        fn ($query) => $project
+                            ? $query->where('project_id', $project->id)
+                            : $query->whereRaw('0 = 1'),
+                    ),
+                ],
+                'prices.*.label' => ['nullable', 'string', 'max:255'],
+                'prices.*.amount' => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99'],
             ];
         }
 
@@ -515,12 +533,14 @@ class ProjectController extends Controller
             ];
         }
 
-        if (ProjectAccess::canViewSensitiveFields($user)) {
+        if (ProjectAccess::canViewSensitiveFields($user) && array_key_exists('budget_amount', $validated)) {
             $attributes = [
                 ...$attributes,
                 'budget_amount' => $validated['budget_amount'] ?? null,
                 'internal_notes' => $validated['internal_notes'] ?? null,
             ];
+        } elseif (ProjectAccess::canViewSensitiveFields($user)) {
+            $attributes['internal_notes'] = $validated['internal_notes'] ?? null;
         }
 
         return $attributes;
@@ -538,6 +558,53 @@ class ProjectController extends Controller
         $this->syncContractors($project, $validated['contractors'] ?? []);
         $this->syncScopes($project, $validated['scopes'] ?? []);
         $this->syncRevisions($project, $validated['revisions'] ?? [], $request->user());
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function syncPrices(Project $project, array $validated): void
+    {
+        if (! array_key_exists('prices', $validated) || ! ProjectAccess::canViewSensitiveFields(request()->user())) {
+            return;
+        }
+
+        $kept = [];
+
+        foreach (array_values($validated['prices']) as $index => $price) {
+            $label = trim((string) ($price['label'] ?? ''));
+            $amount = $price['amount'] ?? null;
+            $blank = $label === '' && ($amount === null || $amount === '');
+
+            if ($blank) {
+                continue;
+            }
+
+            if ($label === '' || $amount === null || $amount === '') {
+                throw ValidationException::withMessages([
+                    "prices.$index.label" => 'Enter what this price covers and the amount.',
+                ]);
+            }
+
+            $attributes = [
+                'label' => $label,
+                'amount' => $amount,
+                'sort_order' => count($kept),
+            ];
+            $id = $price['id'] ?? null;
+
+            if ($id) {
+                $project->prices()->whereKey($id)->update($attributes);
+                $kept[] = (int) $id;
+            } else {
+                $kept[] = $project->prices()->create($attributes)->id;
+            }
+        }
+
+        $project->prices()->when(
+            $kept !== [],
+            fn ($query) => $query->whereNotIn('id', $kept),
+        )->delete();
     }
 
     /**
@@ -850,6 +917,16 @@ class ProjectController extends Controller
             $payload = [
                 ...$payload,
                 'budget_amount' => $project->budget_amount,
+                'prices' => $summary
+                    ? []
+                    : $project->prices
+                        ->map(fn (ProjectPrice $price): array => [
+                            'id' => $price->id,
+                            'label' => $price->label,
+                            'amount' => $price->amount,
+                        ])
+                        ->values()
+                        ->all(),
                 'internal_notes' => $summary ? null : $project->internal_notes,
             ];
         }

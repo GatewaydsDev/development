@@ -20,6 +20,8 @@ class ClearDocumentRecords extends Command
      */
     private const TABLES = [
         'quotation_contact',
+        'quotation_project_price',
+        'bid_project_price',
         'quotation_line_items',
         'quotation_product_fields',
         'quotation_revisions',
@@ -37,6 +39,7 @@ class ClearDocumentRecords extends Command
         'project_contractor',
         'project_revisions',
         'project_scopes',
+        'project_prices',
         'document_layout_assignments',
         'bids',
         'quotations',

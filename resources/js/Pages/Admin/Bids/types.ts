@@ -23,6 +23,11 @@ export type BidProjectOption = {
     estimated_start_date?: string | null;
     estimated_end_date?: string | null;
     site_state?: string | null;
+    prices?: Array<{
+        id: number;
+        label: string;
+        amount: string | number;
+    }>;
     scopes?: BidProjectScopeOption[];
 };
 
@@ -91,6 +96,7 @@ export type BidQuotationOption = {
     quotation_number: string;
     title: string;
     project_id?: number | null;
+    project_price_ids?: number[];
     notes?: string | null;
     line_items: BidQuotationLineOption[];
 };
@@ -219,6 +225,7 @@ export type BidPayload = {
     print_layout_id?: number | null;
     print_layout_version?: string | null;
     include_signature?: boolean;
+    project_price_ids?: number[];
     created_at?: string | null;
     updated_at?: string | null;
     project: {
@@ -308,6 +315,7 @@ export type BidPricingFormData = {
 
 export type BidFormData = {
     project_id: string;
+    project_price_ids: string[];
     assigned_to: string;
     quotation_id: string;
     notes: string;
@@ -934,6 +942,7 @@ export const blankPricing = (name = 'Preliminary pricing'): BidPricingFormData =
 
 export const bidToFormData = (bid?: BidPayload): BidFormData => ({
     project_id: bid?.project?.id ? String(bid.project.id) : '',
+    project_price_ids: (bid?.project_price_ids ?? []).map((id) => String(id)),
     assigned_to: bid?.assigned_to
         ? String(bid.assigned_to)
         : bid?.assignee?.id

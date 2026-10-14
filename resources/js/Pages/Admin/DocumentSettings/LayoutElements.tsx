@@ -8,7 +8,7 @@ import {
     DropdownMenuItem, DropdownMenuTrigger,
 } from "@/Components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { layoutColumnWidths, resizedLayoutColumns, tableEdgeBorder } from "@/lib/printLayoutGeometry";
+import { clearCoveredLayout, layoutColumnWidths, resizedLayoutColumns, tableEdgeBorder } from "@/lib/printLayoutGeometry";
 import { layoutTableCell, layoutTableDimensions, layoutTableField, resolveLayoutTableFields } from "@/lib/printLayoutTableFields";
 import { layoutPages, listBlockHeight, listKeepsOriginalSpace, listLineSpacing, listLineUnits, listTextItems, joinListItems, loadPdfFont, pdfTextFont, pdfTextLines, pdfTextLineHeight, pdfRunText, pdfRunY, pdfFontSources, type ListTextItem, type PdfLayoutElement } from "@/lib/printLayoutPdf";
 import { PRINT_LAYOUT_FONTS, PRINT_LAYOUT_FONT_CHOICES, PRINT_LAYOUT_WIDTH, explicitTableBackground, growLayoutTable, layoutColumnBackground, layoutRowBackground, paintLayoutColumn, paintLayoutRow, printLayoutTextCase, printPageSize, tableStripeColor, tableTextStyle, TABLE_TEXT_STYLE_KEYS, type TableStriping, type TableTextStyle, type TextCaseState } from "@/lib/printLayoutGeometry";
@@ -34,6 +34,7 @@ import {
     Trash2Icon,
     TypeIcon,
     EyeIcon,
+    SearchIcon,
     FileUpIcon,
     PlusIcon,
     UploadIcon,
@@ -49,6 +50,7 @@ import {
     useContext,
     useEffect,
     useId,
+    useLayoutEffect,
     useRef,
     useState,
 } from "react";
@@ -107,6 +109,8 @@ export type LayoutElement = TableStriping & PdfLayoutElement & {
     inline?: boolean;
     x?: number;
     y?: number;
+    /** Header or footer region of this page. The component stays on the page. */
+    layout_band?: "header" | "footer";
     color: string;
     fields?: string[];
     layout?: "lines" | "table";
@@ -148,17 +152,17 @@ const zones: Array<{ id: ElementZone; label: string; hint: string }> = [
     {
         id: "top",
         label: "Header",
-        hint: "Above the page. Components here do not move anything on the page.",
+        hint: "The header is the top of this page. New components land in that region of the layout.",
     },
     {
         id: "header",
         label: "Page",
-        hint: "The page itself. Drag components anywhere. Header and footer sit outside this area.",
+        hint: "The page itself. Header and footer are labeled regions of this page.",
     },
     {
         id: "footer",
         label: "Footer",
-        hint: "Below the page. Components here do not move anything on the page.",
+        hint: "The footer is the bottom of this page. New components land in that region of the layout.",
     },
 ];
 
@@ -307,6 +311,25 @@ function LayoutList({ element, content }: { element: LayoutElement; content: str
         </Tag>
     );
 }
+
+function measureLayoutBox(id: string): { wrapper: number; content: number } | null {
+    const wrapper = document.querySelector<HTMLElement>(`[data-element-id="${CSS.escape(id)}"]`);
+    if (!wrapper) return null;
+    const table = wrapper.querySelector("table");
+
+    return {
+        wrapper: wrapper.offsetHeight,
+        content: table?.offsetHeight ?? wrapper.offsetHeight,
+    };
+}
+
+type PendingLayoutSpace = {
+    id: string;
+    y: number;
+    wrapper: number;
+    content: number;
+    insert?: boolean;
+};
 
 function reflowListLayout(
     elements: LayoutElement[],
@@ -569,7 +592,7 @@ export function ElementPreview({
                                             outline: index * 2 === selectedColumn || (selectedRow !== undefined && row === selectedRow) || (selectedCell?.row === row && selectedCell?.column === 0) ? "2px solid #059669" : undefined,
                                             outlineOffset: -2,
                                             background:
-                                                tableStripeColor(element, rowIndex, index * 2) ?? (element.label_bg || undefined),
+                                                tableStripeColor(element, rowIndex, index * 2, row ?? -1) ?? (element.label_bg || undefined),
                                         }}
                                     >
                                         {row !== undefined && onSelectRow ? <TableRowSelector row={row} onSelect={onSelectRow} /> : null}
@@ -584,7 +607,7 @@ export function ElementPreview({
                                             ...base,
                                             ...cellStyle(valueStyle),
                                             width: `${widths[index * 2 + 1]}%`,
-                                            background: tableStripeColor(element, rowIndex, index * 2 + 1),
+                                            background: tableStripeColor(element, rowIndex, index * 2 + 1, row ?? -1),
                                             outline: index * 2 + 1 === selectedColumn || (selectedRow !== undefined && row === selectedRow) || (selectedCell?.row === row && selectedCell?.column === 1) ? "2px solid #059669" : undefined,
                                             outlineOffset: -2,
                                         }}
@@ -756,6 +779,61 @@ export function ElementPreview({
     );
 }
 
+function foldBandsOntoPage(elements: LayoutElement[], pageHeight: number): LayoutElement[] {
+    if (!elements.some((element) => element.zone === "top" || element.zone === "footer")) return elements;
+
+    return elements.map((element) => {
+        if (element.zone !== "top" && element.zone !== "footer" || element.pdf_background) return element;
+        const height = element.pdf_page_height || pageHeight;
+        const margin = Math.min(120, Math.max(48, height * 0.14));
+        const y = element.zone === "footer" ? Math.max(0, height - margin + (element.y ?? 0)) : element.y ?? 0;
+
+        return {
+            ...element,
+            zone: "header",
+            layout_band: element.zone === "top" ? "header" : "footer",
+            y: Math.round(y * 100) / 100,
+        };
+    });
+}
+
+function pageRegions(elements: LayoutElement[], pageHeight: number, active: "header" | "footer" | null) {
+    const tagged = (band: "header" | "footer") => elements.filter((element) => element.layout_band === band && !element.pdf_background);
+    const headerBoxes = tagged("header");
+    const footerBoxes = tagged("footer");
+    const fallback = Math.min(96, Math.max(56, pageHeight * 0.12));
+    const headerHeight = headerBoxes.length > 0
+        ? Math.min(pageHeight * 0.4, Math.max(...headerBoxes.map((element) => (element.y ?? 0) + (element.height || element.font_size || 16))) + 8)
+        : active === "header" ? fallback : 0;
+    const footerTop = footerBoxes.length > 0
+        ? Math.max(headerHeight, Math.min(...footerBoxes.map((element) => element.y ?? 0)) - 8)
+        : active === "footer" ? Math.max(headerHeight, pageHeight - fallback) : pageHeight;
+
+    return {
+        header: headerHeight > 8 ? { top: 0, height: headerHeight } : null,
+        footer: pageHeight - footerTop > 8 ? { top: footerTop, height: pageHeight - footerTop } : null,
+    };
+}
+
+function PageRegion({ label, top, height, active }: { label: "Header" | "Footer"; top: number; height: number; active: boolean }) {
+    const header = label === "Header";
+
+    return (
+        <div
+            className={cn(
+                "pointer-events-none absolute z-20 border-emerald-700",
+                header ? "inset-x-1 border-2 border-solid" : "inset-x-0 border-t-2 border-dashed",
+                active ? "bg-emerald-500/15" : "bg-emerald-500/5",
+            )}
+            style={{ top: header ? Math.max(1, top) : top, height: header ? Math.max(8, height - 2) : height }}
+        >
+            <span className="absolute left-2 top-1 rounded bg-emerald-700 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                {label}
+            </span>
+        </div>
+    );
+}
+
 export function ElementsReadOnly({
     elements,
     zone,
@@ -780,7 +858,8 @@ export function ElementsReadOnly({
             .catch(() => { if (active) setFontError("An imported font could not be loaded. Review the font assets before printing."); });
         return () => { active = false; };
     }, [elements]);
-    const items = elements.filter((element) => element.zone === zone);
+    const placed = zone === "header" ? foldBandsOntoPage(elements, headerHeight) : elements;
+    const items = placed.filter((element) => element.zone === zone);
 
     if (items.length === 0) {
         return null;
@@ -790,7 +869,12 @@ export function ElementsReadOnly({
         return (
             <div>
             {fontError ? <p role="alert" className="text-sm text-destructive">{fontError}</p> : null}
-            {layoutPages(items, headerHeight).map((page) => <div key={page.id} className="relative" style={{ width: PRINT_LAYOUT_WIDTH, height: page.height }}>
+            {layoutPages(items, headerHeight).map((page) => {
+                const regions = pageRegions(page.elements, page.height, null);
+
+                return <div key={page.id} className="relative" style={{ width: PRINT_LAYOUT_WIDTH, height: page.height }}>
+                {regions.header ? <PageRegion label="Header" top={regions.header.top} height={regions.header.height} active={false} /> : null}
+                {regions.footer ? <PageRegion label="Footer" top={regions.footer.top} height={regions.footer.height} active={false} /> : null}
                 {page.elements.map((element) => (
                     <div
                         key={element.id}
@@ -808,7 +892,8 @@ export function ElementsReadOnly({
                         />
                     </div>
                 ))}
-            </div>)}
+            </div>;
+            })}
             </div>
         );
     }
@@ -895,6 +980,11 @@ export function useLayoutElements(
     const fileInputRef = useRef<HTMLInputElement>(null);
     const pendingImageFor = useRef<string | null>(null);
     const canvasRefs = useRef<Partial<Record<ElementZone, HTMLDivElement | null>>>({});
+    const pendingLayoutSpace = useRef<PendingLayoutSpace | null>(null);
+    useEffect(() => {
+        const folded = foldBandsOntoPage(elements, pageSheet?.pixelHeight ?? headerHeight);
+        if (folded !== elements) onChange(folded);
+    }, [elements, headerHeight, onChange, pageSheet]);
     const setSelectedId = (id: string | null) => {
         setSelectedIdState(id);
         setSelectedIds(id ? [id] : []);
@@ -925,6 +1015,40 @@ export function useLayoutElements(
             .catch(() => { if (active) setUploadError("An imported font could not be loaded. Choose another font or restore its asset."); });
         return () => { active = false; };
     }, [elements]);
+    useLayoutEffect(() => {
+        const pending = pendingLayoutSpace.current;
+        if (!pending) return;
+        const anchor = elements.find((item) => item.id === pending.id);
+        const measured = anchor ? measureLayoutBox(anchor.id) : null;
+        if (!anchor || !measured || measured.content < 1) {
+            pendingLayoutSpace.current = null;
+            return;
+        }
+        pendingLayoutSpace.current = null;
+
+        if (!pending.insert && Math.abs(measured.content - pending.content) < 1) {
+            return;
+        }
+
+        const contentSized = pending.wrapper <= pending.content + 2;
+        const nextHeight = pending.insert
+            ? Math.max(anchor.height, measured.content)
+            : contentSized
+                ? measured.content
+                : Math.max(pending.wrapper, measured.content);
+        const next = clearCoveredLayout(elements, anchor.id, nextHeight);
+        if (next === elements) return;
+        onChange(next);
+        if (!anchor.pdf_page && anchor.zone === "header") {
+            const bottom = Math.max(
+                0,
+                ...next
+                    .filter((item) => item.zone === "header" && !item.pdf_page)
+                    .map((item) => (item.y ?? 0) + (item.height || 24)),
+            );
+            setHeaderHeight(Math.max(headerHeight, Math.ceil(bottom + 24)));
+        }
+    }, [elements, headerHeight, onChange, setHeaderHeight]);
     const rowCount = selected?.type === "table" ? (selected.cells?.length ?? selected.items?.length ?? 0) : 0;
     const activeRow = selectedRow?.id === selectedId && selectedRow.index < rowCount ? selectedRow : null;
     const activeCell = selectedCell?.id === selectedId && selectedCell.row < rowCount &&
@@ -1002,6 +1126,18 @@ export function useLayoutElements(
         const after = next.find((element) => element.id === id);
         const affectsList = ["content", "list_flow", "list_style", "pdf_line_spacing", "pdf_list_lines", "line_height", "font_size"]
             .some((key) => Object.prototype.hasOwnProperty.call(patch, key));
+        if (
+            before?.type === "table"
+            && (patch.cells !== undefined || patch.items !== undefined || patch.row_heights !== undefined)
+        ) {
+            const measured = measureLayoutBox(before.id);
+            pendingLayoutSpace.current = {
+                id: before.id,
+                y: before.y ?? 0,
+                wrapper: measured?.wrapper ?? before.height,
+                content: measured?.content ?? before.height,
+            };
+        }
         onChange(before && after && affectsList ? reflowListLayout(next, before, after, headerHeight, setHeaderHeight) : next);
     };
 
@@ -1013,8 +1149,11 @@ export function useLayoutElements(
     );
 
     const add = (type: ElementType, zone: ElementZone = targetZone, grid = false, patch: Partial<LayoutElement> = {}) => {
-        const element = { ...createElement(type, zone), ...patch };
-        const pageElement = elements.find((item) => item.pdf_page === targetPage && targetPage);
+        const onPage = zone === "top" || zone === "footer";
+        const element = { ...createElement(type, onPage ? "header" : zone), ...patch };
+        if (onPage) element.layout_band = zone === "top" ? "header" : "footer";
+        const pageId = targetPage ?? elements.find((item) => item.pdf_page)?.pdf_page;
+        const pageElement = elements.find((item) => item.pdf_page === pageId && pageId);
         if (pageElement) {
             element.pdf_page = pageElement.pdf_page;
             element.pdf_page_height = pageElement.pdf_page_height;
@@ -1023,8 +1162,13 @@ export function useLayoutElements(
             element.cells = [["", ""], ["", ""]];
             element.width = 94;
         }
-        const canvas = canvasRefs.current[zone];
-        if (canvas) {
+        const canvas = canvasRefs.current[onPage ? "header" : zone];
+        if (onPage) {
+            const pageHeight = element.pdf_page_height || pageSheet?.pixelHeight || headerHeight;
+            element.y = element.layout_band === "footer"
+                ? Math.max(8, pageHeight - Math.max(element.height || 32, 32) - 8)
+                : 8;
+        } else if (canvas) {
             const box = canvas.getBoundingClientRect();
             const scale = box.height > 0 ? canvas.offsetHeight / box.height : 1;
             const toolbarBottom = visibleToolbarBottom();
@@ -1037,6 +1181,13 @@ export function useLayoutElements(
             element.y = 24;
         }
         setTargetZone(zone);
+        pendingLayoutSpace.current = {
+            id: element.id,
+            y: element.y ?? 0,
+            wrapper: 0,
+            content: 0,
+            insert: true,
+        };
         onChange([...elements, element]);
         setSelectedId(element.id);
         requestAnimationFrame(() => {
@@ -1299,6 +1450,7 @@ export function useLayoutElements(
         event: ReactPointerEvent<HTMLElement>,
         element: LayoutElement,
         moveIds: string[] = [element.id],
+        deselectOnClick = false,
     ) => {
         if (
             event.button !== 0 ||
@@ -1370,6 +1522,7 @@ export function useLayoutElements(
             if (node.hasPointerCapture(event.pointerId)) {
                 node.releasePointerCapture(event.pointerId);
             }
+            if (!dragging && deselectOnClick) setSelectedId(null);
         };
 
         node.addEventListener("pointermove", onMove);
@@ -1644,7 +1797,13 @@ export function ImportPanel({
                 for (const [name, data] of imported.fonts) {
                     fontUrls.set(name, await upload("font", new Blob([new Uint8Array(data).buffer], { type: "application/octet-stream" }), "font.ttf"));
                 }
-                for (const page of imported.pages) page.elements[0].src = await upload("image", page.background, "page.png");
+                for (const page of imported.pages) {
+                    page.elements[0].src = await upload("image", page.background, "page.png");
+                    for (const piece of page.artwork) {
+                        const element = page.elements.find((item) => item.id === piece.id);
+                        if (element) element.src = await upload("image", piece.blob, "header.png");
+                    }
+                }
                 incoming.forEach((element) => {
                     if (element.pdf_font_src) element.pdf_font_src = fontUrls.get(element.pdf_font_src);
                     for (const run of element.pdf_text_runs ?? []) {
@@ -1655,7 +1814,7 @@ export function ImportPanel({
                 if (onImported) onImported(incoming, file.name, imported.notes);
                 else controller.importElements(incoming, replace);
                 controller.setTargetPage(incoming[0]?.pdf_page);
-                setMessage({ tone: "ok", lines: [`Imported ${imported.pages.length} pages. ${pdfText === "clean" ? "The original wording was removed." : "Text outside tables stays editable."} Table columns were not copied — the header color is in place, and the footer color too when the PDF has one. Add the columns and rows yourself, then save.`, ...imported.notes] });
+                setMessage({ tone: "ok", lines: [`Imported ${imported.pages.length} pages. The PDF header and footer stay on the imported page and are labeled there. ${pdfText === "clean" ? "The original wording was removed." : "Text outside tables stays editable."} Table columns were not copied — the table header color is in place, and the table footer color too when the PDF has one. Add the columns and rows yourself, then save.`, ...imported.notes] });
                 return;
             }
             const body = new FormData();
@@ -1897,7 +2056,6 @@ function LayoutPreviewDialog({
                                 <p className="text-center text-sm text-muted-foreground">Add a component to preview this layout.</p>
                             ) : (
                                 <article className="mx-auto overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-800 shadow-xl" style={{ width: PRINT_LAYOUT_WIDTH }}>
-                                    <ElementsReadOnly elements={controller.elements} zone="top" fields={controller.fields} />
                                     <header style={{ width: PRINT_LAYOUT_WIDTH, backgroundColor: headerColor }}>
                                         <ElementsReadOnly
                                             elements={controller.elements}
@@ -1907,7 +2065,6 @@ function LayoutPreviewDialog({
                                             headerHeight={controller.headerHeight}
                                         />
                                     </header>
-                                    <ElementsReadOnly elements={controller.elements} zone="footer" fields={controller.fields} />
                                 </article>
                             )}
                         </div>
@@ -1997,7 +2154,10 @@ export default function LayoutElementsEditor({
                             size="sm"
                             variant={targetZone === zone ? "default" : "outline"}
                             aria-pressed={targetZone === zone}
-                            onClick={() => { setTargetZone(zone); setTargetPage(undefined); }}
+                            onClick={() => {
+                                setTargetZone(zone);
+                                if (zone === "header") setTargetPage(undefined);
+                            }}
                         >
                             {label}
                         </Button>
@@ -2179,23 +2339,21 @@ export default function LayoutElementsEditor({
 
                 <div className="min-w-0">
                 <StickyDocumentToolbar scopeRef={editorRef} propertiesPanel>
-                <aside
-                    aria-label="Element properties"
-                    className="rounded-xl border border-border bg-background p-4"
-                >
+                <aside aria-label="Object Inspector" className="min-w-0">
+                    <ObjectInspector
+                        elements={elements}
+                        selectedId={selected?.id ?? ""}
+                        onSelect={(id) => controller.setSelectedId(id || null)}
+                    >
                     {selected && controller.selectedColumn?.id === selected.id ? (
-                        <div className="mb-3 flex items-center gap-2 text-sm">
-                            <span>Column {controller.selectedColumn.index + 1}: font color applies unless a row or cell overrides it.</span>
-                            <Button type="button" variant="outline" size="sm" onClick={() => controller.setSelectedColumn(null)}>Whole table</Button>
-                        </div>
+                        <InspectorNote>Column {controller.selectedColumn.index + 1}: font color applies unless a row or cell overrides it.</InspectorNote>
+                    ) : null}
+                    {selected && controller.selectedIds.length > 1 ? (
+                        <InspectorNote>
+                            {controller.selectedIds.length} components selected. These fields edit the last component you clicked.
+                        </InspectorNote>
                     ) : null}
                     {selected ? (
-                        <>
-                            {controller.selectedIds.length > 1 ? (
-                                <p className="mb-3 text-sm text-muted-foreground">
-                                    {controller.selectedIds.length} components selected. Horizontal alignment uses this group. These fields edit the last component you clicked.
-                                </p>
-                            ) : null}
                         <ElementInspector
                             tableFieldSelection={tableFieldSelection}
                             onTableFieldSelection={setTableFieldSelection}
@@ -2214,14 +2372,12 @@ export default function LayoutElementsEditor({
                                 fileInputRef.current?.click();
                             }}
                         />
-                        </>
                     ) : (
-                        <p className="text-sm text-muted-foreground">
-                            Select an element to edit its text, size, and
-                            alignment. Shift-click or drag across the page to
-                            select several, then align them horizontally.
+                        <p className="px-2 py-3 text-sm text-neutral-600">
+                            Select a component on the page, or choose one above.
                         </p>
                     )}
+                    </ObjectInspector>
                 </aside>
                 </StickyDocumentToolbar>
                 </div>
@@ -2483,6 +2639,290 @@ function TableSizeField({
     );
 }
 
+function cellStylePatch(element: LayoutElement, row: number, column: number, patch: Partial<TableTextStyle>) {
+    const rows = Math.max(element.cells?.length ?? 0, element.items?.length ?? 0, row + 1);
+
+    return {
+        cell_styles: Array.from({ length: rows }, (_, r) => {
+            const columns = element.cells?.[r]?.length ?? 2;
+
+            return Array.from({ length: columns }, (_, c) => (
+                r === row && c === column
+                    ? { ...element.cell_styles?.[r]?.[c], ...patch }
+                    : element.cell_styles?.[r]?.[c] ?? null
+            ));
+        }),
+    };
+}
+
+const InspectorQuery = createContext("");
+const InspectorDepth = createContext(0);
+const inspectorInput = "h-6 w-full bg-transparent px-1 text-[13px] text-[#1a3d8f] outline-none focus:bg-[#fff8dc]";
+
+function componentOptionLabel(element: LayoutElement, elements: LayoutElement[]) {
+    if (element.pdf_background) return "Page image";
+    const visible = elements.filter((item) => !item.pdf_background && item.type === element.type);
+    const index = visible.findIndex((item) => item.id === element.id) + 1;
+    const zone = element.layout_band === "header" || element.zone === "top"
+        ? "Header"
+        : element.layout_band === "footer" || element.zone === "footer"
+            ? "Footer"
+            : element.zone === "header"
+                ? "Page"
+                : element.zone;
+
+    return `${elementLabel(element)} ${index} · ${zone}`;
+}
+
+function ObjectInspector({
+    elements,
+    selectedId,
+    onSelect,
+    children,
+}: {
+    elements: LayoutElement[];
+    selectedId: string;
+    onSelect: (id: string) => void;
+    children: ReactNode;
+}) {
+    const [query, setQuery] = useState("");
+    const choices = elements.filter((element) => !element.pdf_background || element.type === "image");
+
+    return (
+        <div className="overflow-hidden border border-[#b0b0b0] bg-[#f0f0f0] text-neutral-900 shadow-sm">
+            <div className="border-b border-[#b0b0b0] bg-[#f4f4f4] px-2 py-1.5 text-sm font-semibold">
+                Object Inspector
+            </div>
+            <div className="border-b border-[#b0b0b0] bg-white p-1">
+                <select
+                    aria-label="Component"
+                    className="h-8 w-full border border-[#b0b0b0] bg-white px-1 text-sm font-semibold"
+                    value={selectedId}
+                    onChange={(event) => onSelect(event.target.value)}
+                >
+                    <option value="">Select a component</option>
+                    {choices.map((element) => (
+                        <option key={element.id} value={element.id}>
+                            {componentOptionLabel(element, elements)}
+                        </option>
+                    ))}
+                </select>
+            </div>
+            <div className="flex items-end border-b border-[#b0b0b0] bg-[#f0f0f0] px-1">
+                <span className="-mb-px border border-b-white border-[#b0b0b0] bg-white px-3 py-1 text-sm">Properties</span>
+            </div>
+            <label className="flex items-center gap-1.5 border-b border-[#b0b0b0] bg-white px-2">
+                <SearchIcon className="size-4 shrink-0 text-neutral-500" />
+                <input
+                    aria-label="Search properties"
+                    value={query}
+                    placeholder="Search"
+                    onChange={(event) => setQuery(event.target.value)}
+                    className="h-8 w-full bg-transparent text-sm outline-none"
+                />
+            </label>
+            <InspectorQuery.Provider value={query}>
+                <div className="bg-white">{children}</div>
+            </InspectorQuery.Provider>
+            <div className="border-t border-[#b0b0b0] bg-[#f4f4f4] px-2 py-1 text-[11px] text-neutral-600">
+                {query.trim() ? `Showing matches for “${query.trim()}”` : "All shown"}
+            </div>
+        </div>
+    );
+}
+
+function PropertyRow({ name, children }: { name: string; children: ReactNode }) {
+    const query = useContext(InspectorQuery).trim().toLowerCase();
+    const depth = useContext(InspectorDepth);
+    if (query && !name.toLowerCase().includes(query)) return null;
+
+    return (
+        <div className="grid grid-cols-[minmax(0,11.5rem)_minmax(0,1fr)] border-b border-[#d6d6d6] text-[13px] hover:bg-[#e7f0fb]">
+            <div className="border-r border-[#d6d6d6] bg-[#f7f7f7] py-1 pr-2 text-neutral-900" style={{ paddingLeft: 8 + depth * 14 }}>
+                {name}
+            </div>
+            <div className="min-w-0 bg-white">{children}</div>
+        </div>
+    );
+}
+
+function PropertyGroup({
+    name,
+    summary,
+    children,
+    defaultOpen = false,
+}: {
+    name: string;
+    summary?: string;
+    children: ReactNode;
+    defaultOpen?: boolean;
+}) {
+    const query = useContext(InspectorQuery).trim().toLowerCase();
+    const depth = useContext(InspectorDepth);
+    const [open, setOpen] = useState(defaultOpen);
+    useEffect(() => {
+        if (defaultOpen) setOpen(true);
+    }, [defaultOpen]);
+    const expanded = query.length > 0 || open;
+
+    return (
+        <div>
+            <button
+                type="button"
+                aria-expanded={expanded}
+                onClick={() => setOpen((current) => !current)}
+                className="grid w-full grid-cols-[minmax(0,11.5rem)_minmax(0,1fr)] border-b border-[#d6d6d6] text-left text-[13px] hover:bg-[#d7e6f8]"
+            >
+                <span className="flex items-center gap-1 border-r border-[#d6d6d6] bg-[#f3f3f3] py-1 pr-1" style={{ paddingLeft: 4 + depth * 14 }}>
+                    <span className="inline-flex size-3.5 shrink-0 items-center justify-center border border-[#9a9a9a] bg-white text-[11px] leading-none text-neutral-800">
+                        {expanded ? "−" : "+"}
+                    </span>
+                    <span className="truncate">{name}</span>
+                </span>
+                <span className="truncate bg-white px-1 py-1 text-[#1a3d8f]">{summary}</span>
+            </button>
+            {expanded ? <InspectorDepth.Provider value={depth + 1}>{children}</InspectorDepth.Provider> : null}
+        </div>
+    );
+}
+
+function InspectorCheck({
+    checked,
+    label,
+    onChange,
+}: {
+    checked: boolean;
+    label: string;
+    onChange: (checked: boolean) => void;
+}) {
+    return (
+        <label className="flex h-6 items-center gap-1.5 px-1 text-[13px] text-[#1a3d8f]">
+            <input
+                type="checkbox"
+                aria-label={label}
+                checked={checked}
+                onChange={(event) => onChange(event.target.checked)}
+                className="size-3.5 accent-[#1a3d8f]"
+            />
+            {checked ? "True" : "False"}
+        </label>
+    );
+}
+
+function InspectorNote({ children }: { children: ReactNode }) {
+    const query = useContext(InspectorQuery).trim();
+    if (query) return null;
+
+    return <p className="border-b border-[#d6d6d6] bg-[#f7f7f7] px-2 py-1 text-[11px] leading-snug text-neutral-600">{children}</p>;
+}
+
+function FieldFormatBar({
+    id,
+    style,
+    onChange,
+    importedFont,
+    importedLineSpacing,
+    sizeMin = 8,
+    sizeMax = 48,
+}: {
+    id: string;
+    style: TableTextStyle;
+    onChange: (patch: Partial<TableTextStyle>) => void;
+    importedFont?: string;
+    importedLineSpacing?: number;
+    sizeMin?: number;
+    sizeMax?: number;
+}) {
+    return (
+        <>
+            <PropertyRow name="Bold">
+                <InspectorCheck label={`${id} bold`} checked={!!style.bold} onChange={(checked) => onChange({ bold: checked })} />
+            </PropertyRow>
+            <PropertyRow name="Italic">
+                <InspectorCheck label={`${id} italic`} checked={!!style.italic} onChange={(checked) => onChange({ italic: checked })} />
+            </PropertyRow>
+            <PropertyRow name="Underline">
+                <InspectorCheck label={`${id} underline`} checked={!!style.underline} onChange={(checked) => onChange({ underline: checked })} />
+            </PropertyRow>
+            <PropertyRow name="Align">
+                <select aria-label={`${id} align`} className={inspectorInput} value={style.align ?? "left"} onChange={(event) => onChange({ align: event.target.value as TableTextStyle["align"] })}>
+                    <option value="left">Left</option>
+                    <option value="center">Center</option>
+                    <option value="right">Right</option>
+                    <option value="justify">Justify</option>
+                </select>
+            </PropertyRow>
+            <PropertyRow name="Font">
+                <select
+                    aria-label={`${id} font`}
+                    value={importedFont ? "pdf-imported" : style.font_family ?? "default"}
+                    className={inspectorInput}
+                    style={{ fontFamily: fontStack(style.font_family) }}
+                    onChange={(event) => {
+                        if (event.target.value !== "pdf-imported") onChange({ font_family: event.target.value });
+                    }}
+                >
+                    {importedFont ? <option value="pdf-imported">Imported: {importedFont}</option> : null}
+                    {PRINT_LAYOUT_FONT_CHOICES.map((choice) => (
+                        <option key={choice.id} value={choice.id} style={{ fontFamily: choice.stack }}>{choice.label}</option>
+                    ))}
+                </select>
+            </PropertyRow>
+            <PropertyRow name="Font size">
+                <input
+                    aria-label={`${id} font size`}
+                    type="number"
+                    min={sizeMin}
+                    max={sizeMax}
+                    step={sizeMax > 48 ? "any" : 1}
+                    value={style.font_size ?? 12}
+                    className={inspectorInput}
+                    onChange={(event) => {
+                        const size = Number(event.target.value);
+                        if (Number.isFinite(size)) onChange({ font_size: Math.max(sizeMin, Math.min(sizeMax, size)) });
+                    }}
+                />
+            </PropertyRow>
+            <PropertyRow name="Text color">
+                <input
+                    aria-label={`${id} text color`}
+                    type="color"
+                    value={style.color || "#111827"}
+                    className="h-6 w-full cursor-pointer bg-white px-1"
+                    onChange={(event) => onChange({ color: event.target.value })}
+                />
+            </PropertyRow>
+            <PropertyRow name="Text case">
+                <select
+                    aria-label={`${id} text case`}
+                    value={style.text_case ?? "original"}
+                    className={inspectorInput}
+                    onChange={(event) => onChange({ text_case: event.target.value as ElementCase })}
+                >
+                    {caseChoices.map((choice) => <option key={choice.id} value={choice.id}>{choice.label}</option>)}
+                </select>
+            </PropertyRow>
+            <PropertyRow name="Line spacing">
+                <select
+                    aria-label={`${id} line spacing`}
+                    value={importedLineSpacing ? "pdf-original" : String(style.line_height ?? 1.35)}
+                    className={inspectorInput}
+                    onChange={(event) => {
+                        if (event.target.value !== "pdf-original") onChange({ line_height: Number(event.target.value) });
+                    }}
+                >
+                    {importedLineSpacing ? <option value="pdf-original">Original PDF ({Number(importedLineSpacing.toFixed(2))}px)</option> : null}
+                    <option value={1}>Single</option>
+                    <option value={1.15}>1.15</option>
+                    <option value={1.35}>Default</option>
+                    <option value={1.5}>1.5</option>
+                    <option value={2}>Double</option>
+                </select>
+            </PropertyRow>
+        </>
+    );
+}
+
 function ElementInspector({
     element,
     uploading,
@@ -2512,12 +2952,6 @@ function ElementInspector({
     onChange: (patch: Partial<LayoutElement>) => void;
     onPickImage: () => void;
 }) {
-    const isText =
-        element.type === "text" ||
-        element.type === "table" ||
-        element.type === "date" ||
-        element.type === "validity" ||
-        element.type === "company";
     const hasHeight = element.type === "spacer" || element.type === "divider";
     const fieldClass =
         "mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50";
@@ -2563,10 +2997,7 @@ function ElementInspector({
     }, [focusTarget, element.id]);
 
     return (
-        <div ref={inspectorRef} className="space-y-4">
-            <p className="text-sm font-semibold text-foreground">
-                {elementLabel(element)} properties
-            </p>
+        <div ref={inspectorRef}>
 
             {element.type === "table" ? (
                 selectedCell ? <TableCellFields element={element} cell={selectedCell} fields={fields}
@@ -2574,40 +3005,79 @@ function ElementInspector({
                     : <p className="text-xs text-muted-foreground">Select a specific table cell to add or remove its document fields.</p>
             ) : null}
 
-            {element.type === "table" && element.cells ? (
-                <div className="space-y-3">
-                    <label className="flex items-center gap-2 text-sm">
-                        <input type="checkbox" checked={element.border ?? true}
-                            onChange={(event) => onChange({ border: event.target.checked })} />
-                        Show table borders
-                    </label>
-                    <label className="flex items-center gap-2 text-sm">
-                        <input type="checkbox" checked={element.header_row ?? false}
-                            onChange={(event) => onChange({
-                                header_row: event.target.checked,
+            {element.type === "table" ? (
+                <PropertyGroup name="Colors" summary={element.table_background || "Default"} defaultOpen>
+                    <PropertyRow name="Show borders">
+                        <InspectorCheck label="Show borders" checked={element.border ?? true} onChange={(checked) => onChange({ border: checked })} />
+                    </PropertyRow>
+                    {element.cells ? (
+                        <PropertyRow name="Header row">
+                            <InspectorCheck label="Use first row as header" checked={element.header_row ?? false} onChange={(checked) => onChange({
+                                header_row: checked,
                                 label_bg: element.label_bg || "#065f46",
                                 header_color: element.header_color || "#ffffff",
                             })} />
-                        Use first row as header
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
-                        {element.header_row ? (
-                            <>
-                                <div className={labelClass}>Header background
-                                    <ColorSelect label="Header background" value={element.label_bg || "#065f46"}
-                                        onChange={(color) => onChange({ label_bg: color })} />
-                                </div>
-                                <div className={labelClass}>Header text color
-                                    <ColorSelect label="Header text color" value={element.header_color || "#ffffff"}
-                                        onChange={(color) => onChange({ header_color: color })} />
-                                </div>
-                            </>
-                        ) : null}
-                        <label className={labelClass}>Border color
-                            <input type="color" className={fieldClass} value={element.border_color || "#cbd5e1"}
-                                onChange={(event) => onChange({ border_color: event.target.value })} />
-                        </label>
-                    </div>
+                        </PropertyRow>
+                    ) : (
+                        <PropertyRow name="Name shading">
+                            <ColorSelect allowNone label="Name shading" value={element.label_bg || ""}
+                                onChange={(color) => onChange({ label_bg: color })} />
+                        </PropertyRow>
+                    )}
+                    <PropertyRow name="Background">
+                        <ColorSelect label="Table background" allowNone value={element.table_background || ""}
+                            onChange={(color) => onChange({ table_background: color })} />
+                    </PropertyRow>
+                    <PropertyRow name="Border color">
+                        <input type="color" aria-label="Border color" className="h-6 w-full cursor-pointer bg-white px-1" value={element.border_color || "#cbd5e1"}
+                            onChange={(event) => onChange({ border_color: event.target.value })} />
+                    </PropertyRow>
+                    {element.header_row ? (
+                        <>
+                            <PropertyRow name="Header background">
+                                <ColorSelect label="Header background" value={element.label_bg || "#065f46"}
+                                    onChange={(color) => onChange({ label_bg: color })} />
+                            </PropertyRow>
+                            <PropertyRow name="Header text">
+                                <ColorSelect label="Header text color" value={element.header_color || "#ffffff"}
+                                    onChange={(color) => onChange({ header_color: color })} />
+                            </PropertyRow>
+                        </>
+                    ) : null}
+                    <PropertyRow name="Alternating">
+                        <select className={inspectorInput} aria-label="Alternating background" value={element.stripe_direction ?? "none"}
+                            onChange={(event) => onChange({
+                                stripe_direction: event.target.value as NonNullable<LayoutElement["stripe_direction"]>,
+                                ...(event.target.value === "columns" && (!element.stripe_color_a || element.stripe_color_a.toLowerCase() === "#ffffff")
+                                    ? {
+                                        stripe_color_a: "#f3f4f6",
+                                        stripe_color_b: !element.stripe_color_b || element.stripe_color_b.toLowerCase() === "#f3f4f6" ? "#ffffff" : element.stripe_color_b,
+                                    } : {}),
+                            })}>
+                            <option value="none">None</option>
+                            <option value="rows">Rows</option>
+                            <option value="columns">Columns</option>
+                        </select>
+                    </PropertyRow>
+                    {element.stripe_direction && element.stripe_direction !== "none" ? (
+                        <>
+                            <PropertyRow name="First color">
+                                <ColorSelect label="First color" value={element.stripe_color_a || "#ffffff"}
+                                    onChange={(color) => onChange({ stripe_color_a: color })} />
+                            </PropertyRow>
+                            <PropertyRow name="Second color">
+                                <ColorSelect label="Second color" value={element.stripe_color_b || "#f3f4f6"}
+                                    onChange={(color) => onChange({ stripe_color_b: color })} />
+                            </PropertyRow>
+                        </>
+                    ) : null}
+                    <InspectorNote>
+                        Row color paints one row. Column color paints down that column and covers the row color. Alternating colors replace both while they are on.
+                    </InspectorNote>
+                </PropertyGroup>
+            ) : null}
+            {element.type === "table" && element.cells ? (
+                <div className="space-y-3">
                     <div className="flex gap-2">
                         <Button type="button" variant="outline" size="sm" disabled={element.cells.length >= 60}
                             onClick={() => resizeLayoutGrid(element as LayoutElement & { cells: string[][] }, element.cells!.length + 1, element.cells![0].length, onChange)}>
@@ -2636,90 +3106,47 @@ function ElementInspector({
                             onCommit={(value) => resizeLayoutGrid(element, element.cells!.length, value, onChange)}
                         />
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                        {element.header_row
-                            ? "The first row is the header. Every column in that row uses the header color, including columns you add."
-                            : "Each row lists its columns underneath. Turn on the header to color the first row."}
-                    </p>
+                    <PropertyGroup name="Rows" summary={`${element.cells.length}`} defaultOpen>
                     {element.cells.map((row, r) => {
                         const header = r === 0 && !!element.header_row;
-                        const headerBg = element.label_bg || "#065f46";
-                        const headerText = element.header_color || "#ffffff";
 
                         return (
-                        <div key={r} className="overflow-hidden rounded-lg border border-border">
-                        <div
-                            className="flex items-center justify-between gap-2 px-3 py-2"
-                            style={header ? { backgroundColor: headerBg, color: headerText } : undefined}
-                        >
-                            <button type="button" aria-pressed={selectedRow === r} data-focus-row={r}
-                                className="text-sm font-semibold underline underline-offset-2"
-                                onClick={() => onSelectRow(r)}>
-                                Row {r + 1}{header ? " · Header" : ""}
-                            </button>
-                            <span className="text-[11px]">{row.length} {row.length === 1 ? "column" : "columns"}</span>
-                        </div>
-                        <div className="space-y-3 p-3" style={header ? { backgroundColor: headerBg } : undefined}>
+                        <PropertyGroup key={r} name={`Row ${r + 1}`} summary={header ? "Header" : `${row.length} columns`} defaultOpen={selectedRow === r || selectedCell?.row === r}>
+                        <button type="button" className="sr-only" aria-pressed={selectedRow === r} data-focus-row={r} onClick={() => onSelectRow(r)}>
+                            Select row {r + 1}
+                        </button>
                         {header ? null : (
-                            <div className={labelClass}>Row background
+                            <PropertyRow name="Row color">
                                 <ColorSelect allowNone label={`Row ${r + 1} background`} value={layoutRowBackground(element as LayoutElement & { cells: string[][] }, r)}
                                     onChange={(color) => onChange(paintLayoutRow(element as LayoutElement & { cells: string[][] }, r, color))} />
-                            </div>
+                            </PropertyRow>
                         )}
                         {row.map((cell, c) => element.cell_spans?.[r]?.[c]?.columns === 0 ? null : (
-                            <label key={c} className={labelClass} style={header ? { color: headerText } : undefined}>
-                                Row {r + 1}, column {c + 1}
-                                <textarea data-focus-cell={`${r}-${c}`} aria-label={`Row ${r + 1}, column ${c + 1}`}
-                                    rows={3} maxLength={300} value={cell}
-                                    placeholder={header ? `Header for column ${c + 1}` : "Cell text"}
-                                    className={cn(fieldClass, "min-h-20 resize-y bg-white text-slate-900")}
-                                    onFocus={() => onSelectCell(r, c)}
-                                    onChange={(event) => onChange({ cells: element.cells!.map((row, ri) => row.map((value, ci) => ri === r && ci === c ? event.target.value : value)) })} />
-                            </label>
+                            <PropertyGroup key={c} name={`Column ${c + 1}`} summary={cell || "(empty)"} defaultOpen={selectedCell?.row === r && selectedCell.column === c}>
+                                <FieldFormatBar
+                                    id={`Row ${r + 1}, column ${c + 1}`}
+                                    sizeMin={element.pdf_page ? 1 : 8}
+                                    sizeMax={element.pdf_page ? 200 : 48}
+                                    style={tableTextStyle(element, r, c, header)}
+                                    onChange={(patch) => {
+                                        onSelectCell(r, c);
+                                        onChange(cellStylePatch(element, r, c, patch));
+                                    }}
+                                />
+                                <PropertyRow name="Text">
+                                    <textarea data-focus-cell={`${r}-${c}`} aria-label={`Row ${r + 1}, column ${c + 1}`}
+                                        rows={3} maxLength={300} value={cell}
+                                        placeholder={header ? `Header for column ${c + 1}` : "Cell text"}
+                                        className="min-h-16 w-full resize-y bg-white px-1 py-1 text-[13px] text-slate-900 outline-none"
+                                        onFocus={() => onSelectCell(r, c)}
+                                        onChange={(event) => onChange({ cells: element.cells!.map((row, ri) => row.map((value, ci) => ri === r && ci === c ? event.target.value : value)) })} />
+                                </PropertyRow>
+                            </PropertyGroup>
                         ))}
-                        </div>
-                        </div>
+                        </PropertyGroup>
                         );
                     })}
-                </div>
-            ) : null}
-            {element.type === "table" ? (
-                <div className="space-y-3">
-                    <div className={labelClass}>Table background
-                        <ColorSelect label="Table background" allowNone value={element.table_background || ""}
-                            onChange={(color) => onChange({ table_background: color })} />
-                    </div>
-                    <label className={labelClass}>
-                        Alternating background
-                        <select className={fieldClass} value={element.stripe_direction ?? "none"}
-                            onChange={(event) => onChange({
-                                stripe_direction: event.target.value as NonNullable<LayoutElement["stripe_direction"]>,
-                                ...(event.target.value === "columns" && (!element.stripe_color_a || element.stripe_color_a.toLowerCase() === "#ffffff")
-                                    ? {
-                                        stripe_color_a: "#f3f4f6",
-                                        stripe_color_b: !element.stripe_color_b || element.stripe_color_b.toLowerCase() === "#f3f4f6" ? "#ffffff" : element.stripe_color_b,
-                                    } : {}),
-                            })}>
-                            <option value="none">None</option>
-                            <option value="rows">Horizontal — alternate rows</option>
-                            <option value="columns">Vertical — alternate columns</option>
-                        </select>
-                    </label>
-                    {element.stripe_direction && element.stripe_direction !== "none" ? (
-                        <div className="grid grid-cols-2 gap-2">
-                            <div className={labelClass}>First color
-                                <ColorSelect label="First color" value={element.stripe_color_a || "#ffffff"}
-                                    onChange={(color) => onChange({ stripe_color_a: color })} />
-                            </div>
-                            <div className={labelClass}>Second color
-                                <ColorSelect label="Second color" value={element.stripe_color_b || "#f3f4f6"}
-                                    onChange={(color) => onChange({ stripe_color_b: color })} />
-                            </div>
-                        </div>
-                    ) : null}
-                    <p className="text-xs text-muted-foreground">
-                        The header keeps its own background. A row background paints across that row. A column background paints down the body and covers the row color there. Clear either color to use the table background again. Alternating colors override both when enabled.
-                    </p>
+                    </PropertyGroup>
                 </div>
             ) : null}
             {element.type === "table" && !element.cells ? (
@@ -2730,51 +3157,104 @@ function ElementInspector({
                     onSelectRow={onSelectRow}
                     onSelectCell={onSelectCell}
                     selectedRow={selectedRow}
+                    selectedCell={selectedCell}
                     labelClass={labelClass}
                     fieldClass={fieldClass}
                 />
             ) : null}
             {element.type === "table" ? (
-                <div className="flex flex-col gap-2">
-                    <p className="text-xs text-muted-foreground">Drag a column boundary in the preview or enter its width. The adjacent column adjusts; the table stays the same size.</p>
+                <PropertyGroup name="Columns" summary={`${layoutColumnWidths(element).length}`}>
+                    <InspectorNote>Drag a column boundary in the preview, or enter its width. The adjacent column adjusts.</InspectorNote>
                     {layoutColumnWidths(element).map((width, column) => (
-                        <div key={column} className="flex flex-col gap-2">
+                        <PropertyGroup key={column} name={`Column ${column + 1}`} summary={`${Number(width.toFixed(1))}%`}>
                             {element.cells ? (
-                                <div className={labelClass}>Column {column + 1} background
+                                <PropertyRow name="Color">
                                     <ColorSelect allowNone label={`Column ${column + 1} background`} value={layoutColumnBackground(element as LayoutElement & { cells: string[][] }, column)}
                                         onChange={(color) => onChange(paintLayoutColumn(element as LayoutElement & { cells: string[][] }, column, color))} />
-                                </div>
-                            ) : null}
-                            <label className={labelClass}>
-                            Column {column + 1} width (%)
-                            <input type="number" min={1} max={99} step={0.1}
-                                aria-label={`Column ${column + 1} width (%)`}
-                                className={fieldClass} value={Number(width.toFixed(2))}
-                                disabled={layoutColumnWidths(element).length === 1}
-                                onChange={(event) => {
-                                    const value = event.currentTarget.valueAsNumber;
-                                    if (Number.isFinite(value)) onChange({
-                                        column_widths: resizedLayoutColumns(layoutColumnWidths(element), column, value),
-                                    });
-                                }} />
-                        </label>
-                        </div>
+                                </PropertyRow>
+                            ) : (
+                                <PropertyRow name={column % 2 === 0 ? "Name color" : "Value color"}>
+                                    <ColorSelect allowNone label={`Column ${column + 1} background`} value={element.column_backgrounds?.[column] || ""}
+                                        onChange={(color) => {
+                                            const count = layoutColumnWidths(element).length;
+                                            onChange({
+                                                column_backgrounds: Array.from({ length: count }, (_, index) =>
+                                                    index === column ? (color || null) : (element.column_backgrounds?.[index] ?? null)),
+                                                stripe_direction: "none",
+                                            });
+                                        }} />
+                                </PropertyRow>
+                            )}
+                            <PropertyRow name="Width">
+                                <input type="number" min={1} max={99} step={0.1}
+                                    aria-label={`Column ${column + 1} width (%)`}
+                                    className={inspectorInput} value={Number(width.toFixed(2))}
+                                    disabled={layoutColumnWidths(element).length === 1}
+                                    onChange={(event) => {
+                                        const value = event.currentTarget.valueAsNumber;
+                                        if (Number.isFinite(value)) onChange({
+                                            column_widths: resizedLayoutColumns(layoutColumnWidths(element), column, value),
+                                        });
+                                    }} />
+                            </PropertyRow>
+                        </PropertyGroup>
                     ))}
-                </div>
+                </PropertyGroup>
             ) : null}
 
             {element.type === "company" ? (
-                <CompanyFieldsEditor
-                    element={element}
-                    fields={fields}
-                    onChange={onChange}
-                    labelClass={labelClass}
-                    fieldClass={fieldClass}
-                />
+                <>
+                    <FieldFormatBar
+                        id="Company info"
+                        sizeMin={element.pdf_page ? 1 : 8}
+                        sizeMax={element.pdf_page ? 200 : 48}
+                        style={{
+                            font_family: element.font_family,
+                            font_size: element.font_size,
+                            color: element.color,
+                            bold: element.bold,
+                            italic: element.italic,
+                            underline: element.underline,
+                            line_height: element.line_height,
+                            align: element.align,
+                            text_case: element.text_case,
+                        }}
+                        onChange={onChange}
+                    />
+                    <CompanyFieldsEditor
+                        element={element}
+                        fields={fields}
+                        onChange={onChange}
+                        labelClass={labelClass}
+                        fieldClass={fieldClass}
+                    />
+                </>
             ) : null}
 
             {element.type === "text" ? (
-                <div className={labelClass}>
+                <>
+                    <FieldFormatBar
+                        id="Text"
+                        sizeMin={element.pdf_page ? 1 : 8}
+                        sizeMax={element.pdf_page ? 200 : 48}
+                        style={{
+                            font_family: element.font_family,
+                            font_size: element.font_size,
+                            color: element.color,
+                            bold: element.bold,
+                            italic: element.italic,
+                            underline: element.underline,
+                            line_height: element.line_height,
+                            align: element.align,
+                            text_case: element.text_case,
+                        }}
+                        importedFont={element.pdf_font_src ? element.pdf_font_name : undefined}
+                        importedLineSpacing={element.pdf_line_spacing}
+                        onChange={(patch) => onChange({
+                            ...patch,
+                            ...(patch.line_height !== undefined ? { pdf_line_spacing: undefined } : {}),
+                        })}
+                    />
                     {element.list_style && element.list_style !== "none" ? (
                         <BulletTextFields
                             element={element}
@@ -2783,8 +3263,7 @@ function ElementInspector({
                             onChange={onChange}
                         />
                     ) : (
-                        <label>
-                            Text
+                        <PropertyRow name="Text">
                             <textarea
                                 ref={textRef}
                                 rows={element.pdf_line_count ?? 4}
@@ -2793,14 +3272,14 @@ function ElementInspector({
                                 onChange={(event) =>
                                     onChange({ content: event.target.value })
                                 }
-                                className={fieldClass}
+                                className="min-h-16 w-full resize-y bg-white px-1 py-1 text-[13px] text-slate-900 outline-none"
                             />
-                        </label>
+                        </PropertyRow>
                     )}
                     {element.pdf_text_runs?.length && (!element.list_style || element.list_style === "none") ? <span className="mt-1 block text-xs font-normal text-muted-foreground">
                         Imported paragraph: {element.pdf_line_count} lines. Enter one replacement line per original line. Original positions and inline font styles are retained; formatting controls can override them.
                     </span> : null}
-                    <span className="mt-2 block">Insert a field</span>
+                    <PropertyRow name="Insert field">
                     <InsertBidTextFieldMenu
                         triggerLabel="Choose a field"
                         fields={insertableFields}
@@ -2834,11 +3313,12 @@ function ElementInspector({
                             });
                         }}
                     />
-                    <span className="mt-1 block text-[11px] font-normal text-muted-foreground">
+                    </PropertyRow>
+                    <InspectorNote>
                         Fields appear as {"{{field_name}}"} and are replaced
                         with real values when the document is generated.
-                    </span>
-                </div>
+                    </InspectorNote>
+                </>
             ) : null}
 
             {element.type === "text" ? (
@@ -2848,320 +3328,190 @@ function ElementInspector({
             ) : null}
 
             {element.type === "date" ? (
-                <p className="text-xs text-muted-foreground">
-                    Shows the date the document is generated.
-                </p>
+                <>
+                    <FieldFormatBar
+                        id="Date"
+                        sizeMin={element.pdf_page ? 1 : 8}
+                        sizeMax={element.pdf_page ? 200 : 48}
+                        style={{
+                            font_family: element.font_family,
+                            font_size: element.font_size,
+                            color: element.color,
+                            bold: element.bold,
+                            italic: element.italic,
+                            underline: element.underline,
+                            line_height: element.line_height,
+                            align: element.align,
+                            text_case: element.text_case,
+                        }}
+                        onChange={onChange}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                        Shows the date the document is generated.
+                    </p>
+                </>
             ) : null}
             {element.type === "validity" ? (
-                <label className={labelClass}>
-                    Validity period
+                <>
+                    <FieldFormatBar
+                        id="Validity"
+                        sizeMin={element.pdf_page ? 1 : 8}
+                        sizeMax={element.pdf_page ? 200 : 48}
+                        style={{
+                            font_family: element.font_family,
+                            font_size: element.font_size,
+                            color: element.color,
+                            bold: element.bold,
+                            italic: element.italic,
+                            underline: element.underline,
+                            line_height: element.line_height,
+                            align: element.align,
+                            text_case: element.text_case,
+                        }}
+                        onChange={onChange}
+                    />
+                    <PropertyRow name="Validity period">
                     <select aria-label="Validity period" value={element.validity_days ?? 30}
-                        className={fieldClass}
+                        className={inspectorInput}
                         onChange={(event) => onChange({ validity_days: Number(event.target.value) as 30 | 60 | 90 })}>
                         <option value={30}>30 days</option>
                         <option value={60}>60 days</option>
                         <option value={90}>90 days</option>
                     </select>
-                    <span className="mt-1 block font-normal text-muted-foreground">
+                    </PropertyRow>
+                    <InspectorNote>
                         Expiration date is calculated from the bid/document date. Preview uses today.
-                    </span>
-                </label>
+                    </InspectorNote>
+                </>
             ) : null}
 
             {element.type === "image" ? (
-                <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="w-full gap-1.5"
-                    disabled={uploading}
-                    onClick={onPickImage}
-                >
-                    <UploadIcon />
-                    {uploading
-                        ? "Uploading…"
-                        : element.src
-                          ? "Replace image"
-                          : "Upload image"}
-                </Button>
+                <PropertyRow name="Image">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-6 w-full justify-start gap-1.5 rounded-none border-0"
+                        disabled={uploading}
+                        onClick={onPickImage}
+                    >
+                        <UploadIcon />
+                        {uploading
+                            ? "Uploading…"
+                            : element.src
+                              ? "Change image"
+                              : "Upload image"}
+                    </Button>
+                </PropertyRow>
             ) : null}
 
-            {element.type !== "spacer" ? (
-                <div>
-                    <p className={labelClass}>Alignment</p>
-                    <div
-                        role="group"
-                        aria-label="Alignment"
-                        className="mt-1 inline-flex rounded-md border border-border p-0.5"
-                    >
-                        {(
-                            [
-                                ["left", AlignLeftIcon],
-                                ["center", AlignCenterIcon],
-                                ["right", AlignRightIcon],
-                                ...(isText ? [["justify", AlignJustifyIcon] as const] : []),
-                            ] as const
-                        ).map(([value, Icon]) => (
-                            <button
-                                key={value}
-                                type="button"
-                                aria-label={`Align ${value}`}
-                                aria-pressed={element.align === value}
-                                onClick={() => onChange({ align: value })}
-                                className={cn(
-                                    "rounded p-1.5 transition",
-                                    element.align === value
-                                        ? "bg-emerald-700 text-white"
-                                        : "text-muted-foreground hover:bg-muted",
-                                )}
-                            >
-                                <Icon className="size-4" />
-                            </button>
-                        ))}
-                    </div>
-                </div>
+            {element.type === "image" || element.type === "divider" ? (
+                <PropertyRow name="Align">
+                    <select aria-label="Alignment" className={inspectorInput} value={element.align ?? "left"} onChange={(event) => onChange({ align: event.target.value as LayoutElement["align"] })}>
+                        <option value="left">Left</option>
+                        <option value="center">Center</option>
+                        <option value="right">Right</option>
+                    </select>
+                </PropertyRow>
             ) : null}
 
             {element.type !== "spacer" && !(element.type === "divider" && element.orientation === "vertical") ? (
-                <label className={labelClass}>
-                    Width ({element.width}%)
+                <PropertyRow name="Width">
                     <input
-                        type="range"
+                        aria-label="Width percent"
+                        type="number"
                         min={5}
                         max={100}
                         value={element.width}
                         onChange={(event) =>
                             onChange({ width: Number(event.target.value) })
                         }
-                        className="mt-1 w-full accent-emerald-700"
+                        className={inspectorInput}
                     />
-                </label>
+                </PropertyRow>
             ) : null}
 
             {element.type === "divider" && element.orientation === "vertical" ? (
                 <>
-                    <label className={labelClass}>
-                        Length ({element.height}px)
+                    <PropertyRow name="Length">
                         <input
-                            type="range"
+                            aria-label="Length in pixels"
+                            type="number"
                             min={20}
                             max={400}
                             value={element.height}
                             onChange={(event) => onChange({ height: Number(event.target.value) })}
-                            className="mt-1 w-full accent-emerald-700"
+                            className={inspectorInput}
                         />
-                    </label>
-                    <label className={labelClass}>
-                        Thickness ({Math.max(1, Math.round(element.width / 100 * PRINT_LAYOUT_WIDTH))}px)
+                    </PropertyRow>
+                    <PropertyRow name="Thickness">
                         <input
-                            type="range"
+                            aria-label="Thickness in pixels"
+                            type="number"
                             min={1}
                             max={12}
                             value={Math.max(1, Math.round(element.width / 100 * PRINT_LAYOUT_WIDTH))}
                             onChange={(event) => onChange({
                                 width: Number(event.target.value) / PRINT_LAYOUT_WIDTH * 100,
                             })}
-                            className="mt-1 w-full accent-emerald-700"
+                            className={inspectorInput}
                         />
-                    </label>
+                    </PropertyRow>
                 </>
             ) : hasHeight ? (
-                <label className={labelClass}>
-                    {element.type === "divider"
-                        ? `Thickness (${element.height}px)`
-                        : `Height (${element.height}px)`}
+                <PropertyRow name={element.type === "divider" ? "Thickness" : "Height"}>
                     <input
-                        type="range"
+                        aria-label={element.type === "divider" ? "Thickness in pixels" : "Height in pixels"}
+                        type="number"
                         min={1}
                         max={element.type === "divider" ? 12 : 200}
                         value={element.height}
                         onChange={(event) =>
                             onChange({ height: Number(event.target.value) })
                         }
-                        className="mt-1 w-full accent-emerald-700"
+                        className={inspectorInput}
                     />
-                </label>
-            ) : null}
-
-            {isText ? (
-                <>
-                    <label className={labelClass}>
-                        Font family
-                        <select
-                            value={element.pdf_font_src ? "pdf-imported" : element.font_family ?? "default"}
-                            onChange={(event) =>
-                                onChange({ font_family: event.target.value })
-                            }
-                            className={fieldClass}
-                            style={{
-                                fontFamily: fontStack(element.font_family),
-                            }}
-                        >
-                            {element.pdf_font_src ? <option value="pdf-imported">Imported: {element.pdf_font_name}</option> : null}
-                            {fontChoices.map((choice) => (
-                                <option
-                                    key={choice.id}
-                                    value={choice.id}
-                                    style={{ fontFamily: choice.stack }}
-                                >
-                                    {choice.label}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
-                    <div className="flex items-end gap-3">
-                        <label className={cn(labelClass, "flex-1")}>
-                            Font size (px)
-                            <input
-                                type="number"
-                                min={element.pdf_page ? 1 : 8}
-                                max={element.pdf_page ? 200 : 48}
-                                step={element.pdf_page ? "any" : 1}
-                                value={element.font_size}
-                                onChange={(event) =>
-                                    onChange({
-                                        font_size: Math.max(
-                                            element.pdf_page ? 1 : 8,
-                                            Math.min(
-                                                element.pdf_page ? 200 : 48,
-                                                Number(event.target.value) ||
-                                                    12,
-                                            ),
-                                        ),
-                                    })
-                                }
-                                className={fieldClass}
-                            />
-                        </label>
-                        <div className="flex gap-1 pb-0.5">
-                            <button
-                                type="button"
-                                aria-label="Bold"
-                                aria-pressed={element.bold}
-                                onClick={() =>
-                                    onChange({ bold: !element.bold })
-                                }
-                                className={cn(
-                                    "rounded-md border p-2 transition",
-                                    element.bold
-                                        ? "border-emerald-600 bg-emerald-50 text-emerald-900"
-                                        : "border-border hover:bg-muted",
-                                )}
-                            >
-                                <BoldIcon className="size-4" />
-                            </button>
-                            <button
-                                type="button"
-                                aria-label="Italic"
-                                aria-pressed={element.italic}
-                                onClick={() =>
-                                    onChange({ italic: !element.italic })
-                                }
-                                className={cn(
-                                    "rounded-md border p-2 transition",
-                                    element.italic
-                                        ? "border-emerald-600 bg-emerald-50 text-emerald-900"
-                                        : "border-border hover:bg-muted",
-                                )}
-                            >
-                                <ItalicIcon className="size-4" />
-                            </button>
-                            <Button
-                                type="button"
-                                variant={element.underline ? "secondary" : "outline"}
-                                size="icon-sm"
-                                aria-label="Underline"
-                                aria-pressed={element.underline ?? false}
-                                onClick={() => onChange({ underline: !element.underline })}
-                            >
-                                <UnderlineIcon />
-                            </Button>
-                        </div>
-                    </div>
-                    <label className={labelClass}>
-                        Line spacing
-                        <select
-                            value={element.pdf_line_spacing ? "pdf-original" : element.line_height ?? 1.35}
-                            onChange={(event) => { if (event.target.value !== "pdf-original") onChange({ line_height: Number(event.target.value), pdf_line_spacing: undefined }); }}
-                            className={fieldClass}
-                        >
-                            {element.pdf_line_spacing ? <option value="pdf-original">Original PDF ({Number(element.pdf_line_spacing.toFixed(2))}px)</option> : null}
-                            <option value={1}>Single</option>
-                            <option value={1.15}>1.15</option>
-                            <option value={1.35}>Default (1.35)</option>
-                            <option value={1.5}>1.5</option>
-                            <option value={2}>Double</option>
-                        </select>
-                    </label>
-                </>
+                </PropertyRow>
             ) : null}
 
             {element.type === "text" ? (
-                <label className={labelClass}>
-                    List style
+                <PropertyRow name="List style">
                     <select
+                        aria-label="List style"
                         value={element.list_style ?? "none"}
                         onChange={(event) => onChange({
                             list_style: event.target.value as LayoutElement["list_style"],
                         })}
-                        className={fieldClass}
+                        className={inspectorInput}
                     >
                         <option value="none">Plain text</option>
                         <option value="bullet">Bullets</option>
                         <option value="numbered">Numbered list</option>
                     </select>
-                    <span className="mt-1 block font-normal text-muted-foreground">
-                        Enter continues the same bullet. Add a bullet when the next line is a new item.
-                    </span>
-                </label>
+                </PropertyRow>
             ) : null}
 
             {element.type === "text" && element.list_style && element.list_style !== "none" ? (
-                <label className={labelClass}>
-                    Bullet spacing
+                <PropertyRow name="Bullet spacing">
                     <select
+                        aria-label="Bullet spacing"
                         value={element.list_flow ?? (listKeepsOriginalSpace(element) ? "original" : "auto")}
                         onChange={(event) => onChange({ list_flow: event.target.value as LayoutElement["list_flow"] })}
-                        className={fieldClass}
+                        className={inspectorInput}
                     >
                         <option value="original">Keep the original PDF spacing</option>
                         <option value="auto">Auto-adjust with the rest of the layout</option>
                     </select>
-                    <span className="mt-1 block font-normal text-muted-foreground">
-                        Original spacing holds each bullet in the space it used on the PDF. Auto-adjust moves the components below when a bullet grows or shrinks.
-                    </span>
-                </label>
+                </PropertyRow>
             ) : null}
 
-            {isText ? (
-                <label className={labelClass}>
-                    Text case
-                    <select
-                        value={element.text_case}
-                        onChange={(event) =>
-                            onChange({
-                                text_case: event.target.value as ElementCase,
-                            })
-                        }
-                        className={cn(fieldClass, "h-11 px-3 text-base")}
-                    >
-                        {caseChoices.map((choice) => (
-                            <option key={choice.id} value={choice.id}>
-                                {choice.label}
-                            </option>
-                        ))}
-                    </select>
-                </label>
-            ) : null}
-
-            {isText || element.type === "divider" ? (
-                <div className={labelClass}>
-                    {isText ? "Font color" : "Color"}
+            {element.type === "divider" ? (
+                <PropertyRow name="Color">
                     <ColorSelect
                         value={element.color}
                         onChange={(color) => onChange({ color })}
                     />
-                </div>
+                </PropertyRow>
             ) : null}
         </div>
     );
@@ -3215,20 +3565,20 @@ function ColorSelect({
 
     const swatch = (color: string) => (
         <span
-            className="size-5 shrink-0 rounded border border-slate-400/70"
+            className="size-3.5 shrink-0 rounded border border-slate-400/70"
             style={{ backgroundColor: color || "transparent" }}
         />
     );
 
     return (
-        <div className="mt-1">
+        <div>
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <Button type="button" variant="outline" className="w-full justify-start" aria-label={label}>
+                    <button type="button" className="flex h-6 w-full items-center gap-1 bg-transparent px-1 text-left text-[13px] text-[#1a3d8f]" aria-label={label}>
                         {swatch(current)}
-                        <span className="flex-1 truncate">{selectedLabel}</span>
+                        <span className="min-w-0 flex-1 truncate">{selectedLabel}</span>
                         <span aria-hidden="true">▾</span>
-                    </Button>
+                    </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start">
                     <DropdownMenuGroup>
@@ -3349,10 +3699,21 @@ export function PreviewZone({
             </div>)}
         </div>;
     }
-    const items = page ? zoneItems.filter((element) => (element.pdf_page ?? "layout") === page.id) : zoneItems;
+    const sheetHeight = controller.pageSheet?.pixelHeight ?? 0;
+    const related = page
+        ? elements.filter((element) => (element.pdf_page ?? "layout") === page.id && (
+            element.zone === zone || (zone === "header" && (element.zone === "top" || element.zone === "footer"))
+        ))
+        : zone === "header"
+            ? elements.filter((element) => !element.pdf_page && (
+                element.zone === "header" || element.zone === "top" || element.zone === "footer"
+            ))
+            : zoneItems;
+    const items = zone === "header"
+        ? foldBandsOntoPage(related, page?.height ?? (sheetHeight || controller.headerHeight))
+        : related;
     const selected = items.find((element) => element.id === selectedId);
     const active = targetZone === zone && (!page || controller.targetPage === (page.id === "layout" ? undefined : page.id));
-    const sheetHeight = controller.pageSheet?.pixelHeight ?? 0;
     const band = zone === "top" || zone === "footer";
     const contentBottom = items.reduce((max, item) => Math.max(max, (item.y ?? 0) + (item.height || 24)), 0);
     const canvasHeight = band
@@ -3472,10 +3833,28 @@ export function PreviewZone({
                         </div>
                     ))
                     : null}
+                {zone === "header" ? (() => {
+                    const pageId = page?.id === "layout" ? undefined : page?.id;
+                    const receivesNew = (controller.targetPage ?? elements.find((element) => element.pdf_page)?.pdf_page) === pageId
+                        || (!page && !elements.some((element) => element.pdf_page));
+                    const regionTarget = receivesNew && targetZone === "top"
+                        ? "header"
+                        : receivesNew && targetZone === "footer"
+                            ? "footer"
+                            : null;
+                    const regions = pageRegions(items, canvasHeight, regionTarget);
+
+                    return (
+                        <>
+                            {regions.header ? <PageRegion label="Header" top={regions.header.top} height={regions.header.height} active={regionTarget === "header"} /> : null}
+                            {regions.footer ? <PageRegion label="Footer" top={regions.footer.top} height={regions.footer.height} active={regionTarget === "footer"} /> : null}
+                        </>
+                    );
+                })() : null}
                 {items.length === 0 ? (
                     <p className="absolute inset-x-0 top-1/2 -translate-y-1/2 px-4 text-center text-[11px] opacity-80">
                         {band
-                            ? "Choose this area, then add a component. It stays outside the page, so the page layout does not move."
+                            ? `This is the ${zone === "top" ? "header" : "footer"}, ${zone === "top" ? "at the top" : "at the bottom"} of the page. Add a component and it stays in this band.`
                             : "Use the toolbar to add a component to the visible area, then drag it anywhere in the layout."}
                     </p>
                 ) : null}
@@ -3486,8 +3865,8 @@ export function PreviewZone({
                     return (
                         <div
                             key={element.id}
-                            role={element.pdf_background ? undefined : "button"}
-                            tabIndex={element.pdf_background ? -1 : 0}
+                            role="button"
+                            tabIndex={0}
                             data-element-id={element.id}
                             aria-pressed={isSelected}
                             aria-label={`${elementLabel(element)} component`}
@@ -3505,8 +3884,7 @@ export function PreviewZone({
                                     element.type === "divider"
                                         ? element.height
                                         : undefined,
-                                zIndex: element.pdf_background ? 0 : isSelected ? 10 : 1,
-                                pointerEvents: element.pdf_background ? "none" : undefined,
+                                zIndex: element.pdf_background ? (isSelected ? 2 : 0) : isSelected ? 10 : 1,
                             }}
                             onPointerDownCapture={(event) => {
                                 if (element.pdf_background || event.button !== 0 || !keepsGroupSelection(event)) return;
@@ -3521,6 +3899,11 @@ export function PreviewZone({
                                 if (keepsGroupSelection(event)) return;
                                 setTargetZone(zone);
                                 controller.setTargetPage(element.pdf_page);
+                                const already = controller.selectedIds.length === 1 && controller.selectedIds[0] === element.id;
+                                if (element.pdf_background) {
+                                    setSelectedId(already ? null : element.id);
+                                    return;
+                                }
                                 const moveIds = controller.selectedIds.includes(element.id)
                                     ? controller.selectedIds
                                     : [element.id];
@@ -3533,7 +3916,7 @@ export function PreviewZone({
                                 } else {
                                     controller.selectRow(element.id, null);
                                 }
-                                controller.startMove(event, element, moveIds);
+                                controller.startMove(event, element, moveIds, already);
                             }}
                             onClick={(event) => event.stopPropagation()}
                             onKeyDown={(event) => {
@@ -3616,7 +3999,7 @@ export function PreviewZone({
                                     onSelectCell={(row, column) => controller.selectCell(element.id, row, column)}
                                 />
                             )}
-                            {element.id === selectedId && !element.pdf_background
+                            {element.id === selectedId
                                 ? (
                                       [
                                           ["n", "Resize from the top", "absolute -top-1.5 left-1/2 z-10 h-3 w-8 -translate-x-1/2 cursor-ns-resize"],
@@ -4007,11 +4390,13 @@ function TableEditor({
     fieldClass,
     onSelectRow,
     selectedRow,
+    selectedCell,
     onSelectCell,
 }: {
     onSelectCell: (row: number, column: number) => void;
     onSelectRow: (row: number) => void;
     selectedRow?: number;
+    selectedCell?: { row: number; column: number } | null;
     element: LayoutElement;
     fields: MergeField[];
     onChange: (patch: Partial<LayoutElement>) => void;
@@ -4041,29 +4426,39 @@ function TableEditor({
         [styles[index], styles[target]] = [styles[target], styles[index]];
         const cellStyles = Array.from({ length: items.length }, (_, i) => element.cell_styles?.[i] ?? null);
         [cellStyles[index], cellStyles[target]] = [cellStyles[target], cellStyles[index]];
-        onChange({ items: next, row_styles: styles, cell_styles: cellStyles });
+        const backgrounds = Array.from({ length: items.length }, (_, i) => element.row_backgrounds?.[i] ?? null);
+        [backgrounds[index], backgrounds[target]] = [backgrounds[target], backgrounds[index]];
+        onChange({ items: next, row_styles: styles, cell_styles: cellStyles, row_backgrounds: backgrounds });
         onSelectCell(target, 1);
     };
 
     return (
-        <div className="space-y-3">
-            <div>
-                <p className="text-xs font-medium text-foreground">
-                    Table rows
-                </p>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                    Each row is a name and a value. Values can use fields; rows
-                    whose field is empty are skipped.
-                </p>
-                <ul className="mt-2 space-y-2">
-                    {items.map((item, index) => (
-                        <li
-                            key={index}
-                            className="space-y-1 rounded-md border border-border bg-muted/30 p-2"
-                        >
-                            <button type="button" aria-pressed={selectedRow === index} data-focus-row={index}
-                                className="text-xs font-medium underline underline-offset-2"
-                                onClick={() => onSelectRow(index)}>Row {index + 1}</button>
+        <PropertyGroup name="Rows" summary={`${items.length}`} defaultOpen>
+            <InspectorNote>Each row is a name and a value. A row whose field is empty is skipped.</InspectorNote>
+            {items.map((item, index) => (
+                <PropertyGroup key={index} name={`Row ${index + 1}`} summary={item.label || "(empty)"} defaultOpen={selectedRow === index}>
+                    <button type="button" className="sr-only" aria-pressed={selectedRow === index} data-focus-row={index}
+                        onClick={() => onSelectRow(index)}>Select row {index + 1}</button>
+                    <PropertyRow name="Row color">
+                        <ColorSelect allowNone label={`Row ${index + 1} color`} value={element.row_backgrounds?.[index] || ""}
+                            onChange={(color) => onChange({
+                                row_backgrounds: Array.from({ length: items.length }, (_, row) =>
+                                    row === index ? (color || null) : (element.row_backgrounds?.[row] ?? null)),
+                                stripe_direction: "none",
+                            })} />
+                    </PropertyRow>
+                    <PropertyGroup name="Name" summary={item.label || "(empty)"} defaultOpen={selectedCell?.row === index && selectedCell.column === 0}>
+                        <FieldFormatBar
+                            id={`Row ${index + 1} name`}
+                            sizeMin={element.pdf_page ? 1 : 8}
+                            sizeMax={element.pdf_page ? 200 : 48}
+                            style={tableTextStyle(element, index, 0, false, true, 0)}
+                            onChange={(patch) => {
+                                onSelectCell(index, 0);
+                                onChange(cellStylePatch(element, index, 0, patch));
+                            }}
+                        />
+                        <PropertyRow name="Text">
                             <input
                                 aria-label="Name"
                                 data-focus-cell={`${index}-0`}
@@ -4075,8 +4470,22 @@ function TableEditor({
                                         label: event.target.value,
                                     })
                                 }
-                                className={fieldClass}
+                                className={inspectorInput}
                             />
+                        </PropertyRow>
+                    </PropertyGroup>
+                    <PropertyGroup name="Value" summary={item.value || "(empty)"} defaultOpen={selectedCell?.row === index && selectedCell.column === 1}>
+                        <FieldFormatBar
+                            id={`Row ${index + 1} value`}
+                            sizeMin={element.pdf_page ? 1 : 8}
+                            sizeMax={element.pdf_page ? 200 : 48}
+                            style={tableTextStyle(element, index, 1, false, false, 1)}
+                            onChange={(patch) => {
+                                onSelectCell(index, 1);
+                                onChange(cellStylePatch(element, index, 1, patch));
+                            }}
+                        />
+                        <PropertyRow name="Text">
                             <input
                                 aria-label="Value"
                                 data-focus-cell={`${index}-1`}
@@ -4088,160 +4497,84 @@ function TableEditor({
                                         value: event.target.value,
                                     })
                                 }
-                                className={fieldClass}
+                                className={inspectorInput}
                             />
-                            <div className="flex items-center gap-1">
-                                <select
-                                    aria-label="Insert a field into the value"
-                                    value=""
-                                    onChange={(event) => {
-                                        if (event.target.value) {
-                                            patchItem(index, {
-                                                value: `${item.value}{{${event.target.value}}}`,
-                                            });
-                                        }
-                                    }}
-                                    className="min-w-0 flex-1 rounded border border-input bg-background px-1 py-0.5 text-xs"
-                                >
-                                    <option value="">Insert field…</option>
-                                    {fields.map((field) => (
-                                        <option
-                                            key={field.key}
-                                            value={field.key}
-                                        >
-                                            {field.group}: {field.label}
-                                        </option>
-                                    ))}
-                                </select>
-                                <button
-                                    type="button"
-                                    aria-label="Move row up"
-                                    disabled={index === 0}
-                                    onClick={() => moveItem(index, -1)}
-                                    className={small}
-                                >
-                                    ↑
-                                </button>
-                                <button
-                                    type="button"
-                                    aria-label="Move row down"
-                                    disabled={index === items.length - 1}
-                                    onClick={() => moveItem(index, 1)}
-                                    className={small}
-                                >
-                                    ↓
-                                </button>
-                                <button
-                                    type="button"
-                                    aria-label="Remove row"
-                                    onClick={() => {
-                                        onChange({
-                                            items: items.filter((_, i) => i !== index),
-                                            row_styles: element.row_styles?.filter((_, i) => i !== index),
-                                            cell_styles: element.cell_styles?.filter((_, i) => i !== index),
+                        </PropertyRow>
+                        <PropertyRow name="Insert field">
+                            <select
+                                aria-label="Insert a field into the value"
+                                value=""
+                                onChange={(event) => {
+                                    if (event.target.value) {
+                                        patchItem(index, {
+                                            value: `${item.value}{{${event.target.value}}}`,
                                         });
-                                        onSelectCell(Math.max(0, index - 1), 1);
-                                    }}
-                                    className={cn(small, "text-red-600")}
-                                >
-                                    ×
-                                </button>
-                            </div>
-                        </li>
-                    ))}
-                </ul>
-                <button
-                    type="button"
-                    disabled={items.length >= 40}
-                    onClick={() =>
-                        setItems([...items, { label: "", value: "" }])
-                    }
-                    className="mt-2 w-full rounded-md border border-dashed border-border px-2 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-50"
+                                    }
+                                }}
+                                className={inspectorInput}
+                            >
+                                <option value="">Choose a field</option>
+                                {fields.map((field) => (
+                                    <option key={field.key} value={field.key}>
+                                        {field.group}: {field.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </PropertyRow>
+                    </PropertyGroup>
+                    <PropertyRow name="Order">
+                        <span className="flex items-center gap-1 px-1">
+                            <button type="button" aria-label="Move row up" disabled={index === 0} onClick={() => moveItem(index, -1)} className={small}>↑</button>
+                            <button type="button" aria-label="Move row down" disabled={index === items.length - 1} onClick={() => moveItem(index, 1)} className={small}>↓</button>
+                            <button type="button" aria-label="Remove row" onClick={() => {
+                                onChange({
+                                    items: items.filter((_, i) => i !== index),
+                                    row_styles: element.row_styles?.filter((_, i) => i !== index),
+                                    cell_styles: element.cell_styles?.filter((_, i) => i !== index),
+                                    row_backgrounds: element.row_backgrounds?.filter((_, i) => i !== index),
+                                });
+                                onSelectCell(Math.max(0, index - 1), 1);
+                            }} className={cn(small, "text-red-600")}>×</button>
+                        </span>
+                    </PropertyRow>
+                </PropertyGroup>
+            ))}
+            <button
+                type="button"
+                disabled={items.length >= 40}
+                onClick={() => setItems([...items, { label: "", value: "" }])}
+                className="w-full border-b border-[#d6d6d6] bg-[#f7f7f7] px-2 py-1 text-left text-[13px] text-[#1a3d8f] hover:bg-[#e7f0fb] disabled:opacity-50"
+            >
+                + Add row
+            </button>
+            <PropertyRow name="Pairs per row">
+                <select
+                    aria-label="Pairs per row"
+                    value={element.columns ?? 2}
+                    onChange={(event) => onChange({ columns: Number(event.target.value) })}
+                    className={inspectorInput}
                 >
-                    + Add row
-                </button>
-            </div>
-
-            <div className="flex items-end gap-3">
-                <label className={cn(labelClass, "flex-1")}>
-                    Pairs per row
-                    <select
-                        value={element.columns ?? 2}
-                        onChange={(event) =>
-                            onChange({ columns: Number(event.target.value) })
-                        }
-                        className={fieldClass}
-                    >
-                        {[1, 2, 3].map((count) => (
-                            <option key={count} value={count}>
-                                {count}
-                            </option>
-                        ))}
-                    </select>
-                </label>
-                <label className="flex items-center gap-2 pb-2 text-sm">
-                    <input
-                        type="checkbox"
-                        checked={element.border ?? true}
-                        onChange={(event) =>
-                            onChange({ border: event.target.checked })
-                        }
-                    />
-                    Borders
-                </label>
-            </div>
-
-            <label className={labelClass}>
-                Name column width (%)
+                    {[1, 2, 3].map((count) => (
+                        <option key={count} value={count}>{count}</option>
+                    ))}
+                </select>
+            </PropertyRow>
+            <PropertyRow name="Name width">
                 <input
+                    aria-label="Name column width (%)"
                     type="number"
                     min={10}
                     max={70}
                     value={element.label_width ?? 30}
                     onChange={(event) =>
                         onChange({
-                            label_width: Math.max(
-                                10,
-                                Math.min(70, Number(event.target.value) || 30),
-                            ),
+                            label_width: Math.max(10, Math.min(70, Number(event.target.value) || 30)),
                             column_widths: undefined,
                         })
                     }
-                    className={fieldClass}
+                    className={inspectorInput}
                 />
-            </label>
-
-            <div className="flex items-end gap-3">
-                <label className={cn(labelClass, "flex-1")}>
-                    Name shading
-                    <input
-                        type="color"
-                        value={element.label_bg || "#ffffff"}
-                        onChange={(event) =>
-                            onChange({ label_bg: event.target.value })
-                        }
-                        className="mt-1 block h-9 w-full cursor-pointer rounded-md border border-input bg-background p-1"
-                    />
-                </label>
-                <label className={cn(labelClass, "flex-1")}>
-                    Border color
-                    <input
-                        type="color"
-                        value={element.border_color ?? "#cbd5e1"}
-                        onChange={(event) =>
-                            onChange({ border_color: event.target.value })
-                        }
-                        className="mt-1 block h-9 w-full cursor-pointer rounded-md border border-input bg-background p-1"
-                    />
-                </label>
-                <button
-                    type="button"
-                    onClick={() => onChange({ label_bg: "" })}
-                    className="pb-2 text-xs text-muted-foreground hover:text-red-600"
-                >
-                    No shading
-                </button>
-            </div>
-        </div>
+            </PropertyRow>
+        </PropertyGroup>
     );
 }

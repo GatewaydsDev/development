@@ -44,6 +44,7 @@ class ProjectDocument
             'scopes.product',
             'scopes.service',
             'revisions.user:id,name',
+            'prices',
         ]);
 
         return new self(
@@ -88,6 +89,15 @@ class ProjectDocument
             'budgetAmount' => $this->showSensitiveFields && $this->project->budget_amount !== null
                 ? $this->money($this->project->budget_amount)
                 : null,
+            'budgetPrices' => $this->showSensitiveFields
+                ? $this->project->prices
+                    ->map(fn ($price): array => [
+                        'label' => $price->label,
+                        'amount' => $this->money($price->amount),
+                    ])
+                    ->values()
+                    ->all()
+                : [],
             'contractors' => $this->contractorRows(),
             'scopes' => $this->scopeRows(),
             'revisions' => $this->revisionRows(),
@@ -232,7 +242,11 @@ class ProjectDocument
             ['Estimated end', $this->dateLabel($this->project->estimated_end_date) ?: '—'],
         ];
 
-        if ($this->showSensitiveFields && $this->project->budget_amount !== null) {
+        if ($this->showSensitiveFields && $this->project->prices->isNotEmpty()) {
+            foreach ($this->project->prices as $price) {
+                $detailRows[] = [$price->label, $this->money($price->amount)];
+            }
+        } elseif ($this->showSensitiveFields && $this->project->budget_amount !== null) {
             $detailRows[] = ['Budget amount', $this->money($this->project->budget_amount)];
         }
 

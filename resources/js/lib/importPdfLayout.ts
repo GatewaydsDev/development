@@ -17,6 +17,70 @@ class LocalStandardFonts {
         return new Uint8Array(await response.arrayBuffer());
     }
 }
+function pdfBandKey(content: string): string {
+    return content.replace(/\d+/g, '#').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function placePdfHeaderAndFooter(pages: Array<{ elements: LayoutElement[] }>): { headers: number; footers: number } {
+    const pageHeight = (elements: LayoutElement[]) =>
+        elements.find((element) => element.pdf_background)?.pdf_page_height
+        ?? elements.find((element) => element.pdf_page_height)?.pdf_page_height
+        ?? 0;
+    const share = 0.14;
+    const keysIn = (edge: 'top' | 'bottom') => {
+        const seen = new Map<string, number>();
+        for (const page of pages) {
+            const height = pageHeight(page.elements);
+            if (!height) continue;
+            const keys = new Set<string>();
+            for (const element of page.elements) {
+                if (element.pdf_background || element.type !== 'text') continue;
+                const key = pdfBandKey(element.content);
+                if (key.length < 2) continue;
+                const y = element.y ?? 0;
+                const bottom = y + (element.height || element.font_size || 16);
+                const inBand = edge === 'top'
+                    ? bottom <= height * 0.22 && y < height * share + 8
+                    : y >= height * (1 - share) - 8 && y > height * 0.78;
+                if (inBand) keys.add(key);
+            }
+            keys.forEach((key) => seen.set(key, (seen.get(key) ?? 0) + 1));
+        }
+        const need = pages.length >= 2 ? Math.max(2, Math.ceil(pages.length * 0.6)) : 1;
+        return new Set([...seen.entries()].filter(([, count]) => count >= need).map(([key]) => key));
+    };
+    const headerKeys = pages.length >= 2 ? keysIn('top') : new Set<string>();
+    const footerKeys = pages.length >= 2 ? keysIn('bottom') : new Set<string>();
+    let headers = 0;
+    let footers = 0;
+    for (const page of pages) {
+        const height = pageHeight(page.elements);
+        if (!height) continue;
+        const margin = Math.min(120, Math.max(48, height * share));
+        const footerOrigin = height - margin;
+        for (const element of page.elements) {
+            if (element.pdf_background || element.type !== 'text') continue;
+            const key = pdfBandKey(element.content);
+            const y = element.y ?? 0;
+            const bottom = y + (element.height || element.font_size || 16);
+            const inHeader = headerKeys.size > 0
+                ? headerKeys.has(key) && bottom < height * 0.28
+                : bottom <= margin && y < height * 0.22;
+            const inFooter = footerKeys.size > 0
+                ? footerKeys.has(key) && y > height * 0.72
+                : y >= footerOrigin && y > height * 0.78;
+            if (inHeader && !inFooter) {
+                element.layout_band = 'header';
+                headers += 1;
+            } else if (inFooter && !inHeader) {
+                element.layout_band = 'footer';
+                footers += 1;
+            }
+        }
+    }
+    return { headers, footers };
+}
+
 const cmaps = import.meta.glob('/node_modules/pdfjs-dist/cmaps/*.bcmap', { eager: true, query: '?url', import: 'default' });
 class LocalCMaps {
     async fetch({ name }: { name: string }) {
@@ -38,9 +102,70 @@ class LocalWasm {
     }
 }
 type PdfFont = { name?: string; data?: Uint8Array; bold?: boolean; italic?: boolean; ascent?: number; isType3Font?: boolean };
-type PendingPage = { background: Blob; elements: LayoutElement[] };
+type PendingPage = { background: Blob; elements: LayoutElement[]; artwork: Array<{ id: string; blob: Blob }> };
 type PdfImport = { pages: PendingPage[]; fonts: Map<string, Uint8Array>; notes: string[] };
 const uid = () => `pdf-${crypto.randomUUID().replaceAll('-', '').slice(0, 24)}`;
+const canvasBlob = (source: HTMLCanvasElement) => new Promise<Blob>((resolve, reject) => {
+    source.toBlob((blob) => blob ? resolve(blob) : reject(new Error('Could not store a page image.')), 'image/png');
+});
+
+/** Pull the logo and other art in the header or footer off the locked page background so it can be selected. */
+async function liftPageArtwork(
+    context: CanvasRenderingContext2D,
+    canvas: HTMLCanvasElement,
+    resolution: number,
+    band: 'header' | 'footer',
+    base: Partial<LayoutElement>,
+): Promise<{ element: LayoutElement; blob: Blob } | null> {
+    const margin = Math.round(Math.min(120, Math.max(48, canvas.height / resolution * 0.14)) * resolution);
+    const top = band === 'header' ? 0 : Math.max(0, canvas.height - margin);
+    const height = Math.min(margin, canvas.height - top);
+    if (height < 4 || canvas.width < 4) return null;
+    const pixels = context.getImageData(0, top, canvas.width, height).data;
+    let minX = canvas.width;
+    let minY = height;
+    let maxX = -1;
+    let maxY = -1;
+    for (let index = 0; index < pixels.length; index += 4) {
+        if (pixels[index + 3] < 20 || (pixels[index] > 250 && pixels[index + 1] > 250 && pixels[index + 2] > 250)) continue;
+        const pixel = index / 4;
+        const x = pixel % canvas.width;
+        const y = Math.floor(pixel / canvas.width);
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+    }
+    if (maxX - minX < 8 || maxY - minY < 4) return null;
+    const pad = 2;
+    const x = Math.max(0, minX - pad);
+    const y = Math.max(0, minY - pad);
+    const width = Math.min(canvas.width - x, maxX - minX + 1 + pad * 2);
+    const cropHeight = Math.min(height - y, maxY - minY + 1 + pad * 2);
+    const crop = document.createElement('canvas');
+    crop.width = width;
+    crop.height = cropHeight;
+    const cropContext = crop.getContext('2d');
+    if (!cropContext) return null;
+    cropContext.drawImage(canvas, x, top + y, width, cropHeight, 0, 0, width, cropHeight);
+    context.fillStyle = '#ffffff';
+    context.fillRect(x, top + y, width, cropHeight);
+    const blob = await canvasBlob(crop);
+    crop.width = crop.height = 0;
+    return {
+        blob,
+        element: {
+            ...base,
+            id: uid(),
+            type: 'image',
+            layout_band: band,
+            x: x / canvas.width * 100,
+            y: (top + y) / resolution,
+            width: width / canvas.width * 100,
+            height: cropHeight / resolution,
+        } as LayoutElement,
+    };
+}
 const normalize = (text: string) => text.replace(/\s+/g, '');
 
 export type PdfImportText = 'keep' | 'clean';
@@ -234,8 +359,14 @@ export async function readPdfLayout(file: File, options?: { text?: PdfImportText
                 const pad = 2;
                 context.fillRect((x - pad) * resolution, (y - pad) * resolution, (width + pad * 2) * resolution, (height + pad * 2) * resolution);
             }
-            const background = await new Promise<Blob>((resolve, reject) => canvas.toBlob(
-                (blob) => blob ? resolve(blob) : reject(new Error(`Could not render page ${number}.`)), 'image/png'));
+            const artwork: PendingPage['artwork'] = [];
+            for (const band of ['header', 'footer'] as const) {
+                const lifted = await liftPageArtwork(context, canvas, resolution, band, base);
+                if (!lifted) continue;
+                artwork.push({ id: lifted.element.id, blob: lifted.blob });
+                elements.splice(1, 0, lifted.element);
+            }
+            const background = await canvasBlob(canvas);
             canvas.width = canvas.height = 0;
             elements.push(...editable.bands, ...groupPdfText(editable.remaining, regions));
             if (options?.text === 'clean') {
@@ -243,9 +374,13 @@ export async function readPdfLayout(file: File, options?: { text?: PdfImportText
             }
             count += elements.length;
             if (count > 1000) throw new Error('This PDF requires more than 1,000 components. Split it into smaller PDFs before importing.');
-            pages.push({ background, elements });
+            pages.push({ background, elements, artwork });
             page.cleanup();
         }
+        const bands = placePdfHeaderAndFooter(pages);
+        notes.add(bands.headers + bands.footers > 0
+            ? `The PDF header (${bands.headers} item${bands.headers === 1 ? '' : 's'}) and footer (${bands.footers} item${bands.footers === 1 ? '' : 's'}) stay on the imported page. Header and footer artwork is its own image, so it can be selected.`
+            : 'No separate header or footer text was found on the imported page.');
         notes.add(options?.text === 'clean'
             ? 'Original PDF wording was removed. Each table leaves its header color, and its footer color when the last row is a separate band. Add the columns and rows yourself. Other graphics remain page backgrounds.'
             : 'PDF tables are not copied. Each table leaves a header color bar, and a footer color bar when the last row has its own color. Add the columns and rows yourself. Lists stay lists. Other graphics remain page backgrounds.');
