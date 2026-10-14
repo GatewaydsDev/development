@@ -119,8 +119,8 @@ export default function About({ canonicalUrl }: AboutProps) {
     const metaTitle = t('meta.title');
     const metaDescription = t('meta.description');
     const imageUrl = pageUrl
-        ? new URL('/images/high-security-door-row.jpeg', pageUrl).href
-        : '/images/high-security-door-row.jpeg';
+        ? new URL('/images/products/door-row.svg', pageUrl).href
+        : '/images/products/door-row.svg';
     const structuredData = {
         '@context': 'https://schema.org',
         '@type': 'AboutPage',
@@ -225,10 +225,10 @@ export default function About({ canonicalUrl }: AboutProps) {
             </section>
 
             <section
-                id="secure-door-capabilities"
                 ref={capabilityReveal.ref}
                 className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-24"
             >
+                <a id="secure-door-capabilities" name="secure-door-capabilities" className="sr-only" />
                 <div className="grid gap-8 lg:grid-cols-[0.85fr_1.15fr] lg:items-start lg:gap-10">
                     <div
                         className={cn(
@@ -315,9 +315,9 @@ export default function About({ canonicalUrl }: AboutProps) {
                     <div className="mt-8 grid gap-8 lg:mt-10 lg:grid-cols-[1.35fr_1fr] lg:items-start lg:gap-10">
                         <div className="overflow-hidden rounded-2xl border border-border bg-background/80 shadow-xl shadow-emerald-950/10 sm:rounded-3xl">
                             <img
-                                src="/images/high-security-door-row.jpeg"
+                                src="/images/products/door-row.svg"
                                 alt={t('trust.imageAlt')}
-                                className="h-[20rem] w-full object-cover object-center transition duration-700 hover:scale-[1.02] sm:h-[26rem] lg:h-[min(72vh,34rem)] xl:h-[min(78vh,38rem)]"
+                                className="h-[20rem] w-full bg-[#F3F4F6] object-contain sm:h-[26rem] lg:h-[min(72vh,34rem)] xl:h-[min(78vh,38rem)]"
                             />
                         </div>
 

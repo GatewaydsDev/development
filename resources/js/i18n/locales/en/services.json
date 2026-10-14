@@ -12,12 +12,12 @@
     "processBadge": "Installation process",
     "processTitle": "Built around the full opening.",
     "processDescription": "Each service page focuses on the installed assembly, because the door, frame, hardware, seals, and surrounding conditions all affect performance.",
-    "primaryCta": "Request a service quote",
+    "primaryCta": "Request a Quote for This System",
     "secondaryCta": "View all services",
     "ctaEyebrow": "Plan your project",
     "ctaTitle": "Need help choosing the right door, opening, or equipment?",
     "ctaDescription": "Gateway can review the opening, door type, equipment, hardware requirements, and project constraints before installation begins.",
-    "ctaButton": "Start with a quote",
+    "ctaButton": "Request a Quote for This System",
     "capabilityTitles": {
       "performance": "Performance details",
       "coordination": "Project coordination",
@@ -30,7 +30,7 @@
       "metaDescription": "Hollow metal, aluminum storefront, security grilles, overhead sectional, high-speed, and rolling steel door installation across NY, NJ, and PA.",
       "title": "Commercial doors",
       "description": "Everyday and industrial door systems for offices, warehouses, storefronts, and loading areas — installed as part of the same Gateway catalog as specialty openings.",
-      "imageAlt": "Commercial door installation for a busy facility opening",
+      "imageAlt": "Illustration of commercial doors and a storefront",
       "overviewTitle": "More than specialty openings",
       "overviewText": "Hollow metal, storefront, grilles, and overhead doors are the work most commercial buildings need first. Gateway installs these systems with the same attention to fit, hardware, and daily use as the high-security openings we are known for.",
       "supportText": "Use this page to review the commercial door types we install. Send a project review if you need a mix of commercial doors and specialty openings on the same job."
@@ -40,7 +40,7 @@
       "metaDescription": "Dock equipment, security equipment, pipe bollards, and bathroom partition installation for commercial and institutional buildings across NY, NJ, and PA.",
       "title": "Facility equipment",
       "description": "Dock equipment, security equipment, pipe bollards, and bathroom partitions that finish the building around the door — not only the opening itself.",
-      "imageAlt": "Facility equipment installed around a commercial loading and access area",
+      "imageAlt": "Illustration of dock equipment and bollards",
       "overviewTitle": "The work around the opening",
       "overviewText": "Many jobs need more than a door. Dock equipment, bollards, security hardware, and restroom partitions are part of the same facility package. Gateway coordinates that work so the opening and the area around it are installed together.",
       "supportText": "Use this page to review the facility equipment we install. Send a project review if your scope includes doors and related equipment."
@@ -52,9 +52,9 @@
       "metaDescription": "SCIF Rooms Construction for sensitive compartmented information facilities. Gateway Door Systems builds SCIF rooms and installs the secure doors, frames, seals, and hardware those openings require across NY, NJ, and PA.",
       "title": "SCIF Rooms Construction",
       "description": "Certified SCIF rooms construction and installation of the secure door systems used in sensitive compartmented information facilities and other controlled-access spaces.",
-      "imageAlt": "SCIF rooms construction and high-security door installation for a controlled-access facility",
+      "imageAlt": "Illustration of a controlled-room door opening",
       "overviewTitle": "SCIF rooms construction depends on every opening performing as specified.",
-      "overviewText": "Sensitive compartmented information facilities require more than a rated door. SCIF rooms construction covers the room envelope, acoustic and electromagnetic control at the doorway, and the hardware that keeps daily access reliable. Gateway Door Systems builds SCIF rooms and installs the doors, frames, seals, hinges, locks, and access-control-ready components that complete those openings.",
+      "overviewText": "A SCIF opening is part of the room, not a separate door order. Acoustic control, radio-frequency control when the specification calls for it, and the lock all meet at the frame. Gateway builds the SCIF room scope described on this site and installs the doors, frames, seals, and hardware those openings require.",
       "supportText": "We support new construction and retrofit projects for government, defense-support, and other sensitive facilities. Our certified SCIF rooms construction work is coordinated with the specified RF, acoustic, and high-security door assemblies rather than treating the opening as a separate afterthought.",
       "capabilities": {
         "performance": "Room and opening construction aligned to project specifications for acoustic, RF, and physical security at the doorway.",
@@ -66,6 +66,11 @@
         "retrofits": "Upgrades where existing rooms or door openings no longer meet current SCIF or security requirements",
         "facilities": "Government, defense support, and sensitive commercial operations buildings in NY, NJ, and PA",
         "hardware": "Assemblies paired with high-security locks, RF-rated doors, access control, and secure latching hardware"
+      },
+      "facts": {
+        "one": "The doorway is coordinated with the room envelope, including seals and the specified lock.",
+        "two": "Krieger publishes a SCIF door and lock package for NCSC sound groups, including an option to add radio-frequency shielding and a factory lock preparation.",
+        "three": "Gateway installs the assembly named in the project documents. The sound group and any RF requirement are the ones in that specification."
       }
     },
     "radioFrequencyDoors": {
@@ -73,7 +78,7 @@
       "metaDescription": "Professional installation of radio frequency shielded doors for EMI-controlled openings, TEMPEST-related spaces, and facilities that need reliable performance at the doorway.",
       "title": "Radio Frequency Door Installation",
       "description": "Installation of RF-shielded door assemblies where electromagnetic containment, perimeter sealing, and secure daily access must work together at the opening.",
-      "imageAlt": "Radio frequency shielded specialty door installed at a secure facility opening",
+      "imageAlt": "Illustration of an RF door with a conductive seal",
       "overviewTitle": "Shielding performance starts with how the full opening is built and fitted.",
       "overviewText": "Radio frequency doors are designed to reduce electromagnetic energy passing through the door path—from magnetic fields at lower frequencies through higher microwave ranges, depending on the specified assembly. That intent only holds when the leaf, frame, gasketing, threshold, and hardware are aligned and sealed as one system. Gateway installs these specialty openings with attention to contact pressure, clearances, and coordination with surrounding RF or shielded construction.",
       "supportText": "We support new construction and retrofit projects where teams need RF-rated doors for secure rooms, technical spaces, data environments, and other controlled-access areas. Our role is installation: we fit and commission the opening around the specified RF door system rather than manufacturing shielding products.",
@@ -113,17 +118,22 @@
             "description": "Power operators, closers, and secure latching integrated at install."
           }
         }
+      },
+      "facts": {
+        "one": "The copper conductive seal, frame, and threshold are what keep the shield continuous around the door.",
+        "two": "Krieger publishes RF-shielded doors and windows, including hybrid doors that combine shielding with an acoustic rating, plus shielded vision panels.",
+        "three": "The shielding level for a project is the level of the specified assembly. Gateway fits and commissions that assembly on site."
       }
     },
     "soundTransmission": {
       "metaTitle": "Sound Transmission Door Installation | Gateway Door Systems",
       "metaDescription": "Sound Transmission door installation for openings that need better acoustic control and reliable secure operation.",
       "title": "Sound Transmission Door Installation",
-      "description": "Specialty door installation for spaces where acoustic performance, sealing, and dependable hardware need to work together.",
-      "imageAlt": "Commercial specialty door installed for sound transmission control",
-      "overviewTitle": "Better acoustic control starts with the full opening.",
-      "overviewText": "Sound Transmission doors depend on more than the leaf itself. Frame fit, perimeter seals, bottom seals, thresholds, and hardware all influence how the opening performs once it is in daily use.",
-      "supportText": "Gateway installs sound-conscious door assemblies for offices, secure areas, mechanical rooms, operations spaces, and retrofit projects.",
+      "description": "Acoustic doors and windows supplied and installed so the opening, seals, and glazing manage sound transfer together.",
+      "imageAlt": "Illustration of an acoustic door and an acoustic window",
+      "overviewTitle": "Sound control depends on the door and the window, not only the leaf.",
+      "overviewText": "An acoustic opening is the door or window, the frame, the perimeter seals, and the hardware that keeps those seals in contact. A gap at the bottom or a loose stop undoes the rating of the specified assembly. Gateway supplies and installs these openings for offices, schools, performance spaces, mechanical rooms, and controlled areas.",
+      "supportText": "Matching acoustic windows are part of the same work: fixed frames and sliding windows used where a control room still needs a view and a way to talk through the opening.",
       "capabilities": {
         "performance": "Attention to seal contact, clearances, hardware fit, and closing performance.",
         "coordination": "Coordination with specified STC-rated components and site conditions.",
@@ -134,6 +144,11 @@
         "retrofits": "Existing openings that need better sound control",
         "facilities": "Commercial, institutional, and operational facilities",
         "hardware": "Door assemblies with closers, seals, and latching hardware"
+      },
+      "facts": {
+        "one": "Door, frame, perimeter seals, and automatic door bottom are installed as one sound-control opening.",
+        "two": "Krieger publishes acoustical doors and windows for schools, performance spaces, offices, and government buildings, including sliding control-room windows.",
+        "three": "Krieger publishes acoustical windows up to STC 56 and SCIF door packages for published sound groups. Gateway installs the assembly named in the specification."
       }
     },
     "bullet": {
@@ -141,9 +156,9 @@
       "metaDescription": "Bullet-resistant door installation for secure commercial, government, and controlled-access facilities.",
       "title": "Bullet-Resistant Door Installation",
       "description": "Installation support for bullet-resistant doors, frames, and secure hardware in facilities that require stronger protection.",
-      "imageAlt": "Reinforced specialty door installed for bullet-resistant protection",
+      "imageAlt": "Illustration of a layered bullet-resistant door",
       "overviewTitle": "Protective assemblies need precise installation.",
-      "overviewText": "Bullet-resistant openings require close attention to the full assembly, including the door, frame, anchoring, glazing where applicable, and hardware. The installation must respect the specified system and the conditions around the opening.",
+      "overviewText": "A bullet-resistant opening is the door, the frame, the anchors, and the glazing when a window or vision panel is part of the assembly. Those pieces have to be the specified set. Gateway installs that set for commercial, government, and controlled-access facilities.",
       "supportText": "Gateway supports secure facility teams with installation and replacement work for protective door systems in controlled environments.",
       "capabilities": {
         "performance": "Installation practices aligned with reinforced doors, frames, and secure hardware.",
@@ -155,6 +170,11 @@
         "retrofits": "Upgrades from standard openings to reinforced assemblies",
         "facilities": "Commercial, public-sector, and sensitive facilities",
         "hardware": "Protective doors paired with locks, closers, and access hardware"
+      },
+      "facts": {
+        "one": "Doors, frames, windows, and related openings such as transaction windows are installed as the specified protective assembly.",
+        "two": "Krieger publishes bullet-resistant doors and windows, including acoustical doors that can include a UL 752 bullet rating.",
+        "three": "The protection level is the level on the submittal. Gateway installs that assembly and does not assign the rating."
       }
     },
     "blast": {
@@ -162,9 +182,9 @@
       "metaDescription": "Blast-resistant door installation for specialty openings, reinforced assemblies, and secure facilities.",
       "title": "Blast-Resistant Door Installation",
       "description": "Specialized installation for openings that require reinforced blast-resistant door assemblies and reliable secure access.",
-      "imageAlt": "Reinforced specialty door installed for blast-resistant applications",
+      "imageAlt": "Illustration of a reinforced blast-resistant door",
       "overviewTitle": "Blast-resistant openings demand careful coordination.",
-      "overviewText": "Blast-resistant door assemblies are built around specified performance requirements. Gateway focuses on the installation details that affect fit, anchoring, swing, hardware operation, and the long-term reliability of the opening.",
+      "overviewText": "Blast and pressure doors are specified where an opening has to help protect people and property from an explosion or a pressure event. The door, frame, anchors, and hardware are one assembly. Gateway installs the assembly named in the project documents.",
       "supportText": "We support project teams installing or replacing reinforced doors in facilities where the opening must align with protective design intent.",
       "capabilities": {
         "performance": "Door, frame, anchoring, and hardware installation for reinforced assemblies.",
@@ -176,6 +196,11 @@
         "retrofits": "Replacement of outdated or damaged reinforced doors",
         "facilities": "Industrial, government, and critical operations spaces",
         "hardware": "Assemblies requiring coordinated secure hardware"
+      },
+      "facts": {
+        "one": "The opening includes the reinforced door, frame, anchors, and hardware specified for that pressure or blast requirement.",
+        "two": "Krieger publishes blast and pressure doors and windows for commercial, government, and industrial criteria.",
+        "three": "Windows can be specified to the same requirement. The blast or pressure criterion stays the one written in the project documents."
       }
     },
     "oversizedAssemblies": {
@@ -183,7 +208,7 @@
       "metaDescription": "Oversized door assembly installation for large specialty openings, reinforced frames, and commercial facilities.",
       "title": "Oversized Door Assembly Installation",
       "description": "Precision installation for large-format specialty doors, reinforced frames, and oversized openings that need reliable operation.",
-      "imageAlt": "Large reinforced specialty door assembly installed in a commercial facility",
+      "imageAlt": "Illustration of a pair of oversized doors",
       "overviewTitle": "Large openings need disciplined installation.",
       "overviewText": "Oversized assemblies add complexity around handling, alignment, frame support, clearances, and hardware. Gateway plans the installation around the size of the opening and the way the door will be used every day.",
       "supportText": "We install oversized specialty doors for commercial, industrial, secure, and retrofit projects where standard installation approaches are not enough.",
@@ -197,6 +222,11 @@
         "retrofits": "Replacement of worn oversized doors and frames",
         "facilities": "Commercial, industrial, warehouse, and operations facilities",
         "hardware": "Heavy-duty hinges, closers, locks, and exit hardware"
+      },
+      "facts": {
+        "one": "Oversized specialty doors are built to the opening rather than a standard catalog size.",
+        "two": "Krieger manufactures specialty doors and windows to the requested size, including assemblies that combine acoustic, ballistic, blast, or radio-frequency performance.",
+        "three": "Gateway plans handling, frame support, clearances, and heavy hardware so the large opening still closes and latches."
       }
     },
     "hurricaneAndTornado": {
@@ -204,7 +234,7 @@
       "metaDescription": "Hurricane and tornado door installation for storm-rated openings, reinforced assemblies, and resilient facilities.",
       "title": "Hurricane and Tornado Door Installation",
       "description": "Storm-rated door installation for facilities that need stronger openings prepared for severe weather exposure.",
-      "imageAlt": "Reinforced storm-rated door installed for severe weather protection",
+      "imageAlt": "Illustration of a storm-rated door",
       "overviewTitle": "Storm-rated openings protect only when installed correctly.",
       "overviewText": "Hurricane and tornado door assemblies rely on the relationship between the door, frame, anchoring, hardware, and surrounding structure. Gateway installs these systems with attention to fit, fastening, and daily usability.",
       "supportText": "We support commercial and facility teams upgrading openings for severe weather readiness, resilience planning, and secure access.",
@@ -218,6 +248,11 @@
         "retrofits": "Severe-weather upgrades for existing door systems",
         "facilities": "Commercial, institutional, and operations buildings",
         "hardware": "Storm-rated doors paired with secure latching hardware"
+      },
+      "facts": {
+        "one": "A storm assembly is the door, frame, anchors, and hardware specified to work together.",
+        "two": "Krieger publishes hurricane and tornado door assemblies built to the size and finish requested for the opening.",
+        "three": "Gateway installs the specified storm assembly so the opening still operates for everyday access."
       }
     },
     "forcedEntryDoors": {
@@ -225,9 +260,9 @@
       "metaDescription": "Forced Entry door installation for controlled-access areas, reinforced openings, and secure commercial facilities.",
       "title": "Forced Entry Door Installation",
       "description": "Secure door systems installed to resist unauthorized entry and protect controlled areas, equipment, and sensitive spaces.",
-      "imageAlt": "Secure access door installed for forced entry resistance",
+      "imageAlt": "Illustration of a locked forced-entry door",
       "overviewTitle": "Security depends on the complete opening.",
-      "overviewText": "Forced Entry doors require coordination between the door, frame, anchoring, locks, hinges, closers, and access hardware. Gateway installs the full opening with a focus on strength, fit, and reliable operation.",
+      "overviewText": "A forced-entry opening is the door, frame, hinges, lock, and closer specified to resist an attack, not a standard closer on a hollow-metal door. Gateway installs that assembly and coordinates the access hardware with it.",
       "supportText": "We help commercial and secure facilities replace vulnerable openings with stronger assemblies designed for controlled access.",
       "capabilities": {
         "performance": "Reinforced door, frame, hinge, lock, and closer installation support.",
@@ -239,6 +274,271 @@
         "retrofits": "Security upgrades for weak or damaged openings",
         "facilities": "Commercial, government, warehouse, and critical-use buildings",
         "hardware": "Locks, panic bars, electric strikes, maglocks, and access hardware"
+      },
+      "facts": {
+        "one": "Hinges, locks, closers, and anchors are installed with the door and frame specified for the opening.",
+        "two": "Krieger publishes forced-entry and ballistic door and window assemblies, including assemblies described against a U.S. Department of State forced-entry test.",
+        "three": "Gateway installs the assembly named in the specification. The test level is the one on that submittal."
+      }
+    },
+    "hollowMetal": {
+      "metaTitle": "Hollow Metal Doors | Gateway Door Systems",
+      "metaDescription": "Hollow metal doors and frames for offices, corridors, stairwells, and utility rooms across NY, NJ, and PA.",
+      "title": "Hollow Metal Doors",
+      "description": "Hollow metal doors and frames supplied and installed for offices, corridors, stairwells, and utility rooms.",
+      "imageAlt": "Illustration of a hollow metal door and frame",
+      "overviewTitle": "The everyday steel opening, fitted as a complete frame.",
+      "overviewText": "Hollow metal is the door and frame most commercial buildings use for offices, stairs, and back-of-house rooms. The leaf, the frame, the hinges, and the lock have to land square. A twisted frame or a hinge that is out of plane shows up the first week the door is in use.",
+      "supportText": "Gateway supplies and installs these openings, including vision panels when the specification calls for them. A fire rating is used only when that rating is named in the project documents.",
+      "capabilities": {
+        "performance": "Door, frame, and hardware installed square, with clearances that let the door latch.",
+        "coordination": "Coordination with the wall type, the specified lock, closer, and any vision panel or electric prep.",
+        "handoff": "Swing, latch, and closer checked before the opening is turned over."
+      },
+      "applications": {
+        "secureAreas": "Stairwells, corridors, and rooms that need a steel door rather than a specialty shield",
+        "retrofits": "Replacement of damaged hollow metal doors and frames",
+        "facilities": "Offices, schools, healthcare, and commercial buildings in NY, NJ, and PA",
+        "hardware": "Hinges, locksets, closers, and exit devices specified for the opening"
+      },
+      "facts": {
+        "one": "The frame is installed with the wall so the door closes without dragging or standing open.",
+        "two": "Hardware is the lock, closer, and hinges named for that opening. Allegion products are supplied when that is the specified line.",
+        "three": "Fire-rated hollow metal is installed when the project documents name that rating. A steel door photo is not treated as a fire rating."
+      }
+    },
+    "aluminumStorefront": {
+      "metaTitle": "Aluminum Storefront | Gateway Door Systems",
+      "metaDescription": "Aluminum storefront doors, framing, and glass for commercial entries and vestibules across NY, NJ, and PA.",
+      "title": "Aluminum Storefront",
+      "description": "Storefront doors, framing, and glass for commercial entries, vestibules, and storefront openings.",
+      "imageAlt": "Illustration of a storefront entrance",
+      "overviewTitle": "The entry is the doors, the framing, and the glass.",
+      "overviewText": "A storefront opening is the aluminum frame, the glass, and the entrance doors that people use all day. Sidelites, transoms, and a vestibule are part of the same assembly when the drawings show them. Gateway supplies and installs that entrance.",
+      "supportText": "These are commercial storefront systems, separate from the specialty acoustic and ballistic windows on the other service pages. Hardware is the lock, closer, and pivot or hinge specified for the entry.",
+      "capabilities": {
+        "performance": "Doors that swing or slide as specified, with glass and framing aligned to the opening.",
+        "coordination": "Coordination with the storefront elevation, thresholds, and the hardware at the active leaf.",
+        "handoff": "Latch, closer, and weatherseals checked at the entry."
+      },
+      "applications": {
+        "secureAreas": "Vestibules and entries that lead into a controlled lobby",
+        "retrofits": "Replacement of worn storefront doors and framing",
+        "facilities": "Retail, offices, schools, and commercial lobbies",
+        "hardware": "Locks, closers, pivots, and exit devices for the entrance doors"
+      },
+      "facts": {
+        "one": "The typical opening is a pair of doors with sidelites, or a single door in a framed storefront.",
+        "two": "Glass, framing, and the door leaf are ordered to the elevation, not trimmed to hide a wrong size.",
+        "three": "Door and window scope on this page is the commercial storefront. Specialty acoustic or ballistic glazing is specified on its own service page."
+      }
+    },
+    "securityGrilles": {
+      "metaTitle": "Security Grilles | Gateway Door Systems",
+      "metaDescription": "Rolling and sliding security grilles for storefronts and after-hours protection across NY, NJ, and PA.",
+      "title": "Security Grilles",
+      "description": "Rolling and sliding security grilles for storefronts, concourses, and after-hours protection.",
+      "imageAlt": "Illustration of a security grille",
+      "overviewTitle": "A grille protects the opening without replacing the storefront.",
+      "overviewText": "Security grilles roll down or slide across an opening after hours. They are a different product from a rolling steel door: the curtain is an open grille, and the storefront or the opening behind it stays in place. Gateway supplies and installs the grille, the guides, and the operator or lock specified for it.",
+      "supportText": "Use a grille where the opening still needs to be seen through, such as a storefront or a concourse. Use a rolling steel door where the opening needs a solid curtain.",
+      "capabilities": {
+        "performance": "Guides, curtain, and lock or operator installed so the grille travels without binding.",
+        "coordination": "Coordination with the storefront opening, the header space, and the specified lock side.",
+        "handoff": "Travel, locking, and manual operation checked before turnover."
+      },
+      "applications": {
+        "secureAreas": "Storefronts and counters that stay visible after hours",
+        "retrofits": "Replacement of grilles that no longer travel or lock",
+        "facilities": "Retail, concourses, and commercial lobbies",
+        "hardware": "Locks, motors, and controls specified with the grille"
+      },
+      "facts": {
+        "one": "Rolling grilles coil above the opening. Sliding grilles travel to the side.",
+        "two": "The grille is not a substitute for a bullet, blast, or acoustic assembly.",
+        "three": "Header clearance and the lock side are confirmed before the grille is ordered."
+      }
+    },
+    "overheadSectional": {
+      "metaTitle": "Overhead Sectional Doors | Gateway Door Systems",
+      "metaDescription": "Sectional overhead doors for warehouses, loading areas, and vehicle openings across NY, NJ, and PA.",
+      "title": "Overhead Sectional Doors",
+      "description": "Sectional overhead doors for warehouses, loading areas, and vehicle openings.",
+      "imageAlt": "Illustration of a sectional overhead door",
+      "overviewTitle": "Panels, track, and springs sized to the vehicle opening.",
+      "overviewText": "A sectional overhead door is a stack of horizontal panels that travel up and back on tracks. Springs, cables, track, and the operator are part of the door, not add-ons chosen after the panels arrive. Gateway supplies and installs the sectional door for warehouse and vehicle openings.",
+      "supportText": "Rolling steel doors are a separate product: a curtain that coils above the opening. They have their own page. This page is the sectional door.",
+      "capabilities": {
+        "performance": "Panels, track, and counterbalance installed so the door stays on the track.",
+        "coordination": "Coordination with the headroom, the sideroom, and the specified operator or chain hoist.",
+        "handoff": "Balance, travel limits, and safety edges checked before the door is left in service."
+      },
+      "applications": {
+        "secureAreas": "Warehouse and loading openings that need a sectional door",
+        "retrofits": "Replacement of sectional doors with failed springs, track, or panels",
+        "facilities": "Warehouses, service buildings, and vehicle bays",
+        "hardware": "Operators, chain hoists, and safety edges specified with the door"
+      },
+      "facts": {
+        "one": "Headroom and sideroom decide whether a standard lift or a special track is required.",
+        "two": "Springs are matched to the door weight. A door that is hard to lift is not left that way.",
+        "three": "This is not a rolling steel door and it is not a security grille."
+      }
+    },
+    "highSpeedDoors": {
+      "metaTitle": "High-Speed Doors | Gateway Door Systems",
+      "metaDescription": "High-speed doors for production, cold storage, and openings that cycle often, across NY, NJ, and PA.",
+      "title": "High-Speed Doors",
+      "description": "High-cycle doors for production, cold storage, and other openings that need to move quickly.",
+      "imageAlt": "Illustration of a high-speed door",
+      "overviewTitle": "A door that cycles all day, not a dock door left open.",
+      "overviewText": "High-speed doors are for openings that open and close many times an hour: production lines, cold storage, and rooms that cannot sit open. The curtain, the side guides, and the control are one system. Gateway supplies and installs that system.",
+      "supportText": "These doors are not a substitute for a sectional dock door or a rolling fire curtain. The model is the one named for the cycle, the opening size, and the room condition.",
+      "capabilities": {
+        "performance": "Curtain and guides installed so the door cycles without leaving the guides.",
+        "coordination": "Coordination with the opening size, the power, and the activation the facility will use.",
+        "handoff": "Limits, reversing, and the specified activation checked before turnover."
+      },
+      "applications": {
+        "secureAreas": "Openings between production, cold storage, and conditioned rooms",
+        "retrofits": "Replacement of high-cycle doors that no longer reverse or track",
+        "facilities": "Manufacturing, food, and warehouse operations",
+        "hardware": "Controls, activation, and safety devices specified with the door"
+      },
+      "facts": {
+        "one": "The door is selected for how often it cycles and for the temperature difference at the opening.",
+        "two": "Power and the activation device are coordinated before installation, not after the curtain is hung.",
+        "three": "A high-speed door does not replace a sectional overhead door or a rolling steel service door."
+      }
+    },
+    "rollingSteel": {
+      "metaTitle": "Rolling Steel Doors | Gateway Door Systems",
+      "metaDescription": "Rolling steel doors for service and industrial openings across NY, NJ, and PA.",
+      "title": "Rolling Steel Doors",
+      "description": "Rolling steel doors for service and industrial openings that need a curtain coiled above the opening.",
+      "imageAlt": "Illustration of a rolling steel door",
+      "overviewTitle": "A steel curtain that coils in the header.",
+      "overviewText": "A rolling steel door is a curtain of steel slats that coils above the opening. It is used where a sectional door will not fit, or where the opening needs a compact stack. Guides, the barrel, the hood, and the operator or chain are part of the door. Gateway supplies and installs that assembly.",
+      "supportText": "A fire-rated curtain is supplied only when the project documents name that rating. A security grille is a different product and has its own page.",
+      "capabilities": {
+        "performance": "Curtain, guides, and counterbalance installed so the door travels evenly.",
+        "coordination": "Coordination with header space, the hood projection, and the specified operation.",
+        "handoff": "Travel, locking, and manual or motor operation checked before turnover."
+      },
+      "applications": {
+        "secureAreas": "Service openings and industrial doors that coil overhead",
+        "retrofits": "Replacement of rolling doors with damaged curtains or barrels",
+        "facilities": "Warehouses, loading areas, and service buildings",
+        "hardware": "Chain hoists, motors, and locks specified with the curtain"
+      },
+      "facts": {
+        "one": "The curtain coils above the opening, so the header has to accept the barrel and hood.",
+        "two": "This is a solid steel curtain, not the open pattern of a security grille.",
+        "three": "A fire rating is installed only when that rating is named in the project documents."
+      }
+    },
+    "dockEquipment": {
+      "metaTitle": "Dock Equipment | Gateway Door Systems",
+      "metaDescription": "Dock levelers, seals, and shelters for loading docks across NY, NJ, and PA.",
+      "title": "Dock Equipment",
+      "description": "Dock levelers, seals, shelters, and related equipment at the loading dock.",
+      "imageAlt": "Illustration of a dock leveler at a truck",
+      "overviewTitle": "The dock is the leveler, the seal, and the opening around them.",
+      "overviewText": "Loading-dock work is the equipment that meets the truck: the leveler that bridges the height, and the seal or shelter that closes the gap around the trailer. Gateway supplies and installs that equipment with the dock opening, not as an unrelated add-on.",
+      "supportText": "The sectional or rolling door at the same opening is specified on its own page. This page is the dock equipment.",
+      "capabilities": {
+        "performance": "Leveler and seal or shelter installed to the pit, the dock height, and the trailer range.",
+        "coordination": "Coordination with the dock pit, the door above the opening, and the bumpers.",
+        "handoff": "Leveler travel and the seal or shelter fit checked before the dock is used."
+      },
+      "applications": {
+        "secureAreas": "Loading docks at warehouses and distribution buildings",
+        "retrofits": "Replacement of levelers, seals, and shelters that no longer meet the trailer",
+        "facilities": "Warehouses, plants, and commercial loading areas",
+        "hardware": "Leveler controls and the specified seal or shelter"
+      },
+      "facts": {
+        "one": "A leveler bridges the height between the dock and the trailer bed.",
+        "two": "A seal or shelter closes the gap around the trailer. They are different pieces and both can be on the same dock.",
+        "three": "The door above the dock is a separate assembly: sectional, rolling steel, or high-speed."
+      }
+    },
+    "securityEquipment": {
+      "metaTitle": "Security Equipment | Gateway Door Systems",
+      "metaDescription": "Locks, access hardware, and security equipment coordinated with door openings across NY, NJ, and PA.",
+      "title": "Security Equipment",
+      "description": "Access hardware, locks, and related security equipment coordinated with the opening.",
+      "imageAlt": "Illustration of a door with an access reader and a lock",
+      "overviewTitle": "The lock and the reader belong to the opening.",
+      "overviewText": "Security equipment on this page is the hardware that controls the door: locks, exit devices, electric strikes, and access readers specified with the opening. Gateway supplies and installs that hardware with the door and frame, including products from Allegion when that is the specified line.",
+      "supportText": "Specific Allegion brand lines are confirmed with each project. This page does not add cameras, alarms, or other systems that are not already part of the door hardware scope.",
+      "capabilities": {
+        "performance": "Locks and strikes installed so the door latches and releases as specified.",
+        "coordination": "Coordination with the door prep, the power, and the access control the facility uses.",
+        "handoff": "Latch, release, and the specified credential path checked at the opening."
+      },
+      "applications": {
+        "secureAreas": "Doors that need a specified lock or access reader",
+        "retrofits": "Replacement of locks and strikes on existing openings",
+        "facilities": "Commercial, institutional, and controlled buildings",
+        "hardware": "Mechanical locks, exit devices, electric strikes, and access readers"
+      },
+      "facts": {
+        "one": "The hardware is prepared with the door, not forced onto a leaf that was not prepped for it.",
+        "two": "Allegion products are supplied and installed when that manufacturer is the specified line.",
+        "three": "Brand names inside the Allegion family are confirmed on the project. They are not listed here."
+      }
+    },
+    "pipeBollards": {
+      "metaTitle": "Pipe Bollards | Gateway Door Systems",
+      "metaDescription": "Pipe bollards for impact protection at doors, docks, and equipment across NY, NJ, and PA.",
+      "title": "Pipe Bollards",
+      "description": "Pipe bollards and impact protection around doors, docks, and equipment.",
+      "imageAlt": "Illustration of pipe bollards",
+      "overviewTitle": "Posts that keep vehicles off the opening and the equipment.",
+      "overviewText": "Pipe bollards are set where a vehicle, cart, or pallet jack would otherwise hit a door, a dock, or a piece of equipment. Gateway supplies and installs the bollards in the locations shown on the drawings, with the embed or the base plate the specification calls for.",
+      "supportText": "Bollards are impact protection. They are not a vehicle barrier rating unless the project documents name a rated bollard.",
+      "capabilities": {
+        "performance": "Posts set at the spacing and height shown for the opening or the equipment.",
+        "coordination": "Coordination with the slab, the dock approach, and the door swing.",
+        "handoff": "Alignment and the specified finish checked before turnover."
+      },
+      "applications": {
+        "secureAreas": "Approaches to doors, docks, and equipment that get hit",
+        "retrofits": "Replacement of bent or missing bollards",
+        "facilities": "Warehouses, loading areas, and commercial sites",
+        "hardware": "Embedded posts or base-plated posts as specified"
+      },
+      "facts": {
+        "one": "Bollards are placed so they protect the opening without blocking the door swing or the dock approach.",
+        "two": "The embed or the base plate follows the detail on the drawings.",
+        "three": "A pipe bollard on this page is not presented as a crash-rated barrier unless the specification says so."
+      }
+    },
+    "bathroomPartitions": {
+      "metaTitle": "Bathroom Partitions | Gateway Door Systems",
+      "metaDescription": "Toilet partitions and restroom compartments for commercial and institutional buildings across NY, NJ, and PA.",
+      "title": "Bathroom Partitions",
+      "description": "Toilet partitions and restroom compartments for commercial and institutional buildings.",
+      "imageAlt": "Illustration of restroom partitions",
+      "overviewTitle": "Compartments laid out to the restroom, not forced into it.",
+      "overviewText": "Bathroom partitions are the panels, pilasters, doors, and hardware that divide a commercial restroom into compartments. Floor-mounted and overhead-braced layouts are used when that is what the drawings show. Gateway supplies and installs the compartments.",
+      "supportText": "Material, mounting, and hardware finish follow the specification. This is restroom compartment work, coordinated with the doors and the rooms around it.",
+      "capabilities": {
+        "performance": "Panels, pilasters, and doors installed plumb, with hardware that latches.",
+        "coordination": "Coordination with the stall layout, the floor or overhead support, and the specified material.",
+        "handoff": "Door swing, latches, and occupancy hardware checked in each compartment."
+      },
+      "applications": {
+        "secureAreas": "Commercial and institutional restrooms",
+        "retrofits": "Replacement of damaged or outdated compartments",
+        "facilities": "Offices, schools, healthcare, and public buildings",
+        "hardware": "Hinges, latches, and coat hooks specified with the compartments"
+      },
+      "facts": {
+        "one": "Each compartment is a panel layout, a door, and the hardware that latches it.",
+        "two": "Floor-mounted and overhead-braced mounting follow the restroom drawings.",
+        "three": "The material and finish are the ones named in the specification."
       }
     }
   },

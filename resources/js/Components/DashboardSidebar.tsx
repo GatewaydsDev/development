@@ -15,6 +15,7 @@ import {
     ClipboardListIcon,
     ClockIcon,
     FileSpreadsheetIcon,
+    RulerIcon,
     HardHatIcon,
     IdCardIcon,
     LayoutDashboardIcon,
@@ -87,6 +88,7 @@ export default function DashboardSidebar({
     const canViewProjects = Boolean(can.viewProjects);
     const canViewBids = Boolean(can.viewBids);
     const canViewQuotations = Boolean(can.viewQuotations);
+    const canViewTakeoffs = Boolean(can.viewTakeoffs);
     const canViewProducts = Boolean(can.viewProducts);
     const canViewServices = Boolean(can.viewServices);
     const canViewContractors = Boolean(can.viewContractors);
@@ -147,6 +149,16 @@ export default function DashboardSidebar({
                               href: route('admin.quotations.index'),
                               icon: FileSpreadsheetIcon,
                               active: isRouteActive('admin.quotations.*'),
+                          },
+                      ]
+                    : []),
+                ...(canViewTakeoffs
+                    ? [
+                          {
+                              title: 'Takeoffs',
+                              href: route('admin.takeoffs.index'),
+                              icon: RulerIcon,
+                              active: isRouteActive('admin.takeoffs.*'),
                           },
                       ]
                     : []),

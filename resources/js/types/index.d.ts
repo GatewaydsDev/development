@@ -104,6 +104,13 @@ export type PageProps<
             createEmployees: boolean;
             updateEmployees: boolean;
             deleteEmployees: boolean;
+            viewTakeoffs: boolean;
+            createTakeoffs: boolean;
+            updateTakeoffs: boolean;
+            approveTakeoffs: boolean;
+            viewTakeoffPricing: boolean;
+            exportTakeoffs: boolean;
+            convertTakeoffs: boolean;
         };
         notifications: {
             unreadCount: number;

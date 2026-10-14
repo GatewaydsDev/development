@@ -11,6 +11,7 @@ use App\Support\ProjectAccess;
 use App\Support\QuotationAccess;
 use App\Support\QuotationRevisionAssignments;
 use App\Support\ServiceAccess;
+use App\Support\TakeoffAccess;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -79,6 +80,7 @@ class HandleInertiaRequests extends Middleware
                 'createdTextField' => $request->session()->get('created_text_field'),
             ],
             'companyPhoneNumber' => $company?->contact_phone_number,
+            'companyEmail' => $company?->email,
             'session' => [
                 'idleTimeoutMinutes' => max(0, (int) config('session.idle_timeout_minutes')),
             ],
@@ -203,6 +205,27 @@ class HandleInertiaRequests extends Middleware
                         : false,
                     'deleteEmployees' => $request->user()
                         ? EmployeeAccess::canDelete($request->user())
+                        : false,
+                    'viewTakeoffs' => $request->user()
+                        ? TakeoffAccess::canView($request->user())
+                        : false,
+                    'createTakeoffs' => $request->user()
+                        ? TakeoffAccess::canCreate($request->user())
+                        : false,
+                    'updateTakeoffs' => $request->user()
+                        ? TakeoffAccess::canUpdate($request->user())
+                        : false,
+                    'approveTakeoffs' => $request->user()
+                        ? TakeoffAccess::canApprove($request->user())
+                        : false,
+                    'viewTakeoffPricing' => $request->user()
+                        ? TakeoffAccess::canViewPricing($request->user())
+                        : false,
+                    'exportTakeoffs' => $request->user()
+                        ? TakeoffAccess::canExport($request->user())
+                        : false,
+                    'convertTakeoffs' => $request->user()
+                        ? TakeoffAccess::canConvert($request->user())
                         : false,
                 ],
                 'notifications' => $request->user() && Gate::forUser($request->user())->allows('manage-notifications')

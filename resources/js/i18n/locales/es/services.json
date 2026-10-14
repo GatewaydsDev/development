@@ -12,12 +12,12 @@
     "processBadge": "Proceso de instalación",
     "processTitle": "Diseñado alrededor de toda la apertura.",
     "processDescription": "Cada página de servicio se enfoca en el conjunto instalado, porque la puerta, el marco, los herrajes, los sellos y las condiciones alrededor afectan el rendimiento.",
-    "primaryCta": "Solicitar cotización",
+    "primaryCta": "Solicitar cotización para este sistema",
     "secondaryCta": "Ver todos los servicios",
     "ctaEyebrow": "Planifica tu proyecto",
     "ctaTitle": "¿Necesitas ayuda para elegir la puerta, apertura o equipo adecuado?",
     "ctaDescription": "Gateway puede revisar la apertura, el tipo de puerta, el equipo, los requisitos de herrajes y las condiciones del proyecto antes de iniciar la instalación.",
-    "ctaButton": "Comenzar con una cotización",
+    "ctaButton": "Solicitar cotización para este sistema",
     "capabilityTitles": {
       "performance": "Detalles de rendimiento",
       "coordination": "Coordinación del proyecto",
@@ -30,7 +30,7 @@
       "metaDescription": "Instalación de hollow metal, storefront de aluminio, rejas de seguridad, puertas seccionales, de alta velocidad y de acero enrollable en NY, NJ y PA.",
       "title": "Puertas comerciales",
       "description": "Sistemas de puertas cotidianos e industriales para oficinas, almacenes, storefronts y áreas de carga — instalados en el mismo catálogo de Gateway que las aperturas especiales.",
-      "imageAlt": "Instalación de puertas comerciales en una apertura de instalación activa",
+      "imageAlt": "Ilustración de puertas comerciales y un storefront",
       "overviewTitle": "Más que aperturas especiales",
       "overviewText": "Hollow metal, storefront, rejas y puertas overhead son el trabajo que la mayoría de los edificios comerciales necesitan primero. Gateway instala estos sistemas con la misma atención al ajuste, herrajes y uso diario que las aperturas de alta seguridad por las que somos conocidos.",
       "supportText": "Usa esta página para revisar los tipos de puertas comerciales que instalamos. Envía una revisión de proyecto si necesitas puertas comerciales y aperturas especiales en el mismo trabajo."
@@ -40,7 +40,7 @@
       "metaDescription": "Instalación de equipo de muelle, equipo de seguridad, bolardos y particiones de baño para edificios comerciales e institucionales en NY, NJ y PA.",
       "title": "Equipo de instalaciones",
       "description": "Equipo de muelle, equipo de seguridad, bolardos y particiones de baño que completan el edificio alrededor de la puerta — no solo la apertura.",
-      "imageAlt": "Equipo de instalaciones alrededor de un área comercial de carga y acceso",
+      "imageAlt": "Ilustración de equipo de muelle y bolardos",
       "overviewTitle": "El trabajo alrededor de la apertura",
       "overviewText": "Muchos trabajos necesitan más que una puerta. El equipo de muelle, bolardos, herrajes de seguridad y particiones de baño forman parte del mismo paquete. Gateway coordina ese trabajo para que la apertura y el área alrededor se instalen juntas.",
       "supportText": "Usa esta página para revisar el equipo de instalaciones que instalamos. Envía una revisión de proyecto si tu alcance incluye puertas y equipo relacionado."
@@ -52,9 +52,9 @@
       "metaDescription": "Construcción de salas SCIF para instalaciones de información compartimentada sensible. Gateway Door Systems construye salas SCIF e instala las puertas, marcos, sellos y herrajes que esas aperturas requieren en NY, NJ y PA.",
       "title": "Construcción de salas SCIF",
       "description": "Construcción certificada de salas SCIF e instalación de los sistemas de puertas seguras usados en instalaciones de información compartimentada sensible y otros espacios de acceso controlado.",
-      "imageAlt": "Construcción de salas SCIF e instalación de puertas de alta seguridad en una instalación de acceso controlado",
+      "imageAlt": "Ilustración de una puerta de cuarto controlado",
       "overviewTitle": "La construcción de salas SCIF depende de que cada apertura cumpla la especificación.",
-      "overviewText": "Las instalaciones de información compartimentada sensible requieren más que una puerta clasificada. La construcción de salas SCIF cubre el recinto, el control acústico y electromagnético en la puerta, y los herrajes que mantienen el acceso diario confiable. Gateway Door Systems construye salas SCIF e instala las puertas, marcos, sellos, bisagras, cerraduras y componentes preparados para control de acceso que completan esas aperturas.",
+      "overviewText": "La apertura de un SCIF forma parte del cuarto, no es un pedido de puerta aparte. El control acústico, el control de radiofrecuencia cuando la especificación lo pide, y la cerradura se encuentran en el marco. Gateway construye el alcance de cuarto SCIF descrito en este sitio e instala las puertas, marcos, sellos y herrajes que esas aperturas requieren.",
       "supportText": "Apoyamos proyectos de obra nueva y modernización para gobierno, soporte de defensa y otras instalaciones sensibles. Nuestro trabajo certificado de construcción de salas SCIF se coordina con los conjuntos de puertas RF, acústicas y de alta seguridad especificados, en lugar de tratar la apertura como un detalle aparte.",
       "capabilities": {
         "performance": "Construcción de la sala y la apertura alineada con las especificaciones del proyecto para seguridad acústica, RF y física en la puerta.",
@@ -66,6 +66,11 @@
         "retrofits": "Actualizaciones donde las salas o aperturas existentes ya no cumplen los requisitos SCIF o de seguridad actuales",
         "facilities": "Edificios gubernamentales, de apoyo a la defensa y operaciones comerciales sensibles en NY, NJ y PA",
         "hardware": "Conjuntos combinados con cerraduras de alta seguridad, puertas clasificadas RF, control de acceso y herrajes de cierre seguro"
+      },
+      "facts": {
+        "one": "La puerta se coordina con la envolvente del cuarto, incluidos los sellos y la cerradura especificada.",
+        "two": "Krieger publica un paquete de puerta y cerradura SCIF para grupos de sonido NCSC, con opción de agregar blindaje de radiofrecuencia y preparación de cerradura de fábrica.",
+        "three": "Gateway instala el conjunto indicado en los documentos del proyecto. El grupo de sonido y cualquier requisito de RF son los de esa especificación."
       }
     },
     "radioFrequencyDoors": {
@@ -73,7 +78,7 @@
       "metaDescription": "Instalación profesional de puertas con blindaje de radiofrecuencia para aperturas con control EMI, espacios relacionados con TEMPEST e instalaciones que necesitan rendimiento confiable en la puerta.",
       "title": "Instalación de puertas de radiofrecuencia",
       "description": "Instalación de conjuntos de puertas con blindaje RF donde la contención electromagnética, el sellado perimetral y el acceso seguro diario deben funcionar juntos en la apertura.",
-      "imageAlt": "Puerta especial con blindaje de radiofrecuencia instalada en una apertura de instalación segura",
+      "imageAlt": "Ilustración de una puerta RF con sello conductor",
       "overviewTitle": "El rendimiento del blindaje depende de cómo se construye y ajusta toda la apertura.",
       "overviewText": "Las puertas de radiofrecuencia están diseñadas para reducir la energía electromagnética que atraviesa el vano de la puerta—desde campos magnéticos en frecuencias bajas hasta rangos de microondas más altos, según el conjunto especificado. Esa intención solo se mantiene cuando la hoja, el marco, las juntas, el umbral y los herrajes quedan alineados y sellados como un solo sistema. Gateway instala estas aperturas especiales con atención a la presión de contacto, las holguras y la coordinación con la construcción RF o blindada circundante.",
       "supportText": "Apoyamos proyectos de obra nueva y modernización donde los equipos necesitan puertas clasificadas RF para salas seguras, espacios técnicos, entornos de datos y otras áreas de acceso controlado. Nuestro rol es la instalación: ajustamos y ponemos en servicio la apertura alrededor del sistema de puerta RF especificado, sin fabricar productos de blindaje.",
@@ -113,17 +118,22 @@
             "description": "Operadores, cierrapuertas y cierre seguro integrados en la instalación."
           }
         }
+      },
+      "facts": {
+        "one": "El sello conductor de cobre, el marco y el umbral mantienen el blindaje continuo alrededor de la puerta.",
+        "two": "Krieger publica puertas y ventanas con blindaje RF, incluidas puertas híbridas que combinan blindaje con una clasificación acústica, y visores blindados.",
+        "three": "El nivel de blindaje del proyecto es el del conjunto especificado. Gateway ajusta y pone en servicio ese conjunto en obra."
       }
     },
     "soundTransmission": {
       "metaTitle": "Instalación de Sound Transmission Doors | Gateway Door Systems",
       "metaDescription": "Instalación de Sound Transmission doors para aperturas que necesitan mejor control acústico y operación segura.",
       "title": "Instalación de Sound Transmission Doors",
-      "description": "Instalación de puertas especiales para espacios donde el rendimiento acústico, los sellos y los herrajes confiables deben trabajar juntos.",
-      "imageAlt": "Puerta comercial especial instalada para control de transmisión de sonido",
-      "overviewTitle": "Un mejor control acústico empieza con toda la apertura.",
-      "overviewText": "Las Sound Transmission doors dependen de más que la hoja de la puerta. El ajuste del marco, los sellos perimetrales, los sellos inferiores, los umbrales y los herrajes influyen en el desempeño de la apertura.",
-      "supportText": "Gateway instala conjuntos de puertas con enfoque acústico para oficinas, áreas seguras, cuartos mecánicos, espacios operativos y modernizaciones.",
+      "description": "Puertas y ventanas acústicas suministradas e instaladas para que la apertura, los sellos y el vidrio controlen juntos la transmisión de sonido.",
+      "imageAlt": "Ilustración de una puerta acústica y una ventana acústica",
+      "overviewTitle": "El control de sonido depende de la puerta y de la ventana, no solo de la hoja.",
+      "overviewText": "Una apertura acústica es la puerta o la ventana, el marco, los sellos perimetrales y los herrajes que mantienen esos sellos en contacto. Una holgura en la parte inferior o un tope flojo anula la clasificación del conjunto especificado. Gateway suministra e instala estas aperturas para oficinas, escuelas, espacios de presentación, cuartos mecánicos y áreas controladas.",
+      "supportText": "Las ventanas acústicas correspondientes forman parte del mismo trabajo: marcos fijos y ventanas corredizas usadas donde un cuarto de control todavía necesita vista y una forma de comunicarse.",
       "capabilities": {
         "performance": "Atención al contacto de sellos, holguras, ajuste de herrajes y cierre.",
         "coordination": "Coordinación con componentes STC especificados y condiciones del sitio.",
@@ -134,6 +144,11 @@
         "retrofits": "Aperturas existentes que necesitan mejor control de sonido",
         "facilities": "Instalaciones comerciales, institucionales y operativas",
         "hardware": "Conjuntos con cierrapuertas, sellos y herrajes de cierre"
+      },
+      "facts": {
+        "one": "La puerta, el marco, los sellos perimetrales y el sello inferior automático se instalan como una sola apertura de control de sonido.",
+        "two": "Krieger publica puertas y ventanas acústicas para escuelas, espacios de presentación, oficinas y edificios de gobierno, incluidas ventanas corredizas para cuartos de control.",
+        "three": "Krieger publica ventanas acústicas de hasta STC 56 y paquetes de puerta SCIF para grupos de sonido publicados. Gateway instala el conjunto indicado en la especificación."
       }
     },
     "bullet": {
@@ -141,9 +156,9 @@
       "metaDescription": "Instalación de puertas resistentes a impactos balísticos para instalaciones comerciales, gubernamentales y de acceso controlado.",
       "title": "Instalación de puertas Bullet",
       "description": "Soporte de instalación para puertas, marcos y herrajes seguros resistentes a impactos balísticos en instalaciones que requieren mayor protección.",
-      "imageAlt": "Puerta especial reforzada instalada para protección resistente a impactos balísticos",
+      "imageAlt": "Ilustración de una puerta antibalas con núcleo en capas",
       "overviewTitle": "Los conjuntos de protección necesitan instalación precisa.",
-      "overviewText": "Las aperturas Bullet requieren atención al conjunto completo, incluyendo puerta, marco, anclaje, vidrio cuando aplica y herrajes. La instalación debe respetar el sistema especificado y las condiciones de la apertura.",
+      "overviewText": "Una apertura antibalas es la puerta, el marco, los anclajes y el vidrio cuando una ventana o un visor forma parte del conjunto. Esas piezas tienen que ser el conjunto especificado. Gateway instala ese conjunto para instalaciones comerciales, de gobierno y de acceso controlado.",
       "supportText": "Gateway apoya a equipos de instalaciones seguras con instalación y reemplazo de sistemas de puertas protectoras en entornos controlados.",
       "capabilities": {
         "performance": "Prácticas de instalación alineadas con puertas, marcos y herrajes reforzados.",
@@ -155,6 +170,11 @@
         "retrofits": "Actualizaciones de aperturas estándar a conjuntos reforzados",
         "facilities": "Instalaciones comerciales, públicas y sensibles",
         "hardware": "Puertas protectoras con cerraduras, cierrapuertas y herrajes de acceso"
+      },
+      "facts": {
+        "one": "Puertas, marcos, ventanas y aperturas relacionadas, como ventanillas de transacción, se instalan como el conjunto de protección especificado.",
+        "two": "Krieger publica puertas y ventanas antibalas, incluidas puertas acústicas que pueden incluir una clasificación UL 752.",
+        "three": "El nivel de protección es el del submittal. Gateway instala ese conjunto y no asigna la clasificación."
       }
     },
     "blast": {
@@ -162,9 +182,9 @@
       "metaDescription": "Instalación de puertas Blast para aperturas especiales, conjuntos reforzados e instalaciones seguras.",
       "title": "Instalación de puertas Blast",
       "description": "Instalación especializada para aperturas que requieren conjuntos reforzados resistentes a explosiones y acceso seguro confiable.",
-      "imageAlt": "Puerta especial reforzada instalada para aplicaciones resistentes a explosiones",
+      "imageAlt": "Ilustración de una puerta reforzada resistente a explosión",
       "overviewTitle": "Las aperturas Blast exigen coordinación cuidadosa.",
-      "overviewText": "Los conjuntos de puertas Blast se diseñan alrededor de requisitos específicos de rendimiento. Gateway se enfoca en detalles de instalación que afectan ajuste, anclaje, apertura, operación de herrajes y confiabilidad a largo plazo.",
+      "overviewText": "Las puertas de explosión y presión se especifican cuando una apertura debe ayudar a proteger a las personas y la propiedad de una explosión o un evento de presión. La puerta, el marco, los anclajes y los herrajes son un solo conjunto. Gateway instala el conjunto indicado en los documentos del proyecto.",
       "supportText": "Apoyamos a equipos de proyecto que instalan o reemplazan puertas reforzadas en instalaciones donde la apertura debe alinearse con la intención de protección.",
       "capabilities": {
         "performance": "Instalación de puerta, marco, anclaje y herrajes para conjuntos reforzados.",
@@ -176,6 +196,11 @@
         "retrofits": "Reemplazo de puertas reforzadas antiguas o dañadas",
         "facilities": "Espacios industriales, gubernamentales y de operaciones críticas",
         "hardware": "Conjuntos que requieren herrajes seguros coordinados"
+      },
+      "facts": {
+        "one": "La apertura incluye la puerta reforzada, el marco, los anclajes y los herrajes especificados para ese requisito de presión o explosión.",
+        "two": "Krieger publica puertas y ventanas de explosión y presión para criterios comerciales, de gobierno e industriales.",
+        "three": "Las ventanas pueden especificarse con el mismo requisito. El criterio de explosión o presión sigue siendo el escrito en los documentos del proyecto."
       }
     },
     "oversizedAssemblies": {
@@ -183,7 +208,7 @@
       "metaDescription": "Instalación de Oversized Assemblies para aperturas especiales grandes, marcos reforzados e instalaciones comerciales.",
       "title": "Instalación de Oversized Assemblies",
       "description": "Instalación precisa para puertas especiales de gran formato, marcos reforzados y aperturas sobredimensionadas que necesitan operación confiable.",
-      "imageAlt": "Conjunto de puerta especial grande instalado en una instalación comercial",
+      "imageAlt": "Ilustración de un par de puertas de gran formato",
       "overviewTitle": "Las aperturas grandes necesitan instalación disciplinada.",
       "overviewText": "Los Oversized Assemblies agregan complejidad en manipulación, alineación, soporte de marco, holguras y herrajes. Gateway planifica la instalación según el tamaño de la apertura y el uso diario de la puerta.",
       "supportText": "Instalamos puertas especiales sobredimensionadas para proyectos comerciales, industriales, seguros y de modernización donde un enfoque estándar no es suficiente.",
@@ -197,6 +222,11 @@
         "retrofits": "Reemplazo de puertas y marcos grandes desgastados",
         "facilities": "Instalaciones comerciales, industriales, bodegas y operaciones",
         "hardware": "Bisagras, cierrapuertas, cerraduras y barras de salida de alta resistencia"
+      },
+      "facts": {
+        "one": "Las puertas especiales de gran formato se fabrican para la apertura, no para un tamaño de catálogo estándar.",
+        "two": "Krieger fabrica puertas y ventanas especiales en el tamaño solicitado, incluidos conjuntos que combinan desempeño acústico, balístico, de explosión o de radiofrecuencia.",
+        "three": "Gateway planifica el manejo, el soporte del marco, las holguras y los herrajes pesados para que la apertura grande cierre y asegure."
       }
     },
     "hurricaneAndTornado": {
@@ -204,7 +234,7 @@
       "metaDescription": "Instalación de puertas Hurricane and Tornado para aperturas clasificadas para tormentas, conjuntos reforzados e instalaciones resilientes.",
       "title": "Instalación de puertas Hurricane and Tornado",
       "description": "Instalación de puertas clasificadas para tormentas en instalaciones que necesitan aperturas más fuertes ante clima severo.",
-      "imageAlt": "Puerta reforzada clasificada para tormentas instalada para protección ante clima severo",
+      "imageAlt": "Ilustración de una puerta para tormenta",
       "overviewTitle": "Las aperturas clasificadas para tormentas protegen solo si se instalan correctamente.",
       "overviewText": "Los conjuntos Hurricane and Tornado dependen de la relación entre puerta, marco, anclaje, herrajes y estructura alrededor. Gateway instala estos sistemas con atención al ajuste, fijación y uso diario.",
       "supportText": "Apoyamos a equipos comerciales y de instalaciones que actualizan aperturas para preparación ante clima severo, resiliencia y acceso seguro.",
@@ -218,6 +248,11 @@
         "retrofits": "Actualizaciones para clima severo en sistemas existentes",
         "facilities": "Edificios comerciales, institucionales y operativos",
         "hardware": "Puertas clasificadas con herrajes de cierre seguros"
+      },
+      "facts": {
+        "one": "Un conjunto para tormenta es la puerta, el marco, los anclajes y los herrajes especificados para trabajar juntos.",
+        "two": "Krieger publica conjuntos de puerta para huracán y tornado fabricados en el tamaño y el acabado solicitados para la apertura.",
+        "three": "Gateway instala el conjunto de tormenta especificado para que la apertura siga funcionando en el uso diario."
       }
     },
     "forcedEntryDoors": {
@@ -225,9 +260,9 @@
       "metaDescription": "Instalación de Forced Entry doors para áreas de acceso controlado, aperturas reforzadas e instalaciones comerciales seguras.",
       "title": "Instalación de Forced Entry Doors",
       "description": "Sistemas de puertas seguras instalados para resistir el acceso no autorizado y proteger áreas controladas, equipos y espacios sensibles.",
-      "imageAlt": "Puerta de acceso seguro instalada para resistencia contra entrada forzada",
+      "imageAlt": "Ilustración de una puerta con cerradura contra entrada forzada",
       "overviewTitle": "La seguridad depende de toda la apertura.",
-      "overviewText": "Las Forced Entry doors requieren coordinación entre puerta, marco, anclaje, cerraduras, bisagras, cierrapuertas y herrajes de acceso. Gateway instala la apertura completa con enfoque en resistencia, ajuste y operación confiable.",
+      "overviewText": "Una apertura contra entrada forzada es la puerta, el marco, las bisagras, la cerradura y el cierrapuertas especificados para resistir un ataque, no un cierrapuertas común en una puerta hollow metal. Gateway instala ese conjunto y coordina los herrajes de acceso con él.",
       "supportText": "Ayudamos a instalaciones comerciales y seguras a reemplazar aperturas vulnerables por conjuntos más fuertes diseñados para acceso controlado.",
       "capabilities": {
         "performance": "Soporte de instalación para puerta, marco, bisagras, cerradura y cierrapuertas reforzados.",
@@ -239,6 +274,271 @@
         "retrofits": "Actualizaciones de seguridad para aperturas débiles o dañadas",
         "facilities": "Edificios comerciales, gubernamentales, bodegas y uso crítico",
         "hardware": "Cerraduras, barras antipánico, cerraduras eléctricas, maglocks y herrajes de acceso"
+      },
+      "facts": {
+        "one": "Las bisagras, cerraduras, cierrapuertas y anclajes se instalan con la puerta y el marco especificados para la apertura.",
+        "two": "Krieger publica conjuntos de puerta y ventana contra entrada forzada y balísticos, incluidos conjuntos descritos frente a una prueba de entrada forzada del Departamento de Estado de EE. UU.",
+        "three": "Gateway instala el conjunto indicado en la especificación. El nivel de prueba es el de ese submittal."
+      }
+    },
+    "hollowMetal": {
+      "metaTitle": "Puertas hollow metal | Gateway Door Systems",
+      "metaDescription": "Puertas y marcos hollow metal para oficinas, pasillos, escaleras y cuartos de servicio en NY, NJ y PA.",
+      "title": "Puertas hollow metal",
+      "description": "Puertas y marcos hollow metal suministrados e instalados para oficinas, pasillos, escaleras y cuartos de servicio.",
+      "imageAlt": "Ilustración de una puerta y marco hollow metal",
+      "overviewTitle": "La apertura de acero de uso diario, instalada como un marco completo.",
+      "overviewText": "Hollow metal es la puerta y el marco que la mayoría de los edificios comerciales usan en oficinas, escaleras y cuartos de servicio. La hoja, el marco, las bisagras y la cerradura tienen que quedar a escuadra. Un marco torcido o una bisagra fuera de plano se nota la primera semana de uso.",
+      "supportText": "Gateway suministra e instala estas aperturas, incluidos visores cuando la especificación los pide. Una clasificación contra fuego se usa solo cuando esa clasificación está nombrada en los documentos del proyecto.",
+      "capabilities": {
+        "performance": "Puerta, marco y herrajes instalados a escuadra, con holguras que permiten que la puerta asegure.",
+        "coordination": "Coordinación con el tipo de muro, la cerradura especificada, el cierrapuertas y cualquier visor o preparación eléctrica.",
+        "handoff": "Giro, cierre y cierrapuertas revisados antes de entregar la apertura."
+      },
+      "applications": {
+        "secureAreas": "Escaleras, pasillos y cuartos que necesitan una puerta de acero y no un blindaje especial",
+        "retrofits": "Reemplazo de puertas y marcos hollow metal dañados",
+        "facilities": "Oficinas, escuelas, salud y edificios comerciales en NY, NJ y PA",
+        "hardware": "Bisagras, cerraduras, cierrapuertas y herrajes de salida especificados para la apertura"
+      },
+      "facts": {
+        "one": "El marco se instala con el muro para que la puerta cierre sin arrastrar ni quedarse abierta.",
+        "two": "Los herrajes son la cerradura, el cierrapuertas y las bisagras indicados para esa apertura. Los productos Allegion se suministran cuando esa es la línea especificada.",
+        "three": "El hollow metal con clasificación contra fuego se instala cuando los documentos del proyecto nombran esa clasificación. Una foto de puerta de acero no se trata como una clasificación contra fuego."
+      }
+    },
+    "aluminumStorefront": {
+      "metaTitle": "Storefront de aluminio | Gateway Door Systems",
+      "metaDescription": "Puertas, marcos y vidrio de storefront de aluminio para entradas y vestíbulos comerciales en NY, NJ y PA.",
+      "title": "Storefront de aluminio",
+      "description": "Puertas, marcos y vidrio de storefront para entradas comerciales, vestíbulos y fachadas.",
+      "imageAlt": "Ilustración de una entrada de storefront",
+      "overviewTitle": "La entrada son las puertas, el marco y el vidrio.",
+      "overviewText": "Una apertura de storefront es el marco de aluminio, el vidrio y las puertas de entrada que la gente usa todo el día. Los laterales, los tragaluces y un vestíbulo forman parte del mismo conjunto cuando los planos los muestran. Gateway suministra e instala esa entrada.",
+      "supportText": "Estos son sistemas comerciales de storefront, distintos de las ventanas acústicas y balísticas de las otras páginas. Los herrajes son la cerradura, el cierrapuertas y el pivote o la bisagra especificados para la entrada.",
+      "capabilities": {
+        "performance": "Puertas que giran o corren según lo especificado, con vidrio y marco alineados a la apertura.",
+        "coordination": "Coordinación con el alzado del storefront, los umbrales y los herrajes de la hoja activa.",
+        "handoff": "Cierre, cierrapuertas y sellos revisados en la entrada."
+      },
+      "applications": {
+        "secureAreas": "Vestíbulos y entradas que conducen a un lobby controlado",
+        "retrofits": "Reemplazo de puertas y marcos de storefront desgastados",
+        "facilities": "Comercio, oficinas, escuelas y lobbies comerciales",
+        "hardware": "Cerraduras, cierrapuertas, pivotes y herrajes de salida para las puertas de entrada"
+      },
+      "facts": {
+        "one": "La apertura típica es un par de puertas con laterales, o una puerta sencilla en un storefront enmarcado.",
+        "two": "El vidrio, el marco y la hoja se piden según el alzado, no se recortan para ocultar un tamaño incorrecto.",
+        "three": "El alcance de puerta y ventana en esta página es el storefront comercial. El vidrio acústico o balístico especial se especifica en su propia página."
+      }
+    },
+    "securityGrilles": {
+      "metaTitle": "Rejas de seguridad | Gateway Door Systems",
+      "metaDescription": "Rejas de seguridad enrollables y corredizas para storefronts y protección fuera de horario en NY, NJ y PA.",
+      "title": "Rejas de seguridad",
+      "description": "Rejas de seguridad enrollables y corredizas para storefronts, pasillos comerciales y protección fuera de horario.",
+      "imageAlt": "Ilustración de una reja de seguridad",
+      "overviewTitle": "Una reja protege la apertura sin reemplazar el storefront.",
+      "overviewText": "Las rejas de seguridad bajan o corren sobre una apertura fuera de horario. Son un producto distinto de una puerta de acero enrollable: la cortina es una reja abierta, y el storefront o la apertura detrás permanece. Gateway suministra e instala la reja, las guías y el operador o la cerradura especificados.",
+      "supportText": "Use una reja donde la apertura todavía debe verse, como un storefront o un pasillo comercial. Use una puerta de acero enrollable donde la apertura necesita una cortina sólida.",
+      "capabilities": {
+        "performance": "Guías, cortina y cerradura u operador instalados para que la reja viaje sin trabarse.",
+        "coordination": "Coordinación con la apertura del storefront, el espacio del dintel y el lado de la cerradura.",
+        "handoff": "Recorrido, cierre y operación manual revisados antes de la entrega."
+      },
+      "applications": {
+        "secureAreas": "Storefronts y mostradores que siguen visibles fuera de horario",
+        "retrofits": "Reemplazo de rejas que ya no viajan o no cierran",
+        "facilities": "Comercio, pasillos y lobbies comerciales",
+        "hardware": "Cerraduras, motores y controles especificados con la reja"
+      },
+      "facts": {
+        "one": "Las rejas enrollables se recogen sobre la apertura. Las corredizas viajan hacia un lado.",
+        "two": "La reja no sustituye un conjunto antibalas, de explosión o acústico.",
+        "three": "La holgura del dintel y el lado de la cerradura se confirman antes de pedir la reja."
+      }
+    },
+    "overheadSectional": {
+      "metaTitle": "Puertas seccionales overhead | Gateway Door Systems",
+      "metaDescription": "Puertas seccionales overhead para almacenes, áreas de carga y aperturas de vehículos en NY, NJ y PA.",
+      "title": "Puertas seccionales overhead",
+      "description": "Puertas seccionales overhead para almacenes, áreas de carga y aperturas de vehículos.",
+      "imageAlt": "Ilustración de una puerta seccional overhead",
+      "overviewTitle": "Paneles, riel y resortes dimensionados para la apertura del vehículo.",
+      "overviewText": "Una puerta seccional overhead es una pila de paneles horizontales que suben y retroceden sobre rieles. Los resortes, los cables, el riel y el operador forman parte de la puerta, no son añadidos elegidos después de que llegan los paneles. Gateway suministra e instala la puerta seccional para aperturas de almacén y de vehículos.",
+      "supportText": "Las puertas de acero enrollable son un producto aparte: una cortina que se enrolla sobre la apertura. Tienen su propia página. Esta página es la puerta seccional.",
+      "capabilities": {
+        "performance": "Paneles, riel y contrapeso instalados para que la puerta se mantenga en el riel.",
+        "coordination": "Coordinación con el espacio superior, el espacio lateral y el operador o el polipasto especificados.",
+        "handoff": "Balance, límites de recorrido y bordes de seguridad revisados antes de dejar la puerta en servicio."
+      },
+      "applications": {
+        "secureAreas": "Aperturas de almacén y de carga que necesitan una puerta seccional",
+        "retrofits": "Reemplazo de puertas seccionales con resortes, riel o paneles fallados",
+        "facilities": "Almacenes, edificios de servicio y bahías de vehículos",
+        "hardware": "Operadores, polipastos de cadena y bordes de seguridad especificados con la puerta"
+      },
+      "facts": {
+        "one": "El espacio superior y el lateral deciden si se requiere un levante estándar o un riel especial.",
+        "two": "Los resortes se igualan al peso de la puerta. Una puerta difícil de levantar no se deja así.",
+        "three": "Esta no es una puerta de acero enrollable ni una reja de seguridad."
+      }
+    },
+    "highSpeedDoors": {
+      "metaTitle": "Puertas de alta velocidad | Gateway Door Systems",
+      "metaDescription": "Puertas de alta velocidad para producción, almacenamiento en frío y aperturas de ciclo frecuente en NY, NJ y PA.",
+      "title": "Puertas de alta velocidad",
+      "description": "Puertas de alto ciclo para producción, almacenamiento en frío y otras aperturas que deben moverse rápido.",
+      "imageAlt": "Ilustración de una puerta de alta velocidad",
+      "overviewTitle": "Una puerta que cicla todo el día, no una puerta de muelle dejada abierta.",
+      "overviewText": "Las puertas de alta velocidad son para aperturas que se abren y cierran muchas veces por hora: líneas de producción, almacenamiento en frío y cuartos que no pueden quedarse abiertos. La cortina, las guías laterales y el control son un sistema. Gateway suministra e instala ese sistema.",
+      "supportText": "Estas puertas no sustituyen una puerta seccional de muelle ni una cortina contra fuego enrollable. El modelo es el indicado para el ciclo, el tamaño de la apertura y la condición del cuarto.",
+      "capabilities": {
+        "performance": "Cortina y guías instaladas para que la puerta cicle sin salirse de las guías.",
+        "coordination": "Coordinación con el tamaño de la apertura, la energía y la activación que usará la instalación.",
+        "handoff": "Límites, reversa y la activación especificada revisados antes de la entrega."
+      },
+      "applications": {
+        "secureAreas": "Aperturas entre producción, almacenamiento en frío y cuartos acondicionados",
+        "retrofits": "Reemplazo de puertas de alto ciclo que ya no revierten o no siguen la guía",
+        "facilities": "Manufactura, alimentos y operaciones de almacén",
+        "hardware": "Controles, activación y dispositivos de seguridad especificados con la puerta"
+      },
+      "facts": {
+        "one": "La puerta se selecciona por la frecuencia del ciclo y por la diferencia de temperatura en la apertura.",
+        "two": "La energía y el dispositivo de activación se coordinan antes de la instalación, no después de colgar la cortina.",
+        "three": "Una puerta de alta velocidad no reemplaza una puerta seccional overhead ni una puerta de servicio de acero enrollable."
+      }
+    },
+    "rollingSteel": {
+      "metaTitle": "Puertas de acero enrollable | Gateway Door Systems",
+      "metaDescription": "Puertas de acero enrollable para aperturas de servicio e industriales en NY, NJ y PA.",
+      "title": "Puertas de acero enrollable",
+      "description": "Puertas de acero enrollable para aperturas de servicio e industriales que necesitan una cortina recogida sobre la apertura.",
+      "imageAlt": "Ilustración de una puerta de acero enrollable",
+      "overviewTitle": "Una cortina de acero que se enrolla en el dintel.",
+      "overviewText": "Una puerta de acero enrollable es una cortina de lamas de acero que se enrolla sobre la apertura. Se usa donde una puerta seccional no cabe, o donde la apertura necesita un paquete compacto. Las guías, el eje, la cubierta y el operador o la cadena forman parte de la puerta. Gateway suministra e instala ese conjunto.",
+      "supportText": "Una cortina con clasificación contra fuego se suministra solo cuando los documentos del proyecto nombran esa clasificación. Una reja de seguridad es un producto distinto y tiene su propia página.",
+      "capabilities": {
+        "performance": "Cortina, guías y contrapeso instalados para que la puerta viaje pareja.",
+        "coordination": "Coordinación con el espacio del dintel, la proyección de la cubierta y la operación especificada.",
+        "handoff": "Recorrido, cierre y operación manual o motorizada revisados antes de la entrega."
+      },
+      "applications": {
+        "secureAreas": "Aperturas de servicio y puertas industriales que se enrollan arriba",
+        "retrofits": "Reemplazo de puertas enrollables con cortinas o ejes dañados",
+        "facilities": "Almacenes, áreas de carga y edificios de servicio",
+        "hardware": "Polipastos de cadena, motores y cerraduras especificados con la cortina"
+      },
+      "facts": {
+        "one": "La cortina se enrolla sobre la apertura, así que el dintel tiene que aceptar el eje y la cubierta.",
+        "two": "Esta es una cortina sólida de acero, no el patrón abierto de una reja de seguridad.",
+        "three": "Una clasificación contra fuego se instala solo cuando esa clasificación está nombrada en los documentos del proyecto."
+      }
+    },
+    "dockEquipment": {
+      "metaTitle": "Equipo de muelle | Gateway Door Systems",
+      "metaDescription": "Niveladores, sellos y shelters de muelle para docks de carga en NY, NJ y PA.",
+      "title": "Equipo de muelle",
+      "description": "Niveladores, sellos, shelters y equipo relacionado en el muelle de carga.",
+      "imageAlt": "Ilustración de un nivelador de muelle frente a un camión",
+      "overviewTitle": "El muelle es el nivelador, el sello y la apertura alrededor.",
+      "overviewText": "El trabajo de muelle es el equipo que encuentra al camión: el nivelador que salva la altura, y el sello o shelter que cierra el hueco alrededor del tráiler. Gateway suministra e instala ese equipo con la apertura del muelle, no como un añadido aparte.",
+      "supportText": "La puerta seccional o enrollable de la misma apertura se especifica en su propia página. Esta página es el equipo de muelle.",
+      "capabilities": {
+        "performance": "Nivelador y sello o shelter instalados según el foso, la altura del muelle y el rango del tráiler.",
+        "coordination": "Coordinación con el foso del muelle, la puerta sobre la apertura y los topes.",
+        "handoff": "Recorrido del nivelador y el ajuste del sello o shelter revisados antes de usar el muelle."
+      },
+      "applications": {
+        "secureAreas": "Muelles de carga en almacenes y edificios de distribución",
+        "retrofits": "Reemplazo de niveladores, sellos y shelters que ya no encuentran el tráiler",
+        "facilities": "Almacenes, plantas y áreas de carga comerciales",
+        "hardware": "Controles del nivelador y el sello o shelter especificado"
+      },
+      "facts": {
+        "one": "Un nivelador salva la altura entre el muelle y la cama del tráiler.",
+        "two": "Un sello o un shelter cierra el hueco alrededor del tráiler. Son piezas distintas y ambas pueden estar en el mismo muelle.",
+        "three": "La puerta sobre el muelle es un conjunto aparte: seccional, acero enrollable o alta velocidad."
+      }
+    },
+    "securityEquipment": {
+      "metaTitle": "Equipo de seguridad | Gateway Door Systems",
+      "metaDescription": "Cerraduras, herrajes de acceso y equipo de seguridad coordinado con aperturas en NY, NJ y PA.",
+      "title": "Equipo de seguridad",
+      "description": "Herrajes de acceso, cerraduras y equipo de seguridad relacionado, coordinados con la apertura.",
+      "imageAlt": "Ilustración de una puerta con lector de acceso y cerradura",
+      "overviewTitle": "La cerradura y el lector pertenecen a la apertura.",
+      "overviewText": "El equipo de seguridad en esta página es el herraje que controla la puerta: cerraduras, herrajes de salida, cerraderos eléctricos y lectores de acceso especificados con la apertura. Gateway suministra e instala ese herraje con la puerta y el marco, incluidos productos de Allegion cuando esa es la línea especificada.",
+      "supportText": "Las líneas específicas de marcas Allegion se confirman con cada proyecto. Esta página no agrega cámaras, alarmas u otros sistemas que no formen parte del alcance de herrajes de la puerta.",
+      "capabilities": {
+        "performance": "Cerraduras y cerraderos instalados para que la puerta asegure y libere según lo especificado.",
+        "coordination": "Coordinación con la preparación de la puerta, la energía y el control de acceso que usa la instalación.",
+        "handoff": "Cierre, liberación y la ruta de credencial especificada revisados en la apertura."
+      },
+      "applications": {
+        "secureAreas": "Puertas que necesitan una cerradura o un lector de acceso especificados",
+        "retrofits": "Reemplazo de cerraduras y cerraderos en aperturas existentes",
+        "facilities": "Edificios comerciales, institucionales y controlados",
+        "hardware": "Cerraduras mecánicas, herrajes de salida, cerraderos eléctricos y lectores de acceso"
+      },
+      "facts": {
+        "one": "El herraje se prepara con la puerta, no se fuerza en una hoja que no fue preparada para él.",
+        "two": "Los productos Allegion se suministran e instalan cuando ese fabricante es la línea especificada.",
+        "three": "Los nombres de marca dentro de la familia Allegion se confirman en el proyecto. No se listan aquí."
+      }
+    },
+    "pipeBollards": {
+      "metaTitle": "Bolardos | Gateway Door Systems",
+      "metaDescription": "Bolardos de tubo para protección contra impacto en puertas, muelles y equipo en NY, NJ y PA.",
+      "title": "Bolardos",
+      "description": "Bolardos de tubo y protección contra impacto alrededor de puertas, muelles y equipo.",
+      "imageAlt": "Ilustración de bolardos de tubo",
+      "overviewTitle": "Postes que mantienen los vehículos fuera de la apertura y del equipo.",
+      "overviewText": "Los bolardos de tubo se colocan donde un vehículo, un carro o un montacargas golpearían una puerta, un muelle o un equipo. Gateway suministra e instala los bolardos en los lugares que muestran los planos, con el empotramiento o la placa base que pide la especificación.",
+      "supportText": "Los bolardos son protección contra impacto. No son una clasificación de barrera vehicular salvo que los documentos del proyecto nombren un bolardo clasificado.",
+      "capabilities": {
+        "performance": "Postes colocados en la separación y la altura indicadas para la apertura o el equipo.",
+        "coordination": "Coordinación con la losa, el acceso al muelle y el giro de la puerta.",
+        "handoff": "Alineación y el acabado especificado revisados antes de la entrega."
+      },
+      "applications": {
+        "secureAreas": "Accesos a puertas, muelles y equipo que reciben golpes",
+        "retrofits": "Reemplazo de bolardos doblados o faltantes",
+        "facilities": "Almacenes, áreas de carga y sitios comerciales",
+        "hardware": "Postes empotrados o con placa base, según lo especificado"
+      },
+      "facts": {
+        "one": "Los bolardos se colocan para proteger la apertura sin bloquear el giro de la puerta ni el acceso al muelle.",
+        "two": "El empotramiento o la placa base siguen el detalle de los planos.",
+        "three": "Un bolardo de tubo en esta página no se presenta como una barrera contra impacto clasificada salvo que la especificación lo diga."
+      }
+    },
+    "bathroomPartitions": {
+      "metaTitle": "Particiones de baño | Gateway Door Systems",
+      "metaDescription": "Particiones de sanitario y compartimentos para edificios comerciales e institucionales en NY, NJ y PA.",
+      "title": "Particiones de baño",
+      "description": "Particiones de sanitario y compartimentos para edificios comerciales e institucionales.",
+      "imageAlt": "Ilustración de particiones de baño",
+      "overviewTitle": "Compartimentos dispuestos según el baño, no forzados dentro de él.",
+      "overviewText": "Las particiones de baño son los paneles, pilastras, puertas y herrajes que dividen un baño comercial en compartimentos. Los montajes al piso y con refuerzo superior se usan cuando eso es lo que muestran los planos. Gateway suministra e instala los compartimentos.",
+      "supportText": "El material, el montaje y el acabado de los herrajes siguen la especificación. Este es trabajo de compartimentos de baño, coordinado con las puertas y los cuartos alrededor.",
+      "capabilities": {
+        "performance": "Paneles, pilastras y puertas instalados a plomo, con herrajes que cierran.",
+        "coordination": "Coordinación con la distribución de los cubículos, el soporte al piso o superior, y el material especificado.",
+        "handoff": "Giro de la puerta, pasadores y herrajes de ocupación revisados en cada compartimento."
+      },
+      "applications": {
+        "secureAreas": "Baños comerciales e institucionales",
+        "retrofits": "Reemplazo de compartimentos dañados o desactualizados",
+        "facilities": "Oficinas, escuelas, salud y edificios públicos",
+        "hardware": "Bisagras, pasadores y ganchos especificados con los compartimentos"
+      },
+      "facts": {
+        "one": "Cada compartimento es una distribución de paneles, una puerta y los herrajes que la aseguran.",
+        "two": "El montaje al piso y el refuerzo superior siguen los planos del baño.",
+        "three": "El material y el acabado son los nombrados en la especificación."
       }
     }
   },

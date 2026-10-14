@@ -22,7 +22,20 @@ const themeOptions: Array<{
     { value: 'system', labelKey: 'theme.system', icon: MonitorIcon },
 ];
 
-export default function ThemeModeToggle() {
+const darkHeaderTriggerClass =
+    'border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white aria-expanded:bg-white/20 aria-expanded:text-white dark:border-white/30 dark:bg-white/10 dark:text-white dark:hover:bg-white/20 dark:hover:text-white';
+
+const darkHeaderMenuClass =
+    'border border-[#111827]/10 bg-white text-[#111827] dark:bg-white dark:text-[#111827]';
+
+const darkHeaderItemClass =
+    'text-[#111827] focus:bg-[#F3F4F6] focus:text-[#111827] focus:**:text-[#111827] data-[highlighted]:bg-[#F3F4F6] data-[highlighted]:text-[#111827]';
+
+export default function ThemeModeToggle({
+    onDarkHeader = false,
+}: {
+    onDarkHeader?: boolean;
+}) {
     const { t } = useTranslation('common');
     const { theme, setTheme } = useTheme();
     const activeTheme = themeOptions.find((option) => option.value === theme);
@@ -35,6 +48,7 @@ export default function ThemeModeToggle() {
                 className={cn(
                     buttonVariants({ variant: 'outline', size: 'sm' }),
                     'gap-1.5',
+                    onDarkHeader && darkHeaderTriggerClass,
                 )}
             >
                 <ActiveIcon data-icon="inline-start" />
@@ -46,14 +60,26 @@ export default function ThemeModeToggle() {
                     data-icon="inline-end"
                 />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" sideOffset={8} className="w-44">
-                <DropdownMenuLabel>{t('theme.label')}</DropdownMenuLabel>
+            <DropdownMenuContent
+                align="end"
+                sideOffset={8}
+                className={cn('w-44', onDarkHeader && darkHeaderMenuClass)}
+            >
+                <DropdownMenuLabel
+                    className={onDarkHeader ? 'text-[#111827]/60' : undefined}
+                >
+                    {t('theme.label')}
+                </DropdownMenuLabel>
                 <DropdownMenuRadioGroup
                     value={theme}
                     onValueChange={(value) => setTheme(value as ThemeMode)}
                 >
                     {themeOptions.map(({ value, labelKey, icon: Icon }) => (
-                        <DropdownMenuRadioItem key={value} value={value}>
+                        <DropdownMenuRadioItem
+                            key={value}
+                            value={value}
+                            className={onDarkHeader ? darkHeaderItemClass : undefined}
+                        >
                             <Icon data-icon="inline-start" />
                             {t(labelKey)}
                         </DropdownMenuRadioItem>

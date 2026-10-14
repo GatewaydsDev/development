@@ -104,6 +104,13 @@ class UserPrivileges
             'createEmployees' => self::granted($user, 'create-employees'),
             'updateEmployees' => self::granted($user, 'update-employees'),
             'deleteEmployees' => self::granted($user, 'delete-employees'),
+            'viewTakeoffs' => TakeoffAccess::canView($user),
+            'createTakeoffs' => TakeoffAccess::canCreate($user),
+            'updateTakeoffs' => TakeoffAccess::canUpdate($user),
+            'approveTakeoffs' => TakeoffAccess::canApprove($user),
+            'viewTakeoffPricing' => TakeoffAccess::canViewPricing($user),
+            'exportTakeoffs' => TakeoffAccess::canExport($user),
+            'convertTakeoffs' => TakeoffAccess::canConvert($user),
         ];
     }
 
@@ -142,6 +149,14 @@ class UserPrivileges
             'create-employees' => EmployeeAccess::canCreate($user),
             'update-employees' => EmployeeAccess::canUpdate($user),
             'delete-employees' => EmployeeAccess::canDelete($user),
+            'view-takeoffs' => TakeoffAccess::canView($user),
+            'create-takeoffs' => TakeoffAccess::canCreate($user),
+            'update-takeoffs' => TakeoffAccess::canUpdate($user),
+            'delete-takeoffs' => TakeoffAccess::canDelete($user),
+            'approve-takeoffs' => TakeoffAccess::canApprove($user),
+            'view-takeoff-pricing' => TakeoffAccess::canViewPricing($user),
+            'export-takeoffs' => TakeoffAccess::canExport($user),
+            'convert-takeoffs' => TakeoffAccess::canConvert($user),
             default => true,
         };
     }

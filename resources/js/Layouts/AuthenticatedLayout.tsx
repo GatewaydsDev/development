@@ -31,6 +31,7 @@ import {
     ChevronDownIcon,
     ClipboardListIcon,
     FileSpreadsheetIcon,
+    RulerIcon,
     HardHatIcon,
     IdCardIcon,
     ListIcon,
@@ -198,6 +199,8 @@ export default function Authenticated({
     const canCreateBids = Boolean(auth.can?.createBids);
     const canViewQuotations = Boolean(auth.can?.viewQuotations);
     const canCreateQuotations = Boolean(auth.can?.createQuotations);
+    const canViewTakeoffs = Boolean(auth.can?.viewTakeoffs);
+    const canCreateTakeoffs = Boolean(auth.can?.createTakeoffs);
     const canViewProducts = Boolean(auth.can?.viewProducts);
     const canCreateProducts = Boolean(auth.can?.createProducts);
     const canViewServices = Boolean(auth.can?.viewServices);
@@ -209,6 +212,7 @@ export default function Authenticated({
     const canOpenProjects = canViewProjects || canCreateProjects;
     const canOpenBids = canViewBids || canCreateBids;
     const canOpenQuotations = canViewQuotations || canCreateQuotations;
+    const canOpenTakeoffs = canViewTakeoffs || canCreateTakeoffs;
     const canOpenProducts = canViewProducts || canCreateProducts;
     const canOpenServices = canViewServices || canCreateServices;
     const canOpenContractors = canViewContractors || canCreateContractors;
@@ -217,6 +221,7 @@ export default function Authenticated({
         canOpenProjects ||
         canOpenBids ||
         canOpenQuotations ||
+        canOpenTakeoffs ||
         canOpenProducts ||
         canOpenServices;
     const canOpenPeople =
@@ -720,6 +725,24 @@ export default function Authenticated({
                                                 )}
                                                 createActive={route().current(
                                                     'admin.quotations.create',
+                                                )}
+                                            />
+                                            <MobileAdminResource
+                                                label="Takeoffs"
+                                                icon={RulerIcon}
+                                                canView={canViewTakeoffs}
+                                                canCreate={canCreateTakeoffs}
+                                                viewHref={route(
+                                                    'admin.takeoffs.index',
+                                                )}
+                                                createHref={route(
+                                                    'admin.takeoffs.create',
+                                                )}
+                                                viewActive={route().current(
+                                                    'admin.takeoffs.index',
+                                                )}
+                                                createActive={route().current(
+                                                    'admin.takeoffs.create',
                                                 )}
                                             />
                                             <MobileAdminResource

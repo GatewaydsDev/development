@@ -1,10 +1,78 @@
 {
   "meta": {
-    "title": "Puertas comerciales, aperturas especiales y equipo de instalaciones",
-    "description": "Gateway Door Systems instala puertas comerciales, aperturas especiales y equipo de instalaciones—incluidos sistemas SCIF y RF certificados—en NY, NJ y PA."
+    "title": "Puertas y ventanas especiales — suministro e instalación",
+    "description": "Soluciones de puertas y ventanas para proyectos comerciales, industriales y de especialidad. Gateway Door Systems suministra e instala en el área tri-estatal."
   },
   "serviceArea": {
     "banner": "Orgullosamente sirviendo el área tri-estatal: NY · NJ · PA"
+  },
+  "publicSite": {
+    "hero": {
+      "title": "Puertas y ventanas especiales — suministro e instalación",
+      "support": "Soluciones de puertas y ventanas para proyectos comerciales, industriales y de especialidad. Orgullosamente al servicio del área tri-estatal.",
+      "quote": "Solicitar cotización",
+      "explore": "Ver puertas y ventanas",
+      "imageAlt": "Ilustración de una puerta comercial con un panel de visión estrecho"
+    },
+    "strip": {
+      "specialty": "Soluciones de puertas y ventanas especiales",
+      "supply": "Suministro e instalación",
+      "area": "Servicio tri-estatal: NY, NJ y PA",
+      "credential": "La capacitación en herrajes de seguridad de Lockmasters está en nuestra página de certificaciones."
+    },
+    "categories": {
+      "title": "Puertas y ventanas",
+      "description": "Estas categorías corresponden a sistemas de puertas y ventanas que ya se ofrecen en este sitio.",
+      "view": "Ver detalles",
+      "acoustic": {
+        "title": "Puertas y ventanas acústicas",
+        "description": "Aperturas especiales instaladas para ayudar a controlar la transmisión de sonido."
+      },
+      "security": {
+        "title": "Puertas de seguridad y especialidad",
+        "description": "Sistemas de puertas seguras para aperturas controladas y resistencia al ingreso no autorizado."
+      },
+      "hollowMetal": {
+        "title": "Puertas de hollow metal",
+        "description": "Puertas y marcos de hollow metal para oficinas, pasillos, escaleras y cuartos de servicio.",
+        "imageAlt": "Ilustración de una puerta y marco hollow metal"
+      },
+      "storefront": {
+        "title": "Puertas y ventanas de storefront",
+        "description": "Puertas y marcos de storefront para entradas comerciales, vestíbulos y fachadas."
+      },
+      "overhead": {
+        "title": "Puertas overhead y enrollables",
+        "description": "Puertas seccionales overhead para almacenes y aperturas de vehículos. Las puertas de acero enrollable tienen su propia página."
+      },
+      "dock": {
+        "title": "Equipo de muelle",
+        "description": "Niveladores, sellos, shelters y equipo relacionado en el muelle de carga."
+      }
+    },
+    "manufacturers": {
+      "title": "Fabricantes",
+      "description": "Suministramos e instalamos productos de Allegion y Krieger.",
+      "note": "Las líneas específicas de Allegion se confirman en cada proyecto. No se publican logotipos de marca aprobados aquí."
+    },
+    "projects": {
+      "title": "Proyectos",
+      "description": "No se publican fotos de instalaciones con nombre en este sitio. Gateway suministra e instala puertas y ventanas especiales para trabajo comercial e industrial en Nueva York, Nueva Jersey y Pensilvania."
+    },
+    "process": {
+      "title": "Cómo funciona",
+      "plansTitle": "Envíe sus planos",
+      "plansText": "Comparta la información del proyecto, los planos o las especificaciones.",
+      "reviewTitle": "Revise su propuesta",
+      "reviewText": "Revise el alcance y el precio propuestos.",
+      "installTitle": "Coordine el suministro y la instalación",
+      "installText": "Coordine los productos seleccionados y los requisitos de instalación."
+    },
+    "quote": {
+      "title": "Solicitar cotización",
+      "description": "Indique la ubicación del proyecto, si necesita puertas, ventanas o ambas, y una descripción breve. Este formulario no admite carga de planos.",
+      "button": "Solicitar cotización"
+    }
   },
   "hero": {
     "badge": "Puertas especiales e instalación comercial completa",

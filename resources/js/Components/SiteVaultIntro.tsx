@@ -56,7 +56,15 @@ function Gear({
 
 export default function SiteVaultIntro() {
     const { t } = useTranslation('common');
-    const [visible, setVisible] = useState(() => isSiteVaultIntroPending());
+    const [visible, setVisible] = useState(() => {
+        const pending = isSiteVaultIntroPending();
+
+        if (pending) {
+            markSiteVaultIntroSeen();
+        }
+
+        return pending;
+    });
     const [isActive, setIsActive] = useState(false);
     const [isFading, setIsFading] = useState(false);
 

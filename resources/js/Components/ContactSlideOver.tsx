@@ -40,6 +40,9 @@ type ToastState = {
 };
 
 const projectTypes = [
+    'doors',
+    'windows',
+    'both',
     'secureDoorInstallation',
     'scifRelatedOpening',
     'commercialDoors',
@@ -108,7 +111,6 @@ export default function ContactSlideOver({
         reset,
         setError,
         setFocus,
-        setValue,
         clearErrors,
         formState: { errors },
     } = useForm<ContactFormData>({
@@ -129,7 +131,12 @@ export default function ContactSlideOver({
         mode: 'onChange',
     });
 
-    const openForm = useCallback(() => {
+    const openForm = useCallback((event?: Event) => {
+        const projectType =
+            event instanceof CustomEvent &&
+            typeof event.detail?.projectType === 'string'
+                ? event.detail.projectType
+                : '';
         setWasSubmitted(false);
         clearErrors();
         reset({
@@ -140,7 +147,7 @@ export default function ContactSlideOver({
             address: '',
             state: '',
             country: 'US',
-            project_type: '',
+            project_type: projectType,
             message: '',
             source_url: window.location.href,
             website: '',

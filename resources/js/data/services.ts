@@ -1,3 +1,4 @@
+import { serviceVisuals } from '@/data/serviceVisuals';
 import {
     BombIcon,
     Building2Icon,
@@ -51,10 +52,20 @@ export type ServiceGroupDefinition = {
 };
 
 type ServiceImages = {
-    hero: string;
-    detail: string;
-    support: string;
+    hero: string | null;
+    detail: string | null;
+    support: string | null;
 };
+
+function serviceImages(key: CatalogItemKey): ServiceImages {
+    const visual = serviceVisuals[key];
+
+    return {
+        hero: visual.hero,
+        detail: visual.detail,
+        support: null,
+    };
+}
 
 export type CatalogItem = {
     key: CatalogItemKey;
@@ -65,7 +76,6 @@ export type CatalogItem = {
 };
 
 type ServiceDefinition = CatalogItem & {
-    key: ServiceKey;
     slug: string;
     images: ServiceImages;
 };
@@ -82,146 +92,132 @@ export const catalogItems: CatalogItem[] = [
         group: 'specialty',
         slug: 'scif-rooms-construction',
         Icon: Building2Icon,
-        images: {
-            hero: '/images/certification-scif.webp',
-            detail: '/images/high-security-reinforced-door.jpeg',
-            support: '/images/high-security-door-row.jpeg',
-        },
+        images: serviceImages('scifRoomsConstruction'),
     },
     {
         key: 'radioFrequencyDoors',
         group: 'specialty',
         slug: 'radio-frequency-doors',
         Icon: RadioTowerIcon,
-        images: {
-            hero: '/images/radio-frequency-hero.png',
-            detail: '/images/Gateway-Radio-Frequency.png',
-            support: '/images/Radio_Frequency_Doors.png',
-        },
+        images: serviceImages('radioFrequencyDoors'),
     },
     {
         key: 'soundTransmission',
         group: 'specialty',
         slug: 'sound-transmission',
         Icon: Volume2Icon,
-        images: {
-            hero: '/images/rf_door_0_1.webp',
-            detail: '/images/rf_door_0_2.webp',
-            support: '/images/rf_door_0_3.webp',
-        },
+        images: serviceImages('soundTransmission'),
     },
     {
         key: 'bullet',
         group: 'specialty',
         slug: 'bullet-resistant-doors',
         Icon: ShieldIcon,
-        images: {
-            hero: '/images/rf_door_0_2.webp',
-            detail: '/images/rf_door_0_3.webp',
-            support: '/images/rf_door_1_0.webp',
-        },
+        images: serviceImages('bullet'),
     },
     {
         key: 'blast',
         group: 'specialty',
         slug: 'blast-resistant-doors',
         Icon: BombIcon,
-        images: {
-            hero: '/images/rf_door_0_3.webp',
-            detail: '/images/rf_door_1_0.webp',
-            support: '/images/rf_door_1_1.webp',
-        },
+        images: serviceImages('blast'),
     },
     {
         key: 'oversizedAssemblies',
         group: 'specialty',
         slug: 'oversized-door-assemblies',
         Icon: ExpandIcon,
-        images: {
-            hero: '/images/rf_door_1_0.webp',
-            detail: '/images/rf_door_1_1.webp',
-            support: '/images/rf_door_1_2.webp',
-        },
+        images: serviceImages('oversizedAssemblies'),
     },
     {
         key: 'hurricaneAndTornado',
         group: 'specialty',
         slug: 'hurricane-tornado-doors',
         Icon: CloudLightningIcon,
-        images: {
-            hero: '/images/rf_door_1_1.webp',
-            detail: '/images/rf_door_1_2.webp',
-            support: '/images/rf_door_1_3.webp',
-        },
+        images: serviceImages('hurricaneAndTornado'),
     },
     {
         key: 'forcedEntryDoors',
         group: 'specialty',
         slug: 'forced-entry-doors',
         Icon: LockKeyholeIcon,
-        images: {
-            hero: '/images/rf_door_1_2.webp',
-            detail: '/images/rf_door_1_3.webp',
-            support: '/images/rf_door_0_0.webp',
-        },
+        images: serviceImages('forcedEntryDoors'),
     },
     {
         key: 'hollowMetal',
         group: 'commercial',
+        slug: 'hollow-metal-doors',
         Icon: DoorClosedIcon,
+        images: serviceImages('hollowMetal'),
     },
     {
         key: 'aluminumStorefront',
         group: 'commercial',
+        slug: 'aluminum-storefront',
         Icon: StoreIcon,
+        images: serviceImages('aluminumStorefront'),
     },
     {
         key: 'securityGrilles',
         group: 'commercial',
+        slug: 'security-grilles',
         Icon: Grid3x3Icon,
+        images: serviceImages('securityGrilles'),
     },
     {
         key: 'overheadSectional',
         group: 'commercial',
+        slug: 'overhead-sectional-doors',
         Icon: WarehouseIcon,
+        images: serviceImages('overheadSectional'),
     },
     {
         key: 'highSpeedDoors',
         group: 'commercial',
+        slug: 'high-speed-doors',
         Icon: GaugeIcon,
+        images: serviceImages('highSpeedDoors'),
     },
     {
         key: 'rollingSteel',
         group: 'commercial',
+        slug: 'rolling-steel-doors',
         Icon: LayersIcon,
+        images: serviceImages('rollingSteel'),
     },
     {
         key: 'dockEquipment',
         group: 'equipment',
+        slug: 'dock-equipment',
         Icon: ForkliftIcon,
+        images: serviceImages('dockEquipment'),
     },
     {
         key: 'securityEquipment',
         group: 'equipment',
+        slug: 'security-equipment',
         Icon: VideoIcon,
+        images: serviceImages('securityEquipment'),
     },
     {
         key: 'pipeBollards',
         group: 'equipment',
+        slug: 'pipe-bollards',
         Icon: CylinderIcon,
+        images: serviceImages('pipeBollards'),
     },
     {
         key: 'bathroomPartitions',
         group: 'equipment',
+        slug: 'bathroom-partitions',
         Icon: LayoutPanelLeftIcon,
+        images: serviceImages('bathroomPartitions'),
     },
 ];
 
 export const serviceDefinitions = catalogItems.filter(
     (item): item is ServiceDefinition =>
-        item.group === 'specialty' &&
-        typeof item.slug === 'string' &&
-        item.images !== undefined,
+        typeof item.slug === 'string' && item.images !== undefined,
 );
 
 export const serviceDefinitionsByKey = serviceDefinitions.reduce(
@@ -229,7 +225,7 @@ export const serviceDefinitionsByKey = serviceDefinitions.reduce(
         ...services,
         [service.key]: service,
     }),
-    {} as Record<ServiceKey, ServiceDefinition>,
+    {} as Record<CatalogItemKey, ServiceDefinition>,
 );
 
 export const serviceGroupByKey = serviceGroups.reduce(
@@ -242,6 +238,18 @@ export const serviceGroupByKey = serviceGroups.reduce(
 
 export function catalogItemsForGroup(group: ServiceGroupKey): CatalogItem[] {
     return catalogItems.filter((item) => item.group === group);
+}
+
+export function quoteInterestForService(key: string): 'doors' | 'windows' | 'both' {
+    if (
+        key === 'soundTransmission' ||
+        key === 'aluminumStorefront' ||
+        key === 'commercial'
+    ) {
+        return 'both';
+    }
+
+    return 'doors';
 }
 
 export function catalogItemHref(item: CatalogItem): string {

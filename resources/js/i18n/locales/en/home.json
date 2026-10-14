@@ -1,10 +1,78 @@
 {
   "meta": {
-    "title": "Commercial Doors, Specialty Openings & Facility Equipment",
-    "description": "Gateway Door Systems installs commercial doors, specialty openings, and facility equipment—including certified SCIF and RF systems—across NY, NJ, and PA."
+    "title": "Specialty Doors & Windows — Supply and Installation",
+    "description": "Door and window solutions for commercial, industrial, and specialty projects. Gateway Door Systems supplies and installs across the tri-state area."
   },
   "serviceArea": {
     "banner": "Proudly serving the tri-state area: NY · NJ · PA"
+  },
+  "publicSite": {
+    "hero": {
+      "title": "Specialty Doors & Windows — Supply and Installation",
+      "support": "Door and window solutions for commercial, industrial, and specialty projects. Proudly serving the tri-state area.",
+      "quote": "Request a Quote",
+      "explore": "Explore Doors & Windows",
+      "imageAlt": "Illustration of a commercial door with a narrow vision panel"
+    },
+    "strip": {
+      "specialty": "Specialty door and window solutions",
+      "supply": "Supply and installation",
+      "area": "Tri-state service: NY, NJ, and PA",
+      "credential": "Lockmasters security hardware training is listed on our certifications page."
+    },
+    "categories": {
+      "title": "Doors & Windows",
+      "description": "Categories below match door and window systems already offered on this site.",
+      "view": "View Details",
+      "acoustic": {
+        "title": "Acoustic Doors & Windows",
+        "description": "Specialty openings fitted to help manage sound transfer."
+      },
+      "security": {
+        "title": "Security & Specialty Doors",
+        "description": "Secure door systems installed for controlled openings and unauthorized-entry resistance."
+      },
+      "hollowMetal": {
+        "title": "Hollow Metal Doors",
+        "description": "Hollow metal doors and frames for offices, corridors, stairwells, and utility rooms.",
+        "imageAlt": "Illustration of a hollow metal door and frame"
+      },
+      "storefront": {
+        "title": "Storefront Doors & Windows",
+        "description": "Storefront doors and framing for commercial entries, vestibules, and storefront openings."
+      },
+      "overhead": {
+        "title": "Overhead & Rolling Doors",
+        "description": "Sectional overhead doors for warehouses and vehicle openings. Rolling steel doors have their own page."
+      },
+      "dock": {
+        "title": "Dock Equipment",
+        "description": "Dock levelers, seals, shelters, and related equipment at the loading dock."
+      }
+    },
+    "manufacturers": {
+      "title": "Manufacturers",
+      "description": "We supply and install products from Allegion and Krieger.",
+      "note": "Specific Allegion brand lines are confirmed with each project. Approved brand logos are not published here."
+    },
+    "projects": {
+      "title": "Projects",
+      "description": "Named installation photos are not published on this site. Gateway supplies and installs specialty doors and windows for commercial and industrial work in New York, New Jersey, and Pennsylvania."
+    },
+    "process": {
+      "title": "How it works",
+      "plansTitle": "Send Your Plans",
+      "plansText": "Share project information, drawings, or specifications.",
+      "reviewTitle": "Review Your Proposal",
+      "reviewText": "Review the proposed scope and pricing.",
+      "installTitle": "Coordinate Supply & Installation",
+      "installText": "Coordinate the selected products and installation requirements."
+    },
+    "quote": {
+      "title": "Request a quote",
+      "description": "Send the project location, whether you need doors, windows, or both, and a short description. Drawing upload is not available on this form.",
+      "button": "Request a Quote"
+    }
   },
   "hero": {
     "badge": "Specialty doors and full commercial install",
