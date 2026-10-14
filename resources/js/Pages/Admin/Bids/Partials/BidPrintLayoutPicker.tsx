@@ -54,7 +54,7 @@ export default function BidPrintLayoutPicker({
                         <Card
                             key={id}
                             className={cn(
-                                'overflow-hidden p-0 transition-shadow hover:shadow-lg',
+                                'p-0 transition-shadow hover:shadow-lg',
                                 selected && 'ring-2 ring-primary',
                             )}
                         >
@@ -71,7 +71,7 @@ export default function BidPrintLayoutPicker({
                                     tableColor={layout.tableHeaderBackground || '#065f46'}
                                 />
                                 <CardHeader className="w-full">
-                                    <CardTitle className="break-words">{layout.name}</CardTitle>
+                                    <CardTitle className="break-words whitespace-normal leading-snug">{layout.name}</CardTitle>
                                 </CardHeader>
                             </button>
                             <CardContent className="flex w-full flex-wrap items-center justify-between gap-2 pb-4">

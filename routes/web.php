@@ -22,6 +22,8 @@ use App\Http\Controllers\Admin\QuotationRevisionAssignmentController;
 use App\Http\Controllers\Admin\ServiceController;
 use App\Http\Controllers\Admin\SignatureController;
 use App\Http\Controllers\Admin\SkillController;
+use App\Http\Controllers\Admin\TakeoffController;
+use App\Http\Controllers\Admin\TakeoffWorkspaceController;
 use App\Http\Controllers\Admin\UserActivityController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\ContactSubmissionController;
@@ -402,6 +404,121 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::delete('/quotations/{quotation}', [QuotationController::class, 'destroy'])
             ->middleware('can:delete-quotations')
             ->name('quotations.destroy');
+
+        Route::get('/takeoffs', [TakeoffController::class, 'index'])
+            ->middleware('can:view-takeoffs')
+            ->name('takeoffs.index');
+        Route::get('/takeoffs/create', [TakeoffController::class, 'create'])
+            ->middleware('can:create-takeoffs')
+            ->name('takeoffs.create');
+        Route::post('/takeoffs', [TakeoffController::class, 'store'])
+            ->middleware('can:create-takeoffs')
+            ->name('takeoffs.store');
+        Route::get('/takeoffs/product-search', [TakeoffController::class, 'products'])
+            ->middleware('can:view-takeoffs')
+            ->name('takeoffs.products');
+        Route::get('/takeoffs/import-template', [TakeoffController::class, 'importTemplate'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.import-template');
+        Route::get('/takeoffs/{takeoff}', [TakeoffController::class, 'show'])
+            ->middleware('can:view-takeoffs')
+            ->name('takeoffs.show');
+        Route::patch('/takeoffs/{takeoff}', [TakeoffController::class, 'update'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.update');
+        Route::delete('/takeoffs/{takeoff}', [TakeoffController::class, 'destroy'])
+            ->middleware('can:delete-takeoffs')
+            ->name('takeoffs.destroy');
+        Route::post('/takeoffs/{takeoff}/revise', [TakeoffController::class, 'revise'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.revise');
+        Route::get('/takeoffs/{takeoff}/export', [TakeoffController::class, 'export'])
+            ->middleware('can:export-takeoffs')
+            ->name('takeoffs.export');
+        Route::post('/takeoffs/{takeoff}/import/preview', [TakeoffController::class, 'importPreview'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.import.preview');
+        Route::post('/takeoffs/{takeoff}/import', [TakeoffController::class, 'import'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.import');
+        Route::post('/takeoffs/{takeoff}/convert/preview', [TakeoffController::class, 'previewConversion'])
+            ->middleware('can:convert-takeoffs')
+            ->name('takeoffs.convert.preview');
+        Route::post('/takeoffs/{takeoff}/convert', [TakeoffController::class, 'convert'])
+            ->middleware('can:convert-takeoffs')
+            ->name('takeoffs.convert');
+        Route::post('/takeoffs/{takeoff}/documents', [TakeoffWorkspaceController::class, 'storeDocument'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.documents.store');
+        Route::patch('/takeoffs/{takeoff}/documents/{document}', [TakeoffWorkspaceController::class, 'updateDocument'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.documents.update');
+        Route::delete('/takeoffs/{takeoff}/documents/{document}', [TakeoffWorkspaceController::class, 'destroyDocument'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.documents.destroy');
+        Route::get('/takeoffs/{takeoff}/documents/{document}', [TakeoffWorkspaceController::class, 'showDocument'])
+            ->middleware('can:view-takeoffs')
+            ->name('takeoffs.documents.show');
+        Route::post('/takeoffs/{takeoff}/openings', [TakeoffWorkspaceController::class, 'storeOpening'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.openings.store');
+        Route::patch('/takeoffs/{takeoff}/openings/{opening}', [TakeoffWorkspaceController::class, 'updateOpening'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.openings.update');
+        Route::delete('/takeoffs/{takeoff}/openings/{opening}', [TakeoffWorkspaceController::class, 'destroyOpening'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.openings.destroy');
+        Route::post('/takeoffs/{takeoff}/openings/{opening}/markers', [TakeoffWorkspaceController::class, 'storeMarker'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.markers.store');
+        Route::patch('/takeoffs/{takeoff}/markers/{marker}', [TakeoffWorkspaceController::class, 'updateMarker'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.markers.update');
+        Route::delete('/takeoffs/{takeoff}/markers/{marker}', [TakeoffWorkspaceController::class, 'destroyMarker'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.markers.destroy');
+        Route::post('/takeoffs/{takeoff}/openings/{opening}/references', [TakeoffWorkspaceController::class, 'storeReference'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.references.store');
+        Route::delete('/takeoffs/{takeoff}/references/{reference}', [TakeoffWorkspaceController::class, 'destroyReference'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.references.destroy');
+        Route::post('/takeoffs/{takeoff}/groups', [TakeoffWorkspaceController::class, 'storeGroup'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.groups.store');
+        Route::delete('/takeoffs/{takeoff}/groups/{group}', [TakeoffWorkspaceController::class, 'destroyGroup'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.groups.destroy');
+        Route::post('/takeoffs/{takeoff}/groups/auto', [TakeoffWorkspaceController::class, 'autoGroup'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.groups.auto');
+        Route::post('/takeoffs/{takeoff}/costs', [TakeoffWorkspaceController::class, 'storeCost'])
+            ->middleware('can:view-takeoff-pricing')
+            ->name('takeoffs.costs.store');
+        Route::patch('/takeoffs/{takeoff}/costs/{cost}', [TakeoffWorkspaceController::class, 'updateCost'])
+            ->middleware('can:view-takeoff-pricing')
+            ->name('takeoffs.costs.update');
+        Route::delete('/takeoffs/{takeoff}/costs/{cost}', [TakeoffWorkspaceController::class, 'destroyCost'])
+            ->middleware('can:view-takeoff-pricing')
+            ->name('takeoffs.costs.destroy');
+        Route::post('/takeoffs/{takeoff}/supplier-quotes', [TakeoffWorkspaceController::class, 'storeQuote'])
+            ->middleware('can:view-takeoff-pricing')
+            ->name('takeoffs.quotes.store');
+        Route::post('/takeoffs/{takeoff}/supplier-quotes/{quote}/revise', [TakeoffWorkspaceController::class, 'reviseQuote'])
+            ->middleware('can:view-takeoff-pricing')
+            ->name('takeoffs.quotes.revise');
+        Route::post('/takeoffs/{takeoff}/supplier-quotes/{quote}/accept', [TakeoffWorkspaceController::class, 'acceptQuote'])
+            ->middleware('can:view-takeoff-pricing')
+            ->name('takeoffs.quotes.accept');
+        Route::get('/takeoffs/{takeoff}/supplier-quotes/{quote}', [TakeoffWorkspaceController::class, 'showQuote'])
+            ->middleware('can:view-takeoff-pricing')
+            ->name('takeoffs.quotes.show');
+        Route::post('/takeoffs/{takeoff}/templates', [TakeoffWorkspaceController::class, 'storeTemplate'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.templates.store');
+        Route::post('/takeoffs/{takeoff}/openings/{opening}/template', [TakeoffWorkspaceController::class, 'applyTemplate'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.templates.apply');
 
         Route::get('/products', [ProductController::class, 'index'])
             ->middleware('can:view-products')

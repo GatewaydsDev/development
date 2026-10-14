@@ -24,6 +24,7 @@ use App\Observers\QuotationObserver;
 use App\Observers\SkillObserver;
 use App\Services\UserActivityLogger;
 use App\Support\DocumentAppearance;
+use App\Support\TakeoffAccess;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
@@ -59,6 +60,19 @@ class AppServiceProvider extends ServiceProvider
             Gate::define($permission, function (User $user) use ($permission): bool {
                 return $user->hasPermission($permission);
             });
+        }
+
+        foreach ([
+            'view-takeoffs' => 'canView',
+            'create-takeoffs' => 'canCreate',
+            'update-takeoffs' => 'canUpdate',
+            'delete-takeoffs' => 'canDelete',
+            'approve-takeoffs' => 'canApprove',
+            'view-takeoff-pricing' => 'canViewPricing',
+            'export-takeoffs' => 'canExport',
+            'convert-takeoffs' => 'canConvert',
+        ] as $permission => $method) {
+            Gate::define($permission, fn (User $user): bool => TakeoffAccess::{$method}($user));
         }
 
         Vite::prefetch(concurrency: 3);

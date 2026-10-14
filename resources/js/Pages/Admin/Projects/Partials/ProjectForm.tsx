@@ -41,6 +41,7 @@ import { z } from 'zod';
 import { type PageProps } from '@/types';
 import {
     blankContractor,
+    blankPrice,
     blankRevision,
     blankScope,
     optionLabel,
@@ -115,6 +116,16 @@ function projectSchema(options: ProjectOptions, canEditCoreFields: boolean) {
             estimated_end_date: optionalDateSchema,
             completed_at: optionalDateSchema,
             budget_amount: optionalMoneySchema,
+            prices: z.array(
+                z.object({
+                    id: z.string(),
+                    label: z
+                        .string()
+                        .trim()
+                        .max(255, 'Price description must be 255 characters or less.'),
+                    amount: optionalMoneySchema,
+                }),
+            ),
             public_notes: z
                 .string()
                 .trim()
@@ -176,6 +187,32 @@ function projectSchema(options: ProjectOptions, canEditCoreFields: boolean) {
                     message: 'Estimated end must be on or after estimated start.',
                 });
             }
+
+            values.prices.forEach((price, index) => {
+                const label = price.label.trim();
+                const amount = price.amount.trim();
+
+                if (label === '' && amount === '') {
+                    return;
+                }
+
+                if (label === '') {
+                    context.addIssue({
+                        code: 'custom',
+                        path: ['prices', index, 'label'],
+                        message:
+                            'Enter what this price covers, such as 2 windows.',
+                    });
+                }
+
+                if (amount === '') {
+                    context.addIssue({
+                        code: 'custom',
+                        path: ['prices', index, 'amount'],
+                        message: 'Enter the amount for this price.',
+                    });
+                }
+            });
 
             if (!canEditCoreFields) {
                 return;
@@ -329,6 +366,14 @@ export default function ProjectForm({
         control,
         name: 'revisions',
     });
+    const {
+        fields: priceFields,
+        append: appendPrice,
+        remove: removePrice,
+    } = useFieldArray({
+        control,
+        name: 'prices',
+    });
     const data = watch();
 
     const checkProjectNameAvailability = async (name: string) => {
@@ -412,9 +457,25 @@ export default function ProjectForm({
             return;
         }
 
+        const projectValues = { ...values };
+        delete projectValues.budget_amount;
         const payload = {
-            ...values,
-            budget_amount: inputToDecimal(values.budget_amount) || null,
+            ...projectValues,
+            ...(canViewSensitive
+                ? {
+                      prices: values.prices
+                          .filter(
+                              (price) =>
+                                  price.label.trim() !== '' ||
+                                  price.amount.trim() !== '',
+                          )
+                          .map((price) => ({
+                              id: price.id.trim() || null,
+                              label: price.label,
+                              amount: inputToDecimal(price.amount) || null,
+                          })),
+                  }
+                : {}),
             contractors: (values.contractors ?? []).filter(
                 (contractor) =>
                     contractor.contractor_id.trim() !== '' ||
@@ -662,30 +723,104 @@ export default function ProjectForm({
                                     <InputError message={errors.assigned_to} />
                                 </div>
                             )}
-
-                            {canViewSensitive && (
-                                <div className="flex flex-col gap-2">
-                                    <InputLabel
-                                        htmlFor="budget-amount"
-                                        value="Budget amount"
-                                        className={labelClassName}
-                                    />
-                                    <MaskedDecimalInput
-                                        id="budget-amount"
-                                        prefix="$"
-                                        value={data.budget_amount ?? ''}
-                                        className={inputClassName}
-                                        placeholder="0.00"
-                                        onChange={(value) =>
-                                            setData('budget_amount', value)
-                                        }
-                                    />
-                                    <InputError
-                                        message={errors.budget_amount}
-                                    />
-                                </div>
-                            )}
                         </div>
+
+                        {canViewSensitive && (
+                            <div className="flex flex-col gap-4 rounded-lg border border-emerald-200 bg-background p-4 dark:border-emerald-900/70">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <div>
+                                        <h3 className="text-base font-semibold text-foreground">
+                                            Prices
+                                        </h3>
+                                        <p className="text-sm text-muted-foreground">
+                                            Add a price for each option, such
+                                            as one for 2 windows and another
+                                            for 3 windows. Quotes and bids can
+                                            use these prices.
+                                        </p>
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => appendPrice(blankPrice())}
+                                    >
+                                        <PlusIcon className="size-4" />
+                                        Add price
+                                    </Button>
+                                </div>
+                                <div className="flex flex-col gap-3">
+                                    {priceFields.map((field, index) => (
+                                        <div
+                                            key={field.id}
+                                            className="grid gap-3 rounded-lg border border-border p-3 sm:grid-cols-[minmax(0,1fr)_12rem_auto]"
+                                        >
+                                            <div className="flex flex-col gap-2">
+                                                <InputLabel
+                                                    htmlFor={`price-label-${field.id}`}
+                                                    value="What this price covers"
+                                                    className={labelClassName}
+                                                />
+                                                <TextInput
+                                                    id={`price-label-${field.id}`}
+                                                    value={data.prices?.[index]?.label ?? ''}
+                                                    className={inputClassName}
+                                                    placeholder="2 windows"
+                                                    onChange={(event) =>
+                                                        setData(
+                                                            `prices.${index}.label`,
+                                                            event.target.value,
+                                                        )
+                                                    }
+                                                />
+                                                <InputError
+                                                    message={
+                                                        validationErrors.prices?.[index]?.label
+                                                            ?.message
+                                                    }
+                                                />
+                                            </div>
+                                            <div className="flex flex-col gap-2">
+                                                <InputLabel
+                                                    htmlFor={`price-amount-${field.id}`}
+                                                    value="Amount"
+                                                    className={labelClassName}
+                                                />
+                                                <MaskedDecimalInput
+                                                    id={`price-amount-${field.id}`}
+                                                    prefix="$"
+                                                    value={data.prices?.[index]?.amount ?? ''}
+                                                    className={inputClassName}
+                                                    placeholder="0.00"
+                                                    onChange={(value) =>
+                                                        setData(
+                                                            `prices.${index}.amount`,
+                                                            value,
+                                                        )
+                                                    }
+                                                />
+                                                <InputError
+                                                    message={
+                                                        validationErrors.prices?.[index]?.amount
+                                                            ?.message
+                                                    }
+                                                />
+                                            </div>
+                                            <div className="flex items-end">
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    onClick={() => removePrice(index)}
+                                                    disabled={priceFields.length === 1}
+                                                >
+                                                    <Trash2Icon className="size-4" />
+                                                    Remove
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         {canEditCoreFields && (
                             <div className="grid gap-5 rounded-lg border border-emerald-200 bg-background p-4 dark:border-emerald-900/70 md:grid-cols-2">

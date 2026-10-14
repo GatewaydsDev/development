@@ -8,7 +8,13 @@ import {
     CardTitle,
 } from '@/Components/ui/card';
 import RadioFrequencyImageShowcase from '@/Components/RadioFrequencyImageShowcase';
-import { serviceDefinitionsByKey, type ServiceKey } from '@/data/services';
+import ServiceVisual from '@/Components/ServiceVisual';
+import { serviceVisuals } from '@/data/serviceVisuals';
+import {
+    quoteInterestForService,
+    serviceDefinitionsByKey,
+    type CatalogItemKey,
+} from '@/data/services';
 import PublicLayout from '@/Layouts/PublicLayout';
 import { openContactForm } from '@/lib/contact';
 import { Head } from '@inertiajs/react';
@@ -16,14 +22,13 @@ import {
     CheckCircle2Icon,
     ClipboardCheckIcon,
     DoorOpenIcon,
-    FileCheck2Icon,
     RulerIcon,
     ShieldCheckIcon,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 type ServiceShowProps = {
-    serviceKey: ServiceKey;
+    serviceKey: CatalogItemKey;
     serviceSlug: string;
     canonicalUrl: string;
 };
@@ -66,7 +71,14 @@ export default function ServiceShow({
     const servicePath = `services.${service.key}`;
     const metaTitle = t(`${servicePath}.metaTitle`);
     const metaDescription = t(`${servicePath}.metaDescription`);
-    const imageUrl = new URL(service.images.hero, canonicalUrl).href;
+    const visual = serviceVisuals[serviceKey];
+    const factKeys = ['one', 'two', 'three'] as const;
+    const facts = factKeys
+        .map((key) => t(`${servicePath}.facts.${key}`, { defaultValue: '' }))
+        .filter((text) => text !== '');
+    const imageUrl = visual.hero
+        ? new URL(visual.hero, canonicalUrl).href
+        : undefined;
     const origin = new URL(canonicalUrl).origin;
     const structuredData = {
         '@context': 'https://schema.org',
@@ -86,7 +98,7 @@ export default function ServiceShow({
                     ],
                 },
                 url: canonicalUrl,
-                image: imageUrl,
+                ...(imageUrl ? { image: imageUrl } : {}),
                 areaServed: ['New York', 'New Jersey', 'Pennsylvania'],
                 mainEntityOfPage: canonicalUrl,
                 identifier: serviceSlug,
@@ -156,7 +168,7 @@ export default function ServiceShow({
                     type="button"
                     size="lg"
                     className="w-full sm:w-auto"
-                    onClick={openContactForm}
+                    onClick={() => openContactForm(quoteInterestForService(serviceKey))}
                 >
                     {t('shared.primaryCta')}
                 </Button>
@@ -187,11 +199,15 @@ export default function ServiceShow({
                 <meta property="og:type" content="website" />
                 <meta property="og:site_name" content="Gateway Door Systems" />
                 <meta property="og:url" content={canonicalUrl} />
-                <meta property="og:image" content={imageUrl} />
+                {imageUrl ? (
+                    <meta property="og:image" content={imageUrl} />
+                ) : null}
                 <meta name="twitter:card" content="summary_large_image" />
                 <meta name="twitter:title" content={metaTitle} />
                 <meta name="twitter:description" content={metaDescription} />
-                <meta name="twitter:image" content={imageUrl} />
+                {imageUrl ? (
+                    <meta name="twitter:image" content={imageUrl} />
+                ) : null}
                 <script type="application/ld+json">
                     {JSON.stringify(structuredData)}
                 </script>
@@ -213,7 +229,7 @@ export default function ServiceShow({
 
                             <div className="relative flex min-h-[280px] items-center justify-end px-4 py-10 sm:min-h-[360px] sm:px-6 lg:min-h-[min(88svh,44rem)] lg:px-8 lg:py-16 xl:px-10">
                                 <RadioFrequencyImageShowcase
-                                    src={service.images.hero}
+                                    src={visual.hero ?? ''}
                                     alt={t(`${servicePath}.imageAlt`)}
                                     variant="hero"
                                     embedded
@@ -234,10 +250,14 @@ export default function ServiceShow({
                                 <div className="absolute -inset-4 rounded-[2rem] bg-emerald-400/15 blur-3xl" />
 
                                 <div className="relative">
-                                    <img
-                                        src={service.images.hero}
+                                    <ServiceVisual
+                                        src={visual.hero}
                                         alt={t(`${servicePath}.imageAlt`)}
-                                        className="h-72 w-full rounded-2xl bg-muted/50 object-contain shadow-2xl shadow-emerald-950/20 transition duration-700 hover:scale-[1.01] sm:h-[28rem] sm:rounded-3xl lg:h-[34rem]"
+                                        label={t(`${servicePath}.title`)}
+                                        fit={visual.fit}
+                                        crop={'crop' in visual ? visual.crop : undefined}
+                                        loading="eager"
+                                        className="h-72 rounded-2xl shadow-2xl shadow-emerald-950/20 sm:h-[28rem] sm:rounded-3xl lg:h-[34rem]"
                                     />
                                 </div>
                             </div>
@@ -269,6 +289,18 @@ export default function ServiceShow({
                             <p className="mt-5 text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
                                 {t(`${servicePath}.supportText`)}
                             </p>
+                            {facts.length > 0 ? (
+                                <ul className="mt-6 grid gap-3">
+                                    {facts.map((fact) => (
+                                        <li
+                                            key={fact}
+                                            className="border-l-4 border-[#3FCF8E] bg-[#F3F4F6] px-4 py-3 text-sm leading-6 text-[#111827] dark:bg-white/5 dark:text-foreground"
+                                        >
+                                            {fact}
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : null}
                         </CardContent>
                     </Card>
                 </div>
@@ -331,17 +363,19 @@ export default function ServiceShow({
 
                     {isRadioFrequencyDoors ? (
                         <RadioFrequencyImageShowcase
-                            src={service.images.detail}
+                            src={visual.detail ?? visual.hero ?? ''}
                             alt={t(`${servicePath}.imageAlt`)}
                             variant="detail"
                             className="mt-6 sm:mt-8"
                         />
                     ) : (
                         <div className="relative mt-6 overflow-hidden rounded-2xl bg-muted/20 sm:mt-8 sm:rounded-3xl">
-                            <img
-                                src={service.images.detail}
+                            <ServiceVisual
+                                src={visual.detail}
                                 alt={t(`${servicePath}.imageAlt`)}
-                                className="h-72 w-full rounded-2xl border border-border bg-muted/50 object-contain p-2 shadow-xl shadow-emerald-950/10 transition duration-700 hover:scale-[1.01] sm:h-96 sm:rounded-3xl lg:h-[28rem]"
+                                label={t(`${servicePath}.title`)}
+                                fit={visual.fit}
+                                className="h-72 rounded-2xl border border-border p-2 shadow-xl shadow-emerald-950/10 sm:h-96 sm:rounded-3xl lg:h-[28rem]"
                             />
                         </div>
                     )}
@@ -429,7 +463,7 @@ export default function ServiceShow({
                             variant="secondary"
                             size="lg"
                             className="w-full md:w-auto"
-                            onClick={openContactForm}
+                            onClick={() => openContactForm(quoteInterestForService(serviceKey))}
                         >
                             {t('shared.ctaButton')}
                         </Button>

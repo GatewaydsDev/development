@@ -7,6 +7,11 @@
     "about": "About us",
     "certifications": "Certifications",
     "services": "Services",
+    "doors": "Doors & Windows",
+    "projects": "Projects",
+    "contact": "Contact",
+    "quote": "Request a Quote",
+    "menu": "Menu",
     "serviceGroups": {
       "specialty": "Specialty & high-security",
       "commercial": "Commercial doors",
@@ -64,7 +69,7 @@
     "close": "Close contact form",
     "eyebrow": "Project review",
     "title": "Tell us about your project.",
-    "description": "Share the basics and Gateway Door Systems will review the door, equipment, access-control, or SCIF-related request.",
+    "description": "Share the project details and Gateway Door Systems will review the door, window, or installation request.",
     "submit": "Send request",
     "submitting": "Sending request",
     "done": "Done",
@@ -93,6 +98,9 @@
       "US": "United States"
     },
     "projectTypes": {
+      "doors": "Doors",
+      "windows": "Windows",
+      "both": "Doors and windows",
       "secureDoorInstallation": "Secure door installation",
       "scifRelatedOpening": "SCIF-related secure opening",
       "commercialDoors": "Commercial doors",
@@ -182,7 +190,10 @@
     }
   },
   "footer": {
-    "description": "Commercial doors, specialty openings, and facility equipment for buildings that depend on reliable install work and responsive service.",
+    "description": "Gateway Door Systems supplies and installs specialty doors and windows for commercial, industrial, and specialty projects across the tri-state area.",
+    "serviceArea": "Serving New York, New Jersey, and Pennsylvania.",
+    "phone": "Phone",
+    "email": "Email",
     "supportTitle": "Need support?",
     "supportText": "Use the customer portal for account access or reach out to schedule service, maintenance, or a project review.",
     "company": "Company",

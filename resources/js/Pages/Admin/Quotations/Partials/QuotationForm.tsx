@@ -1,5 +1,6 @@
 import CreatableSelect from '@/Components/CreatableSelect';
 import FormActionFab from '@/Components/FormActionFab';
+import ProjectPricePicker from '@/Components/ProjectPricePicker';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import MaskedDecimalInput from '@/Components/MaskedDecimalInput';
@@ -68,6 +69,21 @@ const optionalDateSchema = z
         'Enter a valid date.',
     );
 
+function priceAmount(
+    prices: Array<{ id: number; amount: string | number }>,
+    ids: string[],
+): string {
+    if (ids.length === 0) {
+        return '';
+    }
+
+    const total = prices
+        .filter((price) => ids.includes(String(price.id)))
+        .reduce((sum, price) => sum + (Number(price.amount) || 0), 0);
+
+    return total.toFixed(2);
+}
+
 const schema = z.object({
     quotation_number: z.string(),
     project_id: z.string(),
@@ -79,6 +95,7 @@ const schema = z.object({
     quoted_at: z.string(),
     valid_until: z.string(),
     project_amount: z.string(),
+    project_price_ids: z.array(z.string()),
     notes: z.string().max(250000),
     print_layout_id: z.string(),
     print_layout_version: z.string(),
@@ -332,6 +349,8 @@ export default function QuotationForm({
 
     const quotationPayload = (values: QuotationFormData) => ({
         ...values,
+        project_amount: values.project_amount,
+        project_price_ids: values.project_price_ids,
         print_layout_id: values.print_layout_id || null,
         print_layout_version: values.print_layout_version || null,
         layout_header: values.layout_elements.elements.length
@@ -622,9 +641,29 @@ export default function QuotationForm({
                         <select
                             id="project_id"
                             value={data.project_id}
-                            onChange={(event) =>
-                                setValue('project_id', event.target.value)
-                            }
+                            onChange={(event) => {
+                                const projectId = event.target.value;
+                                setValue('project_id', projectId);
+                                const prices =
+                                    options.projects.find(
+                                        (project) =>
+                                            String(project.id) === projectId,
+                                    )?.prices ?? [];
+                                const kept = data.project_price_ids.filter(
+                                    (id) =>
+                                        prices.some(
+                                            (price) => String(price.id) === id,
+                                        ),
+                                );
+
+                                setValue('project_price_ids', kept);
+                                setValue(
+                                    'project_amount',
+                                    kept.length === 0
+                                        ? ''
+                                        : priceAmount(prices, kept),
+                                );
+                            }}
                             className={`${inputClassName} min-w-0 max-w-full`}
                         >
                             <option value="">No project</option>
@@ -1028,17 +1067,54 @@ export default function QuotationForm({
             <section className="flex min-w-0 flex-col gap-4 rounded-xl border border-border bg-card p-5">
                 <div>
                     <h3 className="text-base font-semibold text-foreground">
-                        Total project amount
+                        Project price
                     </h3>
                     <p className="mt-1 text-sm text-muted-foreground">
-                        Set the overall amount for the project. This is
-                        separate from the quotation line-item total.
+                        Check every price that belongs on this quotation, such
+                        as one price for 2 windows and another for 3 windows.
+                        The amount is the total of the prices you check.
                     </p>
                 </div>
+                {data.project_id ? (
+                    <ProjectPricePicker
+                        prices={
+                            options.projects.find(
+                                (project) =>
+                                    String(project.id) === data.project_id,
+                            )?.prices ?? []
+                        }
+                        value={data.project_price_ids}
+                        onChange={(ids) => {
+                            const prices =
+                                options.projects.find(
+                                    (project) =>
+                                        String(project.id) === data.project_id,
+                                )?.prices ?? [];
+
+                            setValue('project_price_ids', ids, {
+                                shouldDirty: true,
+                            });
+                            setValue('project_amount', priceAmount(prices, ids), {
+                                shouldDirty: true,
+                                shouldValidate: true,
+                            });
+                        }}
+                    />
+                ) : (
+                    <p className="text-sm text-muted-foreground">
+                        Select a project to use the prices set up on it.
+                    </p>
+                )}
+                <InputError
+                    message={errorMessage(
+                        validationErrors,
+                        'project_price_ids',
+                    )}
+                />
                 <div className="flex max-w-sm flex-col gap-2">
                     <InputLabel
                         htmlFor="project_amount"
-                        value="Project amount"
+                        value="Amount for this quotation"
                     />
                     <MaskedDecimalInput
                         id="project_amount"

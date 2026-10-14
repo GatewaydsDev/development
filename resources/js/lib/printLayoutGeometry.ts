@@ -77,6 +77,108 @@ export function layoutColumnWidths(element: TableStriping & { cells?: string[][]
         ? 100 / count : (index % 2 === 0 ? element.label_width ?? 30 : 100 - (element.label_width ?? 30)) / (count / 2));
 }
 
+export type LayoutSpaceItem = {
+    id: string;
+    zone: string;
+    x?: number;
+    y?: number;
+    width: number;
+    height: number;
+    pdf_page?: string;
+    pdf_background?: boolean;
+    pdf_page_height?: number;
+};
+
+export function layoutBandsOverlap(
+    a: { x?: number; width: number },
+    b: { x?: number; width: number },
+): boolean {
+    const left = a.x ?? 0;
+    const right = left + a.width;
+    const otherLeft = b.x ?? 0;
+    const otherRight = otherLeft + b.width;
+
+    return left < otherRight - 0.5 && otherLeft < right - 0.5;
+}
+
+export const LAYOUT_COVER_GAP = 4;
+
+/** Move a component only when another one covers it, leaving a 4px gap. Components that still have room stay where they are. */
+export function clearCoveredLayout<T extends LayoutSpaceItem>(
+    elements: T[],
+    anchorId: string,
+    nextHeight: number,
+    gap = LAYOUT_COVER_GAP,
+): T[] {
+    const anchor = elements.find((item) => item.id === anchorId);
+    const height = Math.round(Math.max(1, nextHeight) * 100) / 100;
+    if (!anchor) return elements;
+
+    const anchorTop = anchor.y ?? 0;
+    const positions = new Map(elements.map((item) => [item.id, item.y ?? 0]));
+    const settled: Array<{ x?: number; width: number; y: number; height: number }> = [
+        { x: anchor.x, width: anchor.width, y: anchorTop, height },
+    ];
+    const below = elements
+        .filter((item) => (
+            item.id !== anchorId
+            && !item.pdf_background
+            && item.zone === anchor.zone
+            && (item.pdf_page ?? undefined) === (anchor.pdf_page ?? undefined)
+            && (item.y ?? 0) + 0.5 >= anchorTop
+        ))
+        .sort((left, right) => (left.y ?? 0) - (right.y ?? 0) || left.id.localeCompare(right.id));
+
+    let moved = false;
+    for (const item of below) {
+        const top = positions.get(item.id) ?? 0;
+        let needed = top;
+        for (const box of settled) {
+            const boxBottom = box.y + box.height;
+            if (!layoutBandsOverlap(box, item) || top + 0.5 >= boxBottom) continue;
+            if (top + item.height <= box.y + 0.5) continue;
+            needed = Math.max(needed, boxBottom + gap);
+        }
+        if (needed > top + 0.5) {
+            positions.set(item.id, Math.round(needed * 100) / 100);
+            moved = true;
+        }
+        settled.push({
+            x: item.x,
+            width: item.width,
+            y: positions.get(item.id) ?? top,
+            height: item.height,
+        });
+    }
+
+    const heightChanged = Math.abs(anchor.height - height) >= 1;
+    if (!moved && !heightChanged) return elements;
+
+    let shifted = elements.map((item) => {
+        if (item.id === anchorId) return { ...item, height };
+        const y = positions.get(item.id) ?? item.y ?? 0;
+        if (Math.abs(y - (item.y ?? 0)) < 0.5) return item;
+        return { ...item, y };
+    });
+
+    if (anchor.pdf_page) {
+        const bottom = Math.max(
+            0,
+            ...shifted
+                .filter((item) => item.pdf_page === anchor.pdf_page)
+                .map((item) => (item.y ?? 0) + item.height),
+        );
+        const pageHeight = Math.max(anchor.pdf_page_height ?? 0, Math.ceil(bottom + 24));
+        if (pageHeight > (anchor.pdf_page_height ?? 0)) {
+            shifted = shifted.map((item) => (
+                item.pdf_page === anchor.pdf_page ? { ...item, pdf_page_height: pageHeight } : item
+            ));
+        }
+    }
+
+    return shifted;
+}
+
 export function resizedLayoutColumns(widths: number[], column: number, width: number): number[] {
     const neighbor = column === widths.length - 1 ? column - 1 : column + 1;
     if (neighbor < 0) return widths;

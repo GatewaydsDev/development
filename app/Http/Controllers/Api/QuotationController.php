@@ -67,6 +67,7 @@ class QuotationController extends Controller
             $quotation = Quotation::create([
                 'contractor_id' => $validated['contractor_id'],
                 'project_id' => $validated['project_id'] ?? null,
+                ...$this->admin()->projectPriceAttributes($validated),
                 'title' => $validated['title'],
                 'status' => $validated['status'],
                 'quoted_at' => $validated['quoted_at'] ?? null,
@@ -85,6 +86,7 @@ class QuotationController extends Controller
 
             $this->admin()->syncLineItems($quotation, $validated['line_items'] ?? []);
             $this->admin()->syncContacts($quotation, $validated['contact_ids'] ?? []);
+            $this->admin()->syncProjectPrices($quotation, $validated);
             $this->admin()->syncRevisions($quotation, $validated['revisions'] ?? [], $user);
             $this->admin()->syncFieldTables($quotation, $validated['field_tables'] ?? []);
 
@@ -116,6 +118,7 @@ class QuotationController extends Controller
             $quotation->update([
                 'contractor_id' => $validated['contractor_id'],
                 'project_id' => $validated['project_id'] ?? null,
+                ...$this->admin()->projectPriceAttributes($validated),
                 'title' => $validated['title'],
                 'status' => $validated['status'],
                 'quoted_at' => $validated['quoted_at'] ?? null,
@@ -133,6 +136,7 @@ class QuotationController extends Controller
 
             $this->admin()->syncLineItems($quotation, $validated['line_items'] ?? []);
             $this->admin()->syncContacts($quotation, $validated['contact_ids'] ?? []);
+            $this->admin()->syncProjectPrices($quotation, $validated);
             $this->admin()->syncRevisions($quotation, $validated['revisions'] ?? [], $user);
             $this->admin()->syncFieldTables($quotation, $validated['field_tables'] ?? []);
         });

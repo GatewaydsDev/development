@@ -171,7 +171,7 @@ export function PublicMobileServiceLinks({
                                         `navigation.serviceGroups.${group.key}`,
                                     )}
                                 </span>
-                                <span className="text-sm leading-5 text-muted-foreground">
+                                <span className="text-sm leading-5 text-[#111827]/70">
                                     {tHome(
                                         `services.groups.${group.key}.description`,
                                     )}
@@ -184,7 +184,7 @@ export function PublicMobileServiceLinks({
                                         `navigation.serviceGroups.${group.key}`,
                                     )}
                                 </p>
-                                <p className="text-sm leading-5 text-muted-foreground">
+                                <p className="text-sm leading-5 text-[#111827]/70">
                                     {tHome(
                                         `services.groups.${group.key}.description`,
                                     )}
@@ -202,13 +202,11 @@ export function PublicMobileServiceLinks({
                                     href={href}
                                     onClick={onNavigate}
                                     className={cn(
-                                        'flex items-start gap-3 rounded-md px-2 py-2 text-sm transition hover:bg-background hover:text-foreground',
-                                        isServicePathActive(href)
-                                            ? 'bg-background text-foreground'
-                                            : 'text-muted-foreground',
+                                        'flex items-start gap-3 rounded-md px-2 py-2 text-sm text-[#111827] transition hover:bg-[#F3F4F6]',
+                                        isServicePathActive(href) && 'bg-[#F3F4F6]',
                                     )}
                                 >
-                                    <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-muted">
+                                    <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-[#F3F4F6]">
                                         <Icon className="size-4" />
                                     </span>
                                     <span className="flex min-w-0 flex-col gap-1 break-words">
@@ -217,7 +215,7 @@ export function PublicMobileServiceLinks({
                                                 `navigation.serviceItems.${item.key}`,
                                             )}
                                         </span>
-                                        <span className="text-sm leading-5 text-muted-foreground">
+                                        <span className="text-sm leading-5 text-[#111827]/70">
                                             {tHome(
                                                 `services.items.${item.key}.description`,
                                             )}

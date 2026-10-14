@@ -5,6 +5,7 @@ import SiteVaultIntro from '@/Components/SiteVaultIntro';
 import HelpCenter from '@/Components/HelpCenter';
 import LanguageSwitcher from '@/Components/LanguageSwitcher';
 import PublicActionFab from '@/Components/PublicActionFab';
+import { openContactForm } from '@/lib/contact';
 import {
     PublicMobileServiceLinks,
     PublicServicesNavigationContent,
@@ -24,13 +25,10 @@ import { PageProps } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
 import {
     AnchorIcon,
-    BadgeCheckIcon,
     Building2Icon,
     FactoryIcon,
     GraduationCapIcon,
-    HomeIcon,
     HospitalIcon,
-    InfoIcon,
     KeyRoundIcon,
     LayoutDashboardIcon,
     LogInIcon,
@@ -47,14 +45,14 @@ import { PropsWithChildren, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const navigation = [
-    { labelKey: 'navigation.home', route: 'home', Icon: HomeIcon },
-    { labelKey: 'navigation.about', route: 'about', Icon: InfoIcon },
-    {
-        labelKey: 'navigation.certifications',
-        route: 'certifications',
-        Icon: BadgeCheckIcon,
-    },
+    { labelKey: 'navigation.doors', href: '/#doors' },
+    { labelKey: 'navigation.projects', href: '/#projects' },
+    { labelKey: 'navigation.about', href: '/about' },
+    { labelKey: 'navigation.contact', href: '/#quote' },
 ];
+
+const quoteButtonClass =
+    'inline-flex min-h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-md bg-[#3FCF8E] px-4 py-2 text-sm font-semibold text-[#111827] transition hover:bg-[#35b87d] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3FCF8E]';
 
 const footerMarkets = [
     { key: 'commercial', Icon: Building2Icon },
@@ -69,8 +67,11 @@ const footerMarkets = [
 export default function PublicLayout({ children }: PropsWithChildren) {
     const { t } = useTranslation('common');
     const { t: tHome } = useTranslation('home');
-    const { auth, companyPhoneNumber } = usePage<
-        PageProps<{ companyPhoneNumber?: string | null }>
+    const { auth, companyPhoneNumber, companyEmail } = usePage<
+        PageProps<{
+            companyPhoneNumber?: string | null;
+            companyEmail?: string | null;
+        }>
     >().props;
     const isHome = route().current('home');
     const isAuthPage =
@@ -122,7 +123,7 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                 )}
             >
                 {isHome ? (
-                    <div className="border-b border-emerald-500/20 bg-emerald-950/95 text-center text-sm font-medium tracking-wide text-emerald-50 backdrop-blur supports-[backdrop-filter]:bg-emerald-950/90">
+                    <div className="bg-[#111827] text-center text-sm font-medium tracking-wide text-white">
                         <p className="px-4 py-2.5 sm:text-base">
                             {tHome('serviceArea.banner')}
                         </p>
@@ -131,9 +132,9 @@ export default function PublicLayout({ children }: PropsWithChildren) {
 
                 <nav
                     className={cn(
-                        'border-b border-border bg-background/95 backdrop-blur',
+                        'border-b border-white/10 bg-[#111827] text-white',
                         showingNavigationDropdown &&
-                            'flex min-h-0 flex-1 flex-col bg-background lg:block',
+                            'flex min-h-0 flex-1 flex-col lg:block',
                     )}
                 >
                 <div className="mx-auto w-full max-w-7xl shrink-0 px-4 sm:px-6 lg:px-8">
@@ -150,40 +151,26 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                                 className="hidden max-w-none justify-start lg:ms-12 lg:flex"
                             >
                                 <NavigationMenuList className="gap-1">
-                                    {navigation.map((item) => {
-                                        const Icon = item.Icon;
-                                        const isActive = route().current(
-                                            item.route,
-                                        );
-
-                                        return (
-                                            <NavigationMenuItem key={item.route}>
-                                                <NavigationMenuLink
-                                                    asChild
-                                                    active={isActive}
-                                                    className={cn(
-                                                        navigationMenuTriggerStyle(),
-                                                        'rounded-full px-3',
-                                                        isActive
-                                                            ? 'bg-muted text-foreground'
-                                                            : 'text-muted-foreground',
-                                                    )}
-                                                >
-                                                    <Link
-                                                        href={route(item.route)}
-                                                    >
-                                                        <Icon />
-                                                        {t(item.labelKey)}
-                                                    </Link>
-                                                </NavigationMenuLink>
-                                            </NavigationMenuItem>
-                                        );
-                                    })}
+                                    {navigation.map((item) => (
+                                        <NavigationMenuItem key={item.href}>
+                                            <NavigationMenuLink
+                                                asChild
+                                                className={cn(
+                                                    navigationMenuTriggerStyle(),
+                                                    'rounded-full bg-transparent px-3 text-white hover:bg-white/10 hover:text-white focus:bg-white/10 focus:text-white',
+                                                )}
+                                            >
+                                                <Link href={item.href}>
+                                                    {t(item.labelKey)}
+                                                </Link>
+                                            </NavigationMenuLink>
+                                        </NavigationMenuItem>
+                                    ))}
 
                                     <NavigationMenuItem>
                                         <NavigationMenuTrigger
                                             className={cn(
-                                                'gap-2 rounded-full px-3 text-muted-foreground',
+                                                'gap-2 rounded-full bg-transparent px-3 text-white hover:bg-white/10 hover:text-white focus:bg-white/10 focus:text-white data-[state=open]:bg-white/10 data-[state=open]:text-white',
                                             )}
                                         >
                                             <WrenchIcon className="size-4" />
@@ -196,13 +183,20 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                         </div>
 
                         <div className="hidden gap-2 lg:ms-6 lg:flex lg:items-center lg:gap-4">
-                            <LanguageSwitcher />
-                            <ThemeModeToggle />
+                            <button
+                                type="button"
+                                className={quoteButtonClass}
+                                onClick={() => openContactForm()}
+                            >
+                                {t('navigation.quote')}
+                            </button>
+                            <LanguageSwitcher onDarkHeader />
+                            <ThemeModeToggle onDarkHeader />
 
                             {auth.user ? (
                                 <Link
                                     href={route('dashboard')}
-                                    className="group inline-flex items-center gap-2 rounded-md border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition hover:border-emerald-400/50 hover:text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2 focus:ring-offset-background"
+                                    className="group inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md border border-white/30 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/20 hover:text-white focus:outline-none focus:ring-2 focus:ring-[#3FCF8E] focus:ring-offset-2 focus:ring-offset-[#111827]"
                                 >
                                     <LayoutDashboardIcon className="size-4 shrink-0 transition group-hover:animate-bell-shake group-focus-visible:animate-bell-shake" />
                                     {t('auth.dashboard')}
@@ -210,7 +204,7 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                             ) : (
                                 <Link
                                     href={route('login')}
-                                    className="group inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition hover:text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2 focus:ring-offset-background"
+                                    className="group inline-flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium text-white transition hover:text-[#3FCF8E] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3FCF8E]"
                                 >
                                     <LogInIcon className="size-4 shrink-0 transition group-hover:animate-bell-shake group-focus-visible:animate-bell-shake" />
                                     {t('auth.login')}
@@ -226,7 +220,9 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                                         (previousState) => !previousState,
                                     )
                                 }
-                                className="inline-flex items-center justify-center rounded-md p-2 text-muted-foreground transition duration-150 ease-in-out hover:bg-muted hover:text-foreground focus:bg-muted focus:text-foreground focus:outline-none"
+                                aria-expanded={showingNavigationDropdown}
+                                aria-label={showingNavigationDropdown ? t('contact.close') : t('navigation.menu')}
+                                className="inline-flex size-11 items-center justify-center rounded-md p-2 text-white hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3FCF8E]"
                             >
                                 <svg
                                     className="h-6 w-6"
@@ -265,31 +261,35 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                 <div
                     className={cn(
                         showingNavigationDropdown ? 'flex' : 'hidden',
-                        'min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain border-t border-border bg-background lg:hidden',
+                        'min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain border-t border-white/10 bg-[#111827] text-white lg:hidden',
                     )}
                 >
                     <div className="flex flex-col gap-1 px-4 pb-3 pt-4">
+                        <button
+                            type="button"
+                            className={cn(quoteButtonClass, 'mb-2 w-full')}
+                            onClick={() => {
+                                setShowingNavigationDropdown(false);
+                                openContactForm();
+                            }}
+                        >
+                            {t('navigation.quote')}
+                        </button>
                         {navigation.map((item) => (
                             <Link
-                                key={item.route}
-                                href={route(item.route)}
+                                key={item.href}
+                                href={item.href}
                                 onClick={() =>
                                     setShowingNavigationDropdown(false)
                                 }
-                                className={
-                                    'group flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium transition ' +
-                                    (route().current(item.route)
-                                        ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
-                                        : 'text-muted-foreground hover:bg-muted hover:text-foreground')
-                                }
+                                className="flex min-h-11 items-center rounded-md px-3 py-2 text-base font-medium text-white hover:bg-white/10"
                             >
-                                <item.Icon className="size-4 shrink-0 transition group-hover:animate-bell-shake group-focus-visible:animate-bell-shake" />
                                 {t(item.labelKey)}
                             </Link>
                         ))}
 
-                        <div className="mt-2 rounded-xl border border-border bg-muted/30 p-2">
-                            <p className="flex items-center gap-2 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        <div className="mt-2 rounded-xl border border-white/15 bg-white p-2 text-[#111827]">
+                            <p className="flex items-center gap-2 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-[#111827]/70">
                                 <WrenchIcon className="size-3.5" />
                                 {t('navigation.services')}
                             </p>
@@ -301,11 +301,11 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                         </div>
                     </div>
 
-                    <div className="border-t border-border px-4 pb-28 pt-4">
+                    <div className="border-t border-white/10 px-4 pb-28 pt-4">
                         <div className="mb-4">
                             <div className="flex flex-wrap gap-3">
-                                <LanguageSwitcher />
-                                <ThemeModeToggle />
+                                <LanguageSwitcher onDarkHeader />
+                                <ThemeModeToggle onDarkHeader />
                             </div>
                         </div>
 
@@ -316,7 +316,7 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                                     onClick={() =>
                                         setShowingNavigationDropdown(false)
                                     }
-                                    className="group flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                                    className="group flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-base font-medium text-white transition hover:bg-white/10"
                                 >
                                     <LayoutDashboardIcon className="size-4 shrink-0 transition group-hover:animate-bell-shake group-focus-visible:animate-bell-shake" />
                                     {t('auth.dashboard')}
@@ -327,7 +327,7 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                                     onClick={() =>
                                         setShowingNavigationDropdown(false)
                                     }
-                                    className="group flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                                    className="group flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-base font-medium text-white transition hover:bg-white/10"
                                 >
                                     <LogInIcon className="size-4 shrink-0 transition group-hover:animate-bell-shake group-focus-visible:animate-bell-shake" />
                                     {t('auth.login')}
@@ -341,14 +341,33 @@ export default function PublicLayout({ children }: PropsWithChildren) {
 
             <main className="relative z-0 min-w-0 overflow-x-clip">{children}</main>
 
-            <footer className="border-t border-emerald-500/20 bg-gradient-to-br from-emerald-950 via-slate-950 to-background text-white">
+            <footer className="border-t border-white/10 bg-[#111827] pb-28 text-white">
                 <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
                     <div className="grid gap-12 lg:grid-cols-[1.2fr_2fr]">
                         <div>
                             <ApplicationLogo className="size-16 sm:size-20 md:size-24" />
-                            <p className="mt-6 max-w-md leading-7 text-emerald-50/75">
+                            <p className="mt-6 max-w-md leading-7 text-white/75">
                                 {t('footer.description')}
                             </p>
+                            <p className="mt-4 text-sm text-white/75">
+                                {t('footer.serviceArea')}
+                            </p>
+                            {companyPhoneNumber ? (
+                                <a
+                                    href={`tel:${quotePhoneNumber}`}
+                                    className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-[#3FCF8E]"
+                                >
+                                    {t('footer.phone')}: {companyPhoneNumber}
+                                </a>
+                            ) : null}
+                            {companyEmail ? (
+                                <a
+                                    href={`mailto:${companyEmail}`}
+                                    className="mt-1 block min-h-11 text-sm font-semibold text-[#3FCF8E]"
+                                >
+                                    {t('footer.email')}: {companyEmail}
+                                </a>
+                            ) : null}
                             <div className="mt-8 rounded-2xl border border-emerald-300/20 bg-white/5 p-5 shadow-2xl shadow-emerald-950/20 backdrop-blur">
                                 <p className="text-sm font-semibold uppercase tracking-wide text-emerald-200">
                                     {t('footer.supportTitle')}
@@ -365,20 +384,21 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                                     {t('footer.company')}
                                 </h2>
                                 <div className="mt-4 flex flex-col gap-3 text-sm text-emerald-50/70">
-                                    {navigation.map((item) => {
-                                        const Icon = item.Icon;
-
-                                        return (
-                                            <Link
-                                                key={item.route}
-                                                href={route(item.route)}
-                                                className="group inline-flex items-center gap-2 transition hover:text-white"
-                                            >
-                                                <Icon className="size-4 shrink-0 text-emerald-300 transition group-hover:animate-bell-shake" />
-                                                <span>{t(item.labelKey)}</span>
-                                            </Link>
-                                        );
-                                    })}
+                                    {navigation.map((item) => (
+                                        <Link
+                                            key={item.href}
+                                            href={item.href}
+                                            className="inline-flex min-h-11 items-center text-white/75 transition hover:text-white"
+                                        >
+                                            {t(item.labelKey)}
+                                        </Link>
+                                    ))}
+                                    <Link
+                                        href={route('certifications')}
+                                        className="inline-flex min-h-11 items-center text-white/75 transition hover:text-white"
+                                    >
+                                        {t('navigation.certifications')}
+                                    </Link>
                                 </div>
                             </div>
 

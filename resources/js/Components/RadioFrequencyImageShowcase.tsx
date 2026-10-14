@@ -186,7 +186,9 @@ export default function RadioFrequencyImageShowcase({
                     <img
                         src={src}
                         alt={alt}
-                        className="relative h-full w-full object-contain object-center transition duration-[1200ms] ease-out group-hover/rf:scale-[1.04]"
+                        loading={isHero ? 'eager' : 'lazy'}
+                        decoding="async"
+                        className="relative h-full w-full object-contain object-center motion-reduce:transition-none motion-reduce:group-hover/rf:transform-none"
                     />
                 </div>
 

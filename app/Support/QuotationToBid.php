@@ -123,6 +123,10 @@ class QuotationToBid
                 ]);
             }
 
+            $bid->projectPrices()->sync(
+                $quotation->projectPrices()->pluck('project_prices.id')->all(),
+            );
+
             $quotation->forceFill([
                 'converted_bid_id' => $bid->id,
             ])->save();
@@ -136,7 +140,7 @@ class QuotationToBid
      */
     public static function optionPayload(Quotation $quotation): array
     {
-        $quotation->loadMissing(['contractor', 'project', 'lineItems', 'revisions']);
+        $quotation->loadMissing(['contractor', 'project', 'lineItems', 'revisions', 'projectPrices']);
 
         $contractorName = $quotation->contractor?->name
             ?: 'Contractor';
@@ -148,6 +152,7 @@ class QuotationToBid
             'quotation_number' => $quotation->quotation_number,
             'title' => $quotation->title,
             'project_id' => $quotation->project_id,
+            'project_price_ids' => $quotation->projectPrices->pluck('id')->values()->all(),
             'notes' => $quotation->notes,
             'field_values' => BidApplicationText::quotationValues($quotation),
             'line_items' => $quotation->lineItems

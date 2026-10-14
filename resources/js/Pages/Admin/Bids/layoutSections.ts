@@ -320,8 +320,8 @@ function build(
 
                     const labelWidth = innerWidth * widths[col * 2] / 100;
                     const valueWidth = innerWidth * widths[col * 2 + 1] / 100;
-                    const labelColor = tableStripeColor(element, rowIndex, col * 2) ?? element.label_bg;
-                    const valueColor = tableStripeColor(element, rowIndex, col * 2 + 1);
+                    const labelColor = tableStripeColor(element, rowIndex, col * 2, row.index) ?? element.label_bg;
+                    const valueColor = tableStripeColor(element, rowIndex, col * 2 + 1, row.index);
                     return `<td style="width: ${labelWidth}px; background-color: ${labelColor || 'transparent'}">${paragraph(row.label || '&nbsp;', { ...element, ...tableTextStyle(element, row.index, col * 2, false, true, 0) })}</td><td style="width: ${valueWidth}px; background-color: ${valueColor || 'transparent'}">${paragraph(row.value || '&nbsp;', { ...element, ...tableTextStyle(element, row.index, col * 2 + 1, false, false, 1) })}</td>`;
                 }).join('')}</tr>`,
         ).join('');
@@ -644,11 +644,19 @@ const blocksFor = (
                 const row = rows[index + column];
                 cells.push({
                     type: 'tableCell',
-                    attrs: { colspan: 1, rowspan: 1 },
+                    attrs: {
+                        colspan: 1,
+                        rowspan: 1,
+                        backgroundColor: tableStripeColor(element, Math.floor(index / pairs), column * 2, row?.index ?? -1) ?? element.label_bg,
+                    },
                     content: [paragraphNode(row?.label ?? '', { ...element, ...tableTextStyle(element, row?.index ?? index, column * 2, false, true, 0) }, literals, fieldKeys)],
                 }, {
                     type: 'tableCell',
-                    attrs: { colspan: 1, rowspan: 1 },
+                    attrs: {
+                        colspan: 1,
+                        rowspan: 1,
+                        backgroundColor: tableStripeColor(element, Math.floor(index / pairs), column * 2 + 1, row?.index ?? -1),
+                    },
                     content: [paragraphNode(row?.value ?? '', { ...element, ...tableTextStyle(element, row?.index ?? index, column * 2 + 1, false, false, 1) }, literals, fieldKeys)],
                 });
             }

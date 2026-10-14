@@ -1,25 +1,23 @@
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
+import ServiceVisual from '@/Components/ServiceVisual';
+import { serviceVisuals } from '@/data/serviceVisuals';
 import {
+    catalogItemHref,
     catalogItemsForGroup,
+    quoteInterestForService,
     serviceGroupByKey,
     type ServiceGroupKey,
 } from '@/data/services';
 import PublicLayout from '@/Layouts/PublicLayout';
 import { openContactForm } from '@/lib/contact';
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { useTranslation } from 'react-i18next';
 
 type GroupProps = {
     groupKey: ServiceGroupKey;
     groupSlug: string;
     canonicalUrl: string;
-};
-
-const groupImages: Record<ServiceGroupKey, string> = {
-    specialty: '/images/high-security-door-row.jpeg',
-    commercial: '/images/gateway-door-project-facility-access.webp',
-    equipment: '/images/gateway-door-project-reliable-openings.webp',
 };
 
 export default function Group({
@@ -50,7 +48,10 @@ export default function Group({
     const groupPath = `groups.${groupKey}`;
     const metaTitle = t(`${groupPath}.metaTitle`);
     const metaDescription = t(`${groupPath}.metaDescription`);
-    const imageUrl = new URL(groupImages[groupKey], canonicalUrl).href;
+    const visual = serviceVisuals[groupKey];
+    const imageUrl = visual.hero
+        ? new URL(visual.hero, canonicalUrl).href
+        : undefined;
     const origin = new URL(canonicalUrl).origin;
     const structuredData = {
         '@context': 'https://schema.org',
@@ -97,11 +98,15 @@ export default function Group({
                 <meta property="og:type" content="website" />
                 <meta property="og:site_name" content="Gateway Door Systems" />
                 <meta property="og:url" content={canonicalUrl} />
-                <meta property="og:image" content={imageUrl} />
+                {imageUrl ? (
+                    <meta property="og:image" content={imageUrl} />
+                ) : null}
                 <meta name="twitter:card" content="summary_large_image" />
                 <meta name="twitter:title" content={metaTitle} />
                 <meta name="twitter:description" content={metaDescription} />
-                <meta name="twitter:image" content={imageUrl} />
+                {imageUrl ? (
+                    <meta name="twitter:image" content={imageUrl} />
+                ) : null}
                 <script type="application/ld+json">
                     {JSON.stringify(structuredData)}
                 </script>
@@ -130,7 +135,7 @@ export default function Group({
                                 type="button"
                                 size="lg"
                                 className="w-full sm:w-auto"
-                                onClick={openContactForm}
+                                onClick={() => openContactForm(quoteInterestForService(groupKey))}
                             >
                                 {t('shared.primaryCta')}
                             </Button>
@@ -148,13 +153,14 @@ export default function Group({
                         </div>
                     </div>
 
-                    <div className="overflow-hidden rounded-3xl border border-border shadow-2xl shadow-emerald-950/20">
-                        <img
-                            src={groupImages[groupKey]}
-                            alt={t(`${groupPath}.imageAlt`)}
-                            className="aspect-[4/3] w-full object-cover"
-                        />
-                    </div>
+                    <ServiceVisual
+                        src={visual.hero}
+                        alt={t(`${groupPath}.imageAlt`)}
+                        label={t(`${groupPath}.title`)}
+                        fit={visual.fit}
+                        loading="eager"
+                        className="aspect-[4/3] overflow-hidden rounded-3xl shadow-2xl shadow-emerald-950/20"
+                    />
                 </div>
             </section>
 
@@ -182,30 +188,47 @@ export default function Group({
                 <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
                     <div className="grid gap-4 md:grid-cols-2">
                         {items.map((item) => {
-                            const Icon = item.Icon;
+                            const itemVisual = serviceVisuals[item.key];
 
                             return (
                                 <article
                                     key={item.key}
                                     id={item.key}
-                                    className="scroll-mt-28 rounded-2xl border border-border bg-muted/30 p-5"
+                                    className="scroll-mt-28 overflow-hidden rounded-2xl border border-border bg-muted/30"
                                 >
-                                    <div className="flex gap-4">
-                                        <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
-                                            <Icon className="size-5" />
-                                        </div>
-                                        <div>
-                                            <h3 className="font-semibold text-foreground">
-                                                {tHome(
-                                                    `services.items.${item.key}.title`,
-                                                )}
-                                            </h3>
-                                            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                                                {tHome(
-                                                    `services.items.${item.key}.description`,
-                                                )}
-                                            </p>
-                                        </div>
+                                    <ServiceVisual
+                                        src={itemVisual.hero}
+                                        alt={tHome(
+                                            `services.items.${item.key}.title`,
+                                        )}
+                                        label={tHome(
+                                            `services.items.${item.key}.title`,
+                                        )}
+                                        fit={itemVisual.fit}
+                                        crop={
+                                            'crop' in itemVisual
+                                                ? itemVisual.crop
+                                                : undefined
+                                        }
+                                        className="aspect-[16/10] bg-[#F3F4F6]"
+                                    />
+                                    <div className="p-5">
+                                        <h3 className="font-semibold text-foreground">
+                                            {tHome(
+                                                `services.items.${item.key}.title`,
+                                            )}
+                                        </h3>
+                                        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                                            {tHome(
+                                                `services.items.${item.key}.description`,
+                                            )}
+                                        </p>
+                                        <Link
+                                            href={catalogItemHref(item)}
+                                            className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-[#111827] underline decoration-[#3FCF8E] underline-offset-4 dark:text-foreground"
+                                        >
+                                            {tHome('publicSite.categories.view')}
+                                        </Link>
                                     </div>
                                 </article>
                             );
@@ -213,7 +236,7 @@ export default function Group({
                     </div>
 
                     <div className="mt-10">
-                        <Button type="button" size="lg" onClick={openContactForm}>
+                        <Button type="button" size="lg" onClick={() => openContactForm(quoteInterestForService(groupKey))}>
                             {t('shared.ctaButton')}
                         </Button>
                     </div>

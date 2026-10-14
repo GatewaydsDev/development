@@ -10,6 +10,7 @@ use App\Models\ContractorContact;
 use App\Models\Product;
 use App\Models\PrintLayout;
 use App\Models\Project;
+use App\Models\ProjectPrice;
 use App\Models\Quotation;
 use App\Models\QuotationField;
 use App\Models\QuotationLineItem;
@@ -182,7 +183,7 @@ class QuotationController extends Controller
             $quotation = Quotation::create([
                 'contractor_id' => $validated['contractor_id'],
                 'project_id' => $validated['project_id'] ?? null,
-                'project_amount' => $validated['project_amount'] ?? null,
+                ...$this->projectPriceAttributes($validated),
                 'title' => $validated['title'],
                 'status' => $validated['status'],
                 'quoted_at' => $validated['quoted_at'] ?? null,
@@ -201,6 +202,7 @@ class QuotationController extends Controller
 
             $this->syncLineItems($quotation, $validated['line_items']);
             $this->syncContacts($quotation, $validated['contact_ids'] ?? []);
+            $this->syncProjectPrices($quotation, $validated);
             $this->syncRevisions($quotation, $validated['revisions'] ?? [], $request->user());
             $this->syncFieldTables($quotation, $validated['field_tables'] ?? []);
 
@@ -304,7 +306,7 @@ class QuotationController extends Controller
             $quotation->update([
                 'contractor_id' => $validated['contractor_id'],
                 'project_id' => $validated['project_id'] ?? null,
-                'project_amount' => $validated['project_amount'] ?? null,
+                ...$this->projectPriceAttributes($validated),
                 'title' => $validated['title'],
                 'status' => $validated['status'],
                 'quoted_at' => $validated['quoted_at'] ?? null,
@@ -322,6 +324,7 @@ class QuotationController extends Controller
 
             $this->syncLineItems($quotation, $validated['line_items']);
             $this->syncContacts($quotation, $validated['contact_ids'] ?? []);
+            $this->syncProjectPrices($quotation, $validated);
             $this->syncRevisions($quotation, $validated['revisions'] ?? [], $request->user());
             $this->syncFieldTables($quotation, $validated['field_tables'] ?? []);
         });
@@ -381,6 +384,16 @@ class QuotationController extends Controller
             'quoted_at' => ['nullable', 'date'],
             'valid_until' => ['nullable', 'date', 'after_or_equal:quoted_at'],
             'project_amount' => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99'],
+            'project_price_ids' => ['nullable', 'array'],
+            'project_price_ids.*' => [
+                'integer',
+                'distinct',
+                Rule::exists(ProjectPrice::class, 'id')->where(
+                    fn ($query) => $request->filled('project_id')
+                        ? $query->where('project_id', $request->input('project_id'))
+                        : $query->whereRaw('0 = 1'),
+                ),
+            ],
             'notes' => ['nullable', 'string', 'max:250000'],
             'print_layout_id' => ['nullable', 'integer', Rule::exists(PrintLayout::class, 'id')],
             'print_layout_version' => ['nullable', 'string', 'regex:/^[a-f0-9]{64}$/'],
@@ -732,6 +745,10 @@ class QuotationController extends Controller
     {
         $quotation->loadMissing(['contractor.contacts', 'contacts', 'project', 'lineItems', 'convertedBid', 'bids', 'creator:id,name,signature_path', 'revisions.user:id,name', 'revisions.responsibleUser:id,name', 'revisions.status:id,name', 'revisions.title:id,name', 'tables.fields.field', 'tables.fields.product', 'productFields.field', 'productFields.product']);
 
+        if (! $summary) {
+            $quotation->loadMissing('projectPrices');
+        }
+
         $contractor = $quotation->contractor;
         $selectedContacts = $quotation->contacts;
         $contact = $selectedContacts->first() ?? $contractor?->primaryContact();
@@ -751,6 +768,9 @@ class QuotationController extends Controller
             'quoted_at' => $quotation->quoted_at?->toDateString(),
             'valid_until' => $quotation->valid_until?->toDateString(),
             'project_amount' => $quotation->project_amount,
+            'project_price_ids' => $summary
+                ? []
+                : $quotation->projectPrices->pluck('id')->values()->all(),
             'notes' => $this->sanitizedHtml($quotation->notes),
             'print_layout_id' => $quotation->print_layout_id,
             'print_layout_version' => $quotation->print_layout_version,
@@ -960,6 +980,55 @@ class QuotationController extends Controller
 
     /**
      * @param  array<string, mixed>  $validated
+     * @return array{project_amount: mixed}
+     */
+    public function projectPriceAttributes(array $validated): array
+    {
+        $amount = $validated['project_amount'] ?? null;
+        $ids = $this->projectPriceIds($validated);
+
+        if ($ids !== [] && ($amount === null || $amount === '')) {
+            $amount = number_format(
+                (float) ProjectPrice::query()->whereKey($ids)->sum('amount'),
+                2,
+                '.',
+                '',
+            );
+        }
+
+        return [
+            'project_amount' => $amount,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    public function syncProjectPrices(Quotation $quotation, array $validated): void
+    {
+        if (! array_key_exists('project_price_ids', $validated)) {
+            return;
+        }
+
+        $quotation->projectPrices()->sync($this->projectPriceIds($validated));
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     * @return list<int>
+     */
+    private function projectPriceIds(array $validated): array
+    {
+        return collect($validated['project_price_ids'] ?? [])
+            ->map(fn (mixed $id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
      * @return array<string, string>
      */
     public function proposalTitleAttributes(array $validated): array
@@ -1131,7 +1200,7 @@ class QuotationController extends Controller
                 ->values()
                 ->all(),
             'projects' => Project::query()
-                ->with('contractors:id')
+                ->with(['contractors:id', 'prices'])
                 ->orderByDesc('id')
                 ->get([
                     'id',
@@ -1150,6 +1219,14 @@ class QuotationController extends Controller
                     'project_number' => $project->project_number,
                     'contractor_ids' => $project->contractors->pluck('id')->all(),
                     'label' => trim(($project->project_number ? $project->project_number.' · ' : '').$project->name),
+                    'prices' => $project->prices
+                        ->map(fn (ProjectPrice $price): array => [
+                            'id' => $price->id,
+                            'label' => $price->label,
+                            'amount' => $price->amount,
+                        ])
+                        ->values()
+                        ->all(),
                     'site_address' => BidApplicationText::formatAddress(
                         $project->site_address_line_1,
                         $project->site_address_line_2,
