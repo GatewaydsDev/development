@@ -2,7 +2,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import TextInput from '@/Components/TextInput';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import OpeningEditor from './Partials/OpeningEditor';
 import PdfWorkspace, { type PdfPoint } from './Partials/PdfWorkspace';
@@ -25,7 +25,19 @@ type Props = {
 
 const sections = ['workspace', 'assemblies', 'review', 'convert', 'history'] as const;
 
+function openingSpecs(opening: TakeoffDetail['openings'][number]): string {
+    return [
+        opening.frame_type ? `Frame ${opening.frame_type}` : null,
+        opening.hardware_set ? `Hardware ${opening.hardware_set}` : null,
+        opening.finish,
+        opening.glazing,
+        opening.acoustic_requirement,
+        opening.fire_requirement ? `Fire ${opening.fire_requirement}` : null,
+    ].filter(Boolean).join(' · ') || '—';
+}
+
 export default function Show({ takeoff, templates, quotations, can }: Props) {
+    const countedOpeningId = usePage<{ flash: { counted_opening_id?: number | null } }>().props.flash.counted_opening_id;
     const [section, setSection] = useState<(typeof sections)[number]>('workspace');
     const [mobilePane, setMobilePane] = useState<'drawing' | 'schedule'>('drawing');
     const [selectedOpeningId, setSelectedOpeningId] = useState<number | null>(null);
@@ -76,6 +88,24 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
 
         return () => window.removeEventListener('beforeunload', warn);
     }, [dirty]);
+
+    useEffect(() => {
+        if (!countedOpeningId) {
+            return;
+        }
+
+        const opening = takeoff.openings.find((item) => item.id === Number(countedOpeningId));
+
+        if (!opening) {
+            return;
+        }
+
+        setSelectedOpeningId(opening.id);
+        setCreating(false);
+        setEditorOpen(true);
+        setSection('workspace');
+        setMobilePane('schedule');
+    }, [countedOpeningId, takeoff.openings]);
 
     useEffect(() => {
         const ids = takeoff.documents.map((document) => document.id);
@@ -144,26 +174,18 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
         }
     };
 
-    const placeMarker = (point: PdfPoint) => {
+    const countOpening = (point: PdfPoint, tool: 'door' | 'window') => {
         if (!can.update || takeoff.status === 'archived') {
             return;
         }
 
-        if (selectedOpeningId && !creating) {
-            router.post(route('admin.takeoffs.markers.store', [takeoff.uuid, selectedOpeningId]), {
-                document_id: point.documentId,
-                page: point.page,
-                x: point.x,
-                y: point.y,
-            }, { preserveScroll: true });
-
-            return;
-        }
-
-        setPendingMarker(point);
-        setCreating(true);
-        setEditorOpen(true);
-        setMobilePane('schedule');
+        router.post(route('admin.takeoffs.counts.store', takeoff.uuid), {
+            opening_type: tool,
+            document_id: point.documentId,
+            page: point.page,
+            x: point.x,
+            y: point.y,
+        }, { preserveScroll: true });
     };
 
     const csrf = () => decodeURIComponent(document.cookie.split('; ').find((row) => row.startsWith('XSRF-TOKEN='))?.split('=')[1] ?? '');
@@ -223,6 +245,9 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                         <p className="text-sm text-muted-foreground">{takeoff.project?.project_number} {takeoff.project?.name} · Revision {takeoff.revision_number}</p>
+                        <p className="mt-1 text-sm font-medium text-gray-800 dark:text-gray-100">
+                            Scope of work: {takeoff.openings.length === 0 ? 'mark each opening on the drawing' : `${takeoff.openings.length} ${takeoff.openings.length === 1 ? 'opening' : 'openings'} marked on the drawing`}
+                        </p>
                         <Badge variant="outline">{statusLabel[takeoff.status] ?? takeoff.status}</Badge>
                         <p className="mt-2 max-w-3xl text-sm text-muted-foreground">Estimates are internal. Approval means this takeoff was reviewed inside Gateway. It does not certify that a product meets the specification.</p>
                     </div>
@@ -269,7 +294,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                 <div className="flex flex-wrap gap-2">
                     {sections.map((item) => (
                         <Button key={item} type="button" variant={section === item ? 'default' : 'outline'} size="sm" onClick={() => setSection(item)}>
-                            {item === 'workspace' ? 'Drawing & schedule' : item[0].toUpperCase() + item.slice(1)}
+                            {item === 'workspace' ? 'Scope of work' : item[0].toUpperCase() + item.slice(1)}
                             {item === 'review' ? ` (${takeoff.flags.length})` : ''}
                         </Button>
                     ))}
@@ -278,8 +303,8 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                 {section === 'workspace' ? (
                     <div className="space-y-3">
                         <div className="flex gap-2 lg:hidden">
+                            <Button type="button" size="sm" variant={mobilePane === 'schedule' ? 'default' : 'outline'} onClick={() => setMobilePane('schedule')}>Scope</Button>
                             <Button type="button" size="sm" variant={mobilePane === 'drawing' ? 'default' : 'outline'} onClick={() => setMobilePane('drawing')}>Drawing</Button>
-                            <Button type="button" size="sm" variant={mobilePane === 'schedule' ? 'default' : 'outline'} onClick={() => setMobilePane('schedule')}>Schedule</Button>
                         </div>
                         <div className="grid gap-4 lg:grid-cols-2">
                             <div className={mobilePane === 'schedule' ? 'hidden lg:block' : ''}>
@@ -292,15 +317,28 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                     canEdit={editable}
                                     onSelectDocument={setSelectedDocumentId}
                                     onSelectOpening={openOpening}
-                                    onPlace={placeMarker}
+                                    onCount={countOpening}
+                                    onDelete={(openingId) => {
+                                        if (selectedOpeningId === openingId) {
+                                            setSelectedOpeningId(null);
+                                            setEditorOpen(false);
+                                        }
+
+                                        router.delete(route('admin.takeoffs.openings.destroy', [takeoff.uuid, openingId]), { preserveScroll: true });
+                                    }}
                                     onMove={(markerId, point) => router.patch(route('admin.takeoffs.markers.update', [takeoff.uuid, markerId]), { x: point.x, y: point.y, page: point.page }, { preserveScroll: true })}
                                     onRemove={(markerId) => router.delete(route('admin.takeoffs.markers.destroy', [takeoff.uuid, markerId]), { preserveScroll: true })}
                                     onUpload={editable ? uploadPdf : undefined}
+                                    onScan={editable && selectedDocumentId ? () => router.post(route('admin.takeoffs.documents.scan', [takeoff.uuid, selectedDocumentId]), {}, { preserveScroll: true }) : undefined}
                                     uploading={uploadingPdf}
                                     uploadError={uploadError}
                                 />
                             </div>
                             <div className={mobilePane === 'drawing' ? 'hidden lg:block' : 'space-y-3'}>
+                                <div>
+                                    <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Scope of work</h3>
+                                    <p className="text-sm text-muted-foreground">Every door and window found on the drawing is listed once, with its specs. Remove any row you will not use.</p>
+                                </div>
                                 <div className="grid gap-2 md:grid-cols-2">
                                     <TextInput value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Opening tag" />
                                     <TextInput value={category} onChange={(event) => setCategory(event.target.value)} placeholder="Category" />
@@ -320,26 +358,61 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                         <option value="not_applicable">Not applicable</option>
                                     </select>
                                 </div>
-                                {editable ? <Button type="button" onClick={() => { setCreating(true); setSelectedOpeningId(null); setEditorOpen(true); }}>Add opening</Button> : null}
+                                {editable ? (
+                                    <div className="py-4">
+                                        <Button type="button" onClick={() => { setCreating(true); setSelectedOpeningId(null); setEditorOpen(true); }}>Add opening</Button>
+                                    </div>
+                                ) : null}
                                 <div className="max-h-[32rem] overflow-auto rounded-md border">
                                     <table className="min-w-full text-sm">
-                                        <thead className="sticky top-0 bg-muted/80 text-left">
+                                        <thead className="sticky top-0 text-left text-white">
                                             <tr>
-                                                <th className="px-2 py-2">Tag</th>
-                                                <th className="px-2 py-2">Type</th>
-                                                <th className="px-2 py-2">Qty</th>
-                                                <th className="px-2 py-2">Size</th>
-                                                <th className="px-2 py-2">Flags</th>
+                                                <th className="bg-[#16324F] px-2 py-2">Tag</th>
+                                                <th className="bg-[#16324F] px-2 py-2">Type</th>
+                                                <th className="bg-[#16324F] px-2 py-2">Qty</th>
+                                                <th className="bg-[#16324F] px-2 py-2">Size</th>
+                                                <th className="bg-[#16324F] px-2 py-2">Location</th>
+                                                <th className="bg-[#16324F] px-2 py-2">Specs</th>
+                                                <th className="bg-[#16324F] px-2 py-2">Flags</th>
+                                                {editable ? <th className="bg-[#16324F] px-2 py-2"> </th> : null}
                                             </tr>
                                         </thead>
                                         <tbody>
+                                            {filtered.length === 0 ? (
+                                                <tr>
+                                                    <td className="px-2 py-4 text-muted-foreground" colSpan={editable ? 8 : 7}>No openings yet. Choose Count door or Count window, then click a door on the sheet.</td>
+                                                </tr>
+                                            ) : null}
                                             {filtered.map((opening) => (
                                                 <tr key={opening.id} className={`cursor-pointer border-t ${selectedOpeningId === opening.id ? 'bg-[#3FCF8E]/20' : ''}`} onClick={() => openOpening(opening.id)}>
                                                     <td className="px-2 py-2">{opening.is_bulk ? `Bulk ${opening.tag ?? ''}`.trim() : opening.tag}</td>
                                                     <td className="px-2 py-2">{opening.opening_type}</td>
                                                     <td className="px-2 py-2">{opening.quantity}</td>
-                                                    <td className="px-2 py-2">{[opening.width, opening.height].filter(Boolean).join(' x ')} {opening.dimension_unit}</td>
+                                                    <td className="px-2 py-2">{[opening.width, opening.height, opening.depth].filter(Boolean).join(' x ')} {opening.dimension_unit}</td>
+                                                    <td className="px-2 py-2">{opening.location || '—'}</td>
+                                                    <td className="px-2 py-2">{openingSpecs(opening)}</td>
                                                     <td className="px-2 py-2">{opening.flags.length || '—'}</td>
+                                                    {editable ? (
+                                                        <td className="px-2 py-2">
+                                                            <Button
+                                                                type="button"
+                                                                size="sm"
+                                                                variant="outline"
+                                                                onClick={(event) => {
+                                                                    event.stopPropagation();
+
+                                                                    if (selectedOpeningId === opening.id) {
+                                                                        setSelectedOpeningId(null);
+                                                                        setEditorOpen(false);
+                                                                    }
+
+                                                                    router.delete(route('admin.takeoffs.openings.destroy', [takeoff.uuid, opening.id]), { preserveScroll: true });
+                                                                }}
+                                                            >
+                                                                Remove
+                                                            </Button>
+                                                        </td>
+                                                    ) : null}
                                                 </tr>
                                             ))}
                                         </tbody>

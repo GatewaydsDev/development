@@ -67,7 +67,7 @@ class TakeoffReview
         if (in_array($opening->disposition, ['excluded', 'not_applicable'], true) && filled($opening->disposition_reason)) {
             return $opening->needs_review ? [[
                 'code' => 'needs_review',
-                'message' => 'This opening needs review after a document change.',
+                'message' => 'This opening needs review.',
                 'opening_id' => $opening->id,
             ]] : [];
         }
@@ -110,7 +110,7 @@ class TakeoffReview
         }
 
         if ($opening->needs_review) {
-            $flags[] = self::flag($opening, 'needs_review', 'This opening needs review after a document change.');
+            $flags[] = self::flag($opening, 'needs_review', 'This opening needs review.');
         }
 
         if ($opening->group && $opening->costs->isNotEmpty() && $opening->group->costs->isNotEmpty()) {

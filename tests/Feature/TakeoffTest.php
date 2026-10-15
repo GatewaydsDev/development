@@ -488,3 +488,302 @@ test('duplicate opening tags stay separate', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->where('takeoff.flags', fn ($flags) => collect($flags)->contains(fn ($flag) => $flag['code'] === 'duplicate_tag')));
 });
+
+function takeoffDrawingPdf(): string
+{
+    $schedule = implode("\n", [
+        'BT',
+        '/F1 12 Tf',
+        '1 0 0 1 72 720 Tm',
+        '(DOOR SCHEDULE) Tj',
+        '1 0 0 1 72 660 Tm',
+        '(MARK) Tj',
+        '1 0 0 1 160 660 Tm',
+        '(WIDTH) Tj',
+        '1 0 0 1 250 660 Tm',
+        '(HEIGHT) Tj',
+        '1 0 0 1 340 660 Tm',
+        '(LOCATION) Tj',
+        '1 0 0 1 450 660 Tm',
+        '(HAND) Tj',
+        '1 0 0 1 72 630 Tm',
+        '(D1) Tj',
+        '1 0 0 1 160 630 Tm',
+        '(3\'-0") Tj',
+        '1 0 0 1 250 630 Tm',
+        '(7\'-0") Tj',
+        '1 0 0 1 340 630 Tm',
+        '(Lobby) Tj',
+        '1 0 0 1 450 630 Tm',
+        '(RH) Tj',
+        '1 0 0 1 72 600 Tm',
+        '(D2) Tj',
+        '1 0 0 1 160 600 Tm',
+        '(3\'-0") Tj',
+        '1 0 0 1 250 600 Tm',
+        '(7\'-0") Tj',
+        '1 0 0 1 340 600 Tm',
+        '(Office) Tj',
+        '1 0 0 1 450 600 Tm',
+        '(LH) Tj',
+        '1 0 0 1 72 570 Tm',
+        '(D3) Tj',
+        '1 0 0 1 160 570 Tm',
+        '(2\'-8") Tj',
+        '1 0 0 1 250 570 Tm',
+        '(6\'-8") Tj',
+        '1 0 0 1 340 570 Tm',
+        '(Lab) Tj',
+        '1 0 0 1 450 570 Tm',
+        '(RH) Tj',
+        '1 0 0 1 430 40 Tm',
+        '(A-601) Tj',
+        '1 0 0 1 500 40 Tm',
+        '(REV B) Tj',
+        'ET',
+    ])."\n";
+    $plan = implode("\n", [
+        'BT',
+        '/F1 12 Tf',
+        '1 0 0 1 120 500 Tm',
+        '(D1) Tj',
+        '1 0 0 1 300 400 Tm',
+        '(D2) Tj',
+        '1 0 0 1 450 250 Tm',
+        '(D3) Tj',
+        'ET',
+    ])."\n";
+
+    $objects = [
+        "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
+        "2 0 obj\n<< /Type /Pages /Count 2 /Kids [3 0 R 6 0 R] >>\nendobj\n",
+        "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n",
+        "4 0 obj\n<< /Length ".strlen($schedule)." >>\nstream\n".$schedule."endstream\nendobj\n",
+        "5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n",
+        "6 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 7 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n",
+        "7 0 obj\n<< /Length ".strlen($plan)." >>\nstream\n".$plan."endstream\nendobj\n",
+    ];
+    $pdf = "%PDF-1.4\n";
+    $offsets = [0];
+
+    foreach ($objects as $object) {
+        $offsets[] = strlen($pdf);
+        $pdf .= $object;
+    }
+
+    $xref = strlen($pdf);
+    $pdf .= "xref\n0 8\n0000000000 65535 f \n";
+
+    for ($index = 1; $index <= 7; $index++) {
+        $pdf .= sprintf("%010d 00000 n \n", $offsets[$index]);
+    }
+
+    return $pdf."trailer\n<< /Size 8 /Root 1 0 R >>\nstartxref\n{$xref}\n%%EOF\n";
+}
+
+test('an oversized drawing explains the server limit instead of a generic upload error', function () {
+    $admin = takeoffUser();
+    $project = takeoffProject($admin);
+    $path = tempnam(sys_get_temp_dir(), 'takeoff-upload-');
+    file_put_contents($path, "%PDF-1.4\n");
+    $upload = new UploadedFile($path, 'drawing.pdf', 'application/pdf', UPLOAD_ERR_INI_SIZE, true);
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.store'), [
+        'project_id' => $project->id,
+        'file' => $upload,
+    ])->assertSessionHasErrors('file');
+
+    expect(session('errors')->get('file')[0])->toContain('larger than the server allows');
+    @unlink($path);
+});
+
+test('the system names a takeoff and reads doors from an uploaded drawing', function () {
+    Storage::fake('local');
+    $admin = takeoffUser();
+    $project = takeoffProject($admin);
+    $project->forceFill(['project_number' => 'GDS-2026-0142'])->save();
+    $file = UploadedFile::fake()->createWithContent('level-1.pdf', takeoffDrawingPdf());
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.store'), [
+        'project_id' => $project->id,
+        'file' => $file,
+    ])->assertRedirect();
+
+    $takeoff = Takeoff::query()->where('project_id', $project->id)->first();
+    expect($takeoff)->not->toBeNull()
+        ->and($takeoff->title)->toBe('GDS-2026-0142 Shielded lab — A-601 Door Schedule (3 doors)');
+
+    $document = $takeoff->documents()->first();
+    expect($document->document_type)->toBe('schedule')
+        ->and($document->sheet_number)->toBe('A-601')
+        ->and($document->sheet_title)->toBe('Door Schedule')
+        ->and($document->revision_label)->toBe('B');
+
+    expect($takeoff->openings)->toHaveCount(3)
+        ->and($takeoff->openings()->where('tag', 'D1')->exists())->toBeTrue()
+        ->and($takeoff->openings()->where('tag', 'D2')->exists())->toBeTrue()
+        ->and($takeoff->openings()->where('tag', 'D3')->exists())->toBeTrue();
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.documents.store', $takeoff), [
+        'file' => UploadedFile::fake()->createWithContent('level-1-again.pdf', takeoffDrawingPdf()),
+        'document_type' => 'drawing',
+    ])->assertRedirect();
+
+    expect($takeoff->openings()->count())->toBe(3);
+});
+
+test('a blank title is named from the project and a typed title is kept', function () {
+    Storage::fake('local');
+    $admin = takeoffUser();
+    $project = takeoffProject($admin);
+    $project->forceFill(['project_number' => 'GDS-2026-0142'])->save();
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.store'), [
+        'project_id' => $project->id,
+    ])->assertRedirect();
+    $this->actingAs($admin)->post(route('admin.takeoffs.store'), [
+        'project_id' => $project->id,
+    ])->assertRedirect();
+    $this->actingAs($admin)->post(route('admin.takeoffs.store'), [
+        'project_id' => $project->id,
+        'title' => 'Lobby package',
+        'file' => UploadedFile::fake()->createWithContent('level-1.pdf', takeoffDrawingPdf()),
+    ])->assertRedirect();
+
+    $titles = Takeoff::query()->where('project_id', $project->id)->orderBy('id')->pluck('title')->all();
+
+    expect($titles)->toBe([
+        'GDS-2026-0142 Shielded lab — Takeoff',
+        'GDS-2026-0142 Shielded lab — Takeoff (2)',
+        'Lobby package',
+    ]);
+
+    $named = Takeoff::query()->where('title', 'Lobby package')->first();
+    expect($named->openings)->toHaveCount(3);
+});
+
+test('uploading a drawing replaces a generic takeoff name', function () {
+    Storage::fake('local');
+    $admin = takeoffUser();
+    $project = takeoffProject($admin);
+    $project->forceFill(['project_number' => 'GDS-2026-0142'])->save();
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.store'), [
+        'project_id' => $project->id,
+    ])->assertRedirect();
+
+    $takeoff = Takeoff::query()->where('project_id', $project->id)->first();
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.documents.store', $takeoff), [
+        'file' => UploadedFile::fake()->createWithContent('level-1.pdf', takeoffDrawingPdf()),
+        'document_type' => 'drawing',
+    ])->assertRedirect();
+
+    $takeoff->refresh();
+    expect($takeoff->title)->toBe('GDS-2026-0142 Shielded lab — A-601 Door Schedule (3 doors)')
+        ->and($takeoff->openings)->toHaveCount(3);
+});
+
+test('clicking the drawing counts that opening on the sheet', function () {
+    Storage::fake('local');
+    $admin = takeoffUser();
+    $takeoff = takeoffRecord($admin);
+    $document = $takeoff->documents()->create([
+        'original_filename' => 'level-1.pdf',
+        'storage_path' => 'takeoffs/level-1.pdf',
+        'mime' => 'application/pdf',
+        'size' => 128,
+        'document_type' => 'drawing',
+        'uploaded_by' => $admin->id,
+    ]);
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.counts.store', $takeoff), [
+        'opening_type' => 'door',
+        'document_id' => $document->id,
+        'page' => 1,
+        'x' => 0.25,
+        'y' => 0.4,
+    ])->assertRedirect();
+    $this->actingAs($admin)->post(route('admin.takeoffs.counts.store', $takeoff), [
+        'opening_type' => 'window',
+        'document_id' => $document->id,
+        'page' => 1,
+        'x' => 0.7,
+        'y' => 0.2,
+    ])->assertRedirect();
+
+    $openings = $takeoff->openings()->with('markers')->orderBy('tag')->get();
+
+    expect($openings)->toHaveCount(2)
+        ->and($openings[0]->tag)->toBe('D1')
+        ->and($openings[0]->opening_type)->toBe('door')
+        ->and($openings[0]->markers)->toHaveCount(1)
+        ->and((float) $openings[0]->markers[0]->x)->toEqual(0.25)
+        ->and($openings[1]->tag)->toBe('W1')
+        ->and($openings[1]->opening_type)->toBe('window');
+});
+
+test('clicking a schedule row copies that door tag and its specs', function () {
+    Storage::fake('local');
+    $admin = takeoffUser();
+    $takeoff = takeoffRecord($admin);
+    $document = $takeoff->documents()->create([
+        'original_filename' => 'door-schedule.pdf',
+        'storage_path' => 'takeoffs/door-schedule.pdf',
+        'mime' => 'application/pdf',
+        'size' => 128,
+        'document_type' => 'schedule',
+        'uploaded_by' => $admin->id,
+    ]);
+    Storage::disk('local')->put('takeoffs/door-schedule.pdf.scope.json', json_encode([[
+        'tag' => '201',
+        'opening_type' => 'door',
+        'location' => 'LOBBY',
+        'width' => '36',
+        'height' => '84',
+        'depth' => '1.75',
+        'dimension_unit' => 'in',
+        'frame_type' => 'H1 · Hollow metal',
+        'hardware_set' => '1, 2',
+        'glazing' => 'CAT POLY',
+        'finish' => 'PNT3',
+        'acoustic_requirement' => 'STC 50',
+        'fire_requirement' => '45 MIN',
+        'notes' => 'Type F',
+        'requirement_section' => 'Door schedule',
+        'markers' => [['page' => 1, 'x' => 0.30, 'y' => 0.62]],
+    ]]));
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.counts.store', $takeoff), [
+        'opening_type' => 'door',
+        'document_id' => $document->id,
+        'page' => 1,
+        'x' => 0.80,
+        'y' => 0.62,
+    ])->assertRedirect()->assertSessionHas('success');
+
+    $opening = $takeoff->openings()->first();
+
+    expect($opening->tag)->toBe('201')
+        ->and((string) $opening->width)->toBe('36.000')
+        ->and((string) $opening->height)->toBe('84.000')
+        ->and((string) $opening->depth)->toBe('1.750')
+        ->and($opening->location)->toBe('LOBBY')
+        ->and($opening->frame_type)->toBe('H1 · Hollow metal')
+        ->and($opening->hardware_set)->toBe('1, 2')
+        ->and($opening->glazing)->toBe('CAT POLY')
+        ->and($opening->finish)->toBe('PNT3')
+        ->and($opening->acoustic_requirement)->toBe('STC 50')
+        ->and($opening->fire_requirement)->toBe('45 MIN')
+        ->and($opening->notes)->toBe('Type F');
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.counts.store', $takeoff), [
+        'opening_type' => 'door',
+        'document_id' => $document->id,
+        'page' => 1,
+        'x' => 0.40,
+        'y' => 0.62,
+    ])->assertRedirect()->assertSessionHas('error');
+
+    expect($takeoff->openings()->count())->toBe(1);
+});
