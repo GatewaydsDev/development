@@ -1,6 +1,7 @@
 import CreatableSelect from '@/Components/CreatableSelect';
 import FormActionFab from '@/Components/FormActionFab';
 import ProjectPricePicker from '@/Components/ProjectPricePicker';
+import QuotationTakeoffOpenings from '@/Pages/Admin/Quotations/Partials/QuotationTakeoffOpenings';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import MaskedDecimalInput from '@/Components/MaskedDecimalInput';
@@ -1137,6 +1138,14 @@ export default function QuotationForm({
                     />
                 </div>
             </section>
+
+            <QuotationTakeoffOpenings
+                key={data.project_id || 'no-project'}
+                projectSelected={Boolean(data.project_id)}
+                takeoffs={options.projects.find((project) => String(project.id) === data.project_id)?.takeoffs ?? []}
+                lineItems={data.line_items}
+                onChange={(items) => setValue('line_items', items, { shouldDirty: true })}
+            />
 
             <section
                 aria-labelledby="quotation-layout-header-title"

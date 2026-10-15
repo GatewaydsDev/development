@@ -33,7 +33,7 @@
         .hero { background: {{ $c['header_bg'] }}; color: {{ $c['header_text'] }}; padding: 22px 24px 20px; }
         .hero-table { width: 100%; border-collapse: collapse; }
         .hero-table td { vertical-align: middle; }
-        .logo { max-height: 64px; max-width: 64px; display: block; margin: 0 auto; background: #ffffff; padding: 2px; border-radius: 999px; }
+        .logo { max-height: 72px; max-width: 72px; display: block; margin: 0 auto; background: transparent; }
         .hero-brand { margin-bottom: 14px; text-align: center; }
         .hero-brand .eyebrow { margin: 8px 0 0; }
         .eyebrow { margin: 0 0 4px; font-size: 10px; letter-spacing: 1.6px; text-transform: uppercase; color: {{ $c['header_muted'] }}; }

@@ -4,31 +4,43 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\UserActivity;
+use App\Models\UserActivityArchive;
+use App\Services\UserActivityArchiver;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class UserActivityController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(Request $request, UserActivityArchiver $archiver): Response
     {
         abort_unless($request->user()?->isSuperAdmin(), 403);
 
+        $archiver->archive();
+
         $search = (string) $request->query('search', '');
+        $viewingArchive = $request->boolean('archive');
+        $query = $viewingArchive
+            ? UserActivityArchive::query()
+            : UserActivity::query();
 
         return Inertia::render('Admin/UserActivities/Index', [
             'filters' => [
                 'search' => $search,
+                'archive' => $viewingArchive,
             ],
+            'archiveCount' => UserActivityArchive::query()->count(),
+            'retentionMonths' => UserActivityArchiver::RETENTION_MONTHS,
             'stats' => [
-                'total' => UserActivity::query()->count(),
-                'logins' => UserActivity::query()
+                'total' => (clone $query)->count(),
+                'logins' => (clone $query)
                     ->where('event_type', UserActivity::TYPE_LOGIN)
                     ->count(),
-                'pageViews' => UserActivity::query()
+                'pageViews' => (clone $query)
                     ->where('event_type', UserActivity::TYPE_PAGE_VIEW)
                     ->count(),
-                'recordActions' => UserActivity::query()
+                'recordActions' => (clone $query)
                     ->whereIn('event_type', [
                         UserActivity::TYPE_RECORD_CREATED,
                         UserActivity::TYPE_RECORD_UPDATED,
@@ -36,10 +48,10 @@ class UserActivityController extends Controller
                     ])
                     ->count(),
             ],
-            'activities' => UserActivity::query()
+            'activities' => $query
                 ->with('user:id,name,email,last_login_at')
-                ->when($search !== '', function ($query) use ($search): void {
-                    $query->where(function ($query) use ($search): void {
+                ->when($search !== '', function (Builder $query) use ($search): void {
+                    $query->where(function (Builder $query) use ($search): void {
                         $query
                             ->where('event_type', 'like', "%{$search}%")
                             ->orWhere('action', 'like', "%{$search}%")
@@ -47,7 +59,7 @@ class UserActivityController extends Controller
                             ->orWhere('description', 'like', "%{$search}%")
                             ->orWhere('route_name', 'like', "%{$search}%")
                             ->orWhere('path', 'like', "%{$search}%")
-                            ->orWhereHas('user', function ($query) use ($search): void {
+                            ->orWhereHas('user', function (Builder $query) use ($search): void {
                                 $query
                                     ->where('name', 'like', "%{$search}%")
                                     ->orWhere('email', 'like', "%{$search}%");
@@ -57,7 +69,7 @@ class UserActivityController extends Controller
                 ->latest('occurred_at')
                 ->paginate(15)
                 ->withQueryString()
-                ->through(fn (UserActivity $activity): array => [
+                ->through(fn (UserActivity|UserActivityArchive $activity): array => [
                     'id' => $activity->id,
                     'event_type' => $activity->event_type,
                     'action' => $activity->action,

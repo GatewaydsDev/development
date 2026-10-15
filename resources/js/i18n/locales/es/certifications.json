@@ -6,7 +6,7 @@
   "hero": {
     "badge": "Credenciales verificadas",
     "title": "Certificados para puertas de alta seguridad, aperturas RF y salas SCIF.",
-    "description": "Gateway Door Systems mantiene credenciales autorizadas de fábrica y especializadas para herrajes Lockmasters, puertas apantalladas de radiofrecuencia y construcción de salas SCIF."
+    "description": "Gateway Door Systems está certificado por Lockmasters y trabaja con Lockmasters. También cuenta con credenciales para puertas apantalladas de radiofrecuencia y construcción de salas SCIF."
   },
   "preview": {
     "badge": "Certificaciones",
@@ -19,7 +19,7 @@
       "issuer": "Lockmasters",
       "title": "Certificación de Lockmasters Security Institute",
       "summary": "Capacitación autorizada de fábrica para cerraduras de alta seguridad, herrajes especializados e instalación de puertas seguras.",
-      "description": "Lockmasters es un proveedor líder de cerraduras de alta seguridad, herramientas y capacitación profesional. Esta certificación documenta instrucción autorizada de fábrica para aperturas especializadas, incluyendo coordinación de herrajes e instalación en entornos de acceso controlado.",
+      "description": "Gateway Door Systems está certificado por Lockmasters y trabaja con Lockmasters. Lockmasters es un proveedor líder de cerraduras de alta seguridad, herramientas y capacitación profesional. Esta certificación documenta instrucción autorizada de fábrica para aperturas especializadas, incluyendo coordinación de herrajes e instalación en entornos de acceso controlado.",
       "websiteLabel": "Visitar Lockmasters",
       "logoAlt": "Logotipo de Lockmasters Security Institute",
       "imageAlt": "Puerta reforzada de alta seguridad y herrajes de cierre",
@@ -47,7 +47,7 @@
   "highlights": {
     "factory": {
       "title": "Herrajes autorizados de fábrica",
-      "description": "La capacitación de Lockmasters respalda cerraduras, pestillos y herrajes especializados de alta seguridad."
+      "description": "Gateway está certificado por Lockmasters y trabaja con Lockmasters en cerraduras, pestillos y herrajes especializados de alta seguridad."
     },
     "rf": {
       "title": "Aperturas apantalladas RF",

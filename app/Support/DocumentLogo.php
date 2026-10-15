@@ -37,7 +37,7 @@ class DocumentLogo
                 return 'data:image/png;base64,'.base64_encode($png);
             }
 
-            $fallback = public_path('images/App-Logo.png');
+            $fallback = public_path('images/Gateway_Door_Systems_Logo.png');
 
             if (is_file($fallback)) {
                 $pngBinary = file_get_contents($fallback);
@@ -63,7 +63,7 @@ class DocumentLogo
         $binary = $isWebp ? self::webpToPng($source) : file_get_contents($source);
 
         if (! is_string($binary) || $binary === '') {
-            $fallback = public_path('images/App-Logo.png');
+            $fallback = public_path('images/Gateway_Door_Systems_Logo.png');
             $binary = is_file($fallback) ? file_get_contents($fallback) : false;
         }
 
@@ -98,8 +98,7 @@ class DocumentLogo
     private static function filePath(string $mode): ?string
     {
         $candidates = [
-            public_path('images/App-Logo.webp'),
-            public_path('images/App-Logo.png'),
+            public_path('images/Gateway_Door_Systems_Logo.png'),
         ];
 
         foreach ($candidates as $path) {

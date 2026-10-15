@@ -114,3 +114,59 @@ test('only super admins can view the user activity audit page', function () {
             ->where('activities.data.0.page_name', 'Dashboard')
         );
 });
+
+test('activity older than three months is archived and can be viewed separately', function () {
+    $superAdminLevel = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $superAdmin = User::factory()->create(['level_id' => $superAdminLevel->id]);
+
+    $old = UserActivity::create([
+        'user_id' => $superAdmin->id,
+        'event_type' => UserActivity::TYPE_PAGE_VIEW,
+        'action' => 'viewed page',
+        'page_name' => 'Old dashboard',
+        'description' => 'Old activity.',
+        'route_name' => 'dashboard',
+        'method' => 'GET',
+        'path' => 'dashboard',
+        'occurred_at' => now()->subMonths(4),
+    ]);
+    UserActivity::create([
+        'user_id' => $superAdmin->id,
+        'event_type' => UserActivity::TYPE_PAGE_VIEW,
+        'action' => 'viewed page',
+        'page_name' => 'Current dashboard',
+        'description' => 'Current activity.',
+        'route_name' => 'dashboard',
+        'method' => 'GET',
+        'path' => 'dashboard',
+        'occurred_at' => now()->subMonth(),
+    ]);
+
+    $this->artisan('user-activities:archive')->assertSuccessful();
+
+    $this->assertDatabaseMissing('user_activities', ['id' => $old->id]);
+    $this->assertDatabaseHas('user_activities', ['page_name' => 'Current dashboard']);
+    $this->assertDatabaseHas('user_activity_archives', [
+        'activity_id' => $old->id,
+        'page_name' => 'Old dashboard',
+    ]);
+
+    $this->actingAs($superAdmin)
+        ->get(route('admin.user-activities.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('filters.archive', false)
+            ->where('archiveCount', 1)
+            ->where('activities.data', fn ($rows) => collect($rows)->pluck('page_name')->contains('Current dashboard')
+                && collect($rows)->pluck('page_name')->doesntContain('Old dashboard'))
+        );
+
+    $this->actingAs($superAdmin)
+        ->get(route('admin.user-activities.index', ['archive' => 1]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('filters.archive', true)
+            ->where('activities.data.0.page_name', 'Old dashboard')
+            ->where('activities.total', 1)
+        );
+});

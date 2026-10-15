@@ -67,8 +67,8 @@ export default function Home({
         ? new URL('/images/products/hero.svg', pageUrl).href
         : '/images/products/hero.svg';
     const logoUrl = pageUrl
-        ? new URL('/images/App-Logo.webp', pageUrl).href
-        : '/images/App-Logo.webp';
+        ? new URL('/images/Gateway_Door_Systems_Logo.png', pageUrl).href
+        : '/images/Gateway_Door_Systems_Logo.png';
     const structuredData = {
         '@context': 'https://schema.org',
         '@graph': [
@@ -246,8 +246,8 @@ export default function Home({
                     <p className="mt-3 max-w-2xl text-base leading-7 text-[#111827]/70">
                         {t('publicSite.manufacturers.description')}
                     </p>
-                    <ul className="mt-8 grid gap-4 sm:grid-cols-2">
-                        {['Allegion', 'Krieger'].map((name) => (
+                    <ul className="mt-8 grid gap-4 sm:grid-cols-3">
+                        {['Allegion', 'Krieger', 'Lockmasters'].map((name) => (
                             <li key={name} className="border border-[#111827]/10 bg-white px-5 py-6 text-xl font-semibold text-[#111827]">
                                 {name}
                             </li>

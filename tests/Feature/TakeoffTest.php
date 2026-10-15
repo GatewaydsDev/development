@@ -787,3 +787,44 @@ test('clicking a schedule row copies that door tag and its specs', function () {
 
     expect($takeoff->openings()->count())->toBe(1);
 });
+
+test('a quotation lists the takeoffs for the chosen project', function () {
+    $admin = takeoffUser();
+    $project = takeoffProject($admin);
+    $takeoff = takeoffRecord($admin, $project);
+    $takeoff->openings()->create([
+        'tag' => 'D101',
+        'opening_type' => 'door',
+        'location' => 'Lobby',
+        'quantity' => '1.00',
+        'width' => '36.000',
+        'height' => '84.000',
+        'dimension_unit' => 'in',
+        'frame_type' => 'Hollow metal',
+        'hardware_set' => '1',
+        'scope' => 'both',
+        'disposition' => 'active',
+    ]);
+    $takeoff->openings()->create([
+        'tag' => 'D102',
+        'opening_type' => 'door',
+        'quantity' => '1.00',
+        'dimension_unit' => 'in',
+        'scope' => 'both',
+        'disposition' => 'excluded',
+    ]);
+
+    $this->actingAs($admin)->get(route('admin.quotations.create'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('options.projects', function ($projects) use ($project, $takeoff) {
+                $match = collect($projects)->firstWhere('id', $project->id);
+
+                return $match
+                    && count($match['takeoffs']) === 1
+                    && $match['takeoffs'][0]['id'] === $takeoff->id
+                    && count($match['takeoffs'][0]['openings']) === 1
+                    && $match['takeoffs'][0]['openings'][0]['tag'] === 'D101'
+                    && str_contains($match['takeoffs'][0]['openings'][0]['description'], 'Hollow metal');
+            }));
+});

@@ -6,7 +6,7 @@
   "hero": {
     "badge": "Verified credentials",
     "title": "Certified for high-security doors, RF openings, and SCIF rooms.",
-    "description": "Gateway Door Systems maintains factory-authorized and specialty credentials for Lockmasters hardware, radio-frequency shielded doors, and SCIF room construction."
+    "description": "Gateway Door Systems is Lockmasters certified and works with Lockmasters. We also hold credentials for radio-frequency shielded doors and SCIF room construction."
   },
   "preview": {
     "badge": "Certifications",
@@ -19,7 +19,7 @@
       "issuer": "Lockmasters",
       "title": "Lockmasters Security Institute Certification",
       "summary": "Factory-authorized training for high-security locks, specialty hardware, and secure door installation.",
-      "description": "Lockmasters is a leading provider of high-security locks, tools, and professional training. This certification documents factory-authorized instruction used on specialty openings, including secure hardware coordination and installation practices required in controlled-access environments.",
+      "description": "Gateway Door Systems is Lockmasters certified and works with Lockmasters. Lockmasters is a leading provider of high-security locks, tools, and professional training. This certification documents factory-authorized instruction used on specialty openings, including secure hardware coordination and installation practices required in controlled-access environments.",
       "websiteLabel": "Visit Lockmasters",
       "logoAlt": "Lockmasters Security Institute logo",
       "imageAlt": "High-security reinforced door and lock hardware",
@@ -47,7 +47,7 @@
   "highlights": {
     "factory": {
       "title": "Factory-authorized hardware",
-      "description": "Lockmasters training supports high-security locks, strikes, and specialty door hardware."
+      "description": "Gateway is Lockmasters certified and works with Lockmasters on high-security locks, strikes, and specialty door hardware."
     },
     "rf": {
       "title": "RF-shielded openings",

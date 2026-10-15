@@ -9,8 +9,8 @@ export default function ApplicationLogo({
         <img
             {...props}
             alt={alt}
-            className={`shrink-0 rounded-full object-contain p-2 ${className}`}
-            src="/images/App-Logo.webp"
+            className={`shrink-0 object-contain ${className}`}
+            src="/images/Gateway_Door_Systems_Logo.png"
         />
     );
 }
