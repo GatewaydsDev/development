@@ -486,6 +486,13 @@ export default function Authenticated({
                                     Dashboard
                                 </NavLink>
 
+                                <NavLink
+                                    href={route('mailbox.index')}
+                                    active={route().current('mailbox.*')}
+                                >
+                                    Email
+                                </NavLink>
+
                             </div>
                         </div>
 
@@ -658,6 +665,13 @@ export default function Authenticated({
                             active={route().current('dashboard')}
                         >
                             Dashboard
+                        </ResponsiveNavLink>
+
+                        <ResponsiveNavLink
+                            href={route('mailbox.index')}
+                            active={route().current('mailbox.*')}
+                        >
+                            Email
                         </ResponsiveNavLink>
 
                         {canOpenAdministration && (

@@ -31,7 +31,7 @@
       "summary": "Certified installation of radio-frequency shielded doors for TEMPEST and electromagnetic control.",
       "description": "This RF certification covers the installation of radio-frequency shielded door assemblies used where electromagnetic control, TEMPEST performance, and secure access must work together. It supports precise fitting, continuity at the opening, and coordination of RF-rated frames, seals, and hardware.",
       "logoAlt": "RF certification mark",
-      "imageAlt": "Radio-frequency shielded door with access control",
+      "imageAlt": "Illustration of an RF door with a conductive seal",
       "issuedBy": "Radio-frequency shielded openings"
     },
     "scifRooms": {
@@ -40,7 +40,7 @@
       "summary": "Certified to build SCIF rooms for sensitive, controlled-access facilities.",
       "description": "This certification covers the construction of Sensitive Compartmented Information Facility (SCIF) rooms, including the coordination of secure walls, openings, penetrations, and door systems used in ICD-705 related spaces. Gateway Door Systems supports SCIF room build-outs that require disciplined installation and documentation.",
       "logoAlt": "SCIF room construction certification mark",
-      "imageAlt": "Secure doors along a controlled-access facility corridor",
+      "imageAlt": "Illustration of a controlled-room door opening",
       "issuedBy": "SCIF room construction"
     }
   },

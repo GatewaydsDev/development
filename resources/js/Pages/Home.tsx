@@ -1,6 +1,8 @@
+import CertificationCard from '@/Components/CertificationCard';
 import { Button } from '@/Components/ui/button';
 import ServiceVisual from '@/Components/ServiceVisual';
 import PublicLayout from '@/Layouts/PublicLayout';
+import { certifications } from '@/data/certifications';
 import { serviceVisuals, type ServiceVisualKey } from '@/data/serviceVisuals';
 import { catalogItemHref, catalogItems } from '@/data/services';
 import { openContactForm } from '@/lib/contact';
@@ -58,6 +60,7 @@ export default function Home({
     canonicalUrl,
 }: HomeProps) {
     const { t } = useTranslation('home');
+    const { t: tCertifications } = useTranslation('certifications');
     const pageUrl =
         canonicalUrl ??
         (typeof window !== 'undefined' ? window.location.href : '');
@@ -256,6 +259,30 @@ export default function Home({
                     <p className="mt-4 max-w-2xl text-sm leading-6 text-[#111827]/70">
                         {t('publicSite.manufacturers.note')}
                     </p>
+
+                    <div className="mt-14 border-t border-[#111827]/10 pt-14">
+                        <h2 className="text-3xl font-semibold tracking-tight text-[#111827]">
+                            {tCertifications('preview.title')}
+                        </h2>
+                        <p className="mt-3 max-w-2xl text-base leading-7 text-[#111827]/70">
+                            {tCertifications('preview.description')}
+                        </p>
+                        <div className="mt-8 grid gap-4 lg:grid-cols-3">
+                            {certifications.map((certification) => (
+                                <CertificationCard
+                                    key={certification.key}
+                                    certificationKey={certification.key}
+                                    compact
+                                />
+                            ))}
+                        </div>
+                        <Link
+                            href={route('certifications')}
+                            className="mt-6 inline-flex min-h-11 items-center text-sm font-semibold text-[#111827] underline decoration-[#3FCF8E] underline-offset-4"
+                        >
+                            {tCertifications('preview.viewAll')}
+                        </Link>
+                    </div>
                 </div>
             </section>
 

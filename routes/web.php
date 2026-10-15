@@ -29,6 +29,7 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\ContactSubmissionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DashboardThemeController;
+use App\Http\Controllers\MailboxController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SeoController;
@@ -97,6 +98,13 @@ Route::get('/dashboard', DashboardController::class)
 Route::middleware(['auth', 'verified', 'prevent-back-history'])->group(function () {
     Route::get('/appearance', [DashboardThemeController::class, 'edit'])->name('appearance.edit');
     Route::patch('/appearance', [DashboardThemeController::class, 'update'])->name('appearance.update');
+});
+
+Route::middleware(['auth', 'prevent-back-history'])->group(function () {
+    Route::get('/email', [MailboxController::class, 'index'])->name('mailbox.index');
+    Route::post('/email', [MailboxController::class, 'send'])
+        ->middleware('throttle:6,1')
+        ->name('mailbox.send');
 });
 
 Route::middleware(['auth', 'prevent-back-history', 'can:manage-profile'])->group(function () {
@@ -392,6 +400,9 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::post('/quotations/{quotation}/convert-to-bid', [QuotationController::class, 'convertToBid'])
             ->middleware('can:create-bids')
             ->name('quotations.convert-to-bid');
+        Route::post('/quotations/{quotation}/revisions/{revision}/review-email', [QuotationController::class, 'sendRevisionReview'])
+            ->middleware(['can:update-quotations', 'throttle:6,1'])
+            ->name('quotations.revisions.review-email');
         Route::get('/quotations/{quotation}/edit', [QuotationController::class, 'edit'])
             ->middleware('can:update-quotations')
             ->name('quotations.edit');

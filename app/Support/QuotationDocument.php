@@ -10,6 +10,7 @@ use App\Models\QuotationField;
 use App\Models\QuotationLineItem;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Barryvdh\DomPDF\PDF as DomPdf;
 use Illuminate\Http\Response;
 use Illuminate\Support\Str;
 use PhpOffice\PhpWord\Element\Cell;
@@ -151,16 +152,30 @@ class QuotationDocument
 
     public function pdfResponse(): Response
     {
+        return $this->makePdf()->download($this->fileName('pdf'));
+    }
+
+    public function pdfBytes(): string
+    {
+        return $this->makePdf()->output();
+    }
+
+    public function downloadName(string $extension): string
+    {
+        return $this->fileName($extension);
+    }
+
+    private function makePdf(): DomPdf
+    {
         $data = $this->viewData(mode: 'pdf');
         $fitted = filled($this->quotation->layout_header);
-        $pdf = Pdf::loadHTML($this->transformViewHtml('admin.quotations.document', $data, 'pdf'))
+
+        return Pdf::loadHTML($this->transformViewHtml('admin.quotations.document', $data, 'pdf'))
             ->setPaper($fitted ? $data['paper']['dompdf'] : 'letter', $fitted ? $data['paper']['orientation'] : 'portrait')
             ->setOption('dpi', $fitted ? $data['paper']['dpi'] : 96)
             ->setOption('isRemoteEnabled', false)
             ->setOption('isHtml5ParserEnabled', true)
             ->setOption('defaultFont', 'DejaVu Sans');
-
-        return $pdf->download($this->fileName('pdf'));
     }
 
     public function wordResponse(): BinaryFileResponse
@@ -254,26 +269,26 @@ class QuotationDocument
         }
 
         if (! $hasLayout) {
-        $revisions = $this->revisionRows();
-        if ($revisions !== []) {
-            $revisionColumns = $this->visibleRevisionColumns($revisions);
-            $section->addText('Quotation revisions', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
-            $table = $section->addTable('quoteTable');
-            $table->addRow(360);
-            foreach ($revisionColumns as $column) {
-                $table->addCell($column['width'], ['bgColor' => $this->wordColor('table_header_bg'), 'valign' => 'center'])
-                    ->addText($column['label'], ['bold' => true, 'color' => $this->wordColor('table_header_text'), 'size' => 9]);
-            }
-            foreach ($revisions as $index => $revision) {
-                $bg = $index % 2 === 1 ? $this->wordColor('row_alt') : 'FFFFFF';
-                $table->addRow();
+            $revisions = $this->revisionRows();
+            if ($revisions !== []) {
+                $revisionColumns = $this->visibleRevisionColumns($revisions);
+                $section->addText('Quotation revisions', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
+                $table = $section->addTable('quoteTable');
+                $table->addRow(360);
                 foreach ($revisionColumns as $column) {
-                    $table->addCell($column['width'], ['bgColor' => $bg])
-                        ->addText((string) ($revision[$column['key']] ?? ''), ['size' => 9]);
+                    $table->addCell($column['width'], ['bgColor' => $this->wordColor('table_header_bg'), 'valign' => 'center'])
+                        ->addText($column['label'], ['bold' => true, 'color' => $this->wordColor('table_header_text'), 'size' => 9]);
                 }
+                foreach ($revisions as $index => $revision) {
+                    $bg = $index % 2 === 1 ? $this->wordColor('row_alt') : 'FFFFFF';
+                    $table->addRow();
+                    foreach ($revisionColumns as $column) {
+                        $table->addCell($column['width'], ['bgColor' => $bg])
+                            ->addText((string) ($revision[$column['key']] ?? ''), ['size' => 9]);
+                    }
+                }
+                $section->addTextBreak(1);
             }
-            $section->addTextBreak(1);
-        }
 
             $contractorSection = $this->contractorPrintSection();
             if ($contractorSection !== null) {
@@ -286,42 +301,42 @@ class QuotationDocument
                 }
             }
 
-        if ($this->displayHtml($this->quotation->notes)) {
-            $section->addTextBreak(1);
-            $section->addText($this->proposalHeading(), ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
-            $this->addHtml($section, $this->quotation->notes);
-            $section->addTextBreak(1);
-        }
-
-        if ($this->displayHtml($this->quotation->pricing_basis, fill: true)) {
-            $section->addTextBreak(1);
-            $section->addText('Pricing Basis', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
-            $this->addHtml($section, BidApplicationText::fill(
-                $this->quotation->pricing_basis,
-                $this->fieldValues(),
-            ));
-        }
-
-        foreach ($this->fieldTableRows() as $fieldTable) {
-            if ($fieldTable['fields'] === []) {
-                continue;
+            if ($this->displayHtml($this->quotation->notes)) {
+                $section->addTextBreak(1);
+                $section->addText($this->proposalHeading(), ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
+                $this->addHtml($section, $this->quotation->notes);
+                $section->addTextBreak(1);
             }
 
-            $section->addText($fieldTable['title'], ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
-            $table = $section->addTable('quoteTable');
-            foreach ($fieldTable['fields'] as $index => $item) {
-                $bg = $index % 2 === 1 ? $this->wordColor('row_alt') : 'FFFFFF';
-                $table->addRow();
-                $table->addCell(3800, ['bgColor' => $this->wordColor('table_header_bg'), 'valign' => 'center'])
-                    ->addText($item['field'], ['bold' => true, 'color' => $this->wordColor('table_header_text'), 'size' => 9]);
-                $table->addCell(6800, ['bgColor' => $bg])->addText($item['value'], ['size' => 9]);
+            if ($this->displayHtml($this->quotation->pricing_basis, fill: true)) {
+                $section->addTextBreak(1);
+                $section->addText('Pricing Basis', ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
+                $this->addHtml($section, BidApplicationText::fill(
+                    $this->quotation->pricing_basis,
+                    $this->fieldValues(),
+                ));
             }
-            $section->addTextBreak(1);
-        }
 
-        if ($this->quotation->include_authorization ?? true) {
-            $this->addAuthorizationSignatures($section);
-        }
+            foreach ($this->fieldTableRows() as $fieldTable) {
+                if ($fieldTable['fields'] === []) {
+                    continue;
+                }
+
+                $section->addText($fieldTable['title'], ['bold' => true, 'size' => 13, 'color' => $this->wordColor('brand')]);
+                $table = $section->addTable('quoteTable');
+                foreach ($fieldTable['fields'] as $index => $item) {
+                    $bg = $index % 2 === 1 ? $this->wordColor('row_alt') : 'FFFFFF';
+                    $table->addRow();
+                    $table->addCell(3800, ['bgColor' => $this->wordColor('table_header_bg'), 'valign' => 'center'])
+                        ->addText($item['field'], ['bold' => true, 'color' => $this->wordColor('table_header_text'), 'size' => 9]);
+                    $table->addCell(6800, ['bgColor' => $bg])->addText($item['value'], ['size' => 9]);
+                }
+                $section->addTextBreak(1);
+            }
+
+            if ($this->quotation->include_authorization ?? true) {
+                $this->addAuthorizationSignatures($section);
+            }
         }
 
         $temp = tempnam(sys_get_temp_dir(), 'gds-quote-');
