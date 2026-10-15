@@ -16,11 +16,15 @@ use App\Support\TakeoffConversion;
 use App\Support\TakeoffCopier;
 use App\Support\TakeoffCsv;
 use App\Support\TakeoffMoney;
+use App\Support\TakeoffNamer;
+use App\Support\TakeoffPdfScope;
 use App\Support\TakeoffPresenter;
+use App\Support\TakeoffScopeImporter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -82,16 +86,26 @@ class TakeoffController extends Controller
     {
         $user = $this->takeoffUser($request);
         abort_unless(TakeoffAccess::canCreate($user), 403);
+        TakeoffPdfScope::assertUploaded($request->file('file'));
 
         $data = $request->validate([
             'project_id' => ['required', 'integer', 'exists:projects,id'],
-            'title' => ['required', 'string', 'max:255'],
+            'title' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:5000'],
+            'file' => ['nullable', 'file', 'mimes:pdf', 'max:'.config('takeoffs.max_kilobytes')],
         ]);
 
+        $file = $request->file('file');
+
+        if ($file) {
+            TakeoffPdfScope::assertPdf($file);
+        }
+
+        $project = Project::query()->findOrFail($data['project_id']);
+        $providedTitle = trim((string) ($data['title'] ?? ''));
         $takeoff = Takeoff::query()->create([
-            'project_id' => $data['project_id'],
-            'title' => $data['title'],
+            'project_id' => $project->id,
+            'title' => $providedTitle !== '' ? $providedTitle : TakeoffNamer::title($project),
             'notes' => $data['notes'] ?? null,
             'status' => 'draft',
             'pricing_method' => 'markup',
@@ -100,9 +114,51 @@ class TakeoffController extends Controller
             'updated_by' => $user->id,
         ]);
 
-        $takeoff->record($user, 'takeoff.created', 'Takeoff was created.');
+        $scope = ['openings' => [], 'notes' => []];
+        $import = ['created' => [], 'skipped' => 0, 'markers_added' => 0];
 
-        return redirect()->route('admin.takeoffs.show', $takeoff)->with('success', 'Takeoff created.');
+        if ($file) {
+            $path = $file->store('takeoffs/'.$takeoff->id, config('takeoffs.disk'));
+
+            if (! is_string($path)) {
+                $takeoff->delete();
+
+                return back()->with('error', 'The drawing could not be stored.');
+            }
+
+            $document = $takeoff->documents()->create([
+                'original_filename' => $file->getClientOriginalName(),
+                'storage_path' => $path,
+                'mime' => 'application/pdf',
+                'size' => $file->getSize() ?: 0,
+                'document_type' => 'drawing',
+                'uploaded_by' => $user->id,
+            ]);
+            $attached = TakeoffScopeImporter::attach(
+                $takeoff,
+                $document,
+                Storage::disk(config('takeoffs.disk'))->path($path),
+            );
+            $scope = $attached['scope'];
+            $import = $attached['import'];
+
+            if ($providedTitle === '') {
+                $takeoff->forceFill([
+                    'title' => TakeoffNamer::title($project, $scope, $takeoff->id),
+                ])->save();
+            }
+        }
+
+        $takeoff->record(
+            $user,
+            'takeoff.created',
+            $file ? 'Takeoff was created from '.$file->getClientOriginalName().'.' : 'Takeoff was created.',
+            ['title' => $takeoff->title],
+        );
+
+        return redirect()
+            ->route('admin.takeoffs.show', $takeoff)
+            ->with('success', TakeoffScopeImporter::createdMessage($file !== null, $import, $scope));
     }
 
     public function show(Request $request, Takeoff $takeoff): InertiaResponse

@@ -35,7 +35,10 @@ class TakeoffDocument extends Model
 
         static::deleting(function (TakeoffDocument $document): void {
             if ($document->storage_path) {
-                Storage::disk(config('takeoffs.disk'))->delete($document->storage_path);
+                Storage::disk(config('takeoffs.disk'))->delete([
+                    $document->storage_path,
+                    $document->storage_path.'.scope.json',
+                ]);
             }
         });
     }

@@ -17,6 +17,9 @@ use App\Models\User;
 use App\Support\TakeoffAccess;
 use App\Support\TakeoffGrouping;
 use App\Support\TakeoffMoney;
+use App\Support\TakeoffNamer;
+use App\Support\TakeoffPdfScope;
+use App\Support\TakeoffScopeImporter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -25,7 +28,6 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
-use Smalot\PdfParser\Parser;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class TakeoffWorkspaceController extends Controller
@@ -35,6 +37,7 @@ class TakeoffWorkspaceController extends Controller
     public function storeDocument(Request $request, Takeoff $takeoff): RedirectResponse
     {
         $user = $this->ensureEditable($request, $takeoff);
+        TakeoffPdfScope::assertUploaded($request->file('file'));
         $data = $request->validate([
             'file' => ['required', 'file', 'mimes:pdf', 'max:'.config('takeoffs.max_kilobytes')],
             'document_type' => ['required', Rule::in(config('takeoffs.document_types'))],
@@ -53,20 +56,36 @@ class TakeoffWorkspaceController extends Controller
             'revision_label' => $this->blank($data['revision_label'] ?? null),
             'sheet_number' => $this->blank($data['sheet_number'] ?? null),
             'sheet_title' => $this->blank($data['sheet_title'] ?? null),
-            'page_count' => $this->pageCount(Storage::disk(config('takeoffs.disk'))->path($path)),
             'uploaded_by' => $user->id,
         ]);
-
-        if ($takeoff->openings()->exists()) {
-            $takeoff->openings()->update(['needs_review' => true]);
-        }
-
+        $attached = TakeoffScopeImporter::attach(
+            $takeoff,
+            $document,
+            Storage::disk(config('takeoffs.disk'))->path($path),
+        );
+        $renamed = TakeoffNamer::apply($takeoff, $attached['scope']);
         $this->clearApproval($takeoff, $user);
-        $takeoff->record($user, 'document.uploaded', 'Uploaded '.$document->original_filename.' as a new document. Older files were kept.', [
+        $takeoff->record($user, 'document.uploaded', 'Uploaded '.$document->original_filename.'.', [
             'document_id' => $document->id,
+            'title' => $renamed ? $takeoff->title : null,
         ]);
 
-        return back()->with('success', 'Document uploaded. Existing markers stay on their original file.');
+        return back()->with('success', TakeoffScopeImporter::uploadedMessage($attached['import'], $attached['scope']));
+    }
+
+    public function scanDocument(Request $request, Takeoff $takeoff, TakeoffDocument $document): RedirectResponse
+    {
+        $user = $this->ensureEditable($request, $takeoff);
+        $this->ownedDocument($takeoff, $document);
+        $scanned = TakeoffScopeImporter::scan($takeoff, $document);
+        $renamed = TakeoffNamer::apply($takeoff, $scanned['scope']);
+        $this->clearApproval($takeoff, $user);
+        $takeoff->record($user, 'document.scanned', 'Scanned '.$document->original_filename.' for doors and windows.', [
+            'document_id' => $document->id,
+            'title' => $renamed ? $takeoff->title : null,
+        ]);
+
+        return back()->with('success', TakeoffScopeImporter::uploadedMessage($scanned['import'], $scanned['scope']));
     }
 
     public function updateDocument(Request $request, Takeoff $takeoff, TakeoffDocument $document): RedirectResponse
@@ -113,6 +132,74 @@ class TakeoffWorkspaceController extends Controller
             'Content-Disposition' => 'inline; filename="'.$filename.'"',
             'X-Content-Type-Options' => 'nosniff',
         ]);
+    }
+
+    public function storeCount(Request $request, Takeoff $takeoff): RedirectResponse
+    {
+        $user = $this->ensureEditable($request, $takeoff);
+        $data = $request->validate([
+            'opening_type' => ['required', Rule::in(['door', 'window'])],
+            'document_id' => ['required', 'integer'],
+            'page' => ['required', 'integer', 'min:1', 'max:500'],
+            'x' => ['required', 'numeric', 'between:0,1'],
+            'y' => ['required', 'numeric', 'between:0,1'],
+        ]);
+        $document = $this->document($takeoff, (int) $data['document_id']);
+        $specs = TakeoffScopeImporter::specsAt($document, (int) $data['page'], (float) $data['x'], (float) $data['y']) ?? [];
+        $type = ($specs['opening_type'] ?? $data['opening_type']) === 'window' ? 'window' : 'door';
+        $tag = strtoupper(trim((string) ($specs['tag'] ?? '')));
+
+        if ($tag === '') {
+            $tag = $this->nextCountTag($takeoff, $type === 'window' ? 'W' : 'D');
+        } elseif ($takeoff->openings()->whereRaw('upper(tag) = ?', [$tag])->exists()) {
+            return back()->with('error', 'Door '.$tag.' is already on this scope.');
+        }
+
+        $fromSchedule = ($specs['width'] ?? null) !== null;
+        $unit = $specs['dimension_unit'] ?? 'in';
+        $opening = $takeoff->openings()->create([
+            'tag' => $tag,
+            'is_bulk' => false,
+            'opening_type' => $type,
+            'location' => $specs['location'] ?? null,
+            'quantity' => TakeoffMoney::money(1),
+            'width' => TakeoffMoney::dimension($specs['width'] ?? null),
+            'height' => TakeoffMoney::dimension($specs['height'] ?? null),
+            'depth' => TakeoffMoney::dimension($specs['depth'] ?? null),
+            'dimension_unit' => in_array($unit, config('takeoffs.units'), true) ? $unit : 'in',
+            'frame_type' => $specs['frame_type'] ?? null,
+            'handing' => $specs['handing'] ?? null,
+            'hardware_set' => $specs['hardware_set'] ?? null,
+            'glazing' => $specs['glazing'] ?? null,
+            'finish' => $specs['finish'] ?? null,
+            'notes' => $specs['notes'] ?? null,
+            'acoustic_requirement' => $specs['acoustic_requirement'] ?? null,
+            'fire_requirement' => $specs['fire_requirement'] ?? null,
+            'scope' => 'both',
+            'disposition' => 'active',
+            'verification_status' => 'recorded',
+            'needs_review' => true,
+            'assumptions' => $fromSchedule
+                ? 'Size, room, frame, hardware, and the other schedule specs were taken from the row you clicked. Confirm them before pricing.'
+                : 'Counted on the drawing. No schedule row was under that click, so the specs are blank.',
+            'requirement_document_id' => $document->id,
+            'requirement_page' => $data['page'],
+            'requirement_section' => $fromSchedule ? ($specs['requirement_section'] ?? 'Door schedule') : 'Drawing',
+            'sort_order' => ((int) $takeoff->openings()->max('sort_order')) + 1,
+        ]);
+        $this->createMarker($takeoff, $opening, $data);
+        $opening->references()->create([
+            'document_id' => $document->id,
+            'page' => $data['page'],
+            'section' => $opening->requirement_section,
+            'note' => $fromSchedule ? 'Specs read from the schedule row at this mark.' : 'Marked on the drawing.',
+        ]);
+        $this->clearApproval($takeoff, $user);
+        $takeoff->record($user, 'opening.counted', 'Counted '.$tag.' on the drawing.');
+
+        return back()
+            ->with('success', $fromSchedule ? $tag.' added with the specs from that schedule row.' : $tag.' marked. No schedule row was under that click.')
+            ->with('counted_opening_id', $opening->id);
     }
 
     public function storeOpening(Request $request, Takeoff $takeoff): RedirectResponse
@@ -603,6 +690,19 @@ class TakeoffWorkspaceController extends Controller
     /**
      * @return array<string, mixed>
      */
+    private function nextCountTag(Takeoff $takeoff, string $prefix): string
+    {
+        $max = 0;
+
+        foreach ($takeoff->openings()->pluck('tag') as $tag) {
+            if (preg_match('/^'.preg_quote($prefix, '/').'(\d+)$/i', (string) $tag, $match) === 1) {
+                $max = max($max, (int) $match[1]);
+            }
+        }
+
+        return $prefix.($max + 1);
+    }
+
     private function markerRules(): array
     {
         return [
@@ -831,16 +931,7 @@ class TakeoffWorkspaceController extends Controller
 
     private function storePdf(UploadedFile $file, string $directory): string
     {
-        $handle = fopen($file->getRealPath(), 'rb');
-        $header = $handle ? fread($handle, 5) : '';
-
-        if (is_resource($handle)) {
-            fclose($handle);
-        }
-
-        if (! str_starts_with((string) $header, '%PDF-')) {
-            throw ValidationException::withMessages(['file' => 'Upload a PDF file.']);
-        }
+        TakeoffPdfScope::assertPdf($file);
 
         $path = $file->store($directory, config('takeoffs.disk'));
 
@@ -849,15 +940,6 @@ class TakeoffWorkspaceController extends Controller
         }
 
         return $path;
-    }
-
-    private function pageCount(string $path): ?int
-    {
-        try {
-            return count((new Parser)->parseFile($path)->getPages());
-        } catch (\Throwable) {
-            return null;
-        }
     }
 
     private function ownedDocument(Takeoff $takeoff, TakeoffDocument $document): void

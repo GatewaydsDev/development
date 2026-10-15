@@ -7,6 +7,7 @@ import type { TakeoffDocument, TakeoffOpening } from '../types';
 GlobalWorkerOptions.workerSrc = worker;
 
 type Point = { documentId: number; page: number; x: number; y: number };
+type CountTool = 'door' | 'window' | 'select' | 'remove';
 
 type Props = {
     documents: TakeoffDocument[];
@@ -17,10 +18,12 @@ type Props = {
     canEdit: boolean;
     onSelectDocument: (id: number) => void;
     onSelectOpening: (id: number) => void;
-    onPlace: (point: Point) => void;
+    onCount: (point: Point, tool: 'door' | 'window') => void;
     onMove: (markerId: number, point: Point) => void;
     onRemove: (markerId: number) => void;
+    onDelete: (openingId: number) => void;
     onUpload?: (file: File) => void;
+    onScan?: () => void;
     uploading?: boolean;
     uploadError?: string | null;
 };
@@ -34,10 +37,12 @@ export default function PdfWorkspace({
     canEdit,
     onSelectDocument,
     onSelectOpening,
-    onPlace,
+    onCount,
     onMove,
     onRemove,
+    onDelete,
     onUpload,
+    onScan,
     uploading = false,
     uploadError = null,
 }: Props) {
@@ -50,6 +55,7 @@ export default function PdfWorkspace({
     const [zoom, setZoom] = useState(1);
     const [rotation, setRotation] = useState(0);
     const [error, setError] = useState<string | null>(null);
+    const [tool, setTool] = useState<CountTool>('door');
     const [positions, setPositions] = useState<Record<number, { left: number; top: number }>>({});
     const document = documents.find((item) => item.id === selectedDocumentId) ?? documents[0] ?? null;
 
@@ -172,8 +178,11 @@ export default function PdfWorkspace({
                             }}
                         />
                         <Button type="button" size="sm" disabled={uploading} onClick={choosePdf}>
-                            {uploading ? 'Uploading…' : 'Upload PDF'}
+                            {uploading ? 'Scanning…' : 'Upload PDF'}
                         </Button>
+                        {onScan && document ? (
+                            <Button type="button" size="sm" variant="outline" disabled={uploading} onClick={onScan}>Scan drawing</Button>
+                        ) : null}
                     </>
                 ) : null}
                 <select className="max-w-xs rounded-md border-gray-300 text-sm shadow-sm" value={document?.id ?? ''} onChange={(event) => onSelectDocument(Number(event.target.value))}>
@@ -191,15 +200,23 @@ export default function PdfWorkspace({
                 <span className="text-sm">{Math.round(zoom * 100)}%</span>
                 <Button type="button" variant="outline" size="sm" onClick={() => setZoom((current) => Math.min(3, Number((current + 0.25).toFixed(2))))}>+</Button>
                 <Button type="button" variant="outline" size="sm" onClick={() => setRotation((current) => (current + 90) % 360)}>Rotate</Button>
+                {canEdit ? (
+                    <div className="flex gap-1">
+                        <Button type="button" size="sm" variant={tool === 'door' ? 'default' : 'outline'} onClick={() => setTool('door')}>Count door</Button>
+                        <Button type="button" size="sm" variant={tool === 'window' ? 'default' : 'outline'} onClick={() => setTool('window')}>Count window</Button>
+                        <Button type="button" size="sm" variant={tool === 'select' ? 'default' : 'outline'} onClick={() => setTool('select')}>Select</Button>
+                        <Button type="button" size="sm" variant={tool === 'remove' ? 'default' : 'outline'} onClick={() => setTool('remove')}>Remove</Button>
+                    </div>
+                ) : null}
             </div>
             <p className="text-xs text-muted-foreground">
-                Click the drawing to place a marker{selectedOpeningId ? ' on the selected opening' : ''}. Markers stay tied to this file and page. Extra markers do not change quantity.
+                The drawing is scanned for every door and window. Each tag is added once, with its specs. Use Remove, or the × on a mark, to drop any opening you will not use.
             </p>
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
             {uploadError ? <p className="text-sm text-destructive">{uploadError}</p> : null}
             {!document ? (
                 <div className="flex flex-col items-start gap-3 rounded-md border border-dashed p-6">
-                    <p className="text-sm text-muted-foreground">Upload a PDF drawing to start marking openings.</p>
+                    <p className="text-sm text-muted-foreground">Upload the drawing, then click each door or window on the sheet to build the scope.</p>
                     {canEdit && onUpload ? (
                         <Button type="button" disabled={uploading} onClick={choosePdf}>
                             {uploading ? 'Uploading…' : 'Upload PDF'}
@@ -211,16 +228,16 @@ export default function PdfWorkspace({
                 <div className="relative inline-block">
                     <canvas
                         ref={canvasRef}
-                        className="max-w-none"
+                        className={`max-w-none ${canEdit && (tool === 'door' || tool === 'window') ? 'cursor-crosshair' : ''}`}
                         onClick={(event) => {
-                            if (!canEdit) {
+                            if (!canEdit || tool === 'select' || tool === 'remove') {
                                 return;
                             }
 
                             const point = pointFromEvent(event);
 
                             if (point) {
-                                onPlace(point);
+                                onCount(point, tool);
                             }
                         }}
                     />
@@ -232,19 +249,23 @@ export default function PdfWorkspace({
                         }
 
                         const selected = marker.id === selectedMarkerId || opening.id === selectedOpeningId;
+                        const forget = () => {
+                            if (opening.markers.length === 1) {
+                                onDelete(opening.id);
+
+                                return;
+                            }
+
+                            onRemove(marker.id);
+                        };
 
                         return (
-                            <button
+                            <div
                                 key={marker.id}
-                                type="button"
-                                className={`absolute z-10 flex h-7 min-w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full px-1 text-xs font-semibold ${selected ? 'bg-[#3FCF8E] text-[#111827] ring-2 ring-[#111827]' : 'bg-[#111827] text-white'}`}
+                                className="absolute z-10 -translate-x-1/2 -translate-y-1/2"
                                 style={{ left: position.left, top: position.top }}
-                                onClick={(event) => {
-                                    event.stopPropagation();
-                                    onSelectOpening(opening.id);
-                                }}
                                 onPointerDown={(event) => {
-                                    if (!canEdit) {
+                                    if (!canEdit || tool === 'remove' || (event.target as HTMLElement).closest('[data-remove-mark]')) {
                                         return;
                                     }
 
@@ -284,20 +305,47 @@ export default function PdfWorkspace({
                                     target.addEventListener('pointerup', up);
                                 }}
                             >
+                            <button
+                                type="button"
+                                className={`flex h-7 min-w-7 items-center justify-center rounded-full px-1 text-xs font-semibold ${tool === 'remove' ? 'cursor-pointer' : ''} ${selected ? 'bg-[#3FCF8E] text-[#111827] ring-2 ring-[#111827]' : 'bg-[#111827] text-white'}`}
+                                onClick={(event) => {
+                                    event.stopPropagation();
+
+                                    if (tool === 'remove') {
+                                        forget();
+
+                                        return;
+                                    }
+
+                                    onSelectOpening(opening.id);
+                                }}
+                                onContextMenu={(event) => {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+
+                                    if (canEdit) {
+                                        forget();
+                                    }
+                                }}
+                            >
                                 {opening.tag || opening.label}
-                                {canEdit && selected ? (
-                                    <span
-                                        className="ml-1"
-                                        onPointerDown={(event) => event.stopPropagation()}
-                                        onClick={(event) => {
-                                            event.stopPropagation();
-                                            onRemove(marker.id);
-                                        }}
-                                    >
-                                        ×
-                                    </span>
-                                ) : null}
                             </button>
+                            {canEdit ? (
+                                <button
+                                    type="button"
+                                    data-remove-mark
+                                    aria-label={`Remove ${opening.tag || opening.label}`}
+                                    className="absolute -right-2 -top-2 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-[10px] leading-none text-white"
+                                    onPointerDown={(event) => event.stopPropagation()}
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        forget();
+                                    }}
+                                >
+                                    ×
+                                </button>
+                            ) : null}
+                            </div>
                         );
                     })}
                 </div>

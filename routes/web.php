@@ -450,6 +450,9 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::post('/takeoffs/{takeoff}/documents', [TakeoffWorkspaceController::class, 'storeDocument'])
             ->middleware('can:update-takeoffs')
             ->name('takeoffs.documents.store');
+        Route::post('/takeoffs/{takeoff}/documents/{document}/scan', [TakeoffWorkspaceController::class, 'scanDocument'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.documents.scan');
         Route::patch('/takeoffs/{takeoff}/documents/{document}', [TakeoffWorkspaceController::class, 'updateDocument'])
             ->middleware('can:update-takeoffs')
             ->name('takeoffs.documents.update');
@@ -459,6 +462,9 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::get('/takeoffs/{takeoff}/documents/{document}', [TakeoffWorkspaceController::class, 'showDocument'])
             ->middleware('can:view-takeoffs')
             ->name('takeoffs.documents.show');
+        Route::post('/takeoffs/{takeoff}/counts', [TakeoffWorkspaceController::class, 'storeCount'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.counts.store');
         Route::post('/takeoffs/{takeoff}/openings', [TakeoffWorkspaceController::class, 'storeOpening'])
             ->middleware('can:update-takeoffs')
             ->name('takeoffs.openings.store');

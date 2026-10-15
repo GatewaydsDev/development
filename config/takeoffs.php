@@ -2,7 +2,7 @@
 
 return [
     'disk' => 'local',
-    'max_kilobytes' => (int) env('TAKEOFF_MAX_UPLOAD_KB', 25600),
+    'max_kilobytes' => (int) env('TAKEOFF_MAX_UPLOAD_KB', 65536),
     'document_types' => ['drawing', 'schedule', 'specification', 'addendum'],
     'statuses' => ['draft', 'in_review', 'approved', 'archived'],
     'opening_types' => ['door', 'window'],
