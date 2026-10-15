@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\User;
+use App\Models\UserLevel;
 use App\Services\MicrosoftGraphMailService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -110,4 +112,33 @@ test('microsoft graph tokens are cached and refreshed after they are rejected', 
     expect($tokenRequests)->toBe(2);
 
     Http::assertSent(fn ($request) => $request->hasHeader('Authorization', 'Bearer second-token'));
+});
+
+test('a super admin sends mail with that persons microsoft credentials', function () {
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $admin = User::factory()->create([
+        'level_id' => $level->id,
+        'role' => 'super_admin',
+        'microsoft_tenant_id' => 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        'microsoft_client_id' => 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+        'microsoft_client_secret' => 'super-admin-secret-value',
+    ]);
+
+    Http::fake([
+        'https://login.microsoftonline.com/*' => Http::response([
+            'access_token' => 'graph-token',
+            'expires_in' => 3600,
+        ], 200),
+        'https://graph.microsoft.com/*' => Http::response('', 202),
+    ]);
+
+    app(MicrosoftGraphMailService::class)
+        ->actingAs($admin)
+        ->sendText('ricardo@gateway-ds.com', 'melissa@gateway-ds.com', 'Review', 'Please review.');
+
+    Http::assertSent(function ($request) {
+        return $request->url() === 'https://login.microsoftonline.com/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/oauth2/v2.0/token'
+            && $request['client_id'] === 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
+            && $request['client_secret'] === 'super-admin-secret-value';
+    });
 });

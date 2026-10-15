@@ -37,13 +37,13 @@ class MailboxController extends Controller
             $nextUrl = is_string($cursor) && $cursor !== ''
                 ? $cursors->resolve($user->id, $mailbox, $folder, $cursor)
                 : null;
-            $page = $graph->listFolder($mailbox, $folder, $nextUrl);
+            $page = $graph->actingAs($user)->listFolder($mailbox, $folder, $nextUrl);
             $message = null;
 
             if (is_string($messageToken) && $messageToken !== '') {
                 $messageId = EmailPlainText::decodeMessageId($messageToken);
                 abort_if($messageId === null, 404);
-                $message = $graph->readMessage($mailbox, $messageId);
+                $message = $graph->actingAs($user)->readMessage($mailbox, $messageId);
             }
         } catch (MicrosoftGraphException $exception) {
             return Inertia::render('Email/Index', $this->props(
@@ -78,7 +78,7 @@ class MailboxController extends Controller
         ]);
 
         try {
-            $graph->sendText(
+            $graph->actingAs($request->user())->sendText(
                 $mailbox,
                 $validated['to'],
                 $validated['subject'],

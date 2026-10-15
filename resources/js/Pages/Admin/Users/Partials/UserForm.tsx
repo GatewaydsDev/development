@@ -1,4 +1,8 @@
+import EmailAddressInput from '@/Components/EmailAddressInput';
 import FormActionFab from '@/Components/FormActionFab';
+import UserContactFields, {
+    type UserContactRow,
+} from '@/Pages/Admin/Users/Partials/UserContactFields';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
@@ -29,6 +33,13 @@ type Language = {
     abbreviation: string;
 };
 
+type ContactValue = {
+    email?: string;
+    phone?: string;
+    country?: string;
+    is_primary: boolean;
+};
+
 type UserFormData = {
     name: string;
     email: string;
@@ -38,6 +49,14 @@ type UserFormData = {
     level_id: string;
     password: string;
     password_confirmation: string;
+    microsoft_mailbox: string;
+    microsoft_tenant_id: string;
+    microsoft_client_id: string;
+    microsoft_client_secret_id: string;
+    microsoft_client_secret: string;
+    remove_microsoft_client_secret: boolean;
+    emails: ContactValue[];
+    phones: ContactValue[];
 };
 
 type UserFormProps = {
@@ -46,6 +65,9 @@ type UserFormProps = {
     languages: Language[];
     accessPermissions?: AccessPermission[];
     canCreateUserLevel?: boolean;
+    canAssignMailbox?: boolean;
+    superAdminLevelNames?: string[];
+    microsoftSecretSaved?: boolean;
     submitLabel: string;
     title: string;
     description: string;
@@ -115,6 +137,9 @@ export default function UserForm({
     languages,
     accessPermissions = [],
     canCreateUserLevel = false,
+    canAssignMailbox = false,
+    superAdminLevelNames = ['Super Admin', 'Super Administrator'],
+    microsoftSecretSaved = false,
     submitLabel,
     title,
     description,
@@ -125,6 +150,7 @@ export default function UserForm({
     passwordOptional = false,
 }: UserFormProps) {
     const [showPassword, setShowPassword] = useState(false);
+    const [showMicrosoftSecret, setShowMicrosoftSecret] = useState(false);
     const [showPasswordConfirmation, setShowPasswordConfirmation] =
         useState(false);
     const [checkingEmail, setCheckingEmail] = useState(false);
@@ -142,13 +168,48 @@ export default function UserForm({
             level_id: initialValues.level_id ?? '',
             password: '',
             password_confirmation: '',
+            microsoft_mailbox: initialValues.microsoft_mailbox ?? '',
+            microsoft_tenant_id: initialValues.microsoft_tenant_id ?? '',
+            microsoft_client_id: initialValues.microsoft_client_id ?? '',
+            microsoft_client_secret_id:
+                initialValues.microsoft_client_secret_id ?? '',
+            microsoft_client_secret: '',
+            remove_microsoft_client_secret: false,
+            emails: initialValues.emails ?? [],
+            phones: initialValues.phones ?? [],
         });
 
-    transform((formData) =>
-        method === 'patch'
+    const selectedLevelName =
+        levels.find((level) => String(level.id) === data.level_id)?.name ?? '';
+    const showMicrosoftCredentials =
+        canAssignMailbox && superAdminLevelNames.includes(selectedLevelName);
+
+    transform((formData) => {
+        const payload = method === 'patch'
             ? { ...formData, _method: 'PATCH' }
-            : formData,
-    );
+            : formData;
+        const levelName =
+            levels.find((level) => String(level.id) === formData.level_id)
+                ?.name ?? '';
+        const rest = { ...payload };
+
+        if (!canAssignMailbox) {
+            delete rest.microsoft_mailbox;
+        }
+
+        if (
+            !canAssignMailbox ||
+            !superAdminLevelNames.includes(levelName)
+        ) {
+            delete rest.microsoft_tenant_id;
+            delete rest.microsoft_client_id;
+            delete rest.microsoft_client_secret_id;
+            delete rest.microsoft_client_secret;
+            delete rest.remove_microsoft_client_secret;
+        }
+
+        return rest;
+    });
 
     const onAvatarChange = (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0] ?? null;
@@ -323,16 +384,15 @@ export default function UserForm({
                                 value="Email Address (Use name)"
                                 className="text-emerald-700 dark:text-emerald-300"
                             />
-                            <TextInput
+                            <EmailAddressInput
                                 id="email"
-                                type="email"
                                 value={data.email}
                                 className="h-11 w-full border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
-                                autoComplete="email"
-                                onChange={(event) =>
-                                    setData('email', event.target.value)
-                                }
+                                onChange={(email) => setData('email', email)}
                             />
+                            <p className="text-xs text-muted-foreground">
+                                This address is used to sign in.
+                            </p>
                             <InputError message={errors.email} />
                             {checkingEmail && (
                                 <p className="text-sm text-muted-foreground">
@@ -345,6 +405,34 @@ export default function UserForm({
                                 </p>
                             )}
                         </div>
+
+                        {canAssignMailbox ? (
+                            <div className="flex max-w-md flex-col gap-2 md:col-span-2">
+                                <InputLabel
+                                    htmlFor="microsoft-mailbox"
+                                    value="Microsoft 365 mailbox"
+                                    className="text-emerald-700 dark:text-emerald-300"
+                                />
+                                <EmailAddressInput
+                                    id="microsoft-mailbox"
+                                    value={data.microsoft_mailbox}
+                                    placeholder="name@gateway-ds.com"
+                                    className="h-9 w-full border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
+                                    onChange={(mailbox) =>
+                                        setData('microsoft_mailbox', mailbox)
+                                    }
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    Mail in the app is sent and read from this
+                                    address. Leave it blank when this person
+                                    has no mailbox. It does not change the
+                                    sign-in email.
+                                </p>
+                                <InputError
+                                    message={errors.microsoft_mailbox}
+                                />
+                            </div>
+                        ) : null}
                     </div>
 
                     <div className="grid gap-5 md:grid-cols-2">
@@ -415,6 +503,54 @@ export default function UserForm({
                         </div>
                     </div>
 
+                    <UserContactFields
+                        legend="Email addresses"
+                        description="Add every email for this person. One address is the primary email."
+                        addLabel="Add email"
+                        placeholder="name@example.com"
+                        inputType="email"
+                        field="emails"
+                        rows={data.emails.map((row) => ({
+                            value: row.email ?? '',
+                            is_primary: row.is_primary,
+                        }))}
+                        errors={errors}
+                        onChange={(rows: UserContactRow[]) =>
+                            setData(
+                                'emails',
+                                rows.map((row) => ({
+                                    email: row.value,
+                                    is_primary: row.is_primary,
+                                })),
+                            )
+                        }
+                    />
+
+                    <UserContactFields
+                        legend="Phone numbers"
+                        description="Add every phone number for this person. One number is the primary phone."
+                        addLabel="Add phone"
+                        placeholder="(555) 555-0100"
+                        inputType="tel"
+                        field="phones"
+                        rows={data.phones.map((row) => ({
+                            value: row.phone ?? '',
+                            country: row.country ?? 'US',
+                            is_primary: row.is_primary,
+                        }))}
+                        errors={errors}
+                        onChange={(rows: UserContactRow[]) =>
+                            setData(
+                                'phones',
+                                rows.map((row) => ({
+                                    phone: row.value,
+                                    country: row.country ?? 'US',
+                                    is_primary: row.is_primary,
+                                })),
+                            )
+                        }
+                    />
+
                     <UserLevelSelect
                         id="level_id"
                         value={data.level_id}
@@ -425,6 +561,159 @@ export default function UserForm({
                         error={errors.level_id}
                         onChange={(levelId) => setData('level_id', levelId)}
                     />
+
+                    {showMicrosoftCredentials ? (
+                        <div className="grid gap-5 md:grid-cols-2">
+                            <div className="md:col-span-2">
+                                <h3 className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                                    Microsoft 365 application
+                                </h3>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    These credentials are used when this super
+                                    administrator sends or reads mail. Leave
+                                    the secret value blank to keep the saved
+                                    one. The Secret ID is not the secret value.
+                                </p>
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <InputLabel
+                                    htmlFor="microsoft-tenant-id"
+                                    value="Tenant ID"
+                                    className="text-emerald-700 dark:text-emerald-300"
+                                />
+                                <TextInput
+                                    id="microsoft-tenant-id"
+                                    value={data.microsoft_tenant_id}
+                                    className="h-9 w-full border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
+                                    placeholder="Leave blank to use the server tenant"
+                                    onChange={(event) =>
+                                        setData(
+                                            'microsoft_tenant_id',
+                                            event.target.value,
+                                        )
+                                    }
+                                />
+                                <InputError
+                                    message={errors.microsoft_tenant_id}
+                                />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <InputLabel
+                                    htmlFor="microsoft-client-id"
+                                    value="Application (client) ID"
+                                    className="text-emerald-700 dark:text-emerald-300"
+                                />
+                                <TextInput
+                                    id="microsoft-client-id"
+                                    value={data.microsoft_client_id}
+                                    className="h-9 w-full border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
+                                    placeholder="Leave blank to use the server application"
+                                    onChange={(event) =>
+                                        setData(
+                                            'microsoft_client_id',
+                                            event.target.value,
+                                        )
+                                    }
+                                />
+                                <InputError
+                                    message={errors.microsoft_client_id}
+                                />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <InputLabel
+                                    htmlFor="microsoft-client-secret-id"
+                                    value="Secret ID"
+                                    className="text-emerald-700 dark:text-emerald-300"
+                                />
+                                <TextInput
+                                    id="microsoft-client-secret-id"
+                                    value={data.microsoft_client_secret_id}
+                                    className="h-9 w-full border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
+                                    onChange={(event) =>
+                                        setData(
+                                            'microsoft_client_secret_id',
+                                            event.target.value,
+                                        )
+                                    }
+                                />
+                                <InputError
+                                    message={errors.microsoft_client_secret_id}
+                                />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <InputLabel
+                                    htmlFor="microsoft-client-secret"
+                                    value="Secret value"
+                                    className="text-emerald-700 dark:text-emerald-300"
+                                />
+                                <div className="relative">
+                                    <TextInput
+                                        id="microsoft-client-secret"
+                                        type={
+                                            showMicrosoftSecret
+                                                ? 'text'
+                                                : 'password'
+                                        }
+                                        value={data.microsoft_client_secret}
+                                        className="h-9 w-full border-border bg-background pe-11 text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
+                                        autoComplete="new-password"
+                                        placeholder={
+                                            microsoftSecretSaved
+                                                ? 'Saved. Leave blank to keep it'
+                                                : 'Paste the secret value'
+                                        }
+                                        onChange={(event) =>
+                                            setData(
+                                                'microsoft_client_secret',
+                                                event.target.value,
+                                            )
+                                        }
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setShowMicrosoftSecret(
+                                                (current) => !current,
+                                            )
+                                        }
+                                        className="absolute inset-y-0 end-0 flex items-center px-3 text-muted-foreground transition hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+                                        aria-label={
+                                            showMicrosoftSecret
+                                                ? 'Hide Microsoft secret'
+                                                : 'Show Microsoft secret'
+                                        }
+                                    >
+                                        {showMicrosoftSecret ? (
+                                            <EyeOff className="size-4" />
+                                        ) : (
+                                            <Eye className="size-4" />
+                                        )}
+                                    </button>
+                                </div>
+                                <InputError
+                                    message={errors.microsoft_client_secret}
+                                />
+                                {microsoftSecretSaved ? (
+                                    <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                                        <input
+                                            type="checkbox"
+                                            checked={
+                                                data.remove_microsoft_client_secret
+                                            }
+                                            onChange={(event) =>
+                                                setData(
+                                                    'remove_microsoft_client_secret',
+                                                    event.target.checked,
+                                                )
+                                            }
+                                            className="rounded border-border text-emerald-700 focus:ring-ring"
+                                        />
+                                        Remove the saved secret value
+                                    </label>
+                                ) : null}
+                            </div>
+                        </div>
+                    ) : null}
 
                     <div className="grid gap-5 md:grid-cols-2">
                         <div className="flex flex-col gap-2">

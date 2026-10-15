@@ -19,6 +19,11 @@ type ManagedUser = {
     uuid: string;
     name: string;
     email: string;
+    microsoft_mailbox?: string | null;
+    microsoft_tenant_id?: string | null;
+    microsoft_client_id?: string | null;
+    microsoft_client_secret_id?: string | null;
+    microsoft_client_secret_saved?: boolean;
     avatar_url: string | null;
     initials: string;
     date_of_birth: string | null;
@@ -26,6 +31,12 @@ type ManagedUser = {
     preferred_language: Language | null;
     level_id: number | null;
     level: Level | null;
+    emails?: Array<{ email: string; is_primary: boolean }>;
+    phones?: Array<{
+        phone: string;
+        country?: string;
+        is_primary: boolean;
+    }>;
 };
 
 type AccessPermission = {
@@ -40,6 +51,8 @@ type EditProps = {
     languages: Language[];
     accessPermissions?: AccessPermission[];
     canCreateUserLevel?: boolean;
+    canAssignMailbox?: boolean;
+    superAdminLevelNames?: string[];
     managedUser: ManagedUser;
 };
 
@@ -48,6 +61,8 @@ export default function Edit({
     languages,
     accessPermissions = [],
     canCreateUserLevel = false,
+    canAssignMailbox = false,
+    superAdminLevelNames,
     managedUser,
 }: EditProps) {
     return (
@@ -85,8 +100,13 @@ export default function Edit({
                         languages={languages}
                         accessPermissions={accessPermissions}
                         canCreateUserLevel={canCreateUserLevel}
+                        canAssignMailbox={canAssignMailbox}
+                        superAdminLevelNames={superAdminLevelNames}
+                        microsoftSecretSaved={
+                            managedUser.microsoft_client_secret_saved ?? false
+                        }
                         title={`Update ${managedUser.name}`}
-                        description="Review profile details, access level, and password settings for this user."
+                        description="Review profile details, contact emails and phone numbers, access level, and password settings for this user."
                         action={route('admin.users.update', managedUser.uuid)}
                         method="patch"
                         submitLabel="Save changes"
@@ -95,6 +115,14 @@ export default function Edit({
                         initialValues={{
                             name: managedUser.name,
                             email: managedUser.email,
+                            microsoft_mailbox:
+                                managedUser.microsoft_mailbox ?? '',
+                            microsoft_tenant_id:
+                                managedUser.microsoft_tenant_id ?? '',
+                            microsoft_client_id:
+                                managedUser.microsoft_client_id ?? '',
+                            microsoft_client_secret_id:
+                                managedUser.microsoft_client_secret_id ?? '',
                             date_of_birth: managedUser.date_of_birth ?? '',
                             language_id: managedUser.language_id
                                 ? String(managedUser.language_id)
@@ -102,6 +130,8 @@ export default function Edit({
                             level_id: managedUser.level_id
                                 ? String(managedUser.level_id)
                                 : '',
+                            emails: managedUser.emails ?? [],
+                            phones: managedUser.phones ?? [],
                         }}
                     />
                 </div>
