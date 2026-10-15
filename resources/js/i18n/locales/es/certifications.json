@@ -31,7 +31,7 @@
       "summary": "Instalación certificada de puertas apantalladas de radiofrecuencia para control electromagnético y TEMPEST.",
       "description": "Esta certificación RF cubre la instalación de ensamblajes de puertas apantalladas de radiofrecuencia donde el control electromagnético, el desempeño TEMPEST y el acceso seguro deben trabajar juntos. Respaldan el ajuste preciso, la continuidad en la apertura y la coordinación de marcos, sellos y herrajes con clasificación RF.",
       "logoAlt": "Marca de certificación RF",
-      "imageAlt": "Puerta apantallada de radiofrecuencia con control de acceso",
+      "imageAlt": "Ilustración de una puerta RF con sello conductor",
       "issuedBy": "Aperturas apantalladas de radiofrecuencia"
     },
     "scifRooms": {
@@ -40,7 +40,7 @@
       "summary": "Certificados para construir salas SCIF en instalaciones sensibles de acceso controlado.",
       "description": "Esta certificación cubre la construcción de salas SCIF (Sensitive Compartmented Information Facility), incluyendo la coordinación de muros seguros, aperturas, penetraciones y sistemas de puertas usados en espacios relacionados con ICD-705. Gateway Door Systems apoya la construcción de salas SCIF que requieren instalación disciplinada y documentación.",
       "logoAlt": "Marca de certificación de construcción de salas SCIF",
-      "imageAlt": "Puertas seguras en un pasillo de instalación de acceso controlado",
+      "imageAlt": "Ilustración de una puerta de cuarto controlado",
       "issuedBy": "Construcción de salas SCIF"
     }
   },

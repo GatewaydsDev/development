@@ -1,4 +1,5 @@
 import { RevisionReviewPanel } from '@/Components/RevisionAssignments';
+import RevisionReviewEmail from '@/Pages/Admin/Quotations/Partials/RevisionReviewEmail';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import type { RevisionAssignment } from '@/types';
 import DirectoryFieldLabel from '@/Components/DirectoryFieldLabel';
@@ -49,6 +50,7 @@ type ShowProps = {
     quotation: QuotationPayload;
     options: QuotationOptions;
     assignedRevisions?: RevisionAssignment[];
+    canSendRevisionReview?: boolean;
 };
 
 function DetailItem({
@@ -74,6 +76,7 @@ export default function Show({
     quotation,
     options,
     assignedRevisions = [],
+    canSendRevisionReview = false,
 }: ShowProps) {
     const [isConvertOpen, setIsConvertOpen] = useState(false);
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -340,6 +343,23 @@ export default function Show({
                                                     </p>
                                                 </div>
                                             ) : null}
+                                            <div className="sm:col-span-2 lg:col-span-full">
+                                                <RevisionReviewEmail
+                                                    quotationUuid={
+                                                        quotation.uuid
+                                                    }
+                                                    revisionId={revision.id}
+                                                    revisionNumber={
+                                                        revision.number
+                                                    }
+                                                    reviews={
+                                                        revision.reviews ?? []
+                                                    }
+                                                    enabled={
+                                                        canSendRevisionReview
+                                                    }
+                                                />
+                                            </div>
                                         </div>
                                     ))}
                                 </div>

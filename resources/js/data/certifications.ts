@@ -17,7 +17,7 @@ export const certifications = [
     {
         key: 'rf',
         logo: null,
-        image: '/images/certification-rf.webp',
+        image: '/images/products/rf.svg',
         website: null,
         monogram: 'RF',
         plate: 'emerald',
@@ -25,7 +25,7 @@ export const certifications = [
     {
         key: 'scifRooms',
         logo: null,
-        image: '/images/certification-scif.webp',
+        image: '/images/products/scif.svg',
         website: null,
         monogram: 'SCIF',
         plate: 'slate',

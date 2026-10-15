@@ -271,6 +271,15 @@ export type QuotationRevisionPayload = {
     status?: { id?: number | null; name?: string | null } | null;
     title_id?: number | null;
     title?: { id?: number | null; name?: string | null } | null;
+    reviews?: QuotationRevisionReviewPayload[];
+};
+
+export type QuotationRevisionReviewPayload = {
+    id: number;
+    recipient_email: string;
+    sender_name?: string | null;
+    message?: string | null;
+    sent_at?: string | null;
 };
 
 export type QuotationProductFieldPayload = {

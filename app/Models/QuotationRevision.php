@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 class QuotationRevision extends Model
@@ -69,5 +70,10 @@ class QuotationRevision extends Model
     public function responsibleAssignedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'responsible_assigned_by_id');
+    }
+
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(QuotationRevisionReview::class)->latest('sent_at');
     }
 }

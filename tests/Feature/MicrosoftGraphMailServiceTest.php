@@ -1,14 +1,17 @@
 <?php
 
 use App\Services\MicrosoftGraphMailService;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
 beforeEach(function () {
+    Cache::flush();
     config([
         'services.microsoft.tenant_id' => 'tenant-id',
         'services.microsoft.client_id' => 'client-id',
         'services.microsoft.client_secret' => 'client-secret',
         'services.microsoft.mail_from' => 'sales@gateway-ds.com',
+        'services.microsoft.mail_from_name' => 'Gateway Door Systems',
     ]);
 });
 
@@ -38,7 +41,7 @@ test('microsoft graph mail service sends html mail through azure', function () {
     Http::assertSent(function ($request) {
         $payload = $request->data();
 
-        return $request->url() === 'https://graph.microsoft.com/v1.0/users/sales@gateway-ds.com/sendMail'
+        return $request->url() === 'https://graph.microsoft.com/v1.0/users/'.rawurlencode('sales@gateway-ds.com').'/sendMail'
             && $request->hasHeader('Authorization', 'Bearer graph-token')
             && $payload['saveToSentItems'] === true
             && $payload['message']['subject'] === 'Quote ready'
@@ -75,3 +78,36 @@ test('microsoft graph mail service surfaces azure errors', function () {
         '<p>Hello</p>',
     );
 })->throws(RuntimeException::class, 'AADSTS700016');
+
+test('microsoft graph tokens are cached and refreshed after they are rejected', function () {
+    Http::fake([
+        'https://login.microsoftonline.com/*' => Http::sequence()
+            ->push(['access_token' => 'first-token', 'expires_in' => 3600])
+            ->push(['access_token' => 'second-token', 'expires_in' => 3600]),
+        'https://graph.microsoft.com/*' => Http::sequence()
+            ->push(['value' => []], 200)
+            ->push(['value' => []], 200)
+            ->push(['error' => ['code' => 'InvalidAuthenticationToken']], 401)
+            ->push(['value' => []], 200),
+    ]);
+
+    $mail = app(MicrosoftGraphMailService::class);
+    $mail->listFolder('sales@gateway-ds.com', 'inbox');
+    $mail->listFolder('sales@gateway-ds.com', 'sent');
+
+    $tokenRequests = collect(Http::recorded())
+        ->filter(fn (array $pair) => str_contains($pair[0]->url(), 'oauth2/v2.0/token'))
+        ->count();
+
+    expect($tokenRequests)->toBe(1);
+
+    $mail->listFolder('sales@gateway-ds.com', 'inbox');
+
+    $tokenRequests = collect(Http::recorded())
+        ->filter(fn (array $pair) => str_contains($pair[0]->url(), 'oauth2/v2.0/token'))
+        ->count();
+
+    expect($tokenRequests)->toBe(2);
+
+    Http::assertSent(fn ($request) => $request->hasHeader('Authorization', 'Bearer second-token'));
+});

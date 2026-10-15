@@ -6,11 +6,13 @@ import aboutEn from './locales/en/about.json';
 import certificationsEn from './locales/en/certifications.json';
 import commonEn from './locales/en/common.json';
 import homeEn from './locales/en/home.json';
+import mailEn from './locales/en/mail.json';
 import servicesEn from './locales/en/services.json';
 import aboutEs from './locales/es/about.json';
 import certificationsEs from './locales/es/certifications.json';
 import commonEs from './locales/es/common.json';
 import homeEs from './locales/es/home.json';
+import mailEs from './locales/es/mail.json';
 import servicesEs from './locales/es/services.json';
 
 export const languages = [
@@ -26,7 +28,7 @@ i18n.use(LanguageDetector)
         fallbackLng: 'en',
         supportedLngs: languages.map((language) => language.code),
         defaultNS: 'common',
-        ns: ['common', 'home', 'about', 'services', 'certifications'],
+        ns: ['common', 'home', 'about', 'services', 'certifications', 'mail'],
         resources: {
             en: {
                 common: commonEn,
@@ -34,6 +36,7 @@ i18n.use(LanguageDetector)
                 about: aboutEn,
                 services: servicesEn,
                 certifications: certificationsEn,
+                mail: mailEn,
             },
             es: {
                 common: commonEs,
@@ -41,6 +44,7 @@ i18n.use(LanguageDetector)
                 about: aboutEs,
                 services: servicesEs,
                 certifications: certificationsEs,
+                mail: mailEs,
             },
         },
         detection: {

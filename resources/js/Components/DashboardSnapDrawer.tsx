@@ -337,6 +337,17 @@ export default function DashboardSnapDrawer({
                 visible: true,
             },
             {
+                id: 'ws-mailbox',
+                title: 'Email',
+                description: 'Read and send mail from your assigned Microsoft 365 mailbox.',
+                href: route('mailbox.index'),
+                icon: MailOpenIcon,
+                category: 'workspace',
+                badge: 'Mail',
+                keywords: ['email', 'mail', 'inbox', 'outlook', 'microsoft'],
+                visible: true,
+            },
+            {
                 id: 'ws-notifications',
                 title: 'Notifications & Alerts',
                 description: 'View customer inquiries, submission alerts, and contact logs.',

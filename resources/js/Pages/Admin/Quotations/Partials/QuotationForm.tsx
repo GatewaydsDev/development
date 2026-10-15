@@ -2,6 +2,7 @@ import CreatableSelect from '@/Components/CreatableSelect';
 import FormActionFab from '@/Components/FormActionFab';
 import ProjectPricePicker from '@/Components/ProjectPricePicker';
 import QuotationTakeoffOpenings from '@/Pages/Admin/Quotations/Partials/QuotationTakeoffOpenings';
+import RevisionReviewEmail from '@/Pages/Admin/Quotations/Partials/RevisionReviewEmail';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import MaskedDecimalInput from '@/Components/MaskedDecimalInput';
@@ -1453,6 +1454,22 @@ export default function QuotationForm({
                                                 validationErrors,
                                                 `revisions.${index}.notes`,
                                             )}
+                                        />
+                                    </div>
+                                    <div className="sm:col-span-2 xl:col-span-4">
+                                        <RevisionReviewEmail
+                                            quotationUuid={
+                                                quotation?.uuid ?? ''
+                                            }
+                                            revisionId={revision?.id}
+                                            revisionNumber={revision?.number}
+                                            reviews={
+                                                quotation?.revisions?.find(
+                                                    (item) =>
+                                                        String(item.id) ===
+                                                        revision?.id,
+                                                )?.reviews ?? []
+                                            }
                                         />
                                     </div>
                                 </div>

@@ -16,6 +16,7 @@ use App\Models\QuotationField;
 use App\Models\QuotationLineItem;
 use App\Models\QuotationProductField;
 use App\Models\QuotationRevision;
+use App\Models\QuotationRevisionReview;
 use App\Models\QuotationRevisionStatus;
 use App\Models\QuotationRevisionTitle;
 use App\Models\QuotationTable;
@@ -34,6 +35,7 @@ use App\Support\QuotationDocument;
 use App\Support\QuotationListVersion;
 use App\Support\QuotationRevisionAssignments;
 use App\Support\QuotationRevisionResponsible;
+use App\Support\QuotationRevisionReviewMail;
 use App\Support\QuotationToBid;
 use App\Support\TakeoffPresenter;
 use Illuminate\Database\Eloquent\Builder;
@@ -231,11 +233,13 @@ class QuotationController extends Controller
 
         abort_unless(QuotationAccess::canView($request->user()) || $assignedRevisions->isNotEmpty(), 403);
 
-        $quotation->load(['contractor.contacts', 'contacts', 'project', 'lineItems', 'convertedBid', 'creator:id,name,signature_path', 'revisions.user:id,name', 'revisions.responsibleUser:id,name', 'revisions.status:id,name', 'revisions.title:id,name', 'tables.fields.field', 'tables.fields.product']);
+        $quotation->load(['contractor.contacts', 'contacts', 'project', 'lineItems', 'convertedBid', 'creator:id,name,signature_path', 'revisions.user:id,name', 'revisions.responsibleUser:id,name', 'revisions.status:id,name', 'revisions.title:id,name', 'revisions.reviews.sender:id,name', 'tables.fields.field', 'tables.fields.product']);
 
         return Inertia::render('Admin/Quotations/Show', [
             'quotation' => $this->quotationPayload($quotation),
             'options' => $this->options($request->user()),
+            'canSendRevisionReview' => QuotationAccess::canUpdate($request->user()),
+            'reviewMailbox' => $request->user()->microsoft_mailbox,
             'assignedRevisions' => $assignedRevisions
                 ->map(fn (QuotationRevision $revision): array => QuotationRevisionAssignments::payload($revision))
                 ->values(),
@@ -287,15 +291,39 @@ class QuotationController extends Controller
         return $this->quotationDocument($request, $quotation)->wordResponse();
     }
 
+    public function sendRevisionReview(Request $request, Quotation $quotation, QuotationRevision $revision): RedirectResponse
+    {
+        abort_unless(QuotationAccess::canUpdate($request->user()), 403);
+        abort_unless((int) $revision->quotation_id === (int) $quotation->id, 404);
+
+        $validated = $request->validate([
+            'email' => ['required', 'email:rfc', 'max:255'],
+            'message' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        app(QuotationRevisionReviewMail::class)->send(
+            $request->user(),
+            $revision,
+            $validated['email'],
+            $validated['message'] ?? null,
+        );
+
+        return back()->with(
+            'success',
+            'Microsoft 365 accepted the revision for review. It was sent to '.$validated['email'].'.',
+        );
+    }
+
     public function edit(Request $request, Quotation $quotation): Response
     {
         abort_unless(QuotationAccess::canUpdate($request->user()), 403);
 
-        $quotation->load(['contractor.contacts', 'contacts', 'project', 'lineItems', 'convertedBid', 'creator:id,name,signature_path', 'revisions.user:id,name', 'revisions.responsibleUser:id,name', 'revisions.status:id,name', 'revisions.title:id,name', 'tables.fields.field', 'tables.fields.product']);
+        $quotation->load(['contractor.contacts', 'contacts', 'project', 'lineItems', 'convertedBid', 'creator:id,name,signature_path', 'revisions.user:id,name', 'revisions.responsibleUser:id,name', 'revisions.status:id,name', 'revisions.title:id,name', 'revisions.reviews.sender:id,name', 'tables.fields.field', 'tables.fields.product']);
 
         return Inertia::render('Admin/Quotations/Edit', [
             'quotation' => $this->quotationPayload($quotation),
             'options' => $this->options($request->user()),
+            'reviewMailbox' => $request->user()->microsoft_mailbox,
         ]);
     }
 
@@ -855,6 +883,15 @@ class QuotationController extends Controller
                 'status' => $revision->status ? ['id' => $revision->status->id, 'name' => $revision->status->name] : null,
                 'title_id' => $revision->title_id,
                 'title' => $revision->title ? ['id' => $revision->title->id, 'name' => $revision->title->name] : null,
+                'reviews' => $revision->relationLoaded('reviews')
+                    ? $revision->reviews->map(fn (QuotationRevisionReview $review): array => [
+                        'id' => $review->id,
+                        'recipient_email' => $review->recipient_email,
+                        'sender_name' => $review->sender?->name,
+                        'message' => $review->message,
+                        'sent_at' => $review->sent_at?->toIso8601String(),
+                    ])->values()->all()
+                    : [],
             ])
             ->values()
             ->all();
