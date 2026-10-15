@@ -28,6 +28,10 @@ type UserRow = {
     uuid: string;
     name: string;
     email: string;
+    microsoft_mailbox?: string | null;
+    microsoft_app_ready?: boolean;
+    primary_email?: string | null;
+    primary_phone?: string | null;
     date_of_birth: string | null;
     preferred_language: {
         id: number;
@@ -229,6 +233,12 @@ export default function Index({ filters, users }: IndexProps) {
                                                 </p>
                                                 <p className="text-sm text-muted-foreground md:hidden">
                                                     {user.email}
+                                                    {user.microsoft_mailbox
+                                                        ? ` · ${user.microsoft_mailbox}`
+                                                        : ''}
+                                                    {user.primary_phone
+                                                        ? ` · ${user.primary_phone}`
+                                                        : ''}
                                                 </p>
                                                 <p className="text-sm text-muted-foreground md:hidden">
                                                     Last login:{' '}
@@ -241,6 +251,31 @@ export default function Index({ filters, users }: IndexProps) {
                                                     Email
                                                 </DirectoryFieldLabel>
                                                 {user.email}
+                                                {user.microsoft_mailbox ? (
+                                                    <span className="block">
+                                                        Mailbox:{' '}
+                                                        {user.microsoft_mailbox}
+                                                    </span>
+                                                ) : null}
+                                                {user.microsoft_app_ready ? (
+                                                    <span className="block">
+                                                        Microsoft app
+                                                        credentials saved
+                                                    </span>
+                                                ) : null}
+                                                {user.primary_email &&
+                                                user.primary_email !==
+                                                    user.email ? (
+                                                    <span className="block">
+                                                        Primary:{' '}
+                                                        {user.primary_email}
+                                                    </span>
+                                                ) : null}
+                                                {user.primary_phone ? (
+                                                    <span className="block">
+                                                        {user.primary_phone}
+                                                    </span>
+                                                ) : null}
                                             </div>
                                             <div className="text-sm text-muted-foreground">
                                                 <DirectoryFieldLabel hideFrom="xl">

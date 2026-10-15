@@ -26,6 +26,8 @@ type CreateProps = {
     languages: Language[];
     accessPermissions?: AccessPermission[];
     canCreateUserLevel?: boolean;
+    canAssignMailbox?: boolean;
+    superAdminLevelNames?: string[];
 };
 
 export default function Create({
@@ -33,6 +35,8 @@ export default function Create({
     languages,
     accessPermissions = [],
     canCreateUserLevel = false,
+    canAssignMailbox = false,
+    superAdminLevelNames,
 }: CreateProps) {
     return (
         <AuthenticatedLayout
@@ -68,6 +72,8 @@ export default function Create({
                         languages={languages}
                         accessPermissions={accessPermissions}
                         canCreateUserLevel={canCreateUserLevel}
+                        canAssignMailbox={canAssignMailbox}
+                        superAdminLevelNames={superAdminLevelNames}
                         title="Create a team member"
                         description="Invite an internal user and choose the correct access level for Gateway Door Systems."
                         action={route('admin.users.store')}

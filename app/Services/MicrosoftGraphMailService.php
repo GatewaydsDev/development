@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Exceptions\MicrosoftGraphException;
+use App\Models\User;
 use App\Support\EmailPlainText;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
@@ -11,6 +12,16 @@ use Illuminate\Support\Facades\Http;
 
 class MicrosoftGraphMailService
 {
+    private ?User $actor = null;
+
+    public function actingAs(?User $user): self
+    {
+        $copy = clone $this;
+        $copy->actor = $user;
+
+        return $copy;
+    }
+
     public function send(
         string $to,
         string $subject,
@@ -319,6 +330,17 @@ class MicrosoftGraphMailService
         $tenantId = trim((string) config('services.microsoft.tenant_id'));
         $clientId = trim((string) config('services.microsoft.client_id'));
         $clientSecret = trim((string) config('services.microsoft.client_secret'));
+        $actor = $this->actor;
+
+        if ($actor?->isSuperAdmin()) {
+            $ownSecret = trim((string) $actor->microsoft_client_secret);
+
+            if ($ownSecret !== '') {
+                $tenantId = trim((string) ($actor->microsoft_tenant_id ?: $tenantId));
+                $clientId = trim((string) ($actor->microsoft_client_id ?: $clientId));
+                $clientSecret = $ownSecret;
+            }
+        }
 
         if ($tenantId === '' || $clientId === '' || $clientSecret === '') {
             throw new MicrosoftGraphException(
@@ -337,9 +359,9 @@ class MicrosoftGraphMailService
 
     private function tokenCacheKey(): string
     {
-        [$tenantId, $clientId] = $this->credentials();
+        [$tenantId, $clientId, $clientSecret] = $this->credentials();
 
-        return 'microsoft-graph:token:'.hash('sha256', $tenantId.'|'.$clientId);
+        return 'microsoft-graph:token:'.hash('sha256', $tenantId.'|'.$clientId.'|'.$clientSecret);
     }
 
     private function honorRetryAfter(Response $response): void

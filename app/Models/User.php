@@ -60,6 +60,10 @@ class User extends Authenticatable
         'password',
         'remember_token',
         'microsoft_mailbox',
+        'microsoft_tenant_id',
+        'microsoft_client_id',
+        'microsoft_client_secret',
+        'microsoft_client_secret_id',
     ];
 
     /**
@@ -74,6 +78,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'last_login_at' => 'datetime',
             'password' => 'hashed',
+            'microsoft_client_secret' => 'encrypted',
         ];
     }
 
@@ -151,6 +156,16 @@ class User extends Authenticatable
     public function employee(): HasOne
     {
         return $this->hasOne(Employee::class);
+    }
+
+    public function emails(): HasMany
+    {
+        return $this->hasMany(UserEmail::class)->orderByDesc('is_primary')->orderBy('id');
+    }
+
+    public function phones(): HasMany
+    {
+        return $this->hasMany(UserPhone::class)->orderByDesc('is_primary')->orderBy('id');
     }
 
     public function workSchedules(): HasMany

@@ -80,7 +80,7 @@ class QuotationRevisionReviewMail
         $lines[] = 'The quotation PDF is attached.';
 
         try {
-            app(MicrosoftGraphMailService::class)->sendText(
+            app(MicrosoftGraphMailService::class)->actingAs($sender)->sendText(
                 $mailbox,
                 $recipient,
                 $subject,
