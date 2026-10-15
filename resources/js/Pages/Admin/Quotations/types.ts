@@ -169,6 +169,25 @@ export type QuotationContractorOption = {
     contacts?: QuotationContactOption[];
 };
 
+export type QuotationTakeoffOpeningOption = {
+    id: number;
+    tag: string | null;
+    opening_type: string;
+    quantity: string;
+    size: string;
+    location: string | null;
+    description: string;
+};
+
+export type QuotationTakeoffOption = {
+    id: number;
+    uuid: string;
+    title: string;
+    revision_number: number;
+    opening_count: number;
+    openings: QuotationTakeoffOpeningOption[];
+};
+
 export type QuotationProjectOption = {
     id: number;
     name: string;
@@ -181,6 +200,7 @@ export type QuotationProjectOption = {
         label: string;
         amount: string | number;
     }>;
+    takeoffs?: QuotationTakeoffOption[];
 };
 
 export type QuotationStatusOption = {

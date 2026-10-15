@@ -7,8 +7,8 @@ use App\Models\BidTextTemplate;
 use App\Models\Company;
 use App\Models\Contractor;
 use App\Models\ContractorContact;
-use App\Models\Product;
 use App\Models\PrintLayout;
+use App\Models\Product;
 use App\Models\Project;
 use App\Models\ProjectPrice;
 use App\Models\Quotation;
@@ -20,6 +20,8 @@ use App\Models\QuotationRevisionStatus;
 use App\Models\QuotationRevisionTitle;
 use App\Models\QuotationTable;
 use App\Models\QuotationTitle;
+use App\Models\Takeoff;
+use App\Models\TakeoffOpening;
 use App\Models\User;
 use App\Support\BidAccess;
 use App\Support\BidApplicationText;
@@ -33,6 +35,7 @@ use App\Support\QuotationListVersion;
 use App\Support\QuotationRevisionAssignments;
 use App\Support\QuotationRevisionResponsible;
 use App\Support\QuotationToBid;
+use App\Support\TakeoffPresenter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -1200,7 +1203,11 @@ class QuotationController extends Controller
                 ->values()
                 ->all(),
             'projects' => Project::query()
-                ->with(['contractors:id', 'prices'])
+                ->with([
+                    'contractors:id',
+                    'prices',
+                    'takeoffs.openings' => fn ($query) => $query->where('disposition', 'active')->orderBy('sort_order')->orderBy('id'),
+                ])
                 ->orderByDesc('id')
                 ->get([
                     'id',
@@ -1227,6 +1234,28 @@ class QuotationController extends Controller
                         ])
                         ->values()
                         ->all(),
+                    'takeoffs' => $project->takeoffs
+                        ->map(fn (Takeoff $takeoff): array => [
+                            'id' => $takeoff->id,
+                            'uuid' => $takeoff->uuid,
+                            'title' => $takeoff->title,
+                            'revision_number' => $takeoff->revision_number,
+                            'opening_count' => $takeoff->openings->count(),
+                            'openings' => $takeoff->openings
+                                ->map(fn (TakeoffOpening $opening): array => [
+                                    'id' => $opening->id,
+                                    'tag' => $opening->tag,
+                                    'opening_type' => $opening->opening_type,
+                                    'quantity' => (string) $opening->quantity,
+                                    'size' => TakeoffPresenter::size($opening) ?? '',
+                                    'location' => $opening->location,
+                                    'description' => mb_substr($this->quoteOpeningDescription($opening), 0, 255),
+                                ])
+                                ->values()
+                                ->all(),
+                        ])
+                        ->values()
+                        ->all(),
                     'site_address' => BidApplicationText::formatAddress(
                         $project->site_address_line_1,
                         $project->site_address_line_2,
@@ -1239,6 +1268,23 @@ class QuotationController extends Controller
                 ->values()
                 ->all(),
         ];
+    }
+
+    private function quoteOpeningDescription(TakeoffOpening $opening): string
+    {
+        $parts = array_filter([
+            $opening->tag ?: $opening->label(),
+            ucfirst((string) $opening->opening_type),
+            $opening->location,
+            $opening->frame_type ? 'Frame '.$opening->frame_type : null,
+            $opening->hardware_set ? 'Hardware '.$opening->hardware_set : null,
+            $opening->finish,
+            $opening->glazing,
+            $opening->acoustic_requirement,
+            $opening->fire_requirement ? 'Fire '.$opening->fire_requirement : null,
+        ]);
+
+        return implode(' · ', $parts);
     }
 
     /**

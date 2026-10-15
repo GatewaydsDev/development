@@ -13,6 +13,7 @@ import {
 import { Head, Link, router } from '@inertiajs/react';
 import {
     ActivityIcon,
+    ArchiveIcon,
     DatabaseIcon,
     LogInIcon,
     MousePointerClickIcon,
@@ -64,7 +65,10 @@ type UserActivitiesPaginator = {
 type IndexProps = {
     filters: {
         search?: string;
+        archive?: boolean;
     };
+    archiveCount: number;
+    retentionMonths: number;
     stats: {
         total: number;
         logins: number;
@@ -82,20 +86,33 @@ const eventLabels: Record<string, string> = {
     record_deleted: 'Deleted',
 };
 
-export default function Index({ filters, stats, activities }: IndexProps) {
+export default function Index({
+    filters,
+    archiveCount,
+    retentionMonths,
+    stats,
+    activities,
+}: IndexProps) {
+    const viewingArchive = Boolean(filters.archive);
     const [search, setSearch] = useState(filters.search ?? '');
 
-    const submit = (event: FormEvent) => {
-        event.preventDefault();
-
+    const visit = (archive: boolean, nextSearch = search) => {
         router.get(
             route('admin.user-activities.index'),
-            { search },
+            {
+                search: nextSearch,
+                ...(archive ? { archive: 1 } : {}),
+            },
             {
                 preserveState: true,
                 replace: true,
             },
         );
+    };
+
+    const submit = (event: FormEvent) => {
+        event.preventDefault();
+        visit(viewingArchive);
     };
 
     const metadataSummary = (metadata: Record<string, unknown> | null) => {
@@ -128,15 +145,17 @@ export default function Index({ filters, stats, activities }: IndexProps) {
                         <span>/</span>
                         <span>Security</span>
                         <span>/</span>
-                        <span className="text-foreground">User Activity</span>
+                        <span className="text-foreground">
+                            {viewingArchive ? 'Activity archive' : 'User Activity'}
+                        </span>
                     </nav>
                     <h2 className="text-xl font-semibold leading-tight text-emerald-700 dark:text-emerald-300">
-                        User activity audit
+                        {viewingArchive ? 'Activity archive' : 'User activity audit'}
                     </h2>
                 </div>
             }
         >
-            <Head title="User Activity" />
+            <Head title={viewingArchive ? 'Activity archive' : 'User Activity'} />
 
             <div className="py-6 sm:py-8">
                 <div className="mx-auto flex max-w-[96rem] flex-col gap-6 px-4 sm:px-6 lg:px-8">
@@ -148,7 +167,9 @@ export default function Index({ filters, stats, activities }: IndexProps) {
                                     Total events
                                 </CardTitle>
                                 <CardDescription>
-                                    All captured user activity.
+                                    {viewingArchive
+                                        ? `Archived activity older than ${retentionMonths} months.`
+                                        : `Activity from the last ${retentionMonths} months.`}
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
@@ -213,15 +234,39 @@ export default function Index({ filters, stats, activities }: IndexProps) {
                     <Card className="shadow-sm">
                         <CardHeader className="gap-4 md:grid-cols-[1fr_auto] md:items-center">
                             <div>
-                                <CardTitle>Activity log</CardTitle>
+                                <CardTitle>
+                                    {viewingArchive ? 'Activity archive' : 'Activity log'}
+                                </CardTitle>
                                 <CardDescription>
-                                    Search by user, page, action, route, or path.
+                                    {viewingArchive
+                                        ? 'Older activity kept out of the current log. Search by user, page, action, route, or path.'
+                                        : `The current log keeps the last ${retentionMonths} months. Search by user, page, action, route, or path.`}
                                 </CardDescription>
                             </div>
                             <form
                                 onSubmit={submit}
                                 className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row"
                             >
+                                {viewingArchive ? (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="h-11"
+                                        onClick={() => visit(false, '')}
+                                    >
+                                        Current log
+                                    </Button>
+                                ) : archiveCount > 0 ? (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="h-11"
+                                        onClick={() => visit(true, '')}
+                                    >
+                                        <ArchiveIcon className="size-4" />
+                                        View archive ({archiveCount})
+                                    </Button>
+                                ) : null}
                                 <div className="relative">
                                     <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                                     <input
@@ -351,8 +396,9 @@ export default function Index({ filters, stats, activities }: IndexProps) {
                                             No activity found
                                         </p>
                                         <p className="mt-1 text-sm text-muted-foreground">
-                                            Try another search or wait for new
-                                            user activity.
+                                            {viewingArchive
+                                                ? 'Nothing in the archive matches this search.'
+                                                : 'Try another search or wait for new user activity.'}
                                         </p>
                                     </div>
                                 )}

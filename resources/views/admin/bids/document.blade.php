@@ -50,13 +50,11 @@
         }
 
         .logo {
-            max-height: 64px;
-            max-width: 64px;
+            max-height: 72px;
+            max-width: 72px;
             display: block;
             margin: 0 auto;
-            background: #ffffff;
-            padding: 2px;
-            border-radius: 999px;
+            background: transparent;
         }
 
         .hero-brand {

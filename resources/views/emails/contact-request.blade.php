@@ -6,7 +6,7 @@
 </head>
 <body style="font-family: Arial, sans-serif; color: #111827; line-height: 1.5;">
     <p style="margin: 0 0 16px;">
-        <img src="{{ asset('images/App-Logo.png') }}" alt="Gateway Door Systems" width="220" style="display: block; width: 220px; max-width: 100%; height: auto;">
+        <img src="{{ asset('images/Gateway_Door_Systems_Logo.png') }}" alt="Gateway Door Systems" width="220" style="display: block; width: 220px; max-width: 100%; height: auto;">
     </p>
 
     @if (! empty($recipientName))

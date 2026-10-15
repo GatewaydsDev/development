@@ -5,7 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 
         <title inertia>{{ config('app.name', 'Laravel') }}</title>
-        <link rel="icon" type="image/webp" href="/images/App-Logo.webp">
+        <link rel="icon" type="image/png" href="/images/Gateway_Door_Systems_Logo.png">
 
         <!-- Scripts -->
         @routes

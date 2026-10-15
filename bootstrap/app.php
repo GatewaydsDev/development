@@ -3,6 +3,7 @@
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\LogUserPageAccess;
 use App\Http\Middleware\PreventBackHistory;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -18,6 +19,9 @@ return Application::configure(basePath: dirname(__DIR__))
         channels: __DIR__.'/../routes/channels.php',
         health: '/up',
     )
+    ->withSchedule(function (Schedule $schedule): void {
+        $schedule->command('user-activities:archive')->daily();
+    })
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->trustProxies(at: '*');
         // Layout text, table cells, and imported paragraphs must round-trip exactly.
