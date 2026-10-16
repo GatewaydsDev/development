@@ -4,14 +4,13 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\PasswordResetLink;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Password;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
-use Throwable;
 
 class PasswordResetLinkController extends Controller
 {
@@ -22,6 +21,8 @@ class PasswordResetLinkController extends Controller
     {
         return Inertia::render('Auth/ForgotPassword', [
             'status' => session('status'),
+            'phoneRequired' => (bool) session('password_reset_phone'),
+            'email' => session('password_reset_email'),
         ]);
     }
 
@@ -45,32 +46,34 @@ class PasswordResetLinkController extends Controller
                 'max:255',
                 Rule::exists(User::class, 'email'),
             ],
+            'phone' => ['nullable', 'string', 'max:40'],
         ], [
             'email.exists' => 'We could not find an account with that email address.',
         ]);
 
+        $user = User::query()->whereRaw('LOWER(email) = ?', [$validated['email']])->firstOrFail();
+
         try {
-            // We will send the password reset link to this user. Once we have attempted
-            // to send the link, we will examine the response then see the message we
-            // need to show to the user. Finally, we'll send out a proper response.
-            $status = Password::sendResetLink(
-                ['email' => $validated['email']]
-            );
-        } catch (Throwable) {
-            throw ValidationException::withMessages([
-                'email' => ['There was an error sending the email. Please try again in a moment.'],
-            ]);
+            $result = app(PasswordResetLink::class)->send($user, $validated['phone'] ?? null);
+        } catch (ValidationException $exception) {
+            if ($user->hasSavedPhone()) {
+                session()->flash('password_reset_phone', true);
+                session()->flash('password_reset_email', $user->email);
+            }
+
+            throw $exception;
         }
 
-        if ($status == Password::RESET_LINK_SENT) {
-            return back()->with(
-                'status',
-                'The password reset email has been sent. Please check your inbox and spam folder.',
-            );
+        if ($result === PasswordResetLink::PHONE_REQUIRED) {
+            return back()
+                ->with('password_reset_phone', true)
+                ->with('password_reset_email', $user->email)
+                ->withInput();
         }
 
-        throw ValidationException::withMessages([
-            'email' => [trans($status)],
-        ]);
+        return back()->with(
+            'status',
+            'The password reset email has been sent. Please check your inbox and spam folder. The link expires in 10 minutes.',
+        );
     }
 }

@@ -29,11 +29,7 @@ class NewPasswordController extends Controller
             : null;
 
         if (! $user || ! Password::tokenExists($user, $token)) {
-            return redirect()
-                ->route('password.request')
-                ->withErrors([
-                    'email' => 'This password reset link is invalid or has expired. Please request a new one.',
-                ]);
+            return Inertia::render('Auth/ResetLinkInvalid');
         }
 
         return Inertia::render('Auth/ResetPassword', [
@@ -74,7 +70,11 @@ class NewPasswordController extends Controller
         // the application's home authenticated view. If there is an error we can
         // redirect them back to where they came from with their error message.
         if ($status == Password::PASSWORD_RESET) {
-            return redirect()->route('login')->with('status', __($status));
+            return redirect()->route('login')->with('status', 'Your password has been reset. Sign in with the new password.');
+        }
+
+        if (in_array($status, [Password::INVALID_TOKEN, Password::INVALID_USER], true)) {
+            return Inertia::render('Auth/ResetLinkInvalid');
         }
 
         throw ValidationException::withMessages([

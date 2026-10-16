@@ -12,10 +12,19 @@ type ToastState = {
     message: string;
 };
 
-export default function ForgotPassword({ status }: { status?: string }) {
+export default function ForgotPassword({
+    status,
+    phoneRequired = false,
+    email = '',
+}: {
+    status?: string;
+    phoneRequired?: boolean;
+    email?: string;
+}) {
     const [toast, setToast] = useState<ToastState | null>(null);
     const { data, setData, post, processing, errors } = useForm({
-        email: '',
+        email: email ?? '',
+        phone: '',
     });
 
     useEffect(() => {
@@ -41,17 +50,23 @@ export default function ForgotPassword({ status }: { status?: string }) {
         e.preventDefault();
 
         post(route('password.email'), {
-            onSuccess: () => {
+            onSuccess: (page) => {
+                const nextStatus = page.props.status;
+
+                if (typeof nextStatus !== 'string' || nextStatus === '') {
+                    return;
+                }
+
                 setToast({
                     type: 'success',
-                    message:
-                        'The password reset email has been sent. Please check your inbox and spam folder.',
+                    message: nextStatus,
                 });
             },
             onError: (formErrors) => {
                 setToast({
                     type: 'error',
                     message:
+                        formErrors.phone ||
                         formErrors.email ||
                         'There was an error sending the email. Please try again in a moment.',
                 });
@@ -78,8 +93,9 @@ export default function ForgotPassword({ status }: { status?: string }) {
                                     Reset your password
                                 </h1>
                                 <p className="text-sm leading-6 text-muted-foreground">
-                                    Enter your email address and we&apos;ll send
-                                    you a secure password reset link.
+                                    {phoneRequired
+                                        ? 'This account has a phone number. Enter it, then we will email a reset link that expires in 10 minutes.'
+                                        : 'Enter your email address. If the account has a phone number, we will ask for it before emailing a reset link that expires in 10 minutes.'}
                                 </p>
                             </div>
 
@@ -111,7 +127,7 @@ export default function ForgotPassword({ status }: { status?: string }) {
                                         value={data.email}
                                         className="block h-10 w-full border-border bg-background px-3 text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
                                         autoComplete="username"
-                                        isFocused={true}
+                                        isFocused={!phoneRequired}
                                         onChange={(e) =>
                                             setData('email', e.target.value)
                                         }
@@ -123,13 +139,44 @@ export default function ForgotPassword({ status }: { status?: string }) {
                                     />
                                 </div>
 
+                                {phoneRequired ? (
+                                    <div className="flex flex-col gap-2">
+                                        <InputLabel
+                                            htmlFor="phone"
+                                            value="Phone number"
+                                            className="text-foreground"
+                                        />
+
+                                        <TextInput
+                                            id="phone"
+                                            type="tel"
+                                            name="phone"
+                                            value={data.phone}
+                                            className="block h-10 w-full border-border bg-background px-3 text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
+                                            autoComplete="tel"
+                                            isFocused={true}
+                                            placeholder="(201) 555-0100"
+                                            onChange={(e) =>
+                                                setData('phone', e.target.value)
+                                            }
+                                        />
+
+                                        <InputError
+                                            message={errors.phone}
+                                            className="text-destructive"
+                                        />
+                                    </div>
+                                ) : null}
+
                                 <Button
                                     type="submit"
                                     size="lg"
                                     className="w-full"
                                     disabled={processing}
                                 >
-                                    Email password reset link
+                                    {phoneRequired
+                                        ? 'Send reset link'
+                                        : 'Continue'}
                                 </Button>
                             </form>
 

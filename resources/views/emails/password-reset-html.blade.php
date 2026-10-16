@@ -57,7 +57,7 @@
                     </tr>
                     <tr>
                         <td style="border-top: 1px solid #e5e7eb; padding: 18px 32px; color: #6b7280; font-size: 12px;">
-                            This message was sent by {{ $appName }} for account security.
+                            This message was sent by {{ $appName }} from notifications@gateway-ds.com. The link expires in {{ $expiresInMinutes }} minutes.
                         </td>
                     </tr>
                 </table>

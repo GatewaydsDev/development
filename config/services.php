@@ -56,6 +56,7 @@ return [
         'client_secret' => env('MICROSOFT_CLIENT_SECRET', env('Entra_ID')),
         'client_secret_id' => env('MICROSOFT_CLIENT_SECRET_ID', env('Entra_SECRET_ID')),
         'mail_from' => env('MICROSOFT_MAIL_FROM', 'sales@gateway-ds.com'),
+        'notification_from' => env('MICROSOFT_NOTIFICATION_FROM', 'notifications@gateway-ds.com'),
         'mail_from_name' => env(
             'MICROSOFT_MAIL_FROM_NAME',
             'Gateway Door Systems'

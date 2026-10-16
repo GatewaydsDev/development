@@ -8,4 +8,4 @@ If you made this request, open the secure link below. This link expires in {{ $e
 
 If you did not request a password reset, you can safely ignore this email. Your password will not change unless this link is used.
 
-This message was sent by {{ $appName }} for account security.
+This message was sent by {{ $appName }} from notifications@gateway-ds.com. The link expires in {{ $expiresInMinutes }} minutes.

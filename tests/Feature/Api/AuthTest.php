@@ -244,7 +244,31 @@ test('mobile users can request a password reset email', function () {
     $this->postJson('/api/auth/forgot-password', [
         'email' => $user->email,
     ])->assertOk()
-        ->assertJsonPath('message', 'The password reset email has been sent. Please check your inbox and spam folder.');
+        ->assertJsonPath('message', 'The password reset email has been sent. Please check your inbox and spam folder. The link expires in 10 minutes.');
+
+    Notification::assertSentTo($user, ResetPasswordNotification::class);
+});
+
+test('mobile password reset asks for a saved phone number first', function () {
+    Notification::fake();
+    $user = User::factory()->create();
+    $user->phones()->create([
+        'country' => 'US',
+        'phone' => '2015550100',
+        'is_primary' => true,
+    ]);
+
+    $this->postJson('/api/auth/forgot-password', [
+        'email' => $user->email,
+    ])->assertStatus(422)
+        ->assertJsonValidationErrors('phone');
+
+    Notification::assertNothingSent();
+
+    $this->postJson('/api/auth/forgot-password', [
+        'email' => $user->email,
+        'phone' => '(201) 555-0100',
+    ])->assertOk();
 
     Notification::assertSentTo($user, ResetPasswordNotification::class);
 });
