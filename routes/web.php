@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\ContractorController;
 use App\Http\Controllers\Admin\DocumentSettingController;
 use App\Http\Controllers\Admin\EditorImageController;
 use App\Http\Controllers\Admin\EmployeeAttendanceController;
+use App\Http\Controllers\Admin\ExpenseController;
 use App\Http\Controllers\Admin\EmployeeController;
 use App\Http\Controllers\Admin\EmployeeWorkScheduleController;
 use App\Http\Controllers\Admin\LanguageController;
@@ -196,6 +197,11 @@ Route::middleware(['auth', 'prevent-back-history'])
             ->name('users.impersonate');
         Route::get('/user-activities', [UserActivityController::class, 'index'])
             ->name('user-activities.index');
+        Route::get('/expenses', [ExpenseController::class, 'index'])->name('expenses.index');
+        Route::post('/expenses', [ExpenseController::class, 'store'])->name('expenses.store');
+        Route::post('/expenses/{expense}', [ExpenseController::class, 'update'])->name('expenses.update');
+        Route::delete('/expenses/{expense}', [ExpenseController::class, 'destroy'])->name('expenses.destroy');
+        Route::get('/expenses/{expense}/receipt', [ExpenseController::class, 'receipt'])->name('expenses.receipt');
         Route::get('/document-settings', [DocumentSettingController::class, 'edit'])
             ->name('document-settings.edit');
         Route::get('/document-layouts/{document}', [DocumentSettingController::class, 'catalog'])

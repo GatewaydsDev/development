@@ -26,6 +26,7 @@ import {
     PackageIcon,
     PaletteIcon,
     PanelLeftCloseIcon,
+    ReceiptIcon,
     PanelLeftOpenIcon,
     ShieldCheckIcon,
     UserCogIcon,
@@ -100,6 +101,7 @@ export default function DashboardSidebar({
     const canViewUsers = Boolean(can.viewUsers);
     const canManageAccess = Boolean(can.manageAccess);
     const canViewUserActivity = Boolean(can.viewUserActivity);
+    const canManageExpenses = Boolean(can.manageExpenses);
     const canViewCompany = Boolean(can.viewCompany);
     const canManageDocumentColors = Boolean(can.manageDocumentColors);
 
@@ -279,6 +281,16 @@ export default function DashboardSidebar({
                               href: route('admin.user-activities.index'),
                               icon: ActivityIcon,
                               active: isRouteActive('admin.user-activities.*'),
+                          },
+                      ]
+                    : []),
+                ...(canManageExpenses
+                    ? [
+                          {
+                              title: 'Expenses',
+                              href: route('admin.expenses.index'),
+                              icon: ReceiptIcon,
+                              active: isRouteActive('admin.expenses.*'),
                           },
                       ]
                     : []),

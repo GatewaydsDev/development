@@ -71,6 +71,7 @@ class UserPrivileges
             'createUsers' => self::granted($user, 'create-users'),
             'updateUsers' => self::granted($user, 'update-users'),
             'viewUserActivity' => $user->isSuperAdmin(),
+            'manageExpenses' => $user->isSuperAdmin(),
             'manageDocumentColors' => $user->isSuperAdmin(),
             'viewCompany' => self::granted($user, 'view-company'),
             'manageAccess' => self::granted($user, 'manage-access'),
