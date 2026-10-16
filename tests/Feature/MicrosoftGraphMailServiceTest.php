@@ -122,6 +122,7 @@ test('a super admin sends mail with that persons microsoft credentials', functio
         'microsoft_tenant_id' => 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
         'microsoft_client_id' => 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
         'microsoft_client_secret' => 'super-admin-secret-value',
+        'microsoft_mailbox' => 'ricardo@gateway-ds.com',
     ]);
 
     Http::fake([

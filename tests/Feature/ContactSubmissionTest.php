@@ -167,12 +167,23 @@ test('contact emails prefer the active company email over configured fallback', 
         ->and($mail->messages[0]['replyTo'])->toBe('taylor@example.com');
 });
 
-test('contact form submissions create dashboard notifications for super admins', function () {
+test('contact form notifications go only to the sales mailbox user', function () {
     fakeMicrosoftGraphMail();
+    config([
+        'contact.recipient' => 'sales@gateway-ds.com',
+        'services.microsoft.mail_from' => 'sales@gateway-ds.com',
+    ]);
 
     $superAdminLevel = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
-    $superAdmin = User::factory()->create([
+    $sales = User::factory()->create([
+        'name' => 'Melissa',
         'level_id' => $superAdminLevel->id,
+        'microsoft_mailbox' => 'sales@gateway-ds.com',
+    ]);
+    $larry = User::factory()->create([
+        'name' => 'Larry Deminski',
+        'level_id' => $superAdminLevel->id,
+        'microsoft_mailbox' => 'larryd@gateway-ds.com',
     ]);
 
     $this
@@ -189,9 +200,10 @@ test('contact form submissions create dashboard notifications for super admins',
         ->assertRedirect()
         ->assertSessionHas('contact.success', true);
 
-    expect($superAdmin->unreadNotifications()->count())->toBe(1);
+    expect($sales->unreadNotifications()->count())->toBe(1)
+        ->and($larry->unreadNotifications()->count())->toBe(0);
 
-    $notification = $superAdmin->unreadNotifications()->firstOrFail();
+    $notification = $sales->unreadNotifications()->firstOrFail();
 
     expect($notification->data['title'])->toBe('New contact request')
         ->and($notification->data['name'])->toBe('Morgan Security')

@@ -107,7 +107,8 @@ test('a quotation revision is emailed from the sender mailbox with the quote att
         $pdf = base64_decode((string) $attachment['contentBytes'], true);
 
         return $request->url() === 'https://graph.microsoft.com/v1.0/users/'.rawurlencode('ricardo@gateway-ds.com').'/sendMail'
-            && $message['from']['emailAddress']['address'] === 'ricardo@gateway-ds.com'
+            && ! array_key_exists('from', $message)
+            && ! array_key_exists('sender', $message)
             && $message['toRecipients'][0]['emailAddress']['address'] === 'sales@gateway-ds.com'
             && str_contains($message['subject'], 'revision B')
             && str_contains($message['body']['content'], 'Please review this revision.')
