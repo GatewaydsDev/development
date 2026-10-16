@@ -56,6 +56,18 @@ const splitAddresses = (value: string) =>
 
 const joinAddresses = (addresses: string[]) => addresses.join(', ');
 
+const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) {
+        return `${bytes} B`;
+    }
+
+    if (bytes < 1024 * 1024) {
+        return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+    }
+
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
 const isEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
 function AddressField({
@@ -242,6 +254,7 @@ export default function ComposeMail({
     const [recipientName, setRecipientName] = useState('');
     const [linkOpen, setLinkOpen] = useState(false);
     const [linkUrl, setLinkUrl] = useState('');
+    const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
     const form = useForm({
         to: draft?.to ?? '',
         cc: draft?.cc ?? '',
@@ -319,13 +332,19 @@ export default function ComposeMail({
             ...data,
             body: editor.getHTML(),
             save_recipients: data.save_recipients ? 1 : 0,
-            attachments: data.attachments.length > 0 ? data.attachments : undefined,
+            attachments: attachedFiles.length > 0 ? attachedFiles : undefined,
         }));
         form.post(route('mailbox.send'), {
             preserveScroll: true,
             forceFormData: true,
             onSuccess: () => onDiscard(),
         });
+    };
+
+    const updateAttachments = (next: File[]) => {
+        const files = next.slice(0, 5);
+        setAttachedFiles(files);
+        form.setData('attachments', files);
     };
 
     const cycleImportance = () => {
@@ -388,11 +407,50 @@ export default function ComposeMail({
                     className="hidden"
                     onChange={(event) => {
                         const files = Array.from(event.target.files ?? []);
-                        form.setData('attachments', [...form.data.attachments, ...files].slice(0, 5));
+                        updateAttachments([...attachedFiles, ...files]);
                         event.target.value = '';
                     }}
                 />
             </div>
+            {attachedFiles.length > 0 ? (
+                <ul
+                    className="grid gap-2 border-b border-border bg-muted/40 px-3 py-3"
+                    aria-label={t('attachments')}
+                >
+                    <li className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        {t('attachments')}
+                    </li>
+                    {attachedFiles.map((file, index) => (
+                        <li
+                            key={`${file.name}-${file.size}-${file.lastModified}-${index}`}
+                            className="flex min-h-11 items-center gap-2 rounded-md border border-border bg-background px-3 py-2"
+                        >
+                            <PaperclipIcon className="size-4 shrink-0 text-emerald-700 dark:text-emerald-300" />
+                            <span className="min-w-0 flex-1">
+                                <span className="block truncate text-sm font-medium text-foreground">
+                                    {file.name}
+                                </span>
+                                <span className="block text-xs text-muted-foreground">
+                                    {formatFileSize(file.size)}
+                                </span>
+                            </span>
+                            <button
+                                type="button"
+                                className="inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground touch-manipulation hover:bg-muted hover:text-foreground"
+                                aria-label={`${t('removeAttachment')} ${file.name}`}
+                                onClick={() =>
+                                    updateAttachments(
+                                        attachedFiles.filter((_, itemIndex) => itemIndex !== index),
+                                    )
+                                }
+                            >
+                                <XIcon className="size-4" />
+                            </button>
+                        </li>
+                    ))}
+                </ul>
+            ) : null}
+            <InputError message={form.errors.attachments} className="px-3" />
 
             <div className="px-3">
                 <div className="grid grid-cols-1 items-center gap-1 border-b border-border py-2 text-sm sm:grid-cols-[4.5rem_minmax(0,1fr)] sm:gap-2">
@@ -522,30 +580,6 @@ export default function ComposeMail({
 
             <EditorContent editor={editor} />
             <InputError message={form.errors.body} className="px-3" />
-
-            {form.data.attachments.length > 0 ? (
-                <ul className="grid gap-1 border-t border-border px-3 py-2 text-sm">
-                    {form.data.attachments.map((file, index) => (
-                        <li key={`${file.name}-${index}`} className="flex items-center justify-between gap-2">
-                            <span className="truncate text-foreground">{file.name}</span>
-                            <button
-                                type="button"
-                                className="text-muted-foreground hover:text-foreground"
-                                aria-label={`${t('removeAttachment')} ${file.name}`}
-                                onClick={() =>
-                                    form.setData(
-                                        'attachments',
-                                        form.data.attachments.filter((_, itemIndex) => itemIndex !== index),
-                                    )
-                                }
-                            >
-                                <XIcon className="size-4" />
-                            </button>
-                        </li>
-                    ))}
-                </ul>
-            ) : null}
-            <InputError message={form.errors.attachments} className="px-3" />
 
             <div className="grid gap-3 border-t border-border px-3 py-3 md:grid-cols-[minmax(0,1fr)_minmax(14rem,18rem)]">
                 <label className="flex items-center gap-2 text-sm text-foreground">
