@@ -1,5 +1,9 @@
-import InputError from '@/Components/InputError';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import ComposeMail, {
+    quotePlainText,
+    type ComposeDraft,
+    type SavedRecipient,
+} from '@/Pages/Email/ComposeMail';
 import { Button } from '@/Components/ui/button';
 import {
     Card,
@@ -8,9 +12,9 @@ import {
     CardHeader,
     CardTitle,
 } from '@/Components/ui/card';
-import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { RefreshCwIcon } from 'lucide-react';
-import { FormEvent, useState } from 'react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { ForwardIcon, RefreshCwIcon, ReplyIcon } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 type MailSummary = {
@@ -42,6 +46,7 @@ type Props = {
     nextCursor: string | null;
     message: MailMessage | null;
     graphError: string | null;
+    savedRecipients?: SavedRecipient[];
 };
 
 const formatWhen = (value: string | null) => {
@@ -68,16 +73,14 @@ export default function Index({
     nextCursor,
     message,
     graphError,
+    savedRecipients = [],
 }: Props) {
     const { t } = useTranslation('mail');
     const flash = usePage().props.flash as { success?: string | null } | undefined;
     const [refreshing, setRefreshing] = useState(false);
     const [showCompose, setShowCompose] = useState(false);
-    const form = useForm({
-        to: '',
-        subject: '',
-        body: '',
-    });
+    const [draft, setDraft] = useState<ComposeDraft | undefined>(undefined);
+    const [draftKey, setDraftKey] = useState(0);
 
     const folderHref = (nextFolder: 'inbox' | 'sent', cursor?: string | null) =>
         route('mailbox.index', {
@@ -97,15 +100,16 @@ export default function Index({
         );
     };
 
-    const submit = (event: FormEvent) => {
-        event.preventDefault();
-        form.post(route('mailbox.send'), {
-            preserveScroll: true,
-            onSuccess: () => {
-                form.reset();
-                setShowCompose(false);
-            },
-        });
+    const openCompose = (nextDraft?: ComposeDraft) => {
+        setDraft(nextDraft);
+        setDraftKey((key) => key + 1);
+        setShowCompose(true);
+    };
+
+    const subjectWithPrefix = (prefix: 'Re' | 'Fw', subject: string) => {
+        const pattern = prefix === 'Re' ? /^re:\s*/i : /^fw:\s*/i;
+
+        return pattern.test(subject) ? subject : `${prefix}: ${subject}`;
     };
 
     return (
@@ -157,7 +161,7 @@ export default function Index({
                                         <Link href={folderHref('sent')}>{t('sent')}</Link>
                                     </Button>
                                 </div>
-                                <Button type="button" variant="outline" onClick={() => setShowCompose((open) => !open)}>
+                                <Button type="button" variant="outline" onClick={() => openCompose()}>
                                     {t('compose')}
                                 </Button>
                                 <Button type="button" variant="outline" onClick={refresh} disabled={refreshing}>
@@ -167,54 +171,13 @@ export default function Index({
                             </div>
 
                             {showCompose ? (
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle>{t('compose')}</CardTitle>
-                                        <CardDescription>{mailbox}</CardDescription>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <form onSubmit={submit} className="grid gap-4">
-                                            <label className="grid gap-1 text-sm">
-                                                {t('to')}
-                                                <input
-                                                    type="email"
-                                                    value={form.data.to}
-                                                    onChange={(event) => form.setData('to', event.target.value)}
-                                                    className="h-11 rounded-md border border-border bg-background px-3 text-foreground"
-                                                    required
-                                                />
-                                                <InputError message={form.errors.to} />
-                                            </label>
-                                            <label className="grid gap-1 text-sm">
-                                                {t('subject')}
-                                                <input
-                                                    type="text"
-                                                    value={form.data.subject}
-                                                    onChange={(event) => form.setData('subject', event.target.value)}
-                                                    maxLength={255}
-                                                    className="h-11 rounded-md border border-border bg-background px-3 text-foreground"
-                                                    required
-                                                />
-                                                <InputError message={form.errors.subject} />
-                                            </label>
-                                            <label className="grid gap-1 text-sm">
-                                                {t('message')}
-                                                <textarea
-                                                    value={form.data.body}
-                                                    onChange={(event) => form.setData('body', event.target.value)}
-                                                    rows={8}
-                                                    maxLength={20000}
-                                                    className="rounded-md border border-border bg-background px-3 py-2 text-foreground"
-                                                    required
-                                                />
-                                                <InputError message={form.errors.body} />
-                                            </label>
-                                            <Button type="submit" disabled={form.processing}>
-                                                {form.processing ? t('sending') : t('send')}
-                                            </Button>
-                                        </form>
-                                    </CardContent>
-                                </Card>
+                                <ComposeMail
+                                    key={draftKey}
+                                    mailbox={mailbox}
+                                    recipients={savedRecipients}
+                                    draft={draft}
+                                    onDiscard={() => setShowCompose(false)}
+                                />
                             ) : null}
 
                             <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
@@ -274,9 +237,48 @@ export default function Index({
                                     </CardHeader>
                                     <CardContent>
                                         {message ? (
-                                            <pre className="whitespace-pre-wrap font-sans text-sm text-foreground">
-                                                {message.body}
-                                            </pre>
+                                            <div className="grid gap-3">
+                                                <div className="flex flex-wrap gap-2">
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        onClick={() =>
+                                                            openCompose({
+                                                                to: message.from,
+                                                                cc: '',
+                                                                bcc: '',
+                                                                subject: subjectWithPrefix('Re', message.subject),
+                                                                body: quotePlainText(message.body),
+                                                            })
+                                                        }
+                                                    >
+                                                        <ReplyIcon className="size-4" />
+                                                        {t('reply')}
+                                                    </Button>
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        onClick={() =>
+                                                            openCompose({
+                                                                to: '',
+                                                                cc: '',
+                                                                bcc: '',
+                                                                subject: subjectWithPrefix('Fw', message.subject),
+                                                                body: quotePlainText(message.body),
+                                                            })
+                                                        }
+                                                    >
+                                                        <ForwardIcon className="size-4" />
+                                                        {t('forward')}
+                                                    </Button>
+                                                </div>
+                                                <p className="text-sm text-muted-foreground">
+                                                    {t('to')}: {message.to.join(', ')}
+                                                </p>
+                                                <pre className="whitespace-pre-wrap font-sans text-sm text-foreground">
+                                                    {message.body}
+                                                </pre>
+                                            </div>
                                         ) : (
                                             <p className="text-sm text-muted-foreground">{t('select')}</p>
                                         )}

@@ -1,8 +1,10 @@
 <?php
 
 use App\Exceptions\MicrosoftGraphException;
+use App\Models\MailSavedRecipient;
 use App\Models\User;
 use App\Models\UserLevel;
+use Illuminate\Http\UploadedFile;
 use App\Services\MicrosoftGraphMailService;
 use App\Services\MicrosoftGraphPageCursor;
 use Illuminate\Http\Client\ConnectionException;
@@ -347,4 +349,54 @@ test('an uncertain graph send is not retried', function () {
     ))->toThrow(MicrosoftGraphException::class, 'not sent again');
 
     expect($sends)->toBe(1);
+});
+
+test('a composed message can include copies, importance, an attachment, and saved recipients', function () {
+    $user = mailboxUser();
+    fakeMailboxGraph();
+
+    $this->actingAs($user)
+        ->post(route('mailbox.send'), [
+            'to' => 'buyer@example.com, sales@gateway-ds.com',
+            'cc' => 'melissa@gateway-ds.com',
+            'bcc' => 'larryd@gateway-ds.com',
+            'subject' => 'Project update',
+            'body' => '<p>The <strong>opening</strong> is ready.</p>',
+            'importance' => 'high',
+            'save_recipients' => true,
+            'attachments' => [
+                UploadedFile::fake()->create('note.pdf', 20, 'application/pdf'),
+            ],
+        ])
+        ->assertRedirect(route('mailbox.index', ['folder' => 'sent']))
+        ->assertSessionHas('success');
+
+    Http::assertSent(function ($request) {
+        if (! str_contains($request->url(), '/sendMail')) {
+            return false;
+        }
+
+        $message = $request->data()['message'];
+
+        return $message['importance'] === 'high'
+            && $message['body']['contentType'] === 'HTML'
+            && $message['toRecipients'][1]['emailAddress']['address'] === 'sales@gateway-ds.com'
+            && $message['ccRecipients'][0]['emailAddress']['address'] === 'melissa@gateway-ds.com'
+            && $message['bccRecipients'][0]['emailAddress']['address'] === 'larryd@gateway-ds.com'
+            && $message['attachments'][0]['name'] === 'note.pdf';
+    });
+
+    expect(MailSavedRecipient::query()->where('user_id', $user->id)->pluck('email')->all())
+        ->toEqualCanonicalizing([
+            'buyer@example.com',
+            'sales@gateway-ds.com',
+            'melissa@gateway-ds.com',
+            'larryd@gateway-ds.com',
+        ]);
+
+    $this->actingAs($user)
+        ->delete(route('mailbox.recipients.destroy', MailSavedRecipient::query()->first()))
+        ->assertRedirect();
+
+    expect(MailSavedRecipient::query()->where('user_id', $user->id)->count())->toBe(3);
 });

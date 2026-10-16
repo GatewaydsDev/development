@@ -163,6 +163,11 @@ class User extends Authenticatable
         return $this->hasMany(UserEmail::class)->orderByDesc('is_primary')->orderBy('id');
     }
 
+    public function savedMailRecipients(): HasMany
+    {
+        return $this->hasMany(MailSavedRecipient::class)->orderBy('name')->orderBy('email');
+    }
+
     public function phones(): HasMany
     {
         return $this->hasMany(UserPhone::class)->orderByDesc('is_primary')->orderBy('id');

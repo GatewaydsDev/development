@@ -105,6 +105,10 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
     Route::post('/email', [MailboxController::class, 'send'])
         ->middleware('throttle:6,1')
         ->name('mailbox.send');
+    Route::post('/email/recipients', [MailboxController::class, 'storeRecipient'])
+        ->name('mailbox.recipients.store');
+    Route::delete('/email/recipients/{recipient}', [MailboxController::class, 'destroyRecipient'])
+        ->name('mailbox.recipients.destroy');
 });
 
 Route::middleware(['auth', 'prevent-back-history', 'can:manage-profile'])->group(function () {
