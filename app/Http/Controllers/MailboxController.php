@@ -8,8 +8,10 @@ use App\Models\User;
 use App\Services\MicrosoftGraphMailService;
 use App\Services\MicrosoftGraphPageCursor;
 use App\Support\EmailPlainText;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -49,6 +51,16 @@ class MailboxController extends Controller
                 $messageId = EmailPlainText::decodeMessageId($messageToken);
                 abort_if($messageId === null, 404);
                 $message = $graph->actingAs($user)->readMessage($mailbox, $messageId);
+
+                if ($folder === 'inbox') {
+                    try {
+                        $graph->actingAs($user)->markRead($mailbox, $messageId);
+                    } catch (MicrosoftGraphException) {
+                        // The message is already on screen. The alert still clears in the browser.
+                    }
+
+                    Cache::forget($this->unreadCacheKey($user, $mailbox));
+                }
             }
         } catch (MicrosoftGraphException $exception) {
             return Inertia::render('Email/Index', $this->props(
@@ -71,6 +83,33 @@ class MailboxController extends Controller
             null,
             $savedRecipients,
         ));
+    }
+
+    public function unread(Request $request, MicrosoftGraphMailService $graph): JsonResponse
+    {
+        $user = $request->user();
+        $mailbox = $this->mailbox($user?->microsoft_mailbox);
+
+        if (! $user instanceof User || $mailbox === null) {
+            return response()->json(['unread' => 0]);
+        }
+
+        $cacheKey = $this->unreadCacheKey($user, $mailbox);
+        $cached = Cache::get($cacheKey);
+
+        if (is_int($cached)) {
+            return response()->json(['unread' => $cached]);
+        }
+
+        try {
+            $unread = $graph->actingAs($user)->unreadInboxCount($mailbox);
+        } catch (MicrosoftGraphException) {
+            return response()->json(['unread' => 0]);
+        }
+
+        Cache::put($cacheKey, $unread, 45);
+
+        return response()->json(['unread' => $unread]);
     }
 
     public function send(Request $request, MicrosoftGraphMailService $graph): RedirectResponse
@@ -159,6 +198,11 @@ class MailboxController extends Controller
         $recipient->delete();
 
         return back();
+    }
+
+    private function unreadCacheKey(User $user, string $mailbox): string
+    {
+        return 'mailbox-unread:'.$user->id.':'.$mailbox;
     }
 
     private function mailbox(mixed $mailbox): ?string

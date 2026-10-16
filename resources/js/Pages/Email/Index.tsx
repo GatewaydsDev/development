@@ -12,9 +12,10 @@ import {
     CardHeader,
     CardTitle,
 } from '@/Components/ui/card';
+import { acknowledgeUnreadMail } from '@/lib/unreadMail';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { ForwardIcon, RefreshCwIcon, ReplyIcon } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowLeftIcon, ForwardIcon, RefreshCwIcon, ReplyIcon } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 type MailSummary = {
@@ -82,6 +83,12 @@ export default function Index({
     const [draft, setDraft] = useState<ComposeDraft | undefined>(undefined);
     const [draftKey, setDraftKey] = useState(0);
 
+    useEffect(() => {
+        if (folder === 'inbox' && message) {
+            acknowledgeUnreadMail();
+        }
+    }, [folder, message]);
+
     const folderHref = (nextFolder: 'inbox' | 'sent', cursor?: string | null) =>
         route('mailbox.index', {
             folder: nextFolder,
@@ -120,7 +127,7 @@ export default function Index({
                         {t('title')}
                     </h2>
                     {mailbox ? (
-                        <p className="text-sm text-muted-foreground">
+                        <p className="break-all text-sm text-muted-foreground">
                             {t('mailbox')}: {mailbox}
                         </p>
                     ) : null}
@@ -129,8 +136,8 @@ export default function Index({
         >
             <Head title={t('title')} />
 
-            <div className="py-6 sm:py-8">
-                <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 sm:px-6 lg:px-8">
+            <div className="py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:py-8">
+                <div className="mx-auto flex max-w-6xl min-w-0 flex-col gap-4 px-3 sm:gap-6 sm:px-6 lg:px-8">
                     {mailbox === null ? (
                         <Card>
                             <CardHeader>
@@ -152,19 +159,17 @@ export default function Index({
                                 </p>
                             ) : null}
 
-                            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-                                <div className="flex gap-2">
-                                    <Button variant={folder === 'inbox' ? 'default' : 'outline'} asChild>
-                                        <Link href={folderHref('inbox')}>{t('inbox')}</Link>
-                                    </Button>
-                                    <Button variant={folder === 'sent' ? 'default' : 'outline'} asChild>
-                                        <Link href={folderHref('sent')}>{t('sent')}</Link>
-                                    </Button>
-                                </div>
-                                <Button type="button" variant="outline" onClick={() => openCompose()}>
+                            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+                                <Button className="min-h-11 touch-manipulation" variant={folder === 'inbox' ? 'default' : 'outline'} asChild>
+                                    <Link href={folderHref('inbox')}>{t('inbox')}</Link>
+                                </Button>
+                                <Button className="min-h-11 touch-manipulation" variant={folder === 'sent' ? 'default' : 'outline'} asChild>
+                                    <Link href={folderHref('sent')}>{t('sent')}</Link>
+                                </Button>
+                                <Button className="min-h-11 touch-manipulation" type="button" variant="outline" onClick={() => openCompose()}>
                                     {t('compose')}
                                 </Button>
-                                <Button type="button" variant="outline" onClick={refresh} disabled={refreshing}>
+                                <Button className="min-h-11 touch-manipulation" type="button" variant="outline" onClick={refresh} disabled={refreshing}>
                                     <RefreshCwIcon className={refreshing ? 'size-4 animate-spin' : 'size-4'} />
                                     {refreshing ? t('refreshing') : t('refresh')}
                                 </Button>
@@ -180,8 +185,8 @@ export default function Index({
                                 />
                             ) : null}
 
-                            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                                <Card>
+                            <div className={`grid min-w-0 gap-4 md:grid-cols-[minmax(14rem,20rem)_minmax(0,1fr)] ${showCompose ? 'max-md:hidden' : ''}`}>
+                                <Card className={message ? 'max-md:hidden' : undefined}>
                                     <CardHeader>
                                         <CardTitle>{folder === 'sent' ? t('sent') : t('inbox')}</CardTitle>
                                     </CardHeader>
@@ -196,12 +201,12 @@ export default function Index({
                                                         folder,
                                                         message: item.id,
                                                     })}
-                                                    className="rounded-md border border-border px-3 py-3 text-left hover:bg-muted"
+                                                    className="block min-h-11 min-w-0 rounded-md border border-border px-3 py-3 text-left touch-manipulation hover:bg-muted"
                                                 >
-                                                    <p className="font-medium text-foreground">
+                                                    <p className="break-words font-medium text-foreground">
                                                         {item.subject || t('noSubject')}
                                                     </p>
-                                                    <p className="text-sm text-muted-foreground">
+                                                    <p className="break-all text-sm text-muted-foreground">
                                                         {folder === 'sent' ? item.to.join(', ') : item.from}
                                                     </p>
                                                     <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
@@ -213,24 +218,32 @@ export default function Index({
                                                 </Link>
                                             ))
                                         )}
-                                        <div className="flex gap-2 pt-2">
+                                        <div className="grid grid-cols-2 gap-2 pt-2 sm:flex">
                                             {nextCursor ? (
-                                                <Button variant="outline" asChild>
+                                                <Button variant="outline" className="min-h-11 touch-manipulation" asChild>
                                                     <Link href={folderHref(folder, nextCursor)}>{t('next')}</Link>
                                                 </Button>
                                             ) : null}
-                                            <Button variant="outline" asChild>
+                                            <Button variant="outline" className="min-h-11 touch-manipulation" asChild>
                                                 <Link href={folderHref(folder)}>{t('first')}</Link>
                                             </Button>
                                         </div>
                                     </CardContent>
                                 </Card>
 
-                                <Card>
+                                <Card className={message ? undefined : 'max-md:hidden'}>
                                     <CardHeader>
-                                        <CardTitle>{message?.subject || t('select')}</CardTitle>
                                         {message ? (
-                                            <CardDescription>
+                                            <Button variant="outline" className="mb-2 min-h-11 w-fit touch-manipulation md:hidden" asChild>
+                                                <Link href={folderHref(folder)}>
+                                                    <ArrowLeftIcon className="size-4" />
+                                                    {t('back')}
+                                                </Link>
+                                            </Button>
+                                        ) : null}
+                                        <CardTitle className="break-words">{message?.subject || t('select')}</CardTitle>
+                                        {message ? (
+                                            <CardDescription className="break-all">
                                                 {t('from')}: {message.from}
                                             </CardDescription>
                                         ) : null}
@@ -238,10 +251,11 @@ export default function Index({
                                     <CardContent>
                                         {message ? (
                                             <div className="grid gap-3">
-                                                <div className="flex flex-wrap gap-2">
+                                                <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
                                                     <Button
                                                         type="button"
                                                         variant="outline"
+                                                        className="min-h-11 touch-manipulation"
                                                         onClick={() =>
                                                             openCompose({
                                                                 to: message.from,
@@ -258,6 +272,7 @@ export default function Index({
                                                     <Button
                                                         type="button"
                                                         variant="outline"
+                                                        className="min-h-11 touch-manipulation"
                                                         onClick={() =>
                                                             openCompose({
                                                                 to: '',
@@ -272,10 +287,10 @@ export default function Index({
                                                         {t('forward')}
                                                     </Button>
                                                 </div>
-                                                <p className="text-sm text-muted-foreground">
+                                                <p className="break-all text-sm text-muted-foreground">
                                                     {t('to')}: {message.to.join(', ')}
                                                 </p>
-                                                <pre className="whitespace-pre-wrap font-sans text-sm text-foreground">
+                                                <pre className="max-w-full whitespace-pre-wrap break-words font-sans text-sm text-foreground [overflow-wrap:anywhere]">
                                                     {message.body}
                                                 </pre>
                                             </div>

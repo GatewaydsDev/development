@@ -7,6 +7,7 @@ import {
 } from '@/Components/RevisionAssignments';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
 import ThemeModeToggle from '@/Components/ThemeModeToggle';
+import UnreadMailButton from '@/Components/UnreadMailButton';
 import UserAvatar from '@/Components/UserAvatar';
 import { Badge } from '@/Components/ui/badge';
 import {
@@ -19,6 +20,7 @@ import {
     DropdownMenuTrigger,
 } from '@/Components/ui/dropdown-menu';
 
+import { useUnreadMail } from '@/lib/unreadMail';
 import { PageProps } from '@/types';
 import { Link, router, usePage } from '@inertiajs/react';
 import { toast } from 'sonner';
@@ -234,6 +236,8 @@ export default function Authenticated({
     const canOpenAdministration =
         canOpenWork || canOpenPeople || canOpenWorkspace || canOpenSecurity;
     const notifications = auth.notifications;
+    const unreadMail = useUnreadMail();
+    const hasUnreadMail = unreadMail > 0;
     const hasUnreadNotifications = notifications.unreadCount > 0;
     const previousUnreadCount = useRef(notifications.unreadCount);
     const idleTimeoutRef = useRef<number | null>(null);
@@ -463,7 +467,7 @@ export default function Authenticated({
                         </p>
                         <button
                             type="button"
-                            className="rounded-md border border-amber-400 bg-white px-3 py-1 text-xs font-medium text-amber-950 hover:bg-amber-100"
+                            className="min-h-11 rounded-md border border-amber-400 bg-white px-3 py-2 text-sm font-medium text-amber-950 touch-manipulation hover:bg-amber-100"
                             onClick={() => router.delete(route('impersonation.destroy'))}
                         >
                             Return to your account
@@ -503,14 +507,25 @@ export default function Authenticated({
                                 <NavLink
                                     href={route('mailbox.index')}
                                     active={route().current('mailbox.*')}
+                                    className={
+                                        hasUnreadMail
+                                            ? ' text-red-600 dark:text-red-400'
+                                            : ''
+                                    }
                                 >
-                                    Email
+                                    <span className="inline-flex items-center gap-1.5">
+                                        Email
+                                        {hasUnreadMail ? (
+                                            <MailOpenIcon className="size-3.5 animate-mail-alert text-red-600 dark:text-red-400" />
+                                        ) : null}
+                                    </span>
                                 </NavLink>
 
                             </div>
                         </div>
 
                         <div className="hidden gap-2 lg:ms-6 lg:flex lg:items-center lg:gap-4">
+                            <UnreadMailButton />
                             <ThemeModeToggle />
 
                             <RevisionAssignmentsMenu />
@@ -617,6 +632,7 @@ export default function Authenticated({
                         </div>
 
                         <div className="-me-2 flex items-center gap-2 lg:hidden">
+                            <UnreadMailButton />
                             <RevisionAssignmentsMenu />
                             <button
                                 onClick={() =>
@@ -684,8 +700,18 @@ export default function Authenticated({
                         <ResponsiveNavLink
                             href={route('mailbox.index')}
                             active={route().current('mailbox.*')}
+                            className={
+                                hasUnreadMail
+                                    ? 'text-red-600 dark:text-red-400'
+                                    : ''
+                            }
                         >
-                            Email
+                            <span className="inline-flex items-center gap-2">
+                                Email
+                                {hasUnreadMail ? (
+                                    <MailOpenIcon className="size-4 animate-mail-alert text-red-600 dark:text-red-400" />
+                                ) : null}
+                            </span>
                         </ResponsiveNavLink>
 
                         {canOpenAdministration && (

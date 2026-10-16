@@ -208,9 +208,34 @@
     transform-origin: top center;
   }
 
+  @keyframes mail-alert {
+    0%,
+    100% {
+      transform: rotate(0deg) scale(1);
+    }
+    20% {
+      transform: rotate(14deg) scale(1.12);
+    }
+    40% {
+      transform: rotate(-12deg) scale(1.05);
+    }
+    60% {
+      transform: rotate(10deg) scale(1.12);
+    }
+    80% {
+      transform: rotate(-6deg) scale(1);
+    }
+  }
+
+  .animate-mail-alert {
+    animation: mail-alert 1s ease-in-out infinite;
+    transform-origin: top center;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .animate-bell-ring-loop,
-    .animate-bell-shake {
+    .animate-bell-shake,
+    .animate-mail-alert {
       animation: none;
     }
   }

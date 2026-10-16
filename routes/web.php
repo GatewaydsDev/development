@@ -104,6 +104,9 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
     Route::delete('/impersonation', [\App\Http\Controllers\Admin\ImpersonationController::class, 'destroy'])
         ->name('impersonation.destroy');
     Route::get('/email', [MailboxController::class, 'index'])->name('mailbox.index');
+    Route::get('/email/unread', [MailboxController::class, 'unread'])
+        ->middleware('throttle:30,1')
+        ->name('mailbox.unread');
     Route::post('/email', [MailboxController::class, 'send'])
         ->middleware('throttle:6,1')
         ->name('mailbox.send');
