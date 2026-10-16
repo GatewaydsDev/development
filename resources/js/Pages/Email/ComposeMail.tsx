@@ -2,28 +2,46 @@ import InputError from '@/Components/InputError';
 import { FooterColorBoxes } from '@/Pages/Email/MailSettings';
 import { Button } from '@/Components/ui/button';
 import { router, useForm } from '@inertiajs/react';
+import { Extension } from '@tiptap/core';
+import Color from '@tiptap/extension-color';
+import Highlight from '@tiptap/extension-highlight';
 import LinkExtension from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
+import Subscript from '@tiptap/extension-subscript';
+import Superscript from '@tiptap/extension-superscript';
+import TextAlign from '@tiptap/extension-text-align';
+import TextStyle from '@tiptap/extension-text-style';
 import Underline from '@tiptap/extension-underline';
-import { EditorContent, useEditor } from '@tiptap/react';
+import { Editor, EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import {
+    AlignCenterIcon,
+    AlignLeftIcon,
+    AlignRightIcon,
     BoldIcon,
     FlagIcon,
+    HighlighterIcon,
+    ListIndentDecreaseIcon,
+    ListIndentIncreaseIcon,
     ItalicIcon,
     LinkIcon,
     ListIcon,
     ListOrderedIcon,
     PaperclipIcon,
     Redo2Icon,
+    RemoveFormattingIcon,
+    SendIcon,
     StrikethroughIcon,
+    SubscriptIcon,
+    SuperscriptIcon,
     Trash2Icon,
+    TypeIcon,
     UnderlineIcon,
     Undo2Icon,
     UserPlusIcon,
     XIcon,
 } from 'lucide-react';
-import { FormEvent, KeyboardEvent, ReactNode, useRef, useState } from 'react';
+import { FormEvent, KeyboardEvent, ReactNode, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 export type SavedRecipient = {
@@ -74,6 +92,86 @@ const formatFileSize = (bytes: number) => {
 };
 
 const isEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
+const FONT_FAMILIES = [
+    { label: 'Calibri', value: 'Calibri, Candara, sans-serif' },
+    { label: 'Arial', value: 'Arial, Helvetica, sans-serif' },
+    { label: 'Times New Roman', value: '"Times New Roman", Times, serif' },
+    { label: 'Georgia', value: 'Georgia, serif' },
+    { label: 'Verdana', value: 'Verdana, Geneva, sans-serif' },
+    { label: 'Tahoma', value: 'Tahoma, Geneva, sans-serif' },
+    { label: 'Courier New', value: '"Courier New", Courier, monospace' },
+];
+
+const FONT_SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 36];
+
+const TEXT_COLORS = ['#111827', '#dc2626', '#c2410c', '#a16207', '#047857', '#1d4ed8', '#6d28d9', '#6b7280'];
+
+const HIGHLIGHT_COLORS = ['#fef08a', '#bbf7d0', '#bae6fd', '#fecdd3', '#fed7aa'];
+
+const MailTextStyle = Extension.create({
+    name: 'mailTextStyle',
+
+    addGlobalAttributes() {
+        return [
+            {
+                types: ['textStyle'],
+                attributes: {
+                    fontSize: {
+                        default: null,
+                        parseHTML: (element) => element.style.fontSize || null,
+                        renderHTML: (attributes) =>
+                            attributes.fontSize ? { style: `font-size: ${attributes.fontSize}` } : {},
+                    },
+                    fontFamily: {
+                        default: null,
+                        parseHTML: (element) => element.style.fontFamily || null,
+                        renderHTML: (attributes) =>
+                            attributes.fontFamily ? { style: `font-family: ${attributes.fontFamily}` } : {},
+                    },
+                },
+            },
+            {
+                types: ['paragraph'],
+                attributes: {
+                    indent: {
+                        default: 0,
+                        parseHTML: (element) => Number(element.getAttribute('data-indent') || 0),
+                        renderHTML: (attributes) => {
+                            const indent = Number(attributes.indent || 0);
+
+                            if (!indent) {
+                                return {};
+                            }
+
+                            return {
+                                'data-indent': indent,
+                                style: `margin-left: ${indent * 24}px`,
+                            };
+                        },
+                    },
+                },
+            },
+        ];
+    },
+});
+
+function useEditorTick(editor: Editor | null) {
+    const [, setTick] = useState(0);
+
+    useEffect(() => {
+        if (!editor) {
+            return;
+        }
+
+        const update = () => setTick((value) => value + 1);
+        editor.on('transaction', update);
+
+        return () => {
+            editor.off('transaction', update);
+        };
+    }, [editor]);
+}
 
 function AddressField({
     id,
@@ -145,7 +243,7 @@ function AddressField({
     });
 
     return (
-        <label className="grid grid-cols-1 items-start gap-1 border-b border-border py-2 text-sm sm:grid-cols-[4.5rem_minmax(0,1fr)] sm:gap-2">
+        <label className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-start gap-2 border-b border-border py-2 text-sm">
             <span className="pt-1.5 text-muted-foreground">{label}</span>
             <span className="relative grid gap-1">
                 <span className="flex min-h-9 flex-wrap items-center gap-1">
@@ -245,6 +343,60 @@ function ToolButton({
     );
 }
 
+function ToolDivider() {
+    return <span className="mx-1 h-6 w-px shrink-0 bg-border" aria-hidden="true" />;
+}
+
+function Swatches({
+    label,
+    colors,
+    onPick,
+    children,
+}: {
+    label: string;
+    colors: string[];
+    onPick: (color: string | null) => void;
+    children: ReactNode;
+}) {
+    const [open, setOpen] = useState(false);
+
+    return (
+        <span className="relative">
+            <ToolButton label={label} pressed={open} onClick={() => setOpen((value) => !value)}>
+                {children}
+            </ToolButton>
+            {open ? (
+                <span className="absolute start-0 top-full z-30 mt-1 grid w-40 grid-cols-4 gap-1 rounded-md border border-border bg-background p-2 shadow-md">
+                    {colors.map((color) => (
+                        <button
+                            key={color}
+                            type="button"
+                            aria-label={color}
+                            className="size-8 rounded-sm border border-border touch-manipulation"
+                            style={{ backgroundColor: color }}
+                            onClick={() => {
+                                onPick(color);
+                                setOpen(false);
+                            }}
+                        />
+                    ))}
+                    <button
+                        type="button"
+                        className="col-span-4 min-h-8 rounded-sm border border-border px-2 text-xs text-muted-foreground touch-manipulation hover:bg-muted"
+                        onClick={() => {
+                            onPick(null);
+                            setOpen(false);
+                        }}
+                    >
+                        <XIcon className="me-1 inline size-3" />
+                        {label}
+                    </button>
+                </span>
+            ) : null}
+        </span>
+    );
+}
+
 export default function ComposeMail({
     mailbox,
     recipients,
@@ -278,7 +430,14 @@ export default function ComposeMail({
     const editor = useEditor({
         extensions: [
             StarterKit.configure({ heading: false }),
+            TextStyle,
+            MailTextStyle,
+            Color,
+            Highlight.configure({ multicolor: true }),
+            TextAlign.configure({ types: ['paragraph'] }),
             Underline,
+            Subscript,
+            Superscript,
             LinkExtension.configure({ openOnClick: false }),
             Placeholder.configure({ placeholder: t('writeMessage') }),
         ],
@@ -286,13 +445,14 @@ export default function ComposeMail({
         immediatelyRender: false,
         editorProps: {
             attributes: {
-                class: 'min-h-40 px-3 py-2 text-base text-foreground outline-none md:min-h-48 md:text-sm',
+                class: 'min-h-52 px-3 py-3 font-[Calibri,Arial,sans-serif] text-base text-foreground outline-none md:min-h-72 md:text-sm',
             },
         },
         onUpdate: ({ editor: current }) => {
             form.setData('body', current.getHTML());
         },
     });
+    useEditorTick(editor);
 
     const addSavedRecipient = (email: string) => {
         const current = splitAddresses(form.data[activeField]);
@@ -382,45 +542,19 @@ export default function ComposeMail({
     };
 
     return (
-        <form onSubmit={submit} className="min-w-0 overflow-hidden rounded-lg border border-border bg-background">
-            <div className="grid grid-cols-2 gap-2 border-b border-border px-3 py-2 sm:flex sm:flex-wrap sm:items-center">
-                <Button className="min-h-11 touch-manipulation" type="submit" disabled={form.processing}>
-                    {form.processing ? t('sending') : t('send')}
-                </Button>
-                <Button className="min-h-11 touch-manipulation" type="button" variant="outline" onClick={onDiscard}>
-                    {t('discard')}
-                </Button>
-                <Button className="min-h-11 touch-manipulation" type="button" variant="outline" onClick={() => fileRef.current?.click()}>
-                    <PaperclipIcon className="size-4" />
-                    {t('attach')}
-                </Button>
-                <Button
-                    className="min-h-11 touch-manipulation"
-                    type="button"
-                    variant={form.data.importance === 'normal' ? 'outline' : 'default'}
-                    onClick={cycleImportance}
-                >
-                    <FlagIcon className="size-4" />
-                    {t(
-                        form.data.importance === 'high'
-                            ? 'importanceHigh'
-                            : form.data.importance === 'low'
-                              ? 'importanceLow'
-                              : 'importanceNormal',
-                    )}
-                </Button>
-                <input
-                    ref={fileRef}
-                    type="file"
-                    multiple
-                    className="hidden"
-                    onChange={(event) => {
-                        const files = Array.from(event.target.files ?? []);
-                        updateAttachments([...attachedFiles, ...files]);
-                        event.target.value = '';
-                    }}
-                />
-            </div>
+        <form onSubmit={submit} className="min-w-0 pb-28">
+            <div className="min-w-0 overflow-hidden rounded-lg border border-border bg-background">
+            <input
+                ref={fileRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={(event) => {
+                    const files = Array.from(event.target.files ?? []);
+                    updateAttachments([...attachedFiles, ...files]);
+                    event.target.value = '';
+                }}
+            />
             {attachedFiles.length > 0 ? (
                 <ul
                     className="grid gap-2 border-b border-border bg-muted/40 px-3 py-3"
@@ -461,21 +595,8 @@ export default function ComposeMail({
             ) : null}
             <InputError message={form.errors.attachments} className="px-3" />
 
-            {headerUrl ? (
-                <div className="border-b border-border bg-muted/30 px-3 py-3">
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        {t('header')}
-                    </p>
-                    <img
-                        src={headerUrl}
-                        alt=""
-                        className="h-auto max-w-full object-contain"
-                        style={{ width: `${headerWidth}%` }}
-                    />
-                </div>
-            ) : null}
             <div className="px-3">
-                <div className="grid grid-cols-1 items-center gap-1 border-b border-border py-2 text-sm sm:grid-cols-[4.5rem_minmax(0,1fr)] sm:gap-2">
+                <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-2 border-b border-border py-2 text-sm">
                     <span className="text-muted-foreground">{t('from')}</span>
                     <span className="break-all text-foreground">{mailbox}</span>
                 </div>
@@ -510,19 +631,21 @@ export default function ComposeMail({
                         onFocusField={() => setActiveField('bcc')}
                     />
                 ) : null}
-                <div className="flex gap-4 py-2 text-sm">
-                    {!showCc ? (
-                        <button type="button" className="min-h-11 touch-manipulation text-muted-foreground hover:text-foreground" onClick={() => setShowCc(true)}>
-                            {t('cc')}
-                        </button>
-                    ) : null}
-                    {!showBcc ? (
-                        <button type="button" className="min-h-11 touch-manipulation text-muted-foreground hover:text-foreground" onClick={() => setShowBcc(true)}>
-                            {t('bcc')}
-                        </button>
-                    ) : null}
-                </div>
-                <label className="grid grid-cols-1 items-center gap-1 border-b border-border py-2 text-sm sm:grid-cols-[4.5rem_minmax(0,1fr)] sm:gap-2">
+                {!showCc || !showBcc ? (
+                    <div className="flex gap-2 py-2">
+                        {!showCc ? (
+                            <button type="button" className="inline-flex min-h-11 items-center rounded-md border border-border px-3 text-sm text-muted-foreground touch-manipulation hover:bg-muted hover:text-foreground" onClick={() => setShowCc(true)}>
+                                {t('cc')}
+                            </button>
+                        ) : null}
+                        {!showBcc ? (
+                            <button type="button" className="inline-flex min-h-11 items-center rounded-md border border-border px-3 text-sm text-muted-foreground touch-manipulation hover:bg-muted hover:text-foreground" onClick={() => setShowBcc(true)}>
+                                {t('bcc')}
+                            </button>
+                        ) : null}
+                    </div>
+                ) : null}
+                <label className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-2 border-b border-border py-2 text-sm">
                     <span className="text-muted-foreground">{t('subject')}</span>
                     <input
                         value={form.data.subject}
@@ -536,13 +659,41 @@ export default function ComposeMail({
                 <InputError message={form.errors.subject} />
             </div>
 
-            <div className="flex items-center gap-1 overflow-x-auto border-b border-border px-2 py-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex items-center gap-0.5 overflow-x-auto border-b border-border bg-muted/30 px-2 py-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 <ToolButton label={t('undo')} onClick={() => editor?.chain().focus().undo().run()}>
                     <Undo2Icon className="size-4" />
                 </ToolButton>
                 <ToolButton label={t('redo')} onClick={() => editor?.chain().focus().redo().run()}>
                     <Redo2Icon className="size-4" />
                 </ToolButton>
+                <ToolDivider />
+                <select
+                    aria-label={t('font')}
+                    value={String(editor?.getAttributes('textStyle').fontFamily || FONT_FAMILIES[0].value)}
+                    onChange={(event) => {
+                        const style = editor?.getAttributes('textStyle') ?? {};
+                        editor?.chain().focus().setMark('textStyle', { ...style, fontFamily: event.target.value }).run();
+                    }}
+                    className="h-11 max-w-36 shrink-0 rounded-md border border-border bg-background px-2 text-sm text-foreground lg:h-8"
+                >
+                    {FONT_FAMILIES.map((font) => (
+                        <option key={font.label} value={font.value}>{font.label}</option>
+                    ))}
+                </select>
+                <select
+                    aria-label={t('fontSize')}
+                    value={String(editor?.getAttributes('textStyle').fontSize || '16px')}
+                    onChange={(event) => {
+                        const style = editor?.getAttributes('textStyle') ?? {};
+                        editor?.chain().focus().setMark('textStyle', { ...style, fontSize: event.target.value }).run();
+                    }}
+                    className="h-11 w-16 shrink-0 rounded-md border border-border bg-background px-2 text-sm text-foreground lg:h-8"
+                >
+                    {FONT_SIZES.map((size) => (
+                        <option key={size} value={`${size}px`}>{size}</option>
+                    ))}
+                </select>
+                <ToolDivider />
                 <ToolButton label={t('bold')} pressed={editor?.isActive('bold')} onClick={() => editor?.chain().focus().toggleBold().run()}>
                     <BoldIcon className="size-4" />
                 </ToolButton>
@@ -555,14 +706,115 @@ export default function ComposeMail({
                 <ToolButton label={t('strike')} pressed={editor?.isActive('strike')} onClick={() => editor?.chain().focus().toggleStrike().run()}>
                     <StrikethroughIcon className="size-4" />
                 </ToolButton>
+                <ToolButton label={t('subscript')} pressed={editor?.isActive('subscript')} onClick={() => editor?.chain().focus().toggleSubscript().run()}>
+                    <SubscriptIcon className="size-4" />
+                </ToolButton>
+                <ToolButton label={t('superscript')} pressed={editor?.isActive('superscript')} onClick={() => editor?.chain().focus().toggleSuperscript().run()}>
+                    <SuperscriptIcon className="size-4" />
+                </ToolButton>
+                <Swatches
+                    label={t('textColor')}
+                    colors={TEXT_COLORS}
+                    onPick={(color) => {
+                        if (!editor) {
+                            return;
+                        }
+
+                        const style = editor.getAttributes('textStyle');
+
+                        if (color) {
+                            editor.chain().focus().setColor(color).run();
+
+                            return;
+                        }
+
+                        editor.chain().focus().setMark('textStyle', { ...style, color: null }).run();
+                    }}
+                >
+                    <TypeIcon className="size-4" style={{ color: String(editor?.getAttributes('textStyle').color || 'currentColor') }} />
+                </Swatches>
+                <Swatches
+                    label={t('highlight')}
+                    colors={HIGHLIGHT_COLORS}
+                    onPick={(color) => {
+                        if (!editor) {
+                            return;
+                        }
+
+                        if (color) {
+                            editor.chain().focus().setHighlight({ color }).run();
+
+                            return;
+                        }
+
+                        editor.chain().focus().unsetHighlight().run();
+                    }}
+                >
+                    <HighlighterIcon className="size-4" />
+                </Swatches>
+                <ToolDivider />
                 <ToolButton label={t('bulletList')} pressed={editor?.isActive('bulletList')} onClick={() => editor?.chain().focus().toggleBulletList().run()}>
                     <ListIcon className="size-4" />
                 </ToolButton>
                 <ToolButton label={t('numberedList')} pressed={editor?.isActive('orderedList')} onClick={() => editor?.chain().focus().toggleOrderedList().run()}>
                     <ListOrderedIcon className="size-4" />
                 </ToolButton>
+                <ToolButton
+                    label={t('outdent')}
+                    onClick={() => {
+                        if (!editor) {
+                            return;
+                        }
+
+                        if (editor.isActive('listItem')) {
+                            editor.chain().focus().liftListItem('listItem').run();
+
+                            return;
+                        }
+
+                        const indent = Number(editor.getAttributes('paragraph').indent || 0);
+                        editor.chain().focus().updateAttributes('paragraph', { indent: Math.max(0, indent - 1) }).run();
+                    }}
+                >
+                    <ListIndentDecreaseIcon className="size-4" />
+                </ToolButton>
+                <ToolButton
+                    label={t('indent')}
+                    onClick={() => {
+                        if (!editor) {
+                            return;
+                        }
+
+                        if (editor.can().sinkListItem('listItem')) {
+                            editor.chain().focus().sinkListItem('listItem').run();
+
+                            return;
+                        }
+
+                        const indent = Number(editor.getAttributes('paragraph').indent || 0);
+                        editor.chain().focus().updateAttributes('paragraph', { indent: Math.min(8, indent + 1) }).run();
+                    }}
+                >
+                    <ListIndentIncreaseIcon className="size-4" />
+                </ToolButton>
+                <ToolButton label={t('alignLeft')} pressed={editor?.isActive({ textAlign: 'left' })} onClick={() => editor?.chain().focus().setTextAlign('left').run()}>
+                    <AlignLeftIcon className="size-4" />
+                </ToolButton>
+                <ToolButton label={t('alignCenter')} pressed={editor?.isActive({ textAlign: 'center' })} onClick={() => editor?.chain().focus().setTextAlign('center').run()}>
+                    <AlignCenterIcon className="size-4" />
+                </ToolButton>
+                <ToolButton label={t('alignRight')} pressed={editor?.isActive({ textAlign: 'right' })} onClick={() => editor?.chain().focus().setTextAlign('right').run()}>
+                    <AlignRightIcon className="size-4" />
+                </ToolButton>
+                <ToolDivider />
                 <ToolButton label={t('link')} pressed={editor?.isActive('link') || linkOpen} onClick={openLink}>
                     <LinkIcon className="size-4" />
+                </ToolButton>
+                <ToolButton
+                    label={t('clearFormatting')}
+                    onClick={() => editor?.chain().focus().unsetAllMarks().setTextAlign('left').updateAttributes('paragraph', { indent: 0 }).run()}
+                >
+                    <RemoveFormattingIcon className="size-4" />
                 </ToolButton>
             </div>
             {linkOpen ? (
@@ -601,6 +853,19 @@ export default function ComposeMail({
             ) : null}
 
             <EditorContent editor={editor} />
+            {headerUrl ? (
+                <div className="border-t border-border bg-muted/30 px-3 py-3">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        {t('header')}
+                    </p>
+                    <img
+                        src={headerUrl}
+                        alt=""
+                        className="h-auto max-w-full object-contain"
+                        style={{ width: `${headerWidth}%` }}
+                    />
+                </div>
+            ) : null}
             {signature || footerColors.length > 0 ? (
                 <div className="grid gap-3 border-t border-border px-3 py-3">
                     {signature ? (
@@ -623,7 +888,11 @@ export default function ComposeMail({
             ) : null}
             <InputError message={form.errors.body} className="px-3" />
 
-            <div className="grid gap-3 border-t border-border px-3 py-3 md:grid-cols-[minmax(0,1fr)_minmax(14rem,18rem)]">
+            <details className="border-t border-border px-3 py-3">
+            <summary className="min-h-11 cursor-pointer list-none text-sm font-medium text-foreground touch-manipulation [&::-webkit-details-marker]:hidden">
+                {t('savedRecipients')}
+            </summary>
+            <div className="grid gap-3 pt-3 md:grid-cols-[minmax(0,1fr)_minmax(14rem,18rem)]">
                 <label className="flex items-center gap-2 text-sm text-foreground">
                     <input
                         type="checkbox"
@@ -688,6 +957,46 @@ export default function ComposeMail({
                             ))}
                         </ul>
                     )}
+                </div>
+            </div>
+            </details>
+            </div>
+
+            <div className="fixed inset-x-0 bottom-0 z-[60] border-t border-border bg-background/95 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] backdrop-blur lg:left-72 xl:left-80">
+                <div className="mx-auto flex max-w-[96rem] items-center gap-2 px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+                    <Button
+                        className="h-12 shrink-0 bg-emerald-600 px-5 text-white hover:bg-emerald-700"
+                        type="submit"
+                        disabled={form.processing}
+                    >
+                        <SendIcon className="size-4" />
+                        {form.processing ? t('sending') : t('send')}
+                    </Button>
+                    <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
+                        <Button className="h-12 shrink-0 touch-manipulation" type="button" variant="outline" onClick={onDiscard}>
+                            <XIcon className="size-4" />
+                            {t('discard')}
+                        </Button>
+                        <Button className="h-12 shrink-0 touch-manipulation" type="button" variant="outline" onClick={() => fileRef.current?.click()}>
+                            <PaperclipIcon className="size-4" />
+                            {t('attach')}
+                        </Button>
+                        <Button
+                            className="h-12 shrink-0 touch-manipulation"
+                            type="button"
+                            variant={form.data.importance === 'normal' ? 'outline' : 'secondary'}
+                            onClick={cycleImportance}
+                        >
+                            <FlagIcon className="size-4" />
+                            {t(
+                                form.data.importance === 'high'
+                                    ? 'importanceHigh'
+                                    : form.data.importance === 'low'
+                                      ? 'importanceLow'
+                                      : 'importanceNormal',
+                            )}
+                        </Button>
+                    </div>
                 </div>
             </div>
         </form>
