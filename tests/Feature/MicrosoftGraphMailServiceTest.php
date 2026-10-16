@@ -142,3 +142,45 @@ test('a super admin sends mail with that persons microsoft credentials', functio
             && $request['client_secret'] === 'super-admin-secret-value';
     });
 });
+
+test('impersonating a super admin without app credentials uses the master app on that mailbox', function () {
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $master = User::factory()->create([
+        'level_id' => $level->id,
+        'role' => 'super_admin',
+        'microsoft_tenant_id' => 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        'microsoft_client_id' => 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+        'microsoft_client_secret' => 'master-secret-value',
+    ]);
+    $master->forceFill(['is_master' => true])->save();
+
+    $larry = User::factory()->create([
+        'level_id' => $level->id,
+        'role' => 'super_admin',
+        'microsoft_mailbox' => 'larryd@gateway-ds.com',
+    ]);
+
+    Http::fake([
+        'https://login.microsoftonline.com/*' => Http::response([
+            'access_token' => 'graph-token',
+            'expires_in' => 3600,
+        ], 200),
+        'https://graph.microsoft.com/*' => Http::response(['value' => []], 200),
+    ]);
+
+    session(['impersonator_id' => $master->id]);
+
+    app(MicrosoftGraphMailService::class)
+        ->actingAs($larry)
+        ->listFolder('larryd@gateway-ds.com', 'inbox');
+
+    Http::assertSent(function ($request) {
+        return $request->url() === 'https://login.microsoftonline.com/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/oauth2/v2.0/token'
+            && $request['client_id'] === 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
+            && $request['client_secret'] === 'master-secret-value';
+    });
+
+    Http::assertSent(function ($request) {
+        return str_contains($request->url(), '/users/'.rawurlencode('larryd@gateway-ds.com').'/mailFolders/inbox/messages');
+    });
+});
