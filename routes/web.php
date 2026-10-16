@@ -106,16 +106,16 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
         ->name('impersonation.destroy');
     Route::get('/email', [MailboxController::class, 'index'])->name('mailbox.index');
     Route::get('/email/unread', [MailboxController::class, 'unread'])
-        ->middleware('throttle:30,1')
+        ->middleware('throttle:60,1,mailbox-unread')
         ->name('mailbox.unread');
     Route::post('/email', [MailboxController::class, 'send'])
-        ->middleware('throttle:6,1')
+        ->middleware('throttle:20,1,mailbox-send')
         ->name('mailbox.send');
     Route::patch('/email/state', [MailboxController::class, 'updateState'])
-        ->middleware('throttle:30,1')
+        ->middleware('throttle:60,1,mailbox-state')
         ->name('mailbox.state');
     Route::post('/email/archive', [MailboxController::class, 'archive'])
-        ->middleware('throttle:30,1')
+        ->middleware('throttle:30,1,mailbox-archive')
         ->name('mailbox.archive');
     Route::put('/email/signature', [MailboxController::class, 'updateSignature'])
         ->name('mailbox.signature');
@@ -434,7 +434,7 @@ Route::middleware(['auth', 'prevent-back-history'])
             ->middleware('can:create-bids')
             ->name('quotations.convert-to-bid');
         Route::post('/quotations/{quotation}/revisions/{revision}/review-email', [QuotationController::class, 'sendRevisionReview'])
-            ->middleware(['can:update-quotations', 'throttle:6,1'])
+            ->middleware(['can:update-quotations', 'throttle:6,1,quotation-review-email'])
             ->name('quotations.revisions.review-email');
         Route::get('/quotations/{quotation}/edit', [QuotationController::class, 'edit'])
             ->middleware('can:update-quotations')

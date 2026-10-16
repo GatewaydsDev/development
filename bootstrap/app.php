@@ -48,6 +48,12 @@ return Application::configure(basePath: dirname(__DIR__))
                 );
             }
 
+            if ($response->getStatusCode() === 429 && $request->routeIs('mailbox.send')) {
+                return back()->withErrors([
+                    'body' => 'Too many messages were sent in a short time. Wait a minute and try again.',
+                ]);
+            }
+
             return $response;
         });
     })->create();

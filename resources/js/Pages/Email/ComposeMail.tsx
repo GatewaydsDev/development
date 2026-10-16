@@ -93,6 +93,40 @@ const formatFileSize = (bytes: number) => {
 
 const isEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
+const MAIL_DOMAINS = [
+    'gmail.com',
+    'hotmail.com',
+    'outlook.com',
+    'yahoo.com',
+    'icloud.com',
+    'live.com',
+    'aol.com',
+    'msn.com',
+    'gateway-ds.com',
+];
+
+function domainCompletions(entry: string, taken: string[]): string[] {
+    const raw = entry.trim().replace(/[,\s]+$/, '');
+
+    if (raw === '' || /[\s,]/.test(raw)) {
+        return [];
+    }
+
+    const at = raw.indexOf('@');
+    const local = at === -1 ? raw : raw.slice(0, at);
+    const domainPrefix = at === -1 ? '' : raw.slice(at + 1).toLowerCase();
+
+    if (local === '' || !/^[A-Za-z0-9._%+-]+$/.test(local)) {
+        return [];
+    }
+
+    const takenSet = new Set(taken.map((address) => address.toLowerCase()));
+
+    return MAIL_DOMAINS.filter((domain) => domain.startsWith(domainPrefix))
+        .map((domain) => `${local.toLowerCase()}@${domain}`)
+        .filter((email) => email !== raw.toLowerCase() && !takenSet.has(email));
+}
+
 const FONT_FAMILIES = [
     { label: 'Calibri', value: 'Calibri, Candara, sans-serif' },
     { label: 'Arial', value: 'Arial, Helvetica, sans-serif' },
@@ -193,7 +227,24 @@ function AddressField({
     const { t } = useTranslation('mail');
     const [entry, setEntry] = useState('');
     const [open, setOpen] = useState(false);
+    const [highlight, setHighlight] = useState(0);
     const addresses = splitAddresses(value);
+    const query = entry.trim().toLowerCase();
+    const savedMatches = suggestions.filter((recipient) => {
+        if (query === '') {
+            return false;
+        }
+
+        return (
+            recipient.email.toLowerCase().includes(query) ||
+            (recipient.name ?? '').toLowerCase().includes(query)
+        );
+    });
+    const completions = domainCompletions(entry, [
+        ...addresses,
+        ...savedMatches.map((recipient) => recipient.email),
+    ]);
+    const optionCount = savedMatches.length + completions.length;
 
     const commit = (nextEntry = entry) => {
         const email = nextEntry.trim().replace(/,$/, '');
@@ -214,13 +265,56 @@ function AddressField({
         onChange(joinAddresses(addresses.filter((address) => address !== email)));
     };
 
+    const acceptHighlighted = () => {
+        const saved = savedMatches[highlight];
+
+        if (saved) {
+            commit(saved.email);
+
+            return;
+        }
+
+        const completion = completions[highlight - savedMatches.length];
+
+        if (completion) {
+            commit(completion);
+        }
+    };
+
     const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+        if (open && optionCount > 0 && event.key === 'ArrowDown') {
+            event.preventDefault();
+            setHighlight((index) => (index + 1) % optionCount);
+
+            return;
+        }
+
+        if (open && optionCount > 0 && event.key === 'ArrowUp') {
+            event.preventDefault();
+            setHighlight((index) => (index - 1 + optionCount) % optionCount);
+
+            return;
+        }
+
+        if (event.key === 'Escape') {
+            setOpen(false);
+
+            return;
+        }
+
         if (event.key === 'Enter' || event.key === ',' || event.key === 'Tab') {
             if (entry.trim() === '') {
                 return;
             }
 
             event.preventDefault();
+
+            if (open && optionCount > 0) {
+                acceptHighlighted();
+
+                return;
+            }
+
             commit();
         }
 
@@ -228,19 +322,6 @@ function AddressField({
             remove(addresses[addresses.length - 1]);
         }
     };
-
-    const matches = suggestions.filter((recipient) => {
-        const query = entry.trim().toLowerCase();
-
-        if (query === '') {
-            return false;
-        }
-
-        return (
-            recipient.email.toLowerCase().includes(query) ||
-            (recipient.name ?? '').toLowerCase().includes(query)
-        );
-    });
 
     return (
         <label className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-start gap-2 border-b border-border py-2 text-sm">
@@ -268,6 +349,7 @@ function AddressField({
                         value={entry}
                         onChange={(event) => {
                             setEntry(event.target.value);
+                            setHighlight(0);
                             setOpen(true);
                         }}
                         onFocus={() => {
@@ -288,14 +370,21 @@ function AddressField({
                         className="h-11 min-w-0 flex-1 bg-transparent text-base text-foreground outline-none sm:min-w-40 md:text-sm"
                     />
                 </span>
-                {open && matches.length > 0 ? (
-                    <span className="absolute top-full z-20 mt-1 grid w-full overflow-hidden rounded-md border border-border bg-background shadow-sm">
-                        {matches.map((recipient) => (
+                {open && optionCount > 0 ? (
+                    <span
+                        role="listbox"
+                        aria-label={t('addressSuggestions')}
+                        className="absolute top-full z-20 mt-1 grid max-h-60 w-full overflow-y-auto rounded-md border border-border bg-background shadow-sm"
+                    >
+                        {savedMatches.map((recipient, index) => (
                             <button
                                 key={recipient.id}
                                 type="button"
-                                className="min-h-11 px-3 py-2 text-left text-sm touch-manipulation hover:bg-muted"
-                                onMouseDown={(event) => {
+                                role="option"
+                                aria-selected={highlight === index}
+                                className={`min-h-11 px-3 py-2 text-left text-sm touch-manipulation hover:bg-muted ${highlight === index ? 'bg-muted' : ''}`}
+                                onMouseEnter={() => setHighlight(index)}
+                                onPointerDown={(event) => {
                                     event.preventDefault();
                                     commit(recipient.email);
                                 }}
@@ -310,6 +399,26 @@ function AddressField({
                                 ) : null}
                             </button>
                         ))}
+                        {completions.map((email, index) => {
+                            const optionIndex = savedMatches.length + index;
+
+                            return (
+                                <button
+                                    key={email}
+                                    type="button"
+                                    role="option"
+                                    aria-selected={highlight === optionIndex}
+                                    className={`min-h-11 px-3 py-2 text-left text-sm touch-manipulation hover:bg-muted ${highlight === optionIndex ? 'bg-muted' : ''}`}
+                                    onMouseEnter={() => setHighlight(optionIndex)}
+                                    onPointerDown={(event) => {
+                                        event.preventDefault();
+                                        commit(email);
+                                    }}
+                                >
+                                    {email}
+                                </button>
+                            );
+                        })}
                     </span>
                 ) : null}
                 <InputError message={error} />
