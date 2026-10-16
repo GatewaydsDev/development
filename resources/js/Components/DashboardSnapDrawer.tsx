@@ -28,6 +28,7 @@ import {
     MailOpenIcon,
     PackageIcon,
     PaletteIcon,
+    ReceiptIcon,
     PenLineIcon,
     PlusCircleIcon,
     PlusIcon,
@@ -96,6 +97,7 @@ export default function DashboardSnapDrawer({
     const canViewEmployees = Boolean(auth?.can?.viewEmployees);
     const canCreateEmployees = Boolean(auth?.can?.createEmployees);
     const canViewUserActivity = Boolean(auth?.can?.viewUserActivity);
+    const canManageExpenses = Boolean(auth?.can?.manageExpenses);
     const notifications = auth?.notifications;
     const unreadCount = notifications?.unreadCount ?? 0;
 
@@ -412,6 +414,17 @@ export default function DashboardSnapDrawer({
                 badge: 'Security',
                 keywords: ['access', 'permissions', 'security', 'gates', 'roles', 'levels'],
                 visible: canManageAccess,
+            },
+            {
+                id: 'ws-expenses',
+                title: 'Expenses',
+                description: 'Record company expenses and keep the receipt with each one.',
+                href: route('admin.expenses.index'),
+                icon: ReceiptIcon,
+                category: 'workspace',
+                badge: 'Ledger',
+                keywords: ['expense', 'expenses', 'receipt', 'course', 'cost', 'spending'],
+                visible: canManageExpenses,
             },
             {
                 id: 'ws-user-activity',

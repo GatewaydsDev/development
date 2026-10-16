@@ -41,6 +41,7 @@ import {
     PackageIcon,
     PaletteIcon,
     PenLineIcon,
+    ReceiptIcon,
     PlusCircleIcon,
     ShieldIcon,
     SlidersHorizontalIcon,
@@ -190,6 +191,7 @@ export default function Authenticated({
     const canViewUsers = Boolean(auth.can?.viewUsers);
     const canCreateUsers = Boolean(auth.can?.createUsers);
     const canViewUserActivity = Boolean(auth.can?.viewUserActivity);
+    const canManageExpenses = Boolean(auth.can?.manageExpenses);
     const canManageDocumentColors = Boolean(auth.can?.manageDocumentColors);
     const canManageAccess = Boolean(auth.can?.manageAccess);
     const canManageNotifications = Boolean(auth.can?.manageNotifications);
@@ -232,7 +234,10 @@ export default function Authenticated({
         canManageNotifications;
     const canOpenWorkspace = true;
     const canOpenSecurity =
-        canManageUsers || canManageAccess || canViewUserActivity;
+        canManageUsers ||
+        canManageAccess ||
+        canViewUserActivity ||
+        canManageExpenses;
     const canOpenAdministration =
         canOpenWork || canOpenPeople || canOpenWorkspace || canOpenSecurity;
     const notifications = auth.notifications;
@@ -1055,6 +1060,22 @@ export default function Authenticated({
                                                     <span className="inline-flex items-center gap-2">
                                                         <ActivityIcon className="size-4" />
                                                         User activity
+                                                    </span>
+                                                </ResponsiveNavLink>
+                                            )}
+                                            {canManageExpenses && (
+                                                <ResponsiveNavLink
+                                                    href={route(
+                                                        'admin.expenses.index',
+                                                    )}
+                                                    active={route().current(
+                                                        'admin.expenses.*',
+                                                    )}
+                                                    className="ps-10"
+                                                >
+                                                    <span className="inline-flex items-center gap-2">
+                                                        <ReceiptIcon className="size-4" />
+                                                        Expenses
                                                     </span>
                                                 </ResponsiveNavLink>
                                             )}
