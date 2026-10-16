@@ -622,6 +622,12 @@ export const fillQuotationPlaceholders = (
         return value.trim() === '' ? match : value;
     });
 
+const maskedValidity = (value: string) => {
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+    return match ? `${match[2]}/${match[3]}/${match[1]}` : value;
+};
+
 export const quotationInsertValues = (
     data: Pick<
         QuotationFormData,
@@ -666,7 +672,10 @@ export const quotationInsertValues = (
     const validity = Object.fromEntries([30, 60, 90].map((days) => {
         const date = dateParts ? new Date(dateParts[0], dateParts[1] - 1, dateParts[2]) : new Date();
         date.setDate(date.getDate() + days);
-        return [`validity_${days}`, date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })];
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+
+        return [`validity_${days}`, `${month}/${day}/${date.getFullYear()}`];
     }));
 
     return {
@@ -675,7 +684,7 @@ export const quotationInsertValues = (
             data.quotation_number || quotation?.quotation_number || '',
         quotation_title: data.title || quotation?.title || '',
         quoted_on: data.quoted_at || quotation?.quoted_at || '',
-        valid_until: data.valid_until || quotation?.valid_until || '',
+        valid_until: maskedValidity(data.valid_until || quotation?.valid_until || ''),
         base_bid_total: formatMoney(quotation?.total ?? total),
         item_count:
             (data.line_items ?? []).length > 0

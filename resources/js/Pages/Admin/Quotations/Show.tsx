@@ -1,3 +1,4 @@
+import { isoToMaskedDate } from '@/Components/DateMaskInput';
 import { RevisionReviewPanel } from '@/Components/RevisionAssignments';
 import RevisionReviewEmail from '@/Pages/Admin/Quotations/Partials/RevisionReviewEmail';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
@@ -262,7 +263,7 @@ export default function Show({
                                 />
                                 <DetailItem
                                     label="Valid until"
-                                    value={quotation.valid_until}
+                                    value={isoToMaskedDate(quotation.valid_until ?? '')}
                                 />
                                 <DetailItem
                                     label="Total"

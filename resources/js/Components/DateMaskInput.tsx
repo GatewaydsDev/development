@@ -68,6 +68,8 @@ export default function DateMaskInput({
 
     useEffect(() => {
         if (value === '') {
+            setDisplay((current) => (maskedDateToIso(current) ? '' : current));
+
             return;
         }
 

@@ -15,7 +15,8 @@ export type PrintLayoutElement = TableStriping & PdfLayoutElement & {
     underline?: boolean;
     line_height?: number;
     list_style?: 'none' | 'bullet' | 'numbered';
-    validity_days?: 30 | 60 | 90;
+    validity_days?: 30 | 60 | 90 | null;
+    validity_date?: string;
     color?: string;
     fields?: string[];
     show_labels?: boolean;
@@ -198,6 +199,18 @@ const preview = (text: string) => {
 
 const pageWidthPx = PRINT_LAYOUT_WIDTH;
 
+export function validitySource(element: { validity_days?: number | null; validity_date?: string | null }): string {
+    const days = element.validity_days === undefined ? 30 : element.validity_days;
+
+    if (days === 30 || days === 60 || days === 90) {
+        return `{{validity_${days}}}`;
+    }
+
+    const match = (element.validity_date ?? '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+    return match ? `${match[2]}/${match[3]}/${match[1]}` : '';
+}
+
 type Built = LayoutSection & { y: number; x: number; w: number; h: number };
 
 function build(
@@ -218,7 +231,7 @@ function build(
     if (element.type === 'text' || element.type === 'date' || element.type === 'validity') {
         const runCaseStates: Record<number, TextCaseState> = {};
         const html = resolve(
-            element.type === 'validity' ? `{{validity_${element.validity_days ?? 30}}}`
+            element.type === 'validity' ? validitySource(element)
                 : element.type === 'date' ? '{{generated_date}}' : element.content ?? '',
             literals,
             element.text_case,
@@ -510,7 +523,7 @@ const blocksFor = (
 ): EditorNode[] => {
     if (element.type === 'text' || element.type === 'date' || element.type === 'validity') {
         const source = element.type === 'validity'
-            ? `{{validity_${element.validity_days ?? 30}}}`
+            ? validitySource(element)
             : element.type === 'date' ? '{{generated_date}}' : element.content ?? '';
         if (plain(source).trim() === '' && !element.pdf_page && !element.pdf_text_runs?.length) return [];
         if (element.type === 'text' && element.list_style && element.list_style !== 'none') {

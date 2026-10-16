@@ -1,4 +1,5 @@
 import CreatableSelect from '@/Components/CreatableSelect';
+import DateMaskInput from '@/Components/DateMaskInput';
 import FormActionFab from '@/Components/FormActionFab';
 import ProjectPricePicker from '@/Components/ProjectPricePicker';
 import QuotationTakeoffOpenings from '@/Pages/Admin/Quotations/Partials/QuotationTakeoffOpenings';
@@ -33,7 +34,7 @@ import {
 import { zodResolver } from '@hookform/resolvers/zod';
 import { router, usePage } from '@inertiajs/react';
 import { PlusIcon, Trash2Icon } from 'lucide-react';
-import { type DragEvent, FormEventHandler, useMemo, useRef, useState } from 'react';
+import { type DragEvent, FormEventHandler, useEffect, useMemo, useRef, useState } from 'react';
 import {
     FieldErrors,
     useFieldArray,
@@ -244,6 +245,35 @@ function lineItemIsBaseBid(item: {
 const inputClassName =
     'h-11 w-full border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring';
 
+function isoAddDays(iso: string, days: number): string {
+    const match = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    const date = match
+        ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+        : new Date();
+    date.setDate(date.getDate() + days);
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+
+    return `${date.getFullYear()}-${month}-${day}`;
+}
+
+function validityPeriodFor(
+    quotedAt: string,
+    validUntil: string,
+): '' | '30' | '60' | '90' {
+    if (!validUntil) {
+        return '';
+    }
+
+    for (const days of [30, 60, 90] as const) {
+        if (isoAddDays(quotedAt, days) === validUntil) {
+            return String(days) as '30' | '60' | '90';
+        }
+    }
+
+    return '';
+}
+
 export default function QuotationForm({
     action,
     method = 'post',
@@ -312,6 +342,25 @@ export default function QuotationForm({
         control,
         defaultValue: defaultValues,
     }) as QuotationFormData;
+    const quotedAtRef = useRef(data.quoted_at);
+
+    useEffect(() => {
+        const previous = quotedAtRef.current ?? '';
+        const current = data.quoted_at ?? '';
+
+        if (previous === current) {
+            return;
+        }
+
+        quotedAtRef.current = current;
+        const matched = validityPeriodFor(previous, getValues('valid_until') ?? '');
+
+        if (matched) {
+            setValue('valid_until', isoAddDays(current, Number(matched)), {
+                shouldDirty: true,
+            });
+        }
+    }, [data.quoted_at, getValues, setValue]);
     const savedBaseline = useRef(JSON.stringify(defaultValues));
     const hasUnsavedChanges = JSON.stringify(data) !== savedBaseline.current;
 
@@ -1042,17 +1091,57 @@ export default function QuotationForm({
                         </div>
                         <div className="flex min-w-0 w-[calc(50%-0.5rem)] max-w-[11.5rem] flex-col gap-2">
                             <InputLabel
-                                htmlFor="valid_until"
+                                htmlFor="valid_until_period"
                                 value="Valid until"
                                 className="text-emerald-700 dark:text-emerald-300"
                             />
-                            <TextInput
-                                id="valid_until"
-                                type="date"
-                                value={data.valid_until}
+                            <select
+                                id="valid_until_period"
+                                aria-label="Valid until period"
+                                value={validityPeriodFor(
+                                    data.quoted_at ?? '',
+                                    data.valid_until ?? '',
+                                )}
                                 className={inputClassName}
-                                onChange={(event) =>
-                                    setValue('valid_until', event.target.value)
+                                onChange={(event) => {
+                                    const next = event.target.value;
+
+                                    if (
+                                        next === '30' ||
+                                        next === '60' ||
+                                        next === '90'
+                                    ) {
+                                        setValue(
+                                            'valid_until',
+                                            isoAddDays(
+                                                data.quoted_at ?? '',
+                                                Number(next),
+                                            ),
+                                            { shouldDirty: true },
+                                        );
+
+                                        return;
+                                    }
+
+                                    setValue('valid_until', '', {
+                                        shouldDirty: true,
+                                    });
+                                }}
+                            >
+                                <option value="">MM/DD/YYYY</option>
+                                <option value="30">30 days</option>
+                                <option value="60">60 days</option>
+                                <option value="90">90 days</option>
+                            </select>
+                            <DateMaskInput
+                                id="valid_until"
+                                value={data.valid_until ?? ''}
+                                aria-label="Valid until date"
+                                className={inputClassName}
+                                onValueChange={(value) =>
+                                    setValue('valid_until', value, {
+                                        shouldDirty: true,
+                                    })
                                 }
                             />
                             <InputError

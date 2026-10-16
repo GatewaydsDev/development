@@ -1,3 +1,4 @@
+import DateMaskInput from "@/Components/DateMaskInput";
 import { Button } from "@/Components/ui/button";
 import StickyDocumentToolbar from "@/Components/StickyDocumentToolbar";
 import InsertBidTextFieldMenu from "@/Components/InsertBidTextFieldMenu";
@@ -103,7 +104,8 @@ export type LayoutElement = TableStriping & PdfLayoutElement & {
     underline?: boolean;
     line_height?: number;
     list_style?: "none" | "bullet" | "numbered";
-    validity_days?: 30 | 60 | 90;
+    validity_days?: 30 | 60 | 90 | null;
+    validity_date?: string;
     text_case: ElementCase;
     orientation?: "horizontal" | "vertical";
     inline?: boolean;
@@ -725,11 +727,15 @@ export function ElementPreview({
         );
     }
 
+    const validityDays = element.validity_days === undefined ? 30 : element.validity_days;
     const validityDate = new Date();
-    validityDate.setDate(validityDate.getDate() + (element.validity_days ?? 30));
+    validityDate.setDate(validityDate.getDate() + (validityDays ?? 0));
+    const validityText = validityDays
+        ? `${String(validityDate.getMonth() + 1).padStart(2, "0")}/${String(validityDate.getDate()).padStart(2, "0")}/${validityDate.getFullYear()}`
+        : (element.validity_date ?? "").replace(/^(\d{4})-(\d{2})-(\d{2})$/, "$2/$3/$1");
     const content =
         element.type === "validity"
-            ? validityDate.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
+            ? validityText
             :
         element.type === "date"
             ? new Date().toLocaleDateString("en-US", {
@@ -3371,16 +3377,46 @@ function ElementInspector({
                         onChange={onChange}
                     />
                     <PropertyRow name="Validity period">
-                    <select aria-label="Validity period" value={element.validity_days ?? 30}
+                    <select aria-label="Validity period" value={element.validity_days === undefined ? 30 : (element.validity_days ?? "")}
                         className={inspectorInput}
-                        onChange={(event) => onChange({ validity_days: Number(event.target.value) as 30 | 60 | 90 })}>
+                        onChange={(event) => {
+                            const next = event.target.value;
+                            if (next === "30" || next === "60" || next === "90") {
+                                onChange({ validity_days: Number(next) as 30 | 60 | 90, validity_date: "" });
+                                return;
+                            }
+                            onChange({ validity_days: null, validity_date: "" });
+                        }}>
+                        <option value="">MM/DD/YYYY</option>
                         <option value={30}>30 days</option>
                         <option value={60}>60 days</option>
                         <option value={90}>90 days</option>
                     </select>
                     </PropertyRow>
+                    <PropertyRow name="Date">
+                    {element.validity_days === null ? (
+                        <DateMaskInput
+                            aria-label="Validity date"
+                            value={element.validity_date ?? ""}
+                            className={inspectorInput}
+                            onValueChange={(value) => onChange({ validity_days: null, validity_date: value })}
+                        />
+                    ) : (
+                        <input
+                            aria-label="Validity date"
+                            readOnly
+                            value={(() => {
+                                const days = element.validity_days === undefined ? 30 : element.validity_days ?? 0;
+                                const date = new Date();
+                                date.setDate(date.getDate() + days);
+                                return `${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}/${date.getFullYear()}`;
+                            })()}
+                            className={inspectorInput}
+                        />
+                    )}
+                    </PropertyRow>
                     <InspectorNote>
-                        Expiration date is calculated from the bid/document date. Preview uses today.
+                        30, 60, and 90 days fill the date as MM/DD/YYYY. Choose MM/DD/YYYY to type a different date.
                     </InspectorNote>
                 </>
             ) : null}
