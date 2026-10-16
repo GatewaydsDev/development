@@ -101,6 +101,8 @@ Route::middleware(['auth', 'verified', 'prevent-back-history'])->group(function 
 });
 
 Route::middleware(['auth', 'prevent-back-history'])->group(function () {
+    Route::delete('/impersonation', [\App\Http\Controllers\Admin\ImpersonationController::class, 'destroy'])
+        ->name('impersonation.destroy');
     Route::get('/email', [MailboxController::class, 'index'])->name('mailbox.index');
     Route::post('/email', [MailboxController::class, 'send'])
         ->middleware('throttle:6,1')
@@ -171,6 +173,8 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::patch('/users/{user}', [UserController::class, 'update'])
             ->middleware('can:update-users')
             ->name('users.update');
+        Route::post('/users/{user}/impersonate', [\App\Http\Controllers\Admin\ImpersonationController::class, 'store'])
+            ->name('users.impersonate');
         Route::get('/user-activities', [UserActivityController::class, 'index'])
             ->name('user-activities.index');
         Route::get('/document-settings', [DocumentSettingController::class, 'edit'])

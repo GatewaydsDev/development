@@ -59,6 +59,7 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'is_master',
         'microsoft_mailbox',
         'microsoft_tenant_id',
         'microsoft_client_id',
@@ -78,6 +79,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'last_login_at' => 'datetime',
             'password' => 'hashed',
+            'is_master' => 'boolean',
             'microsoft_client_secret' => 'encrypted',
         ];
     }
@@ -192,8 +194,17 @@ class User extends Authenticatable
             ->exists();
     }
 
+    public function isMaster(): bool
+    {
+        return (bool) $this->is_master;
+    }
+
     public function isSuperAdmin(): bool
     {
+        if ($this->isMaster()) {
+            return true;
+        }
+
         if (strtolower((string) $this->role) === 'super_admin') {
             return true;
         }

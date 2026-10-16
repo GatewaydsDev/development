@@ -66,6 +66,7 @@ export type PageProps<
         user: User;
         can: {
             manageUsers: boolean;
+            impersonateUsers?: boolean;
             manageOwnAccount: boolean;
             viewUsers: boolean;
             createUsers: boolean;
@@ -125,6 +126,10 @@ export type PageProps<
         idleTimeoutMinutes: number;
     };
     realtime?: RealtimeConfig | null;
+    impersonation?: {
+        name: string;
+        email: string;
+    } | null;
     flash?: {
         success?: string | null;
         error?: string | null;
