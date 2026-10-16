@@ -77,7 +77,7 @@ class MailboxComposition
         $pixels = (int) round(600 * $user->mailHeaderWidth() / 100);
 
         return [
-            'html' => '<p><img src="cid:gateway-mail-header" alt="" width="'.$pixels.'" style="width:'.$pixels.'px;max-width:100%;height:auto;"></p>',
+            'html' => '<p style="margin:0 0 16px;"><img src="cid:gateway-mail-header" alt="Gateway Door Systems" width="'.$pixels.'" style="display:block;width:'.$pixels.'px;max-width:100%;height:auto;border:0;"></p>',
             'file' => [
                 'name' => 'header.'.$extension,
                 'contentType' => $mime,
@@ -110,7 +110,7 @@ class MailboxComposition
         $cells = '';
 
         foreach ($colors as $color) {
-            $cells .= '<td width="36" height="18" bgcolor="'.$color.'" style="width:36px;height:18px;background:'.$color.';font-size:0;line-height:0;padding-right:6px;">&nbsp;</td>';
+            $cells .= '<td width="36" height="8" bgcolor="'.$color.'" style="width:36px;height:8px;background:'.$color.';line-height:8px;padding-right:6px;">&nbsp;</td>';
         }
 
         return '<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:12px;border-collapse:collapse;"><tr>'.$cells.'</tr></table>';

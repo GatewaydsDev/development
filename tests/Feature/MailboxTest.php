@@ -664,8 +664,11 @@ test('outgoing mail includes the saved signature and header image', function () 
             && str_contains($content, 'Ricardo Scarpim')
             && str_contains($content, 'Gateway Door Systems')
             && str_contains($content, 'width="240"')
+            && str_contains($content, 'alt="Gateway Door Systems"')
+            && str_contains($content, '<!DOCTYPE html>')
             && str_contains($content, 'bgcolor="#047857"')
             && str_contains($content, 'bgcolor="#b45309"')
+            && ! str_contains($content, 'font-size:0')
             && $header['isInline'] === true
             && $header['contentId'] === 'gateway-mail-header'
             && ! isset($message['from'])

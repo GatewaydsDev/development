@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Exceptions\MicrosoftGraphException;
 use App\Models\User;
 use App\Support\EmailPlainText;
+use App\Support\OutboundMailHtml;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
@@ -219,6 +220,11 @@ class MicrosoftGraphMailService
     ): void {
         $mailbox = $this->resolveMailbox($mailbox);
         $files = $this->attachmentPayload($attachments);
+
+        if (strcasecmp($contentType, 'HTML') === 0) {
+            $content = OutboundMailHtml::document($content, $subject);
+        }
+
         $message = [
             'subject' => $subject,
             'body' => [

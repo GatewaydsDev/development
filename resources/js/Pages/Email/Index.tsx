@@ -62,6 +62,7 @@ type Props = {
     headerWidth?: number;
     footerColors?: string[];
     unreadCount?: number;
+    deliveryProblems?: string[];
 };
 
 function MessageOptions({
@@ -142,6 +143,7 @@ export default function Index({
     headerWidth = 100,
     footerColors = [],
     unreadCount = 0,
+    deliveryProblems = [],
 }: Props) {
     const { t } = useTranslation('mail');
     const mailRef = useRef<HTMLDivElement>(null);
@@ -258,6 +260,16 @@ export default function Index({
                                 <p className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-800 dark:text-emerald-200">
                                     {flash.success}
                                 </p>
+                            ) : null}
+                            {deliveryProblems.length > 0 ? (
+                                <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-950 dark:text-amber-100">
+                                    <p className="font-medium">This mailbox can be filtered into Junk until the domain authorizes Microsoft 365.</p>
+                                    <ul className="mt-1 list-disc ps-5">
+                                        {deliveryProblems.map((problem) => (
+                                            <li key={problem}>{problem}</li>
+                                        ))}
+                                    </ul>
+                                </div>
                             ) : null}
                             {graphError ? (
                                 <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
