@@ -110,6 +110,18 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
     Route::post('/email', [MailboxController::class, 'send'])
         ->middleware('throttle:6,1')
         ->name('mailbox.send');
+    Route::patch('/email/state', [MailboxController::class, 'updateState'])
+        ->middleware('throttle:30,1')
+        ->name('mailbox.state');
+    Route::post('/email/archive', [MailboxController::class, 'archive'])
+        ->middleware('throttle:30,1')
+        ->name('mailbox.archive');
+    Route::put('/email/signature', [MailboxController::class, 'updateSignature'])
+        ->name('mailbox.signature');
+    Route::post('/email/header', [MailboxController::class, 'storeHeader'])
+        ->name('mailbox.header');
+    Route::delete('/email/header', [MailboxController::class, 'destroyHeader'])
+        ->name('mailbox.header.destroy');
     Route::post('/email/recipients', [MailboxController::class, 'storeRecipient'])
         ->name('mailbox.recipients.store');
     Route::delete('/email/recipients/{recipient}', [MailboxController::class, 'destroyRecipient'])

@@ -5,13 +5,16 @@ namespace App\Http\Controllers;
 use App\Exceptions\MicrosoftGraphException;
 use App\Models\MailSavedRecipient;
 use App\Models\User;
+use App\Services\MailboxStateService;
 use App\Services\MicrosoftGraphMailService;
 use App\Services\MicrosoftGraphPageCursor;
 use App\Support\EmailPlainText;
+use App\Support\MailboxComposition;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -23,6 +26,7 @@ class MailboxController extends Controller
         Request $request,
         MicrosoftGraphMailService $graph,
         MicrosoftGraphPageCursor $cursors,
+        MailboxStateService $states,
     ): Response {
         $user = $this->effectiveUser($request->user());
         $mailbox = $this->mailbox($user?->microsoft_mailbox);
@@ -31,7 +35,7 @@ class MailboxController extends Controller
 
         $savedRecipients = $this->savedRecipients($user);
 
-        if ($mailbox === null) {
+        if ($mailbox === null || ! $user instanceof User) {
             abort_if(is_string($messageToken) && $messageToken !== '', 403);
             abort_if(is_string($request->query('cursor')) && $request->query('cursor') !== '', 403);
 
@@ -53,15 +57,19 @@ class MailboxController extends Controller
                 $message = $graph->actingAs($user)->readMessage($mailbox, $messageId);
 
                 if ($folder === 'inbox') {
-                    try {
-                        $graph->actingAs($user)->markRead($mailbox, $messageId);
-                    } catch (MicrosoftGraphException) {
-                        // The message is already on screen. The alert still clears in the browser.
-                    }
-
+                    $states->markRead(
+                        $user,
+                        $mailbox,
+                        $messageId,
+                        true,
+                        $graph->actingAs($user),
+                        $states->summaryFor($page['messages'], $messageToken),
+                    );
                     Cache::forget($this->unreadCacheKey($user, $mailbox));
                 }
             }
+
+            $messages = $states->applyToList($user, $mailbox, $folder, $page['messages']);
         } catch (MicrosoftGraphException $exception) {
             return Inertia::render('Email/Index', $this->props(
                 $mailbox,
@@ -71,21 +79,25 @@ class MailboxController extends Controller
                 null,
                 $exception->getMessage(),
                 $savedRecipients,
+                $user,
+                $this->unreadTotal($user, $mailbox, $graph, $states),
             ));
         }
 
         return Inertia::render('Email/Index', $this->props(
             $mailbox,
             $folder,
-            $page['messages'],
+            $messages,
             $cursors->store($user->id, $mailbox, $folder, $page['nextLink']),
             $message,
             null,
             $savedRecipients,
+            $user,
+            $this->unreadTotal($user, $mailbox, $graph, $states),
         ));
     }
 
-    public function unread(Request $request, MicrosoftGraphMailService $graph): JsonResponse
+    public function unread(Request $request, MicrosoftGraphMailService $graph, MailboxStateService $states): JsonResponse
     {
         $user = $this->effectiveUser($request->user());
         $mailbox = $this->mailbox($user?->microsoft_mailbox);
@@ -94,22 +106,124 @@ class MailboxController extends Controller
             return response()->json(['unread' => 0]);
         }
 
-        $cacheKey = $this->unreadCacheKey($user, $mailbox);
-        $cached = Cache::get($cacheKey);
+        return response()->json([
+            'unread' => $this->unreadTotal($user, $mailbox, $graph, $states),
+        ]);
+    }
 
-        if (is_int($cached)) {
-            return response()->json(['unread' => $cached]);
+    public function updateState(
+        Request $request,
+        MicrosoftGraphMailService $graph,
+        MailboxStateService $states,
+    ): RedirectResponse {
+        $user = $this->effectiveUser($request->user());
+        $mailbox = $this->mailbox($user?->microsoft_mailbox);
+        abort_unless($user instanceof User && $mailbox !== null, 403);
+
+        $validated = $request->validate([
+            'message' => ['required', 'string', 'max:700'],
+            'is_read' => ['required', 'boolean'],
+        ]);
+        $messageId = EmailPlainText::decodeMessageId($validated['message']);
+        abort_if($messageId === null, 404);
+
+        $states->markRead(
+            $user,
+            $mailbox,
+            $messageId,
+            $request->boolean('is_read'),
+            $graph->actingAs($user),
+        );
+        Cache::forget($this->unreadCacheKey($user, $mailbox));
+
+        return back();
+    }
+
+    public function archive(
+        Request $request,
+        MicrosoftGraphMailService $graph,
+        MailboxStateService $states,
+    ): RedirectResponse {
+        $user = $this->effectiveUser($request->user());
+        $mailbox = $this->mailbox($user?->microsoft_mailbox);
+        abort_unless($user instanceof User && $mailbox !== null, 403);
+
+        $validated = $request->validate([
+            'message' => ['required', 'string', 'max:700'],
+            'archived' => ['sometimes', 'boolean'],
+        ]);
+        $messageId = EmailPlainText::decodeMessageId($validated['message']);
+        abort_if($messageId === null, 404);
+        $archived = $request->boolean('archived', true);
+
+        $states->archive(
+            $user,
+            $mailbox,
+            $messageId,
+            $graph->actingAs($user),
+            null,
+            $archived,
+        );
+        Cache::forget($this->unreadCacheKey($user, $mailbox));
+
+        return redirect()
+            ->route('mailbox.index', ['folder' => $archived ? 'inbox' : 'archive'])
+            ->with('success', $archived ? 'The message was archived.' : 'The message was moved to the inbox.');
+    }
+
+    public function updateSignature(Request $request): RedirectResponse
+    {
+        $user = $this->effectiveUser($request->user());
+        abort_unless($user instanceof User, 403);
+
+        $validated = $request->validate([
+            'signature' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $signature = trim((string) ($validated['signature'] ?? ''));
+        $user->mail_signature = $signature === '' ? null : $signature;
+        $user->save();
+
+        return back();
+    }
+
+    public function storeHeader(Request $request): RedirectResponse
+    {
+        $user = $this->effectiveUser($request->user());
+        abort_unless($user instanceof User, 403);
+
+        $validated = $request->validate([
+            'header' => ['required', 'file', 'image', 'mimes:jpeg,jpg,png,gif,webp', 'max:1024'],
+        ]);
+
+        $file = $validated['header'];
+        $extension = strtolower($file->getClientOriginalExtension() ?: $file->extension() ?: 'png');
+        $extension = in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp'], true) ? $extension : 'png';
+        $path = $file->storeAs('mail-headers', 'user-'.$user->id.'.'.$extension, 'public');
+
+        if (is_string($user->mail_header_path) && $user->mail_header_path !== $path) {
+            Storage::disk('public')->delete($user->mail_header_path);
         }
 
-        try {
-            $unread = $graph->actingAs($user)->unreadInboxCount($mailbox);
-        } catch (MicrosoftGraphException) {
-            return response()->json(['unread' => 0]);
+        $user->mail_header_path = $path;
+        $user->save();
+
+        return back();
+    }
+
+    public function destroyHeader(Request $request): RedirectResponse
+    {
+        $user = $this->effectiveUser($request->user());
+        abort_unless($user instanceof User, 403);
+
+        if (is_string($user->mail_header_path) && $user->mail_header_path !== '') {
+            Storage::disk('public')->delete($user->mail_header_path);
         }
 
-        Cache::put($cacheKey, $unread, 45);
+        $user->mail_header_path = null;
+        $user->save();
 
-        return response()->json(['unread' => $unread]);
+        return back();
     }
 
     public function send(Request $request, MicrosoftGraphMailService $graph): RedirectResponse
@@ -133,7 +247,12 @@ class MailboxController extends Controller
         $cc = $this->addresses($validated['cc'] ?? '', 'cc');
         $bcc = $this->addresses($validated['bcc'] ?? '', 'bcc');
         $body = $this->messageBody($validated['body']);
-        $attachments = $this->attachments($request);
+        $composed = app(MailboxComposition::class)->apply(
+            $sender,
+            $body['content'],
+            $body['type'],
+            $this->attachments($request),
+        );
 
         if ($to === []) {
             throw ValidationException::withMessages([
@@ -146,12 +265,12 @@ class MailboxController extends Controller
                 '',
                 $to,
                 $validated['subject'],
-                $body['content'],
-                $body['type'],
+                $composed['content'],
+                $composed['type'],
                 $cc,
                 $bcc,
                 $validated['importance'] ?? 'normal',
-                $attachments,
+                $composed['attachments'],
             );
         } catch (MicrosoftGraphException $exception) {
             throw ValidationException::withMessages([
@@ -165,7 +284,7 @@ class MailboxController extends Controller
 
         return redirect()
             ->route('mailbox.index', ['folder' => 'sent'])
-            ->with('success', 'Microsoft 365 accepted the message for sending.');
+            ->with('success', 'The message was saved and sent.');
     }
 
     public function storeRecipient(Request $request): RedirectResponse
@@ -227,7 +346,7 @@ class MailboxController extends Controller
 
     private function folder(mixed $folder): string
     {
-        return $folder === 'sent' ? 'sent' : 'inbox';
+        return in_array($folder, ['sent', 'archive'], true) ? $folder : 'inbox';
     }
 
     /**
@@ -244,6 +363,8 @@ class MailboxController extends Controller
         ?array $message,
         ?string $error,
         array $savedRecipients = [],
+        ?User $user = null,
+        int $unreadCount = 0,
     ): array {
         return [
             'mailbox' => $mailbox,
@@ -253,7 +374,32 @@ class MailboxController extends Controller
             'message' => $message,
             'graphError' => $error,
             'savedRecipients' => $savedRecipients,
+            'signature' => $user?->mail_signature,
+            'headerUrl' => $user?->mailHeaderUrl(),
+            'unreadCount' => $unreadCount,
         ];
+    }
+
+    private function unreadTotal(
+        User $user,
+        string $mailbox,
+        MicrosoftGraphMailService $graph,
+        MailboxStateService $states,
+    ): int {
+        $cacheKey = $this->unreadCacheKey($user, $mailbox);
+        $cached = Cache::get($cacheKey);
+        $graphUnread = is_int($cached) ? $cached : null;
+
+        if ($graphUnread === null) {
+            try {
+                $graphUnread = $graph->actingAs($user)->unreadInboxCount($mailbox);
+                Cache::put($cacheKey, $graphUnread, 15);
+            } catch (MicrosoftGraphException) {
+                $graphUnread = 0;
+            }
+        }
+
+        return $states->unreadCount($user, $mailbox, $graphUnread);
     }
 
     /**

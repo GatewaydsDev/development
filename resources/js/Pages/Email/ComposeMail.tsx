@@ -43,6 +43,8 @@ type ComposeMailProps = {
     mailbox: string;
     recipients: SavedRecipient[];
     draft?: ComposeDraft;
+    signature?: string | null;
+    headerUrl?: string | null;
     onDiscard: () => void;
 };
 
@@ -244,6 +246,8 @@ export default function ComposeMail({
     mailbox,
     recipients,
     draft,
+    signature = null,
+    headerUrl = null,
     onDiscard,
 }: ComposeMailProps) {
     const { t } = useTranslation('mail');
@@ -452,6 +456,14 @@ export default function ComposeMail({
             ) : null}
             <InputError message={form.errors.attachments} className="px-3" />
 
+            {headerUrl ? (
+                <div className="border-b border-border bg-muted/30 px-3 py-3">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        {t('header')}
+                    </p>
+                    <img src={headerUrl} alt="" className="max-h-32 w-full object-contain" />
+                </div>
+            ) : null}
             <div className="px-3">
                 <div className="grid grid-cols-1 items-center gap-1 border-b border-border py-2 text-sm sm:grid-cols-[4.5rem_minmax(0,1fr)] sm:gap-2">
                     <span className="text-muted-foreground">{t('from')}</span>
@@ -579,6 +591,14 @@ export default function ComposeMail({
             ) : null}
 
             <EditorContent editor={editor} />
+            {signature ? (
+                <div className="border-t border-border px-3 py-3">
+                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        {t('signature')}
+                    </p>
+                    <p className="whitespace-pre-wrap break-words text-sm text-foreground">{signature}</p>
+                </div>
+            ) : null}
             <InputError message={form.errors.body} className="px-3" />
 
             <div className="grid gap-3 border-t border-border px-3 py-3 md:grid-cols-[minmax(0,1fr)_minmax(14rem,18rem)]">

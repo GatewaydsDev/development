@@ -13,7 +13,16 @@ use App\Services\MicrosoftGraphPageCursor;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
+
+function savedMailboxMessage($request, string $mailbox): bool
+{
+    $path = rawurldecode((string) (parse_url($request->url(), PHP_URL_PATH) ?? ''));
+
+    return $request->method() === 'POST'
+        && str_ends_with($path, '/users/'.$mailbox.'/messages');
+}
 
 function mailboxUser(?string $mailbox = 'ricardo@gateway-ds.com'): User
 {
@@ -41,7 +50,13 @@ function fakeMailboxGraph(array $pages = []): void
             ]);
         }
 
-        if (str_contains($request->url(), '/sendMail')) {
+        $path = rawurldecode((string) (parse_url($request->url(), PHP_URL_PATH) ?? ''));
+
+        if ($request->method() === 'POST' && str_ends_with($path, '/messages')) {
+            return Http::response(['id' => 'draft-1'], 201);
+        }
+
+        if ($request->method() === 'POST' && str_ends_with($path, '/send')) {
             return Http::response('', 202);
         }
 
@@ -135,17 +150,18 @@ test('mail requests use the signed-in user mailbox and ignore a submitted sender
         ->assertSessionHas('success');
 
     Http::assertSent(function ($request) {
-        if (! str_contains($request->url(), '/sendMail')) {
+        if (! savedMailboxMessage($request, 'ricardo@gateway-ds.com')) {
             return false;
         }
 
-        $message = $request->data()['message'];
+        $message = $request->data();
 
-        return $request->url() === 'https://graph.microsoft.com/v1.0/users/'.rawurlencode('ricardo@gateway-ds.com').'/sendMail'
-            && ! array_key_exists('from', $message)
+        return ! array_key_exists('from', $message)
             && ! array_key_exists('sender', $message)
-            && $request->data()['saveToSentItems'] === true;
+            && $message['body']['content'] === 'The opening is ready.';
     });
+
+    Http::assertSent(fn ($request) => str_contains($request->url(), '/messages/'.rawurlencode('draft-1').'/send'));
 
     Http::assertNotSent(function ($request) {
         return str_contains($request->url(), rawurlencode('sales@gateway-ds.com'));
@@ -181,13 +197,13 @@ test('larry sends from larry mailbox and melissa sends from sales mailbox', func
         ->assertRedirect();
 
     $sent = collect(Http::recorded())
-        ->map(fn (array $pair) => $pair[0]->url())
-        ->filter(fn (string $url) => str_contains($url, '/sendMail'))
+        ->map(fn (array $pair) => rawurldecode($pair[0]->url()))
+        ->filter(fn (string $url) => str_ends_with((string) (parse_url($url, PHP_URL_PATH) ?? ''), '/messages'))
         ->values();
 
     expect($sent)->toHaveCount(2)
-        ->and($sent[0])->toContain(rawurlencode('larryd@gateway-ds.com').'/sendMail')
-        ->and($sent[1])->toContain(rawurlencode('sales@gateway-ds.com').'/sendMail');
+        ->and($sent[0])->toContain('/users/larryd@gateway-ds.com/messages')
+        ->and($sent[1])->toContain('/users/sales@gateway-ds.com/messages');
 });
 
 test('an administrator impersonating melissa sends through her mailbox', function () {
@@ -214,18 +230,18 @@ test('an administrator impersonating melissa sends through her mailbox', functio
     ])->assertRedirect(route('mailbox.index', ['folder' => 'sent']));
 
     Http::assertSent(function ($request) {
-        if (! str_contains($request->url(), '/sendMail')) {
+        if (! savedMailboxMessage($request, 'sales@gateway-ds.com')) {
             return false;
         }
 
-        $message = $request->data()['message'];
+        $message = $request->data();
 
-        return str_contains($request->url(), rawurlencode('sales@gateway-ds.com').'/sendMail')
-            && ! array_key_exists('from', $message)
-            && ! array_key_exists('sender', $message);
+        return ! array_key_exists('from', $message)
+            && ! array_key_exists('sender', $message)
+            && str_contains($message['body']['content'], 'This must leave the sales mailbox.');
     });
 
-    Http::assertNotSent(fn ($request) => str_contains($request->url(), rawurlencode('larryd@gateway-ds.com').'/sendMail'));
+    Http::assertNotSent(fn ($request) => str_contains(rawurldecode($request->url()), '/users/larryd@gateway-ds.com/'));
 
     $activity = UserActivity::query()->where('action', 'send_mailbox_message')->first();
 
@@ -476,14 +492,15 @@ test('a composed message can include copies, importance, an attachment, and save
         ->assertSessionHas('success');
 
     Http::assertSent(function ($request) {
-        if (! str_contains($request->url(), '/sendMail')) {
+        if (! savedMailboxMessage($request, 'ricardo@gateway-ds.com')) {
             return false;
         }
 
-        $message = $request->data()['message'];
+        $message = $request->data();
 
         return $message['importance'] === 'high'
             && $message['body']['contentType'] === 'HTML'
+            && str_contains($message['body']['content'], 'opening')
             && $message['toRecipients'][1]['emailAddress']['address'] === 'sales@gateway-ds.com'
             && $message['ccRecipients'][0]['emailAddress']['address'] === 'melissa@gateway-ds.com'
             && $message['bccRecipients'][0]['emailAddress']['address'] === 'larryd@gateway-ds.com'
@@ -514,12 +531,139 @@ test('opening an inbox message marks that email as read', function () {
             'folder' => 'inbox',
             'message' => EmailPlainText::encodeMessageId('msg-1'),
         ]))
-        ->assertOk();
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('messages.0.is_read', true)
+        );
 
     Http::assertSent(function ($request) {
         return $request->method() === 'PATCH'
             && str_contains($request->url(), '/messages/'.rawurlencode('msg-1'))
             && $request['isRead'] === true;
+    });
+});
+
+test('read state stays cleared when microsoft 365 rejects the read update', function () {
+    $user = mailboxUser();
+    Cache::flush();
+    config([
+        'services.microsoft.tenant_id' => 'tenant-id',
+        'services.microsoft.client_id' => 'client-id',
+        'services.microsoft.client_secret' => 'client-secret',
+    ]);
+
+    Http::fake(function ($request) {
+        if (str_contains($request->url(), 'login.microsoftonline.com')) {
+            return Http::response(['access_token' => 'graph-token', 'expires_in' => 3600]);
+        }
+
+        if ($request->method() === 'PATCH') {
+            return Http::response(['error' => ['message' => 'Access is denied']], 403);
+        }
+
+        if (str_contains($request->url(), 'unreadItemCount')) {
+            return Http::response(['unreadItemCount' => 1]);
+        }
+
+        if (preg_match('#/messages/[^?]+#', $request->url()) === 1) {
+            return Http::response([
+                'id' => 'msg-1',
+                'subject' => 'Hello',
+                'from' => ['emailAddress' => ['address' => 'buyer@example.com']],
+                'toRecipients' => [],
+                'body' => ['contentType' => 'text', 'content' => 'Hello'],
+            ]);
+        }
+
+        return Http::response([
+            'value' => [[
+                'id' => 'msg-1',
+                'subject' => 'Hello',
+                'from' => ['emailAddress' => ['address' => 'buyer@example.com']],
+                'toRecipients' => [],
+                'bodyPreview' => 'Hello',
+                'isRead' => false,
+            ]],
+        ]);
+    });
+
+    $token = EmailPlainText::encodeMessageId('msg-1');
+
+    $this->actingAs($user)
+        ->get(route('mailbox.index', ['folder' => 'inbox', 'message' => $token]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('messages.0.is_read', true)
+            ->where('unreadCount', 0)
+        );
+
+    $this->actingAs($user)
+        ->getJson(route('mailbox.unread'))
+        ->assertOk()
+        ->assertJson(['unread' => 0]);
+});
+
+test('a message can be marked unread and archived', function () {
+    $user = mailboxUser();
+    fakeMailboxGraph();
+    $token = EmailPlainText::encodeMessageId('msg-1');
+
+    $this->actingAs($user)
+        ->patch(route('mailbox.state'), [
+            'message' => $token,
+            'is_read' => 0,
+        ])
+        ->assertRedirect();
+
+    Http::assertSent(fn ($request) => $request->method() === 'PATCH' && $request['isRead'] === false);
+
+    $this->actingAs($user)
+        ->post(route('mailbox.archive'), [
+            'message' => $token,
+            'archived' => 1,
+        ])
+        ->assertRedirect(route('mailbox.index', ['folder' => 'inbox']));
+
+    Http::assertSent(fn ($request) => $request->method() === 'POST'
+        && str_contains($request->url(), '/move')
+        && ($request['destinationId'] ?? null) === 'archive');
+});
+
+test('outgoing mail includes the saved signature and header image', function () {
+    Storage::fake('public');
+    $user = mailboxUser();
+    $user->mail_signature = "Ricardo Scarpim\nGateway Door Systems";
+    $user->mail_header_path = 'mail-headers/header.png';
+    $user->save();
+    Storage::disk('public')->put($user->mail_header_path, 'header-bytes');
+    fakeMailboxGraph();
+
+    $this->actingAs($user)
+        ->post(route('mailbox.send'), [
+            'to' => 'buyer@example.com',
+            'subject' => 'Project update',
+            'body' => '<p>The opening is ready.</p>',
+        ])
+        ->assertRedirect();
+
+    Http::assertSent(function ($request) {
+        if (! savedMailboxMessage($request, 'ricardo@gateway-ds.com')) {
+            return false;
+        }
+
+        $message = $request->data();
+        $content = $message['body']['content'];
+        $header = $message['attachments'][0];
+
+        return $message['body']['contentType'] === 'HTML'
+            && str_contains($content, 'cid:gateway-mail-header')
+            && str_contains($content, 'The opening is ready.')
+            && str_contains($content, 'Ricardo Scarpim')
+            && str_contains($content, 'Gateway Door Systems')
+            && $header['isInline'] === true
+            && $header['contentId'] === 'gateway-mail-header'
+            && ! isset($message['from'])
+            && ! isset($message['sender']);
     });
 });
 

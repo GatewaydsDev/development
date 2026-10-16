@@ -65,6 +65,8 @@ class User extends Authenticatable
         'microsoft_client_id',
         'microsoft_client_secret',
         'microsoft_client_secret_id',
+        'mail_signature',
+        'mail_header_path',
     ];
 
     /**
@@ -168,6 +170,24 @@ class User extends Authenticatable
     public function savedMailRecipients(): HasMany
     {
         return $this->hasMany(MailSavedRecipient::class)->orderBy('name')->orderBy('email');
+    }
+
+    public function mailMessageStates(): HasMany
+    {
+        return $this->hasMany(MailMessageState::class);
+    }
+
+    public function mailHeaderUrl(): ?string
+    {
+        if (! is_string($this->mail_header_path) || $this->mail_header_path === '') {
+            return null;
+        }
+
+        if (! Storage::disk('public')->exists($this->mail_header_path)) {
+            return null;
+        }
+
+        return asset('storage/'.ltrim($this->mail_header_path, '/'));
     }
 
     public function phones(): HasMany

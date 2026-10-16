@@ -174,8 +174,25 @@ class MicrosoftGraphMailService
 
     public function markRead(string $mailbox, string $messageId): void
     {
+        $this->setRead($mailbox, $messageId, true);
+    }
+
+    public function setRead(string $mailbox, string $messageId, bool $isRead): void
+    {
         $url = $this->userUrl($mailbox).'/messages/'.rawurlencode($messageId);
-        $response = $this->graph('PATCH', $url, ['isRead' => true], false);
+        $response = $this->graph('PATCH', $url, ['isRead' => $isRead], false);
+
+        if ($response->failed()) {
+            throw new MicrosoftGraphException($this->failureMessage($response, false));
+        }
+    }
+
+    public function moveMessage(string $mailbox, string $messageId, string $destination): void
+    {
+        $url = $this->userUrl($mailbox).'/messages/'.rawurlencode($messageId).'/move';
+        $response = $this->graph('POST', $url, [
+            'destinationId' => $destination,
+        ], false);
 
         if ($response->failed()) {
             throw new MicrosoftGraphException($this->failureMessage($response, false));
@@ -238,18 +255,33 @@ class MicrosoftGraphMailService
         }
 
         try {
+            $draft = $this->graph('POST', $this->userUrl($mailbox).'/messages', $message, true);
+        } catch (ConnectionException) {
+            throw new MicrosoftGraphException(
+                'Microsoft 365 did not confirm the message. It was not sent again.'
+            );
+        }
+
+        if ($draft->failed()) {
+            throw new MicrosoftGraphException($this->failureMessage($draft, true));
+        }
+
+        $messageId = $draft->json('id');
+
+        if (! is_string($messageId) || $messageId === '') {
+            throw new MicrosoftGraphException('Microsoft 365 did not save the message.');
+        }
+
+        try {
             $response = $this->graph(
                 'POST',
-                $this->userUrl($mailbox).'/sendMail',
-                [
-                    'message' => $message,
-                    'saveToSentItems' => true,
-                ],
+                $this->userUrl($mailbox).'/messages/'.rawurlencode($messageId).'/send',
+                null,
                 true,
             );
         } catch (ConnectionException) {
             throw new MicrosoftGraphException(
-                'Microsoft 365 did not confirm the message. It was not sent again.'
+                'Microsoft 365 saved the message but did not confirm sending. It was not sent again.'
             );
         }
 
@@ -305,12 +337,19 @@ class MicrosoftGraphMailService
             $name = basename(str_replace('\\', '/', $attachment['name']));
             $name = preg_replace('/[^A-Za-z0-9._-]+/', '-', $name) ?: 'quotation.pdf';
 
-            $files[] = [
+            $file = [
                 '@odata.type' => '#microsoft.graph.fileAttachment',
                 'name' => $name,
                 'contentType' => $attachment['contentType'],
                 'contentBytes' => base64_encode($contents),
             ];
+
+            if (($attachment['inline'] ?? false) === true && is_string($attachment['contentId'] ?? null)) {
+                $file['isInline'] = true;
+                $file['contentId'] = $attachment['contentId'];
+            }
+
+            $files[] = $file;
         }
 
         return $files;
@@ -324,16 +363,19 @@ class MicrosoftGraphMailService
             $pending = Http::withToken($this->accessToken())
                 ->acceptJson()
                 ->timeout(20)
-                ->connectTimeout(10)
-                ->withHeaders([
+                ->connectTimeout(10);
+
+            if ($method === 'GET') {
+                $pending = $pending->withHeaders([
                     'Prefer' => 'outlook.body-content-type="text"',
                 ]);
+            }
 
             try {
                 $response = match ($method) {
                     'GET' => $pending->get($url),
                     'PATCH' => $pending->patch($url, $body ?? []),
-                    default => $pending->post($url, $body ?? []),
+                    default => $body === null ? $pending->post($url) : $pending->post($url, $body),
                 };
             } catch (ConnectionException $exception) {
                 if ($sending) {
@@ -591,7 +633,11 @@ class MicrosoftGraphMailService
 
     private function folderUrl(string $mailbox, string $folder): string
     {
-        $graphFolder = $folder === 'sent' ? 'sentitems' : 'inbox';
+        $graphFolder = match ($folder) {
+            'sent' => 'sentitems',
+            'archive' => 'archive',
+            default => 'inbox',
+        };
         $order = $folder === 'sent' ? 'sentDateTime desc' : 'receivedDateTime desc';
         $query = http_build_query([
             '$select' => 'id,subject,from,toRecipients,receivedDateTime,sentDateTime,bodyPreview,isRead',

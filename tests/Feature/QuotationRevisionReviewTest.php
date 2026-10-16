@@ -25,7 +25,13 @@ function fakeRevisionReviewGraph(int $sendStatus = 202): void
             ]);
         }
 
-        if (str_contains($request->url(), '/sendMail')) {
+        $path = rawurldecode((string) (parse_url($request->url(), PHP_URL_PATH) ?? ''));
+
+        if ($request->method() === 'POST' && str_ends_with($path, '/messages')) {
+            return Http::response(['id' => 'draft-1'], 201);
+        }
+
+        if ($request->method() === 'POST' && str_ends_with($path, '/send')) {
             return Http::response('', $sendStatus);
         }
 
@@ -98,22 +104,22 @@ test('a quotation revision is emailed from the sender mailbox with the quote att
         ->and($review->message)->toBe('Please review this revision.');
 
     Http::assertSent(function ($request) use ($quote) {
-        if (! str_contains($request->url(), '/sendMail')) {
+        $path = rawurldecode((string) (parse_url($request->url(), PHP_URL_PATH) ?? ''));
+
+        if ($request->method() !== 'POST' || ! str_ends_with($path, '/users/ricardo@gateway-ds.com/messages')) {
             return false;
         }
 
-        $message = $request->data()['message'];
+        $message = $request->data();
         $attachment = $message['attachments'][0];
         $pdf = base64_decode((string) $attachment['contentBytes'], true);
 
-        return $request->url() === 'https://graph.microsoft.com/v1.0/users/'.rawurlencode('ricardo@gateway-ds.com').'/sendMail'
-            && ! array_key_exists('from', $message)
+        return ! array_key_exists('from', $message)
             && ! array_key_exists('sender', $message)
             && $message['toRecipients'][0]['emailAddress']['address'] === 'sales@gateway-ds.com'
             && str_contains($message['subject'], 'revision B')
             && str_contains($message['body']['content'], 'Please review this revision.')
             && str_contains($message['body']['content'], $quote->quotation_number)
-            && $request->data()['saveToSentItems'] === true
             && $attachment['contentType'] === 'application/pdf'
             && str_contains($attachment['name'], 'quotation-')
             && is_string($pdf)
@@ -121,7 +127,7 @@ test('a quotation revision is emailed from the sender mailbox with the quote att
     });
 
     Http::assertNotSent(function ($request) {
-        return str_contains($request->url(), rawurlencode('sales@gateway-ds.com').'/sendMail');
+        return str_contains(rawurldecode($request->url()), '/users/sales@gateway-ds.com/');
     });
 });
 

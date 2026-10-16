@@ -1,66 +1,75 @@
-import { router } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 
-const heldKey = 'mailbox-unread-held';
-
-let unread = 0;
-let heldCount = readHeldCount();
-let held = heldCount > 0;
+let serverUnread: number | null = null;
+let shown = 0;
+let requestSerial = 0;
 let started = false;
+const acknowledgedIds = new Set<string>();
 const listeners = new Set<(count: number) => void>();
 
-function readHeldCount(): number {
-    if (typeof window === 'undefined') {
-        return 0;
-    }
-
-    const value = Number(window.sessionStorage.getItem(heldKey));
-
-    return Number.isFinite(value) && value > 0 ? value : 0;
+function notify(): void {
+    listeners.forEach((listener) => listener(shown));
 }
 
-function visibleCount(): number {
-    if (!held) {
-        return unread;
+function applyServerCount(count: number): void {
+    if (serverUnread === null) {
+        serverUnread = count;
+        shown = count;
+        notify();
+
+        return;
     }
 
-    return Math.max(0, unread - heldCount);
-}
+    if (count > serverUnread) {
+        shown += count - serverUnread;
+        serverUnread = count;
+        notify();
 
-function rememberHeld(count: number): void {
-    held = true;
-    heldCount = count;
-
-    if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(heldKey, String(count));
-    }
-}
-
-function publish(count: number): void {
-    unread = count;
-
-    if (held && unread < heldCount) {
-        rememberHeld(unread);
+        return;
     }
 
-    const visible = visibleCount();
-    listeners.forEach((listener) => listener(visible));
+    serverUnread = count;
+    shown = Math.min(shown, count);
+    notify();
 }
 
-export function acknowledgeUnreadMail(): void {
-    rememberHeld(Math.max(heldCount, unread));
-    listeners.forEach((listener) => listener(0));
+export function setUnreadMail(count: number): void {
+    requestSerial += 1;
+    const next = Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
+    serverUnread = next;
+    shown = next;
+    notify();
+}
 
-    void refreshUnreadMail().finally(() => {
-        rememberHeld(unread);
-        listeners.forEach((listener) => listener(visibleCount()));
-    });
+export function acknowledgeUnreadMail(messageId: string): void {
+    if (messageId === '' || acknowledgedIds.has(messageId)) {
+        return;
+    }
+
+    acknowledgedIds.add(messageId);
+
+    if (acknowledgedIds.size > 200) {
+        const oldest = acknowledgedIds.values().next().value;
+
+        if (oldest) {
+            acknowledgedIds.delete(oldest);
+        }
+    }
+
+    if (serverUnread !== null) {
+        shown = Math.max(0, shown - 1);
+        notify();
+    }
+
+    void refreshUnreadMail();
 }
 
 async function refreshUnreadMail(): Promise<void> {
-    if (document.visibilityState === 'hidden') {
+    if (typeof document === 'undefined' || document.visibilityState === 'hidden') {
         return;
     }
+
+    const serial = ++requestSerial;
 
     try {
         const response = await fetch(route('mailbox.unread'), {
@@ -71,14 +80,18 @@ async function refreshUnreadMail(): Promise<void> {
             credentials: 'same-origin',
         });
 
-        if (!response.ok) {
+        if (serial !== requestSerial || !response.ok) {
             return;
         }
 
         const data = (await response.json()) as { unread?: unknown };
         const count = Number(data.unread);
 
-        publish(Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0);
+        if (serial !== requestSerial) {
+            return;
+        }
+
+        applyServerCount(Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0);
     } catch {
         // Keep the last count when Microsoft 365 does not answer.
     }
@@ -90,6 +103,7 @@ function ensureUnreadMailPolling(): void {
     }
 
     started = true;
+    window.sessionStorage.removeItem('mailbox-unread-held');
     void refreshUnreadMail();
     window.setInterval(() => void refreshUnreadMail(), 60_000);
     window.addEventListener('focus', () => void refreshUnreadMail());
@@ -98,16 +112,15 @@ function ensureUnreadMailPolling(): void {
             void refreshUnreadMail();
         }
     });
-    router.on('navigate', () => void refreshUnreadMail());
 }
 
 export function useUnreadMail(): number {
-    const [count, setCount] = useState(unread);
+    const [count, setCount] = useState(shown);
 
     useEffect(() => {
         ensureUnreadMailPolling();
         listeners.add(setCount);
-        setCount(unread);
+        setCount(shown);
 
         return () => {
             listeners.delete(setCount);
