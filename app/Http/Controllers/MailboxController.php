@@ -71,6 +71,10 @@ class MailboxController extends Controller
             }
 
             $messages = $states->applyToList($user, $mailbox, $folder, $page['messages']);
+
+            if ($folder === 'inbox') {
+                Cache::forget($this->unreadCacheKey($user, $mailbox));
+            }
         } catch (MicrosoftGraphException $exception) {
             return Inertia::render('Email/Index', $this->props(
                 $mailbox,
@@ -94,7 +98,7 @@ class MailboxController extends Controller
             null,
             $savedRecipients,
             $user,
-            $this->unreadTotal($user, $mailbox, $graph, $states),
+            $this->unreadFloor($folder, $messages, $this->unreadTotal($user, $mailbox, $graph, $states)),
         ));
     }
 
@@ -107,9 +111,7 @@ class MailboxController extends Controller
             return response()->json(['unread' => 0]);
         }
 
-        return response()->json([
-            'unread' => $this->unreadTotal($user, $mailbox, $graph, $states),
-        ]);
+        return response()->json($this->unreadSnapshot($user, $mailbox, $graph, $states));
     }
 
     public function updateState(
@@ -419,26 +421,85 @@ class MailboxController extends Controller
         ];
     }
 
+    /**
+     * @param  list<array<string, mixed>>  $messages
+     */
+    private function unreadFloor(string $folder, array $messages, int $counted): int
+    {
+        if ($folder !== 'inbox') {
+            return $counted;
+        }
+
+        $visible = 0;
+
+        foreach ($messages as $message) {
+            if (is_array($message) && ($message['is_read'] ?? true) === false) {
+                $visible++;
+            }
+        }
+
+        return max($counted, $visible);
+    }
+
+    /**
+     * @return array{unread: int, messages: list<array{id: string, subject: string, from: string, preview: string}>}
+     */
+    private function unreadSnapshot(
+        User $user,
+        string $mailbox,
+        MicrosoftGraphMailService $graph,
+        MailboxStateService $states,
+    ): array {
+        $cacheKey = $this->unreadCacheKey($user, $mailbox);
+        $cached = Cache::get($cacheKey);
+
+        if (
+            is_array($cached)
+            && is_int($cached['unread'] ?? null)
+            && is_array($cached['messages'] ?? null)
+        ) {
+            return [
+                'unread' => $cached['unread'],
+                'messages' => $cached['messages'],
+            ];
+        }
+
+        $graphUnread = 0;
+        $messages = [];
+
+        try {
+            $graphUnread = $graph->actingAs($user)->unreadInboxCount($mailbox);
+        } catch (MicrosoftGraphException) {
+            $graphUnread = 0;
+        }
+
+        try {
+            $messages = $states->dropCleared(
+                $user,
+                $mailbox,
+                $graph->actingAs($user)->recentUnread($mailbox),
+            );
+        } catch (MicrosoftGraphException) {
+            $messages = [];
+        }
+
+        $snapshot = [
+            'unread' => $states->unreadCount($user, $mailbox, $graphUnread),
+            'messages' => $messages,
+        ];
+
+        Cache::put($cacheKey, $snapshot, 15);
+
+        return $snapshot;
+    }
+
     private function unreadTotal(
         User $user,
         string $mailbox,
         MicrosoftGraphMailService $graph,
         MailboxStateService $states,
     ): int {
-        $cacheKey = $this->unreadCacheKey($user, $mailbox);
-        $cached = Cache::get($cacheKey);
-        $graphUnread = is_int($cached) ? $cached : null;
-
-        if ($graphUnread === null) {
-            try {
-                $graphUnread = $graph->actingAs($user)->unreadInboxCount($mailbox);
-                Cache::put($cacheKey, $graphUnread, 15);
-            } catch (MicrosoftGraphException) {
-                $graphUnread = 0;
-            }
-        }
-
-        return $states->unreadCount($user, $mailbox, $graphUnread);
+        return $this->unreadSnapshot($user, $mailbox, $graph, $states)['unread'];
     }
 
     /**

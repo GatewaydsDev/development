@@ -733,14 +733,14 @@ test('the signed in mailbox reports how many emails are unread', function () {
     $this->actingAs($user)
         ->getJson(route('mailbox.unread'))
         ->assertOk()
-        ->assertJson(['unread' => 3]);
+        ->assertJson(['unread' => 3, 'messages' => []]);
 
     $this->actingAs($user)
         ->getJson(route('mailbox.unread'))
         ->assertOk()
-        ->assertJson(['unread' => 3]);
+        ->assertJson(['unread' => 3, 'messages' => []]);
 
-    Http::assertSentCount(2);
+    Http::assertSentCount(3);
 });
 
 test('unread email count stays at zero when the user has no mailbox', function () {
@@ -754,4 +754,101 @@ test('unread email count stays at zero when the user has no mailbox', function (
         ->assertJson(['unread' => 0]);
 
     Http::assertNothingSent();
+});
+
+test('an unread inbox message keeps the mail count when the badge cache is empty', function () {
+    $user = mailboxUser();
+    fakeMailboxGraph();
+    Cache::put('mailbox-unread:'.$user->id.':ricardo@gateway-ds.com', [
+        'unread' => 0,
+        'messages' => [],
+    ], 60);
+
+    $this->actingAs($user)
+        ->get(route('mailbox.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('messages.0.is_read', false)
+            ->where('unreadCount', 1)
+        );
+});
+
+test('unread mail includes the message that can be opened', function () {
+    $user = mailboxUser();
+    Cache::flush();
+    config([
+        'services.microsoft.tenant_id' => 'tenant-id',
+        'services.microsoft.client_id' => 'client-id',
+        'services.microsoft.client_secret' => 'client-secret',
+    ]);
+
+    Http::fake(function ($request) {
+        if (str_contains($request->url(), 'login.microsoftonline.com')) {
+            return Http::response(['access_token' => 'graph-token', 'expires_in' => 3600]);
+        }
+
+        if (str_contains($request->url(), 'unreadItemCount')) {
+            return Http::response(['unreadItemCount' => 1]);
+        }
+
+        return Http::response([
+            'value' => [[
+                'id' => 'msg-1',
+                'subject' => 'Opening schedule',
+                'from' => ['emailAddress' => ['name' => 'Buyer', 'address' => 'buyer@example.com']],
+                'bodyPreview' => 'The dock is ready.',
+                'isRead' => false,
+                'receivedDateTime' => '2026-10-16T18:00:00Z',
+            ]],
+        ]);
+    });
+
+    $this->actingAs($user)
+        ->getJson(route('mailbox.unread'))
+        ->assertOk()
+        ->assertJsonPath('unread', 1)
+        ->assertJsonPath('messages.0.subject', 'Opening schedule')
+        ->assertJsonPath('messages.0.from', 'Buyer <buyer@example.com>')
+        ->assertJsonPath('messages.0.id', EmailPlainText::encodeMessageId('msg-1'));
+});
+
+test('checking for unread mail does not block sending', function () {
+    fakeMailboxGraph();
+    $user = mailboxUser();
+
+    $this->actingAs($user);
+
+    foreach (range(1, 8) as $ignored) {
+        $this->getJson(route('mailbox.unread'))->assertOk();
+    }
+
+    $this->post(route('mailbox.send'), [
+        'to' => 'buyer@example.com',
+        'subject' => 'Hello',
+        'body' => '<p>The opening is ready.</p>',
+    ])->assertRedirect(route('mailbox.index', ['folder' => 'sent']));
+});
+
+test('sending too many messages stays on the form', function () {
+    fakeMailboxGraph();
+    $user = mailboxUser();
+
+    $this->actingAs($user);
+
+    foreach (range(1, 20) as $ignored) {
+        $this->post(route('mailbox.send'), [
+            'to' => 'buyer@example.com',
+            'subject' => 'Hello',
+            'body' => '<p>The opening is ready.</p>',
+        ])->assertRedirect(route('mailbox.index', ['folder' => 'sent']));
+    }
+
+    $this->from(route('mailbox.index'))
+        ->post(route('mailbox.send'), [
+            'to' => 'buyer@example.com',
+            'subject' => 'Hello',
+            'body' => '<p>The opening is ready.</p>',
+        ])
+        ->assertRedirect(route('mailbox.index'))
+        ->assertSessionHasErrors('body');
 });

@@ -90,6 +90,48 @@ class MailboxStateService
     }
 
     /**
+     * @param  list<array{id: string, subject: string, from: string, preview: string}>  $messages
+     * @return list<array{id: string, subject: string, from: string, preview: string}>
+     */
+    public function dropCleared(User $user, string $mailbox, array $messages): array
+    {
+        if ($messages === []) {
+            return [];
+        }
+
+        $byKey = [];
+
+        foreach ($messages as $message) {
+            $messageId = EmailPlainText::decodeMessageId((string) ($message['id'] ?? ''));
+
+            if ($messageId === null) {
+                continue;
+            }
+
+            $byKey[$this->key($messageId)] = $message;
+        }
+
+        if ($byKey === []) {
+            return [];
+        }
+
+        $cleared = MailMessageState::query()
+            ->where('user_id', $user->id)
+            ->where('mailbox', $mailbox)
+            ->whereIn('message_key', array_keys($byKey))
+            ->where(function ($query): void {
+                $query->where('is_read', true)->orWhere('is_archived', true);
+            })
+            ->pluck('message_key');
+
+        return array_values(array_filter(
+            $byKey,
+            fn (array $message, string $key): bool => ! $cleared->contains($key),
+            ARRAY_FILTER_USE_BOTH,
+        ));
+    }
+
+    /**
      * @param  list<array<string, mixed>>  $messages
      * @return list<array<string, mixed>>
      */

@@ -134,6 +134,42 @@ class MicrosoftGraphMailService
     }
 
     /**
+     * @return list<array{id: string, subject: string, from: string, preview: string}>
+     */
+    public function recentUnread(string $mailbox): array
+    {
+        $url = $this->userUrl($mailbox).'/mailFolders/inbox/messages?'.http_build_query([
+            '$select' => 'id,subject,from,receivedDateTime,bodyPreview,isRead',
+            '$top' => 8,
+            '$orderby' => 'receivedDateTime desc',
+        ]);
+
+        $response = $this->graph('GET', $url, null, false);
+
+        if ($response->failed()) {
+            throw new MicrosoftGraphException($this->failureMessage($response, false));
+        }
+
+        $messages = [];
+
+        foreach ($response->json('value') ?? [] as $item) {
+            if (! is_array($item) || ($item['isRead'] ?? false) === true) {
+                continue;
+            }
+
+            $summary = $this->summary($item, 'inbox');
+            $messages[] = [
+                'id' => (string) $summary['id'],
+                'subject' => (string) $summary['subject'],
+                'from' => (string) $summary['from'],
+                'preview' => (string) $summary['preview'],
+            ];
+        }
+
+        return $messages;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function readMessage(string $mailbox, string $messageId): array

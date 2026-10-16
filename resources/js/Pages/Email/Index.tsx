@@ -155,8 +155,11 @@ export default function Index({
     const [acting, setActing] = useState(false);
 
     useEffect(() => {
-        setUnreadMail(unreadCount);
-    }, [unreadCount]);
+        const visible =
+            folder === 'inbox' ? messages.filter((item) => !item.is_read).length : 0;
+
+        setUnreadMail(Math.max(unreadCount, visible));
+    }, [unreadCount, folder, messages]);
 
     useEffect(() => {
         if (folder !== 'inbox' || message === null) {
