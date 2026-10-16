@@ -117,6 +117,21 @@ class MicrosoftGraphMailService
         ];
     }
 
+    public function unreadInboxCount(string $mailbox): int
+    {
+        $url = $this->userUrl($mailbox).'/mailFolders/inbox?'.http_build_query([
+            '$select' => 'unreadItemCount',
+        ]);
+
+        $response = $this->graph('GET', $url, null, false);
+
+        if ($response->failed()) {
+            throw new MicrosoftGraphException($this->failureMessage($response, false));
+        }
+
+        return max(0, (int) $response->json('unreadItemCount'));
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -155,6 +170,16 @@ class MicrosoftGraphMailService
                 is_string($body['content'] ?? null) ? $body['content'] : (string) ($item['bodyPreview'] ?? ''),
             ),
         ];
+    }
+
+    public function markRead(string $mailbox, string $messageId): void
+    {
+        $url = $this->userUrl($mailbox).'/messages/'.rawurlencode($messageId);
+        $response = $this->graph('PATCH', $url, ['isRead' => true], false);
+
+        if ($response->failed()) {
+            throw new MicrosoftGraphException($this->failureMessage($response, false));
+        }
     }
 
     /**
@@ -308,9 +333,11 @@ class MicrosoftGraphMailService
                 ]);
 
             try {
-                $response = $method === 'GET'
-                    ? $pending->get($url)
-                    : $pending->post($url, $body ?? []);
+                $response = match ($method) {
+                    'GET' => $pending->get($url),
+                    'PATCH' => $pending->patch($url, $body ?? []),
+                    default => $pending->post($url, $body ?? []),
+                };
             } catch (ConnectionException $exception) {
                 if ($sending) {
                     throw $exception;

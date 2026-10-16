@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\UserLevel;
 use Illuminate\Http\UploadedFile;
 use App\Services\MicrosoftGraphMailService;
+use App\Support\EmailPlainText;
 use App\Services\MicrosoftGraphPageCursor;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
@@ -399,4 +400,68 @@ test('a composed message can include copies, importance, an attachment, and save
         ->assertRedirect();
 
     expect(MailSavedRecipient::query()->where('user_id', $user->id)->count())->toBe(3);
+});
+
+test('opening an inbox message marks that email as read', function () {
+    $user = mailboxUser();
+    fakeMailboxGraph();
+
+    $this->actingAs($user)
+        ->get(route('mailbox.index', [
+            'folder' => 'inbox',
+            'message' => EmailPlainText::encodeMessageId('msg-1'),
+        ]))
+        ->assertOk();
+
+    Http::assertSent(function ($request) {
+        return $request->method() === 'PATCH'
+            && str_contains($request->url(), '/messages/'.rawurlencode('msg-1'))
+            && $request['isRead'] === true;
+    });
+});
+
+test('the signed in mailbox reports how many emails are unread', function () {
+    $user = mailboxUser('larryd@gateway-ds.com');
+
+    Cache::flush();
+    config([
+        'services.microsoft.tenant_id' => 'tenant-id',
+        'services.microsoft.client_id' => 'client-id',
+        'services.microsoft.client_secret' => 'client-secret',
+    ]);
+
+    Http::fake([
+        'https://login.microsoftonline.com/*' => Http::response([
+            'access_token' => 'graph-token',
+            'expires_in' => 3600,
+        ]),
+        'https://graph.microsoft.com/*' => Http::response([
+            'unreadItemCount' => 3,
+        ], 200),
+    ]);
+
+    $this->actingAs($user)
+        ->getJson(route('mailbox.unread'))
+        ->assertOk()
+        ->assertJson(['unread' => 3]);
+
+    $this->actingAs($user)
+        ->getJson(route('mailbox.unread'))
+        ->assertOk()
+        ->assertJson(['unread' => 3]);
+
+    Http::assertSentCount(2);
+});
+
+test('unread email count stays at zero when the user has no mailbox', function () {
+    $user = mailboxUser(null);
+
+    Http::fake();
+
+    $this->actingAs($user)
+        ->getJson(route('mailbox.unread'))
+        ->assertOk()
+        ->assertJson(['unread' => 0]);
+
+    Http::assertNothingSent();
 });

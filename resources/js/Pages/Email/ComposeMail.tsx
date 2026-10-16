@@ -128,19 +128,19 @@ function AddressField({
     });
 
     return (
-        <label className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-start gap-2 border-b border-border py-2 text-sm">
+        <label className="grid grid-cols-1 items-start gap-1 border-b border-border py-2 text-sm sm:grid-cols-[4.5rem_minmax(0,1fr)] sm:gap-2">
             <span className="pt-1.5 text-muted-foreground">{label}</span>
             <span className="relative grid gap-1">
                 <span className="flex min-h-9 flex-wrap items-center gap-1">
                     {addresses.map((address) => (
                         <span
                             key={address}
-                            className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2 py-0.5 text-xs text-foreground"
+                            className="inline-flex max-w-full items-center gap-1 break-all rounded-full border border-border bg-muted px-2 py-0.5 text-xs text-foreground"
                         >
                             {address}
                             <button
                                 type="button"
-                                className="text-muted-foreground hover:text-foreground"
+                                className="inline-flex size-8 items-center justify-center text-muted-foreground touch-manipulation hover:text-foreground"
                                 aria-label={`${t('removeRecipient')} ${address}`}
                                 onClick={() => remove(address)}
                             >
@@ -166,7 +166,11 @@ function AddressField({
                             }, 150);
                         }}
                         onKeyDown={onKeyDown}
-                        className="h-8 min-w-40 flex-1 bg-transparent text-sm text-foreground outline-none"
+                        inputMode="email"
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        enterKeyHint="done"
+                        className="h-11 min-w-0 flex-1 bg-transparent text-base text-foreground outline-none sm:min-w-40 md:text-sm"
                     />
                 </span>
                 {open && matches.length > 0 ? (
@@ -175,7 +179,7 @@ function AddressField({
                             <button
                                 key={recipient.id}
                                 type="button"
-                                className="px-3 py-2 text-left text-sm hover:bg-muted"
+                                className="min-h-11 px-3 py-2 text-left text-sm touch-manipulation hover:bg-muted"
                                 onMouseDown={(event) => {
                                     event.preventDefault();
                                     commit(recipient.email);
@@ -217,7 +221,7 @@ function ToolButton({
             aria-pressed={pressed}
             title={label}
             onClick={onClick}
-            className={`inline-flex size-8 items-center justify-center rounded-md text-foreground hover:bg-muted ${pressed ? 'bg-muted' : ''}`}
+            className={`inline-flex size-11 shrink-0 touch-manipulation items-center justify-center rounded-md text-foreground hover:bg-muted lg:size-8 ${pressed ? 'bg-muted' : ''}`}
         >
             {children}
         </button>
@@ -236,6 +240,8 @@ export default function ComposeMail({
     const [showBcc, setShowBcc] = useState(Boolean(draft?.bcc));
     const [activeField, setActiveField] = useState<AddressFieldName>('to');
     const [recipientName, setRecipientName] = useState('');
+    const [linkOpen, setLinkOpen] = useState(false);
+    const [linkUrl, setLinkUrl] = useState('');
     const form = useForm({
         to: draft?.to ?? '',
         cc: draft?.cc ?? '',
@@ -258,7 +264,7 @@ export default function ComposeMail({
         immediatelyRender: false,
         editorProps: {
             attributes: {
-                class: 'min-h-48 px-3 py-2 text-sm text-foreground outline-none',
+                class: 'min-h-40 px-3 py-2 text-base text-foreground outline-none md:min-h-48 md:text-sm',
             },
         },
         onUpdate: ({ editor: current }) => {
@@ -329,37 +335,39 @@ export default function ComposeMail({
         form.setData('importance', order[(index + 1) % order.length]);
     };
 
-    const setLink = () => {
+    const openLink = () => {
         const previous = editor?.getAttributes('link').href as string | undefined;
-        const url = window.prompt(t('link'), previous ?? 'https://');
+        setLinkUrl(previous ?? 'https://');
+        setLinkOpen(true);
+    };
 
-        if (url === null) {
-            return;
-        }
+    const applyLink = () => {
+        const url = linkUrl.trim();
 
-        if (url.trim() === '') {
+        if (url === '') {
             editor?.chain().focus().unsetLink().run();
-
-            return;
+        } else {
+            editor?.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
         }
 
-        editor?.chain().focus().extendMarkRange('link').setLink({ href: url.trim() }).run();
+        setLinkOpen(false);
     };
 
     return (
-        <form onSubmit={submit} className="overflow-hidden rounded-lg border border-border bg-background">
-            <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
-                <Button type="submit" disabled={form.processing}>
+        <form onSubmit={submit} className="min-w-0 overflow-hidden rounded-lg border border-border bg-background">
+            <div className="grid grid-cols-2 gap-2 border-b border-border px-3 py-2 sm:flex sm:flex-wrap sm:items-center">
+                <Button className="min-h-11 touch-manipulation" type="submit" disabled={form.processing}>
                     {form.processing ? t('sending') : t('send')}
                 </Button>
-                <Button type="button" variant="outline" onClick={onDiscard}>
+                <Button className="min-h-11 touch-manipulation" type="button" variant="outline" onClick={onDiscard}>
                     {t('discard')}
                 </Button>
-                <Button type="button" variant="outline" onClick={() => fileRef.current?.click()}>
+                <Button className="min-h-11 touch-manipulation" type="button" variant="outline" onClick={() => fileRef.current?.click()}>
                     <PaperclipIcon className="size-4" />
                     {t('attach')}
                 </Button>
                 <Button
+                    className="min-h-11 touch-manipulation"
                     type="button"
                     variant={form.data.importance === 'normal' ? 'outline' : 'default'}
                     onClick={cycleImportance}
@@ -387,9 +395,9 @@ export default function ComposeMail({
             </div>
 
             <div className="px-3">
-                <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-2 border-b border-border py-2 text-sm">
+                <div className="grid grid-cols-1 items-center gap-1 border-b border-border py-2 text-sm sm:grid-cols-[4.5rem_minmax(0,1fr)] sm:gap-2">
                     <span className="text-muted-foreground">{t('from')}</span>
-                    <span className="text-foreground">{mailbox}</span>
+                    <span className="break-all text-foreground">{mailbox}</span>
                 </div>
                 <AddressField
                     id="mail-to"
@@ -422,32 +430,33 @@ export default function ComposeMail({
                         onFocusField={() => setActiveField('bcc')}
                     />
                 ) : null}
-                <div className="flex gap-3 py-2 text-sm">
+                <div className="flex gap-4 py-2 text-sm">
                     {!showCc ? (
-                        <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => setShowCc(true)}>
+                        <button type="button" className="min-h-11 touch-manipulation text-muted-foreground hover:text-foreground" onClick={() => setShowCc(true)}>
                             {t('cc')}
                         </button>
                     ) : null}
                     {!showBcc ? (
-                        <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => setShowBcc(true)}>
+                        <button type="button" className="min-h-11 touch-manipulation text-muted-foreground hover:text-foreground" onClick={() => setShowBcc(true)}>
                             {t('bcc')}
                         </button>
                     ) : null}
                 </div>
-                <label className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-2 border-b border-border py-2 text-sm">
+                <label className="grid grid-cols-1 items-center gap-1 border-b border-border py-2 text-sm sm:grid-cols-[4.5rem_minmax(0,1fr)] sm:gap-2">
                     <span className="text-muted-foreground">{t('subject')}</span>
                     <input
                         value={form.data.subject}
                         onChange={(event) => form.setData('subject', event.target.value)}
                         maxLength={255}
-                        className="h-9 bg-transparent text-sm text-foreground outline-none"
+                        enterKeyHint="next"
+                        className="h-11 min-w-0 bg-transparent text-base text-foreground outline-none md:text-sm"
                         required
                     />
                 </label>
                 <InputError message={form.errors.subject} />
             </div>
 
-            <div className="flex flex-wrap items-center gap-1 border-b border-border px-2 py-1">
+            <div className="flex items-center gap-1 overflow-x-auto border-b border-border px-2 py-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 <ToolButton label={t('undo')} onClick={() => editor?.chain().focus().undo().run()}>
                     <Undo2Icon className="size-4" />
                 </ToolButton>
@@ -472,10 +481,44 @@ export default function ComposeMail({
                 <ToolButton label={t('numberedList')} pressed={editor?.isActive('orderedList')} onClick={() => editor?.chain().focus().toggleOrderedList().run()}>
                     <ListOrderedIcon className="size-4" />
                 </ToolButton>
-                <ToolButton label={t('link')} pressed={editor?.isActive('link')} onClick={setLink}>
+                <ToolButton label={t('link')} pressed={editor?.isActive('link') || linkOpen} onClick={openLink}>
                     <LinkIcon className="size-4" />
                 </ToolButton>
             </div>
+            {linkOpen ? (
+                <div className="grid gap-2 border-b border-border px-3 py-2 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center">
+                    <input
+                        value={linkUrl}
+                        onChange={(event) => setLinkUrl(event.target.value)}
+                        inputMode="url"
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        enterKeyHint="done"
+                        aria-label={t('link')}
+                        className="h-11 min-w-0 rounded-md border border-border bg-background px-2 text-base text-foreground outline-none md:text-sm"
+                        onKeyDown={(event) => {
+                            if (event.key === 'Enter') {
+                                event.preventDefault();
+                                applyLink();
+                            }
+                        }}
+                    />
+                    <Button type="button" className="min-h-11 touch-manipulation" onClick={applyLink}>
+                        {t('applyLink')}
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        className="min-h-11 touch-manipulation"
+                        onClick={() => {
+                            editor?.chain().focus().unsetLink().run();
+                            setLinkOpen(false);
+                        }}
+                    >
+                        {t('removeLink')}
+                    </Button>
+                </div>
+            ) : null}
 
             <EditorContent editor={editor} />
             <InputError message={form.errors.body} className="px-3" />
@@ -504,7 +547,7 @@ export default function ComposeMail({
             ) : null}
             <InputError message={form.errors.attachments} className="px-3" />
 
-            <div className="grid gap-3 border-t border-border px-3 py-3 lg:grid-cols-[minmax(0,1fr)_16rem]">
+            <div className="grid gap-3 border-t border-border px-3 py-3 md:grid-cols-[minmax(0,1fr)_minmax(14rem,18rem)]">
                 <label className="flex items-center gap-2 text-sm text-foreground">
                     <input
                         type="checkbox"
@@ -530,7 +573,7 @@ export default function ComposeMail({
                         value={recipientName}
                         onChange={(event) => setRecipientName(event.target.value)}
                         placeholder={t('recipientName')}
-                        className="h-8 rounded-md border border-border bg-background px-2 text-xs text-foreground"
+                        className="h-11 rounded-md border border-border bg-background px-2 text-base text-foreground md:h-8 md:text-xs"
                     />
                     {recipients.length === 0 ? (
                         <p className="text-xs text-muted-foreground">{t('noSavedRecipients')}</p>
@@ -540,7 +583,7 @@ export default function ComposeMail({
                                 <li key={recipient.id} className="flex items-center gap-1">
                                     <button
                                         type="button"
-                                        className="min-w-0 flex-1 truncate rounded-md px-2 py-1 text-left text-xs hover:bg-muted"
+                                        className="min-h-11 min-w-0 flex-1 truncate rounded-md px-2 py-2 text-left text-sm touch-manipulation hover:bg-muted"
                                         onClick={() => addSavedRecipient(recipient.email)}
                                     >
                                         <span className="block truncate text-foreground">
@@ -554,7 +597,7 @@ export default function ComposeMail({
                                     </button>
                                     <button
                                         type="button"
-                                        className="text-muted-foreground hover:text-foreground"
+                                        className="inline-flex size-11 shrink-0 items-center justify-center text-muted-foreground touch-manipulation hover:text-foreground"
                                         aria-label={`${t('removeRecipient')} ${recipient.email}`}
                                         onClick={() =>
                                             router.delete(route('mailbox.recipients.destroy', recipient.id), {

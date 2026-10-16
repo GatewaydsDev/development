@@ -2,6 +2,7 @@ import ApplicationLogo from '@/Components/ApplicationLogo';
 import UserAvatar from '@/Components/UserAvatar';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
+import { useUnreadMail } from '@/lib/unreadMail';
 import { cn } from '@/lib/utils';
 import { PageProps } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
@@ -41,6 +42,7 @@ type NavItem = {
     active?: boolean;
     badge?: string | number;
     badgeVariant?: 'default' | 'secondary' | 'outline' | 'destructive';
+    alert?: boolean;
 };
 
 type NavGroup = {
@@ -81,6 +83,7 @@ export default function DashboardSidebar({
 }) {
     const page = usePage<PageProps>();
     const { auth } = page.props;
+    const unreadMail = useUnreadMail();
     const navRef = useRef<HTMLElement>(null);
     const user = auth.user;
     const can = auth.can ?? {};
@@ -123,6 +126,9 @@ export default function DashboardSidebar({
                     href: route('mailbox.index'),
                     icon: MailIcon,
                     active: isRouteActive('mailbox.*'),
+                    alert: unreadMail > 0,
+                    badge: unreadMail > 0 ? unreadMail : undefined,
+                    badgeVariant: 'destructive',
                 },
             ],
         },
@@ -490,9 +496,12 @@ export default function DashboardSidebar({
                                                 <Icon
                                                     className={cn(
                                                         'size-4 shrink-0 transition',
+                                                        item.alert &&
+                                                            'animate-mail-alert text-red-600 dark:text-red-400',
                                                         isActive
                                                             ? 'text-white'
-                                                            : 'text-muted-foreground group-hover:text-foreground',
+                                                            : !item.alert &&
+                                                                  'text-muted-foreground group-hover:text-foreground',
                                                     )}
                                                 />
                                                 {!collapsed && (
