@@ -27,11 +27,7 @@ function fakeRevisionReviewGraph(int $sendStatus = 202): void
 
         $path = rawurldecode((string) (parse_url($request->url(), PHP_URL_PATH) ?? ''));
 
-        if ($request->method() === 'POST' && str_ends_with($path, '/messages')) {
-            return Http::response(['id' => 'draft-1'], 201);
-        }
-
-        if ($request->method() === 'POST' && str_ends_with($path, '/send')) {
+        if ($request->method() === 'POST' && str_ends_with($path, '/sendMail')) {
             return Http::response('', $sendStatus);
         }
 
@@ -106,11 +102,15 @@ test('a quotation revision is emailed from the sender mailbox with the quote att
     Http::assertSent(function ($request) use ($quote) {
         $path = rawurldecode((string) (parse_url($request->url(), PHP_URL_PATH) ?? ''));
 
-        if ($request->method() !== 'POST' || ! str_ends_with($path, '/users/ricardo@gateway-ds.com/messages')) {
+        if ($request->method() !== 'POST' || ! str_ends_with($path, '/users/ricardo@gateway-ds.com/sendMail')) {
             return false;
         }
 
-        $message = $request->data();
+        $message = $request->data()['message'] ?? null;
+
+        if (! is_array($message) || ($request->data()['saveToSentItems'] ?? false) !== true) {
+            return false;
+        }
         $attachment = $message['attachments'][0];
         $pdf = base64_decode((string) $attachment['contentBytes'], true);
 

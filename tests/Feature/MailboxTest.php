@@ -21,7 +21,7 @@ function savedMailboxMessage($request, string $mailbox): bool
     $path = rawurldecode((string) (parse_url($request->url(), PHP_URL_PATH) ?? ''));
 
     return $request->method() === 'POST'
-        && str_ends_with($path, '/users/'.$mailbox.'/messages');
+        && str_ends_with($path, '/users/'.$mailbox.'/sendMail');
 }
 
 function mailboxUser(?string $mailbox = 'ricardo@gateway-ds.com'): User
@@ -52,11 +52,7 @@ function fakeMailboxGraph(array $pages = []): void
 
         $path = rawurldecode((string) (parse_url($request->url(), PHP_URL_PATH) ?? ''));
 
-        if ($request->method() === 'POST' && str_ends_with($path, '/messages')) {
-            return Http::response(['id' => 'draft-1'], 201);
-        }
-
-        if ($request->method() === 'POST' && str_ends_with($path, '/send')) {
+        if ($request->method() === 'POST' && str_ends_with($path, '/sendMail')) {
             return Http::response('', 202);
         }
 
@@ -154,14 +150,14 @@ test('mail requests use the signed-in user mailbox and ignore a submitted sender
             return false;
         }
 
-        $message = $request->data();
+        $payload = $request->data();
+        $message = $payload['message'];
 
-        return ! array_key_exists('from', $message)
+        return $payload['saveToSentItems'] === true
+            && ! array_key_exists('from', $message)
             && ! array_key_exists('sender', $message)
             && $message['body']['content'] === 'The opening is ready.';
     });
-
-    Http::assertSent(fn ($request) => str_contains($request->url(), '/messages/'.rawurlencode('draft-1').'/send'));
 
     Http::assertNotSent(function ($request) {
         return str_contains($request->url(), rawurlencode('sales@gateway-ds.com'));
@@ -198,12 +194,12 @@ test('larry sends from larry mailbox and melissa sends from sales mailbox', func
 
     $sent = collect(Http::recorded())
         ->map(fn (array $pair) => rawurldecode($pair[0]->url()))
-        ->filter(fn (string $url) => str_ends_with((string) (parse_url($url, PHP_URL_PATH) ?? ''), '/messages'))
+        ->filter(fn (string $url) => str_ends_with((string) (parse_url($url, PHP_URL_PATH) ?? ''), '/sendMail'))
         ->values();
 
     expect($sent)->toHaveCount(2)
-        ->and($sent[0])->toContain('/users/larryd@gateway-ds.com/messages')
-        ->and($sent[1])->toContain('/users/sales@gateway-ds.com/messages');
+        ->and($sent[0])->toContain('/users/larryd@gateway-ds.com/sendMail')
+        ->and($sent[1])->toContain('/users/sales@gateway-ds.com/sendMail');
 });
 
 test('an administrator impersonating melissa sends through her mailbox', function () {
@@ -234,9 +230,10 @@ test('an administrator impersonating melissa sends through her mailbox', functio
             return false;
         }
 
-        $message = $request->data();
+        $message = $request->data()['message'];
 
-        return ! array_key_exists('from', $message)
+        return ($request->data()['saveToSentItems'] ?? false) === true
+            && ! array_key_exists('from', $message)
             && ! array_key_exists('sender', $message)
             && str_contains($message['body']['content'], 'This must leave the sales mailbox.');
     });
@@ -496,9 +493,10 @@ test('a composed message can include copies, importance, an attachment, and save
             return false;
         }
 
-        $message = $request->data();
+        $message = $request->data()['message'];
 
-        return $message['importance'] === 'high'
+        return ($request->data()['saveToSentItems'] ?? false) === true
+            && $message['importance'] === 'high'
             && $message['body']['contentType'] === 'HTML'
             && str_contains($message['body']['content'], 'opening')
             && $message['toRecipients'][1]['emailAddress']['address'] === 'sales@gateway-ds.com'
@@ -651,7 +649,7 @@ test('outgoing mail includes the saved signature and header image', function () 
             return false;
         }
 
-        $message = $request->data();
+        $message = $request->data()['message'];
         $content = $message['body']['content'];
         $header = $message['attachments'][0];
 
