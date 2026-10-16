@@ -76,7 +76,7 @@ test('quotation field tokens resolve in loaded layouts and quote output', functi
     $quote->update(['layout_header' => '<p>'.$tokens.'</p>']);
     foreach (['print', 'pdf', 'word'] as $mode) {
         $data = \App\Support\QuotationDocument::for($quote->fresh(), $admin)->viewData($mode);
-        expect($data['layoutHeader'])->toContain($quote->quotation_number, 'RF door quotation', 'September 15, 2026', 'October 15, 2026', '$1,250.00', 'Q2')
+        expect($data['layoutHeader'])->toContain($quote->quotation_number, 'RF door quotation', 'September 15, 2026', '10/15/2026', '$1,250.00', 'Q2')
             ->not->toContain('{{');
         expect(\App\Support\DocumentLayoutElements::fieldValues($data)['quoted_on'])->toBe('September 15, 2026');
     }
@@ -354,7 +354,7 @@ test('quotation layout headers save independently and retain their loaded versio
         ->where('quotation.layout_header', fn ($html) => str_contains($html, 'data-x="84"'))
         ->where('options.printLayouts.0.version', fn ($next) => $next !== $version));
     $this->get(route('admin.quotations.print', $quotation))->assertOk()
-        ->assertSee('Saved header Header quotation March 1, 2024', false)
+        ->assertSee('Saved header Header quotation 03/01/2024', false)
         ->assertDontSee('Original pricing')->assertDontSee('Original proposal')
         ->assertDontSee('Library changed later')
         ->assertDontSee('<h1 class="document-title">', false)

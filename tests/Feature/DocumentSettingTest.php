@@ -1250,13 +1250,13 @@ test('validity periods persist and calculate from the document date', function (
     $bid->created_at = '2024-01-31';
     expect($controller->shippingText($input, $bid))->toContain($expected);
     $yearValues = DocumentLayoutElements::fieldValues(['bidDate' => '2024-12-15']);
-    expect($yearValues['validity_30'])->toBe('January 14, 2025')
-        ->and($yearValues['validity_60'])->toBe('February 13, 2025')
-        ->and($yearValues['validity_90'])->toBe('March 15, 2025');
+    expect($yearValues['validity_30'])->toBe('01/14/2025')
+        ->and($yearValues['validity_60'])->toBe('02/13/2025')
+        ->and($yearValues['validity_90'])->toBe('03/15/2025');
     $payload['elements'][0]['validity_days'] = 45;
     $this->patch(route('admin.document-settings.update', $layout), $payload)
         ->assertSessionHasErrors('elements.0.validity_days');
-})->with([[30, 'March 1, 2024'], [60, 'March 31, 2024'], [90, 'April 30, 2024']]);
+})->with([[30, '03/01/2024'], [60, '03/31/2024'], [90, '04/30/2024']]);
 
 test('legacy layout text keeps its original formatting defaults', function () {
     $elements = DocumentLayoutElements::sanitize([['type' => 'text', 'content' => 'Legacy text']]);

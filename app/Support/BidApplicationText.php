@@ -80,7 +80,7 @@ class BidApplicationText
             'quotation_number' => (string) $quotation->quotation_number,
             'quotation_title' => (string) $quotation->title,
             'quoted_on' => $quotation->quoted_at?->format('F j, Y') ?? '',
-            'valid_until' => $quotation->valid_until?->format('F j, Y') ?? '',
+            'valid_until' => $quotation->valid_until?->format('m/d/Y') ?? '',
             'base_bid_total' => '$'.number_format($quotation->total(), 2),
             'latest_revision' => (string) ($quotation->revisions->first()?->number ?? ''),
         ];
@@ -251,7 +251,7 @@ class BidApplicationText
         $merged = array_merge($base, array_filter($screen, fn ($value) => is_string($value) && trim($value) !== ''));
         $validityBase = Carbon::parse($screen['bid_date'] ?? now());
         foreach ([30, 60, 90] as $days) {
-            $merged['validity_'.$days] = $validityBase->copy()->addDays($days)->format('F j, Y');
+            $merged['validity_'.$days] = $validityBase->copy()->addDays($days)->format('m/d/Y');
         }
 
         return array_merge(BidTextField::aliasedValues($merged), $merged);

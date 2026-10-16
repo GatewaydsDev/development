@@ -245,9 +245,9 @@ function placeholderValues(
     for (const days of [30, 60, 90]) {
         const expiry = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
         expiry.setDate(expiry.getDate() + days);
-        screenValues[`validity_${days}`] = new Intl.DateTimeFormat('en-US', {
-            month: 'long', day: 'numeric', year: 'numeric',
-        }).format(expiry);
+        const month = String(expiry.getMonth() + 1).padStart(2, '0');
+        const day = String(expiry.getDate()).padStart(2, '0');
+        screenValues[`validity_${days}`] = `${month}/${day}/${expiry.getFullYear()}`;
     }
 
     const customValues = Object.fromEntries(

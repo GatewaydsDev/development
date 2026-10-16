@@ -91,9 +91,9 @@ class DocumentLayoutElements
         'bid_number' => ['label' => 'Bid number', 'group' => 'Bid', 'sample' => 'P-2025-014'],
         'bid_date' => ['label' => 'Bid date', 'group' => 'Bid', 'sample' => 'October 7, 2025'],
         'bid_stage' => ['label' => 'Bid stage', 'group' => 'Bid', 'sample' => 'Proposal'],
-        'validity_30' => ['label' => 'Validity date (30 days)', 'group' => 'Document', 'sample' => 'November 6, 2025'],
-        'validity_60' => ['label' => 'Validity date (60 days)', 'group' => 'Document', 'sample' => 'December 6, 2025'],
-        'validity_90' => ['label' => 'Validity date (90 days)', 'group' => 'Document', 'sample' => 'January 5, 2026'],
+        'validity_30' => ['label' => 'Validity date (30 days)', 'group' => 'Document', 'sample' => '11/06/2025'],
+        'validity_60' => ['label' => 'Validity date (60 days)', 'group' => 'Document', 'sample' => '12/06/2025'],
+        'validity_90' => ['label' => 'Validity date (90 days)', 'group' => 'Document', 'sample' => '01/05/2026'],
     ];
 
     /**
@@ -228,9 +228,9 @@ class DocumentLayoutElements
             'bid_number' => $pick('bidNumber'),
             'bid_date' => $pick('bidDate'),
             'bid_stage' => $pick('stageLabel'),
-            'validity_30' => $validityBase->copy()->addDays(30)->format('F j, Y'),
-            'validity_60' => $validityBase->copy()->addDays(60)->format('F j, Y'),
-            'validity_90' => $validityBase->copy()->addDays(90)->format('F j, Y'),
+            'validity_30' => $validityBase->copy()->addDays(30)->format('m/d/Y'),
+            'validity_60' => $validityBase->copy()->addDays(60)->format('m/d/Y'),
+            'validity_90' => $validityBase->copy()->addDays(90)->format('m/d/Y'),
         ];
     }
 
@@ -365,6 +365,30 @@ class DocumentLayoutElements
             'top' => $clean($colors['top'] ?? null),
             'header_height' => $height,
         ];
+    }
+
+    private static function validityDays(array $element): ?int
+    {
+        if (! array_key_exists('validity_days', $element)) {
+            return 30;
+        }
+
+        $days = $element['validity_days'];
+
+        if ($days === null || $days === '') {
+            return null;
+        }
+
+        $days = (int) $days;
+
+        return in_array($days, [30, 60, 90], true) ? $days : null;
+    }
+
+    private static function validityDate(array $element): string
+    {
+        $date = (string) ($element['validity_date'] ?? '');
+
+        return preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) === 1 ? $date : '';
     }
 
     private static function lineHeight(mixed $value): float
@@ -551,7 +575,8 @@ class DocumentLayoutElements
                 'line_height' => self::lineHeight($element['line_height'] ?? 1.35),
                 'list_style' => in_array($element['list_style'] ?? null, ['bullet', 'numbered'], true) ? $element['list_style'] : 'none',
                 ...(in_array($element['list_flow'] ?? null, ['original', 'auto'], true) ? ['list_flow' => $element['list_flow']] : []),
-                'validity_days' => in_array((int) ($element['validity_days'] ?? 30), [30, 60, 90], true) ? (int) ($element['validity_days'] ?? 30) : 30,
+                'validity_days' => self::validityDays($element),
+                'validity_date' => self::validityDate($element),
                 'color' => DocumentAppearance::normalize((string) ($element['color'] ?? ''), '#111827'),
             ];
         }
@@ -1091,8 +1116,21 @@ class DocumentLayoutElements
                 $content = now()->format('F j, Y');
                 break;
             case 'validity':
-                $key = 'validity_'.($element['validity_days'] ?? 30);
-                $content = $values[$key] ?? now()->addDays($element['validity_days'] ?? 30)->format('F j, Y');
+                $days = self::validityDays($element);
+                $custom = self::validityDate($element);
+
+                if ($days === null && $custom !== '') {
+                    $content = Carbon::parse($custom)->format('m/d/Y');
+                    break;
+                }
+
+                if ($days === null) {
+                    $content = '';
+                    break;
+                }
+
+                $key = 'validity_'.$days;
+                $content = $values[$key] ?? now()->addDays($days)->format('m/d/Y');
                 break;
 
             default:
