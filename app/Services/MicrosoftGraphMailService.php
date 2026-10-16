@@ -398,14 +398,14 @@ class MicrosoftGraphMailService
         $tenantId = trim((string) config('services.microsoft.tenant_id'));
         $clientId = trim((string) config('services.microsoft.client_id'));
         $clientSecret = trim((string) config('services.microsoft.client_secret'));
-        $actor = $this->actor;
+        $credentialUser = $this->credentialUser();
 
-        if ($actor?->isSuperAdmin()) {
-            $ownSecret = trim((string) $actor->microsoft_client_secret);
+        if ($credentialUser?->isSuperAdmin()) {
+            $ownSecret = trim((string) $credentialUser->microsoft_client_secret);
 
             if ($ownSecret !== '') {
-                $tenantId = trim((string) ($actor->microsoft_tenant_id ?: $tenantId));
-                $clientId = trim((string) ($actor->microsoft_client_id ?: $clientId));
+                $tenantId = trim((string) ($credentialUser->microsoft_tenant_id ?: $tenantId));
+                $clientId = trim((string) ($credentialUser->microsoft_client_id ?: $clientId));
                 $clientSecret = $ownSecret;
             }
         }
@@ -423,6 +423,39 @@ class MicrosoftGraphMailService
         }
 
         return [$tenantId, $clientId, $clientSecret];
+    }
+
+    /**
+     * A super admin with a saved secret uses that app. While the master account
+     * is signed in as someone who has not saved an app secret, the master's app
+     * is used so that person's mailbox can still be opened.
+     */
+    private function credentialUser(): ?User
+    {
+        $actor = $this->actor;
+
+        if ($this->hasSavedSecret($actor)) {
+            return $actor;
+        }
+
+        $impersonatorId = session('impersonator_id');
+
+        if (! is_numeric($impersonatorId)) {
+            return $actor;
+        }
+
+        $master = User::query()->find((int) $impersonatorId);
+
+        if ($master?->isMaster() && $this->hasSavedSecret($master)) {
+            return $master;
+        }
+
+        return $actor;
+    }
+
+    private function hasSavedSecret(?User $user): bool
+    {
+        return trim((string) $user?->microsoft_client_secret) !== '';
     }
 
     private function tokenCacheKey(): string
