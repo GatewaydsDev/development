@@ -104,10 +104,19 @@ class ContactSubmissionController extends Controller
 
     private function notifyDashboardUsers(ContactSubmission $submission): void
     {
+        $recipient = strtolower(trim($this->notificationRecipient()));
+
+        if ($recipient === '') {
+            return;
+        }
+
         $users = User::query()
             ->with('level')
             ->get()
-            ->filter(fn (User $user): bool => $user->hasPermission('manage-notifications'));
+            ->filter(function (User $user) use ($recipient): bool {
+                return strtolower(trim((string) $user->microsoft_mailbox)) === $recipient
+                    && $user->hasPermission('manage-notifications');
+            });
 
         if ($users->isEmpty()) {
             return;

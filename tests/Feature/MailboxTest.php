@@ -3,6 +3,8 @@
 use App\Exceptions\MicrosoftGraphException;
 use App\Models\MailSavedRecipient;
 use App\Models\User;
+use App\Models\UserActivity;
+use Illuminate\Support\Facades\Queue;
 use App\Models\UserLevel;
 use Illuminate\Http\UploadedFile;
 use App\Services\MicrosoftGraphMailService;
@@ -96,14 +98,20 @@ test('a user without a mailbox cannot read or send mail', function () {
             ->where('mailbox', null)
         );
 
+    Http::fake();
+
     $this->actingAs($user)
         ->post(route('mailbox.send'), [
             'to' => 'buyer@example.com',
             'subject' => 'Hello',
             'body' => 'Message',
             'mailbox' => 'sales@gateway-ds.com',
+            'from' => 'larryd@gateway-ds.com',
+            'sender' => 'larryd@gateway-ds.com',
         ])
-        ->assertForbidden();
+        ->assertSessionHasErrors('body');
+
+    Http::assertNothingSent();
 
     $this->actingAs($user)
         ->get(route('mailbox.index', ['message' => 'abc']))
@@ -127,14 +135,109 @@ test('mail requests use the signed-in user mailbox and ignore a submitted sender
         ->assertSessionHas('success');
 
     Http::assertSent(function ($request) {
+        if (! str_contains($request->url(), '/sendMail')) {
+            return false;
+        }
+
+        $message = $request->data()['message'];
+
         return $request->url() === 'https://graph.microsoft.com/v1.0/users/'.rawurlencode('ricardo@gateway-ds.com').'/sendMail'
-            && $request->data()['message']['from']['emailAddress']['address'] === 'ricardo@gateway-ds.com'
+            && ! array_key_exists('from', $message)
+            && ! array_key_exists('sender', $message)
             && $request->data()['saveToSentItems'] === true;
     });
 
     Http::assertNotSent(function ($request) {
         return str_contains($request->url(), rawurlencode('sales@gateway-ds.com'));
     });
+});
+
+test('larry sends from larry mailbox and melissa sends from sales mailbox', function () {
+    $larry = mailboxUser('larryd@gateway-ds.com');
+    $larry->forceFill(['name' => 'Larry Deminski'])->save();
+    $melissa = mailboxUser('sales@gateway-ds.com');
+    $melissa->forceFill(['name' => 'Melissa'])->save();
+    fakeMailboxGraph();
+
+    $this->actingAs($larry)
+        ->post(route('mailbox.send'), [
+            'to' => 'buyer@example.com',
+            'subject' => 'From Larry',
+            'body' => 'Larry mailbox.',
+            'mailbox' => 'sales@gateway-ds.com',
+            'from' => 'sales@gateway-ds.com',
+        ])
+        ->assertRedirect();
+
+    $this->actingAs($melissa)
+        ->post(route('mailbox.send'), [
+            'to' => 'buyer@example.com',
+            'subject' => 'From Melissa',
+            'body' => 'Sales mailbox.',
+            'mailbox' => 'larryd@gateway-ds.com',
+            'from' => 'larryd@gateway-ds.com',
+            'sender' => 'larryd@gateway-ds.com',
+        ])
+        ->assertRedirect();
+
+    $sent = collect(Http::recorded())
+        ->map(fn (array $pair) => $pair[0]->url())
+        ->filter(fn (string $url) => str_contains($url, '/sendMail'))
+        ->values();
+
+    expect($sent)->toHaveCount(2)
+        ->and($sent[0])->toContain(rawurlencode('larryd@gateway-ds.com').'/sendMail')
+        ->and($sent[1])->toContain(rawurlencode('sales@gateway-ds.com').'/sendMail');
+});
+
+test('an administrator impersonating melissa sends through her mailbox', function () {
+    Queue::fake();
+    $master = mailboxUser('ricardo@gateway-ds.com');
+    $master->forceFill(['is_master' => true, 'role' => 'super_admin'])->save();
+    $melissa = mailboxUser('sales@gateway-ds.com');
+    $melissa->forceFill(['name' => 'Melissa'])->save();
+    fakeMailboxGraph();
+
+    $this->actingAs($master)
+        ->post(route('admin.users.impersonate', $melissa))
+        ->assertRedirect(route('mailbox.index'));
+
+    $this->assertAuthenticatedAs($melissa);
+
+    $this->post(route('mailbox.send'), [
+        'to' => 'buyer@example.com',
+        'subject' => 'While signed in as Melissa',
+        'body' => 'This must leave the sales mailbox.',
+        'mailbox' => 'larryd@gateway-ds.com',
+        'from' => 'larryd@gateway-ds.com',
+        'sender' => 'larryd@gateway-ds.com',
+    ])->assertRedirect(route('mailbox.index', ['folder' => 'sent']));
+
+    Http::assertSent(function ($request) {
+        if (! str_contains($request->url(), '/sendMail')) {
+            return false;
+        }
+
+        $message = $request->data()['message'];
+
+        return str_contains($request->url(), rawurlencode('sales@gateway-ds.com').'/sendMail')
+            && ! array_key_exists('from', $message)
+            && ! array_key_exists('sender', $message);
+    });
+
+    Http::assertNotSent(fn ($request) => str_contains($request->url(), rawurlencode('larryd@gateway-ds.com').'/sendMail'));
+
+    $activity = UserActivity::query()->where('action', 'send_mailbox_message')->first();
+
+    expect($activity)->not->toBeNull()
+        ->and($activity->user_id)->toBe($melissa->id)
+        ->and($activity->metadata['effective_user_id'])->toBe($melissa->id)
+        ->and($activity->metadata['impersonator_id'])->toBe($master->id)
+        ->and($activity->metadata['mailbox'])->toBe('sales@gateway-ds.com')
+        ->and($activity->metadata)->not->toHaveKey('body')
+        ->and(json_encode($activity->metadata))->not->toContain('client_secret');
+
+    Queue::assertNothingPushed();
 });
 
 test('a super admin still sends from their own assigned mailbox', function () {

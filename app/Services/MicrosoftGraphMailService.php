@@ -200,6 +200,7 @@ class MicrosoftGraphMailService
         array $bcc = [],
         string $importance = 'normal',
     ): void {
+        $mailbox = $this->resolveMailbox($mailbox);
         $files = $this->attachmentPayload($attachments);
         $message = [
             'subject' => $subject,
@@ -208,12 +209,6 @@ class MicrosoftGraphMailService
                 'content' => $content,
             ],
             'toRecipients' => $this->emailRecipients(is_array($to) ? $to : [$to]),
-            'from' => [
-                'emailAddress' => array_filter([
-                    'address' => $mailbox,
-                    'name' => trim((string) config('services.microsoft.mail_from_name')) ?: null,
-                ]),
-            ],
         ];
 
         if ($cc !== []) {
@@ -261,6 +256,8 @@ class MicrosoftGraphMailService
         if ($response->failed()) {
             throw new MicrosoftGraphException($this->failureMessage($response, true));
         }
+
+        $this->auditSend($mailbox);
     }
 
     /**
@@ -450,6 +447,64 @@ class MicrosoftGraphMailService
         }
 
         return [$tenantId, $clientId, $clientSecret];
+    }
+
+    /**
+     * User mail is sent only from the signed-in account's saved mailbox.
+     * A mailbox argument is ignored once an account is attached, so a browser
+     * payload cannot choose Larry's address or the contact-form sender.
+     */
+    private function resolveMailbox(string $requested): string
+    {
+        if (! $this->actor instanceof User) {
+            $mailbox = strtolower(trim($requested));
+
+            if ($mailbox === '') {
+                throw new MicrosoftGraphException('Microsoft Graph is missing MICROSOFT_MAIL_FROM.');
+            }
+
+            return $mailbox;
+        }
+
+        $fresh = User::query()->find($this->actor->getAuthIdentifier());
+        $mailbox = strtolower(trim((string) ($fresh->microsoft_mailbox ?? '')));
+
+        if ($mailbox === '' || filter_var($mailbox, FILTER_VALIDATE_EMAIL) === false) {
+            throw new MicrosoftGraphException('This account has no Microsoft 365 mailbox assigned.');
+        }
+
+        $this->actor = $fresh;
+
+        return $mailbox;
+    }
+
+    private function auditSend(string $mailbox): void
+    {
+        $effective = $this->actor;
+
+        if (! $effective instanceof User) {
+            return;
+        }
+
+        $impersonatorId = session('impersonator_id');
+        $impersonator = is_numeric($impersonatorId)
+            ? User::query()->find((int) $impersonatorId)
+            : null;
+
+        app(UserActivityLogger::class)->log(
+            $effective,
+            'record_created',
+            'send_mailbox_message',
+            'Sent a message from the signed-in mailbox.',
+            request(),
+            $effective,
+            array_filter([
+                'mailbox' => $mailbox,
+                'effective_user_id' => $effective->id,
+                'impersonator_id' => $impersonator?->id,
+                'impersonator_email' => $impersonator?->email,
+            ], fn (mixed $value): bool => $value !== null),
+        );
     }
 
     /**

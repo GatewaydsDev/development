@@ -24,7 +24,7 @@ class MailboxController extends Controller
         MicrosoftGraphMailService $graph,
         MicrosoftGraphPageCursor $cursors,
     ): Response {
-        $user = $request->user();
+        $user = $this->effectiveUser($request->user());
         $mailbox = $this->mailbox($user?->microsoft_mailbox);
         $folder = $this->folder($request->query('folder'));
         $messageToken = $request->query('message');
@@ -87,7 +87,7 @@ class MailboxController extends Controller
 
     public function unread(Request $request, MicrosoftGraphMailService $graph): JsonResponse
     {
-        $user = $request->user();
+        $user = $this->effectiveUser($request->user());
         $mailbox = $this->mailbox($user?->microsoft_mailbox);
 
         if (! $user instanceof User || $mailbox === null) {
@@ -114,8 +114,8 @@ class MailboxController extends Controller
 
     public function send(Request $request, MicrosoftGraphMailService $graph): RedirectResponse
     {
-        $mailbox = $this->mailbox($request->user()?->microsoft_mailbox);
-        abort_if($mailbox === null, 403);
+        $sender = $this->effectiveUser($request->user());
+        abort_unless($sender instanceof User, 403);
 
         $validated = $request->validate([
             'to' => ['required', 'string', 'max:2000', $this->addressRule()],
@@ -142,8 +142,8 @@ class MailboxController extends Controller
         }
 
         try {
-            $graph->actingAs($request->user())->sendComposed(
-                $mailbox,
+            $graph->actingAs($sender)->sendComposed(
+                '',
                 $to,
                 $validated['subject'],
                 $body['content'],
@@ -160,7 +160,7 @@ class MailboxController extends Controller
         }
 
         if ($request->boolean('save_recipients')) {
-            $this->rememberRecipients($request->user(), array_merge($to, $cc, $bcc));
+            $this->rememberRecipients($sender, array_merge($to, $cc, $bcc));
         }
 
         return redirect()
@@ -198,6 +198,15 @@ class MailboxController extends Controller
         $recipient->delete();
 
         return back();
+    }
+
+    private function effectiveUser(mixed $user): ?User
+    {
+        if (! $user instanceof User) {
+            return null;
+        }
+
+        return $user->fresh() ?? $user;
     }
 
     private function unreadCacheKey(User $user, string $mailbox): string

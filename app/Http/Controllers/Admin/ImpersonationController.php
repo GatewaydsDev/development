@@ -18,9 +18,9 @@ class ImpersonationController extends Controller
         abort_if($request->session()->has('impersonator_id'), 403);
         abort_if($actor->is($user), 403);
 
-        $request->session()->put('impersonator_id', $actor->id);
         Auth::login($user);
         $request->session()->regenerate();
+        Auth::login($user);
         $request->session()->put('impersonator_id', $actor->id);
 
         return redirect()
