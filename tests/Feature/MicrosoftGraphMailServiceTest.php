@@ -55,7 +55,8 @@ test('microsoft graph mail service sends html mail through azure', function () {
             && $payload['saveToSentItems'] === true
             && is_array($message)
             && $message['subject'] === 'Quote ready'
-            && $message['body']['content'] === '<p>The quote is attached.</p>'
+            && str_contains($message['body']['content'], '<p>The quote is attached.</p>')
+            && str_contains($message['body']['content'], '<!DOCTYPE html>')
             && $message['toRecipients'][0]['emailAddress']['address'] === 'sales@gateway-ds.com'
             && $message['replyTo'][0]['emailAddress']['address'] === 'buyer@example.com';
     });

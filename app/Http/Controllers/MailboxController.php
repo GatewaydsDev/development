@@ -9,6 +9,7 @@ use App\Services\MailboxStateService;
 use App\Services\MicrosoftGraphMailService;
 use App\Services\MicrosoftGraphPageCursor;
 use App\Support\EmailPlainText;
+use App\Support\MailAuthentication;
 use App\Support\MailboxComposition;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -414,6 +415,7 @@ class MailboxController extends Controller
             'headerWidth' => $user?->mailHeaderWidth() ?? 100,
             'footerColors' => $user?->mailFooterColors() ?? [],
             'unreadCount' => $unreadCount,
+            'deliveryProblems' => app(MailAuthentication::class)->problemsForMailbox($mailbox),
         ];
     }
 
