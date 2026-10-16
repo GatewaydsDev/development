@@ -18,7 +18,7 @@ import {
     CardTitle,
 } from '@/Components/ui/card';
 import { useForm } from '@inertiajs/react';
-import { Eye, EyeOff } from 'lucide-react';
+import { Check, Copy, Eye, EyeOff } from 'lucide-react';
 import { ChangeEvent, FormEventHandler, useEffect, useMemo, useState } from 'react';
 
 type Level = {
@@ -130,6 +130,68 @@ const getAgeInYears = (dateOfBirth: Date) => {
 
     return age;
 };
+
+function CopyableIdInput({
+    id,
+    label,
+    value,
+    placeholder,
+    error,
+    onChange,
+}: {
+    id: string;
+    label: string;
+    value: string;
+    placeholder: string;
+    error?: string;
+    onChange: (value: string) => void;
+}) {
+    const [copied, setCopied] = useState(false);
+    const canCopy = value.trim() !== '';
+
+    const copyValue = async () => {
+        if (!canCopy) {
+            return;
+        }
+
+        await navigator.clipboard.writeText(value.trim());
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 1500);
+    };
+
+    return (
+        <div className="flex flex-col gap-2">
+            <InputLabel
+                htmlFor={id}
+                value={label}
+                className="text-emerald-700 dark:text-emerald-300"
+            />
+            <div className="relative">
+                <TextInput
+                    id={id}
+                    value={value}
+                    className="h-9 w-full border-border bg-background pe-11 text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
+                    placeholder={placeholder}
+                    onChange={(event) => onChange(event.target.value)}
+                />
+                <button
+                    type="button"
+                    onClick={() => void copyValue()}
+                    disabled={!canCopy}
+                    className="absolute inset-y-0 end-0 flex items-center px-3 text-muted-foreground transition hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:cursor-not-allowed disabled:opacity-40"
+                    aria-label={copied ? `${label} copied` : `Copy ${label}`}
+                >
+                    {copied ? (
+                        <Check className="size-4" />
+                    ) : (
+                        <Copy className="size-4" />
+                    )}
+                </button>
+            </div>
+            <InputError message={error} />
+        </div>
+    );
+}
 
 export default function UserForm({
     userId,
@@ -575,71 +637,39 @@ export default function UserForm({
                                     one. The Secret ID is not the secret value.
                                 </p>
                             </div>
-                            <div className="flex flex-col gap-2">
-                                <InputLabel
-                                    htmlFor="microsoft-tenant-id"
-                                    value="Tenant ID"
-                                    className="text-emerald-700 dark:text-emerald-300"
-                                />
-                                <TextInput
-                                    id="microsoft-tenant-id"
-                                    value={data.microsoft_tenant_id}
-                                    className="h-9 w-full border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
-                                    placeholder="Leave blank to use the server tenant"
-                                    onChange={(event) =>
-                                        setData(
-                                            'microsoft_tenant_id',
-                                            event.target.value,
-                                        )
-                                    }
-                                />
-                                <InputError
-                                    message={errors.microsoft_tenant_id}
-                                />
-                            </div>
-                            <div className="flex flex-col gap-2">
-                                <InputLabel
-                                    htmlFor="microsoft-client-id"
-                                    value="Application (client) ID"
-                                    className="text-emerald-700 dark:text-emerald-300"
-                                />
-                                <TextInput
-                                    id="microsoft-client-id"
-                                    value={data.microsoft_client_id}
-                                    className="h-9 w-full border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
-                                    placeholder="Leave blank to use the server application"
-                                    onChange={(event) =>
-                                        setData(
-                                            'microsoft_client_id',
-                                            event.target.value,
-                                        )
-                                    }
-                                />
-                                <InputError
-                                    message={errors.microsoft_client_id}
-                                />
-                            </div>
-                            <div className="flex flex-col gap-2">
-                                <InputLabel
-                                    htmlFor="microsoft-client-secret-id"
-                                    value="Secret ID"
-                                    className="text-emerald-700 dark:text-emerald-300"
-                                />
-                                <TextInput
-                                    id="microsoft-client-secret-id"
-                                    value={data.microsoft_client_secret_id}
-                                    className="h-9 w-full border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
-                                    onChange={(event) =>
-                                        setData(
-                                            'microsoft_client_secret_id',
-                                            event.target.value,
-                                        )
-                                    }
-                                />
-                                <InputError
-                                    message={errors.microsoft_client_secret_id}
-                                />
-                            </div>
+                            <CopyableIdInput
+                                id="microsoft-tenant-id"
+                                label="Tenant ID"
+                                value={data.microsoft_tenant_id}
+                                placeholder="Leave blank to use the server tenant"
+                                error={errors.microsoft_tenant_id}
+                                onChange={(tenantId) =>
+                                    setData('microsoft_tenant_id', tenantId)
+                                }
+                            />
+                            <CopyableIdInput
+                                id="microsoft-client-id"
+                                label="Application (client) ID"
+                                value={data.microsoft_client_id}
+                                placeholder="Leave blank to use the server application"
+                                error={errors.microsoft_client_id}
+                                onChange={(clientId) =>
+                                    setData('microsoft_client_id', clientId)
+                                }
+                            />
+                            <CopyableIdInput
+                                id="microsoft-client-secret-id"
+                                label="Secret ID"
+                                value={data.microsoft_client_secret_id}
+                                placeholder="Secret ID from Azure"
+                                error={errors.microsoft_client_secret_id}
+                                onChange={(secretId) =>
+                                    setData(
+                                        'microsoft_client_secret_id',
+                                        secretId,
+                                    )
+                                }
+                            />
                             <div className="flex flex-col gap-2">
                                 <InputLabel
                                     htmlFor="microsoft-client-secret"

@@ -52,6 +52,37 @@ class MicrosoftGraphMailService
     }
 
     /**
+     * @param  list<string>  $to
+     * @param  list<string>  $cc
+     * @param  list<string>  $bcc
+     * @param  list<array{name: string, contentType: string, bytes: string}>  $attachments
+     */
+    public function sendComposed(
+        string $mailbox,
+        array $to,
+        string $subject,
+        string $content,
+        string $contentType = 'Text',
+        array $cc = [],
+        array $bcc = [],
+        string $importance = 'normal',
+        array $attachments = [],
+    ): void {
+        $this->sendMessage(
+            $mailbox,
+            $to,
+            $subject,
+            $content,
+            $contentType,
+            null,
+            $attachments,
+            $cc,
+            $bcc,
+            $importance,
+        );
+    }
+
+    /**
      * @return array{messages: list<array<string, mixed>>, nextLink: ?string}
      */
     public function listFolder(string $mailbox, string $folder, ?string $nextUrl = null): array
@@ -127,16 +158,22 @@ class MicrosoftGraphMailService
     }
 
     /**
+     * @param  string|list<string>  $to
      * @param  list<array{name: string, contentType: string, bytes: string}>  $attachments
+     * @param  list<string>  $cc
+     * @param  list<string>  $bcc
      */
     private function sendMessage(
         string $mailbox,
-        string $to,
+        string|array $to,
         string $subject,
         string $content,
         string $contentType,
         ?string $replyTo,
-        array $attachments = []
+        array $attachments = [],
+        array $cc = [],
+        array $bcc = [],
+        string $importance = 'normal',
     ): void {
         $files = $this->attachmentPayload($attachments);
         $message = [
@@ -145,13 +182,7 @@ class MicrosoftGraphMailService
                 'contentType' => $contentType,
                 'content' => $content,
             ],
-            'toRecipients' => [
-                [
-                    'emailAddress' => [
-                        'address' => $to,
-                    ],
-                ],
-            ],
+            'toRecipients' => $this->emailRecipients(is_array($to) ? $to : [$to]),
             'from' => [
                 'emailAddress' => array_filter([
                     'address' => $mailbox,
@@ -159,6 +190,18 @@ class MicrosoftGraphMailService
                 ]),
             ],
         ];
+
+        if ($cc !== []) {
+            $message['ccRecipients'] = $this->emailRecipients($cc);
+        }
+
+        if ($bcc !== []) {
+            $message['bccRecipients'] = $this->emailRecipients($bcc);
+        }
+
+        if (in_array($importance, ['low', 'high'], true)) {
+            $message['importance'] = $importance;
+        }
 
         if ($replyTo) {
             $message['replyTo'] = [
@@ -193,6 +236,31 @@ class MicrosoftGraphMailService
         if ($response->failed()) {
             throw new MicrosoftGraphException($this->failureMessage($response, true));
         }
+    }
+
+    /**
+     * @param  list<string>  $addresses
+     * @return list<array{emailAddress: array{address: string}}>
+     */
+    private function emailRecipients(array $addresses): array
+    {
+        $recipients = [];
+
+        foreach ($addresses as $address) {
+            $address = strtolower(trim($address));
+
+            if ($address === '') {
+                continue;
+            }
+
+            $recipients[] = [
+                'emailAddress' => [
+                    'address' => $address,
+                ],
+            ];
+        }
+
+        return $recipients;
     }
 
     /**
