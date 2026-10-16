@@ -12,11 +12,19 @@ import {
     CardHeader,
     CardTitle,
 } from '@/Components/ui/card';
-import { acknowledgeUnreadMail } from '@/lib/unreadMail';
+import { acknowledgeUnreadMail, setUnreadMail } from '@/lib/unreadMail';
+import { cn } from '@/lib/utils';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { ArrowLeftIcon, ForwardIcon, RefreshCwIcon, ReplyIcon } from 'lucide-react';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/Components/ui/dropdown-menu';
+import { ArchiveIcon, ArrowLeftIcon, ForwardIcon, MailIcon, MailOpenIcon, MoreVerticalIcon, RefreshCwIcon, ReplyIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import MailSettings from '@/Pages/Email/MailSettings';
 
 type MailSummary = {
     id: string;
@@ -42,13 +50,64 @@ type MailMessage = {
 
 type Props = {
     mailbox: string | null;
-    folder: 'inbox' | 'sent';
+    folder: 'inbox' | 'sent' | 'archive';
     messages: MailSummary[];
     nextCursor: string | null;
     message: MailMessage | null;
     graphError: string | null;
     savedRecipients?: SavedRecipient[];
+    signature?: string | null;
+    headerUrl?: string | null;
+    unreadCount?: number;
 };
+
+function MessageOptions({
+    messageId,
+    folder,
+    acting,
+    onRead,
+    onArchive,
+}: {
+    messageId: string;
+    folder: 'inbox' | 'sent' | 'archive';
+    acting: boolean;
+    onRead: (messageId: string, isRead: boolean) => void;
+    onArchive: (messageId: string, archived: boolean) => void;
+}) {
+    const { t } = useTranslation('mail');
+
+    return (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <button
+                    type="button"
+                    aria-label={t('messageOptions')}
+                    className="inline-flex size-11 items-center justify-center rounded-md text-muted-foreground touch-manipulation hover:bg-muted hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                >
+                    <MoreVerticalIcon className="size-4" />
+                </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+                <DropdownMenuItem className="min-h-11" disabled={acting} onSelect={() => onRead(messageId, true)}>
+                    <MailOpenIcon className="size-4" />
+                    {t('markRead')}
+                </DropdownMenuItem>
+                <DropdownMenuItem className="min-h-11" disabled={acting} onSelect={() => onRead(messageId, false)}>
+                    <MailIcon className="size-4" />
+                    {t('markUnread')}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                    className="min-h-11"
+                    disabled={acting}
+                    onSelect={() => onArchive(messageId, folder !== 'archive')}
+                >
+                    <ArchiveIcon className="size-4" />
+                    {folder === 'archive' ? t('moveToInbox') : t('archive')}
+                </DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
+    );
+}
 
 const formatWhen = (value: string | null) => {
     if (!value) {
@@ -75,6 +134,9 @@ export default function Index({
     message,
     graphError,
     savedRecipients = [],
+    signature = null,
+    headerUrl = null,
+    unreadCount = 0,
 }: Props) {
     const { t } = useTranslation('mail');
     const flash = usePage().props.flash as { success?: string | null } | undefined;
@@ -82,14 +144,25 @@ export default function Index({
     const [showCompose, setShowCompose] = useState(false);
     const [draft, setDraft] = useState<ComposeDraft | undefined>(undefined);
     const [draftKey, setDraftKey] = useState(0);
+    const [acting, setActing] = useState(false);
 
     useEffect(() => {
-        if (folder === 'inbox' && message) {
-            acknowledgeUnreadMail();
-        }
-    }, [folder, message]);
+        setUnreadMail(unreadCount);
+    }, [unreadCount]);
 
-    const folderHref = (nextFolder: 'inbox' | 'sent', cursor?: string | null) =>
+    useEffect(() => {
+        if (folder !== 'inbox' || message === null) {
+            return;
+        }
+
+        const opened = messages.find((item) => item.id === message.id);
+
+        if (opened && !opened.is_read) {
+            acknowledgeUnreadMail(message.id);
+        }
+    }, [folder, message, messages]);
+
+    const folderHref = (nextFolder: 'inbox' | 'sent' | 'archive', cursor?: string | null) =>
         route('mailbox.index', {
             folder: nextFolder,
             ...(cursor ? { cursor } : {}),
@@ -111,6 +184,32 @@ export default function Index({
         setDraft(nextDraft);
         setDraftKey((key) => key + 1);
         setShowCompose(true);
+    };
+
+    const folderTitle = folder === 'sent' ? t('sent') : folder === 'archive' ? t('archive') : t('inbox');
+
+    const changeRead = (messageId: string, isRead: boolean) => {
+        setActing(true);
+        router.patch(
+            route('mailbox.state'),
+            { message: messageId, is_read: isRead ? 1 : 0 },
+            {
+                preserveScroll: true,
+                onFinish: () => setActing(false),
+            },
+        );
+    };
+
+    const changeArchive = (messageId: string, archived: boolean) => {
+        setActing(true);
+        router.post(
+            route('mailbox.archive'),
+            { message: messageId, archived: archived ? 1 : 0 },
+            {
+                preserveScroll: true,
+                onFinish: () => setActing(false),
+            },
+        );
     };
 
     const subjectWithPrefix = (prefix: 'Re' | 'Fw', subject: string) => {
@@ -159,12 +258,17 @@ export default function Index({
                                 </p>
                             ) : null}
 
+                            <MailSettings signature={signature} headerUrl={headerUrl} />
+
                             <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
                                 <Button className="min-h-11 touch-manipulation" variant={folder === 'inbox' ? 'default' : 'outline'} asChild>
                                     <Link href={folderHref('inbox')}>{t('inbox')}</Link>
                                 </Button>
                                 <Button className="min-h-11 touch-manipulation" variant={folder === 'sent' ? 'default' : 'outline'} asChild>
                                     <Link href={folderHref('sent')}>{t('sent')}</Link>
+                                </Button>
+                                <Button className="min-h-11 touch-manipulation" variant={folder === 'archive' ? 'default' : 'outline'} asChild>
+                                    <Link href={folderHref('archive')}>{t('archive')}</Link>
                                 </Button>
                                 <Button className="min-h-11 touch-manipulation" type="button" variant="outline" onClick={() => openCompose()}>
                                     {t('compose')}
@@ -181,6 +285,8 @@ export default function Index({
                                     mailbox={mailbox}
                                     recipients={savedRecipients}
                                     draft={draft}
+                                    signature={signature}
+                                    headerUrl={headerUrl}
                                     onDiscard={() => setShowCompose(false)}
                                 />
                             ) : null}
@@ -188,23 +294,45 @@ export default function Index({
                             <div className={`grid min-w-0 gap-4 md:grid-cols-[minmax(14rem,20rem)_minmax(0,1fr)] ${showCompose ? 'max-md:hidden' : ''}`}>
                                 <Card className={message ? 'max-md:hidden' : undefined}>
                                     <CardHeader>
-                                        <CardTitle>{folder === 'sent' ? t('sent') : t('inbox')}</CardTitle>
+                                        <CardTitle>{folderTitle}</CardTitle>
                                     </CardHeader>
                                     <CardContent className="grid gap-2">
                                         {messages.length === 0 ? (
                                             <p className="text-sm text-muted-foreground">{t('empty')}</p>
                                         ) : (
                                             messages.map((item) => (
-                                                <Link
+                                                <div
                                                     key={item.id}
+                                                    className={cn(
+                                                        'relative min-w-0 rounded-md border',
+                                                        folder !== 'sent' && !item.is_read
+                                                            ? 'border-red-500/40 bg-red-500/5'
+                                                            : 'border-border',
+                                                    )}
+                                                >
+                                                    <div className="absolute end-0 top-0 z-10">
+                                                        <MessageOptions
+                                                            messageId={item.id}
+                                                            folder={folder}
+                                                            acting={acting}
+                                                            onRead={changeRead}
+                                                            onArchive={changeArchive}
+                                                        />
+                                                    </div>
+                                                <Link
                                                     href={route('mailbox.index', {
                                                         folder,
                                                         message: item.id,
                                                     })}
-                                                    className="block min-h-11 min-w-0 rounded-md border border-border px-3 py-3 text-left touch-manipulation hover:bg-muted"
+                                                    className="block min-h-11 min-w-0 rounded-md py-3 pe-12 ps-3 text-left touch-manipulation hover:bg-muted"
                                                 >
-                                                    <p className="break-words font-medium text-foreground">
-                                                        {item.subject || t('noSubject')}
+                                                    <p className="flex items-center gap-2 break-words text-foreground">
+                                                        {folder !== 'sent' && !item.is_read ? (
+                                                            <MailIcon className="size-3.5 shrink-0 text-red-600" />
+                                                        ) : null}
+                                                        <span className={folder !== 'sent' && !item.is_read ? 'font-semibold' : 'font-medium'}>
+                                                            {item.subject || t('noSubject')}
+                                                        </span>
                                                     </p>
                                                     <p className="break-all text-sm text-muted-foreground">
                                                         {folder === 'sent' ? item.to.join(', ') : item.from}
@@ -216,6 +344,7 @@ export default function Index({
                                                         {formatWhen(folder === 'sent' ? item.sent_at : item.received_at)}
                                                     </p>
                                                 </Link>
+                                                </div>
                                             ))
                                         )}
                                         <div className="grid grid-cols-2 gap-2 pt-2 sm:flex">
@@ -241,7 +370,18 @@ export default function Index({
                                                 </Link>
                                             </Button>
                                         ) : null}
-                                        <CardTitle className="break-words">{message?.subject || t('select')}</CardTitle>
+                                        <div className="flex items-start justify-between gap-2">
+                                            <CardTitle className="break-words">{message?.subject || t('select')}</CardTitle>
+                                            {message ? (
+                                                <MessageOptions
+                                                    messageId={message.id}
+                                                    folder={folder}
+                                                    acting={acting}
+                                                    onRead={changeRead}
+                                                    onArchive={changeArchive}
+                                                />
+                                            ) : null}
+                                        </div>
                                         {message ? (
                                             <CardDescription className="break-all">
                                                 {t('from')}: {message.from}

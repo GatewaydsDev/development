@@ -52,7 +52,11 @@ class MicrosoftGraphPageCursor
         $scheme = strtolower((string) ($parts['scheme'] ?? ''));
         $host = strtolower((string) ($parts['host'] ?? ''));
         $path = rawurldecode((string) ($parts['path'] ?? ''));
-        $graphFolder = $folder === 'sent' ? 'sentitems' : 'inbox';
+        $graphFolder = match ($folder) {
+            'sent' => 'sentitems',
+            'archive' => 'archive',
+            default => 'inbox',
+        };
         $expected = '/users/'.strtolower($mailbox).'/mailfolders/'.$graphFolder.'/messages';
 
         if ($scheme !== 'https' || $host !== 'graph.microsoft.com') {

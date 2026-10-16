@@ -2,9 +2,9 @@ import { router } from '@inertiajs/react';
 import { LoaderCircleIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-type NoticeKind = 'saving' | 'dashboard';
+type NoticeKind = 'saving' | 'dashboard' | 'sending-mail';
 
-const counts: Record<NoticeKind, number> = { saving: 0, dashboard: 0 };
+const counts: Record<NoticeKind, number> = { saving: 0, dashboard: 0, 'sending-mail': 0 };
 let pending = 0;
 let noticeKind: NoticeKind = 'saving';
 const listeners = new Set<() => void>();
@@ -16,8 +16,10 @@ const notify = () => {
 
 const publish = (kind: NoticeKind, delta: number) => {
     counts[kind] = Math.max(0, counts[kind] + delta);
-    pending = counts.saving + counts.dashboard;
-    if (counts.saving > 0) {
+    pending = counts.saving + counts.dashboard + counts['sending-mail'];
+    if (counts['sending-mail'] > 0) {
+        noticeKind = 'sending-mail';
+    } else if (counts.saving > 0) {
         noticeKind = 'saving';
     } else if (counts.dashboard > 0) {
         noticeKind = 'dashboard';
@@ -57,6 +59,10 @@ const noticeForVisit = (visit: { method: string; url: string | URL; prefetch?: b
 
     if (method === 'post' && matches('login')) {
         return 'dashboard';
+    }
+
+    if (method === 'post' && path === '/email') {
+        return 'sending-mail';
     }
 
     if (method !== 'post' && method !== 'put' && method !== 'patch') {
@@ -141,10 +147,16 @@ export default function SavingNotice() {
             <div className="w-full max-w-sm rounded-xl border border-border bg-background px-6 py-6 text-center shadow-2xl">
                 <LoaderCircleIcon className="mx-auto size-8 animate-spin text-emerald-700" />
                 <p id="saving-notice-title" className="mt-3 text-base font-semibold text-foreground">
-                    {kind === 'dashboard' ? 'Loading dashboard' : 'Saving data'}
+                    {kind === 'dashboard'
+                        ? 'Loading dashboard'
+                        : kind === 'sending-mail'
+                          ? 'Sending your email'
+                          : 'Saving data'}
                 </p>
                 <p id="saving-notice-description" className="mt-1 text-sm text-muted-foreground">
-                    Please wait.
+                    {kind === 'sending-mail'
+                        ? 'Please wait. Your message, recipients, and attachments are being saved, and then the email is sent.'
+                        : 'Please wait.'}
                 </p>
             </div>
         </div>

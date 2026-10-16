@@ -11,7 +11,6 @@ import {
     PublicServicesNavigationContent,
 } from '@/Components/PublicServicesNavigation';
 import ThemeModeToggle from '@/Components/ThemeModeToggle';
-import UnreadMailButton from '@/Components/UnreadMailButton';
 import {
     NavigationMenu,
     NavigationMenuItem,
@@ -195,16 +194,13 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                             <ThemeModeToggle onDarkHeader />
 
                             {auth.user ? (
-                                <>
-                                    <UnreadMailButton onDark />
-                                    <Link
+                                <Link
                                     href={route('dashboard')}
                                     className="group inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md border border-white/30 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/20 hover:text-white focus:outline-none focus:ring-2 focus:ring-[#3FCF8E] focus:ring-offset-2 focus:ring-offset-[#111827]"
                                 >
                                     <LayoutDashboardIcon className="size-4 shrink-0 transition group-hover:animate-bell-shake group-focus-visible:animate-bell-shake" />
                                     {t('auth.dashboard')}
                                 </Link>
-                                </>
                             ) : (
                                 <Link
                                     href={route('login')}
@@ -216,8 +212,7 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                             )}
                         </div>
 
-                        <div className="-me-2 flex items-center gap-2 lg:hidden">
-                            {auth.user ? <UnreadMailButton onDark /> : null}
+                        <div className="-me-2 flex items-center lg:hidden">
                             <button
                                 type="button"
                                 onClick={() =>
@@ -316,9 +311,7 @@ export default function PublicLayout({ children }: PropsWithChildren) {
 
                         <div className="flex flex-col gap-2">
                             {auth.user ? (
-                                <>
-                                    <UnreadMailButton onDark />
-                                    <Link
+                                <Link
                                     href={route('dashboard')}
                                     onClick={() =>
                                         setShowingNavigationDropdown(false)
@@ -328,7 +321,6 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                                     <LayoutDashboardIcon className="size-4 shrink-0 transition group-hover:animate-bell-shake group-focus-visible:animate-bell-shake" />
                                     {t('auth.dashboard')}
                                 </Link>
-                                </>
                             ) : (
                                 <Link
                                     href={route('login')}
