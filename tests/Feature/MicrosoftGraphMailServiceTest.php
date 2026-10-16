@@ -26,12 +26,6 @@ test('microsoft graph mail service sends html mail through azure', function () {
             ], 200);
         }
 
-        $path = rawurldecode((string) (parse_url($request->url(), PHP_URL_PATH) ?? ''));
-
-        if ($request->method() === 'POST' && str_ends_with($path, '/messages')) {
-            return Http::response(['id' => 'draft-1'], 201);
-        }
-
         return Http::response('', 202);
     });
 
@@ -51,16 +45,19 @@ test('microsoft graph mail service sends html mail through azure', function () {
 
     Http::assertSent(function ($request) {
         $payload = $request->data();
+        $message = $payload['message'] ?? null;
 
         $path = rawurldecode((string) (parse_url($request->url(), PHP_URL_PATH) ?? ''));
 
         return $request->method() === 'POST'
-            && str_ends_with($path, '/users/sales@gateway-ds.com/messages')
+            && str_ends_with($path, '/users/sales@gateway-ds.com/sendMail')
             && $request->hasHeader('Authorization', 'Bearer graph-token')
-            && $payload['subject'] === 'Quote ready'
-            && $payload['body']['content'] === '<p>The quote is attached.</p>'
-            && $payload['toRecipients'][0]['emailAddress']['address'] === 'sales@gateway-ds.com'
-            && $payload['replyTo'][0]['emailAddress']['address'] === 'buyer@example.com';
+            && $payload['saveToSentItems'] === true
+            && is_array($message)
+            && $message['subject'] === 'Quote ready'
+            && $message['body']['content'] === '<p>The quote is attached.</p>'
+            && $message['toRecipients'][0]['emailAddress']['address'] === 'sales@gateway-ds.com'
+            && $message['replyTo'][0]['emailAddress']['address'] === 'buyer@example.com';
     });
 });
 
@@ -142,15 +139,7 @@ test('a super admin sends mail with that persons microsoft credentials', functio
             'access_token' => 'graph-token',
             'expires_in' => 3600,
         ], 200),
-        'https://graph.microsoft.com/*' => function ($request) {
-            $path = rawurldecode((string) (parse_url($request->url(), PHP_URL_PATH) ?? ''));
-
-            if ($request->method() === 'POST' && str_ends_with($path, '/messages')) {
-                return Http::response(['id' => 'draft-1'], 201);
-            }
-
-            return Http::response('', 202);
-        },
+        'https://graph.microsoft.com/*' => Http::response('', 202),
     ]);
 
     app(MicrosoftGraphMailService::class)

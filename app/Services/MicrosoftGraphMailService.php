@@ -255,33 +255,13 @@ class MicrosoftGraphMailService
         }
 
         try {
-            $draft = $this->graph('POST', $this->userUrl($mailbox).'/messages', $message, true);
+            $response = $this->graph('POST', $this->userUrl($mailbox).'/sendMail', [
+                'message' => $message,
+                'saveToSentItems' => true,
+            ], true);
         } catch (ConnectionException) {
             throw new MicrosoftGraphException(
                 'Microsoft 365 did not confirm the message. It was not sent again.'
-            );
-        }
-
-        if ($draft->failed()) {
-            throw new MicrosoftGraphException($this->failureMessage($draft, true));
-        }
-
-        $messageId = $draft->json('id');
-
-        if (! is_string($messageId) || $messageId === '') {
-            throw new MicrosoftGraphException('Microsoft 365 did not save the message.');
-        }
-
-        try {
-            $response = $this->graph(
-                'POST',
-                $this->userUrl($mailbox).'/messages/'.rawurlencode($messageId).'/send',
-                null,
-                true,
-            );
-        } catch (ConnectionException) {
-            throw new MicrosoftGraphException(
-                'Microsoft 365 saved the message but did not confirm sending. It was not sent again.'
             );
         }
 
@@ -608,11 +588,23 @@ class MicrosoftGraphMailService
 
         return match ($status) {
             401 => 'Microsoft 365 rejected the application credentials.',
-            403 => 'Microsoft 365 denied access to this mailbox.',
+            403 => $this->accessDeniedMessage($response),
             404 => 'Microsoft 365 could not find that mailbox or message.',
             429 => 'Microsoft 365 is limiting requests. Try again in a moment.',
             default => 'Microsoft Graph request failed: HTTP '.$status.' '.$this->safeDetail($response),
         };
+    }
+
+    private function accessDeniedMessage(Response $response): string
+    {
+        $code = $response->json('error.code');
+        $code = is_string($code) ? preg_replace('/[^A-Za-z0-9_]/', '', $code) ?? '' : '';
+
+        if ($code === '') {
+            return 'Microsoft 365 denied access to this mailbox.';
+        }
+
+        return 'Microsoft 365 denied access to this mailbox ('.$code.').';
     }
 
     private function safeDetail(Response $response): string
