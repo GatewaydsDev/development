@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Support\PasswordResetLink;
 use App\Models\User;
 use App\Support\RegistrationAccess;
 use App\Support\UserPrivileges;
@@ -20,7 +21,6 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules;
 use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\PersonalAccessToken;
-use Throwable;
 
 class AuthController extends Controller
 {
@@ -120,28 +120,22 @@ class AuthController extends Controller
                 'max:255',
                 Rule::exists(User::class, 'email'),
             ],
+            'phone' => ['nullable', 'string', 'max:40'],
         ], [
             'email.exists' => 'We could not find an account with that email address.',
         ]);
 
-        try {
-            $status = Password::sendResetLink([
-                'email' => $validated['email'],
-            ]);
-        } catch (Throwable) {
-            throw ValidationException::withMessages([
-                'email' => ['There was an error sending the email. Please try again in a moment.'],
-            ]);
-        }
+        $user = User::query()->whereRaw('LOWER(email) = ?', [$validated['email']])->firstOrFail();
+        $result = app(PasswordResetLink::class)->send($user, $validated['phone'] ?? null);
 
-        if ($status !== Password::RESET_LINK_SENT) {
+        if ($result === PasswordResetLink::PHONE_REQUIRED) {
             throw ValidationException::withMessages([
-                'email' => [trans($status)],
+                'phone' => 'Enter the phone number saved on this account.',
             ]);
         }
 
         return response()->json([
-            'message' => 'The password reset email has been sent. Please check your inbox and spam folder.',
+            'message' => 'The password reset email has been sent. Please check your inbox and spam folder. The link expires in 10 minutes.',
         ]);
     }
 

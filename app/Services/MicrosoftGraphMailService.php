@@ -38,6 +38,17 @@ class MicrosoftGraphMailService
         $this->sendMessage($from, $to, $subject, $html, 'HTML', $replyTo);
     }
 
+    public function sendFromMailbox(
+        string $mailbox,
+        string $to,
+        string $subject,
+        string $html,
+        string $fromName = 'Gateway Door Systems',
+    ): void {
+        $this->actor = null;
+        $this->sendMessage($mailbox, $to, $subject, $html, 'HTML', null, [], [], [], 'normal', $fromName);
+    }
+
     /**
      * @param  list<array{name: string, contentType: string, bytes: string}>  $attachments
      */
@@ -253,6 +264,7 @@ class MicrosoftGraphMailService
         array $cc = [],
         array $bcc = [],
         string $importance = 'normal',
+        ?string $fromName = null,
     ): void {
         $mailbox = $this->resolveMailbox($mailbox);
         $files = $this->attachmentPayload($attachments);
@@ -269,6 +281,15 @@ class MicrosoftGraphMailService
             ],
             'toRecipients' => $this->emailRecipients(is_array($to) ? $to : [$to]),
         ];
+
+        if (is_string($fromName) && trim($fromName) !== '') {
+            $message['from'] = [
+                'emailAddress' => [
+                    'address' => $mailbox,
+                    'name' => trim($fromName),
+                ],
+            ];
+        }
 
         if ($cc !== []) {
             $message['ccRecipients'] = $this->emailRecipients($cc);

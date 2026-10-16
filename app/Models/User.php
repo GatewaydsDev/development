@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\HasUuidRouteKey;
 use App\Notifications\ResetPasswordNotification;
+use App\Support\AccountPhone;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -225,6 +226,28 @@ class User extends Authenticatable
     public function phones(): HasMany
     {
         return $this->hasMany(UserPhone::class)->orderByDesc('is_primary')->orderBy('id');
+    }
+
+    public function hasSavedPhone(): bool
+    {
+        $this->loadMissing('phones');
+
+        return $this->phones->contains(
+            fn (UserPhone $phone): bool => AccountPhone::digits((string) $phone->phone) !== '',
+        );
+    }
+
+    public function matchesSavedPhone(string $phone): bool
+    {
+        $this->loadMissing('phones');
+
+        foreach ($this->phones as $saved) {
+            if (AccountPhone::same($phone, (string) $saved->phone)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function workSchedules(): HasMany
