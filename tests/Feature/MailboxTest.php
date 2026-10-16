@@ -96,6 +96,9 @@ test('guests cannot open the mailbox', function () {
         'subject' => 'Hello',
         'body' => 'Message',
     ])->assertRedirect(route('login'));
+
+    $this->put(route('mailbox.header.size'), ['width' => 50])->assertRedirect(route('login'));
+    $this->put(route('mailbox.footer'), ['colors' => []])->assertRedirect(route('login'));
 });
 
 test('a user without a mailbox cannot read or send mail', function () {
@@ -632,6 +635,8 @@ test('outgoing mail includes the saved signature and header image', function () 
     $user = mailboxUser();
     $user->mail_signature = "Ricardo Scarpim\nGateway Door Systems";
     $user->mail_header_path = 'mail-headers/header.png';
+    $user->mail_header_width = 40;
+    $user->mail_footer_colors = ['#047857', '#b45309'];
     $user->save();
     Storage::disk('public')->put($user->mail_header_path, 'header-bytes');
     fakeMailboxGraph();
@@ -658,11 +663,48 @@ test('outgoing mail includes the saved signature and header image', function () 
             && str_contains($content, 'The opening is ready.')
             && str_contains($content, 'Ricardo Scarpim')
             && str_contains($content, 'Gateway Door Systems')
+            && str_contains($content, 'width="240"')
+            && str_contains($content, 'bgcolor="#047857"')
+            && str_contains($content, 'bgcolor="#b45309"')
             && $header['isInline'] === true
             && $header['contentId'] === 'gateway-mail-header'
             && ! isset($message['from'])
             && ! isset($message['sender']);
     });
+});
+
+test('header size and footer color boxes are saved for later messages', function () {
+    $user = mailboxUser();
+
+    $this->actingAs($user)
+        ->put(route('mailbox.header.size'), ['width' => 40])
+        ->assertRedirect();
+
+    $this->actingAs($user)
+        ->put(route('mailbox.footer'), ['colors' => ['#047857', '#B45309']])
+        ->assertRedirect();
+
+    $fresh = $user->fresh();
+
+    expect($fresh->mail_header_width)->toBe(40)
+        ->and($fresh->mailFooterColors())->toBe(['#047857', '#b45309']);
+
+    $this->actingAs($user)
+        ->put(route('mailbox.footer'), ['colors' => ['not-a-color']])
+        ->assertSessionHasErrors('colors.0');
+
+    $this->actingAs($user)
+        ->put(route('mailbox.header.size'), ['width' => 10])
+        ->assertSessionHasErrors('width');
+
+    expect($user->fresh()->mail_header_width)->toBe(40)
+        ->and($user->fresh()->mailFooterColors())->toBe(['#047857', '#b45309']);
+
+    $this->actingAs($user)
+        ->put(route('mailbox.footer'), ['colors' => []])
+        ->assertRedirect();
+
+    expect($user->fresh()->mail_footer_colors)->toBeNull();
 });
 
 test('the signed in mailbox reports how many emails are unread', function () {

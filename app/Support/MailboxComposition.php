@@ -15,8 +15,9 @@ class MailboxComposition
     {
         $header = $this->header($user);
         $signature = $this->signature($user);
+        $footer = $this->footer($user);
 
-        if ($header === null && $signature === null) {
+        if ($header === null && $signature === null && $footer === null) {
             return [
                 'content' => $content,
                 'type' => $type,
@@ -28,7 +29,7 @@ class MailboxComposition
             ? $content
             : nl2br(e($content));
 
-        $html = ($header['html'] ?? '').'<div>'.$body.'</div>'.($signature ?? '');
+        $html = ($header['html'] ?? '').'<div>'.$body.'</div>'.($signature ?? '').($footer ?? '');
 
         if ($header !== null) {
             $attachments[] = $header['file'];
@@ -73,8 +74,10 @@ class MailboxComposition
             default => 'image/png',
         };
 
+        $pixels = (int) round(600 * $user->mailHeaderWidth() / 100);
+
         return [
-            'html' => '<p><img src="cid:gateway-mail-header" alt="" style="max-width:100%;height:auto;"></p>',
+            'html' => '<p><img src="cid:gateway-mail-header" alt="" width="'.$pixels.'" style="width:'.$pixels.'px;max-width:100%;height:auto;"></p>',
             'file' => [
                 'name' => 'header.'.$extension,
                 'contentType' => $mime,
@@ -94,5 +97,22 @@ class MailboxComposition
         }
 
         return '<div style="margin-top:16px">'.nl2br(e($signature)).'</div>';
+    }
+
+    private function footer(User $user): ?string
+    {
+        $colors = $user->mailFooterColors();
+
+        if ($colors === []) {
+            return null;
+        }
+
+        $cells = '';
+
+        foreach ($colors as $color) {
+            $cells .= '<td width="36" height="18" bgcolor="'.$color.'" style="width:36px;height:18px;background:'.$color.';font-size:0;line-height:0;padding-right:6px;">&nbsp;</td>';
+        }
+
+        return '<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:12px;border-collapse:collapse;"><tr>'.$cells.'</tr></table>';
     }
 }

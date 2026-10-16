@@ -122,6 +122,10 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
         ->name('mailbox.header');
     Route::delete('/email/header', [MailboxController::class, 'destroyHeader'])
         ->name('mailbox.header.destroy');
+    Route::put('/email/header-size', [MailboxController::class, 'updateHeaderSize'])
+        ->name('mailbox.header.size');
+    Route::put('/email/footer', [MailboxController::class, 'updateFooter'])
+        ->name('mailbox.footer');
     Route::post('/email/recipients', [MailboxController::class, 'storeRecipient'])
         ->name('mailbox.recipients.store');
     Route::delete('/email/recipients/{recipient}', [MailboxController::class, 'destroyRecipient'])

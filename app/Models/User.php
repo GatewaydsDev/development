@@ -67,6 +67,8 @@ class User extends Authenticatable
         'microsoft_client_secret_id',
         'mail_signature',
         'mail_header_path',
+        'mail_header_width',
+        'mail_footer_colors',
     ];
 
     /**
@@ -83,6 +85,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_master' => 'boolean',
             'microsoft_client_secret' => 'encrypted',
+            'mail_footer_colors' => 'array',
         ];
     }
 
@@ -188,6 +191,35 @@ class User extends Authenticatable
         }
 
         return asset('storage/'.ltrim($this->mail_header_path, '/'));
+    }
+
+    public function mailHeaderWidth(): int
+    {
+        $width = (int) ($this->mail_header_width ?? 100);
+
+        return $width >= 20 && $width <= 100 ? $width : 100;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function mailFooterColors(): array
+    {
+        $colors = $this->mail_footer_colors;
+
+        if (! is_array($colors)) {
+            return [];
+        }
+
+        $valid = [];
+
+        foreach ($colors as $color) {
+            if (is_string($color) && preg_match('/^#[0-9A-Fa-f]{6}$/', $color) === 1) {
+                $valid[] = strtolower($color);
+            }
+        }
+
+        return $valid;
     }
 
     public function phones(): HasMany
