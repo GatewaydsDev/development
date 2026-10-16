@@ -85,6 +85,12 @@ class HandleInertiaRequests extends Middleware
             'session' => [
                 'idleTimeoutMinutes' => max(0, (int) config('session.idle_timeout_minutes')),
             ],
+            'impersonation' => $request->user() && $request->session()->has('impersonator_id')
+                ? [
+                    'name' => $request->user()->name,
+                    'email' => $request->user()->email,
+                ]
+                : null,
             'realtime' => fn (): ?array => $request->user() && config('broadcasting.default') === 'reverb' && config('broadcasting.connections.reverb.key')
                 ? [
                     'key' => config('broadcasting.connections.reverb.key'),
@@ -99,6 +105,9 @@ class HandleInertiaRequests extends Middleware
                     'manageUsers' => $request->user()
                         ? Gate::forUser($request->user())->any(['view-users', 'create-users', 'update-users'])
                         : false,
+                    'impersonateUsers' => $request->user() instanceof \App\Models\User
+                        && $request->user()->isMaster()
+                        && ! $request->session()->has('impersonator_id'),
                     'manageOwnAccount' => $request->user()?->canManageOwnAccount() ?? false,
                     'viewUsers' => $request->user()
                         ? Gate::forUser($request->user())->allows('view-users')

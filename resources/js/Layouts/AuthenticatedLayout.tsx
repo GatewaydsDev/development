@@ -181,7 +181,7 @@ export default function Authenticated({
     children,
 }: PropsWithChildren<{ header?: ReactNode; stickyTitle?: string; fullWidth?: boolean }>) {
     const page = usePage<PageProps>();
-    const { auth, session, flash } = page.props;
+    const { auth, session, flash, impersonation } = page.props;
     const user = auth.user;
     const idleTimeoutMinutes = Number(session?.idleTimeoutMinutes ?? 0);
     const canManageUsers = Boolean(auth.can?.manageUsers);
@@ -456,6 +456,20 @@ export default function Authenticated({
                     sidebarCollapsed ? 'lg:pl-16' : 'lg:pl-72 xl:pl-80',
                 )}
             >
+                {impersonation ? (
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-950">
+                        <p>
+                            Signed in as {impersonation.name} ({impersonation.email}).
+                        </p>
+                        <button
+                            type="button"
+                            className="rounded-md border border-amber-400 bg-white px-3 py-1 text-xs font-medium text-amber-950 hover:bg-amber-100"
+                            onClick={() => router.delete(route('impersonation.destroy'))}
+                        >
+                            Return to your account
+                        </button>
+                    </div>
+                ) : null}
                 <nav
                     ref={navRef}
                     className="sticky top-0 z-30 border-b border-border bg-background"

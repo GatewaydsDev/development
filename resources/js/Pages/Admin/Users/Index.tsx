@@ -2,6 +2,16 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ActionHint from '@/Components/ActionHint';
 import DirectoryFieldLabel from '@/Components/DirectoryFieldLabel';
 import PaginationNav from '@/Components/PaginationNav';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/Components/ui/alert-dialog';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import {
@@ -15,6 +25,7 @@ import { PageProps } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     EditIcon,
+    LogInIcon,
     SearchIcon,
     ShieldIcon,
     SlidersHorizontalIcon,
@@ -76,7 +87,10 @@ export default function Index({ filters, users }: IndexProps) {
     const canCreateUsers = Boolean(auth.can?.createUsers);
     const canUpdateUsers = Boolean(auth.can?.updateUsers);
     const canManageAccess = Boolean(auth.can?.manageAccess);
+    const canImpersonate = Boolean(auth.can?.impersonateUsers);
     const [search, setSearch] = useState(filters.search ?? '');
+    const [impersonationTarget, setImpersonationTarget] =
+        useState<UserRow | null>(null);
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
@@ -332,6 +346,25 @@ export default function Index({ filters, users }: IndexProps) {
                                                         </ActionHint>
                                                     )}
 
+                                                {canImpersonate &&
+                                                    user.id !== auth.user.id && (
+                                                        <ActionHint hint="Sign in as this user">
+                                                            <Button
+                                                                variant="outline"
+                                                                size="icon-sm"
+                                                                className="border-sky-200 text-sky-700 hover:bg-sky-50 hover:text-sky-800 dark:border-sky-800/60 dark:text-sky-300 dark:hover:bg-sky-950/40"
+                                                                aria-label={`Sign in as ${user.name}`}
+                                                                onClick={() =>
+                                                                    setImpersonationTarget(
+                                                                        user,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <LogInIcon className="size-4" />
+                                                            </Button>
+                                                        </ActionHint>
+                                                    )}
+
                                                 {canUpdateUsers && (
                                                     <ActionHint hint="Edit this user">
                                                         <Button
@@ -354,7 +387,11 @@ export default function Index({ filters, users }: IndexProps) {
                                                 )}
 
                                                 {!canManageAccess &&
-                                                    !canUpdateUsers && (
+                                                    !canUpdateUsers &&
+                                                    !(
+                                                        canImpersonate &&
+                                                        user.id !== auth.user.id
+                                                    ) && (
                                                     <Badge variant="outline">
                                                         View only
                                                     </Badge>
@@ -385,6 +422,53 @@ export default function Index({ filters, users }: IndexProps) {
                     </Card>
                 </div>
             </div>
+
+            <AlertDialog
+                open={impersonationTarget !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setImpersonationTarget(null);
+                    }
+                }}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            Sign in as {impersonationTarget?.name}?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            You will use the site as {impersonationTarget?.name}
+                            {impersonationTarget?.email
+                                ? ` (${impersonationTarget.email})`
+                                : ''}
+                            . A bar at the top lets you return to your master
+                            account at any time.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel type="button">
+                            Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            type="button"
+                            onClick={() => {
+                                if (!impersonationTarget) {
+                                    return;
+                                }
+
+                                router.post(
+                                    route(
+                                        'admin.users.impersonate',
+                                        impersonationTarget.uuid,
+                                    ),
+                                );
+                            }}
+                        >
+                            Sign in as this user
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </AuthenticatedLayout>
     );
 }
