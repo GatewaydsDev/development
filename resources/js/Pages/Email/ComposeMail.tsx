@@ -1,4 +1,5 @@
 import InputError from '@/Components/InputError';
+import { FooterColorBoxes } from '@/Pages/Email/MailSettings';
 import { Button } from '@/Components/ui/button';
 import { router, useForm } from '@inertiajs/react';
 import LinkExtension from '@tiptap/extension-link';
@@ -45,6 +46,8 @@ type ComposeMailProps = {
     draft?: ComposeDraft;
     signature?: string | null;
     headerUrl?: string | null;
+    headerWidth?: number;
+    footerColors?: string[];
     onDiscard: () => void;
 };
 
@@ -248,6 +251,8 @@ export default function ComposeMail({
     draft,
     signature = null,
     headerUrl = null,
+    headerWidth = 100,
+    footerColors = [],
     onDiscard,
 }: ComposeMailProps) {
     const { t } = useTranslation('mail');
@@ -461,7 +466,12 @@ export default function ComposeMail({
                     <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                         {t('header')}
                     </p>
-                    <img src={headerUrl} alt="" className="max-h-32 w-full object-contain" />
+                    <img
+                        src={headerUrl}
+                        alt=""
+                        className="h-auto max-w-full object-contain"
+                        style={{ width: `${headerWidth}%` }}
+                    />
                 </div>
             ) : null}
             <div className="px-3">
@@ -591,12 +601,24 @@ export default function ComposeMail({
             ) : null}
 
             <EditorContent editor={editor} />
-            {signature ? (
-                <div className="border-t border-border px-3 py-3">
-                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        {t('signature')}
-                    </p>
-                    <p className="whitespace-pre-wrap break-words text-sm text-foreground">{signature}</p>
+            {signature || footerColors.length > 0 ? (
+                <div className="grid gap-3 border-t border-border px-3 py-3">
+                    {signature ? (
+                        <div>
+                            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                {t('signature')}
+                            </p>
+                            <p className="whitespace-pre-wrap break-words text-sm text-foreground">{signature}</p>
+                        </div>
+                    ) : null}
+                    {footerColors.length > 0 ? (
+                        <div>
+                            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                {t('footer')}
+                            </p>
+                            <FooterColorBoxes colors={footerColors} />
+                        </div>
+                    ) : null}
                 </div>
             ) : null}
             <InputError message={form.errors.body} className="px-3" />

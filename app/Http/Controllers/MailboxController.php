@@ -226,6 +226,41 @@ class MailboxController extends Controller
         return back();
     }
 
+    public function updateHeaderSize(Request $request): RedirectResponse
+    {
+        $user = $this->effectiveUser($request->user());
+        abort_unless($user instanceof User, 403);
+
+        $validated = $request->validate([
+            'width' => ['required', 'integer', 'min:20', 'max:100'],
+        ]);
+
+        $user->mail_header_width = (int) $validated['width'];
+        $user->save();
+
+        return back();
+    }
+
+    public function updateFooter(Request $request): RedirectResponse
+    {
+        $user = $this->effectiveUser($request->user());
+        abort_unless($user instanceof User, 403);
+
+        $validated = $request->validate([
+            'colors' => ['present', 'array', 'max:8'],
+            'colors.*' => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+        ]);
+
+        $colors = array_values(array_map(
+            fn (string $color): string => strtolower($color),
+            $validated['colors'],
+        ));
+        $user->mail_footer_colors = $colors === [] ? null : $colors;
+        $user->save();
+
+        return back();
+    }
+
     public function send(Request $request, MicrosoftGraphMailService $graph): RedirectResponse
     {
         $sender = $this->effectiveUser($request->user());
@@ -376,6 +411,8 @@ class MailboxController extends Controller
             'savedRecipients' => $savedRecipients,
             'signature' => $user?->mail_signature,
             'headerUrl' => $user?->mailHeaderUrl(),
+            'headerWidth' => $user?->mailHeaderWidth() ?? 100,
+            'footerColors' => $user?->mailFooterColors() ?? [],
             'unreadCount' => $unreadCount,
         ];
     }

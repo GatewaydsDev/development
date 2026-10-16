@@ -1,3 +1,4 @@
+import StickyDocumentToolbar from '@/Components/StickyDocumentToolbar';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ComposeMail, {
     quotePlainText,
@@ -22,7 +23,7 @@ import {
     DropdownMenuTrigger,
 } from '@/Components/ui/dropdown-menu';
 import { ArchiveIcon, ArrowLeftIcon, ForwardIcon, MailIcon, MailOpenIcon, MoreVerticalIcon, RefreshCwIcon, ReplyIcon } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import MailSettings from '@/Pages/Email/MailSettings';
 
@@ -58,6 +59,8 @@ type Props = {
     savedRecipients?: SavedRecipient[];
     signature?: string | null;
     headerUrl?: string | null;
+    headerWidth?: number;
+    footerColors?: string[];
     unreadCount?: number;
 };
 
@@ -136,9 +139,12 @@ export default function Index({
     savedRecipients = [],
     signature = null,
     headerUrl = null,
+    headerWidth = 100,
+    footerColors = [],
     unreadCount = 0,
 }: Props) {
     const { t } = useTranslation('mail');
+    const mailRef = useRef<HTMLDivElement>(null);
     const flash = usePage().props.flash as { success?: string | null } | undefined;
     const [refreshing, setRefreshing] = useState(false);
     const [showCompose, setShowCompose] = useState(false);
@@ -236,7 +242,7 @@ export default function Index({
             <Head title={t('title')} />
 
             <div className="py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:py-8">
-                <div className="mx-auto flex max-w-6xl min-w-0 flex-col gap-4 px-3 sm:gap-6 sm:px-6 lg:px-8">
+                <div className="mx-auto flex max-w-[96rem] min-w-0 flex-col gap-4 px-3 sm:gap-6 sm:px-6 lg:px-8">
                     {mailbox === null ? (
                         <Card>
                             <CardHeader>
@@ -245,7 +251,8 @@ export default function Index({
                             </CardHeader>
                         </Card>
                     ) : (
-                        <>
+                        <div ref={mailRef} className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
+                        <div className="flex min-w-0 flex-col gap-4">
                             <p className="text-sm text-muted-foreground">{t('received')}</p>
                             {flash?.success ? (
                                 <p className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-800 dark:text-emerald-200">
@@ -258,8 +265,6 @@ export default function Index({
                                 </p>
                             ) : null}
 
-                            <MailSettings signature={signature} headerUrl={headerUrl} />
-
                             <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
                                 <Button className="min-h-11 touch-manipulation" variant={folder === 'inbox' ? 'default' : 'outline'} asChild>
                                     <Link href={folderHref('inbox')}>{t('inbox')}</Link>
@@ -270,7 +275,13 @@ export default function Index({
                                 <Button className="min-h-11 touch-manipulation" variant={folder === 'archive' ? 'default' : 'outline'} asChild>
                                     <Link href={folderHref('archive')}>{t('archive')}</Link>
                                 </Button>
-                                <Button className="min-h-11 touch-manipulation" type="button" variant="outline" onClick={() => openCompose()}>
+                                <Button
+                                    className="min-h-11 touch-manipulation"
+                                    type="button"
+                                    variant={showCompose ? 'default' : 'outline'}
+                                    aria-pressed={showCompose}
+                                    onClick={() => openCompose()}
+                                >
                                     {t('compose')}
                                 </Button>
                                 <Button className="min-h-11 touch-manipulation" type="button" variant="outline" onClick={refresh} disabled={refreshing}>
@@ -287,11 +298,14 @@ export default function Index({
                                     draft={draft}
                                     signature={signature}
                                     headerUrl={headerUrl}
+                                    headerWidth={headerWidth}
+                                    footerColors={footerColors}
                                     onDiscard={() => setShowCompose(false)}
                                 />
                             ) : null}
 
-                            <div className={`grid min-w-0 gap-4 md:grid-cols-[minmax(14rem,20rem)_minmax(0,1fr)] ${showCompose ? 'max-md:hidden' : ''}`}>
+                            {showCompose ? null : (
+                            <div className="grid min-w-0 gap-4 md:grid-cols-[minmax(14rem,20rem)_minmax(0,1fr)]">
                                 <Card className={message ? 'max-md:hidden' : undefined}>
                                     <CardHeader>
                                         <CardTitle>{folderTitle}</CardTitle>
@@ -440,7 +454,17 @@ export default function Index({
                                     </CardContent>
                                 </Card>
                             </div>
-                        </>
+                            )}
+                        </div>
+                        <StickyDocumentToolbar scopeRef={mailRef} propertiesPanel>
+                            <MailSettings
+                                signature={signature}
+                                headerUrl={headerUrl}
+                                headerWidth={headerWidth}
+                                footerColors={footerColors}
+                            />
+                        </StickyDocumentToolbar>
+                        </div>
                     )}
                 </div>
             </div>
