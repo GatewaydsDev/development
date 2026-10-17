@@ -291,7 +291,7 @@ export default function PageSkeleton() {
             role="status"
             aria-live="polite"
         >
-            <LoaderCircleIcon className="size-4 animate-spin text-emerald-700" />
+            <LoaderCircleIcon className="size-4 animate-spin text-emerald-700 dark:text-emerald-300" />
             Loading page
         </div>
     );

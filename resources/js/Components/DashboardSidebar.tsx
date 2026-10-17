@@ -434,7 +434,7 @@ export default function DashboardSidebar({
                                 <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                                     <Badge
                                         variant="outline"
-                                        className="dash-border dash-text border bg-white/80 text-[10px] dark:bg-background/70"
+                                        className="dash-soft dash-border dash-text border text-[10px]"
                                     >
                                         <ShieldCheckIcon className="dash-icon mr-1 size-3" />
                                         {displayLevel}
@@ -444,7 +444,7 @@ export default function DashboardSidebar({
                         </div>
 
                         {/* Last Login Info Box */}
-                        <div className="dash-border mt-3 flex items-center gap-1.5 rounded-lg border bg-white/70 px-2.5 py-1.5 text-xs text-muted-foreground dark:bg-background/60">
+                        <div className="dash-soft dash-border mt-3 flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs text-foreground">
                             <ClockIcon className="dash-icon size-3.5 shrink-0" />
                             <div className="min-w-0 flex-1 truncate">
                                 <span className="font-medium text-foreground">

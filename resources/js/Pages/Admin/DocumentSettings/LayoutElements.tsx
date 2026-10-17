@@ -1887,7 +1887,7 @@ export function ImportPanel({
     return (
         <div className="mb-4 rounded-xl border border-border bg-background p-4">
             <div className="flex items-start gap-3">
-                <FileUpIcon className="mt-0.5 size-5 shrink-0 text-emerald-700" />
+                <FileUpIcon className="mt-0.5 size-5 shrink-0 text-emerald-700 dark:text-emerald-300" />
                 <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-foreground">
                         {pdfOnly ? "Upload a PDF to create your layout" : "Import from an existing document"}

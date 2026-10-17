@@ -196,7 +196,7 @@ export default function PreBidSection({
                         }}
                     >
                         <span className="flex h-36 w-full items-center justify-center rounded-[4px] border-[3px] border-emerald-600 bg-white p-3 shadow-sm transition hover:bg-emerald-50/50 dark:bg-background dark:hover:bg-emerald-950/20">
-                            <PlusIcon className="size-7 shrink-0 overflow-visible text-emerald-600" />
+                            <PlusIcon className="size-7 shrink-0 overflow-visible text-emerald-600 dark:text-emerald-300" />
                         </span>
                         <span className="mt-2 block text-xs font-medium leading-4 text-foreground">
                             Create new
@@ -227,7 +227,7 @@ export default function PreBidSection({
                                     >
                                         <span className="flex flex-col gap-1.5 text-[9px] leading-tight text-slate-600 dark:text-slate-300">
                                             <span className="flex items-center gap-1 font-semibold text-foreground">
-                                                <BookmarkIcon className="size-3 shrink-0 text-emerald-600" />
+                                                <BookmarkIcon className="size-3 shrink-0 text-emerald-600 dark:text-emerald-300" />
                                                 <span className="truncate">{preBid.name}</span>
                                             </span>
                                             {preBid.project_name ? (

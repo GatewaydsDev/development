@@ -214,7 +214,7 @@ export default function ForgotPassword({
                 <div className="fixed bottom-6 right-4 z-50 max-w-sm rounded-xl border border-border bg-background p-4 text-sm text-foreground shadow-xl">
                     <div className="flex gap-3">
                         {toast.type === 'success' ? (
-                            <CheckCircleIcon className="mt-0.5 size-5 shrink-0 text-emerald-600" />
+                            <CheckCircleIcon className="mt-0.5 size-5 shrink-0 text-emerald-600 dark:text-emerald-300" />
                         ) : (
                             <XCircleIcon className="mt-0.5 size-5 shrink-0 text-destructive" />
                         )}
