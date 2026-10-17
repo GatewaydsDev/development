@@ -1,3 +1,4 @@
+import { cn } from '@/lib/utils';
 import {
     forwardRef,
     InputHTMLAttributes,
@@ -49,10 +50,10 @@ export default forwardRef<
             spellCheck={enableSpellcheck}
             autoCorrect={enableSpellcheck ? 'on' : 'off'}
             autoCapitalize={enableSpellcheck ? 'sentences' : 'off'}
-            className={
-                'rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 ' +
-                className
-            }
+            className={cn(
+                'rounded-md border-input bg-background text-foreground shadow-sm placeholder:text-muted-foreground focus:border-ring focus:ring-ring',
+                className,
+            )}
             ref={setRefs}
         />
     );

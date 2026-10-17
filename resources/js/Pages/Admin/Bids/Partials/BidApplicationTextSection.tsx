@@ -562,7 +562,7 @@ export default function BidApplicationTextSection({
                                 }}
                             >
                                 <span className="flex h-36 w-full items-center justify-center rounded-[4px] border-[3px] border-emerald-600 bg-white p-3 shadow-sm dark:bg-background">
-                                    <PlusIcon className="size-7 shrink-0 overflow-visible text-emerald-600" />
+                                    <PlusIcon className="size-7 shrink-0 overflow-visible text-emerald-600 dark:text-emerald-300" />
                                 </span>
                                 <span className="mt-2 block text-xs font-medium leading-4 text-foreground">
                                     Create new

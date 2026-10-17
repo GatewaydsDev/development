@@ -145,7 +145,7 @@ export default function SavingNotice() {
             aria-describedby="saving-notice-description"
         >
             <div className="w-full max-w-sm rounded-xl border border-border bg-background px-6 py-6 text-center shadow-2xl">
-                <LoaderCircleIcon className="mx-auto size-8 animate-spin text-emerald-700" />
+                <LoaderCircleIcon className="mx-auto size-8 animate-spin text-emerald-700 dark:text-emerald-300" />
                 <p id="saving-notice-title" className="mt-3 text-base font-semibold text-foreground">
                     {kind === 'dashboard'
                         ? 'Loading dashboard'

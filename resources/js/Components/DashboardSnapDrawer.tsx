@@ -780,7 +780,7 @@ export default function DashboardSnapDrawer({
                                                         <Link
                                                             href={item.href}
                                                             onClick={() => setOpen(false)}
-                                                            className="truncate text-xs sm:text-sm font-semibold text-foreground hover:text-emerald-600 focus:outline-none"
+                                                            className="truncate text-xs font-semibold text-foreground hover:text-emerald-600 focus:outline-none dark:hover:text-emerald-300 sm:text-sm"
                                                         >
                                                             {item.title}
                                                         </Link>

@@ -1,4 +1,5 @@
 import { schedulePendingValidationScroll } from '@/lib/scrollToValidationError';
+import { cn } from '@/lib/utils';
 import { HTMLAttributes, useLayoutEffect } from 'react';
 
 export default function InputError({
@@ -18,7 +19,7 @@ export default function InputError({
         <p
             {...props}
             data-validation-error=""
-            className={'scroll-mt-24 text-sm text-red-600 ' + className}
+            className={cn('scroll-mt-24 text-sm text-destructive', className)}
         >
             {message}
         </p>
