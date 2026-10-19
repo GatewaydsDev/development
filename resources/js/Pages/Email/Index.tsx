@@ -47,6 +47,7 @@ type MailMessage = {
     received_at: string | null;
     sent_at: string | null;
     body: string;
+    images?: Array<{ name: string; src: string }>;
 };
 
 type Props = {
@@ -462,6 +463,16 @@ export default function Index({
                                                 <pre className="max-w-full whitespace-pre-wrap break-words font-sans text-sm text-foreground [overflow-wrap:anywhere]">
                                                     {message.body}
                                                 </pre>
+                                                {(message.images ?? []).map((image, index) =>
+                                                    image.src.startsWith('data:image/') ? (
+                                                        <img
+                                                            key={`${image.name}-${index}`}
+                                                            src={image.src}
+                                                            alt={image.name}
+                                                            className="mt-3 max-h-48 max-w-full rounded-md border border-border"
+                                                        />
+                                                    ) : null,
+                                                )}
                                             </div>
                                         ) : (
                                             <p className="text-sm text-muted-foreground">{t('select')}</p>

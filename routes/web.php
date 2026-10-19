@@ -239,6 +239,8 @@ Route::middleware(['auth', 'prevent-back-history'])
             ->name('contractors.create');
         Route::post('/contractors', [ContractorController::class, 'store'])
             ->name('contractors.store');
+        Route::post('/contractors/{contractor}/contacts', [ContractorController::class, 'storeContact'])
+            ->name('contractors.contacts.store');
         Route::get('/contractors/{contractor}/edit', [ContractorController::class, 'edit'])
             ->middleware('can:update-contractors')
             ->name('contractors.edit');
@@ -668,6 +670,9 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::post('/projects', [ProjectController::class, 'store'])
             ->middleware('can:create-projects')
             ->name('projects.store');
+        Route::post('/projects/quick', [ProjectController::class, 'quickStore'])
+            ->middleware('can:create-projects')
+            ->name('projects.quick-store');
         Route::get('/projects/{project}', [ProjectController::class, 'show'])
             ->middleware('can:view-projects')
             ->name('projects.show');

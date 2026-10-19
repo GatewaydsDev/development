@@ -174,6 +174,85 @@ class ProjectController extends Controller
             ->with('success', 'Project created successfully.');
     }
 
+    public function quickStore(Request $request): RedirectResponse
+    {
+        abort_unless(ProjectAccess::canCreate($request->user()), 403);
+
+        StateInitials::prepare($request, 'site_state');
+        PostalCode::prepare($request, 'site_postal_code');
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255', $this->uniqueProjectNameRule()],
+            'site_address_line_1' => ['nullable', 'string', 'max:255'],
+            'site_city' => ['nullable', 'string', 'max:255'],
+            'site_state' => StateInitials::optionalRules(),
+            'site_postal_code' => PostalCode::optionalRules(),
+            'contractor_id' => ['nullable', 'integer', Rule::exists(Contractor::class, 'id')],
+            'contractor_name' => ['nullable', 'string', 'max:255'],
+            'contractor_role' => ['nullable', 'string', Rule::in(Contractor::ROLES)],
+            'price_label' => ['nullable', 'string', 'max:255'],
+            'price_amount' => ['nullable', 'numeric', 'min:0', 'max:9999999999999.99'],
+        ]);
+
+        $priceLabel = trim((string) ($validated['price_label'] ?? ''));
+        $priceAmount = $validated['price_amount'] ?? null;
+        $hasPriceLabel = $priceLabel !== '';
+        $hasPriceAmount = $priceAmount !== null && $priceAmount !== '';
+
+        if ($hasPriceLabel xor $hasPriceAmount) {
+            throw ValidationException::withMessages([
+                'price_label' => 'Enter what this price covers and the amount.',
+                'price_amount' => 'Enter what this price covers and the amount.',
+            ]);
+        }
+
+        if (($hasPriceLabel || $hasPriceAmount) && ! ProjectAccess::canViewSensitiveFields($request->user())) {
+            throw ValidationException::withMessages([
+                'price_label' => 'You cannot add a project price from here.',
+            ]);
+        }
+
+        $statusId = ProjectStatus::defaultId();
+
+        if ($statusId === null) {
+            throw ValidationException::withMessages([
+                'name' => 'Add a project status before creating a project.',
+            ]);
+        }
+
+        DB::transaction(function () use ($request, $validated, $statusId, $priceLabel, $priceAmount, $hasPriceLabel): void {
+            $project = Project::create([
+                'name' => trim($validated['name']),
+                'project_status_id' => $statusId,
+                'priority' => 'normal',
+                'site_address_line_1' => $validated['site_address_line_1'] ?? null,
+                'site_city' => $validated['site_city'] ?? null,
+                'site_state' => $validated['site_state'] ?? null,
+                'site_postal_code' => $validated['site_postal_code'] ?? null,
+                'site_country' => filled($validated['site_city'] ?? null) || filled($validated['site_state'] ?? null)
+                    ? 'United States'
+                    : null,
+                'created_by' => $request->user()->id,
+            ]);
+
+            $contractorId = $this->quickContractorId($validated);
+
+            if ($contractorId !== null) {
+                $project->contractors()->sync([$contractorId]);
+            }
+
+            if ($hasPriceLabel) {
+                $project->prices()->create([
+                    'label' => $priceLabel,
+                    'amount' => $priceAmount,
+                    'sort_order' => 0,
+                ]);
+            }
+        });
+
+        return back()->with('success', 'Project saved. It is selected for this form.');
+    }
+
     public function show(Request $request, Project $project): Response
     {
         $this->authorizeProjectView($request);
@@ -468,6 +547,38 @@ class ProjectController extends Controller
         }
 
         return $request->validate($rules);
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function quickContractorId(array $validated): ?int
+    {
+        $contractorId = isset($validated['contractor_id']) ? (int) $validated['contractor_id'] : 0;
+
+        if ($contractorId > 0) {
+            return $contractorId;
+        }
+
+        $name = trim((string) ($validated['contractor_name'] ?? ''));
+
+        if ($name === '') {
+            return null;
+        }
+
+        $role = $validated['contractor_role'] ?? Contractor::ROLE_CONTRACTOR;
+        $existing = Contractor::query()
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
+            ->first();
+
+        if ($existing) {
+            return $existing->id;
+        }
+
+        return Contractor::create([
+            'name' => $name,
+            'role' => $role,
+        ])->id;
     }
 
     private function uniqueProjectNameRule(?Project $project = null): Closure

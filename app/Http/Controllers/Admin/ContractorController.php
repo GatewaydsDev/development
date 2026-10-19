@@ -239,6 +239,33 @@ class ContractorController extends Controller
         return back()->with('success', $this->savedMessage($role, created: true));
     }
 
+    public function storeContact(Request $request, Contractor $contractor): RedirectResponse
+    {
+        abort_unless(
+            ContractorAccess::canUpdate($request->user())
+            || QuotationAccess::canCreate($request->user())
+            || QuotationAccess::canUpdate($request->user()),
+            403,
+        );
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'title' => ['nullable', 'string', 'max:255'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'phone_number' => ['nullable', 'string', 'max:50'],
+        ]);
+
+        $contractor->contacts()->create([
+            'name' => trim($validated['name']),
+            'title' => filled($validated['title'] ?? null) ? trim((string) $validated['title']) : null,
+            'email' => filled($validated['email'] ?? null) ? trim((string) $validated['email']) : null,
+            'phone_number' => filled($validated['phone_number'] ?? null) ? trim((string) $validated['phone_number']) : null,
+            'is_primary' => ! $contractor->contacts()->exists(),
+        ]);
+
+        return back()->with('success', 'Contact saved. It is available on this quotation.');
+    }
+
     /**
      * @return array<string, mixed>
      */

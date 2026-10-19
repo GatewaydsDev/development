@@ -89,6 +89,80 @@ function fakeMailboxGraph(array $pages = []): void
     });
 }
 
+test('an opened message shows the embedded picture and hides the content id', function () {
+    $user = mailboxUser();
+    $png = base64_encode('png-bytes');
+
+    Cache::flush();
+    config([
+        'services.microsoft.tenant_id' => 'tenant-id',
+        'services.microsoft.client_id' => 'client-id',
+        'services.microsoft.client_secret' => 'client-secret',
+    ]);
+
+    Http::fake(function ($request) use ($png) {
+        if (str_contains($request->url(), 'login.microsoftonline.com')) {
+            return Http::response([
+                'access_token' => 'graph-token',
+                'expires_in' => 3600,
+            ]);
+        }
+
+        $path = rawurldecode((string) (parse_url($request->url(), PHP_URL_PATH) ?? ''));
+
+        if (str_ends_with($path, '/attachments')) {
+            return Http::response([
+                'value' => [[
+                    'name' => 'signature.png',
+                    'contentType' => 'image/png',
+                    'isInline' => true,
+                    'contentId' => 'ii_1a155d80b94df2917f02',
+                    'size' => 9,
+                    'contentBytes' => $png,
+                ]],
+            ]);
+        }
+
+        if (preg_match('#/messages/[^/]+$#', $path) === 1) {
+            return Http::response([
+                'id' => 'msg-1',
+                'subject' => 'Hello',
+                'from' => ['emailAddress' => ['address' => 'buyer@example.com']],
+                'toRecipients' => [
+                    ['emailAddress' => ['address' => 'ricardo@gateway-ds.com']],
+                ],
+                'body' => [
+                    'contentType' => 'text',
+                    'content' => "Thanks\n[cid:ii_1a155d80b94df2917f02]",
+                ],
+            ]);
+        }
+
+        return Http::response([
+            'value' => [[
+                'id' => 'msg-1',
+                'subject' => 'Hello',
+                'from' => ['emailAddress' => ['address' => 'buyer@example.com']],
+                'bodyPreview' => '[cid:ii_1a155d80b94df2917f02]',
+                'receivedDateTime' => '2026-10-15T15:00:00Z',
+                'isRead' => true,
+            ]],
+        ]);
+    });
+
+    $this->actingAs($user)
+        ->get(route('mailbox.index', [
+            'message' => EmailPlainText::encodeMessageId('msg-1'),
+        ]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('message.body', 'Thanks')
+            ->where('message.images.0.name', 'signature.png')
+            ->where('message.images.0.src', 'data:image/png;base64,'.$png)
+            ->where('messages.0.preview', '')
+        );
+});
+
 test('guests cannot open the mailbox', function () {
     $this->get(route('mailbox.index'))->assertRedirect(route('login'));
     $this->post(route('mailbox.send'), [

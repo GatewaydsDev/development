@@ -205,9 +205,10 @@ class MicrosoftGraphMailService
         }
 
         $body = is_array($item['body'] ?? null) ? $item['body'] : [];
+        $graphId = (string) ($item['id'] ?? $messageId);
 
         return [
-            'id' => EmailPlainText::encodeMessageId((string) ($item['id'] ?? $messageId)),
+            'id' => EmailPlainText::encodeMessageId($graphId),
             'subject' => (string) ($item['subject'] ?? ''),
             'from' => $this->address($item['from'] ?? null),
             'to' => $this->addresses($item['toRecipients'] ?? []),
@@ -217,6 +218,95 @@ class MicrosoftGraphMailService
                 is_string($body['contentType'] ?? null) ? $body['contentType'] : null,
                 is_string($body['content'] ?? null) ? $body['content'] : (string) ($item['bodyPreview'] ?? ''),
             ),
+            'images' => $this->inlineImages($mailbox, $graphId),
+        ];
+    }
+
+    /**
+     * @return list<array{name: string, src: string}>
+     */
+    private function inlineImages(string $mailbox, string $messageId): array
+    {
+        $url = $this->userUrl($mailbox).'/messages/'.rawurlencode($messageId).'/attachments';
+
+        try {
+            $response = $this->graph('GET', $url, null, false);
+        } catch (MicrosoftGraphException) {
+            return [];
+        }
+
+        if ($response->failed()) {
+            return [];
+        }
+
+        $items = $response->json('value');
+
+        if (! is_array($items)) {
+            return [];
+        }
+
+        $images = [];
+
+        foreach ($items as $item) {
+            if (count($images) >= 8) {
+                break;
+            }
+
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $image = $this->inlineImage($item);
+
+            if ($image !== null) {
+                $images[] = $image;
+            }
+        }
+
+        return $images;
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     * @return array{name: string, src: string}|null
+     */
+    private function inlineImage(array $item): ?array
+    {
+        $contentId = trim((string) ($item['contentId'] ?? ''));
+        $inline = ($item['isInline'] ?? false) === true;
+
+        if ($contentId === '' && ! $inline) {
+            return null;
+        }
+
+        $type = strtolower(trim((string) ($item['contentType'] ?? '')));
+        $allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
+        if (! in_array($type, $allowed, true)) {
+            return null;
+        }
+
+        $size = (int) ($item['size'] ?? 0);
+
+        if ($size > 500000) {
+            return null;
+        }
+
+        $bytes = preg_replace('/\s+/', '', (string) ($item['contentBytes'] ?? '')) ?? '';
+
+        if ($bytes === '' || strlen($bytes) > 700000 || preg_match('#^[A-Za-z0-9+/=]+$#', $bytes) !== 1) {
+            return null;
+        }
+
+        $name = trim(strip_tags((string) ($item['name'] ?? 'Image')));
+
+        if ($name === '') {
+            $name = 'Image';
+        }
+
+        return [
+            'name' => mb_substr($name, 0, 120),
+            'src' => 'data:'.$type.';base64,'.preg_replace('/\s+/', '', $bytes),
         ];
     }
 
