@@ -19,9 +19,17 @@ class EmailPlainText
             $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
         }
 
+        $text = self::stripContentIds($text);
         $text = preg_replace("/\n{3,}/", "\n\n", $text) ?? $text;
 
         return trim(mb_substr($text, 0, 100000));
+    }
+
+    public static function stripContentIds(string $text): string
+    {
+        $text = preg_replace('/[ \t]*\[cid:[^\]\r\n]{1,180}\][ \t]*/i', '', $text) ?? $text;
+
+        return $text;
     }
 
     public static function encodeMessageId(string $id): string

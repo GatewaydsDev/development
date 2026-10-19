@@ -1,5 +1,7 @@
 import CreatableSelect from '@/Components/CreatableSelect';
 import DateMaskInput from '@/Components/DateMaskInput';
+import QuickContractorContactDialog from '@/Components/QuickContractorContactDialog';
+import QuickProjectDialog from '@/Components/QuickProjectDialog';
 import FormActionFab from '@/Components/FormActionFab';
 import ProjectPricePicker from '@/Components/ProjectPricePicker';
 import QuotationTakeoffOpenings from '@/Pages/Admin/Quotations/Partials/QuotationTakeoffOpenings';
@@ -32,9 +34,17 @@ import {
     CardTitle,
 } from '@/Components/ui/card';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { cn } from '@/lib/utils';
 import { router, usePage } from '@inertiajs/react';
 import { PlusIcon, Trash2Icon } from 'lucide-react';
-import { type DragEvent, FormEventHandler, useEffect, useMemo, useRef, useState } from 'react';
+import {
+    type DragEvent,
+    FormEventHandler,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import {
     FieldErrors,
     useFieldArray,
@@ -245,6 +255,73 @@ function lineItemIsBaseBid(item: {
 const inputClassName =
     'h-11 w-full border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring';
 
+const sectionClassName = 'scroll-mt-44';
+
+const QUOTATION_SECTIONS = [
+    { id: 'quotation-details', label: 'Details' },
+    { id: 'quotation-customer', label: 'Customer' },
+    { id: 'quotation-pricing', label: 'Pricing' },
+    { id: 'quotation-openings', label: 'Openings' },
+    { id: 'quotation-layout', label: 'Layout' },
+    { id: 'quotation-revisions', label: 'Revisions' },
+    { id: 'quotation-authorization', label: 'Authorization' },
+] as const;
+
+function QuotationSectionNav({
+    activeId,
+    navRef,
+}: {
+    activeId: string;
+    navRef: { current: HTMLDivElement | null };
+}) {
+    return (
+        <div className="sticky top-[7.25rem] z-20 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+            <nav
+                aria-label="Quotation sections"
+                className="rounded-xl border border-border bg-card/95 p-1.5 shadow-sm backdrop-blur"
+            >
+                <div
+                    ref={(node) => {
+                        navRef.current = node;
+                    }}
+                    className="flex gap-1 overflow-x-auto"
+                >
+                    {QUOTATION_SECTIONS.map((section, index) => {
+                        const active = activeId === section.id;
+
+                        return (
+                            <a
+                                key={section.id}
+                                href={`#${section.id}`}
+                                data-section={section.id}
+                                aria-current={active ? 'location' : undefined}
+                                className={cn(
+                                    'inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition',
+                                    active
+                                        ? 'bg-emerald-600 text-white'
+                                        : 'text-foreground hover:bg-muted',
+                                )}
+                            >
+                                <span
+                                    className={cn(
+                                        'flex size-5 items-center justify-center rounded-full text-[11px] font-semibold',
+                                        active
+                                            ? 'bg-white/20 text-white'
+                                            : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200',
+                                    )}
+                                >
+                                    {index + 1}
+                                </span>
+                                {section.label}
+                            </a>
+                        );
+                    })}
+                </div>
+            </nav>
+        </div>
+    );
+}
+
 function isoAddDays(iso: string, days: number): string {
     const match = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
     const date = match
@@ -338,6 +415,65 @@ export default function QuotationForm({
     const [newPartyName, setNewPartyName] = useState('');
     const [partyError, setPartyError] = useState('');
     const [addingParty, setAddingParty] = useState(false);
+    const [projectDialogOpen, setProjectDialogOpen] = useState(false);
+    const [contactDialogOpen, setContactDialogOpen] = useState(false);
+    const [activeSection, setActiveSection] = useState<string>(
+        QUOTATION_SECTIONS[0].id,
+    );
+    const sectionNavRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const nodes = QUOTATION_SECTIONS.map((section) =>
+            document.getElementById(section.id),
+        ).filter((node): node is HTMLElement => node instanceof HTMLElement);
+
+        if (nodes.length === 0) {
+            return;
+        }
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                const visible = entries
+                    .filter((entry) => entry.isIntersecting)
+                    .sort(
+                        (left, right) =>
+                            right.intersectionRatio - left.intersectionRatio,
+                    );
+                const id = visible[0]?.target.id;
+
+                if (id) {
+                    setActiveSection(id);
+                }
+            },
+            {
+                rootMargin: '-25% 0px -55% 0px',
+                threshold: [0.05, 0.2, 0.5],
+            },
+        );
+
+        nodes.forEach((node) => observer.observe(node));
+
+        return () => observer.disconnect();
+    }, []);
+
+    useEffect(() => {
+        const nav = sectionNavRef.current;
+        const current = nav?.querySelector<HTMLElement>(
+            `[data-section="${activeSection}"]`,
+        );
+
+        if (!nav || !current) {
+            return;
+        }
+
+        const left =
+            current.offsetLeft - nav.clientWidth / 2 + current.clientWidth / 2;
+
+        nav.scrollTo({ left: Math.max(0, left), behavior: 'smooth' });
+    }, [activeSection]);
+
+    const canCreateProjects = Boolean(auth.can?.createProjects);
+    const canAddProjectPrice = Boolean(auth.can?.viewSensitiveProjectFields);
     const data = useWatch({
         control,
         defaultValue: defaultValues,
@@ -659,12 +795,30 @@ export default function QuotationForm({
                 showPrint={true}
             />
 
-            <Card className="shadow-sm">
+            <div className="flex flex-col gap-1">
+                <h3 className="text-base font-semibold text-foreground">
+                    {title}
+                </h3>
+                <p className="max-w-3xl text-sm text-muted-foreground">
+                    {description}
+                </p>
+            </div>
+
+            <QuotationSectionNav
+                activeId={activeSection}
+                navRef={sectionNavRef}
+            />
+
+            <div className="grid items-start gap-6 lg:grid-cols-2">
+            <Card id="quotation-details" className={`${sectionClassName} shadow-sm`}>
                 <CardHeader>
                     <CardTitle className="text-base font-semibold text-foreground">
-                        {title}
+                        Details
                     </CardTitle>
-                    <CardDescription>{description}</CardDescription>
+                    <CardDescription>
+                        Project, title, status, and how long this quotation
+                        stays valid.
+                    </CardDescription>
                     <CardAction className="w-full sm:max-w-72">
                         <div className="flex flex-col gap-2">
                             <InputLabel
@@ -683,12 +837,24 @@ export default function QuotationForm({
                     </CardAction>
                 </CardHeader>
                 <CardContent className="grid min-w-0 gap-5 sm:grid-cols-2">
-                    <div className="flex flex-col gap-2">
-                        <InputLabel
-                            htmlFor="project_id"
-                            value="Project"
-                            className="text-emerald-700 dark:text-emerald-300"
-                        />
+                    <div className="flex flex-col gap-2 sm:col-span-2">
+                        <div className="flex items-center justify-between gap-2">
+                            <InputLabel
+                                htmlFor="project_id"
+                                value="Project"
+                                className="text-emerald-700 dark:text-emerald-300"
+                            />
+                            {canCreateProjects ? (
+                                <Button
+                                    type="button"
+                                    className="h-8 shrink-0 bg-emerald-600 text-white hover:bg-emerald-700"
+                                    onClick={() => setProjectDialogOpen(true)}
+                                >
+                                    <PlusIcon className="size-3.5" />
+                                    New project
+                                </Button>
+                            ) : null}
+                        </div>
                         <select
                             id="project_id"
                             value={data.project_id}
@@ -726,294 +892,6 @@ export default function QuotationForm({
                         </select>
                         <InputError
                             message={errorMessage(validationErrors, 'project_id')}
-                        />
-                    </div>
-
-                    <div className="flex flex-col gap-2 sm:col-span-2">
-                        <InputLabel
-                            value="Quoted for"
-                            className="text-emerald-700 dark:text-emerald-300"
-                        />
-                        <div className="grid grid-cols-2 gap-2">
-                            <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm">
-                                <input
-                                    type="radio"
-                                    name="quotation-party-role"
-                                    checked={partyRole === 'contractor'}
-                                    onChange={() => {
-                                        setPartyRole('contractor');
-                                        setPartyError('');
-                                        clearErrors('contractor_id');
-                                        if (
-                                            selectedContractor?.role === 'owner'
-                                        ) {
-                                            setValue('contractor_id', '');
-                                            setValue('contact_ids', []);
-                                        }
-                                    }}
-                                />
-                                Contractor
-                            </label>
-                            <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm">
-                                <input
-                                    type="radio"
-                                    name="quotation-party-role"
-                                    checked={partyRole === 'owner'}
-                                    onChange={() => {
-                                        setPartyRole('owner');
-                                        setPartyError('');
-                                        clearErrors('contractor_id');
-                                        if (
-                                            selectedContractor &&
-                                            selectedContractor.role !== 'owner'
-                                        ) {
-                                            setValue('contractor_id', '');
-                                            setValue('contact_ids', []);
-                                        }
-                                    }}
-                                />
-                                Owner of the project
-                            </label>
-                        </div>
-                        <InputLabel
-                            htmlFor="contractor_id"
-                            value={
-                                partyRole === 'owner'
-                                    ? 'Owner name'
-                                    : 'Contractor name'
-                            }
-                            className="text-emerald-700 dark:text-emerald-300"
-                        />
-                        <select
-                            id="contractor_id"
-                            value={data.contractor_id}
-                            onChange={(event) => {
-                                const contractorId = event.target.value;
-                                const contractor = (
-                                    options.contractors ?? []
-                                ).find(
-                                    (item) => String(item.id) === contractorId,
-                                );
-                                clearErrors('contractor_id');
-                                setValue('contractor_id', contractorId);
-                                setValue(
-                                    'contact_ids',
-                                    defaultContactIds(contractor),
-                                );
-                            }}
-                            className={`${inputClassName} min-w-0 max-w-full`}
-                        >
-                            <option value="">
-                                {partyRole === 'owner'
-                                    ? 'Select an owner'
-                                    : 'Select a contractor'}
-                            </option>
-                            {contractorOptions.map((contractor) => (
-                                <option
-                                    key={contractor.id}
-                                    value={contractor.id}
-                                >
-                                    {contractor.name}
-                                </option>
-                            ))}
-                        </select>
-                        <div className="flex flex-col gap-2 sm:flex-row">
-                            <TextInput
-                                value={newPartyName}
-                                placeholder={
-                                    partyRole === 'owner'
-                                        ? 'New owner name'
-                                        : 'New contractor name'
-                                }
-                                className={inputClassName}
-                                onChange={(event) => {
-                                    setNewPartyName(event.target.value);
-                                    setPartyError('');
-                                }}
-                            />
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className="h-11 shrink-0"
-                                disabled={
-                                    addingParty || newPartyName.trim() === ''
-                                }
-                                onClick={() => {
-                                    const name = newPartyName.trim();
-
-                                    if (name === '') {
-                                        return;
-                                    }
-
-                                    setAddingParty(true);
-                                    setPartyError('');
-                                    router.post(
-                                        route('admin.contractors.store'),
-                                        { name, role: partyRole },
-                                        {
-                                            preserveScroll: true,
-                                            preserveState: true,
-                                            onSuccess: (page) => {
-                                                const contractors =
-                                                    (
-                                                        page.props
-                                                            .options as QuotationOptions
-                                                    )?.contractors ?? [];
-                                                const created =
-                                                    contractors.find(
-                                                        (contractor) =>
-                                                            contractor.name.toLowerCase() ===
-                                                                name.toLowerCase() &&
-                                                            (contractor.role ===
-                                                            'owner'
-                                                                ? 'owner'
-                                                                : 'contractor') ===
-                                                                partyRole,
-                                                    );
-
-                                                if (!created) {
-                                                    return;
-                                                }
-
-                                                setValue(
-                                                    'contractor_id',
-                                                    String(created.id),
-                                                    { shouldValidate: true },
-                                                );
-                                                setValue(
-                                                    'contact_ids',
-                                                    defaultContactIds(created),
-                                                );
-                                                setNewPartyName('');
-                                            },
-                                            onError: (errors) => {
-                                                setPartyError(
-                                                    String(
-                                                        errors.name ||
-                                                            'That name could not be added.',
-                                                    ),
-                                                );
-                                            },
-                                            onFinish: () =>
-                                                setAddingParty(false),
-                                        },
-                                    );
-                                }}
-                            >
-                                {addingParty
-                                    ? 'Adding...'
-                                    : partyRole === 'owner'
-                                      ? 'Add owner'
-                                      : 'Add contractor'}
-                            </Button>
-                        </div>
-                        <InputError
-                            message={
-                                partyError ||
-                                errorMessage(
-                                    validationErrors,
-                                    'contractor_id',
-                                )
-                            }
-                        />
-                    </div>
-
-                    <div className="flex flex-col gap-2 min-w-0 sm:col-span-2">
-                        <InputLabel
-                            value="Contacts on this quotation"
-                            className="text-emerald-700 dark:text-emerald-300"
-                        />
-                        <p className="text-sm text-muted-foreground">
-                            Every contact for this{' '}
-                            {partyRole === 'owner' ? 'owner' : 'contractor'} is
-                            listed. Check the ones that should appear on the
-                            quotation.
-                        </p>
-                        {!data.contractor_id ? (
-                            <p className="rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
-                                Select a{' '}
-                                {partyRole === 'owner'
-                                    ? 'owner'
-                                    : 'contractor'}{' '}
-                                to see their contacts.
-                            </p>
-                        ) : contractorContacts.length === 0 ? (
-                            <p className="rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
-                                This{' '}
-                                {partyRole === 'owner'
-                                    ? 'owner'
-                                    : 'contractor'}{' '}
-                                has no contacts yet.
-                            </p>
-                        ) : (
-                            <div className="grid gap-2 sm:grid-cols-2">
-                                {contractorContacts.map((contact) => {
-                                    const checked = (
-                                        data.contact_ids ?? []
-                                    ).includes(String(contact.id));
-
-                                    return (
-                                        <label
-                                            key={contact.id}
-                                            className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-background p-3 has-[:checked]:border-emerald-300 has-[:checked]:bg-emerald-50/70 dark:has-[:checked]:border-emerald-900 dark:has-[:checked]:bg-emerald-950/30"
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                checked={checked}
-                                                onChange={() => {
-                                                    const current =
-                                                        data.contact_ids ?? [];
-                                                    const id = String(
-                                                        contact.id,
-                                                    );
-                                                    setValue(
-                                                        'contact_ids',
-                                                        checked
-                                                            ? current.filter(
-                                                                  (value) =>
-                                                                      value !==
-                                                                      id,
-                                                              )
-                                                            : [...current, id],
-                                                    );
-                                                }}
-                                                className="mt-1 size-4 rounded border-border text-emerald-600 focus:ring-emerald-600"
-                                            />
-                                            <span className="min-w-0">
-                                                <span className="flex flex-wrap items-center gap-2 font-medium text-foreground">
-                                                    {contact.name ||
-                                                        'Unnamed contact'}
-                                                    {contact.is_primary ? (
-                                                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200">
-                                                            Primary
-                                                        </span>
-                                                    ) : null}
-                                                </span>
-                                                {contact.title ? (
-                                                    <span className="block text-sm text-muted-foreground">
-                                                        {contact.title}
-                                                    </span>
-                                                ) : null}
-                                                <span className="block text-sm text-muted-foreground">
-                                                    {[
-                                                        contact.email,
-                                                        contact.phone_number,
-                                                    ]
-                                                        .filter(Boolean)
-                                                        .join(' · ') ||
-                                                        'No email or phone'}
-                                                </span>
-                                            </span>
-                                        </label>
-                                    );
-                                })}
-                            </div>
-                        )}
-                        <InputError
-                            message={errorMessage(
-                                validationErrors,
-                                'contact_ids',
-                            )}
                         />
                     </div>
 
@@ -1066,8 +944,7 @@ export default function QuotationForm({
                         />
                     </div>
 
-                    <div className="flex min-w-0 flex-wrap gap-4 sm:col-span-2">
-                        <div className="flex min-w-0 w-[calc(50%-0.5rem)] max-w-[11.5rem] flex-col gap-2">
+                    <div className="flex min-w-0 flex-col gap-2">
                             <InputLabel
                                 htmlFor="quoted_at"
                                 value="Quoted on"
@@ -1089,12 +966,13 @@ export default function QuotationForm({
                                 )}
                             />
                         </div>
-                        <div className="flex min-w-0 w-[calc(50%-0.5rem)] max-w-[11.5rem] flex-col gap-2">
+                    <div className="flex min-w-0 flex-col gap-2 sm:col-span-2">
                             <InputLabel
                                 htmlFor="valid_until_period"
                                 value="Valid until"
                                 className="text-emerald-700 dark:text-emerald-300"
                             />
+                            <div className="grid gap-2 sm:grid-cols-2">
                             <select
                                 id="valid_until_period"
                                 aria-label="Valid until period"
@@ -1144,6 +1022,7 @@ export default function QuotationForm({
                                     })
                                 }
                             />
+                            </div>
                             <InputError
                                 message={errorMessage(
                                     validationErrors,
@@ -1151,11 +1030,337 @@ export default function QuotationForm({
                                 )}
                             />
                         </div>
-                    </div>
                 </CardContent>
             </Card>
 
-            <section className="flex min-w-0 flex-col gap-4 rounded-xl border border-border bg-card p-5">
+            <Card id="quotation-customer" className={`${sectionClassName} shadow-sm`}>
+                <CardHeader>
+                    <CardTitle className="text-base font-semibold text-foreground">
+                        Customer
+                    </CardTitle>
+                    <CardDescription>
+                        Choose a contractor or the project owner, then check
+                        the contacts that should appear on the quotation.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-5">
+        <div className="flex flex-col gap-2 sm:col-span-2">
+            <InputLabel
+                value="Quoted for"
+                className="text-emerald-700 dark:text-emerald-300"
+            />
+            <div className="grid grid-cols-2 gap-2">
+                <label
+                    className={cn(
+                        'flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2.5 text-sm',
+                        partyRole === 'contractor'
+                            ? 'border-emerald-500 bg-emerald-50 font-medium text-foreground dark:border-emerald-700 dark:bg-emerald-950/40'
+                            : 'border-border bg-background text-foreground',
+                    )}
+                >
+                    <input
+                        type="radio"
+                        name="quotation-party-role"
+                        checked={partyRole === 'contractor'}
+                        onChange={() => {
+                            setPartyRole('contractor');
+                            setPartyError('');
+                            clearErrors('contractor_id');
+                            if (
+                                selectedContractor?.role === 'owner'
+                            ) {
+                                setValue('contractor_id', '');
+                                setValue('contact_ids', []);
+                            }
+                        }}
+                    />
+                    Contractor
+                </label>
+                <label
+                    className={cn(
+                        'flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2.5 text-sm',
+                        partyRole === 'owner'
+                            ? 'border-emerald-500 bg-emerald-50 font-medium text-foreground dark:border-emerald-700 dark:bg-emerald-950/40'
+                            : 'border-border bg-background text-foreground',
+                    )}
+                >
+                    <input
+                        type="radio"
+                        name="quotation-party-role"
+                        checked={partyRole === 'owner'}
+                        onChange={() => {
+                            setPartyRole('owner');
+                            setPartyError('');
+                            clearErrors('contractor_id');
+                            if (
+                                selectedContractor &&
+                                selectedContractor.role !== 'owner'
+                            ) {
+                                setValue('contractor_id', '');
+                                setValue('contact_ids', []);
+                            }
+                        }}
+                    />
+                    Owner of the project
+                </label>
+            </div>
+            <InputLabel
+                htmlFor="contractor_id"
+                value={
+                    partyRole === 'owner'
+                        ? 'Owner name'
+                        : 'Contractor name'
+                }
+                className="text-emerald-700 dark:text-emerald-300"
+            />
+            <select
+                id="contractor_id"
+                value={data.contractor_id}
+                onChange={(event) => {
+                    const contractorId = event.target.value;
+                    const contractor = (
+                        options.contractors ?? []
+                    ).find(
+                        (item) => String(item.id) === contractorId,
+                    );
+                    clearErrors('contractor_id');
+                    setValue('contractor_id', contractorId);
+                    setValue(
+                        'contact_ids',
+                        defaultContactIds(contractor),
+                    );
+                }}
+                className={`${inputClassName} min-w-0 max-w-full`}
+            >
+                <option value="">
+                    {partyRole === 'owner'
+                        ? 'Select an owner'
+                        : 'Select a contractor'}
+                </option>
+                {contractorOptions.map((contractor) => (
+                    <option
+                        key={contractor.id}
+                        value={contractor.id}
+                    >
+                        {contractor.name}
+                    </option>
+                ))}
+            </select>
+            <div className="flex flex-col gap-2 sm:flex-row">
+                <TextInput
+                    value={newPartyName}
+                    placeholder={
+                        partyRole === 'owner'
+                            ? 'New owner name'
+                            : 'New contractor name'
+                    }
+                    className={inputClassName}
+                    onChange={(event) => {
+                        setNewPartyName(event.target.value);
+                        setPartyError('');
+                    }}
+                />
+                <Button
+                    type="button"
+                    className="h-11 shrink-0 bg-emerald-600 text-white hover:bg-emerald-700"
+                    disabled={
+                        addingParty || newPartyName.trim() === ''
+                    }
+                    onClick={() => {
+                        const name = newPartyName.trim();
+
+                        if (name === '') {
+                            return;
+                        }
+
+                        setAddingParty(true);
+                        setPartyError('');
+                        router.post(
+                            route('admin.contractors.store'),
+                            { name, role: partyRole },
+                            {
+                                preserveScroll: true,
+                                preserveState: true,
+                                onSuccess: (page) => {
+                                    const contractors =
+                                        (
+                                            page.props
+                                                .options as QuotationOptions
+                                        )?.contractors ?? [];
+                                    const created =
+                                        contractors.find(
+                                            (contractor) =>
+                                                contractor.name.toLowerCase() ===
+                                                    name.toLowerCase() &&
+                                                (contractor.role ===
+                                                'owner'
+                                                    ? 'owner'
+                                                    : 'contractor') ===
+                                                    partyRole,
+                                        );
+
+                                    if (!created) {
+                                        return;
+                                    }
+
+                                    setValue(
+                                        'contractor_id',
+                                        String(created.id),
+                                        { shouldValidate: true },
+                                    );
+                                    setValue(
+                                        'contact_ids',
+                                        defaultContactIds(created),
+                                    );
+                                    setNewPartyName('');
+                                },
+                                onError: (errors) => {
+                                    setPartyError(
+                                        String(
+                                            errors.name ||
+                                                'That name could not be added.',
+                                        ),
+                                    );
+                                },
+                                onFinish: () =>
+                                    setAddingParty(false),
+                            },
+                        );
+                    }}
+                >
+                    {addingParty
+                        ? 'Adding...'
+                        : partyRole === 'owner'
+                          ? 'Add owner'
+                          : 'Add contractor'}
+                </Button>
+            </div>
+            <InputError
+                message={
+                    partyError ||
+                    errorMessage(
+                        validationErrors,
+                        'contractor_id',
+                    )
+                }
+            />
+        </div>
+
+        <div className="flex flex-col gap-2 min-w-0 sm:col-span-2">
+            <InputLabel
+                value="Contacts on this quotation"
+                className="text-emerald-700 dark:text-emerald-300"
+            />
+            <p className="text-sm text-muted-foreground">
+                Every contact for this{' '}
+                {partyRole === 'owner' ? 'owner' : 'contractor'} is
+                listed. Check the ones that should appear on the
+                quotation.
+            </p>
+            {data.contractor_id ? (
+                <div>
+                    <Button
+                        type="button"
+                        className="h-9 bg-emerald-600 text-white hover:bg-emerald-700"
+                        onClick={() => setContactDialogOpen(true)}
+                    >
+                        <PlusIcon className="size-3.5" />
+                        Add contact
+                    </Button>
+                </div>
+            ) : null}
+            {!data.contractor_id ? (
+                <p className="rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
+                    Select a{' '}
+                    {partyRole === 'owner'
+                        ? 'owner'
+                        : 'contractor'}{' '}
+                    to see their contacts.
+                </p>
+            ) : contractorContacts.length === 0 ? (
+                <p className="rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
+                    This{' '}
+                    {partyRole === 'owner'
+                        ? 'owner'
+                        : 'contractor'}{' '}
+                    has no contacts yet. Add one here.
+                </p>
+            ) : (
+                <div className="grid gap-2 sm:grid-cols-2">
+                    {contractorContacts.map((contact) => {
+                        const checked = (
+                            data.contact_ids ?? []
+                        ).includes(String(contact.id));
+
+                        return (
+                            <label
+                                key={contact.id}
+                                className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-background p-3 has-[:checked]:border-emerald-300 has-[:checked]:bg-emerald-50/70 dark:has-[:checked]:border-emerald-900 dark:has-[:checked]:bg-emerald-950/30"
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={() => {
+                                        const current =
+                                            data.contact_ids ?? [];
+                                        const id = String(
+                                            contact.id,
+                                        );
+                                        setValue(
+                                            'contact_ids',
+                                            checked
+                                                ? current.filter(
+                                                      (value) =>
+                                                          value !==
+                                                          id,
+                                                  )
+                                                : [...current, id],
+                                        );
+                                    }}
+                                    className="mt-1 size-4 rounded border-border text-emerald-600 focus:ring-emerald-600"
+                                />
+                                <span className="min-w-0">
+                                    <span className="flex flex-wrap items-center gap-2 font-medium text-foreground">
+                                        {contact.name ||
+                                            'Unnamed contact'}
+                                        {contact.is_primary ? (
+                                            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200">
+                                                Primary
+                                            </span>
+                                        ) : null}
+                                    </span>
+                                    {contact.title ? (
+                                        <span className="block text-sm text-muted-foreground">
+                                            {contact.title}
+                                        </span>
+                                    ) : null}
+                                    <span className="block text-sm text-muted-foreground">
+                                        {[
+                                            contact.email,
+                                            contact.phone_number,
+                                        ]
+                                            .filter(Boolean)
+                                            .join(' · ') ||
+                                            'No email or phone'}
+                                    </span>
+                                </span>
+                            </label>
+                        );
+                    })}
+                </div>
+            )}
+            <InputError
+                message={errorMessage(
+                    validationErrors,
+                    'contact_ids',
+                )}
+            />
+        </div>
+                </CardContent>
+            </Card>
+            </div>
+
+            <section id="quotation-pricing" className={`${sectionClassName} flex min-w-0 flex-col gap-4 rounded-xl border border-border bg-card p-5`}>
                 <div>
                     <h3 className="text-base font-semibold text-foreground">
                         Project price
@@ -1238,8 +1443,9 @@ export default function QuotationForm({
             />
 
             <section
+                id="quotation-layout"
                 aria-labelledby="quotation-layout-header-title"
-                className="flex min-w-0 flex-col gap-4"
+                className={`${sectionClassName} flex min-w-0 flex-col gap-4 rounded-xl border border-border bg-card p-5`}
             >
                 <div>
                     <h3
@@ -1293,7 +1499,10 @@ export default function QuotationForm({
                 />
             </section>
 
-            <section className="flex min-w-0 flex-col gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
+            <section
+                id="quotation-revisions"
+                className={`${sectionClassName} flex min-w-0 flex-col gap-4 rounded-xl border border-border bg-card p-5`}
+            >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h3 className="text-base font-semibold text-foreground">
@@ -1306,8 +1515,7 @@ export default function QuotationForm({
                     </div>
                     <Button
                         type="button"
-                        variant="outline"
-                        className="w-full shrink-0 sm:w-auto"
+                        className="w-full shrink-0 bg-emerald-600 text-white hover:bg-emerald-700 sm:w-auto"
                         onClick={() =>
                             appendRevision(
                                 blankRevision(
@@ -1523,7 +1731,7 @@ export default function QuotationForm({
                                             />
                                             <Button
                                                 type="button"
-                                                variant="outline"
+                                                variant="destructive"
                                                 className="h-11 shrink-0"
                                                 aria-label={`Remove revision ${index + 1}`}
                                                 onClick={() =>
@@ -1568,7 +1776,10 @@ export default function QuotationForm({
                 )}
             </section>
 
-            <section className="flex min-w-0 flex-col gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
+            <section
+                id="quotation-authorization"
+                className={`${sectionClassName} flex min-w-0 flex-col gap-4 rounded-xl border border-border bg-card p-5`}
+            >
                 <div className="flex flex-col gap-1">
                     <h2 className="text-base font-semibold text-foreground">
                         Authorization
@@ -1654,6 +1865,44 @@ export default function QuotationForm({
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            <QuickProjectDialog
+                show={projectDialogOpen}
+                contractorId={data.contractor_id}
+                contractorRole={partyRole}
+                showContractorName={!data.contractor_id}
+                allowPrice={canAddProjectPrice}
+                onClose={() => setProjectDialogOpen(false)}
+                onCreated={(project) => {
+                    const priceIds = (project.prices ?? []).map((price) =>
+                        String(price.id),
+                    );
+
+                    setValue('project_id', String(project.id), {
+                        shouldValidate: true,
+                    });
+                    setValue('project_price_ids', priceIds);
+                    setValue(
+                        'project_amount',
+                        priceIds.length === 0
+                            ? ''
+                            : priceAmount(project.prices ?? [], priceIds),
+                    );
+                }}
+            />
+            <QuickContractorContactDialog
+                show={contactDialogOpen && Boolean(data.contractor_id)}
+                contractorId={data.contractor_id}
+                partyLabel={partyRole === 'owner' ? 'owner' : 'contractor'}
+                onClose={() => setContactDialogOpen(false)}
+                onCreated={(contactId) => {
+                    const current = data.contact_ids ?? [];
+
+                    if (!current.includes(contactId)) {
+                        setValue('contact_ids', [...current, contactId]);
+                    }
+                }}
+            />
         </form>
     );
 }

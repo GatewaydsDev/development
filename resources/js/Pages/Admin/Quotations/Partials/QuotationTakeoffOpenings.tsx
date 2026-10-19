@@ -42,7 +42,10 @@ export default function QuotationTakeoffOpenings({ projectSelected, takeoffs, li
     };
 
     return (
-        <section className="flex min-w-0 flex-col gap-4 rounded-xl border border-border bg-card p-5">
+        <section
+            id="quotation-openings"
+            className="scroll-mt-44 flex min-w-0 flex-col gap-4 rounded-xl border border-border bg-card p-5"
+        >
             <div>
                 <h3 className="text-base font-semibold text-foreground">Takeoff openings</h3>
                 <p className="mt-1 text-sm text-muted-foreground">Choose a takeoff for this project, then select the openings to put on the quotation. Each opening is added once, with its size and specs.</p>
@@ -75,9 +78,9 @@ export default function QuotationTakeoffOpenings({ projectSelected, takeoffs, li
                         <p className="text-sm text-muted-foreground">This takeoff has no openings to add.</p>
                     ) : null}
                     {takeoff && takeoff.openings.length > 0 ? (
-                        <div className="overflow-x-auto rounded-md border">
+                        <div className="max-h-80 overflow-auto rounded-md border">
                             <table className="min-w-full text-sm">
-                                <thead className="text-left text-white">
+                                <thead className="sticky top-0 z-10 text-left text-white">
                                     <tr>
                                         <th className="bg-[#16324F] px-2 py-2"> </th>
                                         <th className="bg-[#16324F] px-2 py-2">Tag</th>
@@ -110,7 +113,7 @@ export default function QuotationTakeoffOpenings({ projectSelected, takeoffs, li
                         </div>
                     ) : null}
                     <div className="flex flex-wrap items-center gap-3">
-                        <Button type="button" disabled={selected.length === 0} onClick={addSelected}>Add selected openings</Button>
+                        <Button type="button" className="bg-emerald-600 text-white hover:bg-emerald-700" disabled={selected.length === 0} onClick={addSelected}>Add selected openings</Button>
                         {notice ? <p className="text-sm text-muted-foreground">{notice}</p> : null}
                     </div>
                 </>

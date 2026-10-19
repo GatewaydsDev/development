@@ -1,4 +1,5 @@
 import CreatableSelect from '@/Components/CreatableSelect';
+import QuickProjectDialog from '@/Components/QuickProjectDialog';
 import Checkbox from '@/Components/Checkbox';
 import FormActionFab from '@/Components/FormActionFab';
 import ProjectPricePicker from '@/Components/ProjectPricePicker';
@@ -56,6 +57,7 @@ import {
     type BidFormData,
     type BidOptions,
     type BidPayload,
+    type BidProjectOption,
     type BidQuotationOption,
     type PreBidOption,
 } from '../types';
@@ -318,6 +320,9 @@ export default function BidForm({
     } | null>(null);
     const [pendingImportQuotation, setPendingImportQuotation] =
         useState<BidQuotationOption | null>(null);
+    const [projectDialogOpen, setProjectDialogOpen] = useState(false);
+    const canCreateProjects = Boolean(auth.can?.createProjects);
+    const canAddProjectPrice = Boolean(auth.can?.viewSensitiveProjectFields);
 
     const data = useWatch({
         control,
@@ -720,51 +725,63 @@ export default function BidForm({
 
                     <div className="flex flex-col gap-5">
                         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-                            <CreatableSelect
-                                id="bid-project"
-                                label="Project name"
-                                value={data.project_id ?? ''}
-                                options={options.projects}
-                                allowCreate={false}
-                                placeholder="Type to find a project"
-                                error={errorMessage(validationErrors, 'project_id')}
-                                onChange={(projectId) => {
-                                    const previousProjectId = data.project_id;
-                                    setData('project_id', projectId);
-                                    setData('project_price_ids', []);
+                            <div className="flex min-w-0 flex-col gap-2">
+                                <CreatableSelect
+                                    id="bid-project"
+                                    label="Project name"
+                                    value={data.project_id ?? ''}
+                                    options={options.projects}
+                                    allowCreate={false}
+                                    placeholder="Type to find a project"
+                                    error={errorMessage(validationErrors, 'project_id')}
+                                    onChange={(projectId) => {
+                                        const previousProjectId = data.project_id;
+                                        setData('project_id', projectId);
+                                        setData('project_price_ids', []);
 
-                                    if (projectId === previousProjectId) {
-                                        return;
-                                    }
+                                        if (projectId === previousProjectId) {
+                                            return;
+                                        }
 
-                                    const project = options.projects.find(
-                                        (item) => String(item.id) === projectId,
-                                    );
+                                        const project = options.projects.find(
+                                            (item) => String(item.id) === projectId,
+                                        );
 
-                                    replaceScopes(
-                                        scopesFromProject(
-                                            project,
-                                            options.scopeTitles,
-                                            options.products,
-                                            options.services,
-                                        ),
-                                    );
+                                        replaceScopes(
+                                            scopesFromProject(
+                                                project,
+                                                options.scopeTitles,
+                                                options.products,
+                                                options.services,
+                                            ),
+                                        );
 
-                                    const linkedQuotation = quotations.find(
-                                        (item) =>
-                                            String(item.id) ===
-                                            (data.quotation_id ?? ''),
-                                    );
+                                        const linkedQuotation = quotations.find(
+                                            (item) =>
+                                                String(item.id) ===
+                                                (data.quotation_id ?? ''),
+                                        );
 
-                                    if (
-                                        linkedQuotation?.project_id &&
-                                        String(linkedQuotation.project_id) !==
-                                            projectId
-                                    ) {
-                                        setData('quotation_id', '');
-                                    }
-                                }}
-                            />
+                                        if (
+                                            linkedQuotation?.project_id &&
+                                            String(linkedQuotation.project_id) !==
+                                                projectId
+                                        ) {
+                                            setData('quotation_id', '');
+                                        }
+                                    }}
+                                />
+                                {canCreateProjects ? (
+                                    <Button
+                                        type="button"
+                                        className="h-11 w-full bg-emerald-600 text-white hover:bg-emerald-700 sm:w-auto"
+                                        onClick={() => setProjectDialogOpen(true)}
+                                    >
+                                        <PlusIcon className="size-4" />
+                                        New project
+                                    </Button>
+                                ) : null}
+                            </div>
                             <div className="flex flex-col gap-2">
                                 <InputLabel
                                     htmlFor="bid-assigned-to"
@@ -873,8 +890,7 @@ export default function BidForm({
                                 />
                                 <Button
                                     type="button"
-                                    variant="outline"
-                                    className="h-11 w-full lg:w-auto"
+                                    className="h-11 w-full bg-emerald-600 text-white hover:bg-emerald-700 lg:w-auto"
                                     onClick={handleImportQuotationClick}
                                 >
                                     <FileUpIcon className="size-4" />
@@ -925,7 +941,7 @@ export default function BidForm({
                     </div>
                     <Button
                         type="button"
-                        variant="outline"
+                        className="bg-emerald-600 text-white hover:bg-emerald-700"
                         onClick={() =>
                             appendRevision(
                                 blankRevision(
@@ -1035,7 +1051,7 @@ export default function BidForm({
                                     <div className="flex items-start lg:pt-7">
                                         <Button
                                             type="button"
-                                            variant="outline"
+                                            variant="destructive"
                                             aria-label={`Remove revision ${index + 1}`}
                                             onClick={() =>
                                                 setPendingDelete({
@@ -1070,7 +1086,7 @@ export default function BidForm({
                     </div>
                     <Button
                         type="button"
-                        variant="outline"
+                        className="bg-emerald-600 text-white hover:bg-emerald-700"
                         onClick={() => appendStage(blankStage())}
                     >
                         <PlusIcon className="size-4" />
@@ -1158,7 +1174,7 @@ export default function BidForm({
                                 <div className="flex items-start lg:pt-7">
                                     <Button
                                         type="button"
-                                        variant="outline"
+                                        variant="destructive"
                                         aria-label={`Remove stage ${index + 1}`}
                                         onClick={() => {
                                             const stageName =
@@ -1323,6 +1339,30 @@ export default function BidForm({
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            <QuickProjectDialog
+                show={projectDialogOpen}
+                showContractorName
+                allowPrice={canAddProjectPrice}
+                onClose={() => setProjectDialogOpen(false)}
+                onCreated={(project) => {
+                    const created = project as BidProjectOption;
+                    const priceIds = (created.prices ?? []).map((price) =>
+                        String(price.id),
+                    );
+
+                    setData('project_id', String(created.id));
+                    setData('project_price_ids', priceIds);
+                    replaceScopes(
+                        scopesFromProject(
+                            created,
+                            options.scopeTitles,
+                            options.products,
+                            options.services,
+                        ),
+                    );
+                }}
+            />
         </form>
     );
 }

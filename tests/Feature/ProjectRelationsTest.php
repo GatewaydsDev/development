@@ -991,3 +991,81 @@ test('a project can be printed and exported as pdf or word', function () {
     expect((string) $word->headers->get('content-type'))->toContain('wordprocessingml.document');
     expect((string) $word->headers->get('content-disposition'))->toContain('project-gds-2026-print-'.$project->id.'.docx');
 });
+
+test('a quotation can save a basic project without leaving the form', function () {
+    $admin = projectAdmin();
+    $turner = Contractor::create([
+        'name' => 'Turner Construction',
+        'role' => 'contractor',
+    ]);
+
+    $this->actingAs($admin)
+        ->from(route('admin.quotations.create'))
+        ->post(route('admin.projects.quick-store'), [
+            'name' => 'Lobby doors',
+            'site_address_line_1' => '100 Secure Way',
+            'site_city' => 'Newark',
+            'site_state' => 'nj',
+            'site_postal_code' => '07102',
+            'contractor_id' => $turner->id,
+            'price_label' => '2 windows',
+            'price_amount' => '1500.00',
+        ])
+        ->assertRedirect(route('admin.quotations.create'))
+        ->assertSessionHas('success', 'Project saved. It is selected for this form.');
+
+    $project = Project::query()->where('name', 'Lobby doors')->first();
+
+    expect($project)->not->toBeNull();
+    expect($project->project_status_id)->toBe(projectStatusId('lead'));
+    expect($project->priority)->toBe('normal');
+    expect($project->site_state)->toBe('NJ');
+    expect($project->project_number)->toStartWith('GDS-');
+    expect($project->contractors->pluck('id')->all())->toBe([$turner->id]);
+    $price = $project->prices()->first();
+    expect($price->label)->toBe('2 windows');
+    expect((string) $price->amount)->toBe('1500.00');
+});
+
+test('a quick project rejects a duplicate name', function () {
+    $admin = projectAdmin();
+    Project::create([
+        'name' => 'Lobby doors',
+        'priority' => 'normal',
+        'project_status_id' => projectStatusId('lead'),
+    ]);
+
+    $this->actingAs($admin)
+        ->from(route('admin.bids.create'))
+        ->post(route('admin.projects.quick-store'), [
+            'name' => 'Lobby doors',
+        ])
+        ->assertRedirect(route('admin.bids.create'))
+        ->assertSessionHasErrors('name');
+});
+
+test('a quotation can add a contractor contact without leaving the form', function () {
+    $admin = projectAdmin();
+    $turner = Contractor::create([
+        'name' => 'Turner Construction',
+        'role' => 'contractor',
+    ]);
+
+    $this->actingAs($admin)
+        ->from(route('admin.quotations.create'))
+        ->post(route('admin.contractors.contacts.store', $turner), [
+            'name' => 'Alex Rivera',
+            'title' => 'Project manager',
+            'email' => 'alex@turner.example',
+            'phone_number' => '9735550100',
+        ])
+        ->assertRedirect(route('admin.quotations.create'))
+        ->assertSessionHas('success', 'Contact saved. It is available on this quotation.');
+
+    $contact = $turner->contacts()->first();
+
+    expect($contact)->not->toBeNull();
+    expect($contact->name)->toBe('Alex Rivera');
+    expect($contact->is_primary)->toBeTrue();
+    expect($contact->email)->toBe('alex@turner.example');
+});
