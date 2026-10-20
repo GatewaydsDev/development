@@ -86,7 +86,7 @@
   "recipientName": "Nombre del destinatario guardado",
   "noSavedRecipients": "Las direcciones guardadas aparecen aquí.",
   "writeMessage": "Escriba su mensaje",
-  "messageRequired": "Escriba un mensaje antes de enviar.",
+  "messageRequired": "Escriba al menos 8 caracteres antes de enviar.",
   "sentNotice": "Microsoft 365 aceptó el mensaje para envío.",
   "newEmail": "Correo nuevo",
   "openEmail": "Abrir",
