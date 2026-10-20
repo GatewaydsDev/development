@@ -1,6 +1,7 @@
 import StickyDocumentToolbar from '@/Components/StickyDocumentToolbar';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ComposeMail, {
+    mailboxAddress,
     quotePlainText,
     type ComposeDraft,
     type SavedRecipient,
@@ -65,6 +66,45 @@ type Props = {
     unreadCount?: number;
     deliveryProblems?: string[];
 };
+
+function messageWhen(message: MailMessage): string {
+    const stamp = message.received_at ?? message.sent_at;
+
+    if (!stamp) {
+        return '';
+    }
+
+    const date = new Date(stamp);
+
+    if (Number.isNaN(date.getTime())) {
+        return '';
+    }
+
+    return date.toLocaleString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+    });
+}
+
+function replyIntro(message: MailMessage): string {
+    const when = messageWhen(message);
+
+    return when
+        ? `On ${when}, ${message.from} wrote:`
+        : `${message.from} wrote:`;
+}
+
+function forwardIntro(message: MailMessage): string {
+    const when = messageWhen(message);
+    const sent = when ? `Sent: ${when}` : '';
+
+    return ['---------- Forwarded message ----------', `From: ${message.from}`, sent]
+        .filter((line) => line !== '')
+        .join('\n');
+}
 
 function MessageOptions({
     messageId,
@@ -428,11 +468,14 @@ export default function Index({
                                                         className="min-h-11 touch-manipulation"
                                                         onClick={() =>
                                                             openCompose({
-                                                                to: message.from,
+                                                                to: mailboxAddress(message.from),
                                                                 cc: '',
                                                                 bcc: '',
                                                                 subject: subjectWithPrefix('Re', message.subject),
-                                                                body: quotePlainText(message.body),
+                                                                body: quotePlainText(
+                                                                    message.body,
+                                                                    replyIntro(message),
+                                                                ),
                                                             })
                                                         }
                                                     >
@@ -449,7 +492,10 @@ export default function Index({
                                                                 cc: '',
                                                                 bcc: '',
                                                                 subject: subjectWithPrefix('Fw', message.subject),
-                                                                body: quotePlainText(message.body),
+                                                                body: quotePlainText(
+                                                                    message.body,
+                                                                    forwardIntro(message),
+                                                                ),
                                                             })
                                                         }
                                                     >

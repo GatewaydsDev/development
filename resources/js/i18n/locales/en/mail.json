@@ -86,7 +86,7 @@
   "recipientName": "Name for the saved recipient",
   "noSavedRecipients": "Saved addresses appear here.",
   "writeMessage": "Write your message",
-  "messageRequired": "Write a message before sending.",
+  "messageRequired": "Write at least 8 characters before sending.",
   "sentNotice": "Microsoft 365 accepted the message for sending.",
   "newEmail": "New email",
   "openEmail": "Open",

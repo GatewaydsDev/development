@@ -206,6 +206,30 @@ test('a user without a mailbox cannot read or send mail', function () {
         ->assertForbidden();
 });
 
+test('a reply address can include the sender name', function () {
+    $user = mailboxUser('ricardo@gateway-ds.com');
+    fakeMailboxGraph();
+
+    $this->actingAs($user)
+        ->post(route('mailbox.send'), [
+            'to' => 'Buyer <buyer@example.com>',
+            'subject' => 'Re: Project update',
+            'body' => 'Thanks for the note.',
+        ])
+        ->assertRedirect(route('mailbox.index', ['folder' => 'sent']))
+        ->assertSessionHas('success');
+
+    Http::assertSent(function ($request) {
+        if (! savedMailboxMessage($request, 'ricardo@gateway-ds.com')) {
+            return false;
+        }
+
+        $recipient = $request->data()['message']['toRecipients'][0]['emailAddress']['address'] ?? null;
+
+        return $recipient === 'buyer@example.com';
+    });
+});
+
 test('mail requests use the signed-in user mailbox and ignore a submitted sender', function () {
     $user = mailboxUser('ricardo@gateway-ds.com');
     $other = mailboxUser('sales@gateway-ds.com');
@@ -349,6 +373,42 @@ test('a super admin still sends from their own assigned mailbox', function () {
         $request->url(),
         rawurlencode('larryd@gateway-ds.com'),
     ));
+});
+
+test('a message must contain at least 8 characters', function () {
+    $user = mailboxUser();
+    fakeMailboxGraph();
+
+    $this->actingAs($user)
+        ->from(route('mailbox.index'))
+        ->post(route('mailbox.send'), [
+            'to' => 'buyer@example.com',
+            'subject' => 'Short note',
+            'body' => 'Hello',
+        ])
+        ->assertRedirect(route('mailbox.index'))
+        ->assertSessionHasErrors('body');
+
+    $this->actingAs($user)
+        ->from(route('mailbox.index'))
+        ->post(route('mailbox.send'), [
+            'to' => 'buyer@example.com',
+            'subject' => 'Short reply',
+            'body' => '<p>Hi</p><hr><p>On Monday, Buyer wrote:</p><blockquote><p>This original message is much longer than eight characters.</p></blockquote>',
+        ])
+        ->assertRedirect(route('mailbox.index'))
+        ->assertSessionHasErrors('body');
+
+    Http::assertNothingSent();
+
+    $this->actingAs($user)
+        ->post(route('mailbox.send'), [
+            'to' => 'buyer@example.com',
+            'subject' => 'Long enough',
+            'body' => 'Hello yo',
+        ])
+        ->assertRedirect(route('mailbox.index', ['folder' => 'sent']))
+        ->assertSessionHas('success');
 });
 
 test('invalid mail is rejected before microsoft is contacted', function () {

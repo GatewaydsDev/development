@@ -529,7 +529,7 @@ class MailboxController extends Controller
             }
 
             foreach (preg_split('/[;,]+/', $value) ?: [] as $part) {
-                $email = strtolower(trim($part));
+                $email = $this->mailboxAddress((string) $part);
 
                 if ($email === '') {
                     continue;
@@ -550,7 +550,7 @@ class MailboxController extends Controller
         $emails = [];
 
         foreach (preg_split('/[;,]+/', $value) ?: [] as $part) {
-            $email = strtolower(trim($part));
+            $email = $this->mailboxAddress((string) $part);
 
             if ($email === '') {
                 continue;
@@ -568,16 +568,25 @@ class MailboxController extends Controller
         return array_values($emails);
     }
 
+    private function mailboxAddress(string $part): string
+    {
+        $part = trim($part);
+
+        if (preg_match('/<([^<>]+)>/', $part, $matches) === 1) {
+            $part = trim($matches[1]);
+        }
+
+        return strtolower($part);
+    }
+
     /**
      * @return array{type: string, content: string}
      */
     private function messageBody(string $body): array
     {
-        $stripped = trim(html_entity_decode(strip_tags(str_replace(['<br>', '<br/>', '<br />'], "\n", $body))));
-
-        if ($stripped === '') {
+        if (mb_strlen($this->messageText($body)) < 8) {
             throw ValidationException::withMessages([
-                'body' => 'Write a message before sending.',
+                'body' => 'Write at least 8 characters before sending.',
             ]);
         }
 
@@ -588,6 +597,16 @@ class MailboxController extends Controller
             'type' => $type,
             'content' => $content,
         ];
+    }
+
+    private function messageText(string $body): string
+    {
+        $own = preg_split('/<hr\b/i', $body, 2)[0] ?? $body;
+        $own = str_ireplace(['<br>', '<br/>', '<br />'], ' ', $own);
+        $own = html_entity_decode(strip_tags($own), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $own = preg_replace('/\s+/u', ' ', $own) ?? $own;
+
+        return trim($own);
     }
 
     /**

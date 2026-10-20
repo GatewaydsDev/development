@@ -554,7 +554,7 @@ export default function ComposeMail({
         immediatelyRender: false,
         editorProps: {
             attributes: {
-                class: 'min-h-52 px-3 py-3 font-[Calibri,Arial,sans-serif] text-base text-foreground outline-none md:min-h-72 md:text-sm',
+                class: 'min-h-52 px-3 py-3 font-[Calibri,Arial,sans-serif] text-base text-foreground outline-none md:min-h-72 md:text-sm [&_blockquote]:mt-4 [&_blockquote]:border-l-4 [&_blockquote]:border-slate-400 [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground dark:[&_blockquote]:border-slate-300 [&_hr]:my-8 [&_hr]:h-1 [&_hr]:border-0 [&_hr]:bg-slate-700 dark:[&_hr]:bg-slate-200',
             },
         },
         onUpdate: ({ editor: current }) => {
@@ -600,7 +600,7 @@ export default function ComposeMail({
     const submit = (event: FormEvent) => {
         event.preventDefault();
 
-        if (!editor?.getText().trim()) {
+        if ([...composedMessageText(editor?.getHTML() ?? '')].length < 8) {
             form.setError('body', t('messageRequired'));
 
             return;
@@ -1112,12 +1112,38 @@ export default function ComposeMail({
     );
 }
 
-export function quotePlainText(body: string): string {
-    const escaped = body
+export function composedMessageText(html: string): string {
+    const own = html.split(/<hr\b/i)[0] ?? html;
+
+    return own
+        .replace(/<br\s*\/?>/gi, ' ')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&amp;/gi, '&')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+export function mailboxAddress(value: string): string {
+    const match = value.match(/<([^<>\s]+@[^<>\s]+)>/);
+
+    return (match?.[1] ?? value).trim();
+}
+
+function escapeHtml(value: string): string {
+    return value
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/\n/g, '<br>');
+        .replace(/>/g, '&gt;');
+}
 
-    return `<p></p><blockquote><p>${escaped}</p></blockquote>`;
+export function quotePlainText(body: string, intro?: string): string {
+    const escaped = escapeHtml(body).replace(/\n/g, '<br>');
+    const heading = intro
+        ? `<p>${escapeHtml(intro).replace(/\n/g, '<br>')}</p>`
+        : '';
+
+    const writingRoom = '<p><br></p>'.repeat(6);
+
+    return `${writingRoom}<hr>${heading}<blockquote><p>${escaped}</p></blockquote>`;
 }
