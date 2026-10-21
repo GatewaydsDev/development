@@ -74,6 +74,7 @@ export type PageProps<
             viewUserActivity: boolean;
             manageExpenses: boolean;
             manageDocumentColors: boolean;
+            useInternalChat?: boolean;
             viewCompany: boolean;
             manageAccess: boolean;
             manageNotifications: boolean;

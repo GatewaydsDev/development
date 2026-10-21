@@ -1,4 +1,5 @@
 import DashboardSidebar from '@/Components/DashboardSidebar';
+import InternalChat from '@/Components/InternalChat';
 import DashboardSnapDrawer from '@/Components/DashboardSnapDrawer';
 import NavLink from '@/Components/NavLink';
 import {
@@ -1215,6 +1216,7 @@ export default function Authenticated({
             </div>
 
             <DashboardSnapDrawer showFloatingTrigger={false} />
+            <InternalChat />
         </div>
     );
 }

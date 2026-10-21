@@ -39,7 +39,7 @@ class EmailPlainText
 
     public static function decodeMessageId(string $token): ?string
     {
-        if ($token === '' || strlen($token) > 700 || preg_match('/^[A-Za-z0-9\-_]+$/', $token) !== 1) {
+        if ($token === '' || strlen($token) > 4000 || preg_match('/^[A-Za-z0-9\-_]+$/', $token) !== 1) {
             return null;
         }
 
@@ -47,7 +47,7 @@ class EmailPlainText
         $padded .= str_repeat('=', (4 - strlen($padded) % 4) % 4);
         $decoded = base64_decode($padded, true);
 
-        if (! is_string($decoded) || $decoded === '' || strlen($decoded) > 512) {
+        if (! is_string($decoded) || $decoded === '' || strlen($decoded) > 3000) {
             return null;
         }
 
