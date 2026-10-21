@@ -17,13 +17,14 @@ import {
 import { acknowledgeUnreadMail, setUnreadMail } from '@/lib/unreadMail';
 import { cn } from '@/lib/utils';
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/Components/ui/dropdown-menu';
-import { ArchiveIcon, ArrowLeftIcon, ForwardIcon, MailIcon, MailOpenIcon, MoreVerticalIcon, RefreshCwIcon, ReplyIcon, SendIcon } from 'lucide-react';
+import { ArchiveIcon, ArrowLeftIcon, ForwardIcon, MailIcon, MailOpenIcon, MoreVerticalIcon, PaperclipIcon, RefreshCwIcon, ReplyIcon, SendIcon, XIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import MailSettings from '@/Pages/Email/MailSettings';
@@ -40,6 +41,14 @@ type MailSummary = {
     folder: string;
 };
 
+type MailAttachment = {
+    id: string;
+    name: string;
+    content_type: string;
+    size: number;
+    image: boolean;
+};
+
 type MailMessage = {
     id: string;
     subject: string;
@@ -49,6 +58,12 @@ type MailMessage = {
     sent_at: string | null;
     body: string;
     images?: Array<{ name: string; src: string }>;
+    attachments?: MailAttachment[];
+};
+
+type AttachmentViewer = {
+    name: string;
+    src: string;
 };
 
 type Props = {
@@ -66,6 +81,25 @@ type Props = {
     unreadCount?: number;
     deliveryProblems?: string[];
 };
+
+function attachmentUrl(messageId: string, attachmentId: string): string {
+    return route('mailbox.attachment', {
+        message: messageId,
+        attachment: attachmentId,
+    });
+}
+
+function fileSize(bytes: number): string {
+    if (!Number.isFinite(bytes) || bytes < 1024) {
+        return `${Math.max(0, Math.round(bytes || 0))} B`;
+    }
+
+    if (bytes < 1024 * 1024) {
+        return `${Math.round(bytes / 1024)} KB`;
+    }
+
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 function messageWhen(message: MailMessage): string {
     const stamp = message.received_at ?? message.sent_at;
@@ -229,6 +263,8 @@ export default function Index({
     const [draft, setDraft] = useState<ComposeDraft | undefined>(undefined);
     const [draftKey, setDraftKey] = useState(0);
     const [acting, setActing] = useState(false);
+    const [viewer, setViewer] = useState<AttachmentViewer | null>(null);
+    const [viewerFailed, setViewerFailed] = useState(false);
 
     useEffect(() => {
         const visible =
@@ -561,14 +597,71 @@ export default function Index({
                                                 </pre>
                                                 {(message.images ?? []).map((image, index) =>
                                                     image.src.startsWith('data:image/') ? (
-                                                        <img
+                                                        <button
                                                             key={`${image.name}-${index}`}
-                                                            src={image.src}
-                                                            alt={image.name}
-                                                            className="mt-3 max-h-48 max-w-full rounded-md border border-border"
-                                                        />
+                                                            type="button"
+                                                            className="mt-3 block max-w-full text-left"
+                                                            onClick={() => {
+                                                                setViewerFailed(false);
+                                                                setViewer({ name: image.name, src: image.src });
+                                                            }}
+                                                        >
+                                                            <img
+                                                                src={image.src}
+                                                                alt={image.name}
+                                                                className="max-h-48 max-w-full rounded-md border border-border"
+                                                            />
+                                                            <span className="mt-1 block text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                                                                {t('openAttachment')}
+                                                            </span>
+                                                        </button>
                                                     ) : null,
                                                 )}
+                                                {(message.attachments ?? []).length > 0 ? (
+                                                    <div className="grid gap-2">
+                                                        <p className="text-sm font-medium">{t('attachments')}</p>
+                                                        <ul className="grid gap-2">
+                                                            {message.attachments?.map((file) => (
+                                                                <li
+                                                                    key={file.id}
+                                                                    className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2"
+                                                                >
+                                                                    <span className="flex min-w-0 items-center gap-2 text-sm">
+                                                                        <PaperclipIcon className="size-4 shrink-0" />
+                                                                        <span className="truncate">{file.name}</span>
+                                                                        <span className="shrink-0 text-muted-foreground">{fileSize(file.size)}</span>
+                                                                    </span>
+                                                                    {file.image ? (
+                                                                        <Button
+                                                                            type="button"
+                                                                            size="sm"
+                                                                            className="bg-emerald-700 text-white hover:bg-emerald-800"
+                                                                            onClick={() => {
+                                                                                setViewerFailed(false);
+                                                                                setViewer({
+                                                                                    name: file.name,
+                                                                                    src: attachmentUrl(message.id, file.id),
+                                                                                });
+                                                                            }}
+                                                                        >
+                                                                            {t('openAttachment')}
+                                                                        </Button>
+                                                                    ) : (
+                                                                        <Button asChild size="sm" className="bg-emerald-700 text-white hover:bg-emerald-800">
+                                                                            <a
+                                                                                href={attachmentUrl(message.id, file.id)}
+                                                                                target="_blank"
+                                                                                rel="noopener noreferrer"
+                                                                            >
+                                                                                {t('openAttachment')}
+                                                                            </a>
+                                                                        </Button>
+                                                                    )}
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                ) : null}
                                             </div>
                                         ) : (
                                             <p className="text-sm text-muted-foreground">{t('select')}</p>
@@ -590,6 +683,52 @@ export default function Index({
                     )}
                 </div>
             </div>
+            <Dialog open={viewer !== null} onClose={() => setViewer(null)} className="relative z-50">
+                <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm" aria-hidden="true" />
+                <div className="fixed inset-0 overflow-y-auto p-3 sm:p-6">
+                    <div className="flex min-h-full items-center justify-center">
+                        <DialogPanel className="w-full max-w-5xl overflow-hidden rounded-2xl border border-border bg-background shadow-2xl">
+                            <div className="flex items-center justify-between gap-4 border-b border-border px-5 py-4">
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-300">
+                                        {t('attachedImage')}
+                                    </p>
+                                    <DialogTitle className="mt-1 break-all text-lg font-semibold text-foreground">
+                                        {viewer?.name ?? t('openAttachment')}
+                                    </DialogTitle>
+                                </div>
+                                <Button type="button" variant="ghost" size="icon" aria-label={t('closeAttachment')} onClick={() => setViewer(null)}>
+                                    <XIcon />
+                                </Button>
+                            </div>
+                            <div className="max-h-[calc(100dvh-7rem)] overflow-auto bg-slate-100 p-4 dark:bg-slate-950 sm:p-8">
+                                {viewer && !viewerFailed ? (
+                                    <img
+                                        src={viewer.src}
+                                        alt={viewer.name}
+                                        className="mx-auto max-h-[75dvh] max-w-full rounded-md bg-white"
+                                        onError={() => setViewerFailed(true)}
+                                    />
+                                ) : (
+                                    <div className="grid justify-items-center gap-3">
+                                        <p className="text-center text-sm text-muted-foreground">{t('attachmentUnavailable')}</p>
+                                        {viewer ? (
+                                            <a
+                                                href={viewer.src}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-sm font-medium text-emerald-700 underline dark:text-emerald-300"
+                                            >
+                                                {t('openAttachment')}
+                                            </a>
+                                        ) : null}
+                                    </div>
+                                )}
+                            </div>
+                        </DialogPanel>
+                    </div>
+                </div>
+            </Dialog>
         </AuthenticatedLayout>
     );
 }
