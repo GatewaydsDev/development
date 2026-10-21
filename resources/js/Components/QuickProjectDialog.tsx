@@ -1,12 +1,19 @@
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import MaskedDecimalInput from '@/Components/MaskedDecimalInput';
-import Modal from '@/Components/Modal';
 import TextInput from '@/Components/TextInput';
 import { Button } from '@/Components/ui/button';
+import {
+    Drawer,
+    DrawerContent,
+    DrawerDescription,
+    DrawerFooter,
+    DrawerHeader,
+    DrawerTitle,
+} from '@/Components/ui/drawer';
 import { normalizeStateInitials } from '@/lib/stateInitials';
 import { router } from '@inertiajs/react';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 
 const fieldClassName =
     'h-11 w-full border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring';
@@ -53,6 +60,22 @@ const emptyForm = (): FormState => ({
     price_amount: '',
 });
 
+function useDrawerDirection(): 'bottom' | 'right' {
+    const [direction, setDirection] = useState<'bottom' | 'right'>('bottom');
+
+    useEffect(() => {
+        const media = window.matchMedia('(min-width: 640px)');
+        const update = () => setDirection(media.matches ? 'right' : 'bottom');
+
+        update();
+        media.addEventListener('change', update);
+
+        return () => media.removeEventListener('change', update);
+    }, []);
+
+    return direction;
+}
+
 export default function QuickProjectDialog({
     show,
     onClose,
@@ -62,6 +85,7 @@ export default function QuickProjectDialog({
     allowPrice = false,
     onCreated,
 }: QuickProjectDialogProps) {
+    const direction = useDrawerDirection();
     const [form, setForm] = useState<FormState>(emptyForm);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [saving, setSaving] = useState(false);
@@ -117,12 +141,12 @@ export default function QuickProjectDialog({
                 preserveScroll: true,
                 preserveState: true,
                 onSuccess: (page) => {
+                    const pageProps = page.props as {
+                        options?: { projects?: QuickProjectRecord[] };
+                        projects?: QuickProjectRecord[];
+                    };
                     const projects =
-                        (
-                            page.props.options as
-                                | { projects?: QuickProjectRecord[] }
-                                | undefined
-                        )?.projects ?? [];
+                        pageProps.options?.projects ?? pageProps.projects ?? [];
                     const created = [...projects]
                         .reverse()
                         .find(
@@ -154,18 +178,25 @@ export default function QuickProjectDialog({
     };
 
     return (
-        <Modal show={show} maxWidth="xl" onClose={close}>
-            <form onSubmit={submit} className="flex flex-col gap-5 p-6">
-                <div>
-                    <h2 className="text-lg font-semibold text-foreground">
-                        New project
-                    </h2>
-                    <p className="mt-1 text-sm text-muted-foreground">
+        <Drawer
+            open={show}
+            direction={direction}
+            onOpenChange={(next) => {
+                if (!next) {
+                    close();
+                }
+            }}
+        >
+            <DrawerContent>
+                <DrawerHeader>
+                    <DrawerTitle>New project</DrawerTitle>
+                    <DrawerDescription>
                         Save the project name and job site here. You stay on
                         this form, and the new project is selected for you.
-                    </p>
-                </div>
-
+                    </DrawerDescription>
+                </DrawerHeader>
+            <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
+                <div className="flex flex-col gap-5 overflow-y-auto px-4 pb-2">
                 <div className="flex flex-col gap-2">
                     <InputLabel htmlFor="quick-project-name" value="Project name" />
                     <TextInput
@@ -302,11 +333,11 @@ export default function QuickProjectDialog({
                     </div>
                 ) : null}
 
-                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                </div>
+                <DrawerFooter className="sm:flex-row sm:justify-end">
                     <Button
                         type="button"
                         variant="outline"
-                        className="h-11"
                         onClick={close}
                         disabled={saving}
                     >
@@ -314,13 +345,14 @@ export default function QuickProjectDialog({
                     </Button>
                     <Button
                         type="submit"
-                        className="h-11 bg-emerald-600 text-white hover:bg-emerald-700"
+                        className="bg-emerald-600 text-white hover:bg-emerald-700"
                         disabled={saving}
                     >
                         {saving ? 'Saving...' : 'Save project'}
                     </Button>
-                </div>
+                </DrawerFooter>
             </form>
-        </Modal>
+                </DrawerContent>
+        </Drawer>
     );
 }

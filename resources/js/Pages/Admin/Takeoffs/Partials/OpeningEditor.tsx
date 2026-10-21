@@ -316,7 +316,7 @@ export default function OpeningEditor({ takeoffUuid, opening, documents, pending
                 <input type="checkbox" checked={form.needs_review} onChange={(event) => set('needs_review', event.target.checked)} />
                 Still needs review after a document change
             </label>
-            {canEdit ? <Button type="submit" disabled={saving}>Save opening</Button> : <p className="text-sm text-muted-foreground">You can view this opening.</p>}
+            {canEdit ? <Button type="submit" size="sm" disabled={saving}>{saving ? 'Saving…' : 'Save opening'}</Button> : <p className="text-sm text-muted-foreground">You can view this opening.</p>}
         </form>
     );
 }

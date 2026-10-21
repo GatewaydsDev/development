@@ -1,10 +1,14 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import FormActionFab from '@/Components/FormActionFab';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
+import QuickProjectDialog from '@/Components/QuickProjectDialog';
 import TextInput from '@/Components/TextInput';
 import { Button } from '@/Components/ui/button';
-import { Head, Link, useForm } from '@inertiajs/react';
-import { FormEvent } from 'react';
+import { PageProps } from '@/types';
+import { Head, useForm, usePage } from '@inertiajs/react';
+import { PlusIcon } from 'lucide-react';
+import { FormEvent, useState } from 'react';
 
 type ProjectOption = { id: number; name: string; project_number: string | null };
 
@@ -19,6 +23,8 @@ function suggestedTitle(project?: ProjectOption): string {
 }
 
 export default function Create({ projects, projectId }: { projects: ProjectOption[]; projectId: number | null }) {
+    const canCreateProjects = Boolean(usePage<PageProps>().props.auth?.can?.createProjects);
+    const [projectOpen, setProjectOpen] = useState(false);
     const form = useForm<{ project_id: string; title: string; notes: string; file: File | null }>({
         project_id: projectId ? String(projectId) : '',
         title: '',
@@ -36,9 +42,22 @@ export default function Create({ projects, projectId }: { projects: ProjectOptio
     return (
         <AuthenticatedLayout header={<h2 className="text-xl font-semibold leading-tight text-gray-800 dark:text-gray-100">New takeoff</h2>}>
             <Head title="New takeoff" />
-            <form onSubmit={submit} className="mx-auto max-w-2xl space-y-4 px-4 py-6">
+            <form onSubmit={submit} className="mx-auto max-w-2xl space-y-4 px-4 py-6 pb-28">
+                <FormActionFab
+                    cancelHref={route('admin.takeoffs.index')}
+                    saveLabel={form.processing ? 'Creating…' : 'Create takeoff'}
+                    disabled={form.processing}
+                />
                 <div>
-                    <InputLabel htmlFor="project_id" value="Project" />
+                    <div className="flex items-center justify-between gap-2">
+                        <InputLabel htmlFor="project_id" value="Project" />
+                        {canCreateProjects ? (
+                            <Button type="button" variant="create" size="sm" onClick={() => setProjectOpen(true)}>
+                                <PlusIcon data-icon="inline-start" />
+                                New project
+                            </Button>
+                        ) : null}
+                    </div>
                     <select id="project_id" className="mt-1 w-full rounded-md border-gray-300 shadow-sm" value={form.data.project_id} onChange={(event) => form.setData('project_id', event.target.value)}>
                         <option value="">Select a project</option>
                         {projects.map((project) => (
@@ -73,10 +92,11 @@ export default function Create({ projects, projectId }: { projects: ProjectOptio
                     <InputLabel htmlFor="notes" value="Notes" />
                     <textarea id="notes" className="mt-1 w-full rounded-md border-gray-300 shadow-sm" rows={4} value={form.data.notes} onChange={(event) => form.setData('notes', event.target.value)} />
                 </div>
-                <div className="flex gap-2">
-                    <Button type="submit" disabled={form.processing}>{form.processing ? 'Creating…' : 'Create takeoff'}</Button>
-                    <Button variant="outline" asChild><Link href={route('admin.takeoffs.index')}>Cancel</Link></Button>
-                </div>
+                <QuickProjectDialog
+                    show={projectOpen}
+                    onClose={() => setProjectOpen(false)}
+                    onCreated={(project) => form.setData('project_id', String(project.id))}
+                />
             </form>
         </AuthenticatedLayout>
     );

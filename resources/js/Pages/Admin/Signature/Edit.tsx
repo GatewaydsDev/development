@@ -1,3 +1,4 @@
+import FormActionFab from '@/Components/FormActionFab';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import SignaturePad from '@/Components/SignaturePad';
@@ -161,7 +162,7 @@ export default function Edit({ signature }: EditProps) {
                         <CardContent className="p-6 pt-0 sm:p-8 sm:pt-0">
                             <form
                                 onSubmit={submit}
-                                className="flex flex-col gap-6"
+                                className="flex flex-col gap-6 pb-28"
                             >
                                 <div className="flex flex-wrap gap-2">
                                     <Button
@@ -326,17 +327,16 @@ export default function Edit({ signature }: EditProps) {
                                     </div>
                                 ) : null}
 
-                                <div className="flex flex-col gap-2 sm:flex-row">
-                                    <Button
-                                        type="submit"
-                                        disabled={
-                                            processing || data.signature === ''
-                                        }
-                                    >
-                                        {signature.has_signature
+                                <FormActionFab
+                                    cancelHref={route('dashboard')}
+                                    saveLabel={
+                                        signature.has_signature
                                             ? 'Update signature'
-                                            : 'Save signature'}
-                                    </Button>
+                                            : 'Save signature'
+                                    }
+                                    disabled={processing || data.signature === ''}
+                                />
+                                <div className="flex flex-col gap-2 sm:flex-row">
                                     <Button
                                         type="button"
                                         variant="outline"

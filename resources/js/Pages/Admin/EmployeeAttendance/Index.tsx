@@ -316,7 +316,7 @@ export default function Index({ filters, weeks }: IndexProps) {
                                     Add several
                                 </Link>
                             </Button>
-                            <Button asChild>
+                            <Button asChild variant="create">
                                 <Link href={route('admin.employee-attendance.create')}>
                                     <PlusIcon className="size-4" />
                                     Add week
@@ -396,17 +396,16 @@ export default function Index({ filters, weeks }: IndexProps) {
                                     />
                                 </div>
                                 <div className="flex gap-2 sm:col-span-2 lg:col-span-1">
-                                    <Button
-                                        type="submit"
-                                        className="h-11 min-w-[8.5rem] flex-1 bg-emerald-600 px-4 text-white hover:bg-emerald-700 lg:flex-none"
-                                    >
+                                    <Button type="submit" variant="outline" size="sm" className="self-end">
+                                        <SearchIcon data-icon="inline-start" />
                                         Search
                                     </Button>
                                     {hasFilters ? (
                                         <Button
                                             type="button"
                                             variant="outline"
-                                            className="h-11"
+                                            size="sm"
+                                            className="self-end"
                                             onClick={clearFilters}
                                         >
                                             Clear

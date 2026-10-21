@@ -725,7 +725,8 @@ export default function BidForm({
                                         canCreateProjects ? (
                                             <Button
                                                 type="button"
-                                                className="h-8 shrink-0 bg-emerald-600 px-2.5 text-white hover:bg-emerald-700"
+                                                variant="create"
+                                                className="shrink-0"
                                                 onClick={() =>
                                                     setProjectDialogOpen(true)
                                                 }
@@ -937,7 +938,7 @@ export default function BidForm({
                     </div>
                     <Button
                         type="button"
-                        className="bg-emerald-600 text-white hover:bg-emerald-700"
+                        variant="create"
                         onClick={() =>
                             appendRevision(
                                 blankRevision(
@@ -1082,7 +1083,7 @@ export default function BidForm({
                     </div>
                     <Button
                         type="button"
-                        className="bg-emerald-600 text-white hover:bg-emerald-700"
+                        variant="create"
                         onClick={() => appendStage(blankStage())}
                     >
                         <PlusIcon className="size-4" />

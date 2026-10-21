@@ -1,8 +1,10 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import FormActionFab from '@/Components/FormActionFab';
 import TextInput from '@/Components/TextInput';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { DownloadIcon, GitBranchIcon, PlusIcon } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import OpeningEditor from './Partials/OpeningEditor';
 import PdfWorkspace, { type PdfPoint } from './Partials/PdfWorkspace';
@@ -241,7 +243,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
     return (
         <AuthenticatedLayout header={<h2 className="text-xl font-semibold leading-tight text-gray-800 dark:text-gray-100">{takeoff.title}</h2>}>
             <Head title={takeoff.title} />
-            <div className="space-y-4 px-4 py-6 sm:px-6 lg:px-8">
+            <div className="space-y-4 px-4 py-6 pb-28 sm:px-6 lg:px-8">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                         <p className="text-sm text-muted-foreground">{takeoff.project?.project_number} {takeoff.project?.name} · Revision {takeoff.revision_number}</p>
@@ -251,10 +253,21 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                         <Badge variant="outline">{statusLabel[takeoff.status] ?? takeoff.status}</Badge>
                         <p className="mt-2 max-w-3xl text-sm text-muted-foreground">Estimates are internal. Approval means this takeoff was reviewed inside Gateway. It does not certify that a product meets the specification.</p>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                        {editable ? <Button type="button" variant="outline" onClick={() => router.post(route('admin.takeoffs.revise', takeoff.uuid))}>New revision</Button> : null}
-                        {can.export ? <Button type="button" variant="outline" asChild><a href={route('admin.takeoffs.export', takeoff.uuid)}>Export CSV</a></Button> : null}
-                        <Button type="button" variant="outline" asChild><Link href={route('admin.takeoffs.index')}>All takeoffs</Link></Button>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                        {editable ? (
+                            <Button type="button" variant="outline" size="sm" onClick={() => router.post(route('admin.takeoffs.revise', takeoff.uuid))}>
+                                <GitBranchIcon data-icon="inline-start" />
+                                New revision
+                            </Button>
+                        ) : null}
+                        {can.export ? (
+                            <Button type="button" variant="outline" size="sm" asChild>
+                                <a href={route('admin.takeoffs.export', takeoff.uuid)}>
+                                    <DownloadIcon data-icon="inline-start" />
+                                    Export CSV
+                                </a>
+                            </Button>
+                        ) : null}
                     </div>
                 </div>
                 {takeoff.show_pricing && takeoff.estimate ? (
@@ -265,7 +278,13 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                         <Estimate label="Estimated gross margin" value={marginLabel(takeoff.estimate.margin)} />
                     </div>
                 ) : null}
-                <form onSubmit={saveDetails} className="grid gap-3 rounded-lg border p-3 md:grid-cols-4">
+                <form id="takeoff-details" onSubmit={saveDetails} className="grid gap-3 rounded-lg border p-3 md:grid-cols-4">
+                    <FormActionFab
+                        form="takeoff-details"
+                        cancelHref={route('admin.takeoffs.index')}
+                        saveLabel="Save takeoff"
+                        disabled={!editable || details.processing}
+                    />
                     <label className="text-sm">Title<TextInput className="mt-1 w-full" value={details.data.title} onChange={(event) => details.setData('title', event.target.value)} /></label>
                     <label className="text-sm">Status
                         <select className="mt-1 w-full rounded-md border-gray-300 shadow-sm" value={details.data.status} onChange={(event) => details.setData('status', event.target.value)}>
@@ -286,7 +305,6 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                         </>
                     ) : null}
                     <div className="md:col-span-4 flex gap-2">
-                        {editable ? <Button type="submit" disabled={details.processing}>Save takeoff</Button> : null}
                         {details.errors.pricing_method ? <p className="text-sm text-destructive">{details.errors.pricing_method}</p> : null}
                         {details.errors.margin_percent ? <p className="text-sm text-destructive">{details.errors.margin_percent}</p> : null}
                     </div>
@@ -360,7 +378,10 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                 </div>
                                 {editable ? (
                                     <div className="py-4">
-                                        <Button type="button" onClick={() => { setCreating(true); setSelectedOpeningId(null); setEditorOpen(true); }}>Add opening</Button>
+                                        <Button type="button" variant="create" size="sm" onClick={() => { setCreating(true); setSelectedOpeningId(null); setEditorOpen(true); }}>
+                                            <PlusIcon data-icon="inline-start" />
+                                            Add opening
+                                        </Button>
                                     </div>
                                 ) : null}
                                 <div className="max-h-[32rem] overflow-auto rounded-md border">
@@ -429,7 +450,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                                 <option value="flag">Import and keep them flagged</option>
                                             </select>
                                         </label>
-                                        <Button type="submit" variant="outline">Preview import</Button>
+                                        <Button type="submit" variant="outline" size="sm">Preview import</Button>
                                         {importPreview ? (
                                             <div className="space-y-1 text-sm">
                                                 <p>{importPreview.rows?.length ?? 0} valid row(s). {importPreview.errors?.length ?? 0} error row(s).</p>
@@ -437,6 +458,8 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                                 {importPreview.duplicates?.map((message) => <p key={message}>{message}</p>)}
                                                 <Button
                                                     type="button"
+                                                    size="sm"
+                                                    variant="create"
                                                     disabled={!importFile || (importPreview.errors?.length ?? 0) > 0 || (duplicateMode === 'reject' && (importPreview.duplicates?.length ?? 0) > 0)}
                                                     onClick={() => {
                                                         if (!importFile) {
@@ -481,7 +504,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                                 <TextInput name="page" placeholder="Page" />
                                                 <TextInput name="section" placeholder="Section" />
                                                 <TextInput name="note" placeholder="Note" />
-                                                {editable ? <Button type="submit" variant="outline">Add reference</Button> : null}
+                                                {editable ? <Button type="submit" variant="outline" size="sm">Add reference</Button> : null}
                                                 <ul className="md:col-span-4 text-sm text-muted-foreground">
                                                     {selected.references.map((reference) => <li key={reference.id}>{reference.section || 'Reference'} {reference.page ? `p. ${reference.page}` : ''} {reference.note}</li>)}
                                                 </ul>
@@ -498,10 +521,10 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                     <div className="space-y-4">
                         <p className="text-sm text-muted-foreground">Matching openings can be grouped. A manual group with different configurations stays separate and shows a warning. One-time costs, such as freight, are not multiplied by quantity.</p>
                         {editable ? (
-                            <div className="flex flex-wrap gap-2">
-                                <Button type="button" variant="outline" onClick={() => router.post(route('admin.takeoffs.groups.auto', takeoff.uuid), {}, { preserveScroll: true })}>Group matching openings</Button>
-                                <TextInput value={groupName} onChange={(event) => setGroupName(event.target.value)} />
-                                <Button type="button" onClick={() => router.post(route('admin.takeoffs.groups.store', takeoff.uuid), { name: groupName, opening_ids: checked }, { preserveScroll: true })}>Group selected</Button>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <Button type="button" variant="outline" size="sm" onClick={() => router.post(route('admin.takeoffs.groups.auto', takeoff.uuid), {}, { preserveScroll: true })}>Group matching openings</Button>
+                                <TextInput value={groupName} onChange={(event) => setGroupName(event.target.value)} placeholder="Group name" />
+                                <Button type="button" variant="create" size="sm" onClick={() => router.post(route('admin.takeoffs.groups.store', takeoff.uuid), { name: groupName, opening_ids: checked }, { preserveScroll: true })}>Group selected</Button>
                             </div>
                         ) : null}
                         <div className="space-y-3">
@@ -556,7 +579,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                     <TextInput name="hardware_set" placeholder="Hardware" />
                                     <TextInput name="glazing" placeholder="Glazing" />
                                     <TextInput name="amount" placeholder="Default material cost" />
-                                    <Button type="submit">Save template</Button>
+                                    <Button type="submit" variant="create" size="sm">Save template</Button>
                                 </form>
                             ) : null}
                         </div>
@@ -583,7 +606,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                 <textarea name="exclusions" className="rounded-md border-gray-300 text-sm" placeholder="Exclusions" />
                                 <textarea name="pricing_notes" className="rounded-md border-gray-300 text-sm" placeholder="Pricing notes" />
                                 <input name="file" type="file" accept="application/pdf" />
-                                <Button type="submit">Save supplier quote</Button>
+                                <Button type="submit" variant="create" size="sm">Save supplier quote</Button>
                                 <ul className="md:col-span-3 space-y-2 text-sm">
                                     {takeoff.supplier_quotes.map((quote) => (
                                         <li key={quote.id} className="rounded border p-2">
@@ -632,7 +655,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                 <select className="rounded-md border-gray-300" value={quotationId} onChange={(event) => setQuotationId(event.target.value)}>
                                     {quotations.map((quotation) => <option key={quotation.id} value={quotation.id}>{quotation.number} — {quotation.title}</option>)}
                                 </select>
-                                <Button type="button" variant="outline" onClick={() => void loadPreview()}>Preview lines</Button>
+                                <Button type="button" variant="outline" size="sm" onClick={() => void loadPreview()}>Preview lines</Button>
                                 {previewError ? <p className="text-sm text-destructive">{previewError}</p> : null}
                                 {lines.map((line) => (
                                     <label key={line.key} className={`block rounded-md border p-3 text-sm ${line.flags.length ? 'border-amber-400' : ''}`}>
@@ -650,7 +673,10 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                     <input type="checkbox" checked={replace} onChange={(event) => setReplace(event.target.checked)} />
                                     Replace previously transferred lines
                                 </label>
-                                <Button type="button" disabled={chosen.length === 0 || !quotationId} onClick={() => router.post(route('admin.takeoffs.convert', takeoff.uuid), { quotation_id: Number(quotationId), keys: chosen, replace }, { preserveScroll: true })}>Add to quotation</Button>
+                                <Button type="button" variant="create" size="sm" disabled={chosen.length === 0 || !quotationId} onClick={() => router.post(route('admin.takeoffs.convert', takeoff.uuid), { quotation_id: Number(quotationId), keys: chosen, replace }, { preserveScroll: true })}>
+                                    <PlusIcon data-icon="inline-start" />
+                                    Add to quotation
+                                </Button>
                             </>
                         ) : <p className="text-sm">Quotation conversion is available to admins who can update quotations and see takeoff pricing.</p>}
                     </div>
@@ -707,7 +733,7 @@ function CostForm({ takeoffUuid, openingId, groupId }: { takeoffUuid: string; op
             <TextInput name="amount" placeholder="Amount" />
             <TextInput name="labor_hours" placeholder="Labor hours" />
             <TextInput name="hourly_rate" placeholder="Hourly rate" />
-            <Button type="submit" variant="outline">Add cost</Button>
+            <Button type="submit" variant="outline" size="sm">Add cost</Button>
         </form>
     );
 }

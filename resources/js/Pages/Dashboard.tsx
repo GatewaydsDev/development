@@ -11,6 +11,7 @@ import {
 } from '@/Components/ui/card';
 import { useProjectListRefresh } from '@/hooks/useProjectListRefresh';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { cn } from '@/lib/utils';
 import { PageProps } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
 import {
@@ -25,6 +26,7 @@ type DashboardProps = {
         byPriority: BarChartItem[];
         quotations: BarChartItem[] | null;
         bids: BarChartItem[] | null;
+        takeoffs: BarChartItem[] | null;
     } | null;
     listVersion?: string | null;
     bidListVersion?: string | null;
@@ -56,12 +58,50 @@ function ChartTotal({
     money?: boolean;
 }) {
     return (
-        <CardFooter className="mt-auto justify-between text-sm">
+        <CardFooter className="mt-auto justify-between px-3 py-2 text-xs">
             <span className="text-muted-foreground">Total</span>
             <span className="font-semibold tabular-nums text-foreground">
                 {formatChartTotal(items, money)}
             </span>
         </CardFooter>
+    );
+}
+
+function ChartCard({
+    title,
+    description,
+    items,
+    chartKey,
+    emptyLabel,
+    money = false,
+    hideZeros = true,
+    accent,
+}: {
+    title: string;
+    description: string;
+    items: BarChartItem[];
+    chartKey: string;
+    emptyLabel: string;
+    money?: boolean;
+    hideZeros?: boolean;
+    accent: string;
+}) {
+    return (
+        <Card size="sm" className={cn('h-full border-t-2 pb-0 shadow-sm', accent)}>
+            <CardHeader className="gap-0.5 pb-0">
+                <CardTitle>{title}</CardTitle>
+                <CardDescription className="text-xs">{description}</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <AnimatedBarChart
+                    key={chartKey}
+                    items={items}
+                    emptyLabel={emptyLabel}
+                    hideZeros={hideZeros}
+                />
+            </CardContent>
+            <ChartTotal items={items} money={money} />
+        </Card>
     );
 }
 
@@ -85,8 +125,9 @@ export default function Dashboard({
     const canViewProjects = Boolean(can.viewProjects);
     const canViewBids = Boolean(can.viewBids);
     const canViewQuotations = Boolean(can.viewQuotations);
+    const canViewTakeoffs = Boolean(can.viewTakeoffs);
     const showGraphics = Boolean(
-        canViewProjects || charts?.quotations || charts?.bids,
+        canViewProjects || charts?.quotations || charts?.bids || charts?.takeoffs,
     );
 
     useProjectListRefresh(
@@ -108,9 +149,9 @@ export default function Dashboard({
         <AuthenticatedLayout>
             <Head title="Dashboard" />
 
-            <div className="flex min-w-0 flex-1 flex-col gap-6 p-4 sm:p-6 lg:p-8">
-                <div className="flex items-center gap-2.5 rounded-xl border border-border bg-card p-4 shadow-sm">
-                    <h1 className="text-lg font-bold tracking-tight text-foreground sm:text-xl">
+            <div className="flex min-w-0 flex-1 flex-col gap-3 p-3 sm:p-4">
+                <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 shadow-sm">
+                    <h1 className="text-base font-semibold tracking-tight text-foreground">
                         Dashboard
                     </h1>
                     {canViewProjects && stats && (
@@ -130,97 +171,61 @@ export default function Dashboard({
                 </div>
 
                 {showGraphics && charts ? (
-                    <div className="flex flex-col gap-6">
-                        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                            {canViewProjects && (
-                                <>
-                                    <Card className="h-full pb-0 shadow-sm">
-                                        <CardHeader>
-                                            <CardTitle className="text-lg font-bold sm:text-xl">
-                                                Projects by status
-                                            </CardTitle>
-                                            <CardDescription>
-                                                How the current projects are
-                                                spread across each status.
-                                            </CardDescription>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <AnimatedBarChart
-                                                key={listVersion ?? 'status'}
-                                                items={charts.byStatus}
-                                                emptyLabel="No projects yet."
-                                            />
-                                        </CardContent>
-                                        <ChartTotal items={charts.byStatus} />
-                                    </Card>
-                                    <Card className="h-full pb-0 shadow-sm">
-                                        <CardHeader>
-                                            <CardTitle className="text-lg font-bold sm:text-xl">
-                                                Projects by priority
-                                            </CardTitle>
-                                            <CardDescription>
-                                                Priority mix across every
-                                                project.
-                                            </CardDescription>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <AnimatedBarChart
-                                                key={`${listVersion ?? 'priority'}-priority`}
-                                                items={charts.byPriority}
-                                                emptyLabel="No projects yet."
-                                            />
-                                        </CardContent>
-                                        <ChartTotal items={charts.byPriority} />
-                                    </Card>
-                                </>
-                            )}
-                            {charts.quotations && (
-                                <Card className="h-full pb-0 shadow-sm">
-                                    <CardHeader>
-                                        <CardTitle className="text-lg font-bold sm:text-xl">
-                                            Quotations by status
-                                        </CardTitle>
-                                        <CardDescription>
-                                            Dollar totals for each quotation
-                                            status.
-                                        </CardDescription>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <AnimatedBarChart
-                                            key={`${quotationListVersion ?? 'quotations'}-quotations`}
-                                            items={charts.quotations}
-                                            emptyLabel="No quotations yet."
-                                            hideZeros={false}
-                                        />
-                                    </CardContent>
-                                    <ChartTotal
-                                        items={charts.quotations}
-                                        money
-                                    />
-                                </Card>
-                            )}
-                            {charts.bids && (
-                                <Card className="h-full pb-0 shadow-sm">
-                                    <CardHeader>
-                                        <CardTitle className="text-lg font-bold sm:text-xl">
-                                            Bids by stage
-                                        </CardTitle>
-                                        <CardDescription>
-                                            Dollar totals for each bid stage.
-                                        </CardDescription>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <AnimatedBarChart
-                                            key={`${bidListVersion ?? 'bids'}-bids`}
-                                            items={charts.bids}
-                                            emptyLabel="No bids yet."
-                                            hideZeros={false}
-                                        />
-                                    </CardContent>
-                                    <ChartTotal items={charts.bids} money />
-                                </Card>
-                            )}
-                        </div>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                        {canViewProjects && (
+                            <>
+                                <ChartCard
+                                    title="Projects by status"
+                                    description="How many projects are in each status."
+                                    items={charts.byStatus}
+                                    chartKey={listVersion ?? 'status'}
+                                    emptyLabel="No projects yet."
+                                    accent="border-t-teal-600"
+                                />
+                                <ChartCard
+                                    title="Projects by priority"
+                                    description="How many projects are in each priority."
+                                    items={charts.byPriority}
+                                    chartKey={`${listVersion ?? 'priority'}-priority`}
+                                    emptyLabel="No projects yet."
+                                    accent="border-t-amber-500"
+                                />
+                            </>
+                        )}
+                        {charts.quotations && (
+                            <ChartCard
+                                title="Quotations by status"
+                                description="Dollar total for each quotation status."
+                                items={charts.quotations}
+                                chartKey={`${quotationListVersion ?? 'quotations'}-quotations`}
+                                emptyLabel="No quotations yet."
+                                money
+                                hideZeros={false}
+                                accent="border-t-blue-600"
+                            />
+                        )}
+                        {charts.bids && (
+                            <ChartCard
+                                title="Bids by stage"
+                                description="Dollar total for each bid stage."
+                                items={charts.bids}
+                                chartKey={`${bidListVersion ?? 'bids'}-bids`}
+                                emptyLabel="No bids yet."
+                                money
+                                hideZeros={false}
+                                accent="border-t-violet-600"
+                            />
+                        )}
+                        {canViewTakeoffs && charts.takeoffs && (
+                            <ChartCard
+                                title="Takeoffs by status"
+                                description="How many takeoffs are in each status."
+                                items={charts.takeoffs}
+                                chartKey="takeoffs"
+                                emptyLabel="No takeoffs yet."
+                                accent="border-t-rose-600"
+                            />
+                        )}
                     </div>
                 ) : (
                     <Card className="h-full shadow-sm">
