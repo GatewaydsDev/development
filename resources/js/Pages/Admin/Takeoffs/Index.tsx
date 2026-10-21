@@ -4,6 +4,7 @@ import TextInput from '@/Components/TextInput';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import { Head, Link, router } from '@inertiajs/react';
+import { FilterIcon, PlusIcon } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 import { marginLabel, money, statusLabel, type TakeoffAbilities, type TakeoffSummary } from './types';
 
@@ -33,22 +34,28 @@ export default function Index({ filters, takeoffs, projects, can }: Props) {
                         Internal door and window counts for estimating. Approval means the takeoff was reviewed internally. It does not certify product compliance.
                     </p>
                     {can.create ? (
-                        <Button asChild>
-                            <Link href={route('admin.takeoffs.create')}>New takeoff</Link>
+                        <Button asChild variant="create">
+                            <Link href={route('admin.takeoffs.create')}>
+                                <PlusIcon data-icon="inline-start" />
+                                New takeoff
+                            </Link>
                         </Button>
                     ) : null}
                 </div>
-                <form onSubmit={submit} className="mb-4 grid gap-3 md:grid-cols-4">
-                    <TextInput value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search title or project" />
-                    <select className="rounded-md border-gray-300 shadow-sm" value={status} onChange={(event) => setStatus(event.target.value)}>
+                <form onSubmit={submit} className="mb-4 flex flex-wrap items-center gap-2">
+                    <TextInput className="h-8 w-full sm:w-64" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search title or project" />
+                    <select className="h-8 rounded-md border border-border bg-background px-2 text-sm text-foreground shadow-sm" value={status} onChange={(event) => setStatus(event.target.value)}>
                         <option value="">All statuses</option>
                         {Object.entries(statusLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                     </select>
-                    <select className="rounded-md border-gray-300 shadow-sm" value={projectId} onChange={(event) => setProjectId(event.target.value)}>
+                    <select className="h-8 max-w-full rounded-md border border-border bg-background px-2 text-sm text-foreground shadow-sm" value={projectId} onChange={(event) => setProjectId(event.target.value)}>
                         <option value="">All projects</option>
                         {projects.map((project) => <option key={project.id} value={project.id}>{project.project_number ? `${project.project_number} — ` : ''}{project.name}</option>)}
                     </select>
-                    <Button type="submit">Filter</Button>
+                    <Button type="submit" variant="outline" size="sm">
+                        <FilterIcon data-icon="inline-start" />
+                        Filter
+                    </Button>
                 </form>
                 <div className="overflow-x-auto rounded-lg border">
                     <table className="min-w-full text-sm">

@@ -1,3 +1,4 @@
+import FormActionFab from '@/Components/FormActionFab';
 import InputError from '@/Components/InputError';
 import MaskedDecimalInput from '@/Components/MaskedDecimalInput';
 import PaginationNav, { type Paginator } from '@/Components/PaginationNav';
@@ -12,7 +13,7 @@ import {
 } from '@/Components/ui/card';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { PlusIcon, ReceiptIcon, Trash2Icon } from 'lucide-react';
+import { PlusIcon, ReceiptIcon, SearchIcon, Trash2Icon } from 'lucide-react';
 import { FormEvent, useEffect, useState } from 'react';
 
 type PaymentRow = {
@@ -387,7 +388,13 @@ export default function Index({
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <form onSubmit={submit} className="grid gap-6">
+                            <form onSubmit={submit} className="grid gap-6 pb-28">
+                                <FormActionFab
+                                    cancelHref={route('admin.expenses.index')}
+                                    onCancel={resetForm}
+                                    saveLabel="Save expense"
+                                    disabled={form.processing}
+                                />
                                 <section className="grid gap-3">
                                     <h3 className="text-sm font-semibold text-foreground">What was bought</h3>
                                     <div className="grid gap-3 sm:grid-cols-2">
@@ -625,16 +632,6 @@ export default function Index({
                                     </div>
                                 </section>
 
-                                <div className="flex flex-wrap gap-2">
-                                    <Button type="submit" className="min-h-11 touch-manipulation" disabled={form.processing}>
-                                        {editing ? 'Save expense' : 'Save expense'}
-                                    </Button>
-                                    {editing ? (
-                                        <Button type="button" variant="outline" className="min-h-11 touch-manipulation" onClick={resetForm}>
-                                            Cancel
-                                        </Button>
-                                    ) : null}
-                                </div>
                             </form>
                         </CardContent>
                     </Card>
@@ -663,7 +660,8 @@ export default function Index({
                                         <option key={value} value={value}>{label}</option>
                                     ))}
                                 </select>
-                                <Button type="submit" variant="outline" className="min-h-11 touch-manipulation">
+                                <Button type="submit" variant="outline" size="sm" className="self-center">
+                                    <SearchIcon data-icon="inline-start" />
                                     Search
                                 </Button>
                             </form>

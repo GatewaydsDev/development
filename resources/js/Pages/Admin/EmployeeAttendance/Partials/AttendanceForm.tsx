@@ -1,10 +1,10 @@
 import Checkbox from '@/Components/Checkbox';
+import FormActionFab from '@/Components/FormActionFab';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
 import { Badge } from '@/Components/ui/badge';
-import { Button } from '@/Components/ui/button';
-import { Link, router, useForm } from '@inertiajs/react';
+import { Link, useForm } from '@inertiajs/react';
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import {
     WORK_WEEK,
@@ -198,7 +198,12 @@ export default function AttendanceForm({
     };
 
     return (
-        <form onSubmit={submit} className="flex flex-col gap-6">
+        <form onSubmit={submit} className="flex flex-col gap-6 pb-28">
+            <FormActionFab
+                cancelHref={route('admin.employee-attendance.index')}
+                saveLabel={submitLabel}
+                disabled={processing || loadingExisting || (!attendance && openDayCount === 0)}
+            />
             <section className="grid gap-5 rounded-xl bg-card p-4 ring-1 ring-foreground/10 md:grid-cols-2">
                 <div className="flex flex-col gap-2">
                     <InputLabel
@@ -513,29 +518,6 @@ export default function AttendanceForm({
                 </div>
             </section>
 
-            <div className="flex flex-wrap items-center gap-3">
-                <Button
-                    type="submit"
-                    disabled={
-                        processing ||
-                        loadingExisting ||
-                        (!attendance && openDayCount === 0)
-                    }
-                    className="h-11 bg-emerald-600 px-4 text-white hover:bg-emerald-700"
-                >
-                    {submitLabel}
-                </Button>
-                <Button
-                    type="button"
-                    variant="outline"
-                    className="h-11"
-                    onClick={() =>
-                        router.visit(route('admin.employee-attendance.index'))
-                    }
-                >
-                    Cancel
-                </Button>
-            </div>
         </form>
     );
 }

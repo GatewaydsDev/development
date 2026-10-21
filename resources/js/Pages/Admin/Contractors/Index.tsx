@@ -101,7 +101,7 @@ export default function Index({ filters, contractors }: IndexProps) {
                     </div>
 
                     {canCreateContractors && (
-                        <Button asChild>
+                        <Button asChild variant="create">
                             <Link href={route('admin.contractors.create')}>
                                 <PlusIcon className="size-4" />
                                 Add contractor
@@ -158,10 +158,8 @@ export default function Index({ filters, contractors }: IndexProps) {
                                         className="h-11 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm text-foreground sm:w-64"
                                     />
                                 </div>
-                                <Button
-                                    type="submit"
-                                    className="h-11 min-w-[8.5rem] bg-emerald-600 px-4 text-white hover:bg-emerald-700"
-                                >
+                                <Button type="submit" variant="outline" size="sm" className="self-center">
+                                    <SearchIcon data-icon="inline-start" />
                                     Search
                                 </Button>
                             </form>

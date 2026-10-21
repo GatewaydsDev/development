@@ -1,4 +1,5 @@
 import { Button } from '@/Components/ui/button';
+import { PlusIcon } from 'lucide-react';
 import { useState } from 'react';
 import type { QuotationLineItemFormData, QuotationTakeoffOption } from '../types';
 
@@ -113,7 +114,10 @@ export default function QuotationTakeoffOpenings({ projectSelected, takeoffs, li
                         </div>
                     ) : null}
                     <div className="flex flex-wrap items-center gap-3">
-                        <Button type="button" className="bg-emerald-600 text-white hover:bg-emerald-700" disabled={selected.length === 0} onClick={addSelected}>Add selected openings</Button>
+                        <Button type="button" variant="create" disabled={selected.length === 0} onClick={addSelected}>
+                            <PlusIcon data-icon="inline-start" />
+                            Add selected openings
+                        </Button>
                         {notice ? <p className="text-sm text-muted-foreground">{notice}</p> : null}
                     </div>
                 </>

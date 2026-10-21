@@ -7,6 +7,7 @@ import { createPortal } from 'react-dom';
 
 type FormActionFabProps = {
     cancelHref: string;
+    onCancel?: () => void;
     saveLabel?: string;
     cancelLabel?: string;
     disabled?: boolean;
@@ -19,6 +20,7 @@ type FormActionFabProps = {
 
 export default function FormActionFab({
     cancelHref,
+    onCancel,
     saveLabel = 'Save',
     cancelLabel = 'Cancel',
     disabled = false,
@@ -194,27 +196,47 @@ export default function FormActionFab({
                                 <PrinterIcon className="size-5 sm:size-6 landscape:size-4.5" />
                             </Button>
                     ))}
-                <Button
-                    type="button"
-                    variant="outline"
-                    asChild
-                    className={cn(
-                        'size-11 sm:size-13 landscape:size-10 rounded-full border-rose-200 bg-background text-rose-700 shadow-lg transition-all duration-300 ease-out hover:bg-rose-50 dark:border-rose-900/70 dark:text-rose-300 dark:hover:bg-rose-950/30',
-                        isOpen
-                            ? 'scale-100 opacity-100 delay-0'
-                            : hasPrint
-                              ? 'scale-90 opacity-0 delay-150'
-                              : 'scale-90 opacity-0 delay-75',
-                    )}
-                >
-                    <Link
-                        href={cancelHref}
+                {onCancel ? (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={onCancel}
+                        className={cn(
+                            'size-11 sm:size-13 landscape:size-10 rounded-full border-rose-200 bg-background text-rose-700 shadow-lg transition-all duration-300 ease-out hover:bg-rose-50 dark:border-rose-900/70 dark:text-rose-300 dark:hover:bg-rose-950/30',
+                            isOpen
+                                ? 'scale-100 opacity-100 delay-0'
+                                : hasPrint
+                                  ? 'scale-90 opacity-0 delay-150'
+                                  : 'scale-90 opacity-0 delay-75',
+                        )}
                         aria-label={cancelLabel}
                         title={cancelLabel}
                     >
                         <XIcon className="size-5 sm:size-6 landscape:size-4.5" />
-                    </Link>
-                </Button>
+                    </Button>
+                ) : (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        asChild
+                        className={cn(
+                            'size-11 sm:size-13 landscape:size-10 rounded-full border-rose-200 bg-background text-rose-700 shadow-lg transition-all duration-300 ease-out hover:bg-rose-50 dark:border-rose-900/70 dark:text-rose-300 dark:hover:bg-rose-950/30',
+                            isOpen
+                                ? 'scale-100 opacity-100 delay-0'
+                                : hasPrint
+                                  ? 'scale-90 opacity-0 delay-150'
+                                  : 'scale-90 opacity-0 delay-75',
+                        )}
+                    >
+                        <Link
+                            href={cancelHref}
+                            aria-label={cancelLabel}
+                            title={cancelLabel}
+                        >
+                            <XIcon className="size-5 sm:size-6 landscape:size-4.5" />
+                        </Link>
+                    </Button>
+                )}
             </div>
 
             <Button

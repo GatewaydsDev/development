@@ -828,3 +828,27 @@ test('a quotation lists the takeoffs for the chosen project', function () {
                     && str_contains($match['takeoffs'][0]['openings'][0]['description'], 'Hollow metal');
             }));
 });
+
+test('the dashboard charts takeoffs by status', function () {
+    $admin = takeoffUser();
+    takeoffRecord($admin);
+    takeoffRecord($admin)->update(['status' => 'approved', 'title' => 'Approved takeoff']);
+
+    $this->actingAs($admin)
+        ->get(route('dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Dashboard')
+            ->where('charts.takeoffs.0', [
+                'key' => 'draft',
+                'label' => 'Draft',
+                'value' => 1,
+            ])
+            ->where('charts.takeoffs.2', [
+                'key' => 'approved',
+                'label' => 'Approved',
+                'value' => 1,
+            ])
+            ->where('charts.takeoffs.1.value', 0)
+            ->where('charts.takeoffs.3.value', 0));
+});

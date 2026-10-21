@@ -318,7 +318,7 @@ export default function Index({
                             </Link>
                         </Button>
                         {canCreateEmployees && (
-                            <Button asChild>
+                            <Button asChild variant="create">
                                 <Link href={route('admin.employees.create')}>
                                     <PlusIcon className="size-4" />
                                     Add employee
@@ -376,10 +376,8 @@ export default function Index({
                                         className="h-11 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm text-foreground sm:w-80"
                                     />
                                 </div>
-                                <Button
-                                    type="submit"
-                                    className="h-11 min-w-[8.5rem] bg-emerald-600 px-4 text-white hover:bg-emerald-700"
-                                >
+                                <Button type="submit" variant="outline" size="sm" className="self-center">
+                                    <SearchIcon data-icon="inline-start" />
                                     Search
                                 </Button>
                                 {search.trim() !== '' ||
@@ -387,7 +385,8 @@ export default function Index({
                                     <Button
                                         type="button"
                                         variant="outline"
-                                        className="h-11"
+                                        size="sm"
+                                        className="self-center"
                                         onClick={clearSearch}
                                     >
                                         Clear

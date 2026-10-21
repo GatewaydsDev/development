@@ -21,7 +21,7 @@ import {
 } from '@/Components/ui/card';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router } from '@inertiajs/react';
-import { CalendarDaysIcon, PencilIcon, PlusIcon, Trash2Icon } from 'lucide-react';
+import { CalendarDaysIcon, PencilIcon, PlusIcon, SearchIcon, Trash2Icon } from 'lucide-react';
 import { FormEvent, useRef, useState } from 'react';
 import type {
     SchedulePaginator,
@@ -114,7 +114,7 @@ export default function Index({ filters, statuses, schedules, can }: IndexProps)
                         </p>
                     </div>
                     {can.create && (
-                        <Button asChild>
+                        <Button asChild variant="create">
                             <Link href={route('admin.employee-schedules.create')}>
                                 <PlusIcon />
                                 Add job crew
@@ -170,7 +170,8 @@ export default function Index({ filters, statuses, schedules, can }: IndexProps)
                                     placeholder="Search job, foreman, or employee"
                                     className="h-9 flex-1 rounded-md border border-border bg-background px-2 text-sm text-foreground shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
                                 />
-                                <Button type="submit" variant="outline" className="h-9">
+                                <Button type="submit" variant="outline" size="sm" className="self-center">
+                                    <SearchIcon data-icon="inline-start" />
                                     Search
                                 </Button>
                             </form>

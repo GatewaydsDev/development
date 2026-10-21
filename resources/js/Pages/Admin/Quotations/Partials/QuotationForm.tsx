@@ -847,7 +847,8 @@ export default function QuotationForm({
                             {canCreateProjects ? (
                                 <Button
                                     type="button"
-                                    className="h-8 shrink-0 bg-emerald-600 text-white hover:bg-emerald-700"
+                                    variant="create"
+                                    className="shrink-0"
                                     onClick={() => setProjectDialogOpen(true)}
                                 >
                                     <PlusIcon className="size-3.5" />
@@ -1162,7 +1163,8 @@ export default function QuotationForm({
                 />
                 <Button
                     type="button"
-                    className="h-11 shrink-0 bg-emerald-600 text-white hover:bg-emerald-700"
+                    variant="create"
+                    className="shrink-0"
                     disabled={
                         addingParty || newPartyName.trim() === ''
                     }
@@ -1228,6 +1230,7 @@ export default function QuotationForm({
                         );
                     }}
                 >
+                    <PlusIcon data-icon="inline-start" />
                     {addingParty
                         ? 'Adding...'
                         : partyRole === 'owner'
@@ -1261,7 +1264,7 @@ export default function QuotationForm({
                 <div>
                     <Button
                         type="button"
-                        className="h-9 bg-emerald-600 text-white hover:bg-emerald-700"
+                        variant="create"
                         onClick={() => setContactDialogOpen(true)}
                     >
                         <PlusIcon className="size-3.5" />
@@ -1515,7 +1518,8 @@ export default function QuotationForm({
                     </div>
                     <Button
                         type="button"
-                        className="w-full shrink-0 bg-emerald-600 text-white hover:bg-emerald-700 sm:w-auto"
+                        variant="create"
+                        className="w-full shrink-0 sm:w-auto"
                         onClick={() =>
                             appendRevision(
                                 blankRevision(

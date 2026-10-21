@@ -17,11 +17,14 @@ export type BarChartItem = {
 };
 
 const chartColors = [
-    'var(--chart-1)',
-    'var(--chart-2)',
-    'var(--chart-3)',
-    'var(--chart-4)',
-    'var(--chart-5)',
+    '#0f766e',
+    '#dc2626',
+    '#2563eb',
+    '#d97706',
+    '#7c3aed',
+    '#db2777',
+    '#0891b2',
+    '#65a30d',
 ] as const;
 
 function configKey(key: string, index: number, used: Set<string>): string {
@@ -81,7 +84,7 @@ export function AnimatedBarChart({
         (hideZeros && items.every((item) => item.value === 0))
     ) {
         return (
-            <p className="py-8 text-center text-sm text-muted-foreground">
+            <p className="py-4 text-center text-xs text-muted-foreground">
                 {emptyLabel}
             </p>
         );
@@ -112,27 +115,28 @@ export function AnimatedBarChart({
     return (
         <ChartContainer
             config={chartConfig}
-            className="aspect-auto h-[320px] w-full"
+            className="aspect-auto h-36 w-full text-xs"
         >
             <BarChart
                 accessibilityLayer
                 data={chartData}
-                margin={{ top: 28, right: 8, left: 8 }}
+                margin={{ top: 16, right: 4, left: 4, bottom: 0 }}
             >
                 <CartesianGrid vertical={false} />
                 <XAxis
                     dataKey="label"
                     tickLine={false}
-                    tickMargin={8}
+                    tickMargin={4}
                     axisLine={false}
                     interval={0}
-                    angle={-35}
+                    angle={-28}
                     textAnchor="end"
-                    height={64}
+                    height={36}
+                    tick={{ fontSize: 10 }}
                 />
                 <ChartTooltip content={<CategoryTooltip />} />
                 <ChartLegend
-                    content={<ChartLegendContent />}
+                    content={<ChartLegendContent className="gap-x-2 gap-y-0.5 pt-1 text-[10px]" />}
                     className="flex-wrap"
                     itemSorter={null}
                 />
@@ -148,7 +152,7 @@ export function AnimatedBarChart({
                             position="top"
                             offset={8}
                             className="fill-foreground"
-                            fontSize={12}
+                            fontSize={10}
                             valueAccessor={(entry) => {
                                 const raw = Array.isArray(entry.value)
                                     ? entry.value[entry.value.length - 1]

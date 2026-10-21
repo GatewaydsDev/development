@@ -586,11 +586,12 @@ export default function Edit({
                             </div>
                             <Button
                                 type="button"
+                                variant="create"
                                 onClick={addLayout}
                                 disabled={processing}
-                                className="h-10 gap-2 self-start bg-emerald-700 text-white hover:bg-emerald-800 sm:self-auto"
+                                className="self-start sm:self-auto"
                             >
-                                <FilePlus2Icon />
+                                <FilePlus2Icon data-icon="inline-start" />
                                 Add new layout
                             </Button>
                         </div>

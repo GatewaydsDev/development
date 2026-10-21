@@ -11,6 +11,7 @@ import ThemeModeToggle from '@/Components/ThemeModeToggle';
 import UnreadMailButton from '@/Components/UnreadMailButton';
 import UserAvatar from '@/Components/UserAvatar';
 import { Badge } from '@/Components/ui/badge';
+import { Button } from '@/Components/ui/button';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -21,6 +22,7 @@ import {
     DropdownMenuTrigger,
 } from '@/Components/ui/dropdown-menu';
 
+import { openSnapDrawer } from '@/lib/shortcuts';
 import { useUnreadMail } from '@/lib/unreadMail';
 import { PageProps } from '@/types';
 import { Link, router, usePage } from '@inertiajs/react';
@@ -50,6 +52,7 @@ import {
     UserPlusIcon,
     UsersIcon,
     WrenchIcon,
+    ZapIcon,
     type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -445,6 +448,23 @@ export default function Authenticated({
         };
     }, [idleTimeoutMinutes, user]);
 
+    const embedded = typeof window !== 'undefined' && window.parent !== window;
+
+    if (embedded) {
+        return (
+            <div className="min-h-screen bg-muted/30 text-foreground">
+                {header ? (
+                    <header className="border-b border-border bg-card">
+                        <div className={cn('mx-auto w-full px-4 py-4 sm:px-6', !fullWidth && 'max-w-[96rem]')}>
+                            {header}
+                        </div>
+                    </header>
+                ) : null}
+                <main className="min-w-0">{children}</main>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-muted/30 text-foreground">
             <RevisionAssignmentListener userId={user.id} />
@@ -531,6 +551,17 @@ export default function Authenticated({
                         </div>
 
                         <div className="hidden gap-2 lg:ms-6 lg:flex lg:items-center lg:gap-4">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => openSnapDrawer()}
+                                aria-label="Open fast menu"
+                                title="Fast menu (⌘K)"
+                            >
+                                <ZapIcon data-icon="inline-start" />
+                                Fast
+                            </Button>
                             <UnreadMailButton />
                             <ThemeModeToggle />
 
@@ -638,6 +669,16 @@ export default function Authenticated({
                         </div>
 
                         <div className="-me-2 flex items-center gap-2 lg:hidden">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                onClick={() => openSnapDrawer()}
+                                aria-label="Open fast menu"
+                                title="Fast menu"
+                            >
+                                <ZapIcon data-icon="inline-start" />
+                            </Button>
                             <UnreadMailButton />
                             <RevisionAssignmentsMenu />
                             <button
@@ -1215,7 +1256,7 @@ export default function Authenticated({
                 </div>
             </div>
 
-            <DashboardSnapDrawer showFloatingTrigger={false} />
+            <DashboardSnapDrawer />
             <InternalChat />
         </div>
     );

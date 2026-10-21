@@ -6,6 +6,7 @@ use App\Models\Bid;
 use App\Models\Project;
 use App\Models\ProjectStatus;
 use App\Models\Quotation;
+use App\Models\Takeoff;
 use App\Models\User;
 use Illuminate\Support\Str;
 
@@ -17,7 +18,8 @@ class DashboardSnapshot
      *         byStatus: list<array{key: string, label: string, value: int}>,
      *         byPriority: list<array{key: string, label: string, value: int}>,
      *         quotations: list<array{key: string, label: string, value: float, display: string}>|null,
-     *         bids: list<array{key: string, label: string, value: float, display: string}>|null
+     *         bids: list<array{key: string, label: string, value: float, display: string}>|null,
+     *         takeoffs: list<array{key: string, label: string, value: int}>|null
      *     },
      *     listVersion: string|null,
      *     bidListVersion: string|null,
@@ -38,6 +40,7 @@ class DashboardSnapshot
         $canViewProjects = ProjectAccess::canView($user);
         $canViewBids = BidAccess::canView($user);
         $canViewQuotations = QuotationAccess::canView($user);
+        $canViewTakeoffs = TakeoffAccess::canView($user);
         $canViewBudgets = ProjectAccess::canViewSensitiveFields($user);
 
         $stats = [
@@ -102,6 +105,7 @@ class DashboardSnapshot
                 'byPriority' => $canViewProjects ? self::projectPriorityChart() : [],
                 'quotations' => $canViewQuotations ? self::quotationChart() : null,
                 'bids' => $canViewBids ? self::bidChart() : null,
+                'takeoffs' => $canViewTakeoffs ? self::takeoffChart() : null,
             ],
             'listVersion' => $canViewProjects ? ProjectListVersion::current() : null,
             'bidListVersion' => $canViewBids ? BidListVersion::current() : null,
@@ -227,6 +231,41 @@ class DashboardSnapshot
                     'display' => '$'.number_format($amount, 2),
                 ];
             })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return list<array{key: string, label: string, value: int}>
+     */
+    private static function takeoffChart(): array
+    {
+        $counts = Takeoff::query()
+            ->selectRaw('status, COUNT(*) as takeoff_count')
+            ->groupBy('status')
+            ->pluck('takeoff_count', 'status');
+
+        $labels = [
+            'draft' => 'Draft',
+            'in_review' => 'In Review',
+            'approved' => 'Approved',
+            'archived' => 'Archived',
+        ];
+
+        foreach ($counts->keys() as $status) {
+            $key = (string) $status;
+
+            if (! array_key_exists($key, $labels)) {
+                $labels[$key] = Str::headline(str_replace('_', ' ', $key));
+            }
+        }
+
+        return collect($labels)
+            ->map(fn (string $label, string $status): array => [
+                'key' => $status,
+                'label' => $label,
+                'value' => (int) ($counts[$status] ?? 0),
+            ])
             ->values()
             ->all();
     }

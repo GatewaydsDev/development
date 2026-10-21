@@ -133,7 +133,7 @@ export default function Index({
                     </div>
 
                     {options.can.create && (
-                        <Button asChild>
+                        <Button asChild variant="create">
                             <Link href={route('admin.projects.create')}>
                                 <PlusIcon className="size-4" />
                                 Add project
@@ -207,10 +207,8 @@ export default function Index({
                                             </option>
                                         ))}
                                     </select>
-                                    <Button
-                                        type="submit"
-                                        className="h-11 min-w-[8.5rem] bg-emerald-600 px-4 text-white hover:bg-emerald-700"
-                                    >
+                                    <Button type="submit" variant="outline" size="sm" className="self-center">
+                                        <SearchIcon data-icon="inline-start" />
                                         Search
                                     </Button>
                                 </form>

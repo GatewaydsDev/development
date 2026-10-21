@@ -1,10 +1,11 @@
 import Checkbox from '@/Components/Checkbox';
+import FormActionFab from '@/Components/FormActionFab';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
 import { Button } from '@/Components/ui/button';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import { FormEvent, useMemo, useState } from 'react';
 import {
     numericHours,
@@ -158,8 +159,13 @@ export default function Bulk({ employees, defaultWorkDate }: BulkProps) {
             <div className="py-6 sm:py-8">
                 <form
                     onSubmit={submit}
-                    className="mx-auto flex max-w-[96rem] flex-col gap-6 px-4 sm:px-6 lg:px-8"
+                    className="mx-auto flex max-w-[96rem] flex-col gap-6 px-4 pb-28 sm:px-6 lg:px-8"
                 >
+                    <FormActionFab
+                        cancelHref={route('admin.employee-attendance.index')}
+                        saveLabel="Save for selected employees"
+                        disabled={processing}
+                    />
                     <section className="grid gap-5 rounded-xl bg-card p-4 ring-1 ring-foreground/10 md:grid-cols-2">
                         <div className="flex flex-col gap-2">
                             <InputLabel
@@ -482,25 +488,6 @@ export default function Bulk({ employees, defaultWorkDate }: BulkProps) {
                         )}
                     </section>
 
-                    <div className="flex flex-wrap items-center gap-3">
-                        <Button
-                            type="submit"
-                            disabled={processing}
-                            className="h-11 bg-emerald-600 px-4 text-white hover:bg-emerald-700"
-                        >
-                            Save for selected employees
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            className="h-11"
-                            onClick={() =>
-                                router.visit(route('admin.employee-attendance.index'))
-                            }
-                        >
-                            Cancel
-                        </Button>
-                    </div>
                 </form>
             </div>
         </AuthenticatedLayout>
