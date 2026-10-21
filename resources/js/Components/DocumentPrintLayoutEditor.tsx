@@ -5,8 +5,9 @@ import {
 } from '@/Components/ui/alert-dialog';
 import { Button } from '@/Components/ui/button';
 import BidPrintLayoutPicker from '@/Pages/Admin/Bids/Partials/BidPrintLayoutPicker';
+import { mergeBidTextPlaceholders } from '@/Pages/Admin/Bids/bidText';
 import {
-    editorLayoutDocument, layoutSections, positionedLayoutSections, quotationComponentsHtml,
+    EDITOR_KEYS, editorLayoutDocument, layoutSections, positionedLayoutSections, quotationComponentsHtml,
     type PrintLayoutCatalog, type PrintLayoutElement, type PrintLayoutOption,
 } from '@/Pages/Admin/Bids/layoutSections';
 import LayoutElementsEditor, {
@@ -31,6 +32,8 @@ type Props = {
     componentCanvas?: boolean;
     design?: QuotationLayoutDesign;
     onDesignChange?: (design: QuotationLayoutDesign, html: string) => void;
+    showPicker?: boolean;
+    selectionRequest?: { id: string; token: number } | null;
 } & Pick<React.ComponentProps<typeof RichTextEditor>,
     'id' | 'value' | 'onChange' | 'error' | 'placeholder' |
     'placeholderFields' | 'placeholderValues' | 'placeholderCatalog'>;
@@ -46,14 +49,89 @@ const cloneLayoutElements = (elements: PrintLayoutElement[]): PrintLayoutElement
 const layoutTextCase = (value?: string): ElementCase =>
     value === 'camel' || value === 'uppercase' || value === 'lowercase' ? value : 'original';
 
+const previewFieldLabel = (key: string) =>
+    key.startsWith('company_')
+        ? `Company ${key.slice('company_'.length).replaceAll('_', ' ')}`
+        : key.replaceAll('_', ' ');
+
+export function layoutPreviewFields({
+    placeholderFields = [],
+    placeholderValues = {},
+    literals,
+    fieldKeys,
+    fieldGroup,
+    mergeCatalog = false,
+}: {
+    placeholderFields?: Props['placeholderFields'];
+    placeholderValues?: Record<string, string>;
+    literals: Record<string, string>;
+    fieldKeys?: Record<string, string>;
+    fieldGroup: string;
+    mergeCatalog?: boolean;
+}): MergeField[] {
+    const aliases = fieldKeys && Object.keys(fieldKeys).length > 0
+        ? fieldKeys
+        : mergeCatalog ? EDITOR_KEYS : {};
+    const listed = mergeCatalog
+        ? mergeBidTextPlaceholders(placeholderFields)
+        : placeholderFields.map((field) => ({
+            key: field.key,
+            label: field.label || field.name || field.key,
+            group: field.group || fieldGroup,
+        }));
+    const sampleFor = (key: string) => {
+        const direct = placeholderValues[key]?.trim() || literals[key]?.trim() || '';
+        if (direct) {
+            return direct;
+        }
+        const alias = aliases[key];
+        if (!alias || alias === key) {
+            return '';
+        }
+
+        return placeholderValues[alias]?.trim() || literals[alias]?.trim() || '';
+    };
+    const seen = new Set<string>();
+    const fields: MergeField[] = listed.map((field) => {
+        seen.add(field.key);
+
+        return {
+            key: field.key,
+            label: field.label || previewFieldLabel(field.key),
+            group: field.group || fieldGroup,
+            sample: sampleFor(field.key),
+        };
+    });
+    const add = (key: string) => {
+        if (seen.has(key)) {
+            return;
+        }
+        const sample = sampleFor(key);
+        if (!sample) {
+            return;
+        }
+        seen.add(key);
+        fields.push({
+            key,
+            label: previewFieldLabel(key),
+            group: fieldGroup,
+            sample,
+        });
+    };
+    Object.keys(literals).forEach(add);
+    Object.keys(aliases).forEach(add);
+    Object.keys(placeholderValues).forEach(add);
+
+    return fields;
+}
+
 function QuotationComponentCanvas({
-    design, literals, fieldKeys, placeholderFields, placeholderValues, error, onDesignChange,
+    design, literals, fieldKeys, fields, error, onDesignChange,
 }: {
     design: QuotationLayoutDesign;
     literals: Record<string, string>;
     fieldKeys?: Record<string, string>;
-    placeholderFields?: Props['placeholderFields'];
-    placeholderValues?: Record<string, string>;
+    fields: MergeField[];
     error?: string;
     onDesignChange: (design: QuotationLayoutDesign, html: string) => void;
 }) {
@@ -74,12 +152,6 @@ function QuotationComponentCanvas({
             quotationComponentsHtml(next, literalsRef.current, fieldKeysRef.current),
         );
     };
-    const fields = useMemo<MergeField[]>(() => (placeholderFields ?? []).map((field) => ({
-        key: field.key,
-        label: field.label ?? field.name ?? field.key,
-        group: field.group ?? 'Quotation',
-        sample: placeholderValues?.[field.key] ?? literals[field.key] ?? '',
-    })), [placeholderFields, placeholderValues, literals]);
     const textCase = layoutTextCase(design.text_case);
     const controller = useLayoutElements(
         design.elements as LayoutElement[],
@@ -129,7 +201,8 @@ const activeLayout = (catalog: PrintLayoutCatalog, id: string) =>
 export default function DocumentPrintLayoutEditor({
     document: documentType, catalog: initialCatalog, layoutId, version,
     onLayoutChange, literals, fieldKeys, hasUnsavedChanges, onSaveCurrent,
-    componentCanvas = false, design, onDesignChange, ...editorProps
+    componentCanvas = false, design, onDesignChange, showPicker = true,
+    selectionRequest = null, ...editorProps
 }: Props) {
     const [catalog, setCatalog] = useState(initialCatalog);
     const [pending, setPending] = useState<{
@@ -299,6 +372,17 @@ export default function DocumentPrintLayoutEditor({
             if (mounted.current) setBusy(false);
         }
     };
+    const selectionToken = selectionRequest?.token ?? 0;
+    const selectionId = selectionRequest?.id ?? '';
+    useEffect(() => {
+        if (selectionToken === 0) {
+            return;
+        }
+
+        void select(selectionId);
+        // The token changes only when a layout card is chosen.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectionToken]);
     const keepCurrent = () => {
         if (pending && (pending.kind === 'update' || pending.id === layoutId)) {
             dismissed.current = pending.layout.version ?? null;
@@ -347,6 +431,14 @@ export default function DocumentPrintLayoutEditor({
     };
     const selected = activeLayout(catalog, layoutId);
     const sections = useMemo(() => selected ? layoutSections(selected.elements, literals, fieldKeys) : [], [selected, literals, fieldKeys]);
+    const previewFields = useMemo(() => layoutPreviewFields({
+        placeholderFields: editorProps.placeholderFields,
+        placeholderValues: editorProps.placeholderValues,
+        literals,
+        fieldKeys,
+        fieldGroup: documentType === 'bid' ? 'Bid' : 'Quotation',
+        mergeCatalog: documentType === 'bid',
+    }), [documentType, editorProps.placeholderFields, editorProps.placeholderValues, fieldKeys, literals]);
     const currentLayoutId = layoutId ? Number(layoutId) : catalog.assignedPrintLayoutId;
     const switching = pending?.kind === 'select' && currentLayoutId != null && pending.layout.id !== currentLayoutId;
     const replacedArea = componentCanvas
@@ -355,18 +447,21 @@ export default function DocumentPrintLayoutEditor({
 
     return (
         <div className="flex min-w-0 flex-col gap-3">
-            <BidPrintLayoutPicker
-                layouts={catalog.printLayouts}
-                assignedLayoutId={catalog.assignedPrintLayoutId}
-                value={layoutId} document={documentType} disabled={busy}
-                confirm
-                onSelect={(id) => void select(id)}
-            />
+            {showPicker ? (
+                <BidPrintLayoutPicker
+                    layouts={catalog.printLayouts}
+                    assignedLayoutId={catalog.assignedPrintLayoutId}
+                    value={layoutId} document={documentType} disabled={busy}
+                    confirm
+                    fields={previewFields}
+                    onSelect={(id) => void select(id)}
+                />
+            ) : null}
             <p className="text-sm text-muted-foreground" role="status">
                 {busy
                     ? 'Placing the layout components…'
                     : componentCanvas
-                        ? 'Choosing a different layout asks you to confirm before the page is replaced. Saving a print layout updates every quotation that uses it.'
+                        ? `Choosing a different layout asks you to confirm before the page is replaced. Saving a print layout updates every ${documentType} that uses it.`
                         : 'Saved layout changes are checked while this document editor is open.'}
             </p>
             {checkError ? <p role="alert" className="text-sm text-destructive">{checkError}</p> : null}
@@ -375,8 +470,7 @@ export default function DocumentPrintLayoutEditor({
                     design={design ?? { elements: [], header_height: 160, header_background: '#ffffff', text_case: 'original' }}
                     literals={literals}
                     fieldKeys={fieldKeys}
-                    placeholderFields={editorProps.placeholderFields}
-                    placeholderValues={editorProps.placeholderValues}
+                    fields={previewFields}
                     error={editorProps.error}
                     onDesignChange={(next, html) => {
                         canvasEdited.current = true;

@@ -23,7 +23,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/Components/ui/dropdown-menu';
-import { ArchiveIcon, ArrowLeftIcon, ForwardIcon, MailIcon, MailOpenIcon, MoreVerticalIcon, RefreshCwIcon, ReplyIcon } from 'lucide-react';
+import { ArchiveIcon, ArrowLeftIcon, ForwardIcon, MailIcon, MailOpenIcon, MoreVerticalIcon, RefreshCwIcon, ReplyIcon, SendIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import MailSettings from '@/Pages/Email/MailSettings';
@@ -104,6 +104,41 @@ function forwardIntro(message: MailMessage): string {
     return ['---------- Forwarded message ----------', `From: ${message.from}`, sent]
         .filter((line) => line !== '')
         .join('\n');
+}
+
+function MessageStatus({
+    folder,
+    isRead,
+}: {
+    folder: 'inbox' | 'sent' | 'archive';
+    isRead: boolean;
+}) {
+    const { t } = useTranslation('mail');
+
+    if (folder === 'sent') {
+        return (
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-800 dark:bg-sky-950 dark:text-sky-200">
+                <SendIcon className="size-3.5" />
+                {t('sentStatus')}
+            </span>
+        );
+    }
+
+    if (isRead) {
+        return (
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">
+                <MailOpenIcon className="size-3.5" />
+                {t('readMessage')}
+            </span>
+        );
+    }
+
+    return (
+        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800 dark:bg-red-950 dark:text-red-200">
+            <MailIcon className="size-3.5" />
+            {t('unreadMessage')}
+        </span>
+    );
 }
 
 function MessageOptions({
@@ -397,9 +432,13 @@ export default function Index({
                                                     className="block min-h-11 min-w-0 rounded-md py-3 pe-12 ps-3 text-left touch-manipulation hover:bg-muted"
                                                 >
                                                     <p className="flex items-center gap-2 break-words text-foreground">
-                                                        {folder !== 'sent' && !item.is_read ? (
+                                                        {folder === 'sent' ? (
+                                                            <SendIcon className="size-3.5 shrink-0 text-sky-600" />
+                                                        ) : item.is_read ? (
+                                                            <MailOpenIcon className="size-3.5 shrink-0 text-emerald-600" />
+                                                        ) : (
                                                             <MailIcon className="size-3.5 shrink-0 text-red-600" />
-                                                        ) : null}
+                                                        )}
                                                         <span className={folder !== 'sent' && !item.is_read ? 'font-semibold' : 'font-medium'}>
                                                             {item.subject || t('noSubject')}
                                                         </span>
@@ -441,7 +480,18 @@ export default function Index({
                                             </Button>
                                         ) : null}
                                         <div className="flex items-start justify-between gap-2">
-                                            <CardTitle className="break-words">{message?.subject || t('select')}</CardTitle>
+                                            <CardTitle className="flex items-center gap-2 break-words">
+                                                {message ? (
+                                                    <MessageStatus
+                                                        folder={folder}
+                                                        isRead={
+                                                            messages.find((item) => item.id === message.id)
+                                                                ?.is_read ?? true
+                                                        }
+                                                    />
+                                                ) : null}
+                                                <span>{message?.subject || t('select')}</span>
+                                            </CardTitle>
                                             {message ? (
                                                 <MessageOptions
                                                     messageId={message.id}

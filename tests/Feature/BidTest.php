@@ -6,9 +6,11 @@ use App\Models\BidScopeTitle;
 use App\Models\BidStageType;
 use App\Models\BidTextField;
 use App\Models\BidTextTemplate;
+use App\Models\Company;
 use App\Models\Contractor;
 use App\Models\DocumentLayoutAssignment;
 use App\Models\PreBid;
+use App\Models\PrintLayout;
 use App\Models\Product;
 use App\Models\Project;
 use App\Models\ProjectScopeType;
@@ -18,7 +20,13 @@ use App\Models\Service;
 use App\Models\TaxState;
 use App\Models\User;
 use App\Models\UserLevel;
+use App\Support\BidApplicationText;
+use App\Support\BidDocument;
+use App\Support\BidImportedHtml;
 use App\Support\DocumentAppearance;
+use App\Support\DocumentLayoutElements;
+use App\Support\PrintLayoutCatalog;
+use App\Support\QuotationToBid;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\UploadedFile;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -122,8 +130,8 @@ test('the create bid page includes stages scopes and pricing catalogs', function
 test('bid editors can save a complete draft in place before replacing a layout', function () {
     $admin = bidAdmin();
     $project = bidProject($admin);
-    $layout = \App\Models\PrintLayout::query()->firstOrFail();
-    $version = \App\Support\PrintLayoutCatalog::forDocument('bid')['printLayouts'][0]['version'];
+    $layout = PrintLayout::query()->firstOrFail();
+    $version = PrintLayoutCatalog::forDocument('bid')['printLayouts'][0]['version'];
     $payload = [
         'project_id' => $project->id, 'notes' => '<p>Keep my current edits</p>',
         'print_layout_id' => $layout->id, 'print_layout_version' => $version,
@@ -144,7 +152,7 @@ test('bid editors can save a complete draft in place before replacing a layout',
     $payload['project_id'] = null;
     $this->patchJson(route('admin.bids.update', $bid), $payload)->assertUnprocessable();
     expect($bid->fresh()->notes)->toContain('Second saved draft');
-    $nextVersion = \App\Support\PrintLayoutCatalog::forDocument('bid')['printLayouts'][0]['version'];
+    $nextVersion = PrintLayoutCatalog::forDocument('bid')['printLayouts'][0]['version'];
     $this->patchJson(route('admin.bids.autosave', $bid), [
         'notes' => '<p>Auto-saved updated layout</p>',
         'print_layout_id' => $layout->id, 'print_layout_version' => $nextVersion,
@@ -152,11 +160,58 @@ test('bid editors can save a complete draft in place before replacing a layout',
     expect($bid->fresh()->notes)->toContain('Auto-saved updated layout')
         ->and($bid->fresh()->print_layout_version)->toBe($nextVersion);
 });
+
+test('a bid keeps the selected layout on the bid page', function () {
+    $admin = bidAdmin();
+    $project = bidProject($admin);
+    $layout = PrintLayout::query()->firstOrFail();
+    $version = PrintLayoutCatalog::forDocument('bid')['printLayouts'][0]['version'];
+    $design = [
+        'elements' => [[
+            'id' => 'heading',
+            'type' => 'text',
+            'zone' => 'header',
+            'content' => 'Bid heading',
+        ]],
+        'header_height' => 180,
+        'header_background' => '#ffffff',
+        'text_case' => 'original',
+    ];
+
+    $response = $this->actingAs($admin)->postJson(route('admin.bids.store'), [
+        'project_id' => $project->id,
+        'notes' => '<p>Bid heading</p>',
+        'print_layout_id' => $layout->id,
+        'print_layout_version' => $version,
+        'layout_elements' => $design,
+        'stages' => [],
+        'revisions' => [],
+        'scopes' => [],
+        'pricings' => [],
+    ])->assertCreated();
+
+    $bid = Bid::query()->findOrFail($response->json('document.id'));
+    expect($bid->layout_elements['elements'][0]['content'])->toBe('Bid heading')
+        ->and($bid->layout_elements['header_height'])->toEqual(180);
+
+    $this->patchJson(route('admin.bids.autosave', $bid), [
+        'notes' => '<p>Updated heading</p>',
+        'layout_elements' => [
+            ...$design,
+            'elements' => [[
+                ...$design['elements'][0],
+                'content' => 'Updated heading',
+            ]],
+        ],
+    ])->assertOk();
+
+    expect($bid->fresh()->layout_elements['elements'][0]['content'])->toBe('Updated heading');
+});
 test('PDF layout bid text larger than a MySQL text column survives create autosave and update', function () {
     $admin = bidAdmin();
     $project = bidProject($admin);
-    $layout = \App\Models\PrintLayout::query()->firstOrFail();
-    $version = \App\Support\PrintLayoutCatalog::forDocument('bid')['printLayouts'][0]['version'];
+    $layout = PrintLayout::query()->firstOrFail();
+    $version = PrintLayoutCatalog::forDocument('bid')['printLayouts'][0]['version'];
     $fontSrc = '/storage/editor-fonts/'.str_repeat('a', 64).'.ttf';
     $items = '';
     for ($index = 0; $index < 200; $index++) {
@@ -169,7 +224,7 @@ test('PDF layout bid text larger than a MySQL text column survives create autosa
         .'<div data-position-item="true" data-pdf-background="true" data-x="0" data-y="0" data-width="700" data-height="900">'
         .'<div data-rich-image="true"><img src="/storage/editor-images/page.png" alt=""></div></div>'
         .$items.'</div>';
-    $sanitized = \App\Support\BidApplicationText::sanitize($html);
+    $sanitized = BidApplicationText::sanitize($html);
     expect(strlen($html))->toBeGreaterThan(65535)->toBeLessThan(250000)
         ->and(strlen($sanitized))->toBeGreaterThan(65535);
     $scopeText = '<p>'.str_repeat('Detailed scope text. ', 4000).'</p>';
@@ -184,27 +239,27 @@ test('PDF layout bid text larger than a MySQL text column survives create autosa
     expect($bid->notes)->toBe($sanitized)
         ->and($bid->print_layout_id)->toBe($layout->id)
         ->and($bid->print_layout_version)->toBe($version)
-        ->and($bid->scopes()->first()->notations)->toBe(\App\Support\BidApplicationText::sanitize($scopeText));
+        ->and($bid->scopes()->first()->notations)->toBe(BidApplicationText::sanitize($scopeText));
 
     $payload['notes'] = str_replace('Editable PDF field 199', 'Autosaved final field', $html);
     $this->patchJson(route('admin.bids.autosave', $bid), [
         'notes' => $payload['notes'],
     ])->assertOk();
-    expect($bid->fresh()->notes)->toBe(\App\Support\BidApplicationText::sanitize($payload['notes']));
+    expect($bid->fresh()->notes)->toBe(BidApplicationText::sanitize($payload['notes']));
     $payload['notes'] = str_replace('Autosaved final field', 'Updated final field', $payload['notes']);
     $this->patchJson(route('admin.bids.update', $bid), $payload)->assertOk();
-    expect($bid->fresh()->notes)->toBe(\App\Support\BidApplicationText::sanitize($payload['notes']));
+    expect($bid->fresh()->notes)->toBe(BidApplicationText::sanitize($payload['notes']));
     $this->patchJson(route('admin.bids.autosave', $bid), [
         'notes' => str_repeat('x', 250001),
     ])->assertUnprocessable()->assertJsonValidationErrors('notes');
-    expect($bid->fresh()->notes)->toBe(\App\Support\BidApplicationText::sanitize($payload['notes']));
+    expect($bid->fresh()->notes)->toBe(BidApplicationText::sanitize($payload['notes']));
 });
 
 test('autosaved PDF layout fields resolve from current bid data in print PDF and Word content', function () {
     $admin = bidAdmin();
     $project = bidProject($admin, 'PDF Project & Site');
     $project->update(['project_number' => 'PDF-123']);
-    $layout = \App\Models\PrintLayout::query()->firstOrFail();
+    $layout = PrintLayout::query()->firstOrFail();
     $bid = Bid::create([
         'project_id' => $project->id, 'created_by' => $admin->id,
         'print_layout_id' => $layout->id,
@@ -231,7 +286,7 @@ test('autosaved PDF layout fields resolve from current bid data in print PDF and
         ->assertDontSee('{{PROJECT_NAME}}', false)->assertDontSee('{{project_number}}', false)
         ->assertDontSee('{{MATERIALS}}', false)->assertDontSee('{{ITEM_QUANTITY}}', false);
     foreach (['print', 'pdf', 'word'] as $mode) {
-        $data = \App\Support\BidDocument::for($bid->fresh(), $admin)->viewData($mode);
+        $data = BidDocument::for($bid->fresh(), $admin)->viewData($mode);
         expect($data['notes'])->toContain('PDF Project &amp; Site', 'PDF-123', '$200.00', '$250.00')
             ->not->toContain('{{PROJECT_NAME}}')
             ->and($data['scopeOfWorkText'])->toContain('PDF Project &amp; Site')
@@ -276,21 +331,21 @@ test('bid cell fields expose and render the linked contractor and its primary co
         ->assertSee('125 Harbor Street')->assertSee('https://contractor.example.com')
         ->assertDontSee('{{contractor_', false);
     expect($bid->fresh()->notes)->toContain('{{contractor_email}}');
-    $values = \App\Support\BidApplicationText::valuesFor($project->fresh(), null);
-    $elements = \App\Support\DocumentLayoutElements::sanitize([['type' => 'table', 'zone' => 'header', 'cells' => [
+    $values = BidApplicationText::valuesFor($project->fresh(), null);
+    $elements = DocumentLayoutElements::sanitize([['type' => 'table', 'zone' => 'header', 'cells' => [
         ['{{contractor_name}}', '{{contractor_email}}'],
     ]]]);
-    $layoutValues = \App\Support\DocumentLayoutElements::fieldValues([
+    $layoutValues = DocumentLayoutElements::fieldValues([
         'contractor_name' => $contractor->name, 'contractor_email' => 'primary@example.com',
     ]);
-    expect(\App\Support\DocumentLayoutElements::render($elements, 'header', values: $layoutValues))
+    expect(DocumentLayoutElements::render($elements, 'header', values: $layoutValues))
         ->toContain($contractor->name, 'primary@example.com');
     expect($values['customer_name'])->toBe('Primary Contact')
         ->and($values['contractor_email'])->toBe('primary@example.com');
     $emptyProject = Project::create(['name' => 'No contractor', 'priority' => 'normal', 'created_by' => $admin->id]);
-    expect(\App\Support\BidApplicationText::valuesFor($emptyProject, null)['contractor_email'])->toBe('')
-        ->and(\App\Support\BidApplicationText::contractorValues(null)['contractor_name'])->toBe('');
-    $catalog = collect(\App\Support\DocumentLayoutElements::fieldCatalog());
+    expect(BidApplicationText::valuesFor($emptyProject, null)['contractor_email'])->toBe('')
+        ->and(BidApplicationText::contractorValues(null)['contractor_name'])->toBe('');
+    $catalog = collect(DocumentLayoutElements::fieldCatalog());
     expect($catalog->where('group', 'Contractor')->pluck('key')->all())->toBe([
         'contractor_name', 'contractor_contact_name', 'contractor_email',
         'contractor_phone', 'contractor_address', 'contractor_website',
@@ -301,38 +356,38 @@ test('bid cell fields expose and render the linked contractor and its primary co
 test('company speciality is available in layout fields and resolves in bid table cells', function () {
     $admin = bidAdmin();
     $project = bidProject($admin, 'Speciality project');
-    $company = \App\Models\Company::create([
+    $company = Company::create([
         'name' => 'Gateway Doors', 'speciality' => 'Doors & access systems', 'is_active' => true,
     ]);
     $this->actingAs($admin)->get(route('admin.bids.create'))->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('options.company.speciality', 'Doors & access systems'));
-    $catalog = collect(\App\Support\DocumentLayoutElements::fieldCatalog())->keyBy('key');
+    $catalog = collect(DocumentLayoutElements::fieldCatalog())->keyBy('key');
     expect($catalog['company_speciality'])->toMatchArray([
         'label' => 'Company speciality', 'group' => 'Company', 'sample' => 'Doors & access systems',
     ]);
-    $values = \App\Support\DocumentLayoutElements::fieldValues([]);
-    $elements = \App\Support\DocumentLayoutElements::sanitize([
+    $values = DocumentLayoutElements::fieldValues([]);
+    $elements = DocumentLayoutElements::sanitize([
         ['type' => 'table', 'zone' => 'header', 'cells' => [['{{company_speciality}}', 'Neighbor']]],
         ['type' => 'company', 'zone' => 'header', 'fields' => ['company_speciality']],
     ]);
-    expect(\App\Support\DocumentLayoutElements::render($elements, 'header', values: $values))
+    expect(DocumentLayoutElements::render($elements, 'header', values: $values))
         ->toContain('Doors &amp; access systems', 'Neighbor')->not->toContain('{{company_speciality}}');
-    expect(\App\Support\BidApplicationText::valuesFor($project, $company)['company_speciality'])
+    expect(BidApplicationText::valuesFor($project, $company)['company_speciality'])
         ->toBe('Doors & access systems');
     $bid = Bid::create([
         'project_id' => $project->id, 'created_by' => $admin->id,
         'notes' => '<table><tr><td>{{COMPANY_SPECIALITY}}</td><td>Neighbor</td></tr></table>',
     ]);
     foreach (['print', 'pdf', 'word'] as $mode) {
-        expect(\App\Support\BidDocument::for($bid, $admin)->viewData($mode)['notes'])
+        expect(BidDocument::for($bid, $admin)->viewData($mode)['notes'])
             ->toContain('Doors &amp; access systems', 'Neighbor')->not->toContain('{{COMPANY_SPECIALITY}}');
     }
     $company->update(['speciality' => 'Updated speciality']);
-    expect(\App\Support\BidDocument::for($bid, $admin)->viewData()['notes'])->toContain('Updated speciality');
+    expect(BidDocument::for($bid, $admin)->viewData()['notes'])->toContain('Updated speciality');
     $company->update(['speciality' => null]);
-    expect(\App\Support\DocumentLayoutElements::companyValues()['company_speciality'])->toBe('')
-        ->and(\App\Support\BidApplicationText::valuesFor($project, $company->fresh())['company_speciality'])->toBe('');
+    expect(DocumentLayoutElements::companyValues()['company_speciality'])->toBe('')
+        ->and(BidApplicationText::valuesFor($project, $company->fresh())['company_speciality'])->toBe('');
 });
 
 test('resized table columns persist through bid autosave and document rendering', function () {
@@ -344,7 +399,7 @@ test('resized table columns persist through bid autosave and document rendering'
     $this->actingAs($admin)->patchJson(route('admin.bids.autosave', $bid), ['notes' => $html])->assertOk();
     expect($bid->fresh()->notes)->toContain('colwidth="180"', 'colwidth="320"', 'width: 320px');
     foreach (['print', 'pdf', 'word'] as $mode) {
-        expect(\App\Support\BidDocument::for($bid->fresh(), $admin)->viewData($mode)['notes'])
+        expect(BidDocument::for($bid->fresh(), $admin)->viewData($mode)['notes'])
             ->toContain('width: 180px', 'width: 320px', 'Commercial access');
     }
 });
@@ -363,11 +418,11 @@ test('bid toolbar text casing survives saves and resolves merge field values wit
     $this->actingAs($admin)->patchJson(route('admin.bids.autosave', $bid), ['notes' => $html])->assertOk();
     expect($bid->fresh()->notes)->toContain('data-editor-text-case="uppercase"', 'data-text-case="camel"', '{{project_name}}', '<strong>UPPER TEXT</strong>');
     foreach (['print', 'pdf', 'word'] as $mode) {
-        expect(\App\Support\BidDocument::for($bid->fresh(), $admin)->viewData($mode)['notes'])
+        expect(BidDocument::for($bid->fresh(), $admin)->viewData($mode)['notes'])
             ->toContain('MIXED CASE PROJECT', 'mixed case project', 'mixedCaseProject', 'Neighbor Mixed Case', '<em>camelText</em>', 'text-transform: none', 'mixed word', ' After')
             ->not->toContain('{{project_name}}');
     }
-    expect(\App\Support\BidImportedHtml::sanitize('<p data-editor-text-case="invalid"><span data-text-case="invalid">Text</span></p>'))
+    expect(BidImportedHtml::sanitize('<p data-editor-text-case="invalid"><span data-text-case="invalid">Text</span></p>'))
         ->not->toContain('data-text-case', 'data-editor-text-case');
 });
 
@@ -381,21 +436,21 @@ test('quotation fields in bids resolve from the linked quote and stay separate f
     ]);
     $quote->lineItems()->create(['description' => 'Quoted door', 'quantity' => 2, 'unit_price' => 1250, 'sort_order' => 0]);
     $quote->revisions()->create(['number' => 'REV3', 'revision_date' => '2026-10-02', 'user_id' => $admin->id]);
-    $tokens = implode(' | ', array_map(fn ($key) => '{{'.$key.'}}', \App\Support\BidApplicationText::QUOTATION_FIELDS));
+    $tokens = implode(' | ', array_map(fn ($key) => '{{'.$key.'}}', BidApplicationText::QUOTATION_FIELDS));
     $bid = Bid::create(['project_id' => $project->id, 'quotation_id' => $quote->id, 'created_by' => $admin->id, 'notes' => '<p>'.$tokens.'</p>']);
     foreach (['print', 'pdf', 'word'] as $mode) {
-        $data = \App\Support\BidDocument::for($bid->fresh(), $admin)->viewData($mode);
+        $data = BidDocument::for($bid->fresh(), $admin)->viewData($mode);
         expect($data['notes'])->toContain('GDS-Q-QUOTE-FIELDS', 'Supply Only Quote', 'October 1, 2026', 'November 1, 2026', '$1,250.00', 'REV3')
             ->not->toContain('{{');
-        expect(\App\Support\DocumentLayoutElements::fieldValues($data)['quotation_title'])->toBe('Supply Only Quote');
+        expect(DocumentLayoutElements::fieldValues($data)['quotation_title'])->toBe('Supply Only Quote');
     }
-    $payload = \App\Support\QuotationToBid::optionPayload($quote->fresh());
+    $payload = QuotationToBid::optionPayload($quote->fresh());
     expect($payload['field_values']['base_bid_total'])->toBe('$1,250.00')
         ->and($payload['field_values']['latest_revision'])->toBe('REV3');
     $quote->update(['title' => 'Updated Supply Quote']);
-    expect(\App\Support\BidDocument::for($bid->fresh(), $admin)->viewData()['notes'])->toContain('Updated Supply Quote');
+    expect(BidDocument::for($bid->fresh(), $admin)->viewData()['notes'])->toContain('Updated Supply Quote');
     $bid->update(['quotation_id' => null]);
-    expect(\App\Support\BidDocument::for($bid->fresh(), $admin)->viewData()['notes'])
+    expect(BidDocument::for($bid->fresh(), $admin)->viewData()['notes'])
         ->toContain('{{quotation_title}}')->not->toContain('Updated Supply Quote');
 });
 
@@ -459,7 +514,7 @@ test('the create bid page includes project state and product state prices', func
 test('bid create and edit include the complete positioned layout configuration', function () {
     $admin = bidAdmin();
     $project = bidProject($admin);
-    $layout = \App\Models\PrintLayout::create([
+    $layout = PrintLayout::create([
         'name' => 'Configured header',
         'header_background_color' => '#fef3c7',
         'table_header_background_color' => '#1d4ed8',
@@ -982,7 +1037,7 @@ test('a bid can save rich text notes', function () {
 
 test('bid table labels cannot retain leading indentation or right alignment', function () {
     $html = '<table><tr><td><p style="text-align: right; text-indent: 20px; margin-left: 10px"><strong>  Project  </strong></p></td><td><p>Project value</p></td></tr></table>';
-    $clean = \App\Support\BidApplicationText::sanitize($html);
+    $clean = BidApplicationText::sanitize($html);
 
     expect($clean)->toContain('<strong>Project</strong>', 'text-align: left', 'text-indent: 0', 'margin-left: 0')
         ->not->toContain('text-align: right', 'text-indent: 20px')
@@ -996,7 +1051,7 @@ test('saving positioned bids preserves deliberate table heading and value alignm
         .'<div data-position-item="true" data-x="79.1" data-y="155" data-width="299.6" style="position: absolute; left: 79.1px; top: 155px; width: 299.6px">'
         .'<table><tr><th><p style="text-align: center"><strong>Header</strong></p></th></tr>'
         .'<tr><td><p style="text-align: right"><strong>Value</strong></p></td></tr></table></div></div>';
-    $clean = \App\Support\BidApplicationText::sanitize($html);
+    $clean = BidApplicationText::sanitize($html);
 
     expect($clean)->toContain('data-x="79.1"', 'left: 79.1px', 'data-width="299.6"', 'width: 299.6px', 'text-align: center', 'text-align: right')
         ->not->toContain('text-align: left');
@@ -1178,7 +1233,7 @@ test('bid signature selection is saved and controls print pdf and word', functio
                 ->assertDontSee('<table class="signature-table">', false);
         }
 
-        $document = \App\Support\BidDocument::for($bid, $admin);
+        $document = BidDocument::for($bid, $admin);
         expect($document->viewData('pdf')['includeSignature'])->toBe($include);
         $this->actingAs($admin)->get(route('admin.bids.export.pdf', $bid))
             ->assertOk()->assertHeader('content-type', 'application/pdf');
@@ -1226,7 +1281,7 @@ test('bids retain signatures by default', function () {
 test('word bid exports escape special characters before applying text casing', function () {
     $admin = bidAdmin();
     $project = bidProject($admin, 'Doors & Frames <Required>');
-    $layout = \App\Models\PrintLayout::create([
+    $layout = PrintLayout::create([
         'name' => 'Uppercase export',
         'text_case' => 'uppercase',
         'design' => [],

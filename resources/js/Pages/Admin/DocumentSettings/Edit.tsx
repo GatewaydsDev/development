@@ -61,9 +61,16 @@ type DocumentSettings = {
     text_case: TextCase;
 };
 
+type LayoutTypeOption = {
+    id: string;
+    label: string;
+    description: string;
+};
+
 type LayoutRecord = DocumentSettings & {
     id: number;
     name: string;
+    layout_type: string | null;
     paper: PrintPageId;
     orientation: PrintPageOrientation;
     assignments: string[];
@@ -92,6 +99,7 @@ type FormatOption = {
 type LayoutForm = DocumentSettings & {
     layout_id: number | null;
     name: string;
+    layout_type: string;
     paper: PrintPageId;
     orientation: PrintPageOrientation;
     assignments: string[];
@@ -105,6 +113,7 @@ type EditProps = {
         format: string;
     };
     selectedLayoutId: number | null;
+    layoutTypes: LayoutTypeOption[];
     documents: DocumentOption[];
     formats: FormatOption[];
     assignmentOptions: AssignmentOption[];
@@ -212,6 +221,7 @@ function emptyLayout(defaults: DocumentSettings): LayoutForm {
     return {
         layout_id: null,
         name: "New print layout",
+        layout_type: "",
         paper: "letter",
         orientation: "portrait",
         assignments: [],
@@ -223,7 +233,7 @@ function emptyLayout(defaults: DocumentSettings): LayoutForm {
 
 export default function Edit({
     selectedLayoutId,
-    documents,
+    layoutTypes,
     formats,
     assignmentOptions,
     layouts,
@@ -249,6 +259,7 @@ export default function Edit({
             ? {
                   layout_id: initialLayout.id,
                   name: initialLayout.name,
+                  layout_type: initialLayout.layout_type ?? "",
                   assignments: initialLayout.assignments,
                   elements: initialLayout.elements,
                   header_background_color:
@@ -263,6 +274,7 @@ export default function Edit({
             : {
                   layout_id: null,
                   name: "New print layout",
+                  layout_type: "",
                   paper: "letter",
                   orientation: "portrait",
                   assignments: [],
@@ -313,6 +325,11 @@ export default function Edit({
         printPageSize(data.paper, data.orientation),
     );
     const [search, setSearch] = useState("");
+    const [libraryTab, setLibraryTab] = useState(
+        layoutTypes[0]?.id ?? "quotation",
+    );
+    const [newLayoutType, setNewLayoutType] = useState("");
+    const [pdfActionHost, setPdfActionHost] = useState<HTMLDivElement | null>(null);
     const [previewLayout, setPreviewLayout] = useState<
         LayoutRecord | LayoutForm | null
     >(null);
@@ -327,12 +344,17 @@ export default function Edit({
     );
     const filteredLayouts = useMemo(() => {
         const query = search.trim().toLowerCase();
+        const inTab = layouts.filter((layout) =>
+            libraryTab === ""
+                ? !layout.layout_type
+                : layout.layout_type === libraryTab,
+        );
 
         if (!query) {
-            return layouts;
+            return inTab;
         }
 
-        return layouts.filter((layout) => {
+        return inTab.filter((layout) => {
             const assignments = layout.assignments
                 .map((key) =>
                     assignmentOptions.find((option) => option.id === key),
@@ -344,11 +366,15 @@ export default function Edit({
                 .map((option) => `${option.document} ${option.format}`)
                 .join(" ");
 
-            return `${layout.name} ${assignments}`
+            const typeLabel =
+                layoutTypes.find((type) => type.id === layout.layout_type)
+                    ?.label ?? "";
+
+            return `${layout.name} ${typeLabel} ${assignments}`
                 .toLowerCase()
                 .includes(query);
         });
-    }, [assignmentOptions, layouts, search]);
+    }, [assignmentOptions, layoutTypes, layouts, libraryTab, search]);
 
     const headerColor = normalizeHex(
         data.header_background_color,
@@ -387,6 +413,7 @@ export default function Edit({
         const values: LayoutForm = {
             layout_id: layout.id,
             name: layout.name,
+            layout_type: layout.layout_type ?? "",
             assignments: layout.assignments,
             elements: layout.elements,
             header_background_color: layout.header_background_color,
@@ -430,8 +457,25 @@ export default function Edit({
         scrollToEditor();
     };
 
+    const assignmentsForType = (type: string) =>
+        type ? formats.map((format) => `${type}.${format.id}`) : [];
+
+    const openNewLayout = () => {
+        setNewLayoutType(
+            layoutTypes.some((item) => item.id === libraryTab) ? libraryTab : "",
+        );
+        setNewLayoutDialog(true);
+    };
+
     const startNewLayout = () => {
+        if (!layoutTypes.some((item) => item.id === newLayoutType)) {
+            return;
+        }
+
         const values = emptyLayout(defaults);
+        values.layout_type = newLayoutType;
+        values.assignments = assignmentsForType(newLayoutType);
+        setLibraryTab(newLayoutType);
         setData(values);
         setDefaults(values);
         setLayoutName(values.name);
@@ -446,7 +490,7 @@ export default function Edit({
             setPendingLayoutChange({ kind: "new" });
             return;
         }
-        setNewLayoutDialog(true);
+        openNewLayout();
     };
 
     const submit: FormEventHandler = (event) => {
@@ -454,6 +498,9 @@ export default function Edit({
         const payload: LayoutForm = {
             ...data,
             name: layoutName.trim(),
+            assignments: data.layout_type
+                ? formats.map((format) => `${data.layout_type}.${format.id}`)
+                : data.assignments,
         };
         transform(() => payload);
 
@@ -496,15 +543,6 @@ export default function Edit({
             }),
             options,
         );
-    };
-
-    const toggleAssignment = (key: string) => {
-        setData((current) => ({
-            ...current,
-            assignments: current.assignments.includes(key)
-                ? current.assignments.filter((assignment) => assignment !== key)
-                : [...current.assignments, key],
-        }));
     };
 
     return (
@@ -557,12 +595,67 @@ export default function Edit({
                             </Button>
                         </div>
 
+                        <div
+                            role="tablist"
+                            aria-label="Layout library"
+                            className="mb-4 flex gap-2 overflow-x-auto"
+                        >
+                            {layoutTypes.map((type) => {
+                                const count = layouts.filter(
+                                    (layout) => layout.layout_type === type.id,
+                                ).length;
+                                const selected = libraryTab === type.id;
+
+                                return (
+                                    <button
+                                        key={type.id}
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={selected}
+                                        className={`shrink-0 rounded-lg px-3 py-2 text-sm font-medium ${
+                                            selected
+                                                ? "bg-emerald-600 text-white"
+                                                : "border border-border bg-card text-foreground hover:bg-muted"
+                                        }`}
+                                        onClick={() => setLibraryTab(type.id)}
+                                    >
+                                        {type.label} layouts
+                                        <span className="ml-2 text-xs opacity-80">
+                                            {count}
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                            {layouts.some((layout) => !layout.layout_type) ? (
+                                <button
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={libraryTab === ""}
+                                    className={`shrink-0 rounded-lg px-3 py-2 text-sm font-medium ${
+                                        libraryTab === ""
+                                            ? "bg-emerald-600 text-white"
+                                            : "border border-border bg-card text-foreground hover:bg-muted"
+                                    }`}
+                                    onClick={() => setLibraryTab("")}
+                                >
+                                    Needs a type
+                                    <span className="ml-2 text-xs opacity-80">
+                                        {
+                                            layouts.filter(
+                                                (layout) => !layout.layout_type,
+                                            ).length
+                                        }
+                                    </span>
+                                </button>
+                            ) : null}
+                        </div>
+
                         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <p className="text-sm text-muted-foreground">
-                                {layouts.length}{" "}
-                                {layouts.length === 1
-                                    ? "saved layout"
-                                    : "saved layouts"}
+                                {filteredLayouts.length}{" "}
+                                {filteredLayouts.length === 1
+                                    ? "layout in this tab"
+                                    : "layouts in this tab"}
                             </p>
                             <label className="relative block w-full sm:max-w-xs">
                                 <span className="sr-only">Search layouts</span>
@@ -615,6 +708,12 @@ export default function Edit({
                                                     {layout.name}
                                                 </CardTitle>
                                                 <CardDescription>
+                                                    {layoutTypes.find(
+                                                        (type) =>
+                                                            type.id ===
+                                                            layout.layout_type,
+                                                    )?.label ?? "No layout type"}
+                                                    {" · "}
                                                     {layout.assignments
                                                         .length === 0
                                                         ? "Not assigned to an output"
@@ -669,6 +768,12 @@ export default function Edit({
                                                     variant="outline"
                                                     size="sm"
                                                     className="gap-1.5"
+                                                    disabled={layout.elements.length === 0}
+                                                    title={
+                                                        layout.elements.length === 0
+                                                            ? "Add a component before previewing this layout."
+                                                            : "Preview this layout"
+                                                    }
                                                     onClick={() =>
                                                         setPreviewLayout(layout)
                                                     }
@@ -703,7 +808,9 @@ export default function Edit({
                                 <CardContent className="flex flex-col items-center py-12 text-center">
                                     <LayoutTemplateIcon className="size-9 text-muted-foreground" />
                                     <p className="mt-3 font-semibold text-foreground">
-                                        No layouts match that search
+                                        {search.trim()
+                                            ? "No layouts match that search"
+                                            : "No layouts in this tab yet"}
                                     </p>
                                     <p className="mt-1 text-sm text-muted-foreground">
                                         Try another name or output combination.
@@ -799,9 +906,8 @@ export default function Edit({
                                             {layoutName.trim() || "Untitled layout"}
                                         </CardTitle>
                                         <CardDescription>
-                                            Give this style a clear name and
-                                            select every output that should use
-                                            it.
+                                            Name this layout and choose whether
+                                            it is for a quotation or a bid.
                                         </CardDescription>
                                     </CardHeader>
                                     <CardContent className="space-y-6">
@@ -824,6 +930,53 @@ export default function Edit({
                                                 placeholder="e.g. Modern proposal"
                                             />
                                             <InputError message={errors.name} />
+                                        </div>
+
+                                        <div>
+                                            <InputLabel
+                                                htmlFor="layout-type"
+                                                value="Layout type"
+                                            />
+                                            <p className="mt-1 text-xs text-muted-foreground">
+                                                Choose Quotation or Bid before
+                                                you save. This layout is offered
+                                                only on that document.
+                                            </p>
+                                            <select
+                                                id="layout-type"
+                                                required
+                                                value={data.layout_type}
+                                                onChange={(event) => {
+                                                    const type = event.target.value;
+                                                    setData((current) => ({
+                                                        ...current,
+                                                        layout_type: type,
+                                                        assignments:
+                                                            assignmentsForType(
+                                                                type,
+                                                            ),
+                                                    }));
+                                                }}
+                                                className="mt-1.5 h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
+                                            >
+                                                <option value="">
+                                                    Select a layout type
+                                                </option>
+                                                {layoutTypes.map((type) => (
+                                                    <option
+                                                        key={type.id}
+                                                        value={type.id}
+                                                    >
+                                                        {type.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <InputError
+                                                message={errors.layout_type}
+                                            />
+                                            <InputError
+                                                message={errors.assignments}
+                                            />
                                         </div>
 
                                         <div className="grid gap-4 sm:grid-cols-2">
@@ -862,87 +1015,6 @@ export default function Edit({
                                             {" "}
                                             {data.orientation}, {printPageSize(data.paper, data.orientation).widthMm} × {printPageSize(data.paper, data.orientation).heightMm} mm.
                                         </p>
-
-                                        <fieldset>
-                                            <legend className="text-sm font-medium text-foreground">
-                                                Assign to documents and outputs
-                                            </legend>
-                                            <p className="mt-1 text-xs text-muted-foreground">
-                                                Check every document that should
-                                                offer this layout. Several
-                                                layouts can be offered for the
-                                                same document. Saving makes this
-                                                layout the default for each
-                                                output you check, and the others
-                                                stay available.
-                                            </p>
-                                            {data.assignments.length === 0 ? (
-                                                <p
-                                                    role="alert"
-                                                    className="mt-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900"
-                                                >
-                                                    This layout is not assigned
-                                                    to any document, so your
-                                                    changes will not appear on
-                                                    printed documents. Tick at
-                                                    least one document below,
-                                                    then save.
-                                                </p>
-                                            ) : null}
-                                            <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                                                {documents.map((document) => (
-                                                    <div
-                                                        key={document.id}
-                                                        className="rounded-xl border border-border bg-muted/20 p-3"
-                                                    >
-                                                        <p className="mb-2 text-sm font-semibold text-foreground">
-                                                            {document.label}
-                                                        </p>
-                                                        <div className="space-y-2">
-                                                            {formats.map(
-                                                                (format) => {
-                                                                    const key = `${document.id}.${format.id}`;
-                                                                    const checked =
-                                                                        data.assignments.includes(
-                                                                            key,
-                                                                        );
-
-                                                                    return (
-                                                                        <label
-                                                                            key={
-                                                                                key
-                                                                            }
-                                                                            className="flex cursor-pointer items-center gap-2.5 rounded-md px-1 py-0.5 text-sm text-muted-foreground hover:text-foreground"
-                                                                        >
-                                                                            <input
-                                                                                type="checkbox"
-                                                                                checked={
-                                                                                    checked
-                                                                                }
-                                                                                onChange={() =>
-                                                                                    toggleAssignment(
-                                                                                        key,
-                                                                                    )
-                                                                                }
-                                                                                className="size-4 rounded border-border accent-emerald-700 focus-visible:ring-2 focus-visible:ring-ring/50"
-                                                                            />
-                                                                            <span>
-                                                                                {
-                                                                                    format.label
-                                                                                }
-                                                                            </span>
-                                                                        </label>
-                                                                    );
-                                                                },
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                            <InputError
-                                                message={errors.assignments}
-                                            />
-                                        </fieldset>
                                     </CardContent>
                                 </Card>
 
@@ -1105,7 +1177,7 @@ export default function Edit({
                                 loadLayout(pendingLayoutChange.layout);
                                 scrollToEditor();
                             } else if (pendingLayoutChange?.kind === "new") {
-                                setNewLayoutDialog(true);
+                                openNewLayout();
                             }
                             setPendingLayoutChange(null);
                         }}>
@@ -1178,28 +1250,72 @@ export default function Edit({
                             <div className="flex items-start justify-between gap-3">
                                 <div>
                                     <DialogTitle className="text-lg font-semibold">Add new layout</DialogTitle>
-                                    <p className="mt-1 text-sm text-muted-foreground">Start blank or upload a PDF to reuse its design. Choose whether the PDF text stays or is cleared.</p>
+                                    <p className="mt-1 text-sm text-muted-foreground">Choose Quotation or Bid first. Then start blank or upload a PDF.</p>
                                 </div>
                                 <Button type="button" variant="ghost" size="icon" aria-label="Cancel new layout" disabled={newLayoutImportBusy}
                                     onClick={() => setNewLayoutDialog(false)}><XIcon /></Button>
                             </div>
-                            <ImportPanel controller={elementsController} pdfOnly onBusyChange={setNewLayoutImportBusy}
+                            <fieldset>
+                                <legend className="text-sm font-medium text-foreground">This layout is for</legend>
+                                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                                    {layoutTypes.map((type) => {
+                                        const selected = newLayoutType === type.id;
+
+                                        return (
+                                            <button
+                                                key={type.id}
+                                                type="button"
+                                                aria-pressed={selected}
+                                                disabled={newLayoutImportBusy}
+                                                className={`rounded-xl border px-4 py-3 text-left ${
+                                                    selected
+                                                        ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-600/30 dark:bg-emerald-950/30"
+                                                        : "border-border bg-card hover:bg-muted"
+                                                }`}
+                                                onClick={() => setNewLayoutType(type.id)}
+                                            >
+                                                <span className="block text-sm font-semibold text-foreground">
+                                                    {type.label}
+                                                </span>
+                                                <span className="mt-1 block text-xs text-muted-foreground">
+                                                    {type.description}
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </fieldset>
+                            {newLayoutType ? (
+                            <ImportPanel controller={elementsController} pdfOnly actionPortal={pdfActionHost} onBusyChange={setNewLayoutImportBusy}
                                 onImported={(elements, filename, notes) => {
                                     const name = filename.replace(/\.pdf$/i, "").slice(0, 120);
                                     const blank = emptyLayout(defaults);
+                                    setLibraryTab(newLayoutType);
                                     setDefaults(blank);
                                     setLayoutName(name);
-                                    setData({ ...blank, name, elements });
+                                    setData({
+                                        ...blank,
+                                        name,
+                                        elements,
+                                        layout_type: newLayoutType,
+                                        assignments: assignmentsForType(newLayoutType),
+                                    });
                                     clearErrors();
                                     setNewLayoutPdfNotes(notes);
                                     elementsController.setSelectedId(elements.find((element) => element.type === "text")?.id ?? null);
                                     setNewLayoutDialog(false);
                                     scrollToEditor();
                                 }} />
+                            ) : (
+                                <p className="text-sm text-muted-foreground">
+                                    Choose Quotation or Bid to start this layout.
+                                </p>
+                            )}
                             <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border pt-4">
                                 <Button type="button" variant="outline" disabled={newLayoutImportBusy}
                                     onClick={() => setNewLayoutDialog(false)}>Cancel</Button>
-                                <Button type="button" disabled={newLayoutImportBusy} onClick={startNewLayout}>Start blank</Button>
+                                <Button type="button" disabled={newLayoutImportBusy || newLayoutType === ""} onClick={startNewLayout}>Start blank</Button>
+                                <div ref={setPdfActionHost} className="contents" />
                             </div>
                         </DialogPanel>
                     </div>

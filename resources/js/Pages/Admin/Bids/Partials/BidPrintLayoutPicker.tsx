@@ -2,7 +2,7 @@ import PrintLayoutThumbnail from '@/Components/PrintLayoutThumbnail';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
-import { ElementsReadOnly, type LayoutElement } from '@/Pages/Admin/DocumentSettings/LayoutElements';
+import { ElementsReadOnly, type LayoutElement, type MergeField } from '@/Pages/Admin/DocumentSettings/LayoutElements';
 import { PRINT_LAYOUT_WIDTH } from '@/lib/printLayoutGeometry';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
@@ -18,6 +18,8 @@ export default function BidPrintLayoutPicker({
     document = 'bid',
     disabled = false,
     confirm = true,
+    description,
+    fields = [],
 }: {
     layouts: PrintLayoutOption[];
     assignedLayoutId?: number | null;
@@ -26,6 +28,8 @@ export default function BidPrintLayoutPicker({
     document?: 'bid' | 'quotation';
     disabled?: boolean;
     confirm?: boolean;
+    description?: string;
+    fields?: MergeField[];
 }) {
     const assigned = layouts.find((layout) => layout.id === assignedLayoutId);
     const selectedId = value || (assigned ? String(assigned.id) : '');
@@ -36,9 +40,9 @@ export default function BidPrintLayoutPicker({
             <div className="flex flex-col gap-1">
                 <h3 id={`${document}-print-layout-heading`} className="text-sm font-medium">Print layout</h3>
                 <p className="text-sm text-muted-foreground">
-                    {confirm
+                    {description ?? (confirm
                         ? `Choose a layout card to load its text, tables and images. Select the current card again to reload its latest saved version. You will confirm before switching layouts and replacing the ${document === 'bid' ? 'bid information' : 'layout on the page'}.${document === 'bid' ? ' Use Layout sections in the editor toolbar to add one piece at a time.' : ''}`
-                        : 'Choose a layout card and its text, tables, and images are placed on the page. Select the current card again to reload the latest saved version.'}
+                        : 'Choose a layout card and its text, tables, and images are placed on the page. Select the current card again to reload the latest saved version.')}
                 </p>
             </div>
             {layouts.length === 0 ? (
@@ -90,6 +94,12 @@ export default function BidPrintLayoutPicker({
                                         variant="outline"
                                         size="sm"
                                         className="shrink-0 gap-1.5"
+                                        disabled={layout.elements.length === 0}
+                                        title={
+                                            layout.elements.length === 0
+                                                ? "Add a component before previewing this layout."
+                                                : "Preview this layout"
+                                        }
                                         onClick={() => setPreview(layout)}
                                     >
                                         <FileTextIcon />
@@ -133,7 +143,7 @@ export default function BidPrintLayoutPicker({
                             </div>
                             {preview ? (
                                 <div className="max-h-[calc(100dvh-7rem)] overflow-y-auto bg-slate-100 p-4 dark:bg-slate-950 sm:p-8">
-                                    <LayoutPreview layout={preview} />
+                                    <LayoutPreview layout={preview} fields={fields} />
                                 </div>
                             ) : null}
                         </DialogPanel>
@@ -154,7 +164,7 @@ function contrastColor(hex: string): string {
     return luminance > 0.55 ? '#111827' : '#ffffff';
 }
 
-function LayoutPreview({ layout }: { layout: PrintLayoutOption }) {
+function LayoutPreview({ layout, fields }: { layout: PrintLayoutOption; fields: MergeField[] }) {
     const headerColor = layout.headerBackground || '#ffffff';
 
     return (
@@ -164,6 +174,7 @@ function LayoutPreview({ layout }: { layout: PrintLayoutOption }) {
                     <ElementsReadOnly
                         elements={layout.elements as LayoutElement[]}
                         zone="header"
+                        fields={fields}
                         inBanner
                         headerHeight={layout.headerHeight ?? 160}
                     />

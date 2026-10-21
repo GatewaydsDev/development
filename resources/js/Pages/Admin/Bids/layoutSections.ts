@@ -82,7 +82,7 @@ const COMPANY_LABELS: Record<string, string> = {
 };
 
 // Layout merge fields mapped to the bid text editor's placeholder keys.
-const EDITOR_KEYS: Record<string, string> = {
+export const EDITOR_KEYS: Record<string, string> = {
     project_name: 'project_name',
     project_number: 'project_number',
     project_address: 'project_address',

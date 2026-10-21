@@ -1,15 +1,19 @@
 <?php
 
-use App\Models\Company;
+use App\Http\Controllers\Admin\BidController;
+use App\Models\Bid;
 use App\Models\BidTextField;
+use App\Models\Company;
 use App\Models\DocumentLayoutAssignment;
 use App\Models\PrintLayout;
+use App\Models\Project;
+use App\Models\ProjectStatus;
 use App\Models\User;
 use App\Models\UserLevel;
+use App\Support\BidApplicationText;
 use App\Support\DocumentAppearance;
 use App\Support\DocumentLayoutElements;
 use App\Support\PrintLayoutCatalog;
-use App\Support\BidApplicationText;
 use Illuminate\Http\UploadedFile;
 use Inertia\Testing\AssertableInertia as Assert;
 use PhpOffice\PhpWord\PhpWord;
@@ -1229,18 +1233,18 @@ test('validity periods persist and calculate from the document date', function (
         ->assertInertia(fn (Assert $page) => $page->where('layouts.0.elements.0.validity_days', $days));
     $values = DocumentLayoutElements::fieldValues(['bidDate' => 'January 31, 2024']);
     expect(DocumentLayoutElements::render($elements, 'header', values: $values))->toContain($expected);
-    $project = \App\Models\Project::create([
+    $project = Project::create([
         'name' => 'Validity test',
-        'project_status_id' => \App\Models\ProjectStatus::idFor('quoted'),
+        'project_status_id' => ProjectStatus::idFor('quoted'),
         'priority' => 'normal', 'created_by' => $admin->id,
     ]);
-    $bidValues = \App\Support\BidApplicationText::valuesFor(
+    $bidValues = BidApplicationText::valuesFor(
         $project, null, null, ['bid_date' => '2024-01-31'],
     );
-    expect(\App\Support\BidApplicationText::fill('<p>{{validity_'.$days.'}}</p>', $bidValues))->toBe('<p>'.$expected.'</p>');
-    $bid = new \App\Models\Bid;
+    expect(BidApplicationText::fill('<p>{{validity_'.$days.'}}</p>', $bidValues))->toBe('<p>'.$expected.'</p>');
+    $bid = new Bid;
     $bid->created_at = '2023-12-01';
-    $controller = app(\App\Http\Controllers\Admin\BidController::class);
+    $controller = app(BidController::class);
     $input = [
         'project_id' => $project->id, 'notes' => '<p>{{validity_'.$days.'}}</p>',
         'stages' => [['stage_date' => '2023-12-01'], ['stage_date' => '2024-01-31']],
@@ -1319,4 +1323,49 @@ test('a print layout stores the chosen page size', function () {
             'elements' => [],
         ])
         ->assertSessionHasErrors('paper');
+});
+
+test('a print layout type limits which document can choose that layout', function () {
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $admin = User::factory()->create(['level_id' => $level->id]);
+    $payload = [
+        'assignments' => ['bid.print', 'quotation.print'],
+        'header_background_color' => '#112233',
+        'table_header_background_color' => '#065f46',
+        'text_case' => 'original',
+        'elements' => [],
+    ];
+
+    $this->actingAs($admin)
+        ->post(route('admin.document-settings.store'), [
+            ...$payload,
+            'name' => 'Bid only layout',
+            'layout_type' => 'bid',
+        ])
+        ->assertSessionHasNoErrors();
+    $this->post(route('admin.document-settings.store'), [
+        ...$payload,
+        'name' => 'Quotation only layout',
+        'layout_type' => 'quotation',
+    ])->assertSessionHasNoErrors();
+
+    $bid = PrintLayout::query()->where('name', 'Bid only layout')->firstOrFail();
+    $quotation = PrintLayout::query()->where('name', 'Quotation only layout')->firstOrFail();
+
+    expect($bid->layout_type)->toBe('bid')
+        ->and($quotation->layout_type)->toBe('quotation');
+
+    $bidIds = collect(PrintLayoutCatalog::forDocument('bid')['printLayouts'])->pluck('id');
+    $quotationIds = collect(PrintLayoutCatalog::forDocument('quotation')['printLayouts'])->pluck('id');
+
+    expect($bidIds)->toContain($bid->id)
+        ->and($bidIds)->not->toContain($quotation->id)
+        ->and($quotationIds)->toContain($quotation->id)
+        ->and($quotationIds)->not->toContain($bid->id);
+
+    $this->post(route('admin.document-settings.store'), [
+        ...$payload,
+        'name' => 'Unknown layout type',
+        'layout_type' => 'invoice',
+    ])->assertSessionHasErrors('layout_type');
 });

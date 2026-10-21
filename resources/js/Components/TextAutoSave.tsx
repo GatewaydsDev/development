@@ -17,7 +17,7 @@ export type TextAutoSaveConfig = {
     url: string | null;
     field: string;
     unavailableMessage: string;
-    extraData?: Record<string, string | null>;
+    extraData?: Record<string, unknown>;
 };
 
 const saveDelayMs = 1200;

@@ -9,6 +9,7 @@ class PrintLayout extends Model
 {
     protected $fillable = [
         'name',
+        'layout_type',
         'design',
         'created_by',
         'header_background_color',

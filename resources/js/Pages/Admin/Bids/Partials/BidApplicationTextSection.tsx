@@ -3,6 +3,7 @@ import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import RichTextEditor from '@/Components/RichTextEditor';
 import DocumentPrintLayoutEditor from '@/Components/DocumentPrintLayoutEditor';
+import type { QuotationLayoutDesign } from '@/Pages/Admin/Quotations/types';
 import TextAutoSave, {
     type TextAutoSaveConfig,
 } from '@/Components/TextAutoSave';
@@ -57,6 +58,10 @@ type BidApplicationTextSectionProps = {
     onPrintLayoutVersionChange?: (version: string) => void;
     hasUnsavedChanges?: boolean;
     onSaveCurrent?: () => Promise<boolean>;
+    showLayoutPicker?: boolean;
+    selectionRequest?: { id: string; token: number } | null;
+    design?: QuotationLayoutDesign;
+    onDesignChange?: (design: QuotationLayoutDesign, html: string) => void;
     value: string;
     templateId: string;
     error?: string;
@@ -71,16 +76,16 @@ const copyFor = (purpose: BidReusableTextPurpose) => {
     if (purpose === 'shipping') {
         return {
             kind: 'shipping',
-            heading: 'Bid information',
+            heading: 'Bid page',
             description:
-                'Write the full bid in this editor. Include the scope, shipping and handling, basis and qualification, exclusions, and any other wording for this bid.',
+                'Choose a print layout. Its text, tables, and images are placed on this page. Use the toolbar to add or change content, then save the bid.',
             selectLabel: 'Saved shipping and handling texts',
             selectPlaceholder: 'Type to search or add shipping and handling…',
             selectId: 'bid-shipping-text-template',
-            editorLabel: 'Bid information',
+            editorLabel: 'Bid page',
             editorId: 'bid-shipping-text',
             editorPlaceholder:
-                'Write the bid information…',
+                'Choose a print layout above, or write the bid page here…',
             saveTitle: 'Save reusable shipping and handling text',
             importTitle: 'Import shipping and handling text',
             emptySave: 'Enter shipping and handling text before saving it.',
@@ -283,6 +288,10 @@ export default function BidApplicationTextSection({
     onPrintLayoutVersionChange,
     hasUnsavedChanges = false,
     onSaveCurrent,
+    showLayoutPicker = true,
+    selectionRequest = null,
+    design,
+    onDesignChange,
     value,
     templateId,
     error,
@@ -694,6 +703,11 @@ export default function BidApplicationTextSection({
                 onPrintLayoutIdChange ? (
                     <DocumentPrintLayoutEditor
                         document="bid"
+                        componentCanvas={Boolean(onDesignChange)}
+                        design={design}
+                        onDesignChange={onDesignChange}
+                        showPicker={showLayoutPicker}
+                        selectionRequest={selectionRequest}
                         catalog={{ printLayouts, assignedPrintLayoutId: options.assignedPrintLayoutId }}
                         layoutId={printLayoutId} version={printLayoutVersion}
                         onLayoutChange={(id, version) => {

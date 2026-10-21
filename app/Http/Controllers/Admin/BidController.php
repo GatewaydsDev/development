@@ -31,7 +31,10 @@ use App\Support\BidApplicationText;
 use App\Support\BidDocument;
 use App\Support\BidListDocument;
 use App\Support\BidListVersion;
+use App\Support\DocumentAppearance;
+use App\Support\DocumentLayoutElements;
 use App\Support\DocumentLogo;
+use App\Support\DocumentTextCase;
 use App\Support\PrintLayoutCatalog;
 use App\Support\QuotationAccess;
 use App\Support\QuotationToBid;
@@ -138,6 +141,7 @@ class BidController extends Controller
                 'bid_scope_text_template_id' => $validated['bid_scope_text_template_id'] ?? null,
                 'print_layout_id' => $validated['print_layout_id'] ?? null,
                 'print_layout_version' => $validated['print_layout_version'] ?? null,
+                'layout_elements' => $validated['layout_elements'] ?? null,
                 'include_signature' => $validated['include_signature'] ?? true,
                 'scope_of_work_text' => $this->scopeOfWorkText($validated),
                 'created_by' => $request->user()->id,
@@ -241,6 +245,7 @@ class BidController extends Controller
                 'bid_scope_text_template_id' => $validated['bid_scope_text_template_id'] ?? null,
                 'print_layout_id' => $validated['print_layout_id'] ?? null,
                 'print_layout_version' => $validated['print_layout_version'] ?? $bid->print_layout_version,
+                'layout_elements' => array_key_exists('layout_elements', $validated) ? $validated['layout_elements'] : $bid->layout_elements,
                 'include_signature' => $validated['include_signature'] ?? $bid->include_signature,
                 'scope_of_work_text' => $this->scopeOfWorkText($validated, $bid),
             ])->save();
@@ -265,6 +270,11 @@ class BidController extends Controller
             'notes' => ['nullable', 'string', 'max:250000'],
             'print_layout_id' => ['nullable', 'integer', Rule::exists(PrintLayout::class, 'id')],
             'print_layout_version' => ['nullable', 'string', 'regex:/^[a-f0-9]{64}$/'],
+            'layout_elements' => ['nullable', 'array'],
+            'layout_elements.elements' => ['nullable', 'array', 'max:1000'],
+            'layout_elements.header_height' => ['nullable', 'numeric', 'between:60,4000'],
+            'layout_elements.header_background' => ['nullable', 'string', 'max:32'],
+            'layout_elements.text_case' => ['nullable', 'string', 'max:20'],
         ]);
 
         $notes = BidApplicationText::sanitize($validated['notes'] ?? null);
@@ -276,6 +286,9 @@ class BidController extends Controller
         $bid->update([
             'notes' => $notes,
             ...array_intersect_key($validated, array_flip(['print_layout_id', 'print_layout_version'])),
+            ...array_key_exists('layout_elements', $validated)
+                ? ['layout_elements' => $this->storedLayoutElements($validated['layout_elements'])]
+                : [],
         ]);
 
         return response()->json([
@@ -321,6 +334,11 @@ class BidController extends Controller
             ],
             'print_layout_id' => ['nullable', 'integer', Rule::exists(PrintLayout::class, 'id')],
             'print_layout_version' => ['nullable', 'string', 'regex:/^[a-f0-9]{64}$/'],
+            'layout_elements' => ['nullable', 'array'],
+            'layout_elements.elements' => ['nullable', 'array', 'max:1000'],
+            'layout_elements.header_height' => ['nullable', 'numeric', 'between:60,4000'],
+            'layout_elements.header_background' => ['nullable', 'string', 'max:32'],
+            'layout_elements.text_case' => ['nullable', 'string', 'max:20'],
             'include_signature' => ['sometimes', 'boolean'],
             'bid_scope_text_template_id' => [
                 'nullable',
@@ -412,6 +430,10 @@ class BidController extends Controller
                     'quotation_id' => 'That quotation belongs to a different project.',
                 ]);
             }
+        }
+
+        if (array_key_exists('layout_elements', $validated)) {
+            $validated['layout_elements'] = $this->storedLayoutElements($validated['layout_elements']);
         }
 
         return $validated;
@@ -832,6 +854,7 @@ class BidController extends Controller
             'bid_scope_text_template_id' => $summary ? null : $bid->bid_scope_text_template_id,
             'print_layout_id' => $summary ? null : $bid->print_layout_id,
             'print_layout_version' => $summary ? null : $bid->print_layout_version,
+            'layout_elements' => $summary ? null : $bid->layout_elements,
             'include_signature' => $bid->include_signature,
             'project_price_ids' => $summary
                 ? []
@@ -978,6 +1001,30 @@ class BidController extends Controller
                 })
                 ->values()
                 ->all(),
+        ];
+    }
+
+    /**
+     * @return array{elements: list<array<string, mixed>>, header_height: float, header_background: string, text_case: string}|null
+     */
+    private function storedLayoutElements(mixed $design): ?array
+    {
+        if (! is_array($design)) {
+            return null;
+        }
+
+        $height = is_numeric($design['header_height'] ?? null) ? (float) $design['header_height'] : 160;
+
+        return [
+            'elements' => DocumentLayoutElements::sanitize($design['elements'] ?? []),
+            'header_height' => round(max(60, min(4000, $height)), 2),
+            'header_background' => DocumentAppearance::normalize(
+                is_string($design['header_background'] ?? null) ? $design['header_background'] : null,
+                '#ffffff',
+            ),
+            'text_case' => DocumentTextCase::normalize(
+                is_string($design['text_case'] ?? null) ? $design['text_case'] : null,
+            ),
         ];
     }
 
