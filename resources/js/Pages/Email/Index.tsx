@@ -24,7 +24,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/Components/ui/dropdown-menu';
-import { ArchiveIcon, ArrowLeftIcon, ForwardIcon, MailIcon, MailOpenIcon, MoreVerticalIcon, PaperclipIcon, RefreshCwIcon, ReplyIcon, SendIcon, XIcon } from 'lucide-react';
+import { ArchiveIcon, ArrowLeftIcon, DownloadIcon, ForwardIcon, MailIcon, MailOpenIcon, MoreVerticalIcon, PaperclipIcon, RefreshCwIcon, ReplyIcon, SendIcon, XIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import MailSettings from '@/Pages/Email/MailSettings';
@@ -38,6 +38,7 @@ type MailSummary = {
     received_at: string | null;
     sent_at: string | null;
     is_read: boolean;
+    has_attachments?: boolean;
     folder: string;
 };
 
@@ -59,6 +60,7 @@ type MailMessage = {
     body: string;
     images?: Array<{ name: string; src: string }>;
     attachments?: MailAttachment[];
+    has_attachments?: boolean;
 };
 
 type AttachmentViewer = {
@@ -87,6 +89,14 @@ function attachmentUrl(messageId: string, attachmentId: string): string {
         message: messageId,
         attachment: attachmentId,
     });
+}
+
+function downloadHref(src: string): string {
+    if (src.startsWith('data:')) {
+        return src;
+    }
+
+    return `${src}${src.includes('?') ? '&' : '?'}download=1`;
 }
 
 function fileSize(bytes: number): string {
@@ -478,6 +488,9 @@ export default function Index({
                                                         <span className={folder !== 'sent' && !item.is_read ? 'font-semibold' : 'font-medium'}>
                                                             {item.subject || t('noSubject')}
                                                         </span>
+                                                        {item.has_attachments ? (
+                                                            <PaperclipIcon className="size-3.5 shrink-0" aria-label={t('attachments')} />
+                                                        ) : null}
                                                     </p>
                                                     <p className="break-all text-sm text-muted-foreground">
                                                         {folder === 'sent' ? item.to.join(', ') : item.from}
@@ -589,79 +602,101 @@ export default function Index({
                                                         {t('forward')}
                                                     </Button>
                                                 </div>
+                                                {(message.attachments ?? []).length > 0 ||
+                                                (message.images ?? []).length > 0 ||
+                                                message.has_attachments ? (
+                                                    <section
+                                                        aria-label={t('attachments')}
+                                                        className="grid gap-2 rounded-lg border-2 border-emerald-700 bg-emerald-50 p-3 dark:bg-emerald-950/40"
+                                                    >
+                                                        <p className="text-sm font-semibold text-emerald-900 dark:text-emerald-100">
+                                                            {t('attachments')}
+                                                        </p>
+                                                        {(message.attachments ?? []).length === 0 &&
+                                                        (message.images ?? []).length === 0 ? (
+                                                            <p className="text-sm text-muted-foreground">{t('attachmentMissing')}</p>
+                                                        ) : null}
+                                                        {(message.attachments ?? []).length === 0
+                                                            ? (message.images ?? []).map((image, index) =>
+                                                                  image.src.startsWith('data:image/') ? (
+                                                                      <div
+                                                                          key={`${image.name}-${index}`}
+                                                                          className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-emerald-700/30 bg-background px-3 py-2"
+                                                                      >
+                                                                          <button
+                                                                              type="button"
+                                                                              className="flex min-w-0 items-center gap-2 text-left"
+                                                                              onClick={() => {
+                                                                                  setViewerFailed(false);
+                                                                                  setViewer({ name: image.name, src: image.src });
+                                                                              }}
+                                                                          >
+                                                                              <img
+                                                                                  src={image.src}
+                                                                                  alt={image.name}
+                                                                                  className="size-12 rounded border border-border object-cover"
+                                                                              />
+                                                                              <span className="truncate text-sm font-medium">{image.name}</span>
+                                                                          </button>
+                                                                          <Button
+                                                                              type="button"
+                                                                              className="min-h-11 bg-emerald-700 text-white hover:bg-emerald-800"
+                                                                              onClick={() => {
+                                                                                  setViewerFailed(false);
+                                                                                  setViewer({ name: image.name, src: image.src });
+                                                                              }}
+                                                                          >
+                                                                              {t('openAttachment')}
+                                                                          </Button>
+                                                                      </div>
+                                                                  ) : null,
+                                                              )
+                                                            : null}
+                                                        {(message.attachments ?? []).map((file) => (
+                                                            <div
+                                                                key={file.id}
+                                                                className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-emerald-700/30 bg-background px-3 py-2"
+                                                            >
+                                                                <span className="flex min-w-0 items-center gap-2 text-sm">
+                                                                    <PaperclipIcon className="size-4 shrink-0" />
+                                                                    <span className="truncate font-medium">{file.name}</span>
+                                                                    <span className="shrink-0 text-muted-foreground">{fileSize(file.size)}</span>
+                                                                </span>
+                                                                {file.image ? (
+                                                                    <Button
+                                                                        type="button"
+                                                                        className="min-h-11 bg-emerald-700 text-white hover:bg-emerald-800"
+                                                                        onClick={() => {
+                                                                            setViewerFailed(false);
+                                                                            setViewer({
+                                                                                name: file.name,
+                                                                                src: attachmentUrl(message.id, file.id),
+                                                                            });
+                                                                        }}
+                                                                    >
+                                                                        {t('openAttachment')}
+                                                                    </Button>
+                                                                ) : (
+                                                                    <Button asChild className="min-h-11 bg-emerald-700 text-white hover:bg-emerald-800">
+                                                                        <a
+                                                                            href={attachmentUrl(message.id, file.id)}
+                                                                            target="_blank"
+                                                                            rel="noopener noreferrer"
+                                                                        >
+                                                                            {t('openAttachment')}
+                                                                        </a>
+                                                                    </Button>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </section>
+                                                ) : null}
                                                 <p className="break-all text-sm text-muted-foreground">
                                                     {t('to')}: {message.to.join(', ')}
                                                 </p>
                                                 <pre className="max-w-full whitespace-pre-wrap break-words font-sans text-sm text-foreground [overflow-wrap:anywhere]">
                                                     {message.body}
                                                 </pre>
-                                                {(message.images ?? []).map((image, index) =>
-                                                    image.src.startsWith('data:image/') ? (
-                                                        <button
-                                                            key={`${image.name}-${index}`}
-                                                            type="button"
-                                                            className="mt-3 block max-w-full text-left"
-                                                            onClick={() => {
-                                                                setViewerFailed(false);
-                                                                setViewer({ name: image.name, src: image.src });
-                                                            }}
-                                                        >
-                                                            <img
-                                                                src={image.src}
-                                                                alt={image.name}
-                                                                className="max-h-48 max-w-full rounded-md border border-border"
-                                                            />
-                                                            <span className="mt-1 block text-xs font-medium text-emerald-700 dark:text-emerald-300">
-                                                                {t('openAttachment')}
-                                                            </span>
-                                                        </button>
-                                                    ) : null,
-                                                )}
-                                                {(message.attachments ?? []).length > 0 ? (
-                                                    <div className="grid gap-2">
-                                                        <p className="text-sm font-medium">{t('attachments')}</p>
-                                                        <ul className="grid gap-2">
-                                                            {message.attachments?.map((file) => (
-                                                                <li
-                                                                    key={file.id}
-                                                                    className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2"
-                                                                >
-                                                                    <span className="flex min-w-0 items-center gap-2 text-sm">
-                                                                        <PaperclipIcon className="size-4 shrink-0" />
-                                                                        <span className="truncate">{file.name}</span>
-                                                                        <span className="shrink-0 text-muted-foreground">{fileSize(file.size)}</span>
-                                                                    </span>
-                                                                    {file.image ? (
-                                                                        <Button
-                                                                            type="button"
-                                                                            size="sm"
-                                                                            className="bg-emerald-700 text-white hover:bg-emerald-800"
-                                                                            onClick={() => {
-                                                                                setViewerFailed(false);
-                                                                                setViewer({
-                                                                                    name: file.name,
-                                                                                    src: attachmentUrl(message.id, file.id),
-                                                                                });
-                                                                            }}
-                                                                        >
-                                                                            {t('openAttachment')}
-                                                                        </Button>
-                                                                    ) : (
-                                                                        <Button asChild size="sm" className="bg-emerald-700 text-white hover:bg-emerald-800">
-                                                                            <a
-                                                                                href={attachmentUrl(message.id, file.id)}
-                                                                                target="_blank"
-                                                                                rel="noopener noreferrer"
-                                                                            >
-                                                                                {t('openAttachment')}
-                                                                            </a>
-                                                                        </Button>
-                                                                    )}
-                                                                </li>
-                                                            ))}
-                                                        </ul>
-                                                    </div>
-                                                ) : null}
                                             </div>
                                         ) : (
                                             <p className="text-sm text-muted-foreground">{t('select')}</p>
@@ -697,9 +732,19 @@ export default function Index({
                                         {viewer?.name ?? t('openAttachment')}
                                     </DialogTitle>
                                 </div>
-                                <Button type="button" variant="ghost" size="icon" aria-label={t('closeAttachment')} onClick={() => setViewer(null)}>
-                                    <XIcon />
-                                </Button>
+                                <div className="flex shrink-0 items-center gap-2">
+                                    {viewer ? (
+                                        <Button asChild className="min-h-11 bg-emerald-700 text-white hover:bg-emerald-800">
+                                            <a href={downloadHref(viewer.src)} download={viewer.name}>
+                                                <DownloadIcon />
+                                                {t('downloadAttachment')}
+                                            </a>
+                                        </Button>
+                                    ) : null}
+                                    <Button type="button" variant="ghost" size="icon" aria-label={t('closeAttachment')} onClick={() => setViewer(null)}>
+                                        <XIcon />
+                                    </Button>
+                                </div>
                             </div>
                             <div className="max-h-[calc(100dvh-7rem)] overflow-auto bg-slate-100 p-4 dark:bg-slate-950 sm:p-8">
                                 {viewer && !viewerFailed ? (

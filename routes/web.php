@@ -31,6 +31,7 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\ContactSubmissionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DashboardThemeController;
+use App\Http\Controllers\InternalChatController;
 use App\Http\Controllers\MailboxController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
@@ -136,6 +137,21 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
         ->name('mailbox.recipients.store');
     Route::delete('/email/recipients/{recipient}', [MailboxController::class, 'destroyRecipient'])
         ->name('mailbox.recipients.destroy');
+    Route::get('/internal-chat', [InternalChatController::class, 'index'])
+        ->middleware('throttle:60,1,internal-chat-read')
+        ->name('internal-chat.index');
+    Route::get('/internal-chat/unread', [InternalChatController::class, 'unread'])
+        ->middleware('throttle:60,1,internal-chat-unread')
+        ->name('internal-chat.unread');
+    Route::post('/internal-chat', [InternalChatController::class, 'store'])
+        ->middleware('throttle:30,1,internal-chat-send')
+        ->name('internal-chat.store');
+    Route::post('/internal-chat/read', [InternalChatController::class, 'markRead'])
+        ->middleware('throttle:60,1,internal-chat-read-state')
+        ->name('internal-chat.read');
+    Route::get('/internal-chat/files/{attachment}', [InternalChatController::class, 'file'])
+        ->middleware('throttle:60,1,internal-chat-file')
+        ->name('internal-chat.file');
 });
 
 Route::middleware(['auth', 'prevent-back-history', 'can:manage-profile'])->group(function () {

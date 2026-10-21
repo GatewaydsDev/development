@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\Company;
+use App\Models\User;
 use App\Support\BidAccess;
 use App\Support\ContractorAccess;
 use App\Support\EmployeeAccess;
@@ -105,7 +106,7 @@ class HandleInertiaRequests extends Middleware
                     'manageUsers' => $request->user()
                         ? Gate::forUser($request->user())->any(['view-users', 'create-users', 'update-users'])
                         : false,
-                    'impersonateUsers' => $request->user() instanceof \App\Models\User
+                    'impersonateUsers' => $request->user() instanceof User
                         && $request->user()->isMaster()
                         && ! $request->session()->has('impersonator_id'),
                     'manageOwnAccount' => $request->user()?->canManageOwnAccount() ?? false,
@@ -121,6 +122,7 @@ class HandleInertiaRequests extends Middleware
                     'viewUserActivity' => $request->user()?->isSuperAdmin() ?? false,
                     'manageExpenses' => $request->user()?->isSuperAdmin() ?? false,
                     'manageDocumentColors' => $request->user()?->isSuperAdmin() ?? false,
+                    'useInternalChat' => $request->user()?->isSuperAdmin() ?? false,
                     'viewCompany' => $request->user()
                         ? Gate::forUser($request->user())->allows('view-company')
                         : false,

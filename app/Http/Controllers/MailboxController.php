@@ -133,7 +133,7 @@ class MailboxController extends Controller
             abort(404);
         }
 
-        $disposition = $file['inline'] ? 'inline' : 'attachment';
+        $disposition = $request->boolean('download') || ! $file['inline'] ? 'attachment' : 'inline';
 
         return response($file['bytes'], 200, [
             'Content-Type' => $file['contentType'],

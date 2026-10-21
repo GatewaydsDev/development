@@ -186,7 +186,7 @@ class MicrosoftGraphMailService
     public function readMessage(string $mailbox, string $messageId): array
     {
         $url = $this->userUrl($mailbox).'/messages/'.rawurlencode($messageId)
-            .'?$select=id,subject,from,toRecipients,receivedDateTime,sentDateTime,body,bodyPreview';
+            .'?$select=id,subject,from,toRecipients,receivedDateTime,sentDateTime,body,bodyPreview,hasAttachments';
 
         $response = $this->graph('GET', $url, null, false);
 
@@ -221,6 +221,7 @@ class MicrosoftGraphMailService
             ),
             'images' => $presented['images'],
             'attachments' => $presented['attachments'],
+            'has_attachments' => ($item['hasAttachments'] ?? false) === true || $presented['attachments'] !== [] || $presented['images'] !== [],
         ];
     }
 
@@ -281,8 +282,6 @@ class MicrosoftGraphMailService
 
             if ($image !== null) {
                 $images[] = $image;
-
-                continue;
             }
 
             $summary = $this->attachmentSummary($item);
@@ -448,8 +447,8 @@ class MicrosoftGraphMailService
 
     private function assertGraphId(string $id): void
     {
-        if ($id === '' || strlen($id) > 512 || preg_match('/[\x00-\x1F]/', $id) === 1
-            || str_contains($id, '/') || str_contains($id, '\\') || str_contains($id, '..')) {
+        if ($id === '' || strlen($id) > 3000 || preg_match('/[\x00-\x1F]/', $id) === 1
+            || str_contains($id, '\\') || str_contains($id, '..')) {
             throw new MicrosoftGraphException('Microsoft 365 could not find that attachment.');
         }
     }
@@ -929,7 +928,7 @@ class MicrosoftGraphMailService
         };
         $order = $folder === 'sent' ? 'sentDateTime desc' : 'receivedDateTime desc';
         $query = http_build_query([
-            '$select' => 'id,subject,from,toRecipients,receivedDateTime,sentDateTime,bodyPreview,isRead',
+            '$select' => 'id,subject,from,toRecipients,receivedDateTime,sentDateTime,bodyPreview,isRead,hasAttachments',
             '$top' => 25,
             '$orderby' => $order,
         ]);
@@ -957,6 +956,7 @@ class MicrosoftGraphMailService
             'received_at' => $item['receivedDateTime'] ?? null,
             'sent_at' => $item['sentDateTime'] ?? null,
             'is_read' => (bool) ($item['isRead'] ?? false),
+            'has_attachments' => ($item['hasAttachments'] ?? false) === true,
             'folder' => $folder,
         ];
     }
