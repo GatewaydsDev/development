@@ -12,6 +12,7 @@ use App\Support\DocumentLayoutImporter;
 use App\Support\DocumentTextCase;
 use App\Support\EditorImage;
 use App\Support\PrintLayoutCatalog;
+use App\Support\PrintLayoutType;
 use App\Support\PrintPaper;
 use App\Support\QuotationAccess;
 use App\Support\QuotationPrintLayoutSync;
@@ -80,6 +81,7 @@ class DocumentSettingController extends Controller
                 ])
                 ->values()
                 ->all(),
+            'layoutTypes' => PrintLayoutType::options(),
             'assignmentOptions' => collect(DocumentAppearance::DOCUMENTS)
                 ->flatMap(fn (array $documentMeta, string $documentKey): array => collect(DocumentAppearance::FORMATS)
                     ->map(fn (array $formatMeta, string $formatKey): array => [
@@ -94,6 +96,7 @@ class DocumentSettingController extends Controller
             'layouts' => $layouts->map(fn (PrintLayout $layout): array => [
                 'id' => $layout->id,
                 'name' => $layout->name,
+                'layout_type' => PrintLayoutType::normalize($layout->layout_type),
                 'header_background_color' => DocumentAppearance::normalize($layout->header_background_color),
                 'table_header_background_color' => DocumentAppearance::normalize($layout->table_header_background_color),
                 'text_case' => DocumentTextCase::normalize($layout->text_case),
@@ -264,6 +267,7 @@ class DocumentSettingController extends Controller
 
         return $request->validate([
             'name' => ['required', 'string', 'max:120'],
+            'layout_type' => ['nullable', 'string', Rule::in(array_keys(PrintLayoutType::TYPES))],
             'assignments' => ['present', 'array'],
             'assignments.*' => ['required', 'string', 'distinct', Rule::in($assignmentKeys)],
             'header_background_color' => ['required', 'string', 'regex:/^#([A-Fa-f0-9]{6})$/'],
@@ -341,8 +345,7 @@ class DocumentSettingController extends Controller
             'elements.*.row_styles' => ['nullable', 'array', 'max:60'],
             'elements.*.row_styles.*' => ['nullable', 'array:font_family,font_size,color,bold,italic,underline,line_height,align,text_case'],
             'elements.*.row_styles.*.font_family' => ['sometimes', 'string', Rule::in(array_keys(DocumentLayoutElements::FONT_FAMILIES))],
-            'elements.*.row_styles.*.font_size' => Rule::forEach(fn ($value, string $attribute) =>
-                $request->input(implode('.', array_slice(explode('.', $attribute), 0, 2)).'.pdf_page')
+            'elements.*.row_styles.*.font_size' => Rule::forEach(fn ($value, string $attribute) => $request->input(implode('.', array_slice(explode('.', $attribute), 0, 2)).'.pdf_page')
                     ? ['sometimes', 'numeric', 'between:1,200'] : ['sometimes', 'integer', 'between:8,48']),
             'elements.*.row_styles.*.color' => ['sometimes', 'string', 'regex:/^#([A-Fa-f0-9]{6})$/'],
             'elements.*.row_styles.*.bold' => ['sometimes', 'boolean'],
@@ -355,8 +358,7 @@ class DocumentSettingController extends Controller
             'elements.*.cell_styles.*' => ['nullable', 'array', 'max:12'],
             'elements.*.cell_styles.*.*' => ['nullable', 'array:font_family,font_size,color,bold,italic,underline,line_height,align,text_case'],
             'elements.*.cell_styles.*.*.font_family' => ['sometimes', 'string', Rule::in(array_keys(DocumentLayoutElements::FONT_FAMILIES))],
-            'elements.*.cell_styles.*.*.font_size' => Rule::forEach(fn ($value, string $attribute) =>
-                $request->input(implode('.', array_slice(explode('.', $attribute), 0, 2)).'.pdf_page')
+            'elements.*.cell_styles.*.*.font_size' => Rule::forEach(fn ($value, string $attribute) => $request->input(implode('.', array_slice(explode('.', $attribute), 0, 2)).'.pdf_page')
                     ? ['sometimes', 'numeric', 'between:1,200'] : ['sometimes', 'integer', 'between:8,48']),
             'elements.*.cell_styles.*.*.color' => ['sometimes', 'string', 'regex:/^#([A-Fa-f0-9]{6})$/'],
             'elements.*.cell_styles.*.*.bold' => ['sometimes', 'boolean'],
@@ -402,16 +404,24 @@ class DocumentSettingController extends Controller
 
     /**
      * @param  array<string, mixed>  $validated
-     * @return array<string, string>
+     * @return array<string, string|null>
      */
     private function layoutAttributes(array $validated): array
     {
-        return [
+        $attributes = [
             'name' => trim($validated['name']),
             'header_background_color' => DocumentAppearance::normalize($validated['header_background_color']),
             'table_header_background_color' => DocumentAppearance::normalize($validated['table_header_background_color']),
             'text_case' => DocumentTextCase::normalize($validated['text_case']),
         ];
+
+        if (array_key_exists('layout_type', $validated)) {
+            $attributes['layout_type'] = PrintLayoutType::normalize(
+                is_string($validated['layout_type']) ? $validated['layout_type'] : null,
+            );
+        }
+
+        return $attributes;
     }
 
     /**

@@ -43,7 +43,6 @@ import { toast } from 'sonner';
 import { z } from 'zod';
 import { type PageProps } from '@/types';
 import BidApplicationTextSection from './BidApplicationTextSection';
-import PreBidSection from './PreBidSection';
 import {
     bidToFormData,
     blankRevision,
@@ -59,8 +58,14 @@ import {
     type BidPayload,
     type BidProjectOption,
     type BidQuotationOption,
-    type PreBidOption,
 } from '../types';
+
+const BID_SECTIONS = [
+    { id: 'bid-details', label: 'Project' },
+    { id: 'bid-revisions', label: 'Revisions' },
+    { id: 'bid-stages', label: 'Stages' },
+    { id: 'bid-document', label: 'Bid page' },
+] as const;
 
 type BidFormProps = {
     action: string;
@@ -99,6 +104,12 @@ const schema = z.object({
     bid_scope_text_template_id: z.string(),
     print_layout_id: z.string(),
     print_layout_version: z.string(),
+    layout_elements: z.object({
+        elements: z.array(z.any()).max(1000),
+        header_height: z.number().min(60).max(4000).optional(),
+        header_background: z.string().max(32).optional(),
+        text_case: z.string().max(20).optional(),
+    }),
     include_signature: z.boolean(),
     scope_of_work_text: z
         .string()
@@ -311,8 +322,7 @@ export default function BidForm({
         replace: replaceScopes,
     } = useFieldArray({ control, name: 'scopes' });
 
-    const isCreate = !savedBid;
-    const [selectedPreBidId, setSelectedPreBidId] = useState('');
+    const [activeSection, setActiveSection] = useState('bid-details');
     const [pendingDelete, setPendingDelete] = useState<{
         type: 'revision' | 'stage' | 'scope';
         index: number;
@@ -354,68 +364,6 @@ export default function BidForm({
             shouldDirty: true,
             shouldValidate: true,
         });
-    };
-
-    const applyPreBid = (preBid: PreBidOption) => {
-        if (
-            preBid.project_id &&
-            options.projects.some(
-                (p) => String(p.id) === String(preBid.project_id),
-            )
-        ) {
-            setData('project_id', String(preBid.project_id));
-            setData('project_price_ids', []);
-        }
-
-        if (preBid.assigned_to) {
-            setData('assigned_to', String(preBid.assigned_to));
-        }
-
-        if (preBid.notes !== undefined && preBid.notes !== null) {
-            setData('notes', preBid.notes);
-        }
-
-        if (preBid.bid_shipping_text_template_id) {
-            setData(
-                'bid_shipping_text_template_id',
-                String(preBid.bid_shipping_text_template_id),
-            );
-        }
-
-        if (
-            preBid.scope_of_work_text !== undefined &&
-            preBid.scope_of_work_text !== null
-        ) {
-            setData('scope_of_work_text', preBid.scope_of_work_text);
-        }
-
-        if (preBid.bid_scope_text_template_id) {
-            setData(
-                'bid_scope_text_template_id',
-                String(preBid.bid_scope_text_template_id),
-            );
-        }
-
-        if (preBid.scopes && preBid.scopes.length > 0) {
-            replaceScopes(preBid.scopes);
-        }
-
-        if (preBid.stages && preBid.stages.length > 0) {
-            replaceStages(preBid.stages);
-        }
-
-        if (preBid.revisions && preBid.revisions.length > 0) {
-            replaceRevisions(preBid.revisions);
-        }
-
-        if (preBid.pricings && preBid.pricings.length > 0) {
-            setValue('pricings', preBid.pricings, {
-                shouldDirty: true,
-                shouldValidate: true,
-            });
-        }
-
-        toast.success(`Pre-bid “${preBid.name}” applied.`);
     };
 
     const quotations = options.quotations ?? [];
@@ -703,32 +651,90 @@ export default function BidForm({
         data.stages,
         savedBid?.created_at,
     ]);
+
+    useEffect(() => {
+        const nodes = BID_SECTIONS.map((section) =>
+            document.getElementById(section.id),
+        ).filter((node): node is HTMLElement => node !== null);
+
+        if (nodes.length === 0) {
+            return;
+        }
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                const visible = entries
+                    .filter((entry) => entry.isIntersecting)
+                    .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+
+                if (visible?.target.id) {
+                    setActiveSection(visible.target.id);
+                }
+            },
+            { rootMargin: '-25% 0px -55% 0px', threshold: [0.1, 0.25, 0.5] },
+        );
+
+        nodes.forEach((node) => observer.observe(node));
+
+        return () => observer.disconnect();
+    }, []);
+
     return (
         <form onSubmit={submit} className="flex w-full min-w-0 max-w-full flex-col gap-6 pr-4 pb-28 sm:pr-20 lg:pb-6">
-            <Card className="overflow-visible shadow-sm">
+            <nav
+                aria-label="Bid sections"
+                className="sticky top-[7.25rem] z-20 flex gap-2 overflow-x-auto rounded-xl border border-border bg-card/95 px-2 py-2 shadow-sm backdrop-blur"
+            >
+                {BID_SECTIONS.map((section) => (
+                    <a
+                        key={section.id}
+                        href={`#${section.id}`}
+                        aria-current={activeSection === section.id ? 'true' : undefined}
+                        className={`shrink-0 rounded-lg px-3 py-2 text-sm font-medium ${
+                            activeSection === section.id
+                                ? 'bg-emerald-600 text-white'
+                                : 'text-foreground hover:bg-muted'
+                        }`}
+                        onClick={(event) => {
+                            event.preventDefault();
+                            setActiveSection(section.id);
+                            document.getElementById(section.id)?.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'start',
+                            });
+                        }}
+                    >
+                        {section.label}
+                    </a>
+                ))}
+            </nav>
+
+            <Card id="bid-details" className="scroll-mt-44 overflow-visible shadow-sm">
                 <CardHeader>
                     <CardTitle>{title}</CardTitle>
                     <CardDescription>{description}</CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-6">
-                    {isCreate ? (
-                        <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-4 dark:border-emerald-900/60 dark:bg-emerald-950/20">
-                            <PreBidSection
-                                options={options}
-                                formData={data}
-                                selectedPreBidId={selectedPreBidId}
-                                onSelectPreBidId={setSelectedPreBidId}
-                                onApplyPreBid={applyPreBid}
-                            />
-                        </div>
-                    ) : null}
-
                     <div className="flex flex-col gap-5">
                         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
                             <div className="flex min-w-0 flex-col gap-2">
                                 <CreatableSelect
                                     id="bid-project"
                                     label="Project name"
+                                    labelAction={
+                                        canCreateProjects ? (
+                                            <Button
+                                                type="button"
+                                                className="h-8 shrink-0 bg-emerald-600 px-2.5 text-white hover:bg-emerald-700"
+                                                onClick={() =>
+                                                    setProjectDialogOpen(true)
+                                                }
+                                            >
+                                                <PlusIcon className="size-3.5" />
+                                                New project
+                                            </Button>
+                                        ) : null
+                                    }
                                     value={data.project_id ?? ''}
                                     options={options.projects}
                                     allowCreate={false}
@@ -771,16 +777,6 @@ export default function BidForm({
                                         }
                                     }}
                                 />
-                                {canCreateProjects ? (
-                                    <Button
-                                        type="button"
-                                        className="h-11 w-full bg-emerald-600 text-white hover:bg-emerald-700 sm:w-auto"
-                                        onClick={() => setProjectDialogOpen(true)}
-                                    >
-                                        <PlusIcon className="size-4" />
-                                        New project
-                                    </Button>
-                                ) : null}
                             </div>
                             <div className="flex flex-col gap-2">
                                 <InputLabel
@@ -929,7 +925,7 @@ export default function BidForm({
                 </CardContent>
             </Card>
 
-            <section className="flex flex-col gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
+            <section id="bid-revisions" className="scroll-mt-44 flex flex-col gap-4 rounded-xl border border-border bg-card p-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h3 className="text-base font-semibold text-foreground">
@@ -1073,7 +1069,7 @@ export default function BidForm({
                 )}
             </section>
 
-            <section className="flex flex-col gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
+            <section id="bid-stages" className="scroll-mt-44 flex flex-col gap-4 rounded-xl border border-border bg-card p-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h3 className="text-base font-semibold text-foreground">
@@ -1201,12 +1197,19 @@ export default function BidForm({
                 </div>
             </section>
 
+            <section id="bid-document" className="scroll-mt-44">
             <BidApplicationTextSection
                 purpose="shipping"
                 options={options}
                 project={selectedProject}
                 scopes={data.scopes ?? []}
                 extraFieldValues={extraFieldValues}
+                showLayoutPicker
+                design={data.layout_elements}
+                onDesignChange={(design, html) => {
+                    setData('layout_elements', design);
+                    setData('notes', html);
+                }}
                 printLayoutId={data.print_layout_id ?? ''}
                 onPrintLayoutIdChange={(id) => setData('print_layout_id', id)}
                 printLayoutVersion={data.print_layout_version ?? ''}
@@ -1226,11 +1229,13 @@ export default function BidForm({
                     extraData: {
                         print_layout_id: data.print_layout_id || null,
                         print_layout_version: data.print_layout_version || null,
+                        layout_elements: data.layout_elements,
                     },
                     unavailableMessage:
                         'AutoSave on. Add the bid to start saving this text.',
                 }}
             />
+            </section>
 
             <FormActionFab
                 cancelHref={route('admin.bids.index')}

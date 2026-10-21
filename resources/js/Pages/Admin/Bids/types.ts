@@ -224,6 +224,12 @@ export type BidPayload = {
     scope_of_work_text?: string | null;
     print_layout_id?: number | null;
     print_layout_version?: string | null;
+    layout_elements?: {
+        elements: unknown[];
+        header_height?: number;
+        header_background?: string;
+        text_case?: string;
+    } | null;
     include_signature?: boolean;
     project_price_ids?: number[];
     created_at?: string | null;
@@ -324,6 +330,12 @@ export type BidFormData = {
     scope_of_work_text: string;
     print_layout_id: string;
     print_layout_version: string;
+    layout_elements: {
+        elements: unknown[];
+        header_height?: number;
+        header_background?: string;
+        text_case?: string;
+    };
     include_signature: boolean;
     revisions: BidRevisionFormData[];
     stages: BidStageFormData[];
@@ -940,6 +952,13 @@ export const blankPricing = (name = 'Preliminary pricing'): BidPricingFormData =
     items: [blankPricingItem()],
 });
 
+export const emptyBidLayoutDesign = (): BidFormData['layout_elements'] => ({
+    elements: [],
+    header_height: 160,
+    header_background: '#ffffff',
+    text_case: 'original',
+});
+
 export const bidToFormData = (bid?: BidPayload): BidFormData => ({
     project_id: bid?.project?.id ? String(bid.project.id) : '',
     project_price_ids: (bid?.project_price_ids ?? []).map((id) => String(id)),
@@ -959,6 +978,15 @@ export const bidToFormData = (bid?: BidPayload): BidFormData => ({
     scope_of_work_text: bid?.scope_of_work_text ?? '',
     print_layout_id: bid?.print_layout_id ? String(bid.print_layout_id) : '',
     print_layout_version: bid?.print_layout_version ?? '',
+    layout_elements:
+        bid?.layout_elements && Array.isArray(bid.layout_elements.elements)
+            ? {
+                  elements: bid.layout_elements.elements,
+                  header_height: bid.layout_elements.header_height,
+                  header_background: bid.layout_elements.header_background,
+                  text_case: bid.layout_elements.text_case,
+              }
+            : emptyBidLayoutDesign(),
     include_signature: bid?.include_signature ?? true,
     revisions:
         bid?.revisions?.map((revision) => ({

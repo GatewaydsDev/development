@@ -13,6 +13,7 @@ import {
     AlertDialogTitle,
 } from '@/Components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
+import type { ReactNode } from 'react';
 import {
     normalizeStateInitials,
     requiredStateInitialsSchema,
@@ -40,6 +41,7 @@ export type CreatableOption = {
 type CreatableSelectProps = {
     id: string;
     label: string;
+    labelAction?: ReactNode;
     value: string;
     options: CreatableOption[];
     onChange: (id: string, option?: CreatableOption) => void;
@@ -87,6 +89,7 @@ const optionMatchesQuery = (option: CreatableOption, query: string) => {
 export default function CreatableSelect({
     id,
     label,
+    labelAction,
     value,
     options,
     onChange,
@@ -484,11 +487,14 @@ export default function CreatableSelect({
             className={cn('flex flex-col gap-2 min-w-0 w-full', stateInitials && 'w-fit')}
         >
             {label ? (
-                <InputLabel
-                    htmlFor={id}
-                    value={label}
-                    className="text-emerald-700 dark:text-emerald-300"
-                />
+                <div className="flex items-center justify-between gap-2">
+                    <InputLabel
+                        htmlFor={id}
+                        value={label}
+                        className="text-emerald-700 dark:text-emerald-300"
+                    />
+                    {labelAction}
+                </div>
             ) : null}
             {hint ? (
                 <p className="text-sm text-muted-foreground">{hint}</p>

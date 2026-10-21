@@ -184,7 +184,22 @@ function withoutPdfWording(element: LayoutElement): LayoutElement {
     };
 }
 
-export async function readPdfLayout(file: File, options?: { text?: PdfImportText }): Promise<PdfImport> {
+export async function pdfPageCount(file: File): Promise<number> {
+    const task = getDocument({
+        data: new Uint8Array(await file.arrayBuffer()),
+        isEvalSupported: false,
+        useSystemFonts: false,
+        stopAtErrors: true,
+    });
+
+    try {
+        return (await task.promise).numPages;
+    } finally {
+        await task.destroy();
+    }
+}
+
+export async function readPdfLayout(file: File, options?: { text?: PdfImportText; pages?: number[] }): Promise<PdfImport> {
     if (file.size > 10 * 1024 * 1024) throw new Error('Choose a PDF smaller than 10 MB.');
     const task = getDocument({
         data: new Uint8Array(await file.arrayBuffer()), fontExtraProperties: true,
@@ -196,9 +211,12 @@ export async function readPdfLayout(file: File, options?: { text?: PdfImportText
     const notes = new Set<string>();
     try {
         const pdf = await task.promise;
-        if (pdf.numPages > 20) throw new Error('This PDF has more than 20 pages. Split it into smaller PDFs before importing.');
+        const requested = options?.pages?.filter((number) => number >= 1 && number <= pdf.numPages);
+        if (requested && requested.length === 0) throw new Error('Choose a page that exists in this PDF.');
+        const numbers = requested ?? Array.from({ length: pdf.numPages }, (_, index) => index + 1);
+        if (numbers.length > 20) throw new Error('This PDF has more than 20 pages. Split it into smaller PDFs, or import one page at a time.');
         let count = 0;
-        for (let number = 1; number <= pdf.numPages; number++) {
+        for (const number of numbers) {
             const page = await pdf.getPage(number);
             const scale = PRINT_LAYOUT_WIDTH / page.getViewport({ scale: 1 }).width;
             const viewport = page.getViewport({ scale });

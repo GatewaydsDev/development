@@ -9,12 +9,20 @@ class PrintLayoutCatalog
     /** @return array{printLayouts: array, assignedPrintLayoutId: ?int} */
     public static function forDocument(string $document): array
     {
+        $keys = array_map(
+            fn (string $format): string => DocumentAppearance::key($document, $format),
+            array_keys(DocumentAppearance::FORMATS),
+        );
+
         return [
             'printLayouts' => PrintLayout::query()
-                ->whereHas('assignments', fn ($query) => $query->whereIn(
-                    'document_key',
-                    array_map(fn (string $format): string => DocumentAppearance::key($document, $format), array_keys(DocumentAppearance::FORMATS)),
-                ))
+                ->where(function ($query) use ($document, $keys): void {
+                    $query->where('layout_type', $document)
+                        ->orWhere(function ($query) use ($keys): void {
+                            $query->whereNull('layout_type')
+                                ->whereHas('assignments', fn ($query) => $query->whereIn('document_key', $keys));
+                        });
+                })
                 ->orderBy('name')->get()
                 ->map(fn (PrintLayout $layout): array => [
                     ...self::payload($layout),

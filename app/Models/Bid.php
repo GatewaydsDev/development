@@ -25,11 +25,13 @@ class Bid extends Model
         'scope_of_work_text',
         'print_layout_id',
         'print_layout_version',
+        'layout_elements',
         'include_signature',
     ];
 
     protected $casts = [
         'include_signature' => 'boolean',
+        'layout_elements' => 'array',
     ];
 
     protected $attributes = [

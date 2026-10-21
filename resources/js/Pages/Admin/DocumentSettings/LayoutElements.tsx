@@ -55,6 +55,7 @@ import {
     useRef,
     useState,
 } from "react";
+import { createPortal } from "react-dom";
 
 export type ElementType =
     "text" | "image" | "divider" | "spacer" | "date" | "validity" | "company" | "table";
@@ -1747,17 +1748,23 @@ export function ImportPanel({
     pdfOnly = false,
     onImported,
     onBusyChange,
+    actionPortal = null,
 }: {
     controller: LayoutElementsController;
     pdfOnly?: boolean;
     onImported?: (elements: LayoutElement[], filename: string, notes: string[]) => void;
     onBusyChange?: (busy: boolean) => void;
+    actionPortal?: HTMLElement | null;
 }) {
     const [file, setFile] = useState<File | null>(null);
     const [mode, setMode] = useState<ImportMode>("pdf");
     const [pdfText, setPdfText] = useState<"keep" | "clean">("keep");
+    const [pdfScope, setPdfScope] = useState<"layout" | "pages" | "page">("layout");
+    const [pageCount, setPageCount] = useState(0);
+    const [pageNumber, setPageNumber] = useState(1);
     const [replace, setReplace] = useState(pdfOnly);
     const pdfTextChoice = useId();
+    const pdfScopeChoice = useId();
     const [busy, setBusy] = useState(false);
     const [message, setMessage] = useState<{
         tone: "ok" | "error";
@@ -1781,9 +1788,13 @@ export function ImportPanel({
                     return;
                 }
                 const { readPdfLayout } = await import("@/lib/importPdfLayout");
-                const imported = await readPdfLayout(file, { text: pdfText });
+                const imported = await readPdfLayout(file, {
+                    text: pdfText,
+                    pages: pdfScope === "page" ? [pageNumber] : undefined,
+                });
                 const incoming = imported.pages.flatMap((page) => page.elements);
-                if (incoming.length + (replace ? 0 : controller.elements.length) > 1000) {
+                const replaceLayout = pdfScope === "layout";
+                if (incoming.length + (replaceLayout ? 0 : controller.elements.length) > 1000) {
                     setMessage({ tone: "error", lines: ["The resulting layout exceeds 1,000 components. Replace the existing layout or use a smaller PDF."] });
                     return;
                 }
@@ -1818,9 +1829,14 @@ export function ImportPanel({
                 });
                 await Promise.all([...fontUrls.values()].map(loadPdfFont));
                 if (onImported) onImported(incoming, file.name, imported.notes);
-                else controller.importElements(incoming, replace);
+                else controller.importElements(incoming, replaceLayout);
                 controller.setTargetPage(incoming[0]?.pdf_page);
-                setMessage({ tone: "ok", lines: [`Imported ${imported.pages.length} pages. The PDF header and footer stay on the imported page and are labeled there. ${pdfText === "clean" ? "The original wording was removed." : "Text outside tables stays editable."} Table columns were not copied — the table header color is in place, and the table footer color too when the PDF has one. Add the columns and rows yourself, then save.`, ...imported.notes] });
+                const scopeLine = pdfScope === "page"
+                    ? `Added page ${pageNumber} as a new page. Import another page when you want to add more.`
+                    : pdfScope === "pages"
+                        ? `Added all ${imported.pages.length} pages to this layout.`
+                        : `Imported the whole layout (${imported.pages.length} ${imported.pages.length === 1 ? "page" : "pages"}).`;
+                setMessage({ tone: "ok", lines: [`${scopeLine} The PDF header and footer stay on the imported page and are labeled there. ${pdfText === "clean" ? "The original wording was removed." : "Text outside tables stays editable."} Table columns were not copied — the table header color is in place, and the table footer color too when the PDF has one. Add the columns and rows yourself, then save.`, ...imported.notes] });
                 return;
             }
             const body = new FormData();
@@ -1893,7 +1909,8 @@ export function ImportPanel({
                         {pdfOnly ? "Upload a PDF to create your layout" : "Import from an existing document"}
                     </p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                        Import every PDF page. Table columns are not copied — you get the header color, and the footer color when the PDF has one, so you can build the table yourself.
+                        Bring in the whole layout, every page, or one page at a time so you can add more pages as you build.
+                        Table columns are not copied — you get the header color, and the footer color when the PDF has one.
                         Keep the wording, or clean it and leave blank text in the same positions.{!pdfOnly ? " Word/text import is also available." : ""}
                     </p>
 
@@ -1906,8 +1923,20 @@ export function ImportPanel({
                             disabled={busy}
                             aria-label={pdfOnly ? "PDF file for new layout" : "PDF or Word file"}
                             onChange={(event) => {
-                                setFile(event.target.files?.[0] ?? null);
+                                const next = event.target.files?.[0] ?? null;
+                                setFile(next);
                                 setMessage(null);
+                                setPageCount(0);
+                                setPageNumber(1);
+                                if (next && next.name.toLowerCase().endsWith(".pdf")) {
+                                    void import("@/lib/importPdfLayout")
+                                        .then(({ pdfPageCount }) => pdfPageCount(next))
+                                        .then((count) => {
+                                            setPageCount(count);
+                                            setPageNumber(1);
+                                        })
+                                        .catch(() => setPageCount(0));
+                                }
                             }}
                         />
                         <Button
@@ -1940,6 +1969,51 @@ export function ImportPanel({
                                 Clean the text
                             </label>
                         </div>
+                    </fieldset> : null}
+
+                    {mode === "pdf" ? <fieldset className="mt-3">
+                        <legend className="text-xs font-medium text-foreground">
+                            How much to import
+                        </legend>
+                        <div className="mt-1 flex flex-col gap-2 text-sm">
+                            <label className="inline-flex items-center gap-2">
+                                <input type="radio" name={pdfScopeChoice} disabled={busy} checked={pdfScope === "layout"} onChange={() => setPdfScope("layout")} className="accent-emerald-700" />
+                                All the layout
+                            </label>
+                            <label className="inline-flex items-center gap-2">
+                                <input type="radio" name={pdfScopeChoice} disabled={busy} checked={pdfScope === "pages"} onChange={() => setPdfScope("pages")} className="accent-emerald-700" />
+                                All pages
+                            </label>
+                            <label className="inline-flex items-center gap-2">
+                                <input type="radio" name={pdfScopeChoice} disabled={busy} checked={pdfScope === "page"} onChange={() => setPdfScope("page")} className="accent-emerald-700" />
+                                One page
+                            </label>
+                        </div>
+                        {pdfScope === "page" ? (
+                            <label className="mt-2 flex items-center gap-2 text-sm">
+                                <span>Page</span>
+                                <select
+                                    value={pageNumber}
+                                    disabled={busy || pageCount === 0}
+                                    onChange={(event) => setPageNumber(Number(event.target.value))}
+                                    className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                                    aria-label="PDF page to import"
+                                >
+                                    {Array.from({ length: Math.max(pageCount, 1) }, (_, index) => index + 1).map((number) => (
+                                        <option key={number} value={number}>
+                                            {pageCount > 0 ? `${number} of ${pageCount}` : number}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+                        ) : null}
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            {pdfScope === "layout"
+                                ? "Replaces this layout with the PDF."
+                                : pdfScope === "pages"
+                                    ? "Adds every PDF page to the pages already here."
+                                    : "Adds the page you choose. Import again to add another page."}
+                        </p>
                     </fieldset> : null}
 
                     {!pdfOnly ? <fieldset className="mt-3">
@@ -1976,7 +2050,7 @@ export function ImportPanel({
                         </div>
                     </fieldset> : null}
 
-                    {!pdfOnly ? <label className="mt-3 inline-flex items-center gap-2 text-sm">
+                    {!pdfOnly && mode !== "pdf" ? <label className="mt-3 inline-flex items-center gap-2 text-sm">
                         <input
                             type="checkbox"
                             disabled={busy}
@@ -1989,18 +2063,33 @@ export function ImportPanel({
                         Replace the whole layout (header, body and footer)
                     </label> : null}
 
-                    <div className="mt-3">
-                        <Button
-                            type="button"
-                            size="sm"
-                            disabled={!file || busy}
-                            onClick={() => void run()}
-                            className="gap-1.5 bg-emerald-700 text-white hover:bg-emerald-800"
-                        >
-                            <FileUpIcon />
-                            {busy ? "Importing pages…" : pdfOnly ? "Create layout from PDF" : "Import document"}
-                        </Button>
-                    </div>
+                    {actionPortal
+                        ? createPortal(
+                            <Button
+                                type="button"
+                                disabled={!file || busy}
+                                onClick={() => void run()}
+                                className="gap-1.5 bg-emerald-700 text-white hover:bg-emerald-800"
+                            >
+                                <FileUpIcon />
+                                {busy ? "Importing pages…" : pdfOnly ? "Create layout from PDF" : "Import document"}
+                            </Button>,
+                            actionPortal,
+                        )
+                        : (
+                            <div className="mt-3">
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    disabled={!file || busy}
+                                    onClick={() => void run()}
+                                    className="gap-1.5 bg-emerald-700 text-white hover:bg-emerald-800"
+                                >
+                                    <FileUpIcon />
+                                    {busy ? "Importing pages…" : pdfOnly ? "Create layout from PDF" : "Import document"}
+                                </Button>
+                            </div>
+                        )}
 
                     {message ? (
                         <ul
@@ -2126,7 +2215,14 @@ export default function LayoutElementsEditor({
             : selected;
 
     const [previewOpen, setPreviewOpen] = useState(false);
-    const showPreview = () => setPreviewOpen(true);
+    const canPreview = controller.elements.length > 0;
+    const showPreview = () => {
+        if (!canPreview) {
+            return;
+        }
+
+        setPreviewOpen(true);
+    };
 
     return (
         <openLayoutPreview.Provider value={showPreview}>
@@ -2135,7 +2231,14 @@ export default function LayoutElementsEditor({
             <div role="toolbar" aria-label="Print layout tools" className="flex flex-col">
             <div className="flex items-center justify-between gap-3 border-b border-border px-2 py-2">
                 <p className="px-2 text-sm font-medium text-foreground">Layout</p>
-                <Button type="button" size="sm" className="gap-1.5" onClick={showPreview}>
+                <Button
+                    type="button"
+                    size="sm"
+                    className="gap-1.5"
+                    disabled={!canPreview}
+                    title={canPreview ? "Preview this layout" : "Add a component before previewing this layout."}
+                    onClick={showPreview}
+                >
                     <EyeIcon />
                     Preview
                 </Button>
@@ -3722,7 +3825,14 @@ export function PreviewZone({
                     </p>
                     <span className="flex shrink-0 items-center gap-2">
                         {showPreview ? (
-                            <Button type="button" size="sm" className="gap-1.5" onClick={showPreview}>
+                            <Button
+                                type="button"
+                                size="sm"
+                                className="gap-1.5"
+                                disabled={controller.elements.length === 0}
+                                title={controller.elements.length === 0 ? "Add a component before previewing this layout." : "Preview this layout"}
+                                onClick={showPreview}
+                            >
                                 <EyeIcon />
                                 Preview
                             </Button>
@@ -3787,7 +3897,14 @@ export function PreviewZone({
                             : "Page"}
                     </p>
                     {showPreview ? (
-                        <Button type="button" size="sm" className="h-7 gap-1.5 px-2" onClick={(event) => { event.stopPropagation(); showPreview(); }}>
+                        <Button
+                            type="button"
+                            size="sm"
+                            className="h-7 gap-1.5 px-2"
+                            disabled={controller.elements.length === 0}
+                            title={controller.elements.length === 0 ? "Add a component before previewing this layout." : "Preview this layout"}
+                            onClick={(event) => { event.stopPropagation(); showPreview(); }}
+                        >
                             <EyeIcon />
                             Preview
                         </Button>

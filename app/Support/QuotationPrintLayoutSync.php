@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\Bid;
 use App\Models\PrintLayout;
 use App\Models\Quotation;
 
@@ -36,12 +37,22 @@ class QuotationPrintLayoutSync
                 $count++;
             });
 
+        Bid::query()
+            ->where('print_layout_id', $layout->id)
+            ->orderBy('id')
+            ->each(function (Bid $bid) use ($snapshot, $version): void {
+                $bid->update([
+                    'print_layout_version' => $version,
+                    'layout_elements' => $snapshot,
+                ]);
+            });
+
         return $count;
     }
 
     public static function detach(PrintLayout $layout): int
     {
-        return Quotation::query()
+        $cleared = Quotation::query()
             ->where('print_layout_id', $layout->id)
             ->update([
                 'print_layout_id' => null,
@@ -49,6 +60,16 @@ class QuotationPrintLayoutSync
                 'layout_elements' => null,
                 'layout_header' => null,
             ]);
+
+        Bid::query()
+            ->where('print_layout_id', $layout->id)
+            ->update([
+                'print_layout_id' => null,
+                'print_layout_version' => null,
+                'layout_elements' => null,
+            ]);
+
+        return $cleared;
     }
 
     /**
