@@ -87,6 +87,65 @@ async function readJson(response: Response): Promise<Record<string, unknown>> {
     return (await response.json().catch(() => ({}))) as Record<string, unknown>;
 }
 
+let chimeContext: AudioContext | null = null;
+
+function audioContextConstructor(): typeof AudioContext | null {
+    return window.AudioContext
+        ?? (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+        ?? null;
+}
+
+function playIncomingChime(): void {
+    const context = chimeContext;
+
+    if (!context) {
+        return;
+    }
+
+    const ring = () => {
+        if (context.state !== 'running') {
+            return;
+        }
+
+        const now = context.currentTime;
+        const notes = [659.25, 880];
+
+        notes.forEach((frequency, index) => {
+            const start = now + index * 0.14;
+            const master = context.createGain();
+            master.gain.setValueAtTime(0.0001, start);
+            master.gain.exponentialRampToValueAtTime(0.08, start + 0.015);
+            master.gain.exponentialRampToValueAtTime(0.0001, start + 0.72);
+            master.connect(context.destination);
+
+            [
+                { ratio: 1, level: 1, decay: 0.7 },
+                { ratio: 2.76, level: 0.28, decay: 0.32 },
+                { ratio: 5.4, level: 0.08, decay: 0.16 },
+            ].forEach((partial) => {
+                const oscillator = context.createOscillator();
+                const partialGain = context.createGain();
+                oscillator.type = 'sine';
+                oscillator.frequency.value = frequency * partial.ratio;
+                partialGain.gain.setValueAtTime(partial.level, start);
+                partialGain.gain.exponentialRampToValueAtTime(0.0001, start + partial.decay);
+                oscillator.connect(partialGain);
+                partialGain.connect(master);
+                oscillator.start(start);
+                oscillator.stop(start + partial.decay + 0.02);
+            });
+        });
+    };
+
+    if (context.state === 'suspended') {
+        void context.resume().then(ring).catch(() => undefined);
+
+        return;
+    }
+
+    ring();
+}
+
 export default function InternalChat() {
     const { auth } = usePage<PageProps>().props;
     const enabled = Boolean(auth.can.useInternalChat);
@@ -100,6 +159,7 @@ export default function InternalChat() {
     const [sending, setSending] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [viewer, setViewer] = useState<ChatAttachment | null>(null);
+    const [besideFormActions, setBesideFormActions] = useState(false);
     const listRef = useRef<HTMLDivElement>(null);
     const fileRef = useRef<HTMLInputElement>(null);
     const knownLatest = useRef<number | null>(null);
@@ -107,6 +167,43 @@ export default function InternalChat() {
     const personRef = useRef(person);
     openRef.current = open;
     personRef.current = person;
+
+    useEffect(() => {
+        const sync = () => setBesideFormActions(Number(document.body.dataset.formActionFab || 0) > 0);
+        sync();
+        const observer = new MutationObserver(sync);
+        observer.observe(document.body, { attributes: true, attributeFilter: ['data-form-action-fab'] });
+
+        return () => observer.disconnect();
+    }, []);
+
+    useEffect(() => {
+        if (!enabled) {
+            return;
+        }
+
+        const unlock = () => {
+            const Context = audioContextConstructor();
+
+            if (!Context) {
+                return;
+            }
+
+            chimeContext ??= new Context();
+
+            if (chimeContext.state === 'suspended') {
+                void chimeContext.resume();
+            }
+        };
+
+        window.addEventListener('pointerdown', unlock);
+        window.addEventListener('keydown', unlock);
+
+        return () => {
+            window.removeEventListener('pointerdown', unlock);
+            window.removeEventListener('keydown', unlock);
+        };
+    }, [enabled]);
 
     const scrollToEnd = () => {
         const list = listRef.current;
@@ -171,6 +268,18 @@ export default function InternalChat() {
             return [...current, ...incoming.filter((message) => !seen.has(message.id))];
         });
 
+        if (after > 0) {
+            const newestIncoming = incoming.reduce(
+                (max, message) => (!message.mine && message.id > max ? message.id : max),
+                0,
+            );
+
+            if (newestIncoming > (knownLatest.current ?? 0)) {
+                knownLatest.current = newestIncoming;
+                playIncomingChime();
+            }
+        }
+
         if (openRef.current && incoming.length > 0) {
             const latest = incoming[incoming.length - 1]?.id ?? 0;
 
@@ -227,8 +336,9 @@ export default function InternalChat() {
 
             if (knownLatest.current === null) {
                 knownLatest.current = latest?.id ?? 0;
-            } else if (latest && latest.id !== knownLatest.current) {
+            } else if (latest && latest.id > knownLatest.current) {
                 knownLatest.current = latest.id;
+                playIncomingChime();
 
                 if (!openRef.current) {
                     toast.message(`New chat message from ${latest.name}`, {
@@ -341,7 +451,7 @@ export default function InternalChat() {
             {open ? (
                 <section
                     aria-label="Super administrator chat"
-                    className="fixed inset-x-3 bottom-24 z-40 flex h-[min(70dvh,36rem)] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl sm:inset-x-auto sm:end-5 sm:w-[24rem]"
+                    className={`fixed z-40 flex h-[min(70dvh,36rem)] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl ${besideFormActions ? 'start-3 end-[max(6.25rem,calc(env(safe-area-inset-right)+5.5rem))] bottom-[max(7.25rem,calc(env(safe-area-inset-bottom)+6.25rem))] sm:start-auto sm:end-[7.75rem] sm:bottom-[8.75rem] sm:w-[24rem] landscape:end-[5.5rem] landscape:bottom-28' : 'inset-x-3 bottom-24 sm:inset-x-auto sm:end-5 sm:w-[24rem]'}`}
                 >
                     <header className="flex items-start justify-between gap-3 border-b border-border px-4 py-3">
                         <div className="flex min-w-0 items-start gap-2">
@@ -500,7 +610,7 @@ export default function InternalChat() {
                 type="button"
                 onClick={() => setOpen((value) => !value)}
                 aria-label={unread > 0 ? `Open internal chat, ${unread} new messages` : 'Open internal chat'}
-                className={`fixed bottom-5 end-5 z-40 flex size-14 items-center justify-center rounded-full bg-emerald-700 text-white shadow-lg shadow-emerald-950/20 hover:bg-emerald-800 ${unread > 0 ? 'ring-4 ring-red-500/40' : ''}`}
+                className={`fixed z-40 flex size-14 items-center justify-center rounded-full bg-emerald-700 text-white shadow-lg shadow-emerald-950/20 hover:bg-emerald-800 ${besideFormActions ? 'bottom-[max(2.75rem,calc(env(safe-area-inset-bottom)+1.75rem))] end-[max(6.25rem,calc(env(safe-area-inset-right)+5.5rem))] sm:bottom-16 sm:end-[7.75rem] landscape:bottom-[2.4rem] landscape:end-[5.5rem]' : 'bottom-5 end-5'} ${unread > 0 ? 'ring-4 ring-red-500/40' : ''}`}
             >
                 <MessageCircleIcon className="size-6" />
                 {unread > 0 ? (

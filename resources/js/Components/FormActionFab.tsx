@@ -59,6 +59,21 @@ export default function FormActionFab({
     const hasPrint = showPrint || Boolean(printHref) || Boolean(onPrint);
 
     useEffect(() => {
+        const count = Number(document.body.dataset.formActionFab || 0) + 1;
+        document.body.dataset.formActionFab = String(count);
+
+        return () => {
+            const next = Number(document.body.dataset.formActionFab || 1) - 1;
+
+            if (next <= 0) {
+                delete document.body.dataset.formActionFab;
+            } else {
+                document.body.dataset.formActionFab = String(next);
+            }
+        };
+    }, []);
+
+    useEffect(() => {
         if (!isOpen) {
             return;
         }
