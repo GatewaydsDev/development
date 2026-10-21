@@ -270,8 +270,12 @@ export default function PdfWorkspace({
                                     }
 
                                     const target = event.currentTarget;
+                                    delete target.dataset.moved;
+                                    delete target.dataset.x;
+                                    delete target.dataset.y;
                                     target.setPointerCapture(event.pointerId);
                                     const move = (moveEvent: PointerEvent) => {
+                                        target.dataset.moved = '1';
                                         const point = pointFromEvent(moveEvent);
 
                                         if (!point) {
@@ -297,12 +301,21 @@ export default function PdfWorkspace({
                                         const x = Number(target.dataset.x);
                                         const y = Number(target.dataset.y);
 
-                                        if (!Number.isNaN(x) && !Number.isNaN(y)) {
+                                        if (target.dataset.moved === '1' && !Number.isNaN(x) && !Number.isNaN(y)) {
                                             onMove(marker.id, { documentId: document.id, page, x, y });
                                         }
                                     };
                                     target.addEventListener('pointermove', move);
                                     target.addEventListener('pointerup', up);
+                                }}
+                                onClick={(event) => {
+                                    event.stopPropagation();
+
+                                    if (tool === 'remove' || event.currentTarget.dataset.moved === '1') {
+                                        return;
+                                    }
+
+                                    onSelectOpening(opening.id);
                                 }}
                             >
                             <button

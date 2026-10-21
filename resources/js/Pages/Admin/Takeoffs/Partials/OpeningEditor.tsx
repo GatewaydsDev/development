@@ -1,9 +1,8 @@
 import InputError from '@/Components/InputError';
-import InputLabel from '@/Components/InputLabel';
-import TextInput from '@/Components/TextInput';
 import { Button } from '@/Components/ui/button';
 import { router } from '@inertiajs/react';
-import { FormEvent, useEffect, useState } from 'react';
+import { SearchIcon } from 'lucide-react';
+import { createContext, FormEvent, ReactNode, useContext, useEffect, useState } from 'react';
 import type { TakeoffDocument, TakeoffOpening } from '../types';
 import type { PdfPoint } from './PdfWorkspace';
 
@@ -12,12 +11,71 @@ type Errors = Record<string, string>;
 type Props = {
     takeoffUuid: string;
     opening: TakeoffOpening | null;
+    openings: TakeoffOpening[];
+    creating: boolean;
     documents: TakeoffDocument[];
     pendingMarker: PdfPoint | null;
     canEdit: boolean;
     onClose: () => void;
     onDirty: (dirty: boolean) => void;
+    onSelect: (choice: number | 'new' | null) => void;
 };
+
+function openingForm(opening: TakeoffOpening | null, creating: boolean) {
+    const waived: Record<string, string> = opening?.waived_checks && !Array.isArray(opening.waived_checks) ? opening.waived_checks : {};
+
+    if (!opening || creating) {
+        return empty;
+    }
+
+    return {
+        ...empty,
+        tag: opening.tag ?? '',
+        is_bulk: opening.is_bulk,
+        opening_type: opening.opening_type,
+        location: opening.location ?? '',
+        quantity: opening.quantity,
+        product_category: opening.product_category ?? '',
+        width: opening.width ?? '',
+        height: opening.height ?? '',
+        depth: opening.depth ?? '',
+        dimension_unit: opening.dimension_unit,
+        frame_type: opening.frame_type ?? '',
+        handing: opening.handing ?? '',
+        hardware_set: opening.hardware_set ?? '',
+        glazing: opening.glazing ?? '',
+        finish: opening.finish ?? '',
+        manufacturer: opening.manufacturer ?? '',
+        product_model: opening.product_model ?? '',
+        product_id: opening.product_id ? String(opening.product_id) : '',
+        scope: opening.scope,
+        notes: opening.notes ?? '',
+        exclusions: opening.exclusions ?? '',
+        assumptions: opening.assumptions ?? '',
+        disposition: opening.disposition,
+        disposition_reason: opening.disposition_reason ?? '',
+        acoustic_requirement: opening.acoustic_requirement ?? '',
+        rf_requirement: opening.rf_requirement ?? '',
+        fire_requirement: opening.fire_requirement ?? '',
+        ballistic_requirement: opening.ballistic_requirement ?? '',
+        other_requirements: opening.other_requirements ?? '',
+        verified_acoustic: opening.verified_acoustic ?? '',
+        verified_rf: opening.verified_rf ?? '',
+        verified_fire: opening.verified_fire ?? '',
+        verified_ballistic: opening.verified_ballistic ?? '',
+        verification_status: opening.verification_status,
+        requirement_document_id: opening.requirement_document_id ? String(opening.requirement_document_id) : '',
+        requirement_page: opening.requirement_page ? String(opening.requirement_page) : '',
+        requirement_section: opening.requirement_section ?? '',
+        group_id: opening.group_id ? String(opening.group_id) : '',
+        needs_review: opening.needs_review,
+        waive_dimensions: waived.dimensions ?? '',
+        waive_product: waived.product ?? '',
+        waive_technical: waived.technical ?? '',
+        waive_hardware: waived.hardware ?? '',
+        waive_pricing: waived.pricing ?? '',
+    };
+}
 
 const empty = {
     tag: '',
@@ -66,73 +124,139 @@ const empty = {
     waive_pricing: '',
 };
 
-export default function OpeningEditor({ takeoffUuid, opening, documents, pendingMarker, canEdit, onClose, onDirty }: Props) {
-    const [form, setForm] = useState(empty);
+const inspectorInput = 'h-6 w-full bg-transparent px-1 text-[13px] text-[#1a3d8f] outline-none focus:bg-[#fff8dc] disabled:text-neutral-500';
+const InspectorQuery = createContext('');
+const InspectorDepth = createContext(0);
+const InspectorGroupMatch = createContext(false);
+
+function PropertyRow({ name, children }: { name: string; children: ReactNode }) {
+    const query = useContext(InspectorQuery).trim().toLowerCase();
+    const depth = useContext(InspectorDepth);
+    const groupMatch = useContext(InspectorGroupMatch);
+
+    if (query && !groupMatch && !name.toLowerCase().includes(query)) {
+        return null;
+    }
+
+    return (
+        <div className="grid grid-cols-[minmax(0,9.5rem)_minmax(0,1fr)] border-b border-[#d6d6d6] text-[13px] hover:bg-[#e7f0fb]">
+            <div className="border-r border-[#d6d6d6] bg-[#f7f7f7] py-1 pr-2 text-neutral-900" style={{ paddingLeft: 8 + depth * 14 }}>
+                {name}
+            </div>
+            <div className="min-w-0 bg-white">{children}</div>
+        </div>
+    );
+}
+
+function PropertyGroup({
+    name,
+    summary,
+    children,
+    defaultOpen = false,
+}: {
+    name: string;
+    summary?: string;
+    children: ReactNode;
+    defaultOpen?: boolean;
+}) {
+    const query = useContext(InspectorQuery).trim().toLowerCase();
+    const depth = useContext(InspectorDepth);
+    const [open, setOpen] = useState(defaultOpen);
+    const groupMatch = query.length > 0 && name.toLowerCase().includes(query);
+    const expanded = query.length > 0 || open;
+
+    return (
+        <InspectorGroupMatch.Provider value={groupMatch}>
+            <div>
+                <button
+                    type="button"
+                    aria-expanded={expanded}
+                    onClick={() => setOpen((current) => !current)}
+                    className="grid w-full grid-cols-[minmax(0,9.5rem)_minmax(0,1fr)] border-b border-[#d6d6d6] text-left text-[13px] hover:bg-[#d7e6f8]"
+                >
+                    <span className="flex items-center gap-1 border-r border-[#d6d6d6] bg-[#f3f3f3] py-1 pr-1" style={{ paddingLeft: 4 + depth * 14 }}>
+                        <span className="inline-flex size-3.5 shrink-0 items-center justify-center border border-[#9a9a9a] bg-white text-[11px] leading-none text-neutral-800">
+                            {expanded ? '−' : '+'}
+                        </span>
+                        <span className="truncate">{name}</span>
+                    </span>
+                    <span className="truncate bg-white px-1 py-1 text-[#1a3d8f]">{summary}</span>
+                </button>
+                {expanded ? <InspectorDepth.Provider value={depth + 1}>{children}</InspectorDepth.Provider> : null}
+            </div>
+        </InspectorGroupMatch.Provider>
+    );
+}
+
+function InspectorCheck({
+    checked,
+    label,
+    disabled,
+    onChange,
+}: {
+    checked: boolean;
+    label: string;
+    disabled?: boolean;
+    onChange: (checked: boolean) => void;
+}) {
+    return (
+        <label className="flex h-6 items-center gap-1.5 px-1 text-[13px] text-[#1a3d8f]">
+            <input
+                type="checkbox"
+                aria-label={label}
+                checked={checked}
+                disabled={disabled}
+                onChange={(event) => onChange(event.target.checked)}
+                className="size-3.5 accent-[#1a3d8f]"
+            />
+            {checked ? 'True' : 'False'}
+        </label>
+    );
+}
+
+export default function OpeningEditor({
+    takeoffUuid,
+    opening,
+    openings,
+    creating,
+    documents,
+    pendingMarker,
+    canEdit,
+    onClose,
+    onDirty,
+    onSelect,
+}: Props) {
+    const selectionKey = creating ? 'new' : opening?.id ?? null;
+    const [form, setForm] = useState(() => openingForm(opening, creating));
+    const [formSource, setFormSource] = useState<number | 'new' | null>(selectionKey);
     const [errors, setErrors] = useState<Errors>({});
     const [products, setProducts] = useState<{ id: number; name: string; manufacturer: string | null }[]>([]);
     const [saving, setSaving] = useState(false);
+    const [saved, setSaved] = useState(false);
+    const [query, setQuery] = useState('');
+    const editing = Boolean(opening) || creating;
+
+    if (formSource !== selectionKey) {
+        setFormSource(selectionKey);
+        setForm(openingForm(opening, creating));
+        setErrors({});
+        setSaved(false);
+    }
 
     useEffect(() => {
-        setForm(opening ? {
-            ...empty,
-            tag: opening.tag ?? '',
-            is_bulk: opening.is_bulk,
-            opening_type: opening.opening_type,
-            location: opening.location ?? '',
-            quantity: opening.quantity,
-            product_category: opening.product_category ?? '',
-            width: opening.width ?? '',
-            height: opening.height ?? '',
-            depth: opening.depth ?? '',
-            dimension_unit: opening.dimension_unit,
-            frame_type: opening.frame_type ?? '',
-            handing: opening.handing ?? '',
-            hardware_set: opening.hardware_set ?? '',
-            glazing: opening.glazing ?? '',
-            finish: opening.finish ?? '',
-            manufacturer: opening.manufacturer ?? '',
-            product_model: opening.product_model ?? '',
-            product_id: opening.product_id ? String(opening.product_id) : '',
-            scope: opening.scope,
-            notes: opening.notes ?? '',
-            exclusions: opening.exclusions ?? '',
-            assumptions: opening.assumptions ?? '',
-            disposition: opening.disposition,
-            disposition_reason: opening.disposition_reason ?? '',
-            acoustic_requirement: opening.acoustic_requirement ?? '',
-            rf_requirement: opening.rf_requirement ?? '',
-            fire_requirement: opening.fire_requirement ?? '',
-            ballistic_requirement: opening.ballistic_requirement ?? '',
-            other_requirements: opening.other_requirements ?? '',
-            verified_acoustic: opening.verified_acoustic ?? '',
-            verified_rf: opening.verified_rf ?? '',
-            verified_fire: opening.verified_fire ?? '',
-            verified_ballistic: opening.verified_ballistic ?? '',
-            verification_status: opening.verification_status,
-            requirement_document_id: opening.requirement_document_id ? String(opening.requirement_document_id) : '',
-            requirement_page: opening.requirement_page ? String(opening.requirement_page) : '',
-            requirement_section: opening.requirement_section ?? '',
-            group_id: opening.group_id ? String(opening.group_id) : '',
-            needs_review: opening.needs_review,
-            waive_dimensions: opening.waived_checks.dimensions ?? '',
-            waive_product: opening.waived_checks.product ?? '',
-            waive_technical: opening.waived_checks.technical ?? '',
-            waive_hardware: opening.waived_checks.hardware ?? '',
-            waive_pricing: opening.waived_checks.pricing ?? '',
-        } : empty);
-        setErrors({});
         onDirty(false);
-    }, [opening?.id, opening?.updated_at]);
+    }, [selectionKey]);
 
     const set = (key: string, value: string | boolean) => {
         setForm((current) => ({ ...current, [key]: value }));
+        setSaved(false);
         onDirty(true);
     };
 
-    const searchProducts = (query: string) => {
-        set('manufacturer', query);
+    const searchProducts = (value: string) => {
+        set('manufacturer', value);
         const token = decodeURIComponent(document.cookie.split('; ').find((row) => row.startsWith('XSRF-TOKEN='))?.split('=')[1] ?? '');
-        void fetch(`${route('admin.takeoffs.products')}?q=${encodeURIComponent(query)}`, {
+        void fetch(`${route('admin.takeoffs.products')}?q=${encodeURIComponent(value)}`, {
             headers: { Accept: 'application/json', 'X-XSRF-TOKEN': token, 'X-Requested-With': 'XMLHttpRequest' },
             credentials: 'same-origin',
         }).then((response) => response.json()).then((rows) => setProducts(Array.isArray(rows) ? rows : [])).catch(() => setProducts([]));
@@ -141,7 +265,7 @@ export default function OpeningEditor({ takeoffUuid, opening, documents, pending
     const submit = (event: FormEvent) => {
         event.preventDefault();
 
-        if (!canEdit) {
+        if (!canEdit || !editing) {
             return;
         }
 
@@ -172,10 +296,11 @@ export default function OpeningEditor({ takeoffUuid, opening, documents, pending
         };
         const options = {
             preserveScroll: true,
+            preserveState: true,
             onError: (formErrors: Errors) => setErrors(formErrors),
             onSuccess: () => {
                 onDirty(false);
-                onClose();
+                setSaved(true);
             },
             onFinish: () => setSaving(false),
         };
@@ -187,136 +312,242 @@ export default function OpeningEditor({ takeoffUuid, opening, documents, pending
         }
     };
 
-    const field = (label: string, key: string, type = 'text') => (
-        <label className="block text-sm">
-            <span className="text-muted-foreground">{label}</span>
-            <TextInput className="mt-1 w-full" type={type} value={String(form[key as keyof typeof form] ?? '')} onChange={(event) => set(key, event.target.value)} />
-            <InputError message={errors[key]} />
-        </label>
+    const text = (name: string, key: keyof typeof empty) => (
+        <PropertyRow name={name}>
+            <input
+                aria-label={name}
+                className={inspectorInput}
+                value={String(form[key] ?? '')}
+                disabled={!canEdit}
+                onChange={(event) => set(key, event.target.value)}
+            />
+            <InputError message={errors[key]} className="px-1" />
+        </PropertyRow>
     );
 
+    const area = (name: string, key: keyof typeof empty) => (
+        <PropertyRow name={name}>
+            <textarea
+                aria-label={name}
+                rows={2}
+                className="w-full bg-transparent px-1 py-1 text-[13px] text-[#1a3d8f] outline-none focus:bg-[#fff8dc] disabled:text-neutral-500"
+                value={String(form[key] ?? '')}
+                disabled={!canEdit}
+                onChange={(event) => set(key, event.target.value)}
+            />
+            <InputError message={errors[key]} className="px-1" />
+        </PropertyRow>
+    );
+
+    const messages = Object.values(errors).filter(Boolean);
+    const sizeSummary = [form.width, form.height, form.depth].filter(Boolean).join(' × ');
+    const scopeLabel = form.scope === 'supply' ? 'Supply' : form.scope === 'installation' ? 'Installation' : 'Supply and installation';
+
     return (
-        <form onSubmit={submit} className="space-y-4">
-            <div className="flex items-center justify-between">
-                <h3 className="font-semibold">{opening ? opening.label : 'New opening'}</h3>
-                <Button type="button" variant="outline" size="sm" onClick={onClose}>Close</Button>
-            </div>
-            {errors.updated_at ? <p className="text-sm text-destructive">{errors.updated_at}</p> : null}
-            <p className="text-xs text-muted-foreground">
-                {form.is_bulk ? 'This is a quantity-based bulk record, not one tagged opening.' : 'This is one tagged opening. Extra drawing markers do not increase its quantity.'}
-            </p>
-            <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={form.is_bulk} onChange={(event) => set('is_bulk', event.target.checked)} />
-                Bulk quantity record
-            </label>
-            <div className="grid gap-3 md:grid-cols-2">
-                {field('Opening tag', 'tag')}
-                <label className="block text-sm">
-                    <span className="text-muted-foreground">Type</span>
-                    <select className="mt-1 w-full rounded-md border-gray-300 shadow-sm" value={form.opening_type} onChange={(event) => set('opening_type', event.target.value)}>
-                        <option value="door">Door</option>
-                        <option value="window">Window</option>
-                    </select>
-                </label>
-                {field('Location / floor', 'location')}
-                {field('Quantity', 'quantity')}
-                {field('Category', 'product_category')}
-                {field('Width', 'width')}
-                {field('Height', 'height')}
-                {field('Depth', 'depth')}
-                <label className="block text-sm">
-                    <span className="text-muted-foreground">Dimension unit</span>
-                    <select className="mt-1 w-full rounded-md border-gray-300 shadow-sm" value={form.dimension_unit} onChange={(event) => set('dimension_unit', event.target.value)}>
-                        <option value="in">Inches</option>
-                        <option value="ft">Feet</option>
-                        <option value="mm">Millimeters</option>
-                        <option value="cm">Centimeters</option>
-                    </select>
-                </label>
-                {field('Frame', 'frame_type')}
-                {field(form.opening_type === 'window' ? 'Handing (not required for a fixed window)' : 'Handing', 'handing')}
-                {field('Hardware set', 'hardware_set')}
-                {field('Glazing', 'glazing')}
-                {field('Finish', 'finish')}
-                <label className="block text-sm md:col-span-2">
-                    <span className="text-muted-foreground">Existing catalog product</span>
-                    <TextInput className="mt-1 w-full" value={form.manufacturer} placeholder="Search catalog or type a manufacturer" onChange={(event) => searchProducts(event.target.value)} />
-                    {products.length ? (
-                        <select className="mt-2 w-full rounded-md border-gray-300 shadow-sm" value={form.product_id} onChange={(event) => {
-                            const product = products.find((item) => String(item.id) === event.target.value);
-                            set('product_id', event.target.value);
-                            if (product) {
-                                set('product_model', product.name);
-                                set('manufacturer', product.manufacturer ?? '');
+        <aside aria-label="Object Inspector" className="min-w-0">
+            <div className="overflow-hidden border border-[#b0b0b0] bg-[#f0f0f0] text-neutral-900 shadow-sm">
+                <div className="flex items-center justify-between gap-2 border-b border-[#b0b0b0] bg-[#f4f4f4] px-2 py-1.5">
+                    <p className="text-sm font-semibold">Object Inspector</p>
+                    <div className="flex items-center gap-1">
+                        {saved ? <span className="text-[12px] text-emerald-700">Saved</span> : null}
+                        {canEdit && editing ? (
+                            <Button type="submit" form="opening-editor" size="sm" disabled={saving}>
+                                {saving ? 'Saving…' : 'Save'}
+                            </Button>
+                        ) : null}
+                        <Button type="button" variant="outline" size="sm" onClick={onClose}>Close</Button>
+                    </div>
+                </div>
+                <div className="border-b border-[#b0b0b0] bg-white p-1">
+                    <select
+                        aria-label="Opening"
+                        className="h-8 w-full border border-[#b0b0b0] bg-white px-1 text-sm font-semibold text-neutral-900"
+                        value={creating ? 'new' : opening ? String(opening.id) : ''}
+                        onChange={(event) => {
+                            const value = event.target.value;
+
+                            if (value === 'new') {
+                                onSelect('new');
+                                return;
                             }
-                        }}>
-                            <option value="">No catalog product</option>
-                            {products.map((product) => <option key={product.id} value={product.id}>{product.manufacturer ? `${product.manufacturer} — ` : ''}{product.name}</option>)}
-                        </select>
-                    ) : null}
-                </label>
-                {field('Product / model, if known', 'product_model')}
-                <label className="block text-sm">
-                    <span className="text-muted-foreground">Scope</span>
-                    <select className="mt-1 w-full rounded-md border-gray-300 shadow-sm" value={form.scope} onChange={(event) => set('scope', event.target.value)}>
-                        <option value="both">Supply and installation</option>
-                        <option value="supply">Supply only</option>
-                        <option value="installation">Installation only</option>
+
+                            onSelect(value ? Number(value) : null);
+                        }}
+                    >
+                        <option value="">Select an opening</option>
+                        {canEdit ? <option value="new">New opening</option> : null}
+                        {openings.map((item) => (
+                            <option key={item.id} value={item.id}>
+                                {item.is_bulk ? `Bulk ${item.tag ?? item.label}`.trim() : item.label}
+                            </option>
+                        ))}
                     </select>
+                </div>
+                <div className="flex items-end border-b border-[#b0b0b0] bg-[#f0f0f0] px-1">
+                    <span className="-mb-px border border-b-white border-[#b0b0b0] bg-white px-3 py-1 text-sm">Properties</span>
+                </div>
+                <label className="flex items-center gap-1.5 border-b border-[#b0b0b0] bg-white px-2">
+                    <SearchIcon className="size-4 shrink-0 text-neutral-500" />
+                    <input
+                        aria-label="Search properties"
+                        value={query}
+                        placeholder="Search"
+                        onChange={(event) => setQuery(event.target.value)}
+                        className="h-8 w-full bg-transparent text-sm text-neutral-900 outline-none"
+                    />
                 </label>
+                {messages.length > 0 ? (
+                    <div className="border-b border-red-300 bg-red-50 px-2 py-1 text-[12px] text-red-700">
+                        {messages.map((message) => <p key={message}>{message}</p>)}
+                    </div>
+                ) : null}
+                <InspectorQuery.Provider value={query}>
+                    <form id="opening-editor" onSubmit={submit} className="bg-white">
+                        {editing ? (
+                            <>
+                                <PropertyGroup name="Basics" summary={form.tag || (creating ? 'New' : opening?.label)} defaultOpen>
+                                    <PropertyRow name="Bulk quantity">
+                                        <InspectorCheck label="Bulk quantity record" checked={form.is_bulk} disabled={!canEdit} onChange={(checked) => set('is_bulk', checked)} />
+                                    </PropertyRow>
+                                    {text('Opening tag', 'tag')}
+                                    {text('Location / floor', 'location')}
+                                    <PropertyRow name="Type">
+                                        <select aria-label="Type" className={inspectorInput} value={form.opening_type} disabled={!canEdit} onChange={(event) => set('opening_type', event.target.value)}>
+                                            <option value="door">Door</option>
+                                            <option value="window">Window</option>
+                                        </select>
+                                    </PropertyRow>
+                                    {text('Quantity', 'quantity')}
+                                    {text('Category', 'product_category')}
+                                    <PropertyRow name="Scope">
+                                        <select aria-label="Scope" className={inspectorInput} value={form.scope} disabled={!canEdit} onChange={(event) => set('scope', event.target.value)}>
+                                            <option value="both">Supply and installation</option>
+                                            <option value="supply">Supply only</option>
+                                            <option value="installation">Installation only</option>
+                                        </select>
+                                    </PropertyRow>
+                                </PropertyGroup>
+                                <PropertyGroup name="Size" summary={sizeSummary ? `${sizeSummary} ${form.dimension_unit}` : form.dimension_unit} defaultOpen>
+                                    {text('Width', 'width')}
+                                    {text('Height', 'height')}
+                                    {text('Depth', 'depth')}
+                                    <PropertyRow name="Unit">
+                                        <select aria-label="Unit" className={inspectorInput} value={form.dimension_unit} disabled={!canEdit} onChange={(event) => set('dimension_unit', event.target.value)}>
+                                            <option value="in">Inches</option>
+                                            <option value="ft">Feet</option>
+                                            <option value="mm">Millimeters</option>
+                                            <option value="cm">Centimeters</option>
+                                        </select>
+                                    </PropertyRow>
+                                </PropertyGroup>
+                                <PropertyGroup name="Specs" summary={form.product_model || form.frame_type}>
+                                    {text('Frame', 'frame_type')}
+                                    {text('Handing', 'handing')}
+                                    {text('Hardware set', 'hardware_set')}
+                                    {text('Glazing', 'glazing')}
+                                    {text('Finish', 'finish')}
+                                    {text('Product / model', 'product_model')}
+                                    <PropertyRow name="Manufacturer">
+                                        <input
+                                            aria-label="Manufacturer"
+                                            className={inspectorInput}
+                                            value={form.manufacturer}
+                                            placeholder="Search catalog or type a manufacturer"
+                                            disabled={!canEdit}
+                                            onChange={(event) => searchProducts(event.target.value)}
+                                        />
+                                    </PropertyRow>
+                                    {products.length ? (
+                                        <PropertyRow name="Catalog product">
+                                            <select
+                                                aria-label="Catalog product"
+                                                className={inspectorInput}
+                                                value={form.product_id}
+                                                disabled={!canEdit}
+                                                onChange={(event) => {
+                                                    const product = products.find((item) => String(item.id) === event.target.value);
+                                                    set('product_id', event.target.value);
+                                                    if (product) {
+                                                        set('product_model', product.name);
+                                                        set('manufacturer', product.manufacturer ?? '');
+                                                    }
+                                                }}
+                                            >
+                                                <option value="">No catalog product</option>
+                                                {products.map((product) => <option key={product.id} value={product.id}>{product.manufacturer ? `${product.manufacturer} — ` : ''}{product.name}</option>)}
+                                            </select>
+                                        </PropertyRow>
+                                    ) : null}
+                                </PropertyGroup>
+                                <PropertyGroup name="Requirements" summary={form.verification_status}>
+                                    {area('Acoustic / STC', 'acoustic_requirement')}
+                                    {area('RF shielding', 'rf_requirement')}
+                                    {area('Fire rating', 'fire_requirement')}
+                                    {area('Ballistic', 'ballistic_requirement')}
+                                    {area('Other', 'other_requirements')}
+                                    <PropertyRow name="Source document">
+                                        <select aria-label="Source document" className={inspectorInput} value={form.requirement_document_id} disabled={!canEdit} onChange={(event) => set('requirement_document_id', event.target.value)}>
+                                            <option value="">None</option>
+                                            {documents.map((item) => <option key={item.id} value={item.id}>{item.original_filename}</option>)}
+                                        </select>
+                                    </PropertyRow>
+                                    {text('Source page', 'requirement_page')}
+                                    {text('Source section', 'requirement_section')}
+                                    <PropertyRow name="Verification">
+                                        <select aria-label="Verification" className={inspectorInput} value={form.verification_status} disabled={!canEdit} onChange={(event) => set('verification_status', event.target.value)}>
+                                            <option value="recorded">Requirement recorded</option>
+                                            <option value="proposed">Product proposed</option>
+                                            <option value="pending">Technical verification pending</option>
+                                            <option value="completed">Technical verification completed</option>
+                                        </select>
+                                    </PropertyRow>
+                                    {opening?.verified_by && form.verification_status === 'completed' ? (
+                                        <PropertyRow name="Verified by">
+                                            <p className="px-1 py-1 text-[13px] text-[#1a3d8f]">{opening.verified_by}</p>
+                                        </PropertyRow>
+                                    ) : null}
+                                    {area('Verified acoustic', 'verified_acoustic')}
+                                    {area('Verified RF', 'verified_rf')}
+                                    {area('Verified fire', 'verified_fire')}
+                                    {area('Verified ballistic', 'verified_ballistic')}
+                                </PropertyGroup>
+                                <PropertyGroup name="Notes" summary={form.disposition === 'active' ? 'Active' : form.disposition === 'excluded' ? 'Excluded' : 'Not applicable'}>
+                                    <PropertyRow name="Disposition">
+                                        <select aria-label="Disposition" className={inspectorInput} value={form.disposition} disabled={!canEdit} onChange={(event) => set('disposition', event.target.value)}>
+                                            <option value="active">Active</option>
+                                            <option value="excluded">Excluded</option>
+                                            <option value="not_applicable">Not applicable</option>
+                                        </select>
+                                    </PropertyRow>
+                                    {text('Disposition reason', 'disposition_reason')}
+                                    {text('Waive dimensions', 'waive_dimensions')}
+                                    {text('Waive product', 'waive_product')}
+                                    {text('Waive technical', 'waive_technical')}
+                                    {text('Waive hardware', 'waive_hardware')}
+                                    {text('Waive pricing', 'waive_pricing')}
+                                    {area('Notes', 'notes')}
+                                    {area('Exclusions', 'exclusions')}
+                                    {area('Assumptions', 'assumptions')}
+                                    <PropertyRow name="Needs review">
+                                        <InspectorCheck label="Still needs review after a document change" checked={form.needs_review} disabled={!canEdit} onChange={(checked) => set('needs_review', checked)} />
+                                    </PropertyRow>
+                                </PropertyGroup>
+                            </>
+                        ) : (
+                            <p className="px-2 py-3 text-sm text-neutral-600">
+                                Select an opening on the drawing or in the list, or choose one above.
+                            </p>
+                        )}
+                    </form>
+                </InspectorQuery.Provider>
+                <div className="border-t border-[#b0b0b0] bg-[#f4f4f4] px-2 py-1 text-[11px] text-neutral-600">
+                    {query.trim()
+                        ? `Showing matches for “${query.trim()}”`
+                        : editing
+                            ? `${form.is_bulk ? 'Bulk quantity record.' : 'Tagged opening.'} ${scopeLabel}. Save keeps this opening. The corner button saves the takeoff.`
+                            : 'All shown'}
+                </div>
             </div>
-            <InputLabel value="Requirements" />
-            <p className="text-xs text-muted-foreground">Record the project requirement separately from the performance of a proposed product. A manufacturer name does not verify compliance.</p>
-            <label className="block text-sm">Acoustic / STC<textarea className="mt-1 w-full rounded-md border-gray-300 shadow-sm" rows={2} value={form.acoustic_requirement} onChange={(event) => set('acoustic_requirement', event.target.value)} /></label>
-            <label className="block text-sm">RF shielding (frequency ranges, attenuation, and test criteria)<textarea className="mt-1 w-full rounded-md border-gray-300 shadow-sm" rows={3} value={form.rf_requirement} onChange={(event) => set('rf_requirement', event.target.value)} /></label>
-            <label className="block text-sm">Fire rating<textarea className="mt-1 w-full rounded-md border-gray-300 shadow-sm" rows={2} value={form.fire_requirement} onChange={(event) => set('fire_requirement', event.target.value)} /></label>
-            <label className="block text-sm">Ballistic<textarea className="mt-1 w-full rounded-md border-gray-300 shadow-sm" rows={2} value={form.ballistic_requirement} onChange={(event) => set('ballistic_requirement', event.target.value)} /></label>
-            <label className="block text-sm">Other<textarea className="mt-1 w-full rounded-md border-gray-300 shadow-sm" rows={2} value={form.other_requirements} onChange={(event) => set('other_requirements', event.target.value)} /></label>
-            <div className="grid gap-3 md:grid-cols-3">
-                <label className="block text-sm">Source document
-                    <select className="mt-1 w-full rounded-md border-gray-300 shadow-sm" value={form.requirement_document_id} onChange={(event) => set('requirement_document_id', event.target.value)}>
-                        <option value="">None</option>
-                        {documents.map((item) => <option key={item.id} value={item.id}>{item.original_filename}</option>)}
-                    </select>
-                </label>
-                {field('Source page', 'requirement_page')}
-                {field('Source section', 'requirement_section')}
-            </div>
-            <label className="block text-sm">Verification
-                <select className="mt-1 w-full rounded-md border-gray-300 shadow-sm" value={form.verification_status} onChange={(event) => set('verification_status', event.target.value)}>
-                    <option value="recorded">Requirement recorded</option>
-                    <option value="proposed">Product proposed</option>
-                    <option value="pending">Technical verification pending</option>
-                    <option value="completed">Technical verification completed</option>
-                </select>
-            </label>
-            {opening?.verified_by && form.verification_status === 'completed' ? <p className="text-sm">Completed by {opening.verified_by}.</p> : null}
-            <label className="block text-sm">Verified acoustic performance<textarea className="mt-1 w-full rounded-md border-gray-300 shadow-sm" rows={2} value={form.verified_acoustic} onChange={(event) => set('verified_acoustic', event.target.value)} /></label>
-            <label className="block text-sm">Verified RF performance<textarea className="mt-1 w-full rounded-md border-gray-300 shadow-sm" rows={2} value={form.verified_rf} onChange={(event) => set('verified_rf', event.target.value)} /></label>
-            <label className="block text-sm">Verified fire performance<textarea className="mt-1 w-full rounded-md border-gray-300 shadow-sm" rows={2} value={form.verified_fire} onChange={(event) => set('verified_fire', event.target.value)} /></label>
-            <label className="block text-sm">Verified ballistic performance<textarea className="mt-1 w-full rounded-md border-gray-300 shadow-sm" rows={2} value={form.verified_ballistic} onChange={(event) => set('verified_ballistic', event.target.value)} /></label>
-            <label className="block text-sm">Disposition
-                <select className="mt-1 w-full rounded-md border-gray-300 shadow-sm" value={form.disposition} onChange={(event) => set('disposition', event.target.value)}>
-                    <option value="active">Active</option>
-                    <option value="excluded">Excluded</option>
-                    <option value="not_applicable">Not applicable</option>
-                </select>
-            </label>
-            {field('Reason for exclusion or not applicable', 'disposition_reason')}
-            <p className="text-xs text-muted-foreground">Leave a check blank to keep the review flag. A reason marks that check as an intentional decision.</p>
-            {field('Dimensions not applicable because', 'waive_dimensions')}
-            {field('Product not applicable because', 'waive_product')}
-            {field('Technical verification not applicable because', 'waive_technical')}
-            {field('Hardware not applicable because', 'waive_hardware')}
-            {field('Pricing not applicable because', 'waive_pricing')}
-            <label className="block text-sm">Notes<textarea className="mt-1 w-full rounded-md border-gray-300 shadow-sm" rows={2} value={form.notes} onChange={(event) => set('notes', event.target.value)} /></label>
-            <label className="block text-sm">Exclusions<textarea className="mt-1 w-full rounded-md border-gray-300 shadow-sm" rows={2} value={form.exclusions} onChange={(event) => set('exclusions', event.target.value)} /></label>
-            <label className="block text-sm">Assumptions<textarea className="mt-1 w-full rounded-md border-gray-300 shadow-sm" rows={2} value={form.assumptions} onChange={(event) => set('assumptions', event.target.value)} /></label>
-            <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={form.needs_review} onChange={(event) => set('needs_review', event.target.checked)} />
-                Still needs review after a document change
-            </label>
-            {canEdit ? <Button type="submit" size="sm" disabled={saving}>{saving ? 'Saving…' : 'Save opening'}</Button> : <p className="text-sm text-muted-foreground">You can view this opening.</p>}
-        </form>
+        </aside>
     );
 }
