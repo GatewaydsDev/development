@@ -829,6 +829,36 @@ test('a quotation lists the takeoffs for the chosen project', function () {
             }));
 });
 
+test('updating a door keeps its location', function () {
+    $admin = takeoffUser();
+    $takeoff = takeoffRecord($admin);
+    $opening = $takeoff->openings()->create([
+        'tag' => 'D1',
+        'opening_type' => 'door',
+        'location' => 'Lobby',
+        'quantity' => '1.00',
+        'dimension_unit' => 'in',
+        'scope' => 'both',
+        'disposition' => 'active',
+        'verification_status' => 'recorded',
+    ]);
+
+    $this->actingAs($admin)->patch(route('admin.takeoffs.openings.update', [$takeoff, $opening]), [
+        'tag' => 'D1',
+        'is_bulk' => false,
+        'opening_type' => 'door',
+        'location' => 'Level 2',
+        'quantity' => '1',
+        'dimension_unit' => 'in',
+        'scope' => 'both',
+        'disposition' => 'active',
+        'verification_status' => 'recorded',
+        'updated_at' => $opening->updated_at?->toIso8601String(),
+    ])->assertRedirect()->assertSessionHas('success');
+
+    expect($opening->fresh()->location)->toBe('Level 2');
+});
+
 test('the dashboard charts takeoffs by status', function () {
     $admin = takeoffUser();
     takeoffRecord($admin);
