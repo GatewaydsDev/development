@@ -206,6 +206,7 @@ class MicrosoftGraphMailService
 
         $body = is_array($item['body'] ?? null) ? $item['body'] : [];
         $graphId = (string) ($item['id'] ?? $messageId);
+        $presented = $this->presentAttachments($mailbox, $graphId);
 
         return [
             'id' => EmailPlainText::encodeMessageId($graphId),
@@ -218,14 +219,89 @@ class MicrosoftGraphMailService
                 is_string($body['contentType'] ?? null) ? $body['contentType'] : null,
                 is_string($body['content'] ?? null) ? $body['content'] : (string) ($item['bodyPreview'] ?? ''),
             ),
-            'images' => $this->inlineImages($mailbox, $graphId),
+            'images' => $presented['images'],
+            'attachments' => $presented['attachments'],
         ];
     }
 
     /**
-     * @return list<array{name: string, src: string}>
+     * @return array{bytes: string, name: string, contentType: string, inline: bool}
      */
-    private function inlineImages(string $mailbox, string $messageId): array
+    public function readAttachment(string $mailbox, string $messageId, string $attachmentId): array
+    {
+        $this->assertGraphId($messageId);
+        $this->assertGraphId($attachmentId);
+
+        $url = $this->userUrl($mailbox).'/messages/'.rawurlencode($messageId)
+            .'/attachments/'.rawurlencode($attachmentId);
+        $response = $this->graph('GET', $url, null, false);
+
+        if ($response->status() === 404) {
+            throw new MicrosoftGraphException('Microsoft 365 could not find that attachment.');
+        }
+
+        if ($response->failed()) {
+            throw new MicrosoftGraphException($this->failureMessage($response, false));
+        }
+
+        $item = $response->json();
+
+        if (! is_array($item) || ! $this->isFileAttachment($item)) {
+            throw new MicrosoftGraphException('Microsoft 365 could not find that attachment.');
+        }
+
+        $encoded = preg_replace('/\s+/', '', (string) ($item['contentBytes'] ?? '')) ?? '';
+        $bytes = base64_decode($encoded, true);
+
+        if (! is_string($bytes) || $bytes === '' || strlen($bytes) > 8 * 1024 * 1024) {
+            throw new MicrosoftGraphException('That attachment is too large to open here.');
+        }
+
+        $imageType = $this->imageType($bytes);
+        $pdf = $imageType === null && str_starts_with($bytes, '%PDF-');
+
+        return [
+            'bytes' => $bytes,
+            'name' => $this->attachmentName($item),
+            'contentType' => $imageType ?? ($pdf ? 'application/pdf' : 'application/octet-stream'),
+            'inline' => $imageType !== null || $pdf,
+        ];
+    }
+
+    /**
+     * @return array{images: list<array{name: string, src: string}>, attachments: list<array{id: string, name: string, content_type: string, size: int, image: bool}>}
+     */
+    private function presentAttachments(string $mailbox, string $messageId): array
+    {
+        $images = [];
+        $attachments = [];
+
+        foreach ($this->attachmentItems($mailbox, $messageId) as $item) {
+            $image = count($images) < 8 ? $this->inlineImage($item) : null;
+
+            if ($image !== null) {
+                $images[] = $image;
+
+                continue;
+            }
+
+            $summary = $this->attachmentSummary($item);
+
+            if ($summary !== null && count($attachments) < 20) {
+                $attachments[] = $summary;
+            }
+        }
+
+        return [
+            'images' => $images,
+            'attachments' => $attachments,
+        ];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function attachmentItems(string $mailbox, string $messageId): array
     {
         $url = $this->userUrl($mailbox).'/messages/'.rawurlencode($messageId).'/attachments';
 
@@ -245,25 +321,10 @@ class MicrosoftGraphMailService
             return [];
         }
 
-        $images = [];
-
-        foreach ($items as $item) {
-            if (count($images) >= 8) {
-                break;
-            }
-
-            if (! is_array($item)) {
-                continue;
-            }
-
-            $image = $this->inlineImage($item);
-
-            if ($image !== null) {
-                $images[] = $image;
-            }
-        }
-
-        return $images;
+        return array_values(array_filter(
+            array_slice($items, 0, 30),
+            fn (mixed $item): bool => is_array($item),
+        ));
     }
 
     /**
@@ -308,6 +369,89 @@ class MicrosoftGraphMailService
             'name' => mb_substr($name, 0, 120),
             'src' => 'data:'.$type.';base64,'.preg_replace('/\s+/', '', $bytes),
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     * @return array{id: string, name: string, content_type: string, size: int, image: bool}|null
+     */
+    private function attachmentSummary(array $item): ?array
+    {
+        if (! $this->isFileAttachment($item)) {
+            return null;
+        }
+
+        $id = trim((string) ($item['id'] ?? ''));
+        $token = $id === '' ? '' : EmailPlainText::encodeMessageId($id);
+
+        if ($token === '' || EmailPlainText::decodeMessageId($token) !== $id) {
+            return null;
+        }
+
+        $type = strtolower(trim((string) ($item['contentType'] ?? 'application/octet-stream')));
+
+        if (preg_match('#^[a-z0-9.+-]+/[a-z0-9.+-]+$#', $type) !== 1) {
+            $type = 'application/octet-stream';
+        }
+
+        return [
+            'id' => $token,
+            'name' => $this->attachmentName($item),
+            'content_type' => $type,
+            'size' => max(0, (int) ($item['size'] ?? 0)),
+            'image' => str_starts_with($type, 'image/') && ! str_contains($type, 'svg'),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     */
+    private function isFileAttachment(array $item): bool
+    {
+        $type = strtolower((string) ($item['@odata.type'] ?? ''));
+
+        return $type === '' || str_ends_with($type, 'fileattachment');
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     */
+    private function attachmentName(array $item): string
+    {
+        $name = basename(str_replace('\\', '/', trim(strip_tags((string) ($item['name'] ?? 'Attachment')))));
+        $name = preg_replace('/[^\p{L}\p{N}._ -]/u', '', $name) ?? '';
+        $name = trim($name, ". \t");
+
+        return mb_substr($name !== '' ? $name : 'Attachment', 0, 120);
+    }
+
+    private function imageType(string $bytes): ?string
+    {
+        if (str_starts_with($bytes, "\xFF\xD8\xFF")) {
+            return 'image/jpeg';
+        }
+
+        if (str_starts_with($bytes, "\x89PNG\r\n\x1a\n")) {
+            return 'image/png';
+        }
+
+        if (str_starts_with($bytes, 'GIF87a') || str_starts_with($bytes, 'GIF89a')) {
+            return 'image/gif';
+        }
+
+        if (strlen($bytes) >= 12 && str_starts_with($bytes, 'RIFF') && substr($bytes, 8, 4) === 'WEBP') {
+            return 'image/webp';
+        }
+
+        return null;
+    }
+
+    private function assertGraphId(string $id): void
+    {
+        if ($id === '' || strlen($id) > 512 || preg_match('/[\x00-\x1F]/', $id) === 1
+            || str_contains($id, '/') || str_contains($id, '\\') || str_contains($id, '..')) {
+            throw new MicrosoftGraphException('Microsoft 365 could not find that attachment.');
+        }
     }
 
     public function markRead(string $mailbox, string $messageId): void

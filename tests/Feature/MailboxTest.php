@@ -4,15 +4,15 @@ use App\Exceptions\MicrosoftGraphException;
 use App\Models\MailSavedRecipient;
 use App\Models\User;
 use App\Models\UserActivity;
-use Illuminate\Support\Facades\Queue;
 use App\Models\UserLevel;
-use Illuminate\Http\UploadedFile;
 use App\Services\MicrosoftGraphMailService;
-use App\Support\EmailPlainText;
 use App\Services\MicrosoftGraphPageCursor;
+use App\Support\EmailPlainText;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -163,8 +163,114 @@ test('an opened message shows the embedded picture and hides the content id', fu
         );
 });
 
+test('an attached image can be opened from the signed-in mailbox', function () {
+    $user = mailboxUser();
+    $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', true);
+
+    expect($png)->toBeString()->not->toBe('');
+
+    Cache::flush();
+    config([
+        'services.microsoft.tenant_id' => 'tenant-id',
+        'services.microsoft.client_id' => 'client-id',
+        'services.microsoft.client_secret' => 'client-secret',
+    ]);
+
+    Http::fake(function ($request) use ($png) {
+        if (str_contains($request->url(), 'login.microsoftonline.com')) {
+            return Http::response([
+                'access_token' => 'graph-token',
+                'expires_in' => 3600,
+            ]);
+        }
+
+        $path = rawurldecode((string) (parse_url($request->url(), PHP_URL_PATH) ?? ''));
+
+        if (str_ends_with($path, '/attachments/file-1')) {
+            return Http::response([
+                '@odata.type' => '#microsoft.graph.fileAttachment',
+                'id' => 'file-1',
+                'name' => 'photo.png',
+                'contentType' => 'image/png',
+                'isInline' => false,
+                'size' => strlen($png),
+                'contentBytes' => base64_encode($png),
+            ]);
+        }
+
+        if (str_ends_with($path, '/attachments')) {
+            return Http::response([
+                'value' => [[
+                    '@odata.type' => '#microsoft.graph.fileAttachment',
+                    'id' => 'file-1',
+                    'name' => 'photo.png',
+                    'contentType' => 'image/png',
+                    'isInline' => false,
+                    'size' => strlen($png),
+                ]],
+            ]);
+        }
+
+        if (preg_match('#/messages/[^/]+$#', $path) === 1) {
+            return Http::response([
+                'id' => 'msg-1',
+                'subject' => 'Site photo',
+                'from' => ['emailAddress' => ['address' => 'buyer@example.com']],
+                'toRecipients' => [
+                    ['emailAddress' => ['address' => 'ricardo@gateway-ds.com']],
+                ],
+                'body' => [
+                    'contentType' => 'text',
+                    'content' => 'See the attached photo.',
+                ],
+            ]);
+        }
+
+        return Http::response([
+            'value' => [[
+                'id' => 'msg-1',
+                'subject' => 'Site photo',
+                'from' => ['emailAddress' => ['address' => 'buyer@example.com']],
+                'bodyPreview' => 'See the attached photo.',
+                'receivedDateTime' => '2026-10-15T15:00:00Z',
+                'isRead' => true,
+            ]],
+        ]);
+    });
+
+    $message = EmailPlainText::encodeMessageId('msg-1');
+
+    $this->actingAs($user)
+        ->get(route('mailbox.index', ['message' => $message]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('message.attachments.0.name', 'photo.png')
+            ->where('message.attachments.0.image', true)
+            ->where('message.images', [])
+        );
+
+    $this->actingAs($user)
+        ->get(route('mailbox.attachment', [
+            'message' => $message,
+            'attachment' => EmailPlainText::encodeMessageId('file-1'),
+        ]))
+        ->assertOk()
+        ->assertHeader('content-type', 'image/png')
+        ->assertHeader('x-content-type-options', 'nosniff');
+
+    Http::assertSent(function ($request) {
+        $path = rawurldecode((string) (parse_url($request->url(), PHP_URL_PATH) ?? ''));
+
+        return str_contains($path, '/users/ricardo@gateway-ds.com/messages/msg-1/attachments/file-1');
+    });
+});
+
 test('guests cannot open the mailbox', function () {
     $this->get(route('mailbox.index'))->assertRedirect(route('login'));
+    $this->get(route('mailbox.attachment', [
+        'message' => EmailPlainText::encodeMessageId('msg-1'),
+        'attachment' => EmailPlainText::encodeMessageId('file-1'),
+    ]))->assertRedirect(route('login'));
     $this->post(route('mailbox.send'), [
         'to' => 'buyer@example.com',
         'subject' => 'Hello',
@@ -203,6 +309,13 @@ test('a user without a mailbox cannot read or send mail', function () {
 
     $this->actingAs($user)
         ->get(route('mailbox.index', ['message' => 'abc']))
+        ->assertForbidden();
+
+    $this->actingAs($user)
+        ->get(route('mailbox.attachment', [
+            'message' => EmailPlainText::encodeMessageId('msg-1'),
+            'attachment' => EmailPlainText::encodeMessageId('file-1'),
+        ]))
         ->assertForbidden();
 });
 

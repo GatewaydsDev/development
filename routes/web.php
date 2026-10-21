@@ -11,9 +11,10 @@ use App\Http\Controllers\Admin\ContractorController;
 use App\Http\Controllers\Admin\DocumentSettingController;
 use App\Http\Controllers\Admin\EditorImageController;
 use App\Http\Controllers\Admin\EmployeeAttendanceController;
-use App\Http\Controllers\Admin\ExpenseController;
 use App\Http\Controllers\Admin\EmployeeController;
 use App\Http\Controllers\Admin\EmployeeWorkScheduleController;
+use App\Http\Controllers\Admin\ExpenseController;
+use App\Http\Controllers\Admin\ImpersonationController;
 use App\Http\Controllers\Admin\LanguageController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ProfessionController;
@@ -102,12 +103,16 @@ Route::middleware(['auth', 'verified', 'prevent-back-history'])->group(function 
 });
 
 Route::middleware(['auth', 'prevent-back-history'])->group(function () {
-    Route::delete('/impersonation', [\App\Http\Controllers\Admin\ImpersonationController::class, 'destroy'])
+    Route::delete('/impersonation', [ImpersonationController::class, 'destroy'])
         ->name('impersonation.destroy');
     Route::get('/email', [MailboxController::class, 'index'])->name('mailbox.index');
     Route::get('/email/unread', [MailboxController::class, 'unread'])
         ->middleware('throttle:60,1,mailbox-unread')
         ->name('mailbox.unread');
+    Route::get('/email/attachment/{message}/{attachment}', [MailboxController::class, 'attachment'])
+        ->middleware('throttle:60,1,mailbox-attachment')
+        ->where(['message' => '[A-Za-z0-9\-_]+', 'attachment' => '[A-Za-z0-9\-_]+'])
+        ->name('mailbox.attachment');
     Route::post('/email', [MailboxController::class, 'send'])
         ->middleware('throttle:20,1,mailbox-send')
         ->name('mailbox.send');
@@ -193,7 +198,7 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::patch('/users/{user}', [UserController::class, 'update'])
             ->middleware('can:update-users')
             ->name('users.update');
-        Route::post('/users/{user}/impersonate', [\App\Http\Controllers\Admin\ImpersonationController::class, 'store'])
+        Route::post('/users/{user}/impersonate', [ImpersonationController::class, 'store'])
             ->name('users.impersonate');
         Route::get('/user-activities', [UserActivityController::class, 'index'])
             ->name('user-activities.index');

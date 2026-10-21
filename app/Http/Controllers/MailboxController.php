@@ -14,9 +14,9 @@ use App\Support\MailboxComposition;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -112,6 +112,35 @@ class MailboxController extends Controller
         }
 
         return response()->json($this->unreadSnapshot($user, $mailbox, $graph, $states));
+    }
+
+    public function attachment(
+        Request $request,
+        MicrosoftGraphMailService $graph,
+        string $message,
+        string $attachment,
+    ): \Illuminate\Http\Response {
+        $user = $this->effectiveUser($request->user());
+        $mailbox = $this->mailbox($user?->microsoft_mailbox);
+        $messageId = EmailPlainText::decodeMessageId($message);
+        $attachmentId = EmailPlainText::decodeMessageId($attachment);
+        abort_unless($user instanceof User && $mailbox !== null, 403);
+        abort_if($messageId === null || $attachmentId === null, 404);
+
+        try {
+            $file = $graph->actingAs($user)->readAttachment($mailbox, $messageId, $attachmentId);
+        } catch (MicrosoftGraphException) {
+            abort(404);
+        }
+
+        $disposition = $file['inline'] ? 'inline' : 'attachment';
+
+        return response($file['bytes'], 200, [
+            'Content-Type' => $file['contentType'],
+            'Content-Disposition' => $disposition.'; filename="'.$file['name'].'"',
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'private, no-store',
+        ]);
     }
 
     public function updateState(
