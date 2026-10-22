@@ -1,3 +1,5 @@
+import AiDraftButton from "@/Components/AiDraftButton";
+import { parseLayoutCommand } from "@/lib/layoutCommands";
 import DateMaskInput from "@/Components/DateMaskInput";
 import { Button } from "@/Components/ui/button";
 import StickyDocumentToolbar from "@/Components/StickyDocumentToolbar";
@@ -985,6 +987,14 @@ export function useLayoutElements(
     const [uploadError, setUploadError] = useState<string | null>(null);
     const [dragId, setDragId] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const elementsRef = useRef(elements);
+    const headerHeightRef = useRef(headerHeight);
+    useEffect(() => {
+        elementsRef.current = elements;
+    }, [elements]);
+    useEffect(() => {
+        headerHeightRef.current = headerHeight;
+    }, [headerHeight]);
     const pendingImageFor = useRef<string | null>(null);
     const canvasRefs = useRef<Partial<Record<ElementZone, HTMLDivElement | null>>>({});
     const pendingLayoutSpace = useRef<PendingLayoutSpace | null>(null);
@@ -1089,8 +1099,9 @@ export function useLayoutElements(
     };
 
     const update = (id: string, patch: Partial<LayoutElement>) => {
-        const before = elements.find((element) => element.id === id);
-        const next = elements.map((element) => {
+        const current = elementsRef.current;
+        const before = current.find((element) => element.id === id);
+        const next = current.map((element) => {
                 if (element.id !== id) return element;
                 if (patch.cells) return { ...element, ...patch };
                 if (activeCell?.id === id || activeRow?.id === id) {
@@ -1145,7 +1156,9 @@ export function useLayoutElements(
                 content: measured?.content ?? before.height,
             };
         }
-        onChange(before && after && affectsList ? reflowListLayout(next, before, after, headerHeight, setHeaderHeight) : next);
+        const committed = before && after && affectsList ? reflowListLayout(next, before, after, headerHeight, setHeaderHeight) : next;
+        elementsRef.current = committed;
+        onChange(committed);
     };
 
     const visibleToolbarBottom = () => Math.max(
@@ -1156,36 +1169,67 @@ export function useLayoutElements(
     );
 
     const add = (type: ElementType, zone: ElementZone = targetZone, grid = false, patch: Partial<LayoutElement> = {}) => {
+        const current = elementsRef.current;
         const onPage = zone === "top" || zone === "footer";
         const element = { ...createElement(type, onPage ? "header" : zone), ...patch };
         if (onPage) element.layout_band = zone === "top" ? "header" : "footer";
-        const pageId = targetPage ?? elements.find((item) => item.pdf_page)?.pdf_page;
-        const pageElement = elements.find((item) => item.pdf_page === pageId && pageId);
+        const pageId = targetPage ?? current.find((item) => item.pdf_page)?.pdf_page;
+        const pageElement = current.find((item) => item.pdf_page === pageId && pageId);
         if (pageElement) {
             element.pdf_page = pageElement.pdf_page;
             element.pdf_page_height = pageElement.pdf_page_height;
         }
-        if (grid) {
+        if (grid && !element.cells) {
             element.cells = [["", ""], ["", ""]];
             element.width = 94;
         }
         const canvas = canvasRefs.current[onPage ? "header" : zone];
+        let footerShift = 0;
+        const headerBottom = () => current
+            .filter((item) => (item.layout_band === "header" || item.zone === "top") && !item.pdf_background)
+            .reduce((max, item) => Math.max(max, (item.y ?? 0) + (item.height || 24)), 0);
+        const growPage = (bottom: number) => {
+            const nextHeight = Math.max(headerHeightRef.current, Math.ceil(bottom));
+            headerHeightRef.current = nextHeight;
+            setHeaderHeight(nextHeight);
+        };
+
         if (onPage) {
-            const pageHeight = element.pdf_page_height || pageSheet?.pixelHeight || headerHeight;
+            const pageHeight = element.pdf_page_height || pageSheet?.pixelHeight || headerHeightRef.current;
             element.y = element.layout_band === "footer"
                 ? Math.max(8, pageHeight - Math.max(element.height || 32, 32) - 8)
                 : 8;
+            growPage((element.y ?? 0) + (element.height || 24) + 24);
         } else if (canvas) {
             const box = canvas.getBoundingClientRect();
             const scale = box.height > 0 ? canvas.offsetHeight / box.height : 1;
             const toolbarBottom = visibleToolbarBottom();
             const visibleTop = Math.max(box.top, toolbarBottom);
             element.y = Math.round(Math.max(0, Math.min(2000, (visibleTop + 24 - box.top) * scale)));
-            if (zone === "header") {
-                setHeaderHeight(Math.max(headerHeight, element.y + 120));
-            }
         } else {
             element.y = 24;
+        }
+
+        if (!onPage && zone === "header") {
+            const belowHeader = headerBottom();
+
+            if (belowHeader > 0) {
+                element.y = Math.max(element.y ?? 0, belowHeader + 12);
+            }
+
+            const bottom = (element.y ?? 0) + (element.height || 24);
+            const footerItems = current.filter((item) => item.layout_band === "footer" || item.zone === "footer");
+            const footerTop = footerItems.reduce((min, item) => Math.min(min, item.y ?? Number.POSITIVE_INFINITY), Number.POSITIVE_INFINITY);
+
+            if (footerTop < bottom + 12) {
+                footerShift = bottom + 12 - footerTop;
+            }
+
+            const footerExtent = footerItems.reduce(
+                (max, item) => Math.max(max, (item.y ?? 0) + footerShift + (item.height || 24)),
+                0,
+            );
+            growPage(Math.max(bottom, footerExtent) + 16);
         }
         setTargetZone(zone);
         pendingLayoutSpace.current = {
@@ -1195,7 +1239,16 @@ export function useLayoutElements(
             content: 0,
             insert: true,
         };
-        onChange([...elements, element]);
+        const shifted = footerShift
+            ? current.map((item) => (
+                item.layout_band === "footer" || item.zone === "footer"
+                    ? { ...item, y: (item.y ?? 0) + footerShift }
+                    : item
+            ))
+            : current;
+        const next = [...shifted, element];
+        elementsRef.current = next;
+        onChange(next);
         setSelectedId(element.id);
         requestAnimationFrame(() => {
             const node = canvasRefs.current[zone]?.querySelector<HTMLElement>(
@@ -1210,7 +1263,7 @@ export function useLayoutElements(
             }
         });
 
-        if (type === "image") {
+        if (type === "image" && !element.src) {
             pendingImageFor.current = element.id;
             fileInputRef.current?.click();
         }
@@ -1637,6 +1690,7 @@ export function useLayoutElements(
             setTargetPage(undefined);
         },
         elements,
+        elementsRef,
         fields,
         selectedId,
         selectedIds,
@@ -2174,10 +2228,18 @@ export default function LayoutElementsEditor({
     controller,
     error,
     children,
+    ai,
 }: {
     controller: LayoutElementsController;
     error?: string;
     children: ReactNode;
+    ai?: {
+        surface: "quotation" | "bid" | "print_layout";
+        facts?: Record<string, string>;
+        missing?: string[];
+        onBlocked?: () => void;
+        logoSrc?: string;
+    };
 }) {
     const {
         elements,
@@ -2224,9 +2286,143 @@ export default function LayoutElementsEditor({
         setPreviewOpen(true);
     };
 
+    const logo = ai?.logoSrc?.trim() || "/images/Gateway_Door_Systems_Logo.png";
+    const runCommand = (command: string) => {
+        const actions = parseLayoutCommand(command);
+
+        if (!actions) {
+            return null;
+        }
+
+        const messages: string[] = [];
+        let rowDelta = 0;
+        let columnDelta = 0;
+        let headerRow = false;
+        let headerColor = "";
+
+        actions.forEach((action) => {
+            if (action.kind === "add") {
+                const patch = { ...action.patch };
+
+                if (patch.src === "__LOGO__") {
+                    const placed = controller.elementsRef.current.some((element) => element.type === "image" && element.src === logo && (
+                        action.zone === "footer" ? element.layout_band === "footer" : element.layout_band === "header"
+                    ));
+
+                    if (placed) {
+                        messages.push(action.zone === "footer"
+                            ? "The company logo is already in the footer."
+                            : "The company logo is already in the header.");
+
+                        return;
+                    }
+
+                    patch.src = logo;
+                }
+
+                add(action.element, action.zone, action.grid, patch as Partial<LayoutElement>);
+                messages.push(action.message);
+
+                return;
+            }
+
+            if (action.kind === "rows") {
+                rowDelta += action.count;
+            }
+
+            if (action.kind === "columns") {
+                columnDelta += action.count;
+            }
+
+            if (action.kind === "header-row") {
+                headerRow = true;
+                if (action.color) {
+                    headerColor = action.color;
+                }
+            }
+
+            messages.push(action.message);
+        });
+
+        if (rowDelta || columnDelta || headerRow) {
+            const table = [...controller.elementsRef.current].reverse().find((element) => element.type === "table");
+
+            if (!table) {
+                add("table", "header", true, {
+                    cells: Array.from({ length: 1 + rowDelta }, () => Array.from({ length: 2 + columnDelta }, () => "")),
+                    width: 94,
+                    height: (1 + rowDelta) * 28,
+                    border: true,
+                    header_row: headerRow,
+                    ...(headerColor ? { label_bg: headerColor, header_color: "#ffffff" } : {}),
+                });
+                messages.push("There was no table on the page, so one was added.");
+            } else if (table.cells?.length) {
+                const rows = table.cells.length + rowDelta;
+                const columns = table.cells[0].length + columnDelta;
+                update(table.id, {
+                    ...growLayoutTable(table as Parameters<typeof growLayoutTable>[0], rows, columns),
+                    height: Math.max(table.height, rows * 28),
+                    ...(headerRow ? { header_row: true, label_bg: headerColor || table.label_bg || "#e5e9f0", header_color: headerColor ? "#ffffff" : table.header_color } : {}),
+                });
+            } else if (rowDelta) {
+                const items = [...(table.items ?? [])];
+
+                for (let index = 0; index < rowDelta; index += 1) {
+                    items.push({ label: "Item", value: "" });
+                }
+
+                update(table.id, {
+                    items,
+                    columns: Math.min(3, (table.columns ?? 2) + columnDelta),
+                    height: Math.max(table.height, items.length * 28),
+                    ...(headerRow ? { header_row: true, label_bg: headerColor || table.label_bg || "#e5e9f0", header_color: headerColor ? "#ffffff" : table.header_color } : {}),
+                });
+            } else {
+                const columns = Math.min(3, (table.columns ?? 2) + columnDelta);
+                update(table.id, {
+                    columns,
+                    ...(headerRow ? { header_row: true, label_bg: headerColor || table.label_bg || "#e5e9f0", header_color: headerColor ? "#ffffff" : table.header_color } : {}),
+                });
+
+                if (columnDelta && columns === (table.columns ?? 2)) {
+                    messages.push("This info table already shows 3 pairs on a row.");
+                }
+            }
+        }
+
+        return { steps: messages.length > 0 ? messages : ["The command was applied."] };
+    };
+
     return (
         <openLayoutPreview.Provider value={showPreview}>
         <div ref={editorRef} className="flex flex-col gap-4">
+            <AiDraftButton
+                surface={ai?.surface ?? "print_layout"}
+                facts={ai?.facts ?? { component: "Layout" }}
+                missing={ai?.missing}
+                onBlocked={ai?.onBlocked}
+                onCommand={runCommand}
+                currentText={elements.filter((element) => element.type === "text").map((element) => element.content).join("\n")}
+                onDraft={(text) => {
+                    const plain = text
+                        .replace(/<br\s*\/?>/gi, "\n")
+                        .replace(/<\/p>/gi, "\n")
+                        .replace(/<[^>]+>/g, "")
+                        .replace(/\n{3,}/g, "\n\n")
+                        .trim();
+
+                    if (!plain) {
+                        return;
+                    }
+
+                    add("text", "header", false, {
+                        content: plain,
+                        width: 94,
+                        height: Math.min(320, Math.max(48, plain.split("\n").length * 18 + 16)),
+                    });
+                }}
+            />
             <StickyDocumentToolbar scopeRef={editorRef} className="rounded-xl border border-border">
             <div role="toolbar" aria-label="Print layout tools" className="flex flex-col">
             <div className="flex items-center justify-between gap-3 border-b border-border px-2 py-2">
@@ -3372,18 +3568,20 @@ function ElementInspector({
                             onChange={onChange}
                         />
                     ) : (
-                        <PropertyRow name="Text">
-                            <textarea
-                                ref={textRef}
-                                rows={element.pdf_line_count ?? 4}
-                                maxLength={20000}
-                                value={element.content}
-                                onChange={(event) =>
-                                    onChange({ content: event.target.value })
-                                }
-                                className="min-h-16 w-full resize-y bg-white px-1 py-1 text-[13px] text-slate-900 outline-none"
-                            />
-                        </PropertyRow>
+                        <>
+                            <PropertyRow name="Text">
+                                <textarea
+                                    ref={textRef}
+                                    rows={element.pdf_line_count ?? 4}
+                                    maxLength={20000}
+                                    value={element.content}
+                                    onChange={(event) =>
+                                        onChange({ content: event.target.value })
+                                    }
+                                    className="min-h-16 w-full resize-y bg-white px-1 py-1 text-[13px] text-slate-900 outline-none"
+                                />
+                            </PropertyRow>
+                        </>
                     )}
                     {element.pdf_text_runs?.length && (!element.list_style || element.list_style === "none") ? <span className="mt-1 block text-xs font-normal text-muted-foreground">
                         Imported paragraph: {element.pdf_line_count} lines. Enter one replacement line per original line. Original positions and inline font styles are retained; formatting controls can override them.
@@ -3974,7 +4172,7 @@ export function PreviewZone({
                 }}
             >
                 {zone === "header" && !page && controller.pageSheet && canvasHeight > controller.pageSheet.pixelHeight + 1
-                    ? Array.from({ length: Math.floor(canvasHeight / controller.pageSheet.pixelHeight) }, (_, index) => (
+                    ? Array.from({ length: Math.min(12, Math.floor(canvasHeight / controller.pageSheet.pixelHeight)) }, (_, index) => (
                         <div
                             key={`page-break-${index}`}
                             className="pointer-events-none absolute inset-x-0 z-20 border-t-2 border-dashed border-emerald-600"

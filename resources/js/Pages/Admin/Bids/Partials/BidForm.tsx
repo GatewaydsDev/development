@@ -296,6 +296,7 @@ export default function BidForm({
         handleSubmit,
         setValue,
         setError,
+        clearErrors,
         getValues,
         reset,
         formState: { errors: validationErrors, isSubmitting },
@@ -340,6 +341,14 @@ export default function BidForm({
     }) as BidFormData;
     const savedBaseline = useRef(JSON.stringify(defaultValues));
     const hasUnsavedChanges = JSON.stringify(data) !== savedBaseline.current;
+    const aiMissing = data.project_id?.trim() ? [] : ['Select a project.'];
+
+    useEffect(() => {
+        if (data.project_id?.trim() && validationErrors.project_id?.type === 'manual') {
+            clearErrors('project_id');
+        }
+    }, [clearErrors, data.project_id, validationErrors.project_id]);
+
     const selectedProject = options.projects.find(
         (project) => String(project.id) === (data.project_id ?? ''),
     );
@@ -1207,6 +1216,19 @@ export default function BidForm({
                 extraFieldValues={extraFieldValues}
                 showLayoutPicker
                 design={data.layout_elements}
+                aiFacts={{
+                    project: selectedProject?.name ?? '',
+                    project_number: selectedProject?.project_number ?? '',
+                    contractor: selectedProject?.contractor_name ?? '',
+                    site: selectedProject?.site_address ?? '',
+                    scopes: (data.scopes ?? []).map((scope) => scope.title_name).filter(Boolean).join(', '),
+                }}
+                aiMissing={aiMissing}
+                onAiBlocked={() => {
+                    setError('project_id', { type: 'manual', message: 'Select a project.' });
+                    document.getElementById('bid-project')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }}
+                logoSrc={options.company?.logo_url || '/images/Gateway_Door_Systems_Logo.png'}
                 onDesignChange={(design, html) => {
                     setData('layout_elements', design);
                     setData('notes', html);

@@ -43,6 +43,16 @@ return [
         ],
     ],
 
+    /*
+    | Your own model, reached through an OpenAI-compatible chat address.
+    | A model on this server can use http://127.0.0.1:11434/v1 and a blank key.
+    */
+    'ai' => [
+        'base_url' => env('AI_BASE_URL'),
+        'key' => env('AI_API_KEY'),
+        'model' => env('AI_MODEL'),
+    ],
+
     'twilio' => [
         'sid' => env('TWILIO_SID'),
         'token' => env('TWILIO_AUTH_TOKEN', env('TWILIO_TOKEN')),
