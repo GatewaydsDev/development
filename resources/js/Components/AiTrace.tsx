@@ -1,7 +1,6 @@
 import { Button } from '@/Components/ui/button';
 import { cn } from '@/lib/utils';
 import { CheckIcon, LoaderCircleIcon, XIcon } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
 
 export type AiTraceEntry = {
     id: string;
@@ -17,57 +16,21 @@ export default function AiTrace({
     entries: AiTraceEntry[];
     onClear: () => void;
 }) {
-    const [collapsed, setCollapsed] = useState(false);
-    const seen = useRef(0);
-
-    useEffect(() => {
-        if (entries.length > seen.current) {
-            setCollapsed(false);
-        }
-
-        seen.current = entries.length;
-    }, [entries.length]);
-
     if (entries.length === 0) {
         return null;
-    }
-
-    if (collapsed) {
-        return (
-            <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="bg-background shadow-lg"
-                onClick={() => setCollapsed(false)}
-            >
-                Trace ({entries.length})
-            </Button>
-        );
     }
 
     return (
         <section
             aria-live="polite"
             aria-label="AI trace"
-            className="flex max-h-[min(24rem,70vh)] w-[min(20rem,calc(100vw-16rem))] flex-col overflow-hidden rounded-xl border border-border bg-background text-foreground shadow-xl"
+            className="flex max-h-64 flex-col overflow-hidden rounded-md border border-border bg-background text-foreground"
         >
             <header className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
                 <h2 className="text-sm font-semibold">AI trace</h2>
-                <div className="flex items-center gap-1">
-                    <Button type="button" variant="ghost" size="xs" onClick={onClear}>
-                        Clear
-                    </Button>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-xs"
-                        aria-label="Hide the AI trace"
-                        onClick={() => setCollapsed(true)}
-                    >
-                        <XIcon />
-                    </Button>
-                </div>
+                <Button type="button" variant="ghost" size="xs" onClick={onClear}>
+                    Clear
+                </Button>
             </header>
             <ol className="flex flex-col gap-3 overflow-y-auto p-3">
                 {entries.map((entry) => (

@@ -10,7 +10,6 @@ import {
 } from '@/Components/ui/dialog';
 import { SparklesIcon } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 import { registerFabTool } from '@/lib/fabStack';
 
@@ -62,7 +61,6 @@ export default function AiDraftButton({
     const cancelRef = useRef(false);
     const [open, setOpen] = useState(false);
     const [question, setQuestion] = useState('');
-    const [answer, setAnswer] = useState('');
     const [busy, setBusy] = useState(false);
     const [trace, setTrace] = useState<AiTraceEntry[]>([]);
     const asked = question.trim();
@@ -107,8 +105,6 @@ export default function AiDraftButton({
                     status: 'done',
                 });
                 setQuestion('');
-                setAnswer('');
-                setOpen(false);
                 toast.success('Added to the page. Save when you want to keep it.');
 
                 return;
@@ -167,14 +163,13 @@ export default function AiDraftButton({
                 return;
             }
 
-            setAnswer(readable);
             onDraft(text);
             remember({
                 command: asked,
                 steps: ['Added the answer to the page.', readable],
                 status: 'done',
             }, traceId);
-            setOpen(false);
+            setQuestion('');
             toast.success('Added to the page. Save when you want to keep it.');
         } catch (error) {
             if (error instanceof DOMException && error.name === 'AbortError') {
@@ -217,18 +212,8 @@ export default function AiDraftButton({
         onOpen: () => openPopupRef.current(),
     }), [blocked]);
 
-    const tracePanel = trace.length === 0 || typeof document === 'undefined'
-        ? null
-        : createPortal(
-            <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-[calc(max(6.25rem,env(safe-area-inset-right)+5.5rem)+4.25rem)] z-[44] sm:bottom-8 sm:right-[12.75rem] landscape:bottom-3 landscape:right-[10.25rem]">
-                <AiTrace entries={trace} onClear={() => setTrace([])} />
-            </div>,
-            document.body,
-        );
-
     return (
         <>
-            {tracePanel}
             <Dialog open={open} onOpenChange={(next) => {
                 if (!next) {
                     stopRequest();
@@ -309,11 +294,7 @@ export default function AiDraftButton({
                                     </Button>
                                 </DialogFooter>
                             </div>
-                            {answer ? (
-                                <div className="max-h-64 overflow-y-auto rounded-md border border-border bg-background p-2">
-                                    <p className="whitespace-pre-wrap text-sm text-foreground">{answer}</p>
-                                </div>
-                            ) : null}
+                            <AiTrace entries={trace} onClear={() => setTrace([])} />
                         </>
                     )}
                 </DialogContent>
