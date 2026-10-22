@@ -113,3 +113,35 @@ test('print layout drafts are limited to a super admin and come back as plain te
         ->assertOk()
         ->assertJsonPath('text', 'Door schedule for {{project_name}}');
 });
+
+test('a takeoff question comes back as plain text for someone who can edit takeoffs', function () {
+    config([
+        'services.ai.base_url' => 'http://ai.test/v1',
+        'services.ai.key' => 'test-key',
+        'services.ai.model' => 'local-model',
+    ]);
+    Http::fake([
+        'http://ai.test/v1/chat/completions' => Http::response([
+            'choices' => [[
+                'message' => ['content' => '<p>Door 101 is 3 feet wide.</p>'],
+            ]],
+        ]),
+    ]);
+    $viewer = User::factory()->create(['level_id' => null]);
+    $this->actingAs($viewer)
+        ->postJson(route('admin.ai.draft'), ['surface' => 'takeoff', 'question' => 'How wide is door 101?'])
+        ->assertForbidden();
+
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $admin = User::factory()->create(['level_id' => $level->id]);
+
+    $this->actingAs($admin)
+        ->postJson(route('admin.ai.draft'), [
+            'surface' => 'takeoff',
+            'question' => 'How wide is door 101?',
+            'facts' => ['openings' => '12'],
+            'current_text' => '101 · door · 3 x 7 ft',
+        ])
+        ->assertOk()
+        ->assertJsonPath('text', 'Door 101 is 3 feet wide.');
+});

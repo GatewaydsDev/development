@@ -14,7 +14,7 @@ class AiDraftController extends Controller
     public function store(Request $request, AiDraftService $drafts): JsonResponse
     {
         $validated = $request->validate([
-            'surface' => ['required', 'string', Rule::in(['quotation', 'bid', 'print_layout'])],
+            'surface' => ['required', 'string', Rule::in(['quotation', 'bid', 'print_layout', 'takeoff'])],
             'question' => ['nullable', 'string', 'max:2000'],
             'current_text' => ['nullable', 'string', 'max:8000'],
             'facts' => ['nullable', 'array', 'max:30'],
@@ -27,6 +27,7 @@ class AiDraftController extends Controller
             'quotation' => $user?->can('create-quotations') || $user?->can('update-quotations'),
             'bid' => $user?->can('create-bids') || $user?->can('update-bids'),
             'print_layout' => (bool) $user?->isSuperAdmin(),
+            'takeoff' => $user?->can('create-takeoffs') || $user?->can('update-takeoffs'),
             default => false,
         };
         abort_unless($allowed, 403);

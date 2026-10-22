@@ -3,6 +3,7 @@ import DateMaskInput from '@/Components/DateMaskInput';
 import QuickContractorContactDialog from '@/Components/QuickContractorContactDialog';
 import QuickProjectDialog from '@/Components/QuickProjectDialog';
 import FormActionFab from '@/Components/FormActionFab';
+import QuotationHelp from '@/Pages/Admin/Quotations/Partials/QuotationHelp';
 import ProjectPricePicker from '@/Components/ProjectPricePicker';
 import QuotationTakeoffOpenings from '@/Pages/Admin/Quotations/Partials/QuotationTakeoffOpenings';
 import RevisionReviewEmail from '@/Pages/Admin/Quotations/Partials/RevisionReviewEmail';
@@ -830,6 +831,7 @@ export default function QuotationForm({
                 printLabel={savedQuotation ? 'Print quotation' : 'Print'}
                 showPrint={true}
             />
+            <QuotationHelp mode={savedQuotation ? 'update' : 'create'} />
 
             <div className="flex flex-col gap-1">
                 <h3 className="text-base font-semibold text-foreground">

@@ -475,14 +475,14 @@ export default function Authenticated({
                     setSidebarCollapsed((value) => !value)
                 }
                 className={cn(
-                    'hidden shrink-0 rounded-none border-y-0 border-l-0 border-r border-[#cfe0d6] shadow-none transition-all duration-300 lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex lg:overflow-hidden dark:border-white/10',
+                    'hidden shrink-0 rounded-none border-y-0 border-l-0 border-r border-[#cfe0d6] shadow-none transition-[width] duration-500 ease-in-out motion-reduce:transition-none lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex lg:overflow-hidden dark:border-white/10',
                     sidebarCollapsed ? 'lg:w-16' : 'lg:w-72 xl:w-80',
                 )}
             />
 
             <div
                 className={cn(
-                    'flex min-h-screen flex-col transition-all duration-300',
+                    'flex min-h-screen flex-col transition-[padding] duration-500 ease-in-out motion-reduce:transition-none',
                     sidebarCollapsed ? 'lg:pl-16' : 'lg:pl-72 xl:pl-80',
                 )}
             >
@@ -1236,7 +1236,7 @@ export default function Authenticated({
                         <div
                             data-sticky-page-title
                             className={cn(
-                                'fixed left-0 right-0 z-30 border-b border-border bg-card/95 shadow-sm backdrop-blur transition-all duration-300',
+                                'fixed left-0 right-0 z-30 border-b border-border bg-card/95 shadow-sm backdrop-blur transition-[left] duration-500 ease-in-out motion-reduce:transition-none',
                                 sidebarCollapsed
                                     ? 'lg:left-16'
                                     : 'lg:left-72 xl:left-80',

@@ -50,7 +50,7 @@ export default function AiTrace({
         <section
             aria-live="polite"
             aria-label="AI trace"
-            className="flex max-h-[min(24rem,70vh)] w-[min(20rem,calc(100vw-6.5rem))] flex-col overflow-hidden rounded-xl border border-border bg-background text-foreground shadow-xl"
+            className="flex max-h-[min(24rem,70vh)] w-[min(20rem,calc(100vw-16rem))] flex-col overflow-hidden rounded-xl border border-border bg-background text-foreground shadow-xl"
         >
             <header className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
                 <h2 className="text-sm font-semibold">AI trace</h2>
