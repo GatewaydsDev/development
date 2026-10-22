@@ -13,6 +13,7 @@ use App\Models\ProjectRevision;
 use App\Models\ProjectScope;
 use App\Models\ProjectScopeType;
 use App\Models\ProjectStatus;
+use App\Models\Quotation;
 use App\Models\Service;
 use App\Models\User;
 use App\Models\UserLevel;
@@ -31,6 +32,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -55,6 +57,7 @@ class ProjectController extends Controller
                 'highlight' => $highlight !== '' ? $highlight : null,
             ],
             'options' => $this->options($user),
+            'summary' => $this->projectListSummary($request),
             'projects' => $this->projectListingQuery($request)
                 ->when($highlight !== '', function ($query) use ($highlight): void {
                     $query->orderByRaw('CASE WHEN uuid = ? THEN 0 ELSE 1 END', [$highlight]);
@@ -397,9 +400,15 @@ class ProjectController extends Controller
                 'scopes.service',
                 'revisions',
                 'status',
+                'quotations' => fn ($query) => $query
+                    ->select('id', 'uuid', 'project_id', 'quotation_number', 'title', 'status')
+                    ->latest('id'),
                 'bids' => fn ($query) => $query
                     ->latest('id')
-                    ->with(['scopes.title']),
+                    ->with(['scopes.title', 'stages.type']),
+                'takeoffs' => fn ($query) => $query
+                    ->select('id', 'uuid', 'project_id', 'title', 'status')
+                    ->latest('id'),
             ])
             ->select('projects.*')
             ->withCount('bids')
@@ -433,6 +442,40 @@ class ProjectController extends Controller
                 });
             })
             ->when($status > 0, fn ($query) => $query->where('project_status_id', $status));
+    }
+
+    /**
+     * @return array{total: int, amount: string|null, in_quotation: int, in_bid: int, in_takeoff: int}
+     */
+    private function projectListSummary(Request $request): array
+    {
+        $projects = $this->projectListingQuery($request)->reorder();
+        $summary = [
+            'total' => (clone $projects)->count(),
+            'amount' => null,
+            'in_quotation' => (clone $projects)->whereHas('quotations')->count(),
+            'in_bid' => (clone $projects)->whereHas('bids')->count(),
+            'in_takeoff' => (clone $projects)->whereHas('takeoffs')->count(),
+        ];
+
+        if (! ProjectAccess::canViewSensitiveFields($request->user())) {
+            return $summary;
+        }
+
+        $ids = (clone $projects)->pluck('projects.id');
+        $pricedIds = ProjectPrice::query()
+            ->whereIn('project_id', $ids)
+            ->distinct()
+            ->pluck('project_id');
+        $priceSum = (float) ProjectPrice::query()->whereIn('project_id', $ids)->sum('amount');
+        $budgetSum = (float) Project::query()
+            ->whereIn('id', $ids)
+            ->when($pricedIds->isNotEmpty(), fn ($query) => $query->whereNotIn('id', $pricedIds))
+            ->sum('budget_amount');
+
+        $summary['amount'] = number_format($priceSum + $budgetSum, 2, '.', '');
+
+        return $summary;
     }
 
     private function listDocument(Request $request): ProjectListDocument
@@ -999,6 +1042,9 @@ class ProjectController extends Controller
                 : null,
             'created_at' => $project->created_at?->toFormattedDateString(),
             'updated_at' => $project->updated_at?->toFormattedDateString(),
+            'quotation' => $this->linkedQuotation($project),
+            'bid' => $this->linkedBid($project),
+            'takeoff' => $this->linkedTakeoff($project),
             'bids_count' => (int) ($project->bids_count ?? $project->bids()->count()),
             'latest_bid_id' => $project->latest_bid_id
                 ? (int) $project->latest_bid_id
@@ -1043,6 +1089,79 @@ class ProjectController extends Controller
         }
 
         return $payload;
+    }
+
+    /**
+     * @return array{uuid: string, number: string|null, title: string|null, status: string, status_label: string}|null
+     */
+    private function linkedQuotation(Project $project): ?array
+    {
+        $quotation = $project->relationLoaded('quotations')
+            ? $project->quotations->sortByDesc('id')->first()
+            : $project->quotations()->latest('id')->first();
+
+        if (! $quotation) {
+            return null;
+        }
+
+        return [
+            'uuid' => $quotation->uuid,
+            'number' => $quotation->quotation_number,
+            'title' => $quotation->title,
+            'status' => (string) $quotation->status,
+            'status_label' => Quotation::statusLabel((string) $quotation->status),
+        ];
+    }
+
+    /**
+     * @return array{uuid: string, status: string}|null
+     */
+    private function linkedBid(Project $project): ?array
+    {
+        $bid = $project->relationLoaded('bids')
+            ? $project->bids->sortByDesc('id')->first()
+            : $project->bids()->latest('id')->first();
+
+        if (! $bid) {
+            return null;
+        }
+
+        $bid->loadMissing('stages.type');
+        $stage = $bid->stages->last()?->type?->name;
+
+        return [
+            'uuid' => $bid->uuid,
+            'status' => $stage ?: 'No stage',
+        ];
+    }
+
+    /**
+     * @return array{uuid: string, title: string, status: string, status_label: string}|null
+     */
+    private function linkedTakeoff(Project $project): ?array
+    {
+        $takeoff = $project->relationLoaded('takeoffs')
+            ? $project->takeoffs->sortByDesc('id')->first()
+            : $project->takeoffs()->latest('id')->first();
+
+        if (! $takeoff) {
+            return null;
+        }
+
+        $status = (string) $takeoff->status;
+
+        return [
+            'uuid' => $takeoff->uuid,
+            'title' => $takeoff->title,
+            'status' => $status,
+            'status_label' => match ($status) {
+                'draft' => 'Draft',
+                'in_review' => 'In review',
+                'approved' => 'Approved',
+                'archived' => 'Archived',
+                default => Str::headline($status),
+            },
+        ];
     }
 
     /**

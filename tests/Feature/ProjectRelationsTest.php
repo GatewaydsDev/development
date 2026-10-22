@@ -2,11 +2,13 @@
 
 use App\Models\Bid;
 use App\Models\BidScopeTitle;
+use App\Models\BidStageType;
 use App\Models\Contractor;
 use App\Models\Project;
 use App\Models\ProjectScopeType;
 use App\Models\ProjectStatus;
 use App\Models\Quotation;
+use App\Models\Takeoff;
 use App\Models\User;
 use App\Models\UserLevel;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -858,6 +860,10 @@ test('the projects table shows when a project is linked to a bid', function () {
             ->where('projects.data.0.bids_count', 1)
             ->where('projects.data.0.latest_bid_id', $bid->id)
             ->where('projects.data.0.latest_bid_uuid', $bid->uuid)
+            ->where('projects.data.0.bid.uuid', $bid->uuid)
+            ->where('projects.data.0.bid.status', 'No stage')
+            ->where('projects.data.0.quotation', null)
+            ->where('projects.data.0.takeoff', null)
             ->where('projects.data.0.bid_scopes.0.name', 'RF Doors')
         );
 });
@@ -1068,4 +1074,69 @@ test('a quotation can add a contractor contact without leaving the form', functi
     expect($contact->name)->toBe('Alex Rivera');
     expect($contact->is_primary)->toBeTrue();
     expect($contact->email)->toBe('alex@turner.example');
+});
+
+test('the projects list shows the linked quotation bid and takeoff with their status', function () {
+    $admin = projectAdmin();
+    $contractor = Contractor::create(['name' => 'Harbor Facilities']);
+    $project = Project::create([
+        'name' => 'Linked documents project',
+        'project_status_id' => projectStatusId(),
+        'priority' => 'normal',
+        'budget_amount' => 99,
+        'created_by' => $admin->id,
+    ]);
+    $project->prices()->create([
+        'label' => '2 windows',
+        'amount' => 800,
+        'sort_order' => 1,
+    ]);
+    $project->prices()->create([
+        'label' => '3 windows',
+        'amount' => 700.50,
+        'sort_order' => 2,
+    ]);
+    $quotation = Quotation::create([
+        'contractor_id' => $contractor->id,
+        'project_id' => $project->id,
+        'title' => 'Door quote',
+        'status' => 'sent',
+        'created_by' => $admin->id,
+    ]);
+    $bid = Bid::create([
+        'project_id' => $project->id,
+        'created_by' => $admin->id,
+    ]);
+    $stage = BidStageType::create(['name' => 'Submitted']);
+    $bid->stages()->create([
+        'bid_stage_type_id' => $stage->id,
+        'sort_order' => 1,
+    ]);
+    $takeoff = Takeoff::create([
+        'project_id' => $project->id,
+        'title' => 'Door schedule',
+        'status' => 'in_review',
+        'created_by' => $admin->id,
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.projects.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('projects.data.0.quotation.uuid', $quotation->uuid)
+            ->where('projects.data.0.quotation.number', $quotation->quotation_number)
+            ->where('projects.data.0.quotation.status', 'sent')
+            ->where('projects.data.0.quotation.status_label', 'Sent')
+            ->where('projects.data.0.bid.uuid', $bid->uuid)
+            ->where('projects.data.0.bid.status', 'Submitted')
+            ->where('projects.data.0.takeoff.uuid', $takeoff->uuid)
+            ->where('projects.data.0.takeoff.title', 'Door schedule')
+            ->where('projects.data.0.takeoff.status', 'in_review')
+            ->where('projects.data.0.takeoff.status_label', 'In review')
+            ->where('summary.total', 1)
+            ->where('summary.amount', '1500.50')
+            ->where('summary.in_quotation', 1)
+            ->where('summary.in_bid', 1)
+            ->where('summary.in_takeoff', 1)
+        );
 });

@@ -130,6 +130,23 @@ export type ProjectPayload = {
     } | null;
     created_at: string | null;
     updated_at: string | null;
+    quotation?: {
+        uuid: string;
+        number: string | null;
+        title: string | null;
+        status: string;
+        status_label: string;
+    } | null;
+    bid?: {
+        uuid: string;
+        status: string;
+    } | null;
+    takeoff?: {
+        uuid: string;
+        title: string;
+        status: string;
+        status_label: string;
+    } | null;
     bids_count?: number;
     latest_bid_uuid?: string | null;
     bid_scopes?: Array<{
