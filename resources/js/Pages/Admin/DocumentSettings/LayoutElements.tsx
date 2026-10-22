@@ -1,4 +1,5 @@
 import AiDraftButton from "@/Components/AiDraftButton";
+import InspectorSelect from "@/Components/InspectorSelect";
 import { parseLayoutCommand } from "@/lib/layoutCommands";
 import DateMaskInput from "@/Components/DateMaskInput";
 import { Button } from "@/Components/ui/button";
@@ -2644,7 +2645,7 @@ export default function LayoutElementsEditor({
 
                 <div className="min-w-0">
                 <StickyDocumentToolbar scopeRef={editorRef} propertiesPanel>
-                <aside aria-label="Object Inspector" className="min-w-0">
+                <aside aria-label="Object Inspector" className="object-inspector min-w-0">
                     <ObjectInspector
                         elements={elements}
                         selectedId={selected?.id ?? ""}
@@ -2999,7 +3000,7 @@ function ObjectInspector({
                 Object Inspector
             </div>
             <div className="border-b border-[#b0b0b0] bg-white p-1">
-                <select
+                <InspectorSelect
                     aria-label="Component"
                     className="h-8 w-full border border-[#b0b0b0] bg-white px-1 text-sm font-semibold"
                     value={selectedId}
@@ -3011,7 +3012,7 @@ function ObjectInspector({
                             {componentOptionLabel(element, elements)}
                         </option>
                     ))}
-                </select>
+                </InspectorSelect>
             </div>
             <div className="flex items-end border-b border-[#b0b0b0] bg-[#f0f0f0] px-1">
                 <span className="-mb-px border border-b-white border-[#b0b0b0] bg-white px-3 py-1 text-sm">Properties</span>
@@ -3150,15 +3151,15 @@ function FieldFormatBar({
                 <InspectorCheck label={`${id} underline`} checked={!!style.underline} onChange={(checked) => onChange({ underline: checked })} />
             </PropertyRow>
             <PropertyRow name="Align">
-                <select aria-label={`${id} align`} className={inspectorInput} value={style.align ?? "left"} onChange={(event) => onChange({ align: event.target.value as TableTextStyle["align"] })}>
+                <InspectorSelect aria-label={`${id} align`} className={inspectorInput} value={style.align ?? "left"} onChange={(event) => onChange({ align: event.target.value as TableTextStyle["align"] })}>
                     <option value="left">Left</option>
                     <option value="center">Center</option>
                     <option value="right">Right</option>
                     <option value="justify">Justify</option>
-                </select>
+                </InspectorSelect>
             </PropertyRow>
             <PropertyRow name="Font">
-                <select
+                <InspectorSelect
                     aria-label={`${id} font`}
                     value={importedFont ? "pdf-imported" : style.font_family ?? "default"}
                     className={inspectorInput}
@@ -3171,7 +3172,7 @@ function FieldFormatBar({
                     {PRINT_LAYOUT_FONT_CHOICES.map((choice) => (
                         <option key={choice.id} value={choice.id} style={{ fontFamily: choice.stack }}>{choice.label}</option>
                     ))}
-                </select>
+                </InspectorSelect>
             </PropertyRow>
             <PropertyRow name="Font size">
                 <input
@@ -3198,17 +3199,17 @@ function FieldFormatBar({
                 />
             </PropertyRow>
             <PropertyRow name="Text case">
-                <select
+                <InspectorSelect
                     aria-label={`${id} text case`}
                     value={style.text_case ?? "original"}
                     className={inspectorInput}
                     onChange={(event) => onChange({ text_case: event.target.value as ElementCase })}
                 >
                     {caseChoices.map((choice) => <option key={choice.id} value={choice.id}>{choice.label}</option>)}
-                </select>
+                </InspectorSelect>
             </PropertyRow>
             <PropertyRow name="Line spacing">
-                <select
+                <InspectorSelect
                     aria-label={`${id} line spacing`}
                     value={importedLineSpacing ? "pdf-original" : String(style.line_height ?? 1.35)}
                     className={inspectorInput}
@@ -3222,7 +3223,7 @@ function FieldFormatBar({
                     <option value={1.35}>Default</option>
                     <option value={1.5}>1.5</option>
                     <option value={2}>Double</option>
-                </select>
+                </InspectorSelect>
             </PropertyRow>
         </>
     );
@@ -3350,7 +3351,7 @@ function ElementInspector({
                         </>
                     ) : null}
                     <PropertyRow name="Alternating">
-                        <select className={inspectorInput} aria-label="Alternating background" value={element.stripe_direction ?? "none"}
+                        <InspectorSelect className={inspectorInput} aria-label="Alternating background" value={element.stripe_direction ?? "none"}
                             onChange={(event) => onChange({
                                 stripe_direction: event.target.value as NonNullable<LayoutElement["stripe_direction"]>,
                                 ...(event.target.value === "columns" && (!element.stripe_color_a || element.stripe_color_a.toLowerCase() === "#ffffff")
@@ -3362,7 +3363,7 @@ function ElementInspector({
                             <option value="none">None</option>
                             <option value="rows">Rows</option>
                             <option value="columns">Columns</option>
-                        </select>
+                        </InspectorSelect>
                     </PropertyRow>
                     {element.stripe_direction && element.stripe_direction !== "none" ? (
                         <>
@@ -3678,7 +3679,7 @@ function ElementInspector({
                         onChange={onChange}
                     />
                     <PropertyRow name="Validity period">
-                    <select aria-label="Validity period" value={element.validity_days === undefined ? 30 : (element.validity_days ?? "")}
+                    <InspectorSelect aria-label="Validity period" value={element.validity_days === undefined ? 30 : (element.validity_days ?? "")}
                         className={inspectorInput}
                         onChange={(event) => {
                             const next = event.target.value;
@@ -3692,7 +3693,7 @@ function ElementInspector({
                         <option value={30}>30 days</option>
                         <option value={60}>60 days</option>
                         <option value={90}>90 days</option>
-                    </select>
+                    </InspectorSelect>
                     </PropertyRow>
                     <PropertyRow name="Date">
                     {element.validity_days === null ? (
@@ -3744,11 +3745,11 @@ function ElementInspector({
 
             {element.type === "image" || element.type === "divider" ? (
                 <PropertyRow name="Align">
-                    <select aria-label="Alignment" className={inspectorInput} value={element.align ?? "left"} onChange={(event) => onChange({ align: event.target.value as LayoutElement["align"] })}>
+                    <InspectorSelect aria-label="Alignment" className={inspectorInput} value={element.align ?? "left"} onChange={(event) => onChange({ align: event.target.value as LayoutElement["align"] })}>
                         <option value="left">Left</option>
                         <option value="center">Center</option>
                         <option value="right">Right</option>
-                    </select>
+                    </InspectorSelect>
                 </PropertyRow>
             ) : null}
 
@@ -3813,7 +3814,7 @@ function ElementInspector({
 
             {element.type === "text" ? (
                 <PropertyRow name="List style">
-                    <select
+                    <InspectorSelect
                         aria-label="List style"
                         value={element.list_style ?? "none"}
                         onChange={(event) => onChange({
@@ -3824,13 +3825,13 @@ function ElementInspector({
                         <option value="none">Plain text</option>
                         <option value="bullet">Bullets</option>
                         <option value="numbered">Numbered list</option>
-                    </select>
+                    </InspectorSelect>
                 </PropertyRow>
             ) : null}
 
             {element.type === "text" && element.list_style && element.list_style !== "none" ? (
                 <PropertyRow name="Bullet spacing">
-                    <select
+                    <InspectorSelect
                         aria-label="Bullet spacing"
                         value={element.list_flow ?? (listKeepsOriginalSpace(element) ? "original" : "auto")}
                         onChange={(event) => onChange({ list_flow: event.target.value as LayoutElement["list_flow"] })}
@@ -3838,7 +3839,7 @@ function ElementInspector({
                     >
                         <option value="original">Keep the original PDF spacing</option>
                         <option value="auto">Auto-adjust with the rest of the layout</option>
-                    </select>
+                    </InspectorSelect>
                 </PropertyRow>
             ) : null}
 
@@ -4524,7 +4525,7 @@ function CompanyFieldsEditor({
                     ) : null}
                 </ul>
                 {available.length > 0 ? (
-                    <select
+                    <InspectorSelect
                         aria-label="Add a company field"
                         value=""
                         onChange={(event) => {
@@ -4542,13 +4543,13 @@ function CompanyFieldsEditor({
                                 {field.label.replace("Company ", "")}
                             </option>
                         ))}
-                    </select>
+                    </InspectorSelect>
                 ) : null}
             </div>
 
             <label className={labelClass}>
                 Display as
-                <select
+                <InspectorSelect
                     value={layout}
                     onChange={(event) =>
                         onChange({
@@ -4559,14 +4560,14 @@ function CompanyFieldsEditor({
                 >
                     <option value="lines">Lines of text</option>
                     <option value="table">Table</option>
-                </select>
+                </InspectorSelect>
             </label>
 
             {layout === "table" ? (
                 <div className="flex items-end gap-3">
                     <label className={cn(labelClass, "flex-1")}>
                         Columns
-                        <select
+                        <InspectorSelect
                             value={element.columns ?? 2}
                             onChange={(event) =>
                                 onChange({
@@ -4580,7 +4581,7 @@ function CompanyFieldsEditor({
                                     {count}
                                 </option>
                             ))}
-                        </select>
+                        </InspectorSelect>
                     </label>
                     <label className="flex items-center gap-2 pb-2 text-sm">
                         <input
@@ -4635,7 +4636,7 @@ function TableCellFields({ element, cell, fields, onChange, fieldClass, labelCla
                 className={fieldClass} onChange={(event) => setContent(event.target.value)} />
         </label>
         <label className={labelClass}>Field name
-            <select aria-label="Field name for selected cell" value="" disabled={!available}
+            <InspectorSelect aria-label="Field name for selected cell" value="" disabled={!available}
                 className={fieldClass} onChange={(event) => {
                     if (event.target.value) setContent(content + `{{${event.target.value}}}`);
                 }}>
@@ -4646,7 +4647,7 @@ function TableCellFields({ element, cell, fields, onChange, fieldClass, labelCla
                             <option key={field.key} value={field.key}
                                 disabled={content.length + `{{${field.key}}}`.length > 300}>{field.label}</option>)}
                     </optgroup>)}
-            </select>
+            </InspectorSelect>
         </label>
         {!fields.length ? <p className="text-xs text-muted-foreground">No document fields are available.</p>
             : !available ? <p role="alert" className="text-xs text-destructive">Not enough space to add a field. Cell text is limited to 300 characters.</p> : null}
@@ -4692,7 +4693,7 @@ function TableFieldPicker({ element, elements, fields, onChange, fieldClass, lab
     return <div className="flex flex-col gap-3">
         <p className="text-sm font-semibold">Table field</p>
         <label className={labelClass}>Source table
-            <select aria-label="Table field source" value={tableId} className={fieldClass}
+            <InspectorSelect aria-label="Table field source" value={tableId} className={fieldClass}
                 onChange={(event) => select({ tableId: event.target.value, row: 1, column: 1 })}>
                 <option value="">Choose a table</option>
                 {tables.map((item, index) => {
@@ -4702,23 +4703,23 @@ function TableFieldPicker({ element, elements, fields, onChange, fieldClass, lab
                         Table {index + 1}{sample ? `: ${sample}` : ""} ({size.rows} rows, {size.columns} columns)
                     </option>;
                 })}
-            </select>
+            </InspectorSelect>
         </label>
         {!tables.length ? <p className="text-xs text-muted-foreground">Add a table to this layout first.</p> : null}
         <div className="flex gap-2">
             <label className={cn(labelClass, "min-w-0 flex-1")}>Row
-                <select aria-label="Table field row" value={row} disabled={!table} className={fieldClass}
+                <InspectorSelect aria-label="Table field row" value={row} disabled={!table} className={fieldClass}
                     onChange={(event) => select({ row: Number(event.target.value) })}>
                     {Array.from({ length: dimensions.rows }, (_, index) =>
                         <option key={index} value={index + 1}>Row {index + 1}</option>)}
-                </select>
+                </InspectorSelect>
             </label>
             <label className={cn(labelClass, "min-w-0 flex-1")}>Column
-                <select aria-label="Table field column" value={column} disabled={!table} className={fieldClass}
+                <InspectorSelect aria-label="Table field column" value={column} disabled={!table} className={fieldClass}
                     onChange={(event) => select({ column: Number(event.target.value) })}>
                     {Array.from({ length: dimensions.columns }, (_, index) =>
                         <option key={index} value={index + 1}>Column {index + 1}{!table?.cells ? index % 2 === 0 ? " (name)" : " (value)" : ""}</option>)}
-                </select>
+                </InspectorSelect>
             </label>
         </div>
         {table ? <p className="break-words text-xs text-muted-foreground" aria-live="polite">
@@ -4852,7 +4853,7 @@ function TableEditor({
                             />
                         </PropertyRow>
                         <PropertyRow name="Insert field">
-                            <select
+                            <InspectorSelect
                                 aria-label="Insert a field into the value"
                                 value=""
                                 onChange={(event) => {
@@ -4870,7 +4871,7 @@ function TableEditor({
                                         {field.group}: {field.label}
                                     </option>
                                 ))}
-                            </select>
+                            </InspectorSelect>
                         </PropertyRow>
                     </PropertyGroup>
                     <PropertyRow name="Order">
@@ -4899,7 +4900,7 @@ function TableEditor({
                 + Add row
             </button>
             <PropertyRow name="Pairs per row">
-                <select
+                <InspectorSelect
                     aria-label="Pairs per row"
                     value={element.columns ?? 2}
                     onChange={(event) => onChange({ columns: Number(event.target.value) })}
@@ -4908,7 +4909,7 @@ function TableEditor({
                     {[1, 2, 3].map((count) => (
                         <option key={count} value={count}>{count}</option>
                     ))}
-                </select>
+                </InspectorSelect>
             </PropertyRow>
             <PropertyRow name="Name width">
                 <input

@@ -152,7 +152,7 @@ export default function MailSettings({
         'h-7 border border-[#b0b0b0] bg-[#f4f4f4] px-2 text-[12px] text-neutral-900 hover:bg-[#e7f0fb] disabled:opacity-50';
 
     return (
-        <aside aria-label={t('objectInspector')} className="min-w-0">
+        <aside aria-label={t('objectInspector')} className="object-inspector min-w-0">
             <div className="overflow-hidden border border-[#b0b0b0] bg-[#f0f0f0] text-neutral-900 shadow-sm">
                 <div className="border-b border-[#b0b0b0] bg-[#f4f4f4] px-2 py-1.5 text-sm font-semibold">
                     {t('objectInspector')}
