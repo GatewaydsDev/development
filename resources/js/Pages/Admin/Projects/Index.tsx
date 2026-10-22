@@ -13,6 +13,7 @@ import {
     CardTitle,
 } from '@/Components/ui/card';
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { formatCurrency } from '@/lib/money';
 import { cn } from '@/lib/utils';
 import { PageProps } from '@/types';
 import {
@@ -39,6 +40,13 @@ type IndexProps = {
     };
     options: ProjectOptions;
     projects: ProjectsPaginator;
+    summary: {
+        total: number;
+        amount: string | null;
+        in_quotation: number;
+        in_bid: number;
+        in_takeoff: number;
+    };
     listVersion: string;
 };
 
@@ -76,10 +84,13 @@ export default function Index({
     filters,
     options,
     projects,
+    summary,
     listVersion,
 }: IndexProps) {
     const { auth } = usePage<PageProps>().props;
     const canViewBids = Boolean(auth.can?.viewBids);
+    const canViewQuotations = Boolean(auth.can?.viewQuotations);
+    const canViewTakeoffs = Boolean(auth.can?.viewTakeoffs);
     const [search, setSearch] = useState(filters.search ?? '');
     const [status, setStatus] = useState(filters.status ?? '');
     const highlightedProjectUuid = filters.highlight ?? null;
@@ -94,7 +105,7 @@ export default function Index({
             ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, [highlightedProjectUuid]);
 
-    useProjectListRefresh(listVersion, ['projects', 'listVersion']);
+    useProjectListRefresh(listVersion, ['projects', 'summary', 'listVersion']);
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
@@ -115,7 +126,7 @@ export default function Index({
     };
 
     const projectRowGridClassName =
-        'w-full xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_7rem_minmax(0,0.9fr)_minmax(0,7.5rem)_minmax(0,6.5rem)_12.5rem]';
+        'w-full xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,1.25fr)_minmax(0,0.8fr)_minmax(0,7rem)_minmax(0,6rem)_12.5rem]';
 
     return (
         <AuthenticatedLayout
@@ -147,23 +158,29 @@ export default function Index({
 
             <div className="py-6 sm:py-8">
                 <div className="mx-auto flex max-w-[96rem] flex-col gap-6 px-4 sm:px-6 lg:px-8">
-                    <div className="grid gap-4 md:ml-auto md:w-full md:max-w-sm">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <BriefcaseIcon className="size-4 text-muted-foreground" />
-                                    Total projects
-                                </CardTitle>
-                                <CardDescription>
-                                    Current records in the system.
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-3xl font-semibold">
-                                    {projects.total}
-                                </p>
-                            </CardContent>
-                        </Card>
+                    <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                        <ProjectTotal
+                            label="Total"
+                            value={summary.total}
+                            amount={summary.amount}
+                            className="border-emerald-300 bg-emerald-50 text-emerald-950 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-100"
+                            ruleClassName="border-emerald-200 dark:border-emerald-800"
+                        />
+                        <ProjectTotal
+                            label="Current projects in quotation"
+                            value={summary.in_quotation}
+                            className="border-indigo-300 bg-indigo-50 text-indigo-950 dark:border-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-100"
+                        />
+                        <ProjectTotal
+                            label="Current projects in bid"
+                            value={summary.in_bid}
+                            className="border-sky-300 bg-sky-50 text-sky-950 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-100"
+                        />
+                        <ProjectTotal
+                            label="Current projects in takeoff"
+                            value={summary.in_takeoff}
+                            className="border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-100"
+                        />
                     </div>
 
                     <Card className="shadow-sm">
@@ -254,7 +271,7 @@ export default function Index({
 
                         <CardContent>
                             <div className="overflow-x-auto rounded-lg border border-border">
-                                <div className="xl:min-w-[82rem]">
+                                <div className="xl:min-w-[92rem]">
                                 <div
                                     className={cn(
                                         'hidden items-center gap-6 border-b border-border bg-muted/50 px-5 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground xl:grid',
@@ -263,7 +280,7 @@ export default function Index({
                                 >
                                     <div>Project</div>
                                     <div>Contractors</div>
-                                    <div>Bid/Estimate</div>
+                                    <div>Quotation, bid, takeoff</div>
                                     <div>Bid scope</div>
                                     <div>Status</div>
                                     <div>Priority</div>
@@ -327,46 +344,43 @@ export default function Index({
                                                     <p>No contractor</p>
                                                 )}
                                             </div>
-                                            <div className="min-w-0">
+                                            <div className="flex min-w-0 flex-col gap-2">
                                                 <DirectoryFieldLabel hideFrom="xl">
-                                                    Bid/Estimate
+                                                    Quotation, bid, takeoff
                                                 </DirectoryFieldLabel>
-                                                {project.bids_count ? (
-                                                    canViewBids &&
-                                                    project.latest_bid_uuid ? (
-                                                        <Link
-                                                            href={route(
-                                                                'admin.bids.show',
-                                                                project.latest_bid_uuid,
-                                                            )}
-                                                            className="inline-flex"
-                                                        >
-                                                            <Badge
-                                                                variant="outline"
-                                                                className="border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/40 dark:text-emerald-300"
-                                                            >
-                                                                {project.bids_count ===
-                                                                1
-                                                                    ? 'Linked'
-                                                                    : `${project.bids_count} linked`}
-                                                            </Badge>
-                                                        </Link>
-                                                    ) : (
-                                                        <Badge
-                                                            variant="outline"
-                                                            className="border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/40 dark:text-emerald-300"
-                                                        >
-                                                            {project.bids_count ===
-                                                            1
-                                                                ? 'Linked'
-                                                                : `${project.bids_count} linked`}
-                                                        </Badge>
-                                                    )
-                                                ) : (
-                                                    <span className="text-sm text-muted-foreground">
-                                                        Not linked
-                                                    </span>
-                                                )}
+                                                <LinkedRecord
+                                                    label="Quotation"
+                                                    name={project.quotation?.number || project.quotation?.title}
+                                                    status={project.quotation?.status_label}
+                                                    href={
+                                                        canViewQuotations && project.quotation
+                                                            ? route('admin.quotations.show', project.quotation.uuid)
+                                                            : null
+                                                    }
+                                                    className="border-indigo-200 bg-indigo-50 text-indigo-950 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-100"
+                                                />
+                                                <LinkedRecord
+                                                    label="Bid"
+                                                    name={project.bid ? (project.bids_count && project.bids_count > 1 ? `Latest of ${project.bids_count}` : 'Bid') : null}
+                                                    status={project.bid?.status}
+                                                    href={
+                                                        canViewBids && project.bid
+                                                            ? route('admin.bids.show', project.bid.uuid)
+                                                            : null
+                                                    }
+                                                    className="border-sky-200 bg-sky-50 text-sky-950 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-100"
+                                                />
+                                                <LinkedRecord
+                                                    label="Takeoff"
+                                                    name={project.takeoff?.title}
+                                                    status={project.takeoff?.status_label}
+                                                    href={
+                                                        canViewTakeoffs && project.takeoff
+                                                            ? route('admin.takeoffs.show', project.takeoff.uuid)
+                                                            : null
+                                                    }
+                                                    className="border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100"
+                                                />
                                             </div>
                                             <div className="min-w-0">
                                                 <DirectoryFieldLabel hideFrom="xl">
@@ -569,5 +583,75 @@ export default function Index({
                 </div>
             </div>
         </AuthenticatedLayout>
+    );
+}
+
+function ProjectTotal({
+    label,
+    value,
+    amount,
+    className,
+    ruleClassName,
+}: {
+    label: string;
+    value: number;
+    amount?: string | null;
+    className: string;
+    ruleClassName?: string;
+}) {
+    return (
+        <div className={cn('flex flex-col gap-1 rounded-lg border-l-4 px-3 py-2.5', className)}>
+            <p className="text-sm font-semibold leading-snug">{label}</p>
+            <p className="text-right text-xl font-semibold tabular-nums leading-none">{value}</p>
+            {amount != null && (
+                <p className={cn('border-t pt-1.5 text-right text-sm font-semibold tabular-nums', ruleClassName)}>
+                    {formatCurrency(amount)}
+                </p>
+            )}
+        </div>
+    );
+}
+
+function LinkedRecord({
+    label,
+    name,
+    status,
+    href,
+    className,
+}: {
+    label: string;
+    name?: string | null;
+    status?: string | null;
+    href?: string | null;
+    className: string;
+}) {
+    const content = (
+        <span className="flex min-w-0 items-center justify-between gap-2">
+            <span className="min-w-0">
+                <span className="block text-[11px] font-semibold uppercase tracking-wide opacity-70">
+                    {label}
+                </span>
+                <span className="block truncate text-sm font-medium">
+                    {name || `No ${label.toLowerCase()}`}
+                </span>
+            </span>
+            {status ? (
+                <Badge variant="outline" className="h-auto shrink-0 whitespace-normal bg-background/80 py-0.5">
+                    {status}
+                </Badge>
+            ) : null}
+        </span>
+    );
+
+    const boxClassName = cn('block rounded-md border px-2.5 py-1.5', className);
+
+    if (!name || !href) {
+        return <div className={boxClassName}>{content}</div>;
+    }
+
+    return (
+        <Link href={href} className={cn(boxClassName, 'hover:brightness-95')}>
+            {content}
+        </Link>
     );
 }
