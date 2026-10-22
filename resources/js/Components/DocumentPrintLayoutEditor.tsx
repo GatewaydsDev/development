@@ -1,3 +1,4 @@
+import AiDraftButton from '@/Components/AiDraftButton';
 import RichTextEditor from '@/Components/RichTextEditor';
 import {
     AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
@@ -15,6 +16,7 @@ import LayoutElementsEditor, {
     type ElementCase, type LayoutElement, type MergeField,
 } from '@/Pages/Admin/DocumentSettings/LayoutElements';
 import type { QuotationLayoutDesign } from '@/Pages/Admin/Quotations/types';
+import { parseLayoutCommand } from '@/lib/layoutCommands';
 import { PRINT_LAYOUT_WIDTH } from '@/lib/printLayoutGeometry';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -32,6 +34,10 @@ type Props = {
     componentCanvas?: boolean;
     design?: QuotationLayoutDesign;
     onDesignChange?: (design: QuotationLayoutDesign, html: string) => void;
+    aiFacts?: Record<string, string>;
+    aiMissing?: string[];
+    onAiBlocked?: () => void;
+    logoSrc?: string;
     showPicker?: boolean;
     selectionRequest?: { id: string; token: number } | null;
 } & Pick<React.ComponentProps<typeof RichTextEditor>,
@@ -126,7 +132,7 @@ export function layoutPreviewFields({
 }
 
 function QuotationComponentCanvas({
-    design, literals, fieldKeys, fields, error, onDesignChange,
+    design, literals, fieldKeys, fields, error, onDesignChange, ai,
 }: {
     design: QuotationLayoutDesign;
     literals: Record<string, string>;
@@ -134,6 +140,13 @@ function QuotationComponentCanvas({
     fields: MergeField[];
     error?: string;
     onDesignChange: (design: QuotationLayoutDesign, html: string) => void;
+    ai?: {
+        surface: 'quotation' | 'bid';
+        facts?: Record<string, string>;
+        missing?: string[];
+        onBlocked?: () => void;
+        logoSrc?: string;
+    };
 }) {
     const designRef = useRef(design);
     const literalsRef = useRef(literals);
@@ -175,7 +188,7 @@ function QuotationComponentCanvas({
         <div className="flex min-w-0 flex-col gap-4">
             <LayoutElementsFileInput controller={controller} />
             <ImportPanel controller={controller} />
-            <LayoutElementsEditor controller={controller} error={error}>
+            <LayoutElementsEditor controller={controller} error={error} ai={ai}>
                 <div className="rounded-xl bg-muted/40 p-4 sm:p-6">
                     <article className="mx-auto overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-800 shadow-xl shadow-slate-900/10">
                         <div className="overflow-x-auto">
@@ -201,7 +214,7 @@ const activeLayout = (catalog: PrintLayoutCatalog, id: string) =>
 export default function DocumentPrintLayoutEditor({
     document: documentType, catalog: initialCatalog, layoutId, version,
     onLayoutChange, literals, fieldKeys, hasUnsavedChanges, onSaveCurrent,
-    componentCanvas = false, design, onDesignChange, showPicker = true,
+    componentCanvas = false, design, onDesignChange, aiFacts, aiMissing = [], onAiBlocked, logoSrc, showPicker = true,
     selectionRequest = null, ...editorProps
 }: Props) {
     const [catalog, setCatalog] = useState(initialCatalog);
@@ -444,9 +457,119 @@ export default function DocumentPrintLayoutEditor({
     const replacedArea = componentCanvas
         ? 'text, tables, and images on the page'
         : documentType === 'bid' ? 'bid information' : 'quotation header';
+    const draftSource = componentCanvas
+        ? (design?.elements ?? []).filter((element) => element.type === 'text').map((element) => element.content ?? '').join('\n')
+        : editorProps.value ?? '';
+    const editorRef = useRef<HTMLDivElement>(null);
+    const applyDraft = (text: string) => {
+        const plain = text
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<\/p>/gi, '\n')
+            .replace(/<[^>]+>/g, '')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+
+        if (!plain) {
+            return;
+        }
+
+        if (componentCanvas && onDesignChange) {
+            const current = design ?? { elements: [], header_height: 160, header_background: '#ffffff', text_case: 'original' };
+            const elements = cloneLayoutElements(current.elements);
+            const bottom = elements.reduce((max, element) => Math.max(max, (Number(element.y) || 0) + (Number(element.height) || 0)), 0);
+            const height = Math.min(320, Math.max(48, plain.split('\n').length * 18 + 16));
+            const y = bottom > 0 ? bottom + 8 : 10;
+
+            elements.push({
+                id: `el-ai-${Date.now().toString(36)}`,
+                type: 'text',
+                zone: 'header',
+                content: plain,
+                align: 'left',
+                x: 3,
+                y,
+                width: 94,
+                height,
+                font_size: 12,
+                color: '#000000',
+            } as PrintLayoutElement);
+
+            const next = {
+                ...current,
+                elements,
+                header_height: Math.min(4000, Math.max(current.header_height ?? 160, y + height + 16)),
+            };
+            canvasEdited.current = true;
+            onDesignChange(next, quotationComponentsHtml(next, literals, fieldKeys));
+            editorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            return;
+        }
+
+        const block = `<p>${plain
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/\n/g, '<br>')}</p>`;
+        const existing = editorProps.value ?? '';
+        editorProps.onChange?.(existing.trim() ? `${existing}${block}` : block);
+        editorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
+    const runRichCommand = (command: string) => {
+        const actions = parseLayoutCommand(command);
+
+        if (!actions) {
+            return null;
+        }
+
+        const src = logoSrc?.trim() || '/images/Gateway_Door_Systems_Logo.png';
+        const escape = (value: string) => value
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+        const blocks = actions.map((action) => {
+            if (action.kind === 'rows') {
+                return '<tr><td></td><td></td></tr>'.repeat(action.count);
+            }
+
+            if (action.kind === 'columns' || action.kind === 'header-row') {
+                return '';
+            }
+
+            if (action.element === 'table') {
+                const cells = Array.isArray(action.patch.cells) ? action.patch.cells as string[][] : [['', ''], ['', '']];
+                const header = action.patch.header_row === true;
+                const background = String(action.patch.label_bg ?? '#0a2540');
+                const color = String(action.patch.header_color ?? '#ffffff');
+
+                return `<table><tbody>${cells.map((row, index) => `<tr>${row.map(() => (
+                    index === 0 && header
+                        ? `<th style="background:${background};color:${color}"></th>`
+                        : '<td></td>'
+                )).join('')}</tr>`).join('')}</tbody></table>`;
+            }
+
+            if (action.element === 'image') {
+                return `<p><img src="${src.replace(/"/g, '')}" alt="Company logo" style="height:64px"></p>`;
+            }
+
+            if (action.element === 'divider') {
+                return '<hr>';
+            }
+
+            return `<p>${escape(String(action.patch.content ?? action.element))}</p>`;
+        }).filter(Boolean);
+        const existing = editorProps.value ?? '';
+        editorProps.onChange?.(`${existing}${blocks.join('')}`);
+        editorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        return {
+            steps: actions.map((action) => action.message).filter((message) => message.trim() !== ''),
+        };
+    };
 
     return (
-        <div className="flex min-w-0 flex-col gap-3">
+        <div ref={editorRef} className="flex min-w-0 flex-col gap-3">
             {showPicker ? (
                 <BidPrintLayoutPicker
                     layouts={catalog.printLayouts}
@@ -465,8 +588,26 @@ export default function DocumentPrintLayoutEditor({
                         : 'Saved layout changes are checked while this document editor is open.'}
             </p>
             {checkError ? <p role="alert" className="text-sm text-destructive">{checkError}</p> : null}
+            {componentCanvas ? null : (
+                <AiDraftButton
+                    surface={documentType}
+                    facts={aiFacts}
+                    missing={aiMissing}
+                    onBlocked={onAiBlocked}
+                    onCommand={runRichCommand}
+                    currentText={draftSource}
+                    onDraft={applyDraft}
+                />
+            )}
             {componentCanvas ? (
                 <QuotationComponentCanvas
+                    ai={{
+                        surface: documentType,
+                        facts: aiFacts,
+                        missing: aiMissing,
+                        onBlocked: onAiBlocked,
+                        logoSrc,
+                    }}
                     design={design ?? { elements: [], header_height: 160, header_background: '#ffffff', text_case: 'original' }}
                     literals={literals}
                     fieldKeys={fieldKeys}

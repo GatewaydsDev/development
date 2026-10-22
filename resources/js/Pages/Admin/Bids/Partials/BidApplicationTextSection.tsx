@@ -62,6 +62,10 @@ type BidApplicationTextSectionProps = {
     selectionRequest?: { id: string; token: number } | null;
     design?: QuotationLayoutDesign;
     onDesignChange?: (design: QuotationLayoutDesign, html: string) => void;
+    aiFacts?: Record<string, string>;
+    aiMissing?: string[];
+    onAiBlocked?: () => void;
+    logoSrc?: string;
     value: string;
     templateId: string;
     error?: string;
@@ -292,6 +296,10 @@ export default function BidApplicationTextSection({
     selectionRequest = null,
     design,
     onDesignChange,
+    aiFacts,
+    aiMissing,
+    onAiBlocked,
+    logoSrc,
     value,
     templateId,
     error,
@@ -706,6 +714,10 @@ export default function BidApplicationTextSection({
                         componentCanvas={Boolean(onDesignChange)}
                         design={design}
                         onDesignChange={onDesignChange}
+                        aiFacts={aiFacts}
+                        aiMissing={aiMissing}
+                        onAiBlocked={onAiBlocked}
+                        logoSrc={logoSrc}
                         showPicker={showLayoutPicker}
                         selectionRequest={selectionRequest}
                         catalog={{ printLayouts, assignedPrintLayoutId: options.assignedPrintLayoutId }}

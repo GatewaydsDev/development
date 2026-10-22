@@ -966,6 +966,7 @@ class QuotationController extends Controller
             'contact_phone' => $company?->contact_phone_number,
             'website' => $company?->website_url,
             'contact_url' => $company?->contact_url,
+            'logo_url' => $company?->logo_path ? asset('storage/'.$company->logo_path) : null,
             'address' => $company
                 ? BidApplicationText::formatAddress(
                     $company->address_line_1,

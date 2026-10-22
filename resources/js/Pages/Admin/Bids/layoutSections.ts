@@ -7,6 +7,7 @@ export type PrintLayoutElement = TableStriping & PdfLayoutElement & {
     id: string;
     type: string;
     zone?: string;
+    layout_band?: 'header' | 'footer';
     content?: string;
     src?: string;
     align?: string;

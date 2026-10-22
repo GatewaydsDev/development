@@ -237,6 +237,7 @@ export type QuotationOptions = {
         contact_phone?: string | null;
         website?: string | null;
         contact_url?: string | null;
+        logo_url?: string | null;
     };
     statuses: QuotationStatusOption[];
     contractors: QuotationContractorOption[];

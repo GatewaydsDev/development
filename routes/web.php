@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AccessControlController;
 use App\Http\Controllers\Admin\AccountController;
+use App\Http\Controllers\Admin\AiDraftController;
 use App\Http\Controllers\Admin\BidCatalogController;
 use App\Http\Controllers\Admin\BidController;
 use App\Http\Controllers\Admin\CertificationController;
@@ -223,6 +224,9 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::post('/expenses/{expense}', [ExpenseController::class, 'update'])->name('expenses.update');
         Route::delete('/expenses/{expense}', [ExpenseController::class, 'destroy'])->name('expenses.destroy');
         Route::get('/expenses/{expense}/receipt', [ExpenseController::class, 'receipt'])->name('expenses.receipt');
+        Route::post('/ai/draft', [AiDraftController::class, 'store'])
+            ->middleware('throttle:12,1,ai-draft')
+            ->name('ai.draft');
         Route::get('/document-settings', [DocumentSettingController::class, 'edit'])
             ->name('document-settings.edit');
         Route::get('/document-layouts/{document}', [DocumentSettingController::class, 'catalog'])

@@ -504,6 +504,41 @@ export default function QuotationForm({
     const selectedContractor = allContractors.find(
         (contractor) => String(contractor.id) === data.contractor_id,
     );
+    const aiRequirements = [
+        { id: 'project_id', field: 'project_id' as const, filled: Boolean(data.project_id?.trim()), message: 'Select a project.' },
+        { id: 'contractor_id', field: 'contractor_id' as const, filled: Boolean(data.contractor_id?.trim()), message: 'Select a contractor.' },
+        { id: 'title', field: 'title' as const, filled: Boolean(data.title?.trim()), message: 'Select or add a quotation title.' },
+        { id: 'project_amount', field: 'project_amount' as const, filled: Boolean(data.project_amount?.trim()), message: 'Enter the amount for this quotation.' },
+    ];
+    const aiMissing = aiRequirements.filter((item) => !item.filled).map((item) => item.message);
+
+    useEffect(() => {
+        if (data.project_id?.trim() && validationErrors.project_id?.type === 'manual') {
+            clearErrors('project_id');
+        }
+
+        if (data.contractor_id?.trim() && validationErrors.contractor_id?.type === 'manual') {
+            clearErrors('contractor_id');
+        }
+
+        if (data.title?.trim() && validationErrors.title?.type === 'manual') {
+            clearErrors('title');
+        }
+
+        if (data.project_amount?.trim() && validationErrors.project_amount?.type === 'manual') {
+            clearErrors('project_amount');
+        }
+    }, [
+        clearErrors,
+        data.contractor_id,
+        data.project_amount,
+        data.project_id,
+        data.title,
+        validationErrors.contractor_id,
+        validationErrors.project_amount,
+        validationErrors.project_id,
+        validationErrors.title,
+    ]);
     const contractorOptions = allContractors.filter(
         (contractor) =>
             (contractor.role === 'owner' ? 'owner' : 'contractor') ===
@@ -521,6 +556,7 @@ export default function QuotationForm({
               : [];
     };
 
+    const selectedProject = options.projects.find((project) => String(project.id) === data.project_id);
     const insertValues = quotationInsertValues(data, options, quotation);
     const layoutLiterals = {
         company_name: options.company?.name ?? '',
@@ -1472,6 +1508,27 @@ export default function QuotationForm({
                     layoutId={data.print_layout_id}
                     version={data.print_layout_version}
                     design={data.layout_elements}
+                    aiFacts={{
+                        title: data.title ?? '',
+                        proposal_title: data.proposal_title ?? '',
+                        project: selectedProject?.name ?? '',
+                        project_number: selectedProject?.project_number ?? '',
+                        site: selectedProject?.site_address ?? '',
+                        contractor: selectedContractor?.name ?? '',
+                        amount: data.project_amount ?? '',
+                    }}
+                    aiMissing={aiMissing}
+                    logoSrc={options.company?.logo_url || '/images/Gateway_Door_Systems_Logo.png'}
+                    onAiBlocked={() => {
+                        const first = aiRequirements.find((item) => !item.filled);
+
+                        aiRequirements.forEach((item) => {
+                            if (!item.filled) {
+                                setError(item.field, { type: 'manual', message: item.message });
+                            }
+                        });
+                        document.getElementById(first?.id ?? '')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }}
                     onDesignChange={(design, html) => {
                         setValue('layout_elements', design, { shouldDirty: true });
                         setValue('layout_header', html, { shouldDirty: true });
