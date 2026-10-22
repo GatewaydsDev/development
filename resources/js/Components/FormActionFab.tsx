@@ -1,7 +1,8 @@
 import { Button } from '@/Components/ui/button';
 import { cn } from '@/lib/utils';
+import { useFabTools } from '@/lib/fabStack';
 import { Link } from '@inertiajs/react';
-import { CheckIcon, MenuIcon, PrinterIcon, XIcon } from 'lucide-react';
+import { CheckIcon, CircleHelpIcon, MenuIcon, PrinterIcon, SparklesIcon, XIcon } from 'lucide-react';
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -59,6 +60,7 @@ export default function FormActionFab({
     }, [form, generatedFormId]);
 
     const hasPrint = showPrint || Boolean(printHref) || Boolean(onPrint);
+    const tools = useFabTools();
 
     useEffect(() => {
         const count = Number(document.body.dataset.formActionFab || 0) + 1;
@@ -96,7 +98,7 @@ export default function FormActionFab({
     const fab = (
         <div
             ref={rootRef}
-            className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-[max(0.75rem,env(safe-area-inset-right))] z-[45] flex flex-col items-center gap-1.5 sm:bottom-8 sm:right-5 sm:gap-2 landscape:bottom-3 landscape:right-3 landscape:gap-1"
+            className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-[max(0.75rem,env(safe-area-inset-right))] z-[45] flex w-14 flex-col items-center gap-1.5 sm:bottom-8 sm:right-5 sm:w-16 sm:gap-2 landscape:bottom-3 landscape:right-3 landscape:w-12 landscape:gap-1"
         >
             <div
                 className={cn(
@@ -237,6 +239,32 @@ export default function FormActionFab({
                         </Link>
                     </Button>
                 )}
+                {tools.map((tool) => {
+                    const Icon = tool.icon === 'ai' ? SparklesIcon : CircleHelpIcon;
+
+                    return (
+                        <Button
+                            key={tool.id}
+                            type="button"
+                            variant="outline"
+                            aria-label={tool.label}
+                            title={tool.label}
+                            onClick={() => {
+                                setIsOpen(false);
+                                tool.onOpen();
+                            }}
+                            className={cn(
+                                'size-11 rounded-full bg-background shadow-lg transition-all duration-300 ease-out sm:size-13 landscape:size-10',
+                                tool.icon === 'ai'
+                                    ? 'border-primary/40 text-primary hover:bg-primary/10'
+                                    : 'border-border text-foreground hover:bg-muted',
+                                isOpen ? 'scale-100 opacity-100' : 'pointer-events-none scale-90 opacity-0',
+                            )}
+                        >
+                            <Icon className="size-5 sm:size-6 landscape:size-4.5" />
+                        </Button>
+                    );
+                })}
             </div>
 
             <Button

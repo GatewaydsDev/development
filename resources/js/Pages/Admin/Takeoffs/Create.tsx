@@ -1,3 +1,4 @@
+import AiDraftButton from '@/Components/AiDraftButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import FormActionFab from '@/Components/FormActionFab';
 import InputError from '@/Components/InputError';
@@ -47,6 +48,32 @@ export default function Create({ projects, projectId }: { projects: ProjectOptio
                     cancelHref={route('admin.takeoffs.index')}
                     saveLabel={form.processing ? 'Creating…' : 'Create takeoff'}
                     disabled={form.processing}
+                />
+                <AiDraftButton
+                    surface="takeoff"
+                    missing={form.data.project_id ? [] : ['Select a project.']}
+                    onBlocked={() => document.getElementById('project_id')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+                    facts={{
+                        project: selected?.name ?? '',
+                        project_number: selected?.project_number ?? '',
+                        title: form.data.title,
+                    }}
+                    currentText={form.data.notes}
+                    onDraft={(text) => {
+                        const plain = text
+                            .replace(/<br\s*\/?>/gi, '\n')
+                            .replace(/<\/p>/gi, '\n')
+                            .replace(/<[^>]+>/g, '')
+                            .replace(/\n{3,}/g, '\n\n')
+                            .trim();
+
+                        if (plain === '') {
+                            return;
+                        }
+
+                        const notes = form.data.notes.trim();
+                        form.setData('notes', notes === '' ? plain : `${notes}\n\n${plain}`);
+                    }}
                 />
                 <div>
                     <div className="flex items-center justify-between gap-2">

@@ -9,13 +9,14 @@ import {
     DialogTitle,
 } from '@/Components/ui/dialog';
 import { SparklesIcon } from 'lucide-react';
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
+import { registerFabTool } from '@/lib/fabStack';
 
 type AiCommandResult = string | { steps: string[] };
 
-type Surface = 'quotation' | 'bid' | 'print_layout';
+type Surface = 'quotation' | 'bid' | 'print_layout' | 'takeoff';
 
 const readableAnswer = (value: string) => value
     .replace(/<br\s*\/?>/gi, '\n')
@@ -28,6 +29,14 @@ const placeholder: Record<Surface, string> = {
     quotation: 'Add a table, text, header, footer, or logo…',
     bid: 'Add a table, text, header, footer, or logo…',
     print_layout: 'Add a table, text, header, footer, or logo…',
+    takeoff: 'Ask about the openings, sizes, or notes…',
+};
+
+const hint: Record<Surface, string> = {
+    quotation: 'Add a table, row, column, header, footer, text, logo, or another layout piece. A question is answered as text on the page.',
+    bid: 'Add a table, row, column, header, footer, text, logo, or another layout piece. A question is answered as text on the page.',
+    print_layout: 'Add a table, row, column, header, footer, text, logo, or another layout piece. A question is answered as text on the page.',
+    takeoff: 'Ask about the openings on this takeoff. The answer is added to the notes. Save to keep it.',
 };
 
 export default function AiDraftButton({
@@ -197,31 +206,29 @@ export default function AiDraftButton({
 
         setOpen(true);
     };
+    const openPopupRef = useRef(openPopup);
+    openPopupRef.current = openPopup;
 
-    const fab = (
-        <div className="fixed top-1/2 right-[max(0.75rem,env(safe-area-inset-right))] z-[44] flex -translate-y-1/2 items-center gap-3">
-            <AiTrace entries={trace} onClear={() => setTrace([])} />
-            <div className="flex flex-col items-center gap-1.5">
-            <Button
-                type="button"
-                className={`size-14 rounded-full bg-primary text-primary-foreground shadow-xl shadow-primary/20 hover:bg-primary/90 sm:size-16 ${blocked ? 'opacity-50' : ''}`}
-                aria-disabled={blocked}
-                aria-label={blocked ? 'Fill the required fields before asking the AI' : 'Ask the AI'}
-                title={blocked ? 'Fill the required fields first' : 'Ask the AI'}
-                onClick={openPopup}
-            >
-                <SparklesIcon className="size-6 sm:size-7" />
-            </Button>
-            <span className="rounded-full bg-background/90 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground shadow-sm ring-1 ring-border backdrop-blur sm:text-xs">
-                AI
-            </span>
-            </div>
-        </div>
-    );
+    useEffect(() => registerFabTool({
+        id: 'ai-draft',
+        label: blocked ? 'Fill the required fields before asking the AI' : 'Ask the AI',
+        icon: 'ai',
+        order: 20,
+        onOpen: () => openPopupRef.current(),
+    }), [blocked]);
+
+    const tracePanel = trace.length === 0 || typeof document === 'undefined'
+        ? null
+        : createPortal(
+            <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-[calc(max(6.25rem,env(safe-area-inset-right)+5.5rem)+4.25rem)] z-[44] sm:bottom-8 sm:right-[12.75rem] landscape:bottom-3 landscape:right-[10.25rem]">
+                <AiTrace entries={trace} onClear={() => setTrace([])} />
+            </div>,
+            document.body,
+        );
 
     return (
         <>
-            {typeof document === 'undefined' ? null : createPortal(fab, document.body)}
+            {tracePanel}
             <Dialog open={open} onOpenChange={(next) => {
                 if (!next) {
                     stopRequest();
@@ -255,7 +262,7 @@ export default function AiDraftButton({
                             <DialogHeader>
                                 <DialogTitle>Ask the AI</DialogTitle>
                                 <DialogDescription>
-                                    Add a table, row, column, header, footer, text, logo, or another layout piece. A question is answered as text on the page.
+                                    {hint[surface]}
                                 </DialogDescription>
                             </DialogHeader>
                             <div className="flex flex-col gap-3">

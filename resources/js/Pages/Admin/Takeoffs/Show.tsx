@@ -1,3 +1,4 @@
+import AiDraftButton from '@/Components/AiDraftButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import FormActionFab from '@/Components/FormActionFab';
 import StickyDocumentToolbar from '@/Components/StickyDocumentToolbar';
@@ -246,7 +247,18 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
         details.patch(route('admin.takeoffs.update', takeoff.uuid), { preserveScroll: true });
     };
 
-    const editable = can.update && takeoff.status !== 'archived';
+        const editable = can.update && takeoff.status !== 'archived';
+    const openingSummary = takeoff.openings.slice(0, 40).map((opening) => {
+        const size = [opening.width, opening.height, opening.depth].filter(Boolean).join(' x ');
+
+        return [
+            opening.tag || opening.label,
+            opening.opening_type,
+            opening.quantity && opening.quantity !== '1' ? `qty ${opening.quantity}` : null,
+            size ? `${size} ${opening.dimension_unit}` : null,
+            opening.location,
+        ].filter(Boolean).join(' · ');
+    }).join('\n');
 
     return (
         <AuthenticatedLayout header={<h2 className="text-xl font-semibold leading-tight text-gray-800 dark:text-gray-100">{takeoff.title}</h2>}>
@@ -293,6 +305,33 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                         saveLabel="Save takeoff"
                         disabled={!editable || details.processing}
                     />
+                    <AiDraftButton
+                        surface="takeoff"
+                        facts={{
+                            title: takeoff.title,
+                            project: takeoff.project?.name ?? '',
+                            project_number: takeoff.project?.project_number ?? '',
+                            status: statusLabel[takeoff.status] ?? takeoff.status,
+                            revision: String(takeoff.revision_number),
+                            openings: String(takeoff.openings.length),
+                        }}
+                        currentText={[details.data.notes, openingSummary].filter(Boolean).join('\n')}
+                        onDraft={(text) => {
+                            const plain = text
+                                .replace(/<br\s*\/?>/gi, '\n')
+                                .replace(/<\/p>/gi, '\n')
+                                .replace(/<[^>]+>/g, '')
+                                .replace(/\n{3,}/g, '\n\n')
+                                .trim();
+
+                            if (plain === '') {
+                                return;
+                            }
+
+                            const notes = details.data.notes.trim();
+                            details.setData('notes', notes === '' ? plain : `${notes}\n\n${plain}`);
+                        }}
+                    />
                     <label className="text-sm">Title<TextInput className="mt-1 w-full" value={details.data.title} onChange={(event) => details.setData('title', event.target.value)} /></label>
                     <label className="text-sm">Status
                         <select className="mt-1 w-full rounded-md border-gray-300 shadow-sm" value={details.data.status} onChange={(event) => details.setData('status', event.target.value)}>
@@ -312,6 +351,15 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                 : <label className="text-sm">Target margin percent<TextInput className="mt-1 w-full" value={details.data.margin_percent} onChange={(event) => details.setData('margin_percent', event.target.value)} /></label>}
                         </>
                     ) : null}
+                    <label className="text-sm md:col-span-4">
+                        Notes
+                        <textarea
+                            className="mt-1 w-full rounded-md border-gray-300 shadow-sm"
+                            rows={3}
+                            value={details.data.notes}
+                            onChange={(event) => details.setData('notes', event.target.value)}
+                        />
+                    </label>
                     <div className="md:col-span-4 flex gap-2">
                         {details.errors.pricing_method ? <p className="text-sm text-destructive">{details.errors.pricing_method}</p> : null}
                         {details.errors.margin_percent ? <p className="text-sm text-destructive">{details.errors.margin_percent}</p> : null}

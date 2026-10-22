@@ -65,7 +65,7 @@ class AiDraftService
             ]);
         }
 
-        $format = $surface === 'print_layout'
+        $format = $surface === 'print_layout' || $surface === 'takeoff'
             ? 'Reply with plain text only. Do not use HTML or Markdown.'
             : 'Reply with a few short HTML paragraphs using only p, br, strong, and em tags. Do not use Markdown.';
 
@@ -90,6 +90,7 @@ class AiDraftService
             $task = match ($surface) {
                 'bid' => 'Draft the bid page for this project.',
                 'print_layout' => 'Draft the text for this print layout component.',
+                'takeoff' => 'Summarize this takeoff from the openings and notes below. Do not invent sizes or prices.',
                 default => 'Draft the quotation layout text for this quote.',
             };
             $lines = [$task];
@@ -139,7 +140,7 @@ class AiDraftService
             throw new AiDraftException('The AI service returned an empty draft.');
         }
 
-        if ($surface === 'print_layout') {
+        if ($surface === 'print_layout' || $surface === 'takeoff') {
             return trim(html_entity_decode(strip_tags($text)));
         }
 
