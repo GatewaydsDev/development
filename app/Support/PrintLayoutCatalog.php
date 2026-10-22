@@ -16,13 +16,10 @@ class PrintLayoutCatalog
 
         return [
             'printLayouts' => PrintLayout::query()
-                ->where(function ($query) use ($document, $keys): void {
-                    $query->where('layout_type', $document)
-                        ->orWhere(function ($query) use ($keys): void {
-                            $query->whereNull('layout_type')
-                                ->whereHas('assignments', fn ($query) => $query->whereIn('document_key', $keys));
-                        });
+                ->where(function ($query) use ($document): void {
+                    $query->where('layout_type', $document)->orWhereNull('layout_type');
                 })
+                ->whereHas('assignments', fn ($query) => $query->whereIn('document_key', $keys))
                 ->orderBy('name')->get()
                 ->map(fn (PrintLayout $layout): array => [
                     ...self::payload($layout),
