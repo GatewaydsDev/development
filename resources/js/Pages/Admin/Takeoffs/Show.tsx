@@ -7,7 +7,7 @@ import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { cn } from '@/lib/utils';
-import { DownloadIcon, GitBranchIcon, PlusIcon } from 'lucide-react';
+import { DownloadIcon, DraftingCompassIcon, GitBranchIcon, ListIcon, PlusIcon } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import OpeningEditor from './Partials/OpeningEditor';
 import PdfWorkspace, { type PdfPoint } from './Partials/PdfWorkspace';
@@ -50,9 +50,32 @@ function openingSpecs(opening: TakeoffDetail['openings'][number]): string {
 export default function Show({ takeoff, templates, quotations, can }: Props) {
     const countedOpeningId = usePage<{ flash: { counted_opening_id?: number | null } }>().props.flash.counted_opening_id;
     const [section, setSection] = useState<(typeof sections)[number]['id']>('workspace');
-    const [mobilePane, setMobilePane] = useState<'drawing' | 'schedule'>('drawing');
     const [selectedOpeningId, setSelectedOpeningId] = useState<number | null>(null);
-    const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(takeoff.documents[0]?.id ?? null);
+    const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(() => {
+        try {
+            const saved = Number(localStorage.getItem(`gateway.takeoff-drawing.${takeoff.uuid}`));
+
+            if (takeoff.documents.some((item) => item.id === saved)) {
+                return saved;
+            }
+        } catch {
+            // Keep the first drawing when stored choices cannot be read.
+        }
+
+        return takeoff.documents[0]?.id ?? null;
+    });
+
+    useEffect(() => {
+        if (!selectedDocumentId) {
+            return;
+        }
+
+        try {
+            localStorage.setItem(`gateway.takeoff-drawing.${takeoff.uuid}`, String(selectedDocumentId));
+        } catch {
+            // The drawing still stays selected for this visit.
+        }
+    }, [selectedDocumentId, takeoff.uuid]);
     const [uploadingPdf, setUploadingPdf] = useState(false);
     const [uploadError, setUploadError] = useState<string | null>(null);
     const documentIds = useRef(takeoff.documents.map((document) => document.id));
@@ -365,7 +388,8 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                         {details.errors.margin_percent ? <p className="text-sm text-destructive">{details.errors.margin_percent}</p> : null}
                     </div>
                 </form>
-                <nav aria-label="Takeoff sections" data-document-toolbar data-pinned="true" className="sticky top-[7.25rem] z-30 rounded-xl border border-border bg-card/95 p-1.5 shadow-sm backdrop-blur">
+                <div data-section-stack className="sticky top-[7.25rem] z-30 flex flex-col gap-2 bg-background pb-2">
+                <nav aria-label="Takeoff sections" data-document-toolbar data-pinned="true" className="rounded-xl border border-[#c5d0dc] bg-[#eef3f8] p-1.5 text-[#0a2540] shadow-sm">
                     <div className="flex gap-1 overflow-x-auto">
                         {sections.map((item, index) => {
                             const active = section === item.id;
@@ -377,7 +401,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                     aria-current={active ? 'location' : undefined}
                                     className={cn(
                                         'inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition',
-                                        active ? 'bg-emerald-600 text-white' : 'text-foreground hover:bg-muted',
+                                        active ? 'bg-emerald-600 text-white' : 'bg-white text-[#0a2540] hover:bg-[#d6e6f8]',
                                     )}
                                     onClick={() => setSection(item.id)}
                                 >
@@ -394,36 +418,25 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                         })}
                     </div>
                 </nav>
+                {section === 'workspace' ? (
+                    <div className="flex flex-wrap gap-2 rounded-xl border border-[#c5d0dc] bg-[#eef3f8] p-1.5 shadow-sm">
+                        <a href="#takeoff-openings" className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+                            <ListIcon className="size-4" />
+                            Openings
+                        </a>
+                        <a href="#takeoff-drawing" className="inline-flex items-center gap-2 rounded-lg bg-sky-700 px-3 py-2 text-sm font-medium text-white hover:bg-sky-800">
+                            <DraftingCompassIcon className="size-4" />
+                            Drawing
+                        </a>
+                    </div>
+                ) : null}
+                </div>
 
                 {section === 'workspace' ? (
                     <div ref={workspaceRef} className="flex flex-col gap-3">
-                        <nav aria-label="Opening workspace" className="rounded-xl border border-border bg-card p-1.5">
-                            <div className="flex gap-1 overflow-x-auto">
-                                {([
-                                    { id: 'schedule', label: 'Openings' },
-                                    { id: 'drawing', label: 'Drawing' },
-                                ] as const).map((item) => {
-                                    const active = mobilePane === item.id;
-
-                                    return (
-                                        <button
-                                            key={item.id}
-                                            type="button"
-                                            aria-current={active ? 'location' : undefined}
-                                            className={cn(
-                                                'inline-flex shrink-0 items-center rounded-lg px-3 py-2 text-sm font-medium transition',
-                                                active ? 'bg-emerald-600 text-white' : 'text-foreground hover:bg-muted',
-                                            )}
-                                            onClick={() => setMobilePane(item.id)}
-                                        >
-                                            {item.label}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </nav>
                         <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_28rem]">
-                            <div className={mobilePane === 'schedule' ? 'hidden' : ''}>
+                            <div className="flex min-w-0 flex-col gap-4">
+                            <div id="takeoff-drawing" className="min-w-0">
                                 <PdfWorkspace
                                     documents={takeoff.documents}
                                     openings={takeoff.openings}
@@ -449,9 +462,12 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                     uploadError={uploadError}
                                 />
                             </div>
-                            <div className={mobilePane === 'drawing' ? 'hidden' : 'flex flex-col gap-3'}>
+                            <div id="takeoff-openings" className="flex flex-col gap-3">
                                 <div>
-                                    <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">Scope of work</h3>
+                                    <h3 className="flex items-center gap-2 text-base font-semibold text-indigo-800">
+                                        <ListIcon className="size-4" />
+                                        Scope of work
+                                    </h3>
                                     <p className="text-sm text-muted-foreground">Every door and window found on the drawing is listed once, with its specs. Remove any row you will not use.</p>
                                 </div>
                                 <div className="grid gap-2 md:grid-cols-2">
@@ -575,6 +591,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                         ) : null}
                                     </form>
                                 ) : null}
+                            </div>
                             </div>
                             <div className="order-first min-w-0 xl:order-none">
                                 <StickyDocumentToolbar scopeRef={workspaceRef} propertiesPanel>

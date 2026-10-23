@@ -32,7 +32,8 @@ export default function StickyDocumentToolbar({
         if (!anchor || !scope) return;
 
         const main = anchor.closest('main');
-        const nav = document.querySelector('nav.sticky');
+        const stackSelector = 'nav.sticky, [data-section-stack]';
+        const stacks = Array.from(document.querySelectorAll<HTMLElement>(stackSelector));
         let title = document.querySelector('[data-sticky-page-title]');
         let pinnedToolbar: Element | null = null;
         let frame = 0;
@@ -58,7 +59,7 @@ export default function StickyDocumentToolbar({
             }
             const top = Math.max(
                 0,
-                nav?.getBoundingClientRect().bottom ?? 0,
+                ...Array.from(document.querySelectorAll<HTMLElement>(stackSelector), (node) => node.getBoundingClientRect().bottom),
                 title?.getBoundingClientRect().bottom ?? 0,
                 pinnedToolbar?.getBoundingClientRect().bottom ?? 0,
             ) + (propertiesPanel ? 8 : 0);
@@ -82,7 +83,7 @@ export default function StickyDocumentToolbar({
             if (!frame) frame = requestAnimationFrame(update);
         };
         const observer = new ResizeObserver(schedule);
-        [anchor, scope, main, nav, title, contentRef.current].forEach((element) => {
+        [anchor, scope, main, title, contentRef.current, ...stacks].forEach((element) => {
             if (element) observer.observe(element);
         });
         const titleObserver = new MutationObserver(schedule);
