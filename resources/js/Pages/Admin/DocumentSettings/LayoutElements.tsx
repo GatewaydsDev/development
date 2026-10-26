@@ -38,6 +38,9 @@ import {
     Trash2Icon,
     TypeIcon,
     EyeIcon,
+    LayoutTemplateIcon,
+    PanelBottomIcon,
+    PanelTopIcon,
     SearchIcon,
     FileUpIcon,
     PlusIcon,
@@ -143,16 +146,21 @@ const tools: Array<{
     type: ElementType;
     label: string;
     icon: typeof TypeIcon;
+    tone: string;
 }> = [
-    { type: "text", label: "Text", icon: TypeIcon },
-    { type: "image", label: "Image", icon: ImageIcon },
-    { type: "table", label: "Info table", icon: TableIcon },
-    { type: "company", label: "Company info", icon: BuildingIcon },
-    { type: "date", label: "Date", icon: CalendarIcon },
-    { type: "validity", label: "Validity", icon: CalendarIcon },
-    { type: "divider", label: "Divider", icon: MinusIcon },
-    { type: "spacer", label: "Spacer", icon: MoveVerticalIcon },
+    { type: "text", label: "Text", icon: TypeIcon, tone: "border-emerald-700 bg-emerald-600 hover:bg-emerald-700" },
+    { type: "image", label: "Image", icon: ImageIcon, tone: "border-sky-700 bg-sky-600 hover:bg-sky-700" },
+    { type: "table", label: "Info table", icon: TableIcon, tone: "border-indigo-700 bg-indigo-600 hover:bg-indigo-700" },
+    { type: "company", label: "Company info", icon: BuildingIcon, tone: "border-teal-700 bg-teal-600 hover:bg-teal-700" },
+    { type: "date", label: "Date", icon: CalendarIcon, tone: "border-blue-700 bg-blue-600 hover:bg-blue-700" },
+    { type: "validity", label: "Validity", icon: CalendarIcon, tone: "border-violet-700 bg-violet-600 hover:bg-violet-700" },
+    { type: "divider", label: "Divider", icon: MinusIcon, tone: "border-amber-700 bg-amber-600 hover:bg-amber-700" },
+    { type: "spacer", label: "Spacer", icon: MoveVerticalIcon, tone: "border-sky-800 bg-sky-700 hover:bg-sky-800" },
 ];
+
+const solidTool = "text-white hover:text-white";
+const menuLabel = "px-2 text-[11px] font-semibold uppercase tracking-wide text-[#0a2540]";
+const fieldInk = { color: "#111827", WebkitTextFillColor: "#111827", backgroundColor: "#ffffff" } as const;
 
 const zones: Array<{ id: ElementZone; label: string; hint: string }> = [
     {
@@ -1165,7 +1173,7 @@ export function useLayoutElements(
     const visibleToolbarBottom = () => Math.max(
         0,
         ...Array.from(document.querySelectorAll<HTMLElement>(
-            'nav.sticky, [data-sticky-page-title], [data-document-toolbar][data-pinned="true"]',
+            'nav.sticky, [data-section-stack], [data-sticky-page-title], [data-document-toolbar][data-pinned="true"]',
         )).map((node) => node.getBoundingClientRect().bottom),
     );
 
@@ -2424,19 +2432,20 @@ export default function LayoutElementsEditor({
                     });
                 }}
             />
-            <StickyDocumentToolbar scopeRef={editorRef} className="rounded-xl border border-border">
+            <StickyDocumentToolbar scopeRef={editorRef} className="rounded-xl border border-[#c5d0dc] bg-[#eef3f8] text-[#111827]">
             <div role="toolbar" aria-label="Print layout tools" className="flex flex-col">
-            <div className="flex items-center justify-between gap-3 border-b border-border px-2 py-2">
-                <p className="px-2 text-sm font-medium text-foreground">Layout</p>
+            <div className="flex items-center justify-between gap-3 border-b border-[#c5d0dc] px-2 py-2">
+                <p className="px-2 text-sm font-semibold text-[#0a2540]">Layout</p>
                 <Button
                     type="button"
                     size="sm"
-                    className="gap-1.5"
+                    variant="outline"
+                    className={`gap-1.5 border-sky-800 bg-sky-700 ${solidTool} hover:bg-sky-800`}
                     disabled={!canPreview}
                     title={canPreview ? "Preview this layout" : "Add a component before previewing this layout."}
                     onClick={showPreview}
                 >
-                    <EyeIcon />
+                    <EyeIcon data-icon="inline-start" />
                     Preview
                 </Button>
             </div>
@@ -2445,26 +2454,30 @@ export default function LayoutElementsEditor({
                 aria-label="Add and arrange components"
                 className="flex flex-wrap items-center gap-2 p-2"
             >
-                <span className="px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <span className={menuLabel}>
                     Add to
                 </span>
                 <div role="group" aria-label="Where new components go" className="flex items-center gap-1">
                     {([
-                        ["header", "Page"],
-                        ["top", "Header"],
-                        ["footer", "Footer"],
-                    ] as const).map(([zone, label]) => (
+                        ["header", "Page", LayoutTemplateIcon],
+                        ["top", "Header", PanelTopIcon],
+                        ["footer", "Footer", PanelBottomIcon],
+                    ] as const).map(([zone, label, Icon]) => (
                         <Button
                             key={zone}
                             type="button"
                             size="sm"
-                            variant={targetZone === zone ? "default" : "outline"}
+                            variant="outline"
+                            className={targetZone === zone
+                                ? `border-emerald-700 bg-emerald-600 ${solidTool} hover:bg-emerald-700`
+                                : "border-[#c5d0dc] bg-white text-[#0a2540] hover:bg-[#d6e6f8] hover:text-[#0a2540]"}
                             aria-pressed={targetZone === zone}
                             onClick={() => {
                                 setTargetZone(zone);
                                 if (zone === "header") setTargetPage(undefined);
                             }}
                         >
+                            <Icon data-icon="inline-start" />
                             {label}
                         </Button>
                     ))}
@@ -2475,26 +2488,26 @@ export default function LayoutElementsEditor({
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="gap-1.5"
+                        className={cn("gap-1.5", tool.tone, solidTool)}
                         onClick={() => add(tool.type)}
                         disabled={uploading}
                     >
-                        <tool.icon />
+                        <tool.icon data-icon="inline-start" />
                         {tool.label}
                     </Button>
                 ))}
-                <Button type="button" variant="outline" size="sm" className="gap-1.5" disabled={uploading}
+                <Button type="button" variant="outline" size="sm" className={`gap-1.5 border-amber-700 bg-amber-600 ${solidTool} hover:bg-amber-700`} disabled={uploading}
                     onClick={() => add("divider", targetZone, false, {
                         orientation: "vertical",
                         width: (2 / PRINT_LAYOUT_WIDTH) * 100,
                         height: 120,
                         x: 48,
                     })}>
-                    <MinusIcon className="rotate-90" />
+                    <MinusIcon data-icon="inline-start" className="rotate-90" />
                     Vertical divider
                 </Button>
                 <div role="group" aria-label="Horizontal alignment" className="flex items-center gap-1">
-                    <span className="px-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    <span className={menuLabel}>
                         Align{controller.selectedIds.length > 1 ? ` (${controller.selectedIds.length})` : ""}
                     </span>
                     {([
@@ -2502,7 +2515,8 @@ export default function LayoutElementsEditor({
                         ["center", "Align center", AlignCenterIcon],
                         ["right", "Align right", AlignRightIcon],
                     ] as const).map(([mode, label, Icon]) => (
-                        <Button key={mode} type="button" variant="outline" size="sm" className="px-2"
+                        <Button key={mode} type="button" variant="outline" size="sm"
+                            className={`px-2 border-violet-700 bg-violet-600 ${solidTool} hover:bg-violet-700`}
                             aria-label={label} title={label}
                             disabled={controller.selectedIds.length === 0}
                             onClick={() => controller.alignHorizontally(mode)}>
@@ -2510,29 +2524,30 @@ export default function LayoutElementsEditor({
                         </Button>
                     ))}
                 </div>
-                <Button type="button" variant="outline" size="sm" disabled={uploading}
+                <Button type="button" variant="outline" size="sm" className={`border-indigo-700 bg-indigo-600 ${solidTool} hover:bg-indigo-700`} disabled={uploading}
                     onClick={() => add("table", targetZone, true)}>
                     <TableIcon data-icon="inline-start" />
                     Table
                 </Button>
-                <Button type="button" variant="outline" size="sm" disabled={!elements.length}
+                <Button type="button" variant="outline" size="sm" className={`border-teal-700 bg-teal-600 ${solidTool} hover:bg-teal-700`} disabled={!elements.length}
                     onClick={() => controller.evenSpacing()}>
                     <MoveVerticalIcon data-icon="inline-start" />
                     Even spacing
                 </Button>
-                <label className="flex items-center gap-2 text-xs font-medium">
+                <label className="flex items-center gap-2 text-xs font-semibold text-[#0a2540]">
                     Background
                     <input type="color" aria-label="Layout background color"
                         value={controller.zoneColors[targetZone] || "#ffffff"}
                         onChange={(event) => controller.setZoneColor(targetZone, event.target.value)}
-                        className="h-8 w-10 rounded border border-input bg-background p-1" />
+                        className="h-8 w-10 rounded border border-[#c5ced8] bg-white p-1" />
                 </label>
                 <span className="ml-auto flex items-center gap-1">
                     <Button
                         type="button"
-                        variant="ghost"
+                        variant="outline"
                         size="icon"
                         aria-label="Move up"
+                        className={`border-blue-700 bg-blue-600 ${solidTool} hover:bg-blue-700`}
                         disabled={!selected}
                         onClick={() => selected && move(selected.id, -1)}
                     >
@@ -2540,9 +2555,10 @@ export default function LayoutElementsEditor({
                     </Button>
                     <Button
                         type="button"
-                        variant="ghost"
+                        variant="outline"
                         size="icon"
                         aria-label="Move down"
+                        className={`border-blue-700 bg-blue-600 ${solidTool} hover:bg-blue-700`}
                         disabled={!selected}
                         onClick={() => selected && move(selected.id, 1)}
                     >
@@ -2550,9 +2566,10 @@ export default function LayoutElementsEditor({
                     </Button>
                     <Button
                         type="button"
-                        variant="ghost"
+                        variant="outline"
                         size="icon"
                         aria-label="Duplicate element"
+                        className={`border-sky-700 bg-sky-600 ${solidTool} hover:bg-sky-700`}
                         disabled={!selected}
                         onClick={() => selected && duplicate(selected)}
                     >
@@ -2560,11 +2577,11 @@ export default function LayoutElementsEditor({
                     </Button>
                     <Button
                         type="button"
-                        variant="ghost"
+                        variant="outline"
                         size="icon"
                         aria-label="Remove element"
                         disabled={!selected}
-                        className="text-red-600 hover:text-red-700"
+                        className={`border-rose-700 bg-rose-600 ${solidTool} hover:bg-rose-700`}
                         onClick={() => selected && remove(selected.id)}
                     >
                         <Trash2Icon />
@@ -2573,11 +2590,12 @@ export default function LayoutElementsEditor({
             </div>
 
             {selected?.type === "table" ? (
-                <div className="flex flex-wrap items-center gap-2 px-3 py-2 text-xs font-medium">
+                <div className="flex flex-wrap items-center gap-2 px-3 py-2 text-xs font-medium text-[#111827]">
                     <label htmlFor="table-text-scope">Format text in</label>
                     <select aria-label="Table text formatting scope"
                         id="table-text-scope"
-                        className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                        className="h-9 rounded-md border border-[#c5ced8] bg-white px-2 text-sm text-[#111827]"
+                        style={fieldInk}
                         value={controller.selectedCell ? `cell-${controller.selectedCell.row}-${controller.selectedCell.column}` : controller.selectedRow?.index ?? ""}
                         onChange={(event) => {
                             if (event.target.value.startsWith("cell-")) {
@@ -2603,6 +2621,7 @@ export default function LayoutElementsEditor({
                     </select>
                     {controller.selectedCell ? (
                         <Button type="button" variant="outline" size="sm"
+                            className="border-[#c5d0dc] bg-white text-[#0a2540] hover:bg-[#d6e6f8] hover:text-[#0a2540]"
                             onClick={() => update(selected.id, { cell_styles: selected.cell_styles?.map((row, r) =>
                                 r === controller.selectedCell?.row ? row?.map((style, c) =>
                                     c === controller.selectedCell?.column ? null : style) ?? null : row) })}>
@@ -2611,6 +2630,7 @@ export default function LayoutElementsEditor({
                     ) : null}
                     {controller.selectedRow ? (
                         <Button type="button" variant="outline" size="sm"
+                            className="border-[#c5d0dc] bg-white text-[#0a2540] hover:bg-[#d6e6f8] hover:text-[#0a2540]"
                             onClick={() => update(selected.id, { row_styles: selected.row_styles?.map((style, index) =>
                                 index === controller.selectedRow?.index ? null : style) })}>
                             Reset row formatting
@@ -2782,15 +2802,15 @@ function LayoutTextToolbar({
     onChange: (patch: Partial<LayoutElement>) => void;
 }) {
     const enabled = element && ["text", "date", "validity", "company", "table"].includes(element.type);
-    const fieldClass = "h-9 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50";
-    const labelClass = "flex flex-col gap-1 text-xs font-medium text-foreground";
+    const fieldClass = "h-9 rounded-md border border-[#c5ced8] bg-white px-2 text-sm text-[#111827] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50";
+    const labelClass = "flex flex-col gap-1 text-xs font-semibold text-[#0a2540]";
 
     return (
-        <div className="flex flex-col gap-2 border-t border-border p-3">
+        <div className="flex flex-col gap-2 border-t border-[#c5d0dc] p-3">
             <div role="group" aria-label="Layout text formatting" className="flex flex-wrap items-end gap-3">
                 <label className={labelClass}>
                     Font
-                    <select aria-label="Layout font" disabled={!enabled} className={fieldClass}
+                    <select aria-label="Layout font" disabled={!enabled} className={fieldClass} style={fieldInk}
                         value={element?.pdf_font_src ? "pdf-imported" : element?.font_family ?? "default"}
                         onChange={(event) => onChange({ font_family: event.target.value })}>
                         {element?.pdf_font_src ? <option value="pdf-imported">Imported: {element.pdf_font_name}</option> : null}
@@ -2800,7 +2820,7 @@ function LayoutTextToolbar({
                 <label className={labelClass}>
                     Font size (px)
                     <input aria-label="Layout font size" type="number" min={element?.pdf_page ? 1 : 8} max={element?.pdf_page ? 200 : 48} step={element?.pdf_page ? "any" : 1}
-                        disabled={!enabled} className={cn(fieldClass, "w-24")} value={element?.font_size ?? 12}
+                        disabled={!enabled} className={cn(fieldClass, "w-24")} style={fieldInk} value={element?.font_size ?? 12}
                         onChange={(event) => {
                             const size = event.target.valueAsNumber;
                             if (Number.isFinite(size) && size >= (element?.pdf_page ? 1 : 8) && size <= (element?.pdf_page ? 200 : 48)) onChange({ font_size: size });
@@ -2814,7 +2834,7 @@ function LayoutTextToolbar({
                 </label>
                 <label className={labelClass}>
                     Line spacing
-                    <select aria-label="Layout line spacing" disabled={!enabled} className={fieldClass}
+                    <select aria-label="Layout line spacing" disabled={!enabled} className={fieldClass} style={fieldInk}
                         value={element?.pdf_line_spacing ? "pdf-original" : element?.line_height ?? 1.35}
                         onChange={(event) => { if (event.target.value !== "pdf-original") onChange({ line_height: Number(event.target.value), pdf_line_spacing: undefined }); }}>
                         {element?.pdf_line_spacing ? <option value="pdf-original">Original PDF ({Number(element.pdf_line_spacing.toFixed(2))}px)</option> : null}
@@ -2851,7 +2871,7 @@ function LayoutTextToolbar({
                 </ToggleGroup>
                 <label className={cn(labelClass, "min-w-48 flex-1")}>
                     Text case
-                    <select aria-label="Layout text case" disabled={!enabled} className={cn(fieldClass, "h-10 w-full min-w-48 px-3")}
+                    <select aria-label="Layout text case" disabled={!enabled} className={cn(fieldClass, "h-10 w-full min-w-48 px-3")} style={fieldInk}
                         value={element?.text_case ?? "original"}
                         onChange={(event) => onChange({ text_case: event.target.value as ElementCase })}>
                         {caseChoices.map((choice) => <option key={choice.id} value={choice.id}>{choice.label}</option>)}

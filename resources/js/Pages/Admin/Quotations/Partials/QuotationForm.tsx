@@ -37,7 +37,17 @@ import {
 import { zodResolver } from '@hookform/resolvers/zod';
 import { cn } from '@/lib/utils';
 import { router, usePage } from '@inertiajs/react';
-import { PlusIcon, Trash2Icon } from 'lucide-react';
+import {
+    BadgeCheckIcon,
+    CircleDollarSignIcon,
+    DraftingCompassIcon,
+    FileTextIcon,
+    GitBranchIcon,
+    ListIcon,
+    PlusIcon,
+    Trash2Icon,
+    UsersIcon,
+} from 'lucide-react';
 import {
     type DragEvent,
     FormEventHandler,
@@ -256,16 +266,16 @@ function lineItemIsBaseBid(item: {
 const inputClassName =
     'h-11 w-full border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring';
 
-const sectionClassName = 'scroll-mt-44';
+const sectionClassName = 'scroll-mt-48';
 
 const QUOTATION_SECTIONS = [
-    { id: 'quotation-details', label: 'Details' },
-    { id: 'quotation-customer', label: 'Customer' },
-    { id: 'quotation-pricing', label: 'Pricing' },
-    { id: 'quotation-openings', label: 'Openings' },
-    { id: 'quotation-layout', label: 'Layout' },
-    { id: 'quotation-revisions', label: 'Revisions' },
-    { id: 'quotation-authorization', label: 'Authorization' },
+    { id: 'quotation-details', label: 'Details', icon: FileTextIcon, solid: 'border-emerald-700 bg-emerald-600 hover:bg-emerald-700', soft: 'border-emerald-300 bg-emerald-50 text-emerald-950 hover:bg-emerald-100' },
+    { id: 'quotation-customer', label: 'Customer', icon: UsersIcon, solid: 'border-blue-700 bg-blue-600 hover:bg-blue-700', soft: 'border-blue-300 bg-blue-50 text-blue-950 hover:bg-blue-100' },
+    { id: 'quotation-pricing', label: 'Pricing', icon: CircleDollarSignIcon, solid: 'border-amber-700 bg-amber-600 hover:bg-amber-700', soft: 'border-amber-300 bg-amber-50 text-amber-950 hover:bg-amber-100' },
+    { id: 'quotation-openings', label: 'Openings', icon: ListIcon, solid: 'border-indigo-700 bg-indigo-600 hover:bg-indigo-700', soft: 'border-indigo-300 bg-indigo-50 text-indigo-950 hover:bg-indigo-100' },
+    { id: 'quotation-layout', label: 'Layout', icon: DraftingCompassIcon, solid: 'border-sky-800 bg-sky-700 hover:bg-sky-800', soft: 'border-sky-300 bg-sky-50 text-sky-950 hover:bg-sky-100' },
+    { id: 'quotation-revisions', label: 'Revisions', icon: GitBranchIcon, solid: 'border-violet-700 bg-violet-600 hover:bg-violet-700', soft: 'border-violet-300 bg-violet-50 text-violet-950 hover:bg-violet-100' },
+    { id: 'quotation-authorization', label: 'Authorization', icon: BadgeCheckIcon, solid: 'border-teal-700 bg-teal-600 hover:bg-teal-700', soft: 'border-teal-300 bg-teal-50 text-teal-950 hover:bg-teal-100' },
 ] as const;
 
 function QuotationSectionNav({
@@ -276,10 +286,10 @@ function QuotationSectionNav({
     navRef: { current: HTMLDivElement | null };
 }) {
     return (
-        <div className="sticky top-[7.25rem] z-20 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+        <div data-section-stack className="sticky top-[7.25rem] z-30 -mx-4 bg-background px-4 pb-2 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
             <nav
                 aria-label="Quotation sections"
-                className="rounded-xl border border-border bg-card/95 p-1.5 shadow-sm backdrop-blur"
+                className="rounded-xl border border-[#c5d0dc] bg-[#eef3f8] p-1.5 text-[#0a2540] shadow-sm"
             >
                 <div
                     ref={(node) => {
@@ -287,7 +297,7 @@ function QuotationSectionNav({
                     }}
                     className="flex gap-1 overflow-x-auto"
                 >
-                    {QUOTATION_SECTIONS.map((section, index) => {
+                    {QUOTATION_SECTIONS.map((section) => {
                         const active = activeId === section.id;
 
                         return (
@@ -297,22 +307,13 @@ function QuotationSectionNav({
                                 data-section={section.id}
                                 aria-current={active ? 'location' : undefined}
                                 className={cn(
-                                    'inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition',
+                                    'inline-flex shrink-0 items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition',
                                     active
-                                        ? 'bg-emerald-600 text-white'
-                                        : 'text-foreground hover:bg-muted',
+                                        ? `${section.solid} text-white hover:text-white`
+                                        : section.soft,
                                 )}
                             >
-                                <span
-                                    className={cn(
-                                        'flex size-5 items-center justify-center rounded-full text-[11px] font-semibold',
-                                        active
-                                            ? 'bg-white/20 text-white'
-                                            : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200',
-                                    )}
-                                >
-                                    {index + 1}
-                                </span>
+                                <section.icon className="size-4" />
                                 {section.label}
                             </a>
                         );

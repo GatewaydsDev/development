@@ -45,7 +45,7 @@ export default function QuotationTakeoffOpenings({ projectSelected, takeoffs, li
     return (
         <section
             id="quotation-openings"
-            className="scroll-mt-44 flex min-w-0 flex-col gap-4 rounded-xl border border-border bg-card p-5"
+            className="scroll-mt-48 flex min-w-0 flex-col gap-4 rounded-xl border border-border bg-card p-5"
         >
             <div>
                 <h3 className="text-base font-semibold text-foreground">Takeoff openings</h3>

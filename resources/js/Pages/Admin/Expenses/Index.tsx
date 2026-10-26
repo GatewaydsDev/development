@@ -12,9 +12,10 @@ import {
     CardTitle,
 } from '@/Components/ui/card';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { cn } from '@/lib/utils';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { PlusIcon, ReceiptIcon, SearchIcon, Trash2Icon } from 'lucide-react';
-import { FormEvent, useEffect, useState } from 'react';
+import { BanknoteIcon, PlusIcon, ReceiptIcon, SearchIcon, ShoppingBagIcon, Trash2Icon } from 'lucide-react';
+import { FormEvent, useEffect, useState, type ReactNode } from 'react';
 
 type PaymentRow = {
     id: number;
@@ -103,6 +104,137 @@ const blankPayment = (amount = ''): PaymentDraft => ({
 const fieldClass =
     'h-11 w-full rounded-md border border-border bg-background px-3 text-base text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring md:text-sm';
 
+const datePattern = /^(\d{4})-(\d{2})-(\d{2})$/;
+const receiptTypes = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+
+const isRealDate = (value: string) => {
+    const match = value.match(datePattern);
+
+    if (!match) {
+        return false;
+    }
+
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    const date = new Date(year, month - 1, day);
+
+    return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+};
+
+const amountError = (value: string, label: string) => {
+    const trimmed = value.trim();
+
+    if (trimmed === '') {
+        return `Enter the ${label}.`;
+    }
+
+    const amount = Number(trimmed);
+
+    if (!Number.isFinite(amount)) {
+        return `Enter the ${label} as a number.`;
+    }
+
+    if (amount < 0.01) {
+        return `The ${label} must be at least $0.01.`;
+    }
+
+    if (amount > 99999999.99) {
+        return `The ${label} is too large.`;
+    }
+
+    return null;
+};
+
+function expenseFieldErrors(
+    data: {
+        spent_on: string;
+        payee: string;
+        description: string;
+        category: string;
+        amount: string;
+        notes: string;
+        receipt: File | null;
+        payments: PaymentDraft[];
+    },
+    categories: Record<string, string>,
+    paymentStatuses: Record<string, string>,
+    paymentMethods: Record<string, string>,
+) {
+    const errors: Record<string, string> = {};
+    const payee = data.payee.trim();
+    const description = data.description.trim();
+    const totalError = amountError(data.amount, 'total amount');
+
+    if (!isRealDate(data.spent_on)) {
+        errors.spent_on = 'Enter the purchase date.';
+    }
+
+    if (payee === '') {
+        errors.payee = 'Enter who was paid.';
+    } else if (payee.length > 160) {
+        errors.payee = 'Who was paid must be 160 characters or fewer.';
+    }
+
+    if (description === '') {
+        errors.description = 'Enter what this purchase was for.';
+    } else if (description.length > 255) {
+        errors.description = 'What it was for must be 255 characters or fewer.';
+    }
+
+    if (!Object.prototype.hasOwnProperty.call(categories, data.category)) {
+        errors.category = 'Choose a category.';
+    }
+
+    if (totalError) {
+        errors.amount = totalError;
+    }
+
+    if (data.notes.length > 2000) {
+        errors.notes = 'Notes must be 2,000 characters or fewer.';
+    }
+
+    if (data.receipt) {
+        const allowedName = /\.(pdf|jpe?g|png|webp|gif)$/i.test(data.receipt.name);
+
+        if (data.receipt.type !== '' && !receiptTypes.has(data.receipt.type) && !allowedName) {
+            errors.receipt = 'Use a PDF or a picture (JPEG, PNG, WEBP, or GIF).';
+        } else if (data.receipt.size > 5 * 1024 * 1024) {
+            errors.receipt = 'The receipt must be 5 MB or smaller.';
+        }
+    }
+
+    if (data.payments.length > 60) {
+        errors.payments = 'An expense can have at most 60 payments.';
+    }
+
+    data.payments.forEach((payment, index) => {
+        const paymentAmount = amountError(payment.amount, 'payment amount');
+
+        if (!isRealDate(payment.due_on)) {
+            errors[`payments.${index}.due_on`] = 'Enter the due date.';
+        }
+
+        if (paymentAmount) {
+            errors[`payments.${index}.amount`] = paymentAmount;
+        }
+
+        if (!Object.prototype.hasOwnProperty.call(paymentStatuses, payment.status)) {
+            errors[`payments.${index}.status`] = 'Choose whether this payment is paid or still due.';
+        }
+
+        if (!Object.prototype.hasOwnProperty.call(paymentMethods, payment.method)) {
+            errors[`payments.${index}.method`] = 'Choose how this payment is made.';
+        }
+
+        if (payment.status === 'paid' && !isRealDate(payment.paid_on)) {
+            errors[`payments.${index}.paid_on`] = 'Enter the date this payment was sent.';
+        }
+    });
+
+    return errors;
+}
+
 function ReceiptPicture({
     src,
     alt,
@@ -186,17 +318,50 @@ function ChosenReceiptPreview({ file }: { file: File | null }) {
     return <ReceiptPicture src={url} alt={file?.name || 'Selected receipt'} />;
 }
 
-function Summary({ label, value, hint }: { label: string; value: string; hint: string }) {
+function Summary({
+    label,
+    value,
+    hint,
+    className,
+}: {
+    label: string;
+    value: string;
+    hint: string;
+    className: string;
+}) {
     return (
-        <Card>
-            <CardHeader className="pb-2">
-                <CardDescription>{label}</CardDescription>
-                <CardTitle className="text-2xl">{money(value)}</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <p className="text-sm text-muted-foreground">{hint}</p>
-            </CardContent>
-        </Card>
+        <div className={cn('flex min-w-0 flex-col gap-1 rounded-lg border-l-4 bg-background px-3 py-2.5', className)}>
+            <p className="text-sm font-semibold leading-snug">{label}</p>
+            <p className="text-right text-xl font-semibold tabular-nums leading-none">{money(value)}</p>
+            <p className="text-right text-xs text-muted-foreground">{hint}</p>
+        </div>
+    );
+}
+
+function FormSection({
+    icon,
+    title,
+    hint,
+    className,
+    children,
+}: {
+    icon: ReactNode;
+    title: string;
+    hint: string;
+    className: string;
+    children: ReactNode;
+}) {
+    return (
+        <section className={cn('grid gap-3 rounded-xl border p-4', className)}>
+            <div className="flex items-start gap-2">
+                <span className="mt-0.5">{icon}</span>
+                <div>
+                    <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+                    <p className="text-sm text-muted-foreground">{hint}</p>
+                </div>
+            </div>
+            {children}
+        </section>
     );
 }
 
@@ -231,6 +396,14 @@ export default function Index({
     });
     const fieldError = (key: string) => (form.errors as Record<string, string | undefined>)[key];
     const paymentTotal = form.data.payments.reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0);
+    const expenseCents = Math.round((Number(form.data.amount) || 0) * 100);
+    const paymentCents = Math.round(paymentTotal * 100);
+    const unassignedCents = expenseCents - paymentCents;
+    const paymentBalance = unassignedCents === 0
+        ? 'These payments add up to the total.'
+        : unassignedCents > 0
+            ? `${money((unassignedCents / 100).toFixed(2))} of the total is not on a payment yet.`
+            : `Payments are ${money((Math.abs(unassignedCents) / 100).toFixed(2))} over the total.`;
 
     const applyFilters = (event: FormEvent) => {
         event.preventDefault();
@@ -319,6 +492,15 @@ export default function Index({
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
+        const errors = expenseFieldErrors(form.data, categories, paymentStatuses, paymentMethods);
+        form.clearErrors();
+
+        if (Object.keys(errors).length > 0) {
+            form.setError(errors as Parameters<typeof form.setError>[0]);
+
+            return;
+        }
+
         form.transform((data) => {
             const payload: Record<string, unknown> = {
                 ...data,
@@ -362,8 +544,7 @@ export default function Index({
             <div className="py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:py-8">
                 <div className="mx-auto grid max-w-6xl min-w-0 gap-4 px-3 sm:gap-6 sm:px-6 lg:px-8">
                     <p className="text-sm text-muted-foreground">
-                        Record what the company bought, attach the receipt, and track each payment.
-                        Mark a payment as paid, or leave it to be paid later. A course can be split into monthly payments.
+                        Each expense has three parts: what was bought, the receipt, and the payments. Paid money and money still due stay separate.
                     </p>
                     {flash?.success ? (
                         <p className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-800 dark:text-emerald-200">
@@ -371,10 +552,25 @@ export default function Index({
                         </p>
                     ) : null}
 
-                    <div className="grid gap-3 sm:grid-cols-3">
-                        <Summary label="Expense total" value={total} hint={`${count} ${count === 1 ? 'record' : 'records'} in this view`} />
-                        <Summary label="Paid" value={paid} hint="Money already sent" />
-                        <Summary label="To be paid" value={scheduled} hint="Payments still coming due" />
+                    <div className="grid gap-2 rounded-xl border border-[#c5d0dc] bg-[#eef3f8] p-2 sm:grid-cols-3 dark:border-border dark:bg-card">
+                        <Summary
+                            label="Expense total"
+                            value={total}
+                            hint={`${count} ${count === 1 ? 'purchase' : 'purchases'} in this view`}
+                            className="border-emerald-600 text-emerald-950 dark:text-emerald-100"
+                        />
+                        <Summary
+                            label="Paid"
+                            value={paid}
+                            hint="Already sent"
+                            className="border-sky-600 text-sky-950 dark:text-sky-100"
+                        />
+                        <Summary
+                            label="To be paid"
+                            value={scheduled}
+                            hint="Still due"
+                            className="border-amber-600 text-amber-950 dark:text-amber-100"
+                        />
                     </div>
 
                     <Card>
@@ -384,26 +580,30 @@ export default function Index({
                                 {editing ? 'Edit expense' : 'New expense'}
                             </CardTitle>
                             <CardDescription>
-                                Start with what was bought, then add how it will be paid.
+                                Fill the purchase first. The receipt and the payment schedule are separate from that total.
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <form onSubmit={submit} className="grid gap-6 pb-28">
+                            <form onSubmit={submit} noValidate className="grid gap-6 pb-28">
                                 <FormActionFab
                                     cancelHref={route('admin.expenses.index')}
                                     onCancel={resetForm}
                                     saveLabel="Save expense"
                                     disabled={form.processing}
                                 />
-                                <section className="grid gap-3">
-                                    <h3 className="text-sm font-semibold text-foreground">What was bought</h3>
+                                <FormSection
+                                    icon={<ShoppingBagIcon className="size-4 text-emerald-700" />}
+                                    title="What was bought"
+                                    hint="Who was paid, what the purchase was, and the full cost. This total does not change when you split payments."
+                                    className="border-emerald-200 bg-emerald-50/80 dark:border-emerald-900 dark:bg-emerald-950/30"
+                                >
                                     <div className="grid gap-3 sm:grid-cols-2">
                                         <label className="grid gap-1 text-sm">
                                             Date
                                             <input
                                                 type="date"
-                                                required
                                                 value={form.data.spent_on}
+                                                aria-invalid={Boolean(form.errors.spent_on)}
                                                 onChange={(event) => form.setData('spent_on', event.target.value)}
                                                 className={fieldClass}
                                             />
@@ -428,7 +628,7 @@ export default function Index({
                                                 value={form.data.payee}
                                                 onChange={(event) => form.setData('payee', event.target.value)}
                                                 maxLength={160}
-                                                required
+                                                aria-invalid={Boolean(form.errors.payee)}
                                                 className={fieldClass}
                                             />
                                             <InputError message={form.errors.payee} />
@@ -439,14 +639,15 @@ export default function Index({
                                                 value={form.data.description}
                                                 onChange={(event) => form.setData('description', event.target.value)}
                                                 maxLength={255}
-                                                required
+                                                aria-invalid={Boolean(form.errors.description)}
                                                 className={fieldClass}
                                             />
                                             <InputError message={form.errors.description} />
                                         </label>
                                     </div>
-                                    <label className="grid w-36 gap-1 text-sm">
+                                    <label className="grid max-w-xs gap-1 text-sm">
                                         Total amount
+                                        <span className="text-xs font-normal text-muted-foreground">Full cost of this purchase.</span>
                                         <MaskedDecimalInput
                                             id="expense-amount"
                                             value={form.data.amount}
@@ -468,10 +669,14 @@ export default function Index({
                                         />
                                         <InputError message={form.errors.notes} />
                                     </label>
-                                </section>
+                                </FormSection>
 
-                                <section className="grid gap-3 border-t border-border pt-4">
-                                    <h3 className="text-sm font-semibold text-foreground">Receipt</h3>
+                                <FormSection
+                                    icon={<ReceiptIcon className="size-4 text-indigo-700" />}
+                                    title="Receipt"
+                                    hint="Optional. A photo is saved as a one-page PDF. The picture stays separate from the payment list."
+                                    className="border-indigo-200 bg-indigo-50/80 dark:border-indigo-900 dark:bg-indigo-950/30"
+                                >
                                     <input
                                         type="file"
                                         accept="application/pdf,image/jpeg,image/png,image/webp,image/gif"
@@ -499,18 +704,29 @@ export default function Index({
                                         </label>
                                     ) : (
                                         <p className="text-xs text-muted-foreground">
-                                        A photo is saved as a one-page PDF and kept smaller than the original. Click the picture to see it.
-                                    </p>
+                                            Click a picture to open it larger.
+                                        </p>
                                     )}
-                                </section>
+                                </FormSection>
 
-                                <section className="grid gap-3 border-t border-border pt-4">
-                                    <div className="flex flex-wrap items-end justify-between gap-3">
+                                <FormSection
+                                    icon={<BanknoteIcon className="size-4 text-amber-700" />}
+                                    title="Payments"
+                                    hint="Each row is one payment. Mark it paid when the money has been sent, or leave it to be paid later."
+                                    className="border-amber-200 bg-amber-50/80 dark:border-amber-900 dark:bg-amber-950/30"
+                                >
+                                    <div className="flex flex-wrap items-end justify-between gap-3 rounded-lg border border-amber-200 bg-background px-3 py-2 dark:border-amber-900">
                                         <div>
-                                            <h3 className="text-sm font-semibold text-foreground">Payments</h3>
                                             <p className="text-sm text-muted-foreground">
-                                                Scheduled {money(paymentTotal.toFixed(2))} of the {money(form.data.amount || '0')} total.
+                                                On payments {money(paymentTotal.toFixed(2))} of {money(form.data.amount || '0')}
                                             </p>
+                                            <p className={cn(
+                                                'text-sm font-medium',
+                                                unassignedCents === 0 ? 'text-emerald-800 dark:text-emerald-200' : 'text-amber-900 dark:text-amber-100',
+                                            )}>
+                                                {paymentBalance}
+                                            </p>
+                                            <InputError message={fieldError('payments')} />
                                         </div>
                                         <Button
                                             type="button"
@@ -522,7 +738,8 @@ export default function Index({
                                             Add payment
                                         </Button>
                                     </div>
-                                    <div className="grid gap-2 rounded-md border border-border bg-muted/30 p-3 sm:grid-cols-[6rem_minmax(0,1fr)_auto] sm:items-end">
+                                    <div className="grid gap-2 rounded-lg border border-dashed border-amber-400 bg-background p-3 sm:grid-cols-[6rem_minmax(0,1fr)_auto] sm:items-end">
+                                        <p className="text-sm font-semibold text-foreground sm:col-span-3">Split the total into monthly payments</p>
                                         <label className="grid gap-1 text-sm">
                                             Months
                                             <input
@@ -547,13 +764,15 @@ export default function Index({
                                     </div>
                                     <div className="grid gap-3">
                                         {form.data.payments.map((payment, index) => (
-                                            <div key={`${payment.id ?? 'new'}-${index}`} className="grid gap-2 rounded-md border border-border p-3">
+                                            <div key={`${payment.id ?? 'new'}-${index}`} className="grid gap-2 rounded-lg border border-amber-200 bg-background p-3 dark:border-amber-900">
+                                                <p className="text-sm font-semibold text-foreground">Payment {index + 1}</p>
                                                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                                                     <label className="grid gap-1 text-sm">
                                                         Due
                                                         <input
                                                             type="date"
                                                             value={payment.due_on}
+                                                            aria-invalid={Boolean(fieldError(`payments.${index}.due_on`))}
                                                             onChange={(event) => updatePayment(index, { due_on: event.target.value })}
                                                             className={fieldClass}
                                                         />
@@ -575,6 +794,7 @@ export default function Index({
                                                         Status
                                                         <select
                                                             value={payment.status}
+                                                            aria-invalid={Boolean(fieldError(`payments.${index}.status`))}
                                                             onChange={(event) =>
                                                                 updatePayment(index, {
                                                                     status: event.target.value as PaymentDraft['status'],
@@ -586,11 +806,13 @@ export default function Index({
                                                                 <option key={value} value={value}>{label}</option>
                                                             ))}
                                                         </select>
+                                                        <InputError message={fieldError(`payments.${index}.status`)} />
                                                     </label>
                                                     <label className="grid gap-1 text-sm">
                                                         How we pay
                                                         <select
                                                             value={payment.method}
+                                                            aria-invalid={Boolean(fieldError(`payments.${index}.method`))}
                                                             onChange={(event) => updatePayment(index, { method: event.target.value })}
                                                             className={fieldClass}
                                                         >
@@ -598,6 +820,7 @@ export default function Index({
                                                                 <option key={value} value={value}>{label}</option>
                                                             ))}
                                                         </select>
+                                                        <InputError message={fieldError(`payments.${index}.method`)} />
                                                     </label>
                                                 </div>
                                                 {payment.status === 'paid' ? (
@@ -606,9 +829,11 @@ export default function Index({
                                                         <input
                                                             type="date"
                                                             value={payment.paid_on}
+                                                            aria-invalid={Boolean(fieldError(`payments.${index}.paid_on`))}
                                                             onChange={(event) => updatePayment(index, { paid_on: event.target.value })}
                                                             className={fieldClass}
                                                         />
+                                                        <InputError message={fieldError(`payments.${index}.paid_on`)} />
                                                     </label>
                                                 ) : null}
                                                 {form.data.payments.length > 1 ? (
@@ -630,7 +855,7 @@ export default function Index({
                                             </div>
                                         ))}
                                     </div>
-                                </section>
+                                </FormSection>
 
                             </form>
                         </CardContent>
@@ -639,10 +864,11 @@ export default function Index({
                     <Card>
                         <CardHeader>
                             <CardTitle>Ledger</CardTitle>
-                            <CardDescription>Each record shows what is already paid and what is still due.</CardDescription>
+                            <CardDescription>The purchase is on top. Paid and still due are on the right. The schedule is listed underneath.</CardDescription>
                         </CardHeader>
                         <CardContent className="grid gap-3">
-                            <form onSubmit={applyFilters} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_12rem_auto]">
+                            <form onSubmit={applyFilters} className="grid gap-2 rounded-lg border border-[#c5d0dc] bg-[#eef3f8] p-3 sm:grid-cols-[minmax(0,1fr)_12rem_auto] dark:border-border dark:bg-muted/40">
+                                <p className="text-xs font-semibold uppercase tracking-wide text-[#0a2540] sm:col-span-3 dark:text-foreground">Find an expense</p>
                                 <input
                                     value={search}
                                     onChange={(event) => setSearch(event.target.value)}
@@ -671,8 +897,33 @@ export default function Index({
                             ) : (
                                 <ul className="grid gap-3">
                                     {expenses.data.map((expense) => (
-                                        <li key={expense.id} className="grid gap-3 rounded-md border border-border p-3 lg:grid-cols-[minmax(0,1fr)_auto]">
-                                            <div className="grid min-w-0 gap-3 sm:grid-cols-[7rem_minmax(0,1fr)]">
+                                        <li key={expense.id} className="overflow-hidden rounded-xl border border-[#c5d0dc] dark:border-border">
+                                            <div className="grid gap-3 border-b border-[#c5d0dc] bg-[#eef3f8] p-3 dark:border-border dark:bg-muted/40 lg:grid-cols-[minmax(0,1fr)_auto]">
+                                                <div className="min-w-0">
+                                                    <p className="break-words text-base font-semibold text-[#0a2540] dark:text-foreground">{expense.description}</p>
+                                                    <p className="break-words text-sm text-[#111827] dark:text-muted-foreground">
+                                                        {expense.spent_on} · {expense.payee}
+                                                    </p>
+                                                    <Badge variant="outline" className="mt-2 border-emerald-300 bg-white text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100">
+                                                        {expense.category_label}
+                                                    </Badge>
+                                                </div>
+                                                <div className="grid grid-cols-3 gap-3 text-right">
+                                                    <div>
+                                                        <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-800 dark:text-emerald-200">Total</p>
+                                                        <p className="text-sm font-semibold tabular-nums text-[#111827] dark:text-foreground">{money(expense.amount)}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[11px] font-semibold uppercase tracking-wide text-sky-800 dark:text-sky-200">Paid</p>
+                                                        <p className="text-sm font-semibold tabular-nums text-[#111827] dark:text-foreground">{money(expense.paid_amount)}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-200">To be paid</p>
+                                                        <p className="text-sm font-semibold tabular-nums text-[#111827] dark:text-foreground">{money(expense.scheduled_amount)}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="grid gap-3 p-3 sm:grid-cols-[7rem_minmax(0,1fr)]">
                                                 {expense.receipt_preview_url ? (
                                                     <ReceiptPicture
                                                         src={expense.receipt_preview_url}
@@ -681,48 +932,46 @@ export default function Index({
                                                         pdfName={expense.receipt_name}
                                                     />
                                                 ) : (
-                                                    <div className="hidden sm:block" />
+                                                    <div className="hidden text-xs text-muted-foreground sm:block">No receipt</div>
                                                 )}
                                                 <div className="min-w-0">
-                                                    <p className="break-words text-base font-medium text-foreground">{expense.description}</p>
-                                                    <p className="break-words text-sm text-muted-foreground">
-                                                        {expense.spent_on} · {expense.payee} · {expense.category_label}
-                                                    </p>
-                                                    <p className="mt-1 text-sm font-semibold text-foreground">{money(expense.amount)}</p>
-                                                    <p className="text-sm text-muted-foreground">
-                                                        Paid {money(expense.paid_amount)} · To be paid {money(expense.scheduled_amount)}
-                                                    </p>
                                                     {expense.notes ? (
-                                                        <p className="mt-1 whitespace-pre-wrap break-words text-sm text-muted-foreground">{expense.notes}</p>
+                                                        <p className="mb-3 whitespace-pre-wrap break-words rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-foreground">{expense.notes}</p>
                                                     ) : null}
+                                                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Payment schedule</p>
                                                     {expense.payments.length > 0 ? (
-                                                        <ul className="mt-2 grid gap-1">
+                                                        <ul className="mt-2 grid gap-2">
                                                             {expense.payments.map((payment) => (
-                                                                <li key={payment.id} className="flex flex-wrap items-center gap-2 text-sm">
-                                                                    <Badge variant={payment.status === 'paid' ? 'default' : 'outline'}>
-                                                                        {payment.status_label}
-                                                                    </Badge>
-                                                                    <span>{payment.due_on}</span>
-                                                                    <span className="font-medium">{money(payment.amount)}</span>
-                                                                    <span className="text-muted-foreground">{payment.method_label}</span>
+                                                                <li key={payment.id} className="grid items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm sm:grid-cols-[6.5rem_minmax(0,1fr)_auto]">
+                                                                    <span className="text-[#111827] dark:text-foreground">{payment.due_on}</span>
+                                                                    <span className="flex flex-wrap items-center gap-2">
+                                                                        <Badge className={payment.status === 'paid'
+                                                                            ? 'border-sky-300 bg-sky-100 text-sky-950 hover:bg-sky-100'
+                                                                            : 'border-amber-300 bg-amber-100 text-amber-950 hover:bg-amber-100'}>
+                                                                            {payment.status_label}
+                                                                        </Badge>
+                                                                        <span className="text-muted-foreground">{payment.method_label}</span>
+                                                                    </span>
+                                                                    <span className="font-semibold tabular-nums sm:text-right">{money(payment.amount)}</span>
                                                                 </li>
                                                             ))}
                                                         </ul>
                                                     ) : (
                                                         <p className="mt-2 text-sm text-muted-foreground">No payments recorded yet.</p>
                                                     )}
-                                                    <p className="mt-2 text-xs text-muted-foreground">
-                                                        Recorded by {expense.recorded_by || 'a removed account'}
-                                                        {expense.receipt_url ? (
-                                                            <>
-                                                                {' '}
-                                                                · <a href={expense.receipt_url} target="_blank" rel="noopener" className="underline">{expense.receipt_name || 'Receipt'}</a>
-                                                            </>
-                                                        ) : null}
-                                                    </p>
                                                 </div>
                                             </div>
-                                            <div className="flex flex-wrap gap-2 lg:justify-end">
+                                            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-3 py-2">
+                                            <p className="text-xs text-muted-foreground">
+                                                Recorded by {expense.recorded_by || 'a removed account'}
+                                                {expense.receipt_url ? (
+                                                    <>
+                                                        {' '}
+                                                        · <a href={expense.receipt_url} target="_blank" rel="noopener" className="underline">{expense.receipt_name || 'Receipt'}</a>
+                                                    </>
+                                                ) : null}
+                                            </p>
+                                            <div className="flex flex-wrap gap-2">
                                                 <Button type="button" variant="outline" className="min-h-11 touch-manipulation" onClick={() => edit(expense)}>
                                                     Edit
                                                 </Button>
@@ -745,6 +994,7 @@ export default function Index({
                                                         Delete
                                                     </Button>
                                                 )}
+                                            </div>
                                             </div>
                                         </li>
                                     ))}

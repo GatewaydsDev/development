@@ -26,9 +26,10 @@ import {
     CardHeader,
     CardTitle,
 } from '@/Components/ui/card';
+import { cn } from '@/lib/utils';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { router, usePage } from '@inertiajs/react';
-import { PlusIcon, Trash2Icon, FileUpIcon } from 'lucide-react';
+import { DraftingCompassIcon, FileUpIcon, FolderKanbanIcon, GitBranchIcon, ListOrderedIcon, PlusIcon, Trash2Icon } from 'lucide-react';
 import { FormEventHandler, useEffect, useMemo, useRef, useState } from 'react';
 import {
     FieldErrors,
@@ -61,10 +62,10 @@ import {
 } from '../types';
 
 const BID_SECTIONS = [
-    { id: 'bid-details', label: 'Project' },
-    { id: 'bid-revisions', label: 'Revisions' },
-    { id: 'bid-stages', label: 'Stages' },
-    { id: 'bid-document', label: 'Bid page' },
+    { id: 'bid-details', label: 'Project', icon: FolderKanbanIcon, solid: 'border-emerald-700 bg-emerald-600 hover:bg-emerald-700', soft: 'border-emerald-300 bg-emerald-50 text-emerald-950 hover:bg-emerald-100' },
+    { id: 'bid-revisions', label: 'Revisions', icon: GitBranchIcon, solid: 'border-violet-700 bg-violet-600 hover:bg-violet-700', soft: 'border-violet-300 bg-violet-50 text-violet-950 hover:bg-violet-100' },
+    { id: 'bid-stages', label: 'Stages', icon: ListOrderedIcon, solid: 'border-blue-700 bg-blue-600 hover:bg-blue-700', soft: 'border-blue-300 bg-blue-50 text-blue-950 hover:bg-blue-100' },
+    { id: 'bid-document', label: 'Bid page', icon: DraftingCompassIcon, solid: 'border-sky-800 bg-sky-700 hover:bg-sky-800', soft: 'border-sky-300 bg-sky-50 text-sky-950 hover:bg-sky-100' },
 ] as const;
 
 type BidFormProps = {
@@ -690,20 +691,23 @@ export default function BidForm({
 
     return (
         <form onSubmit={submit} className="flex w-full min-w-0 max-w-full flex-col gap-6 pr-4 pb-28 sm:pr-20 lg:pb-6">
+            <div data-section-stack className="sticky top-[7.25rem] z-30 bg-background pb-2">
             <nav
                 aria-label="Bid sections"
-                className="sticky top-[7.25rem] z-20 flex gap-2 overflow-x-auto rounded-xl border border-border bg-card/95 px-2 py-2 shadow-sm backdrop-blur"
+                className="flex gap-1 overflow-x-auto rounded-xl border border-[#c5d0dc] bg-[#eef3f8] p-1.5 text-[#0a2540] shadow-sm"
             >
-                {BID_SECTIONS.map((section) => (
+                {BID_SECTIONS.map((section) => {
+                    const active = activeSection === section.id;
+
+                    return (
                     <a
                         key={section.id}
                         href={`#${section.id}`}
-                        aria-current={activeSection === section.id ? 'true' : undefined}
-                        className={`shrink-0 rounded-lg px-3 py-2 text-sm font-medium ${
-                            activeSection === section.id
-                                ? 'bg-emerald-600 text-white'
-                                : 'text-foreground hover:bg-muted'
-                        }`}
+                        aria-current={active ? 'location' : undefined}
+                        className={cn(
+                            'inline-flex shrink-0 items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition',
+                            active ? `${section.solid} text-white hover:text-white` : section.soft,
+                        )}
                         onClick={(event) => {
                             event.preventDefault();
                             setActiveSection(section.id);
@@ -713,12 +717,15 @@ export default function BidForm({
                             });
                         }}
                     >
+                        <section.icon className="size-4" />
                         {section.label}
                     </a>
-                ))}
+                    );
+                })}
             </nav>
+            </div>
 
-            <Card id="bid-details" className="scroll-mt-44 overflow-visible shadow-sm">
+            <Card id="bid-details" className="scroll-mt-48 overflow-visible shadow-sm">
                 <CardHeader>
                     <CardTitle>{title}</CardTitle>
                     <CardDescription>{description}</CardDescription>
@@ -935,7 +942,7 @@ export default function BidForm({
                 </CardContent>
             </Card>
 
-            <section id="bid-revisions" className="scroll-mt-44 flex flex-col gap-4 rounded-xl border border-border bg-card p-5">
+            <section id="bid-revisions" className="scroll-mt-48 flex flex-col gap-4 rounded-xl border border-border bg-card p-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h3 className="text-base font-semibold text-foreground">
@@ -1079,7 +1086,7 @@ export default function BidForm({
                 )}
             </section>
 
-            <section id="bid-stages" className="scroll-mt-44 flex flex-col gap-4 rounded-xl border border-border bg-card p-5">
+            <section id="bid-stages" className="scroll-mt-48 flex flex-col gap-4 rounded-xl border border-border bg-card p-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h3 className="text-base font-semibold text-foreground">
@@ -1207,7 +1214,7 @@ export default function BidForm({
                 </div>
             </section>
 
-            <section id="bid-document" className="scroll-mt-44">
+            <section id="bid-document" className="scroll-mt-48">
             <BidApplicationTextSection
                 purpose="shipping"
                 options={options}
