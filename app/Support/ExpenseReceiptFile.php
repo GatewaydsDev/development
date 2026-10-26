@@ -74,11 +74,94 @@ class ExpenseReceiptFile
 
         $path = $expense->receipt_path;
 
-        if (is_string($path) && $path !== '' && $this->pathIsImage($path, $expense->receipt_name) && Storage::disk('local')->exists($path)) {
+        if (! is_string($path) || $path === '' || ! Storage::disk('local')->exists($path)) {
+            return null;
+        }
+
+        if ($this->pathIsImage($path, $expense->receipt_name)) {
             return $path;
         }
 
-        return null;
+        $bytes = Storage::disk('local')->get($path);
+
+        if (! is_string($bytes) || ! str_starts_with($bytes, '%PDF')) {
+            return null;
+        }
+
+        $jpeg = $this->largestJpeg($bytes);
+
+        if ($jpeg === null) {
+            return null;
+        }
+
+        Storage::disk('local')->put($preview, $jpeg);
+
+        return $preview;
+    }
+
+    private function largestJpeg(string $pdf): ?string
+    {
+        $best = null;
+        $offset = 0;
+
+        while (($filter = strpos($pdf, '/DCTDecode', $offset)) !== false) {
+            $dictStart = strrpos(substr($pdf, 0, $filter), '<<');
+            $stream = strpos($pdf, 'stream', $filter);
+
+            if ($dictStart === false || $stream === false) {
+                break;
+            }
+
+            $dictionary = substr($pdf, $dictStart, $stream - $dictStart);
+
+            if (! preg_match('/\/Length\s+(\d+)/', $dictionary, $match)) {
+                $offset = $filter + 10;
+
+                continue;
+            }
+
+            $start = $stream + strlen('stream');
+
+            if (substr($pdf, $start, 2) === "\r\n") {
+                $start += 2;
+            } elseif (isset($pdf[$start]) && ($pdf[$start] === "\n" || $pdf[$start] === "\r")) {
+                $start++;
+            }
+
+            $chunk = substr($pdf, $start, (int) $match[1]);
+
+            if (! str_starts_with($chunk, "\xFF\xD8")) {
+                $offset = $filter + 10;
+
+                continue;
+            }
+
+            $end = strpos($chunk, "\xFF\xD9");
+
+            if ($end !== false) {
+                $chunk = substr($chunk, 0, $end + 2);
+            }
+
+            if ($best === null || strlen($chunk) > strlen($best)) {
+                $best = $chunk;
+            }
+
+            $offset = $filter + 10;
+        }
+
+        if (! is_string($best)) {
+            return null;
+        }
+
+        $image = @imagecreatefromstring($best);
+
+        if ($image === false) {
+            return null;
+        }
+
+        imagedestroy($image);
+
+        return $best;
     }
 
     private function storeImage(Expense $expense, string $bytes, string $downloadName): void

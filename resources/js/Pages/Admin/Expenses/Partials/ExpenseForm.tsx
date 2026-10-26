@@ -70,6 +70,16 @@ const money = (value: string) =>
         currency: 'USD',
     }).format(Number(value || 0));
 
+const displayDate = (value: string) => {
+    const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+
+    if (!match) {
+        return value || 'the purchase date';
+    }
+
+    return `${match[2]}/${match[3]}/${match[1]}`;
+};
+
 const today = () => {
     const date = new Date();
 
@@ -305,9 +315,11 @@ function ReceiptPicture({
 
 function ChosenReceiptPreview({ file }: { file: File | null }) {
     const [url, setUrl] = useState<string | null>(null);
+    const isImage = Boolean(file && (file.type.startsWith('image/') || /\.(png|jpe?g|gif|webp)$/i.test(file.name)));
+    const isPdf = Boolean(file && (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)));
 
     useEffect(() => {
-        if (!file || !file.type.startsWith('image/')) {
+        if (!file || (!isImage && !isPdf)) {
             setUrl(null);
 
             return;
@@ -317,13 +329,23 @@ function ChosenReceiptPreview({ file }: { file: File | null }) {
         setUrl(next);
 
         return () => URL.revokeObjectURL(next);
-    }, [file]);
+    }, [file, isImage, isPdf]);
 
-    if (!url) {
+    if (!url || !file) {
         return null;
     }
 
-    return <ReceiptPicture src={url} alt={file?.name || 'Selected receipt'} />;
+    if (isPdf) {
+        return (
+            <iframe
+                title={file.name}
+                src={url}
+                className="h-40 w-full rounded-md border border-border bg-white"
+            />
+        );
+    }
+
+    return <ReceiptPicture src={url} alt={file.name || 'Selected receipt'} />;
 }
 
 function FormSection({
@@ -673,36 +695,52 @@ export default function ExpenseForm({
                         hint="Optional. A photo is saved as a one-page PDF."
                         className="border-indigo-200 bg-indigo-50/80 dark:border-indigo-900 dark:bg-indigo-950/30"
                     >
-                        <input
-                            type="file"
-                            accept="application/pdf,image/jpeg,image/png,image/webp,image/gif"
-                            className="block w-full text-sm text-foreground file:me-3 file:min-h-11 file:rounded-md file:border-0 file:bg-muted file:px-3 file:text-sm file:text-foreground"
-                            onChange={(event) => form.setData('receipt', event.target.files?.[0] ?? null)}
-                        />
-                        <InputError message={form.errors.receipt} />
-                        <ChosenReceiptPreview file={form.data.receipt} />
-                        {expense?.receipt_preview_url && !form.data.receipt && !form.data.remove_receipt ? (
-                            <ReceiptPicture
-                                src={expense.receipt_preview_url}
-                                alt={expense.receipt_name || 'Receipt'}
-                                pdfUrl={expense.receipt_url}
-                                pdfName={expense.receipt_name}
-                            />
-                        ) : null}
-                        {expense?.receipt_name ? (
-                            <label className="inline-flex min-h-11 items-center gap-2 text-sm text-foreground">
+                        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
+                            <div className="grid gap-3">
                                 <input
-                                    type="checkbox"
-                                    checked={form.data.remove_receipt}
-                                    onChange={(event) => form.setData('remove_receipt', event.target.checked)}
+                                    type="file"
+                                    accept="application/pdf,image/jpeg,image/png,image/webp,image/gif"
+                                    className="block w-full text-sm text-foreground file:me-3 file:min-h-11 file:rounded-md file:border-0 file:bg-muted file:px-3 file:text-sm file:text-foreground"
+                                    onChange={(event) => form.setData('receipt', event.target.files?.[0] ?? null)}
                                 />
-                                Remove current receipt ({expense.receipt_name})
-                            </label>
-                        ) : (
-                            <p className="text-xs text-muted-foreground">
-                                Click a picture to open it larger.
-                            </p>
-                        )}
+                                <InputError message={form.errors.receipt} />
+                                {expense?.receipt_name ? (
+                                    <label className="inline-flex min-h-11 items-center gap-2 text-sm text-foreground">
+                                        <input
+                                            type="checkbox"
+                                            checked={form.data.remove_receipt}
+                                            onChange={(event) => form.setData('remove_receipt', event.target.checked)}
+                                        />
+                                        Remove current receipt ({expense.receipt_name})
+                                    </label>
+                                ) : (
+                                    <p className="text-xs text-muted-foreground">
+                                        A picture shows here as soon as you choose it. Click it to open it larger.
+                                    </p>
+                                )}
+                            </div>
+                            <div className="grid gap-2">
+                                <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Preview</p>
+                                <div className="flex min-h-40 items-center justify-center overflow-hidden rounded-md border border-border bg-background p-2">
+                                    {form.data.receipt ? (
+                                        <ChosenReceiptPreview file={form.data.receipt} />
+                                    ) : expense?.receipt_preview_url && !form.data.remove_receipt ? (
+                                        <ReceiptPicture
+                                            src={expense.receipt_preview_url}
+                                            alt={expense.receipt_name || 'Receipt'}
+                                            pdfUrl={expense.receipt_url}
+                                            pdfName={expense.receipt_name}
+                                        />
+                                    ) : expense?.receipt_url && !form.data.remove_receipt ? (
+                                        <a href={expense.receipt_url} target="_blank" rel="noopener" className="text-sm text-foreground underline">
+                                            {expense.receipt_name || 'Open receipt'}
+                                        </a>
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground">No image yet</p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
                     </FormSection>
 
                     <FormSection
@@ -716,7 +754,7 @@ export default function ExpenseForm({
                         {oneTime ? (
                             <div className="grid gap-3 rounded-lg border border-amber-200 bg-background px-3 py-3 dark:border-amber-900">
                                 <p className="text-sm text-foreground">
-                                    This is one payment of {money(form.data.amount || '0')} on {form.data.spent_on || 'the purchase date'}. Amount and due date stay with the purchase.
+                                    This is one payment of {money(form.data.amount || '0')} on {displayDate(form.data.spent_on)}. Amount and due date stay with the purchase.
                                 </p>
                                 <div className="flex flex-wrap gap-2">
                                     <Button

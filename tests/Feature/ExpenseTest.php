@@ -263,3 +263,69 @@ test('a super administrator opens the add and edit expense pages', function () {
             ->where('expense.description', 'New course')
         );
 });
+
+test('a pdf receipt shows its picture on the expense list', function () {
+    Storage::fake('local');
+    $admin = expenseAdmin();
+    $image = imagecreatetruecolor(40, 30);
+    $color = imagecolorallocate($image, 20, 90, 160);
+    imagefill($image, 0, 0, $color);
+    ob_start();
+    imagejpeg($image, null, 80);
+    $jpeg = ob_get_clean();
+    imagedestroy($image);
+
+    $this->actingAs($admin)
+        ->post(route('admin.expenses.store'), [
+            'spent_on' => '2026-10-16',
+            'payee' => 'Office Store',
+            'person_name' => 'Alex Rivera',
+            'description' => 'Scanned receipt',
+            'category' => 'supplies',
+            'amount' => '18.00',
+            'receipt' => UploadedFile::fake()->createWithContent('receipt_scan.pdf', expenseJpegPdf((string) $jpeg, 40, 30)),
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $expense = Expense::query()->first();
+
+    $this->actingAs($admin)
+        ->get(route('admin.expenses.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('expenses.data.0.receipt_is_image', true)
+            ->where('expenses.data.0.receipt_preview_url', fn ($url) => is_string($url) && str_contains($url, 'preview=1'))
+        );
+
+    expect(Storage::disk('local')->exists('expenses/'.$expense->id.'/preview.jpg'))->toBeTrue();
+});
+
+function expenseJpegPdf(string $jpeg, int $pixelWidth, int $pixelHeight): string
+{
+    $content = "q\n{$pixelWidth} 0 0 {$pixelHeight} 36 36 cm\n/Im0 Do\nQ\n";
+    $objects = [
+        "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
+        "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n",
+        "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /XObject << /Im0 5 0 R >> >> >>\nendobj\n",
+        "4 0 obj\n<< /Length ".strlen($content)." >>\nstream\n{$content}endstream\nendobj\n",
+        "5 0 obj\n<< /Type /XObject /Subtype /Image /Width {$pixelWidth} /Height {$pixelHeight} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ".strlen($jpeg)." >>\nstream\n{$jpeg}\nendstream\nendobj\n",
+    ];
+    $pdf = "%PDF-1.4\n";
+    $offsets = [0];
+
+    foreach ($objects as $object) {
+        $offsets[] = strlen($pdf);
+        $pdf .= $object;
+    }
+
+    $xref = strlen($pdf);
+    $count = count($offsets);
+    $pdf .= "xref\n0 {$count}\n0000000000 65535 f \n";
+
+    for ($index = 1; $index < $count; $index++) {
+        $pdf .= sprintf("%010d 00000 n \n", $offsets[$index]);
+    }
+
+    return $pdf."trailer\n<< /Size {$count} /Root 1 0 R >>\nstartxref\n{$xref}\n%%EOF";
+}

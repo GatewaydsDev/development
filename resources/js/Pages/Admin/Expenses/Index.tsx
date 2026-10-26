@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import { Head, Link, router } from '@inertiajs/react';
 import { EditIcon, PlusIcon, ReceiptIcon, SearchIcon, Trash2Icon } from 'lucide-react';
 import { FormEvent, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 type ExpenseRow = {
     id: number;
@@ -26,6 +27,8 @@ type ExpenseRow = {
     amount: string;
     paid_amount: string;
     scheduled_amount: string;
+    receipt_name: string | null;
+    receipt_preview_url: string | null;
 };
 
 type Props = {
@@ -47,8 +50,25 @@ const money = (value: string) =>
         currency: 'USD',
     }).format(Number(value || 0));
 
+const displayDate = (value: string) => {
+    const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+
+    if (!match) {
+        return value;
+    }
+
+    return `${match[2]}/${match[3]}/${match[1]}`;
+};
+
 const rowGridClassName =
-    'xl:grid-cols-[6.5rem_minmax(7rem,0.9fr)_minmax(7rem,1fr)_minmax(10rem,1.4fr)_7.5rem_6.25rem_6.25rem_6.75rem_4.75rem]';
+    'xl:grid-cols-[3.5rem_7rem_minmax(7rem,0.9fr)_minmax(7rem,1fr)_minmax(10rem,1.4fr)_7.5rem_6.5rem_6.5rem_7rem_4.75rem]';
+
+type HoverPreview = {
+    src: string;
+    name: string;
+    top: number;
+    left: number;
+};
 
 export default function Index({
     filters,
@@ -62,6 +82,32 @@ export default function Index({
     const [search, setSearch] = useState(filters.search);
     const [category, setCategory] = useState(filters.category);
     const [confirming, setConfirming] = useState<number | null>(null);
+    const [hover, setHover] = useState<HoverPreview | null>(null);
+
+    const showReceipt = (expense: ExpenseRow, row: HTMLDivElement) => {
+        if (!expense.receipt_preview_url) {
+            setHover(null);
+
+            return;
+        }
+
+        const rect = row.getBoundingClientRect();
+        const width = 320;
+        let left = rect.right + 12;
+
+        if (left + width > window.innerWidth - 8) {
+            left = Math.max(8, rect.left - width - 12);
+        }
+
+        const top = Math.max(8, Math.min(rect.top, window.innerHeight - 300));
+
+        setHover({
+            src: expense.receipt_preview_url,
+            name: expense.receipt_name || 'Receipt',
+            top,
+            left,
+        });
+    };
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
@@ -111,7 +157,7 @@ export default function Index({
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <p className="text-3xl font-semibold tabular-nums text-foreground">{money(total)}</p>
+                                <p className="text-right text-3xl font-semibold tabular-nums text-foreground">{money(total)}</p>
                             </CardContent>
                         </Card>
                         <Card>
@@ -120,7 +166,7 @@ export default function Index({
                                 <CardDescription>Already sent</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <p className="text-3xl font-semibold tabular-nums text-foreground">{money(paid)}</p>
+                                <p className="text-right text-3xl font-semibold tabular-nums text-foreground">{money(paid)}</p>
                             </CardContent>
                         </Card>
                         <Card>
@@ -129,7 +175,7 @@ export default function Index({
                                 <CardDescription>Still due</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <p className="text-3xl font-semibold tabular-nums text-foreground">{money(scheduled)}</p>
+                                <p className="text-right text-3xl font-semibold tabular-nums text-foreground">{money(scheduled)}</p>
                             </CardContent>
                         </Card>
                     </div>
@@ -170,14 +216,15 @@ export default function Index({
                         <CardContent>
                             <div className="overflow-x-auto rounded-lg border border-border">
                                 <div className={cn('hidden items-center gap-3 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase xl:grid', rowGridClassName)}>
+                                    <div>Receipt</div>
                                     <div>Date</div>
                                     <div>Person</div>
                                     <div>Paid to</div>
                                     <div>What it was for</div>
                                     <div>Category</div>
-                                    <div>Total</div>
-                                    <div>Paid</div>
-                                    <div>To be paid</div>
+                                    <div className="text-right">Total</div>
+                                    <div className="text-right">Paid</div>
+                                    <div className="text-right">To be paid</div>
                                     <div className="text-right">Actions</div>
                                 </div>
 
@@ -189,10 +236,24 @@ export default function Index({
                                                 'grid gap-3 border-b border-border px-4 py-4 last:border-b-0 xl:min-h-20 xl:items-center xl:gap-3',
                                                 rowGridClassName,
                                             )}
+                                            onMouseEnter={(event) => showReceipt(expense, event.currentTarget)}
+                                            onMouseLeave={() => setHover(null)}
                                         >
                                             <div>
+                                                <DirectoryFieldLabel hideFrom="xl">Receipt</DirectoryFieldLabel>
+                                                {expense.receipt_preview_url ? (
+                                                    <img
+                                                        src={expense.receipt_preview_url}
+                                                        alt={expense.receipt_name || 'Receipt'}
+                                                        className="h-10 w-10 rounded-md border border-border bg-background object-cover"
+                                                    />
+                                                ) : (
+                                                    <span className="text-sm text-muted-foreground">—</span>
+                                                )}
+                                            </div>
+                                            <div>
                                                 <DirectoryFieldLabel hideFrom="xl">Date</DirectoryFieldLabel>
-                                                <p className="text-sm text-foreground">{expense.spent_on}</p>
+                                                <p className="text-sm text-foreground">{displayDate(expense.spent_on)}</p>
                                             </div>
                                             <div className="min-w-0">
                                                 <DirectoryFieldLabel hideFrom="xl">Person</DirectoryFieldLabel>
@@ -210,15 +271,15 @@ export default function Index({
                                                 <DirectoryFieldLabel hideFrom="xl">Category</DirectoryFieldLabel>
                                                 <Badge variant="outline">{expense.category_label}</Badge>
                                             </div>
-                                            <div>
+                                            <div className="xl:text-right">
                                                 <DirectoryFieldLabel hideFrom="xl">Total</DirectoryFieldLabel>
                                                 <p className="text-sm font-medium tabular-nums text-foreground">{money(expense.amount)}</p>
                                             </div>
-                                            <div>
+                                            <div className="xl:text-right">
                                                 <DirectoryFieldLabel hideFrom="xl">Paid</DirectoryFieldLabel>
                                                 <p className="text-sm tabular-nums text-foreground">{money(expense.paid_amount)}</p>
                                             </div>
-                                            <div>
+                                            <div className="xl:text-right">
                                                 <DirectoryFieldLabel hideFrom="xl">To be paid</DirectoryFieldLabel>
                                                 <p className="text-sm tabular-nums text-foreground">{money(expense.scheduled_amount)}</p>
                                             </div>
@@ -279,6 +340,21 @@ export default function Index({
                                 )}
                             </div>
                             <PaginationNav paginator={expenses} itemLabel="expenses" />
+                            {hover
+                                ? createPortal(
+                                    <div
+                                        className="pointer-events-none fixed z-50 rounded-lg border border-border bg-background p-2 shadow-lg"
+                                        style={{ top: hover.top, left: hover.left }}
+                                    >
+                                        <img
+                                            src={hover.src}
+                                            alt={hover.name}
+                                            className="max-h-72 max-w-xs rounded-md bg-white object-contain"
+                                        />
+                                    </div>,
+                                    document.body,
+                                )
+                                : null}
                         </CardContent>
                     </Card>
                 </div>
