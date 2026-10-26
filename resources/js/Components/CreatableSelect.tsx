@@ -49,6 +49,7 @@ type CreatableSelectProps = {
     disabledIds?: string[];
     allowCreate?: boolean;
     createRoute?: string;
+    onCreateName?: (name: string) => void;
     optionsProp?: string;
     catalogKey?: string;
     entityLabel?: string;
@@ -97,6 +98,7 @@ export default function CreatableSelect({
     disabledIds = [],
     allowCreate = true,
     createRoute,
+    onCreateName,
     optionsProp = 'options',
     catalogKey,
     entityLabel = 'item',
@@ -153,7 +155,7 @@ export default function CreatableSelect({
         String(exactMatch.id) !== value;
     const canCreate =
         allowCreate &&
-        Boolean(createRoute) &&
+        (Boolean(createRoute) || Boolean(onCreateName)) &&
         createNameSchema.safeParse(query).success &&
         exactMatch === undefined &&
         normalizedQuery !== '';
@@ -312,7 +314,7 @@ export default function CreatableSelect({
     const askToCreate = (name: string) => {
         const parsed = createNameSchema.safeParse(name);
 
-        if (!parsed.success || !createRoute) {
+        if (!parsed.success || (!createRoute && !onCreateName)) {
             return;
         }
 
@@ -392,7 +394,21 @@ export default function CreatableSelect({
     }, []);
 
     const confirmCreate = () => {
-        if (!createRoute || pendingName === '') {
+        if (pendingName === '') {
+            return;
+        }
+
+        if (onCreateName) {
+            onCreateName(pendingName);
+            setQuery(pendingName);
+            setHasTyped(false);
+            setIsDialogOpen(false);
+            setPendingName('');
+
+            return;
+        }
+
+        if (!createRoute) {
             return;
         }
 
@@ -714,7 +730,7 @@ export default function CreatableSelect({
                                     : 'No matches found.'}
                             </p>
                         ) : null}
-                        {showCreateFooter && allowCreate && createRoute ? (
+                        {showCreateFooter && allowCreate && (createRoute || onCreateName) ? (
                             <div className="sticky bottom-0 -mb-1 border-t border-border bg-background p-1">
                                 <button
                                     id={

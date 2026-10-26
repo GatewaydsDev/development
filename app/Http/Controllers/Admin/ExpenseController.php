@@ -25,9 +25,9 @@ class ExpenseController extends Controller
         $this->authorizeExpenses($request);
 
         $search = trim((string) $request->query('search', ''));
-        $category = (string) $request->query('category', '');
+        $category = trim((string) $request->query('category', ''));
 
-        if (! array_key_exists($category, Expense::CATEGORIES)) {
+        if (strlen($category) > 80) {
             $category = '';
         }
 
@@ -37,6 +37,7 @@ class ExpenseController extends Controller
                 $query->where(function ($query) use ($search): void {
                     $query
                         ->where('payee', 'like', "%{$search}%")
+                        ->orWhere('person_name', 'like', "%{$search}%")
                         ->orWhere('description', 'like', "%{$search}%")
                         ->orWhere('notes', 'like', "%{$search}%");
                 });
@@ -58,9 +59,7 @@ class ExpenseController extends Controller
                 'search' => $search,
                 'category' => $category,
             ],
-            'categories' => Expense::CATEGORIES,
-            'paymentStatuses' => ExpensePayment::STATUSES,
-            'paymentMethods' => ExpensePayment::METHODS,
+            'categories' => $this->categoryLabels(),
             'total' => number_format((float) $total, 2, '.', ''),
             'paid' => number_format((float) $paid, 2, '.', ''),
             'scheduled' => number_format((float) $scheduled, 2, '.', ''),
@@ -72,6 +71,24 @@ class ExpenseController extends Controller
                 ->paginate(15)
                 ->withQueryString()
                 ->through(fn (Expense $expense): array => $this->payload($expense)),
+        ]);
+    }
+
+    public function create(Request $request): Response
+    {
+        $this->authorizeExpenses($request);
+
+        return Inertia::render('Admin/Expenses/Create', $this->formOptions());
+    }
+
+    public function edit(Request $request, Expense $expense): Response
+    {
+        $this->authorizeExpenses($request);
+        $expense->load(['recorder:id,name', 'payments']);
+
+        return Inertia::render('Admin/Expenses/Edit', [
+            ...$this->formOptions(),
+            'expense' => $this->payload($expense),
         ]);
     }
 
@@ -160,15 +177,16 @@ class ExpenseController extends Controller
     }
 
     /**
-     * @return array{expense: array{spent_on: string, payee: string, description: string, category: string, amount: string, notes: ?string}, payments: list<array{id: ?int, due_on: string, paid_on: ?string, amount: string, status: string, method: string}>}
+     * @return array{expense: array{spent_on: string, person_name: string, payee: string, description: string, category: string, amount: string, notes: ?string}, payments: list<array{id: ?int, due_on: string, paid_on: ?string, amount: string, status: string, method: string}>}
      */
     private function validated(Request $request): array
     {
         $validated = $request->validate([
             'spent_on' => ['required', 'date'],
+            'person_name' => ['required', 'string', 'max:160'],
             'payee' => ['required', 'string', 'max:160'],
             'description' => ['required', 'string', 'max:255'],
-            'category' => ['required', Rule::in(array_keys(Expense::CATEGORIES))],
+            'category' => ['required', 'string', 'max:80'],
             'amount' => ['required', 'numeric', 'min:0.01', 'max:99999999.99'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'receipt' => ['nullable', 'file', 'mimes:pdf,jpeg,jpg,png,webp,gif', 'max:5120'],
@@ -202,9 +220,10 @@ class ExpenseController extends Controller
         return [
             'expense' => [
                 'spent_on' => $validated['spent_on'],
+                'person_name' => trim($validated['person_name']),
                 'payee' => trim($validated['payee']),
                 'description' => trim($validated['description']),
-                'category' => $validated['category'],
+                'category' => $this->categoryValue(trim($validated['category'])),
                 'amount' => number_format((float) $validated['amount'], 2, '.', ''),
                 'notes' => $notes === '' ? null : $notes,
             ],
@@ -280,6 +299,149 @@ class ExpenseController extends Controller
     /**
      * @return array<string, mixed>
      */
+    private function formOptions(): array
+    {
+        return [
+            'categoryChoices' => $this->categoryChoices(),
+            'payees' => $this->namedOptions('payee'),
+            'paymentStatuses' => ExpensePayment::STATUSES,
+            'paymentMethods' => ExpensePayment::METHODS,
+            'people' => $this->people(),
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function categoryLabels(): array
+    {
+        $labels = Expense::CATEGORIES;
+
+        Expense::query()
+            ->whereNotNull('category')
+            ->distinct()
+            ->orderBy('category')
+            ->pluck('category')
+            ->each(function (string $category) use (&$labels): void {
+                if ($category === '' || array_key_exists($category, $labels) || in_array($category, $labels, true)) {
+                    return;
+                }
+
+                $labels[$category] = $category;
+            });
+
+        return $labels;
+    }
+
+    /**
+     * @return list<array{id: int, name: string, slug: string}>
+     */
+    private function categoryChoices(): array
+    {
+        $options = [];
+        $id = 1;
+
+        foreach (Expense::CATEGORIES as $key => $label) {
+            $options[] = ['id' => $id, 'name' => $label, 'slug' => $key];
+            $id++;
+        }
+
+        $known = [];
+
+        foreach (Expense::CATEGORIES as $key => $label) {
+            $known[] = mb_strtolower($key);
+            $known[] = mb_strtolower($label);
+        }
+
+        Expense::query()
+            ->whereNotNull('category')
+            ->distinct()
+            ->orderBy('category')
+            ->pluck('category')
+            ->each(function (string $category) use (&$options, $known): void {
+                if ($category === '' || in_array(mb_strtolower($category), $known, true)) {
+                    return;
+                }
+
+                $options[] = [
+                    'id' => -1 * (abs(crc32('category|'.$category)) % 1000000000 + 1),
+                    'name' => $category,
+                    'slug' => $category,
+                ];
+            });
+
+        return $options;
+    }
+
+    private function categoryValue(string $value): string
+    {
+        if (array_key_exists($value, Expense::CATEGORIES)) {
+            return $value;
+        }
+
+        foreach (Expense::CATEGORIES as $key => $label) {
+            if (mb_strtolower($label) === mb_strtolower($value)) {
+                return $key;
+            }
+        }
+
+        return $value;
+    }
+
+    /**
+     * @return list<array{id: int, name: string}>
+     */
+    private function namedOptions(string $column): array
+    {
+        return Expense::query()
+            ->whereNotNull($column)
+            ->where($column, '!=', '')
+            ->distinct()
+            ->orderBy($column)
+            ->pluck($column)
+            ->map(fn (string $name): array => [
+                'id' => -1 * (abs(crc32($column.'|'.$name)) % 1000000000 + 1),
+                'name' => $name,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return list<array{id: int, name: string}>
+     */
+    private function people(): array
+    {
+        $users = User::query()->orderBy('name')->get(['id', 'name']);
+        $known = $users
+            ->map(fn (User $user): string => mb_strtolower(trim($user->name)))
+            ->all();
+        $options = $users
+            ->map(fn (User $user): array => ['id' => $user->id, 'name' => $user->name])
+            ->all();
+
+        Expense::query()
+            ->whereNotNull('person_name')
+            ->distinct()
+            ->orderBy('person_name')
+            ->pluck('person_name')
+            ->each(function (string $name) use (&$options, $known): void {
+                if (in_array(mb_strtolower(trim($name)), $known, true)) {
+                    return;
+                }
+
+                $options[] = [
+                    'id' => -1 * (abs(crc32($name)) % 1000000000 + 1),
+                    'name' => $name,
+                ];
+            });
+
+        return $options;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
     private function payload(Expense $expense): array
     {
         $this->receipts->normalize($expense);
@@ -288,6 +450,7 @@ class ExpenseController extends Controller
         return [
             'id' => $expense->id,
             'spent_on' => $expense->spent_on?->toDateString(),
+            'person_name' => $expense->person_name ?: ($expense->recorder?->name ?? ''),
             'payee' => $expense->payee,
             'description' => $expense->description,
             'category' => $expense->category,

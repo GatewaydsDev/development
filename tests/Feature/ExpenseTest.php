@@ -33,6 +33,7 @@ test('a super administrator records an expense with a receipt', function () {
         ->post(route('admin.expenses.store'), [
             'spent_on' => '2026-10-16',
             'payee' => 'Training School',
+            'person_name' => 'Alex Rivera',
             'description' => 'New course',
             'category' => 'course',
             'amount' => '250.50',
@@ -47,6 +48,7 @@ test('a super administrator records an expense with a receipt', function () {
     expect($expense)->not->toBeNull()
         ->and($expense->user_id)->toBe($admin->id)
         ->and($expense->payee)->toBe('Training School')
+        ->and($expense->person_name)->toBe('Alex Rivera')
         ->and($expense->description)->toBe('New course')
         ->and($expense->category)->toBe('course')
         ->and($expense->amount)->toBe('250.50')
@@ -78,6 +80,7 @@ test('an expense can keep paid and future monthly payments', function () {
         ->post(route('admin.expenses.store'), [
             'spent_on' => '2026-10-16',
             'payee' => 'Training School',
+            'person_name' => 'Alex Rivera',
             'description' => 'New course',
             'category' => 'course',
             'amount' => '300.00',
@@ -143,6 +146,7 @@ test('an uploaded receipt image can be shown', function () {
         ->post(route('admin.expenses.store'), [
             'spent_on' => '2026-10-16',
             'payee' => 'Office Store',
+            'person_name' => 'Alex Rivera',
             'description' => 'Paper',
             'category' => 'supplies',
             'amount' => '12.00',
@@ -195,6 +199,7 @@ test('a photo receipt is saved as a smaller pdf', function () {
         ->post(route('admin.expenses.store'), [
             'spent_on' => '2026-10-16',
             'payee' => 'Office Store',
+            'person_name' => 'Alex Rivera',
             'description' => 'Large receipt photo',
             'category' => 'supplies',
             'amount' => '18.00',
@@ -231,4 +236,30 @@ test('a regular user cannot download an expense receipt', function () {
     $this->actingAs(User::factory()->create())
         ->get(route('admin.expenses.receipt', $expense))
         ->assertForbidden();
+});
+
+test('a super administrator opens the add and edit expense pages', function () {
+    $admin = expenseAdmin();
+    $expense = Expense::query()->create([
+        'user_id' => $admin->id,
+        'spent_on' => '2026-10-16',
+        'person_name' => 'Alex Rivera',
+        'payee' => 'Training School',
+        'description' => 'New course',
+        'category' => 'course',
+        'amount' => '10.00',
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.expenses.create'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->component('Admin/Expenses/Create'));
+
+    $this->actingAs($admin)
+        ->get(route('admin.expenses.edit', $expense))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Admin/Expenses/Edit')
+            ->where('expense.description', 'New course')
+        );
 });

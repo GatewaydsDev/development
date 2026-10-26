@@ -20,6 +20,7 @@ class Expense extends Model
 
     protected $fillable = [
         'user_id',
+        'person_name',
         'spent_on',
         'payee',
         'description',
