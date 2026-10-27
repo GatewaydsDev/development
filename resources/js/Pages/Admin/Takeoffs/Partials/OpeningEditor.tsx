@@ -279,6 +279,7 @@ export default function OpeningEditor({
     const [products, setProducts] = useState<{ id: number; name: string; manufacturer: string | null }[]>([]);
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
+    const [changed, setChanged] = useState(creating);
     const [query, setQuery] = useState('');
     const editing = Boolean(opening) || creating;
 
@@ -287,6 +288,7 @@ export default function OpeningEditor({
         setForm(openingForm(opening, creating));
         setErrors({});
         setSaved(false);
+        setChanged(creating);
     }
 
     useEffect(() => {
@@ -296,6 +298,7 @@ export default function OpeningEditor({
     const set = (key: string, value: string | boolean) => {
         setForm((current) => ({ ...current, [key]: value }));
         setSaved(false);
+        setChanged(true);
         onDirty(true);
     };
 
@@ -346,6 +349,7 @@ export default function OpeningEditor({
             onError: (formErrors: Errors) => setErrors(formErrors),
             onSuccess: () => {
                 onDirty(false);
+                setChanged(false);
                 setSaved(true);
             },
             onFinish: () => setSaving(false),
@@ -388,22 +392,43 @@ export default function OpeningEditor({
     const messages = Object.values(errors).filter(Boolean);
     const sizeSummary = [form.width, form.height, form.depth].filter(Boolean).join(' × ');
     const scopeLabel = form.scope === 'supply' ? 'Supply' : form.scope === 'installation' ? 'Installation' : 'Supply and installation';
+    const spotLabel = form.opening_type === 'window' ? 'window' : 'door';
+    const needsSave = canEdit && editing && (changed || pendingMarker !== null);
 
     return (
         <aside aria-label="Object Inspector" className="object-inspector min-w-0">
-            <div className="overflow-hidden border border-[#b0b0b0] bg-[#f0f0f0] text-neutral-900 shadow-sm">
-                <div className="flex items-center justify-between gap-2 border-b border-[#b0b0b0] bg-[#f4f4f4] px-2 py-1.5">
+            <div className="overflow-visible border border-[#b0b0b0] bg-[#f0f0f0] text-neutral-900 shadow-sm">
+                <div className={`flex items-center justify-between gap-2 border-b border-[#b0b0b0] px-2 py-1.5 ${needsSave ? 'bg-emerald-50' : 'bg-[#f4f4f4]'}`}>
                     <p className="text-sm font-semibold">Object Inspector</p>
                     <div className="flex items-center gap-1">
-                        {saved ? <span className="text-[12px] text-emerald-700">Saved</span> : null}
+                        {saved && !needsSave ? <span className="text-[12px] font-medium text-emerald-800">Saved</span> : null}
                         {canEdit && editing ? (
-                            <Button type="submit" form="opening-editor" size="sm" disabled={saving}>
+                            <Button
+                                type="submit"
+                                form="opening-editor"
+                                size="sm"
+                                disabled={saving}
+                                className={`border-emerald-800 bg-emerald-600 text-white hover:bg-emerald-700 ${needsSave ? 'inspector-save-pulse' : ''}`}
+                            >
                                 {saving ? 'Saving…' : 'Save'}
                             </Button>
                         ) : null}
-                        <Button type="button" variant="outline" size="sm" onClick={onClose}>Close</Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className={`border-neutral-700 bg-neutral-700 text-white hover:bg-neutral-800 hover:text-white ${needsSave ? 'inspector-close-pulse' : ''}`}
+                            onClick={onClose}
+                        >
+                            Close
+                        </Button>
                     </div>
                 </div>
+                {needsSave ? (
+                    <p className="inspector-save-cue border-b border-emerald-300 bg-emerald-600 px-2 py-1.5 text-[12px] font-semibold text-white">
+                        Click the green Save button to keep this {spotLabel}.
+                    </p>
+                ) : null}
                 <div className="border-b border-[#b0b0b0] bg-white p-1">
                     <InspectorSelect
                         aria-label="Opening"
@@ -591,7 +616,9 @@ export default function OpeningEditor({
                     {query.trim()
                         ? `Showing matches for “${query.trim()}”`
                         : editing
-                            ? `${form.is_bulk ? 'Bulk quantity record.' : 'Tagged opening.'} ${scopeLabel}. Save keeps this opening. The corner button saves the takeoff.`
+                            ? needsSave
+                                ? `Click the green Save button to keep this ${spotLabel}. Close leaves it unchanged.`
+                                : `${form.is_bulk ? 'Bulk quantity record.' : 'Tagged opening.'} ${scopeLabel}. The green Save button keeps this ${spotLabel}. The corner button saves the takeoff.`
                             : 'All shown'}
                 </div>
             </div>
