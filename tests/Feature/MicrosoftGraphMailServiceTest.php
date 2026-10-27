@@ -62,6 +62,44 @@ test('microsoft graph mail service sends html mail through azure', function () {
     });
 });
 
+test('outbound mail keeps a readable logo and replies to the sending mailbox', function () {
+    Http::fake(function ($request) {
+        if (str_contains($request->url(), 'login.microsoftonline.com')) {
+            return Http::response([
+                'access_token' => 'graph-token',
+                'expires_in' => 3600,
+            ], 200);
+        }
+
+        return Http::response('', 202);
+    });
+
+    app(MicrosoftGraphMailService::class)->send(
+        'buyer@example.com',
+        'Project update',
+        '<p style="display:none">Hidden offer</p><img src="/images/Gateway_Door_Systems_Logo.png"><p>The opening is ready.</p>',
+    );
+
+    Http::assertSent(function ($request) {
+        $path = rawurldecode((string) (parse_url($request->url(), PHP_URL_PATH) ?? ''));
+
+        if ($request->method() !== 'POST' || ! str_ends_with($path, '/sendMail')) {
+            return false;
+        }
+
+        $message = $request->data()['message'];
+        $content = $message['body']['content'];
+
+        return $message['replyTo'][0]['emailAddress']['address'] === 'sales@gateway-ds.com'
+            && ! isset($message['attachments'])
+            && str_contains($content, 'The opening is ready.')
+            && str_contains($content, 'charset=utf-8')
+            && str_contains($content, 'alt="Gateway Door Systems"')
+            && str_contains($content, 'Gateway_Door_Systems_Logo.png')
+            && ! str_contains($content, 'display:none');
+    });
+});
+
 test('microsoft graph mail service requires azure app credentials', function () {
     config([
         'services.microsoft.tenant_id' => '',

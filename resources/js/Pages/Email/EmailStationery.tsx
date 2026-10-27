@@ -1,29 +1,58 @@
 import { Button } from '@/Components/ui/button';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { router, useForm } from '@inertiajs/react';
+import { mergeAttributes, Node } from '@tiptap/core';
 import LinkExtension from '@tiptap/extension-link';
 import Underline from '@tiptap/extension-underline';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { BoldIcon, ItalicIcon, UnderlineIcon, XIcon } from 'lucide-react';
+import { BoldIcon, ImageIcon, ItalicIcon, UnderlineIcon, XIcon } from 'lucide-react';
 import { FormEvent, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MailStationeryData } from '@/Pages/Email/mailLayouts';
 
 type SectionKey = 'header' | 'footer' | 'signature';
 
+const MailLogo = Node.create({
+    name: 'mailLogo',
+    group: 'inline',
+    inline: true,
+    atom: true,
+    selectable: true,
+    addAttributes() {
+        return {
+            src: { default: null },
+            alt: { default: 'Gateway Door Systems' },
+        };
+    },
+    parseHTML() {
+        return [{ tag: 'img[src]' }];
+    },
+    renderHTML({ HTMLAttributes }) {
+        return ['img', mergeAttributes(HTMLAttributes, {
+            alt: HTMLAttributes.alt || 'Gateway Door Systems',
+            width: '220',
+            style: 'display:block;width:220px;max-width:100%;height:auto;border:0;background:#050505;',
+        })];
+    },
+});
+
 function SectionEditor({
     value,
     onChange,
+    logoUrl,
 }: {
     value: string;
     onChange: (html: string) => void;
+    logoUrl: string;
 }) {
+    const { t } = useTranslation('mail');
     const editor = useEditor({
         extensions: [
             StarterKit.configure({ heading: false }),
             Underline,
             LinkExtension.configure({ openOnClick: false }),
+            MailLogo,
         ],
         content: value || '<p></p>',
         immediatelyRender: false,
@@ -35,9 +64,14 @@ function SectionEditor({
         onUpdate: ({ editor: current }) => onChange(current.getHTML()),
     });
 
+    const addLogo = () => {
+        const src = logoUrl.replace(/"/g, '');
+        editor?.chain().focus().insertContent(`<p><img src="${src}" alt="Gateway Door Systems"></p>`).run();
+    };
+
     return (
         <div className="grid gap-2">
-            <div className="flex gap-1">
+            <div className="flex flex-wrap gap-1">
                 <Button type="button" variant="outline" className="size-9" onClick={() => editor?.chain().focus().toggleBold().run()}>
                     <BoldIcon className="size-4" />
                 </Button>
@@ -47,7 +81,12 @@ function SectionEditor({
                 <Button type="button" variant="outline" className="size-9" onClick={() => editor?.chain().focus().toggleUnderline().run()}>
                     <UnderlineIcon className="size-4" />
                 </Button>
+                <Button type="button" variant="outline" className="h-9" onClick={addLogo}>
+                    <ImageIcon className="size-4" />
+                    {t('addLogo')}
+                </Button>
             </div>
+            <p className="text-xs text-muted-foreground">{t('logoHelp')}</p>
             <EditorContent editor={editor} />
         </div>
     );
@@ -63,6 +102,7 @@ export default function EmailStationery({
     onClose: () => void;
 }) {
     const { t } = useTranslation('mail');
+    const logoUrl = stationery.logoUrl || '/images/Gateway_Door_Systems_Logo.png';
     const [section, setSection] = useState<SectionKey>('signature');
     const [signatureId, setSignatureId] = useState(stationery.newSignatureId ?? stationery.signatures[0]?.id ?? '');
     const form = useForm({
@@ -181,10 +221,10 @@ export default function EmailStationery({
                                 </div>
                                 <div className="grid gap-3">
                                     {section === 'header' ? (
-                                        <SectionEditor key="header" value={form.data.header} onChange={(html) => form.setData('header', html)} />
+                                        <SectionEditor key="header" value={form.data.header} logoUrl={logoUrl} onChange={(html) => form.setData('header', html)} />
                                     ) : null}
                                     {section === 'footer' ? (
-                                        <SectionEditor key="footer" value={form.data.footer} onChange={(html) => form.setData('footer', html)} />
+                                        <SectionEditor key="footer" value={form.data.footer} logoUrl={logoUrl} onChange={(html) => form.setData('footer', html)} />
                                     ) : null}
                                     {section === 'signature' && selected ? (
                                         <>
@@ -204,7 +244,7 @@ export default function EmailStationery({
                                                     className="h-11 rounded-md border border-border bg-background px-3 text-foreground"
                                                 />
                                             </label>
-                                            <SectionEditor key={selected.id} value={selected.html} onChange={updateSelected} />
+                                            <SectionEditor key={selected.id} value={selected.html} logoUrl={logoUrl} onChange={updateSelected} />
                                             <div className="flex flex-wrap gap-4 text-sm">
                                                 <label className="flex items-center gap-2">
                                                     <input

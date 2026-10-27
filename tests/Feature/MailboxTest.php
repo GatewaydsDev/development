@@ -1105,7 +1105,8 @@ test('outgoing mail writes the signature into the message and does not attach a 
 
         return $message['body']['contentType'] === 'HTML'
             && ! str_contains($content, 'cid:gateway-mail-header')
-            && ! str_contains($content, '<img')
+            && str_contains($content, 'Gateway_Door_Systems_Logo.png')
+            && str_contains($content, 'alt="Gateway Door Systems"')
             && ! isset($message['attachments'])
             && str_contains($content, 'The opening is ready.')
             && str_contains($content, 'Ricardo Scarpim')
@@ -1124,7 +1125,7 @@ test('saved stationery is part of the message and a placed signature is not adde
 
     $this->actingAs($user)
         ->put(route('mailbox.stationery'), [
-            'header' => '<p>Project desk</p><img src="https://example.test/logo.png" alt="Gateway">',
+            'header' => '<p>Project desk</p><img src="https://example.test/logo.png" alt="Gateway"><img src="'.asset('images/Gateway_Door_Systems_Logo.png').'" alt="Gateway Door Systems">',
             'footer' => '<p>Sent from the project desk</p>',
             'signatures' => [[
                 'id' => 'ricardo',
@@ -1137,7 +1138,9 @@ test('saved stationery is part of the message and a placed signature is not adde
         ->assertRedirect();
 
     $stored = $user->fresh()->mail_stationery;
-    expect($stored['header'])->toBe('<p>Project desk</p>')
+    expect($stored['header'])->toContain('Project desk')
+        ->and($stored['header'])->toContain('Gateway_Door_Systems_Logo.png')
+        ->and($stored['header'])->not->toContain('example.test')
         ->and($stored['signatures'][0]['html'])->not->toContain('<script')
         ->and($stored['signatures'][0]['html'])->toContain('Estimator');
 

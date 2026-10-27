@@ -18,16 +18,26 @@ class MailStationery
     public function payload(?User $user): array
     {
         if (! $user instanceof User) {
-            return $this->emptyPayload();
+            return $this->withLogo($this->emptyPayload());
         }
 
         $stored = $user->mail_stationery;
 
         if (is_array($stored) && isset($stored['signatures']) && is_array($stored['signatures'])) {
-            return $this->normalize($stored, $user);
+            return $this->withLogo($this->normalize($stored, $user));
         }
 
-        return $this->fromLegacy($user);
+        return $this->withLogo($this->fromLegacy($user));
+    }
+
+    public function logoUrl(): string
+    {
+        return asset('images/Gateway_Door_Systems_Logo.png');
+    }
+
+    public function logoMarkup(): string
+    {
+        return '<img src="'.e($this->logoUrl()).'" alt="Gateway Door Systems" width="220" style="display:block;width:220px;max-width:100%;height:auto;border:0;background:#050505;">';
     }
 
     /**
@@ -118,11 +128,58 @@ class MailStationery
     {
         $html = trim($html);
         $html = preg_replace('#<script\b[^>]*>.*?</script>#is', '', $html) ?? $html;
-        $html = preg_replace('#<img\b[^>]*>#i', '', $html) ?? $html;
+        $html = preg_replace_callback('#<img\b[^>]*>#i', function (array $match): string {
+            if (preg_match('/\bsrc\s*=\s*(["\'])(.*?)\1/i', $match[0], $src) !== 1) {
+                return '';
+            }
+
+            return $this->isCompanyLogo($src[2]) ? $this->logoMarkup() : '';
+        }, $html) ?? $html;
         $html = preg_replace('#\s+on[a-z]+\s*=\s*([\'"]).*?\1#i', '', $html) ?? $html;
         $html = preg_replace('#javascript:#i', '', $html) ?? $html;
 
         return trim($html);
+    }
+
+    private function isCompanyLogo(string $src): bool
+    {
+        $src = trim(html_entity_decode($src, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        $lower = strtolower($src);
+
+        if ($src === '' || str_contains($src, '..') || str_starts_with($lower, 'javascript:') || str_starts_with($lower, 'data:') || str_starts_with($lower, 'cid:')) {
+            return false;
+        }
+
+        $path = rawurldecode((string) (parse_url($src, PHP_URL_PATH) ?? ''));
+
+        if ($path === '' && str_starts_with($src, '/images/Gateway_Door_Systems_Logo.png')) {
+            $path = '/images/Gateway_Door_Systems_Logo.png';
+        }
+
+        if ($path !== '/images/Gateway_Door_Systems_Logo.png') {
+            return false;
+        }
+
+        $host = strtolower((string) (parse_url($src, PHP_URL_HOST) ?? ''));
+
+        if ($host === '') {
+            return str_starts_with($src, '/');
+        }
+
+        $appHost = strtolower((string) (parse_url((string) config('app.url'), PHP_URL_HOST) ?? ''));
+
+        return $appHost !== '' && $host === $appHost;
+    }
+
+    /**
+     * @param  array<string, mixed>  $stationery
+     * @return array<string, mixed>
+     */
+    private function withLogo(array $stationery): array
+    {
+        $stationery['logoUrl'] = $this->logoUrl();
+
+        return $stationery;
     }
 
     /**
@@ -181,12 +238,13 @@ class MailStationery
             $bar .= '<td width="36" height="8" bgcolor="'.$color.'" style="width:36px;height:8px;background:'.$color.';line-height:8px;">&nbsp;</td>';
         }
 
+        $identity = '<p style="margin:12px 0 0;font-family:Calibri,Arial,sans-serif;font-size:12px;line-height:1.4;color:#5c6f66;">Gateway Door Systems LLC</p>';
         $footer = $bar !== ''
-            ? '<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:12px;border-collapse:collapse;"><tr>'.$bar.'</tr></table>'
-            : '<p style="margin:18px 0 0;border-top:1px solid #d5e4db;padding-top:8px;font-family:Calibri,Arial,sans-serif;font-size:11px;line-height:1.4;color:#5c6f66;">Gateway Door Systems LLC</p>';
+            ? '<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:12px;border-collapse:collapse;"><tr>'.$bar.'</tr></table>'.$identity
+            : '<p style="margin:18px 0 0;border-top:1px solid #d5e4db;padding-top:8px;font-family:Calibri,Arial,sans-serif;font-size:12px;line-height:1.4;color:#5c6f66;">Gateway Door Systems LLC</p>';
 
         return [
-            'header' => '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:0 0 16px;"><tr><td style="border-bottom:3px solid #047857;padding:0 0 8px;font-family:Calibri,Arial,sans-serif;"><div style="font-size:20px;font-weight:700;letter-spacing:0.01em;color:#06281c;">Gateway Door Systems</div><div style="margin-top:2px;font-size:12px;color:#5c6f66;">Security door installations</div></td></tr></table>',
+            'header' => '<p style="margin:0 0 12px;">'.$this->logoMarkup().'</p><p style="margin:0;font-family:Calibri,Arial,sans-serif;font-size:20px;font-weight:700;color:#06281c;">Gateway Door Systems</p><p style="margin:2px 0 16px;padding-bottom:8px;border-bottom:3px solid #047857;font-family:Calibri,Arial,sans-serif;font-size:12px;color:#5c6f66;">Security door installations</p>',
             'footer' => $footer,
             'signatures' => [[
                 'id' => 'default',

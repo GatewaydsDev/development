@@ -10,6 +10,7 @@ export type MailStationeryData = {
     signatures: MailSignature[];
     newSignatureId: string | null;
     replySignatureId: string | null;
+    logoUrl?: string;
 };
 
 export type MailLayoutId = 'blank' | 'letter' | 'note' | 'announcement' | 'project' | 'followUp';
@@ -20,6 +21,7 @@ export const emptyStationery: MailStationeryData = {
     signatures: [],
     newSignatureId: null,
     replySignatureId: null,
+    logoUrl: '/images/Gateway_Door_Systems_Logo.png',
 };
 
 export function signatureHtml(stationery: MailStationeryData, kind: 'new' | 'reply'): string {

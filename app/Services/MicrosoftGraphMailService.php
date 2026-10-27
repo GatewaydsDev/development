@@ -511,10 +511,13 @@ class MicrosoftGraphMailService
     ): void {
         $mailbox = $this->resolveMailbox($mailbox);
         $files = $this->attachmentPayload($attachments);
+        $subject = trim(preg_replace('/\s+/u', ' ', $subject) ?? $subject);
 
         if (strcasecmp($contentType, 'HTML') === 0) {
             $content = OutboundMailHtml::document($content, $subject);
         }
+
+        $replyAddress = is_string($replyTo) && trim($replyTo) !== '' ? trim($replyTo) : $mailbox;
 
         $message = [
             'subject' => $subject,
@@ -523,6 +526,13 @@ class MicrosoftGraphMailService
                 'content' => $content,
             ],
             'toRecipients' => $this->emailRecipients(is_array($to) ? $to : [$to]),
+            'replyTo' => [
+                [
+                    'emailAddress' => [
+                        'address' => strtolower($replyAddress),
+                    ],
+                ],
+            ],
         ];
 
         if (is_string($fromName) && trim($fromName) !== '') {
@@ -544,16 +554,6 @@ class MicrosoftGraphMailService
 
         if (in_array($importance, ['low', 'high'], true)) {
             $message['importance'] = $importance;
-        }
-
-        if ($replyTo) {
-            $message['replyTo'] = [
-                [
-                    'emailAddress' => [
-                        'address' => $replyTo,
-                    ],
-                ],
-            ];
         }
 
         if ($files !== []) {
