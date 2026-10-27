@@ -1,4 +1,6 @@
 import InputError from '@/Components/InputError';
+import EmailStationery from '@/Pages/Email/EmailStationery';
+import { emptyStationery, type MailStationeryData } from '@/Pages/Email/mailLayouts';
 import { router, useForm } from '@inertiajs/react';
 import { SearchIcon } from 'lucide-react';
 import { FormEvent, ReactNode, useEffect, useState } from 'react';
@@ -55,13 +57,16 @@ export default function MailSettings({
     headerUrl,
     headerWidth,
     footerColors,
+    stationery = emptyStationery,
 }: {
     signature: string | null;
     headerUrl: string | null;
     headerWidth: number;
     footerColors: string[];
+    stationery?: MailStationeryData;
 }) {
     const { t } = useTranslation('mail');
+    const [stationeryOpen, setStationeryOpen] = useState(false);
     const [part, setPart] = useState<MailPart>('header');
     const [query, setQuery] = useState('');
     const [width, setWidth] = useState(headerWidth);
@@ -156,6 +161,12 @@ export default function MailSettings({
             <div className="overflow-hidden border border-[#b0b0b0] bg-[#f0f0f0] text-neutral-900 shadow-sm">
                 <div className="border-b border-[#b0b0b0] bg-[#f4f4f4] px-2 py-1.5 text-sm font-semibold">
                     {t('objectInspector')}
+                </div>
+                <div className="border-b border-[#b0b0b0] bg-white p-2">
+                    <button type="button" className={actionClass} onClick={() => setStationeryOpen(true)}>
+                        {t('editStationery')}
+                    </button>
+                    <p className="mt-1 text-[12px] text-neutral-600">{t('stationeryHelp')}</p>
                 </div>
                 <div className="border-b border-[#b0b0b0] bg-white p-1">
                     <label className="sr-only" htmlFor="mail-inspector-component">
@@ -344,6 +355,7 @@ export default function MailSettings({
                         : t('allShown')}
                 </div>
             </div>
+            <EmailStationery open={stationeryOpen} stationery={stationery} onClose={() => setStationeryOpen(false)} />
         </aside>
     );
 }

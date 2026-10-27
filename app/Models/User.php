@@ -70,6 +70,7 @@ class User extends Authenticatable
         'mail_header_path',
         'mail_header_width',
         'mail_footer_colors',
+        'mail_stationery',
     ];
 
     /**
@@ -87,6 +88,7 @@ class User extends Authenticatable
             'is_master' => 'boolean',
             'microsoft_client_secret' => 'encrypted',
             'mail_footer_colors' => 'array',
+            'mail_stationery' => 'array',
         ];
     }
 

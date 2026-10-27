@@ -1,5 +1,15 @@
 import InputError from '@/Components/InputError';
-import { FooterColorBoxes } from '@/Pages/Email/MailSettings';
+import EmailStationery from '@/Pages/Email/EmailStationery';
+import {
+    applyLayout,
+    buildLayout,
+    emptyStationery,
+    placeReplySignature,
+    signatureHtml,
+    withoutStationery,
+    type MailLayoutId,
+    type MailStationeryData,
+} from '@/Pages/Email/mailLayouts';
 import { Button } from '@/Components/ui/button';
 import { router, useForm } from '@inertiajs/react';
 import { Extension } from '@tiptap/core';
@@ -62,10 +72,7 @@ type ComposeMailProps = {
     mailbox: string;
     recipients: SavedRecipient[];
     draft?: ComposeDraft;
-    signature?: string | null;
-    headerUrl?: string | null;
-    headerWidth?: number;
-    footerColors?: string[];
+    stationery?: MailStationeryData;
     onDiscard: () => void;
 };
 
@@ -510,15 +517,15 @@ export default function ComposeMail({
     mailbox,
     recipients,
     draft,
-    signature = null,
-    headerUrl = null,
-    headerWidth = 100,
-    footerColors = [],
+    stationery = emptyStationery,
     onDiscard,
 }: ComposeMailProps) {
     const { t } = useTranslation('mail');
     const fileRef = useRef<HTMLInputElement>(null);
     const [showCc, setShowCc] = useState(Boolean(draft?.cc));
+    const [selectedLayout, setSelectedLayout] = useState<MailLayoutId | null>(null);
+    const layoutSnapshot = useRef('');
+    const [stationeryOpen, setStationeryOpen] = useState(false);
     const [showBcc, setShowBcc] = useState(Boolean(draft?.bcc));
     const [activeField, setActiveField] = useState<AddressFieldName>('to');
     const [recipientName, setRecipientName] = useState('');
@@ -530,7 +537,7 @@ export default function ComposeMail({
         cc: draft?.cc ?? '',
         bcc: draft?.bcc ?? '',
         subject: draft?.subject ?? '',
-        body: draft?.body ?? '',
+        body: draft ? placeReplySignature(draft.body ?? '', signatureHtml(stationery, 'reply')) : '',
         importance: 'normal' as 'low' | 'normal' | 'high',
         save_recipients: true,
         attachments: [] as File[],
@@ -550,7 +557,9 @@ export default function ComposeMail({
             LinkExtension.configure({ openOnClick: false }),
             Placeholder.configure({ placeholder: t('writeMessage') }),
         ],
-        content: draft?.body || '',
+        content: draft
+            ? placeReplySignature(draft.body || '', signatureHtml(stationery, 'reply'))
+            : '',
         immediatelyRender: false,
         editorProps: {
             attributes: {
@@ -637,6 +646,27 @@ export default function ComposeMail({
         setLinkUrl(previous ?? 'https://');
         setLinkOpen(true);
     };
+
+    const chooseLayout = (layout: MailLayoutId) => {
+        const current = editor?.getHTML() ?? '';
+        const html = selectedLayout === null
+            ? buildLayout(layout, stationery)
+            : applyLayout(layout, stationery, current, layoutSnapshot.current);
+        editor?.commands.setContent(html);
+        const normalized = editor?.getHTML() ?? html;
+        layoutSnapshot.current = normalized;
+        form.setData('body', normalized);
+        setSelectedLayout(layout);
+    };
+
+    const layouts: Array<{ id: MailLayoutId; title: string; detail: string; bars: string[] }> = [
+        { id: 'blank', title: t('layoutBlank'), detail: t('layoutBlankDetail'), bars: ['h-2 w-2/3 bg-slate-200', 'mt-auto h-2 w-1/2 bg-emerald-700'] },
+        { id: 'letter', title: t('layoutLetter'), detail: t('layoutLetterDetail'), bars: ['h-3 w-full bg-emerald-700', 'mt-2 h-1.5 w-5/6 bg-slate-200', 'mt-1 h-1.5 w-2/3 bg-slate-200', 'mt-auto h-2 w-1/2 bg-slate-400', 'mt-1 h-1 w-full bg-emerald-200'] },
+        { id: 'note', title: t('layoutNote'), detail: t('layoutNoteDetail'), bars: ['h-1.5 w-4/5 bg-slate-200', 'mt-1 h-1.5 w-3/5 bg-slate-200', 'mt-auto h-2 w-1/2 bg-emerald-700'] },
+        { id: 'announcement', title: t('layoutAnnouncement'), detail: t('layoutAnnouncementDetail'), bars: ['mx-auto h-3 w-2/3 bg-emerald-700', 'mx-auto mt-2 h-2 w-1/2 bg-slate-800', 'mt-auto h-1 w-full bg-emerald-200'] },
+        { id: 'project', title: t('layoutProject'), detail: t('layoutProjectDetail'), bars: ['h-3 w-full bg-emerald-700', 'mt-2 h-1.5 w-1/3 bg-emerald-500', 'mt-2 h-1.5 w-5/6 bg-slate-200', 'mt-auto h-2 w-1/2 bg-slate-400'] },
+        { id: 'followUp', title: t('layoutFollowUp'), detail: t('layoutFollowUpDetail'), bars: ['h-3 w-full bg-emerald-700', 'mt-2 h-1.5 w-2/5 bg-emerald-500', 'mt-2 h-1.5 w-4/5 bg-slate-200', 'mt-auto h-1 w-full bg-emerald-200'] },
+    ];
 
     const applyLink = () => {
         const url = linkUrl.trim();
@@ -783,7 +813,7 @@ export default function ComposeMail({
                         const style = editor?.getAttributes('textStyle') ?? {};
                         editor?.chain().focus().setMark('textStyle', { ...style, fontFamily: event.target.value }).run();
                     }}
-                    className="h-11 max-w-36 shrink-0 rounded-md border border-border bg-background px-2 text-sm text-foreground lg:h-8"
+                    className="h-11 max-w-40 shrink-0 rounded-md border border-border bg-background px-2 text-sm text-foreground"
                 >
                     {FONT_FAMILIES.map((font) => (
                         <option key={font.label} value={font.value}>{font.label}</option>
@@ -796,7 +826,7 @@ export default function ComposeMail({
                         const style = editor?.getAttributes('textStyle') ?? {};
                         editor?.chain().focus().setMark('textStyle', { ...style, fontSize: event.target.value }).run();
                     }}
-                    className="h-11 w-16 shrink-0 rounded-md border border-border bg-background px-2 text-sm text-foreground lg:h-8"
+                    className="h-11 w-20 shrink-0 rounded-md border border-border bg-background px-2 text-sm text-foreground"
                 >
                     {FONT_SIZES.map((size) => (
                         <option key={size} value={`${size}px`}>{size}</option>
@@ -961,40 +991,37 @@ export default function ComposeMail({
                 </div>
             ) : null}
 
-            <EditorContent editor={editor} />
-            {headerUrl ? (
-                <div className="border-t border-border bg-muted/30 px-3 py-3">
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        {t('header')}
-                    </p>
-                    <img
-                        src={headerUrl}
-                        alt=""
-                        className="h-auto max-w-full object-contain"
-                        style={{ width: `${headerWidth}%` }}
-                    />
+            {draft ? null : (
+                <div className="border-b border-border px-4 py-3">
+                    {selectedLayout ? null : (
+                        <p className="mb-3 text-sm text-muted-foreground">{t('layoutHelp')}</p>
+                    )}
+                    <div className="flex flex-wrap gap-3">
+                        {layouts.map((layout) => {
+                            const selected = selectedLayout === layout.id;
+
+                            return (
+                                <button
+                                    key={layout.id}
+                                    type="button"
+                                    title={layout.detail}
+                                    aria-pressed={selected}
+                                    className="flex w-16 flex-col items-center gap-1 text-center"
+                                    onClick={() => chooseLayout(layout.id)}
+                                >
+                                    <span className={`flex h-16 w-16 flex-col rounded-md border bg-white p-1.5 ${selected ? 'border-emerald-600 ring-2 ring-emerald-600' : 'border-border hover:border-emerald-600'}`}>
+                                        {layout.bars.map((bar, index) => (
+                                            <span key={`${layout.id}-${index}`} className={`block rounded-sm ${bar}`} />
+                                        ))}
+                                    </span>
+                                    <span className="text-[11px] font-medium leading-4 text-foreground">{layout.title}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
                 </div>
-            ) : null}
-            {signature || footerColors.length > 0 ? (
-                <div className="grid gap-3 border-t border-border px-3 py-3">
-                    {signature ? (
-                        <div>
-                            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                {t('signature')}
-                            </p>
-                            <p className="whitespace-pre-wrap break-words text-sm text-foreground">{signature}</p>
-                        </div>
-                    ) : null}
-                    {footerColors.length > 0 ? (
-                        <div>
-                            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                {t('footer')}
-                            </p>
-                            <FooterColorBoxes colors={footerColors} />
-                        </div>
-                    ) : null}
-                </div>
-            ) : null}
+            )}
+            {draft || selectedLayout ? <EditorContent editor={editor} /> : null}
             <InputError message={form.errors.body} className="px-3" />
 
             <details className="border-t border-border px-3 py-3">
@@ -1082,6 +1109,9 @@ export default function ComposeMail({
                         {form.processing ? t('sending') : t('send')}
                     </Button>
                     <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
+                        <Button className="h-12 shrink-0 touch-manipulation" type="button" variant="outline" onClick={() => setStationeryOpen(true)}>
+                            {t('stationery')}
+                        </Button>
                         <Button className="h-12 shrink-0 touch-manipulation" type="button" variant="outline" onClick={onDiscard}>
                             <XIcon className="size-4" />
                             {t('discard')}
@@ -1108,12 +1138,13 @@ export default function ComposeMail({
                     </div>
                 </div>
             </div>
+            <EmailStationery open={stationeryOpen} stationery={stationery} onClose={() => setStationeryOpen(false)} />
         </form>
     );
 }
 
 export function composedMessageText(html: string): string {
-    const own = html.split(/<hr\b/i)[0] ?? html;
+    const own = withoutStationery(html.split(/<hr\b/i)[0] ?? html);
 
     return own
         .replace(/<br\s*\/?>/gi, ' ')

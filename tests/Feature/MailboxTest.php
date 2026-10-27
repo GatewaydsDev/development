@@ -462,7 +462,7 @@ test('mail requests use the signed-in user mailbox and ignore a submitted sender
         return $payload['saveToSentItems'] === true
             && ! array_key_exists('from', $message)
             && ! array_key_exists('sender', $message)
-            && $message['body']['content'] === 'The opening is ready.';
+            && str_contains($message['body']['content'], 'The opening is ready.');
     });
 
     Http::assertNotSent(function ($request) {
@@ -1046,7 +1046,7 @@ test('a message can be marked unread and archived', function () {
         && ($request['destinationId'] ?? null) === 'archive');
 });
 
-test('outgoing mail includes the saved signature and header image', function () {
+test('outgoing mail writes the signature into the message and does not attach a logo', function () {
     Storage::fake('public');
     $user = mailboxUser();
     $user->mail_signature = "Ricardo Scarpim\nGateway Door Systems";
@@ -1072,23 +1072,63 @@ test('outgoing mail includes the saved signature and header image', function () 
 
         $message = $request->data()['message'];
         $content = $message['body']['content'];
-        $header = $message['attachments'][0];
 
         return $message['body']['contentType'] === 'HTML'
-            && str_contains($content, 'cid:gateway-mail-header')
+            && ! str_contains($content, 'cid:gateway-mail-header')
+            && ! str_contains($content, '<img')
+            && ! isset($message['attachments'])
             && str_contains($content, 'The opening is ready.')
             && str_contains($content, 'Ricardo Scarpim')
             && str_contains($content, 'Gateway Door Systems')
-            && str_contains($content, 'width="240"')
-            && str_contains($content, 'alt="Gateway Door Systems"')
             && str_contains($content, '<!DOCTYPE html>')
             && str_contains($content, 'bgcolor="#047857"')
             && str_contains($content, 'bgcolor="#b45309"')
-            && ! str_contains($content, 'font-size:0')
-            && $header['isInline'] === true
-            && $header['contentId'] === 'gateway-mail-header'
             && ! isset($message['from'])
             && ! isset($message['sender']);
+    });
+});
+
+test('saved stationery is part of the message and a placed signature is not added twice', function () {
+    $user = mailboxUser();
+    fakeMailboxGraph();
+
+    $this->actingAs($user)
+        ->put(route('mailbox.stationery'), [
+            'header' => '<p>Project desk</p><img src="https://example.test/logo.png" alt="Gateway">',
+            'footer' => '<p>Sent from the project desk</p>',
+            'signatures' => [[
+                'id' => 'ricardo',
+                'name' => 'Ricardo',
+                'html' => '<p>Ricardo Scarpim<br>Estimator</p><script>alert(1)</script>',
+            ]],
+            'new_signature_id' => 'ricardo',
+            'reply_signature_id' => 'ricardo',
+        ])
+        ->assertRedirect();
+
+    $stored = $user->fresh()->mail_stationery;
+    expect($stored['header'])->toBe('<p>Project desk</p>')
+        ->and($stored['signatures'][0]['html'])->not->toContain('<script')
+        ->and($stored['signatures'][0]['html'])->toContain('Estimator');
+
+    $this->actingAs($user)
+        ->post(route('mailbox.send'), [
+            'to' => 'buyer@example.com',
+            'subject' => 'Project update',
+            'body' => '<div data-gateway-mail="letter"><p>The opening is ready.</p><div data-mail-section="signature"><p>Ricardo Scarpim</p></div></div>',
+        ])
+        ->assertRedirect();
+
+    Http::assertSent(function ($request) {
+        if (! savedMailboxMessage($request, 'ricardo@gateway-ds.com')) {
+            return false;
+        }
+
+        $content = $request->data()['message']['body']['content'];
+
+        return substr_count($content, 'Ricardo Scarpim') === 1
+            && ! str_contains($content, 'Project desk')
+            && ! isset($request->data()['message']['attachments']);
     });
 });
 

@@ -28,6 +28,7 @@ import { ArchiveIcon, ArrowLeftIcon, DownloadIcon, ForwardIcon, MailIcon, MailOp
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import MailSettings from '@/Pages/Email/MailSettings';
+import { emptyStationery, type MailStationeryData } from '@/Pages/Email/mailLayouts';
 
 type MailSummary = {
     id: string;
@@ -81,6 +82,7 @@ type Props = {
     headerUrl?: string | null;
     headerWidth?: number;
     footerColors?: string[];
+    stationery?: MailStationeryData;
     unreadCount?: number;
     deliveryProblems?: string[];
 };
@@ -292,6 +294,7 @@ export default function Index({
     headerUrl = null,
     headerWidth = 100,
     footerColors = [],
+    stationery = emptyStationery,
     unreadCount = 0,
     deliveryProblems = [],
 }: Props) {
@@ -464,10 +467,7 @@ export default function Index({
                                     mailbox={mailbox}
                                     recipients={savedRecipients}
                                     draft={draft}
-                                    signature={signature}
-                                    headerUrl={headerUrl}
-                                    headerWidth={headerWidth}
-                                    footerColors={footerColors}
+                                    stationery={stationery}
                                     onDiscard={() => setShowCompose(false)}
                                 />
                             ) : null}
@@ -770,6 +770,7 @@ export default function Index({
                                 headerUrl={headerUrl}
                                 headerWidth={headerWidth}
                                 footerColors={footerColors}
+                                stationery={stationery}
                             />
                         </StickyDocumentToolbar>
                         </div>

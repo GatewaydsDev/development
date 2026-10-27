@@ -11,6 +11,7 @@ use App\Services\MicrosoftGraphPageCursor;
 use App\Support\EmailPlainText;
 use App\Support\MailAuthentication;
 use App\Support\MailboxComposition;
+use App\Support\MailStationery;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -303,6 +304,32 @@ class MailboxController extends Controller
         return back();
     }
 
+    public function updateStationery(Request $request, MailStationery $stationery): RedirectResponse
+    {
+        $user = $this->effectiveUser($request->user());
+        abort_unless($user instanceof User, 403);
+
+        $validated = $request->validate([
+            'header' => ['nullable', 'string', 'max:8000'],
+            'footer' => ['nullable', 'string', 'max:8000'],
+            'signatures' => ['present', 'array', 'max:12'],
+            'signatures.*.id' => ['required', 'string', 'max:40'],
+            'signatures.*.name' => ['required', 'string', 'max:80'],
+            'signatures.*.html' => ['nullable', 'string', 'max:8000'],
+            'new_signature_id' => ['nullable', 'string', 'max:40'],
+            'reply_signature_id' => ['nullable', 'string', 'max:40'],
+        ]);
+
+        $stored = $stationery->store($validated);
+        $user->mail_stationery = $stored;
+        $default = collect($stored['signatures'])->firstWhere('id', $stored['new_signature_id']);
+        $plain = trim(html_entity_decode(strip_tags(str_replace(['<br>', '<br/>', '<br />'], "\n", (string) ($default['html'] ?? ''))), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        $user->mail_signature = $plain === '' ? null : mb_substr($plain, 0, 2000);
+        $user->save();
+
+        return back();
+    }
+
     public function send(Request $request, MicrosoftGraphMailService $graph): RedirectResponse
     {
         $sender = $this->effectiveUser($request->user());
@@ -460,6 +487,7 @@ class MailboxController extends Controller
             'headerUrl' => $user?->mailHeaderUrl(),
             'headerWidth' => $user?->mailHeaderWidth() ?? 100,
             'footerColors' => $user?->mailFooterColors() ?? [],
+            'stationery' => app(MailStationery::class)->payload($user),
             'unreadCount' => $unreadCount,
             'deliveryProblems' => app(MailAuthentication::class)->problemsForMailbox($mailbox),
         ];
@@ -705,6 +733,7 @@ class MailboxController extends Controller
     private function messageText(string $body): string
     {
         $own = preg_split('/<hr\b/i', $body, 2)[0] ?? $body;
+        $own = preg_replace('/<div\b[^>]*\bdata-mail-section="(?:header|signature|footer)"[^>]*>.*?<\/div>/is', ' ', $own) ?? $own;
         $own = str_ireplace(['<br>', '<br/>', '<br />'], ' ', $own);
         $own = html_entity_decode(strip_tags($own), ENT_QUOTES | ENT_HTML5, 'UTF-8');
         $own = preg_replace('/\s+/u', ' ', $own) ?? $own;
