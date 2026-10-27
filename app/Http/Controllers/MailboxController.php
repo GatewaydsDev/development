@@ -310,9 +310,10 @@ class MailboxController extends Controller
             'attachments.*' => ['file', 'max:2048'],
         ]);
 
-        $to = $this->addresses($validated['to'], 'to');
-        $cc = $this->addresses($validated['cc'] ?? '', 'cc');
-        $bcc = $this->addresses($validated['bcc'] ?? '', 'bcc');
+        $senderMailbox = strtolower(trim((string) $sender->microsoft_mailbox));
+        $to = $this->withoutMailbox($this->addresses($validated['to'], 'to'), $senderMailbox);
+        $cc = $this->withoutMailbox($this->addresses($validated['cc'] ?? '', 'cc'), $senderMailbox, $to);
+        $bcc = $this->withoutMailbox($this->addresses($validated['bcc'] ?? '', 'bcc'), $senderMailbox, [...$to, ...$cc]);
         $body = $this->messageBody($validated['body']);
         $composed = app(MailboxComposition::class)->apply(
             $sender,
@@ -346,7 +347,11 @@ class MailboxController extends Controller
         }
 
         if ($request->boolean('save_recipients')) {
-            $this->rememberRecipients($sender, array_merge($to, $cc, $bcc));
+            try {
+                $this->rememberRecipients($sender, array_merge($to, $cc, $bcc));
+            } catch (\Throwable $exception) {
+                report($exception);
+            }
         }
 
         return redirect()
@@ -557,8 +562,8 @@ class MailboxController extends Controller
                 return;
             }
 
-            foreach (preg_split('/[;,]+/', $value) ?: [] as $part) {
-                $email = $this->mailboxAddress((string) $part);
+            foreach ($this->addressParts($value) as $part) {
+                $email = $this->mailboxAddress($part);
 
                 if ($email === '') {
                     continue;
@@ -578,8 +583,8 @@ class MailboxController extends Controller
     {
         $emails = [];
 
-        foreach (preg_split('/[;,]+/', $value) ?: [] as $part) {
-            $email = $this->mailboxAddress((string) $part);
+        foreach ($this->addressParts($value) as $part) {
+            $email = $this->mailboxAddress($part);
 
             if ($email === '') {
                 continue;
@@ -595,6 +600,65 @@ class MailboxController extends Controller
         }
 
         return array_values($emails);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function addressParts(string $value): array
+    {
+        $parts = [];
+        $current = '';
+        $depth = 0;
+        $length = strlen($value);
+
+        for ($index = 0; $index < $length; $index++) {
+            $char = $value[$index];
+
+            if ($char === '<') {
+                $depth++;
+            } elseif ($char === '>') {
+                $depth = max(0, $depth - 1);
+            }
+
+            if (($char === ',' || $char === ';') && $depth === 0 && str_contains($current, '@')) {
+                $parts[] = $current;
+                $current = '';
+
+                continue;
+            }
+
+            $current .= $char;
+        }
+
+        if (trim($current) !== '') {
+            $parts[] = $current;
+        }
+
+        return $parts;
+    }
+
+    /**
+     * @param  list<string>  $emails
+     * @param  list<string>  $skip
+     * @return list<string>
+     */
+    private function withoutMailbox(array $emails, string $mailbox, array $skip = []): array
+    {
+        $skip = array_map(strtolower(...), $skip);
+        $kept = [];
+
+        foreach ($emails as $email) {
+            $email = strtolower($email);
+
+            if ($email === '' || $email === $mailbox || in_array($email, $skip, true) || in_array($email, $kept, true)) {
+                continue;
+            }
+
+            $kept[] = $email;
+        }
+
+        return $kept;
     }
 
     private function mailboxAddress(string $part): string

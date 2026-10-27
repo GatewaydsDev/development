@@ -778,6 +778,34 @@ test('mailbox assignment is explicit, unique, and not mass assignable', function
     expect($other->fresh()->microsoft_mailbox)->toBeNull();
 });
 
+test('reply all drops this mailbox and keeps a name that contains a comma', function () {
+    $user = mailboxUser();
+    fakeMailboxGraph();
+
+    $this->actingAs($user)
+        ->post(route('mailbox.send'), [
+            'to' => 'Doe, Jane <jane@example.com>',
+            'cc' => 'ricardo@gateway-ds.com, jane@example.com, Bob Smith <bob@example.com>',
+            'subject' => 'Re: Project update',
+            'body' => '<p>Replying to everyone on this thread.</p>',
+        ])
+        ->assertRedirect(route('mailbox.index', ['folder' => 'sent']))
+        ->assertSessionHas('success');
+
+    Http::assertSent(function ($request) {
+        if (! savedMailboxMessage($request, 'ricardo@gateway-ds.com')) {
+            return false;
+        }
+
+        $message = $request->data()['message'];
+        $to = array_column(array_column($message['toRecipients'], 'emailAddress'), 'address');
+        $cc = array_column(array_column($message['ccRecipients'] ?? [], 'emailAddress'), 'address');
+
+        return $to === ['jane@example.com']
+            && $cc === ['bob@example.com'];
+    });
+});
+
 test('an uncertain graph send is not retried', function () {
     Cache::flush();
     config([

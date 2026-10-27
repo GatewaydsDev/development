@@ -566,7 +566,11 @@ class MicrosoftGraphMailService
             throw new MicrosoftGraphException($this->failureMessage($response, true));
         }
 
-        $this->auditSend($mailbox);
+        try {
+            $this->auditSend($mailbox);
+        } catch (\Throwable $exception) {
+            report($exception);
+        }
     }
 
     /**

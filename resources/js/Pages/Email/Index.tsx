@@ -156,8 +156,8 @@ function replyAllAddresses(message: MailMessage, mailbox: string): { to: string;
     const copied = fromUs ? message.cc ?? [] : [...message.to, ...(message.cc ?? [])];
 
     return {
-        to: to.join(', '),
-        cc: copied.filter(keep).join(', '),
+        to: to.map((value) => mailboxAddress(value)).join(', '),
+        cc: copied.filter(keep).map((value) => mailboxAddress(value)).join(', '),
     };
 }
 
