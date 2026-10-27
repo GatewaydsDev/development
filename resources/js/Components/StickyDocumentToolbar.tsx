@@ -57,6 +57,14 @@ export default function StickyDocumentToolbar({
                 pinnedToolbar = currentToolbar;
                 if (pinnedToolbar) observer.observe(pinnedToolbar);
             }
+            const height = content.getBoundingClientRect().height;
+
+            if (window.matchMedia('(max-width: 1023px)').matches) {
+                setPosition(null);
+
+                return;
+            }
+
             const top = Math.max(
                 0,
                 ...Array.from(document.querySelectorAll<HTMLElement>(stackSelector), (node) => node.getBoundingClientRect().bottom),
@@ -65,7 +73,6 @@ export default function StickyDocumentToolbar({
             ) + (propertiesPanel ? 8 : 0);
             const left = Math.max(rect.left, mainRect?.left ?? 0, 8);
             const right = Math.min(rect.right, mainRect?.right ?? window.innerWidth, window.innerWidth - 8);
-            const height = content.getBoundingClientRect().height;
             const scopeBottom = scope.getBoundingClientRect().bottom;
             const visibleHeight = propertiesPanel ? Math.min(height, Math.max(0, window.innerHeight - top - 120)) : height;
             const wideEnough = !propertiesPanel || window.matchMedia('(min-width: 1280px)').matches;
@@ -100,8 +107,10 @@ export default function StickyDocumentToolbar({
             window.scrollBy(0, event.deltaY);
         };
         const wheelNode = contentRef.current;
+        const phoneMedia = window.matchMedia('(max-width: 1023px)');
         update();
         wheelNode?.addEventListener('wheel', onWheel, { passive: false });
+        phoneMedia.addEventListener('change', schedule);
         window.addEventListener('scroll', schedule, { passive: true, capture: true });
         window.addEventListener('resize', schedule);
         return () => {
@@ -109,6 +118,7 @@ export default function StickyDocumentToolbar({
             titleObserver.disconnect();
             cancelAnimationFrame(frame);
             wheelNode?.removeEventListener('wheel', onWheel);
+            phoneMedia.removeEventListener('change', schedule);
             window.removeEventListener('scroll', schedule, true);
             window.removeEventListener('resize', schedule);
         };

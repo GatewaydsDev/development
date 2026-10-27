@@ -381,7 +381,7 @@ export default function PdfWorkspace({
 
     return (
         <div className="flex h-full min-h-[28rem] min-w-0 flex-col gap-3">
-            <div className="sticky top-[14.75rem] z-20 flex min-w-0 flex-col gap-3 rounded-xl border border-[#c5d0dc] bg-[#eef3f8] p-2 text-[#111827] shadow-sm sm:p-3">
+            <div className="z-20 flex min-w-0 flex-col gap-3 rounded-xl border border-[#c5d0dc] bg-[#eef3f8] p-2 text-[#111827] shadow-sm sm:p-3 lg:sticky lg:top-[14.75rem]">
                 <div className="flex min-w-0 flex-col gap-2 lg:flex-row lg:items-end">
                     {canEdit && onUpload ? (
                         <div className="grid min-w-0 grid-cols-2 gap-2 lg:flex lg:shrink-0">

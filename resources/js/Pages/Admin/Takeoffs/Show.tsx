@@ -393,7 +393,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                         {details.errors.margin_percent ? <p className="text-sm text-destructive">{details.errors.margin_percent}</p> : null}
                     </div>
                 </form>
-                <div data-section-stack className="sticky top-[7.25rem] z-30 flex flex-col gap-2 bg-background pb-2">
+                <div data-section-stack className="z-30 flex flex-col gap-2 bg-background pb-2 lg:sticky lg:top-[7.25rem]">
                 <nav aria-label="Takeoff sections" data-document-toolbar data-pinned="true" className="rounded-xl border border-[#c5d0dc] bg-[#eef3f8] p-1.5 text-[#0a2540] shadow-sm">
                     <div className="flex gap-1 overflow-x-auto">
                         {sections.map((item, index) => {
