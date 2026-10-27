@@ -116,4 +116,30 @@ class Takeoff extends Model
             'updated_by' => $user->id,
         ])->save();
     }
+
+    public function resequenceCounts(): void
+    {
+        $openings = $this->openings()->orderBy('sort_order')->orderBy('id')->get();
+        $automatic = ['D' => [], 'W' => []];
+
+        foreach ($openings as $index => $opening) {
+            if ((int) $opening->sort_order !== $index + 1) {
+                $opening->update(['sort_order' => $index + 1]);
+            }
+
+            if ($opening->counted_tag && preg_match('/^([DW])\d+$/', (string) $opening->tag, $match) === 1) {
+                $automatic[$match[1]][] = $opening;
+            }
+        }
+
+        foreach ($automatic as $prefix => $group) {
+            foreach ($group as $opening) {
+                $opening->update(['tag' => '~'.$opening->id]);
+            }
+
+            foreach ($group as $index => $opening) {
+                $opening->update(['tag' => $prefix.($index + 1)]);
+            }
+        }
+    }
 }

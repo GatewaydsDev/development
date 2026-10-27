@@ -152,6 +152,7 @@ class TakeoffPresenter
             'id' => $opening->id,
             'uuid' => $opening->uuid,
             'tag' => $opening->tag,
+            'callout' => $opening->callout,
             'label' => $opening->label(),
             'is_bulk' => $opening->is_bulk,
             'opening_type' => $opening->opening_type,
@@ -204,6 +205,8 @@ class TakeoffPresenter
                 'page' => $marker->page,
                 'x' => (string) $marker->x,
                 'y' => (string) $marker->y,
+                'label_x' => $marker->label_x !== null ? (string) $marker->label_x : null,
+                'label_y' => $marker->label_y !== null ? (string) $marker->label_y : null,
             ])->values()->all(),
             'references' => $opening->references->map(fn ($reference): array => [
                 'id' => $reference->id,

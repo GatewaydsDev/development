@@ -13,6 +13,8 @@ class TakeoffMarker extends Model
         'page',
         'x',
         'y',
+        'label_x',
+        'label_y',
     ];
 
     protected function casts(): array
@@ -21,6 +23,8 @@ class TakeoffMarker extends Model
             'page' => 'integer',
             'x' => 'decimal:6',
             'y' => 'decimal:6',
+            'label_x' => 'decimal:6',
+            'label_y' => 'decimal:6',
         ];
     }
 

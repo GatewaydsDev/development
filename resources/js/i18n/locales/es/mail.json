@@ -62,6 +62,7 @@
   "attachmentUnavailable": "No se pudo abrir este archivo.",
   "attachmentMissing": "Este mensaje tiene un archivo adjunto. Actualice el buzón y abra el mensaje otra vez.",
   "reply": "Responder",
+  "replyAll": "Responder a todos",
   "forward": "Reenviar",
   "bold": "Negrita",
   "italic": "Cursiva",

@@ -24,7 +24,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/Components/ui/dropdown-menu';
-import { ArchiveIcon, ArrowLeftIcon, DownloadIcon, ForwardIcon, MailIcon, MailOpenIcon, MoreVerticalIcon, PaperclipIcon, RefreshCwIcon, ReplyIcon, SendIcon, XIcon } from 'lucide-react';
+import { ArchiveIcon, ArrowLeftIcon, DownloadIcon, ForwardIcon, MailIcon, MailOpenIcon, MoreVerticalIcon, PaperclipIcon, RefreshCwIcon, ReplyAllIcon, ReplyIcon, SendIcon, XIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import MailSettings from '@/Pages/Email/MailSettings';
@@ -55,6 +55,7 @@ type MailMessage = {
     subject: string;
     from: string;
     to: string[];
+    cc?: string[];
     received_at: string | null;
     sent_at: string | null;
     body: string;
@@ -131,6 +132,33 @@ function messageWhen(message: MailMessage): string {
         hour: 'numeric',
         minute: '2-digit',
     });
+}
+
+function replyAllAddresses(message: MailMessage, mailbox: string): { to: string; cc: string } {
+    const own = mailboxAddress(mailbox).toLowerCase();
+    const seen = new Set<string>();
+    const keep = (value: string) => {
+        const email = mailboxAddress(value).toLowerCase();
+
+        if (email === '' || email === own || seen.has(email)) {
+            return false;
+        }
+
+        seen.add(email);
+
+        return true;
+    };
+    const sender = mailboxAddress(message.from);
+    const fromUs = mailboxAddress(sender).toLowerCase() === own;
+    const to = fromUs
+        ? message.to.filter(keep)
+        : [sender].filter(keep);
+    const copied = fromUs ? message.cc ?? [] : [...message.to, ...(message.cc ?? [])];
+
+    return {
+        to: to.join(', '),
+        cc: copied.filter(keep).join(', '),
+    };
 }
 
 function replyIntro(message: MailMessage): string {
@@ -585,6 +613,28 @@ export default function Index({
                                                         type="button"
                                                         variant="outline"
                                                         className="min-h-11 touch-manipulation"
+                                                        onClick={() => {
+                                                            const recipients = replyAllAddresses(message, mailbox ?? '');
+
+                                                            openCompose({
+                                                                to: recipients.to,
+                                                                cc: recipients.cc,
+                                                                bcc: '',
+                                                                subject: subjectWithPrefix('Re', message.subject),
+                                                                body: quotePlainText(
+                                                                    message.body,
+                                                                    replyIntro(message),
+                                                                ),
+                                                            });
+                                                        }}
+                                                    >
+                                                        <ReplyAllIcon className="size-4" />
+                                                        {t('replyAll')}
+                                                    </Button>
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        className="min-h-11 touch-manipulation"
                                                         onClick={() =>
                                                             openCompose({
                                                                 to: '',
@@ -694,6 +744,11 @@ export default function Index({
                                                 <p className="break-all text-sm text-muted-foreground">
                                                     {t('to')}: {message.to.join(', ')}
                                                 </p>
+                                                {(message.cc ?? []).length > 0 ? (
+                                                    <p className="break-all text-sm text-muted-foreground">
+                                                        {t('cc')}: {message.cc?.join(', ')}
+                                                    </p>
+                                                ) : null}
                                                 <pre className="max-w-full whitespace-pre-wrap break-words font-sans text-sm text-foreground [overflow-wrap:anywhere]">
                                                     {message.body}
                                                 </pre>

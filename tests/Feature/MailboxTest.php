@@ -64,6 +64,9 @@ function fakeMailboxGraph(array $pages = []): void
                 'toRecipients' => [
                     ['emailAddress' => ['address' => 'ricardo@gateway-ds.com']],
                 ],
+                'ccRecipients' => [
+                    ['emailAddress' => ['name' => 'Alex', 'address' => 'alex@example.com']],
+                ],
                 'receivedDateTime' => '2026-10-15T15:00:00Z',
                 'body' => [
                     'contentType' => 'html',
@@ -689,6 +692,7 @@ test('incoming mail is shown as plain text and pagination stays on the graph mai
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('message.body', 'Hello & welcome')
+            ->where('message.cc.0', 'Alex <alex@example.com>')
             ->where('message.body', fn ($body) => ! str_contains((string) $body, '<script')
                 && ! str_contains((string) $body, '<img')
                 && ! str_contains((string) $body, 'evil.test'))

@@ -37,6 +37,8 @@ export type TakeoffMarker = {
     page: number;
     x: string;
     y: string;
+    label_x?: string | null;
+    label_y?: string | null;
 };
 
 export type TakeoffReference = {
@@ -68,6 +70,7 @@ export type TakeoffOpening = {
     id: number;
     uuid: string;
     tag: string | null;
+    callout: string | null;
     label: string;
     is_bulk: boolean;
     opening_type: 'door' | 'window';

@@ -88,6 +88,8 @@ class TakeoffCopier
                         'page' => $marker->page,
                         'x' => $marker->x,
                         'y' => $marker->y,
+                        'label_x' => $marker->label_x,
+                        'label_y' => $marker->label_y,
                     ]);
                 }
 

@@ -14,13 +14,15 @@ import {
 } from 'lucide-react';
 import { getDocument, GlobalWorkerOptions, type PageViewport, type PDFDocumentProxy, type PDFPageProxy } from 'pdfjs-dist';
 import worker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-import { useEffect, useRef, useState } from 'react';
-import { arrangePinLabels, pinLabelWidth, PIN_LABEL_HEIGHT, type PinAnchor } from '../pinLabels';
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { arrangePinLabels, calloutBox, clampCallout, countMark, type PinAnchor } from '../pinLabels';
 import type { TakeoffDocument, TakeoffOpening } from '../types';
 
 GlobalWorkerOptions.workerSrc = worker;
 
 type Point = { documentId: number; page: number; x: number; y: number };
+type Placement = Point & { labelX: number | null; labelY: number | null };
+type PinPosition = { anchorLeft: number; anchorTop: number; left: number; top: number; width: number; height: number };
 type CountTool = 'door' | 'window' | 'select' | 'remove';
 
 const drawingToolsKey = 'gateway.takeoff-drawing-tools';
@@ -67,7 +69,8 @@ type Props = {
     onSelectDocument: (id: number) => void;
     onSelectOpening: (id: number) => void;
     onCount: (point: Point, tool: 'door' | 'window') => void;
-    onMove: (markerId: number, point: Point) => void;
+    onPlace: (markerId: number, placement: Placement) => void;
+    onRename: (openingId: number, callout: string | null) => void;
     onRemove: (markerId: number) => void;
     onDelete: (openingId: number) => void;
     onUpload?: (file: File) => void;
@@ -86,7 +89,8 @@ export default function PdfWorkspace({
     onSelectDocument,
     onSelectOpening,
     onCount,
-    onMove,
+    onPlace,
+    onRename,
     onRemove,
     onDelete,
     onUpload,
@@ -106,7 +110,12 @@ export default function PdfWorkspace({
     const [rotation, setRotation] = useState(0);
     const [error, setError] = useState<string | null>(null);
     const [tool, setTool] = useState<CountTool>(savedTools.current.tool);
-    const [positions, setPositions] = useState<Record<number, { anchorLeft: number; anchorTop: number; left: number; top: number }>>({});
+    const [positions, setPositions] = useState<Record<number, PinPosition>>({});
+    const positionsRef = useRef(positions);
+    const draggingRef = useRef(false);
+    const skipRename = useRef(false);
+    const [renamingId, setRenamingId] = useState<number | null>(null);
+    const [renameDraft, setRenameDraft] = useState('');
     const document = documents.find((item) => item.id === selectedDocumentId) ?? documents[0] ?? null;
 
     useEffect(() => {
@@ -190,35 +199,56 @@ export default function PdfWorkspace({
                 }
 
                 const anchors: PinAnchor[] = [];
+                const savedLabels = new Map<number, { left: number; top: number }>();
+                const lineByOpening = new Map(openings.map((opening, index) => [opening.id, index + 1]));
 
                 openings.forEach((opening) => {
                     opening.markers.filter((marker) => marker.document_id === document.id && marker.page === page).forEach((marker) => {
                         const [left, top] = viewport.convertToViewportPoint(Number(marker.x) * unrotated.width, (1 - Number(marker.y)) * unrotated.height);
-                        const text = opening.tag || opening.label || '';
+                        const line = lineByOpening.get(opening.id) ?? 1;
+                        const box = calloutBox(countMark(opening.callout, line));
                         anchors.push({
                             id: marker.id,
                             left,
                             top,
-                            width: pinLabelWidth(text),
-                            height: PIN_LABEL_HEIGHT,
+                            width: box.width,
+                            height: box.height,
                         });
+
+                        if (marker.label_x != null && marker.label_x !== '' && marker.label_y != null && marker.label_y !== '') {
+                            const [labelLeft, labelTop] = viewport.convertToViewportPoint(Number(marker.label_x) * unrotated.width, (1 - Number(marker.label_y)) * unrotated.height);
+                            savedLabels.set(marker.id, { left: labelLeft, top: labelTop });
+                        }
                     });
                 });
 
-                const labels = new Map(arrangePinLabels(anchors).map((pin) => [pin.id, pin]));
-                const next: Record<number, { anchorLeft: number; anchorTop: number; left: number; top: number }> = {};
+                const pageBounds = { width: viewport.width, height: viewport.height };
+                const occupied = anchors.flatMap((anchor) => {
+                    const saved = savedLabels.get(anchor.id);
+
+                    return saved ? [{ ...anchor, ...clampCallout({ ...anchor, left: saved.left, top: saved.top }, pageBounds) }] : [];
+                });
+                const labels = new Map(arrangePinLabels(anchors.filter((anchor) => !savedLabels.has(anchor.id)), occupied, pageBounds).map((pin) => [pin.id, pin]));
+                const next: Record<number, PinPosition> = {};
 
                 anchors.forEach((anchor) => {
-                    const label = labels.get(anchor.id) ?? anchor;
+                    const saved = savedLabels.get(anchor.id);
+                    const raw = saved ?? labels.get(anchor.id) ?? anchor;
+                    const label = clampCallout({ ...anchor, left: raw.left, top: raw.top }, pageBounds);
                     next[anchor.id] = {
                         anchorLeft: anchor.left,
                         anchorTop: anchor.top,
                         left: label.left,
                         top: label.top,
+                        width: anchor.width,
+                        height: anchor.height,
                     };
                 });
 
-                setPositions(next);
+                if (!draggingRef.current) {
+                    positionsRef.current = next;
+                    setPositions(next);
+                }
             } catch (caught) {
                 if (!cancelled) {
                     setError(caught instanceof Error ? caught.message : 'The drawing could not be opened.');
@@ -251,6 +281,94 @@ export default function PdfWorkspace({
         return { documentId: document.id, page, x: normalizedX, y: normalizedY };
     };
 
+    const normalizedFromViewport = (left: number, top: number): { x: number; y: number } | null => {
+        const viewport = viewportRef.current;
+
+        if (!viewport) {
+            return null;
+        }
+
+        const [pdfX, pdfY] = viewport.convertToPdfPoint(left, top);
+
+        return {
+            x: Math.min(1, Math.max(0, pdfX / pageSizeRef.current.width)),
+            y: Math.min(1, Math.max(0, 1 - pdfY / pageSizeRef.current.height)),
+        };
+    };
+
+    const beginDrag = (event: ReactPointerEvent<HTMLElement>, markerId: number, part: 'label' | 'point') => {
+        if (!canEdit || tool === 'remove' || !document) {
+            return;
+        }
+
+        event.stopPropagation();
+        const target = event.currentTarget;
+        delete target.dataset.moved;
+        target.setPointerCapture(event.pointerId);
+        draggingRef.current = true;
+
+        const move = (moveEvent: PointerEvent) => {
+            const canvas = canvasRef.current;
+
+            if (!canvas || !positionsRef.current[markerId]) {
+                return;
+            }
+
+            target.dataset.moved = '1';
+            const rect = canvas.getBoundingClientRect();
+            const left = ((moveEvent.clientX - rect.left) / rect.width) * canvas.width;
+            const top = ((moveEvent.clientY - rect.top) / rect.height) * canvas.height;
+            const current = positionsRef.current[markerId];
+            positionsRef.current = {
+                ...positionsRef.current,
+                [markerId]: part === 'label'
+                    ? { ...current, left, top }
+                    : { ...current, anchorLeft: left, anchorTop: top },
+            };
+            setPositions(positionsRef.current);
+        };
+        const up = () => {
+            target.removeEventListener('pointermove', move);
+            target.removeEventListener('pointerup', up);
+            draggingRef.current = false;
+            const current = positionsRef.current[markerId];
+
+            if (target.dataset.moved !== '1' || !current || !document) {
+                return;
+            }
+
+            const tip = normalizedFromViewport(current.anchorLeft, current.anchorTop);
+            const label = normalizedFromViewport(current.left, current.top);
+
+            if (!tip || !label) {
+                return;
+            }
+
+            onPlace(markerId, {
+                documentId: document.id,
+                page,
+                x: tip.x,
+                y: tip.y,
+                labelX: label.x,
+                labelY: label.y,
+            });
+        };
+        target.addEventListener('pointermove', move);
+        target.addEventListener('pointerup', up);
+    };
+
+    const commitRename = (openingId: number, line: number) => {
+        const next = renameDraft.trim();
+        const stored = next === '' || next === String(line) ? null : next;
+        const current = openings.find((opening) => opening.id === openingId)?.callout?.trim() || null;
+        setRenamingId(null);
+
+        if (stored !== current) {
+            onRename(openingId, stored);
+        }
+    };
+
+    const lineByOpening = new Map(openings.map((opening, index) => [opening.id, index + 1]));
     const markers = openings.flatMap((opening) => opening.markers
         .filter((marker) => document && marker.document_id === document.id && marker.page === page)
         .map((marker) => ({ marker, opening })));
@@ -368,7 +486,7 @@ export default function PdfWorkspace({
                 ) : null}
             </div>
             <p className="text-xs leading-5 text-muted-foreground">
-                The drawing is scanned for every door and window. Each tag is added once, with its specs. Labels that would cover each other shift a short distance, and the dot stays on the door or window. Use Remove, or the × on a mark, to drop any opening you will not use.
+                Count door or Count window, then click the opening. The first number is 1, and removing a count closes the gap. Double-click a number to type a different one. Drag the number to stretch the arrow, or drag the point to move where it lands.
             </p>
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
             {uploadError ? <p className="text-sm text-destructive">{uploadError}</p> : null}
@@ -400,6 +518,11 @@ export default function PdfWorkspace({
                         }}
                     />
                     <svg className="pointer-events-none absolute inset-0 z-[1] h-full w-full overflow-visible">
+                        <defs>
+                            <marker id="takeoff-count-arrow" viewBox="0 0 10 10" markerWidth="8" markerHeight="8" refX="10" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+                                <path d="M0 0 L10 5 L0 10 Z" fill="#111827" />
+                            </marker>
+                        </defs>
                         {markers.map(({ marker }) => {
                             const position = positions[marker.id];
 
@@ -407,17 +530,27 @@ export default function PdfWorkspace({
                                 return null;
                             }
 
-                            const shiftX = position.left - position.anchorLeft;
-                            const shiftY = position.top - position.anchorTop;
+                            const shiftX = position.anchorLeft - position.left;
+                            const shiftY = position.anchorTop - position.top;
+                            const length = Math.hypot(shiftX, shiftY);
 
-                            if (Math.hypot(shiftX, shiftY) < 0.5) {
+                            if (length < 1) {
                                 return null;
                             }
 
+                            const ux = shiftX / length;
+                            const uy = shiftY / length;
+                            const radius = 1 / Math.sqrt((ux * ux) / ((position.width / 2) ** 2) + (uy * uy) / ((position.height / 2) ** 2));
+                            const startX = position.left + (shiftX / length) * radius;
+                            const startY = position.top + (shiftY / length) * radius;
+                            const head = 8;
+                            const baseX = position.anchorLeft - (shiftX / length) * head;
+                            const baseY = position.anchorTop - (shiftY / length) * head;
+
                             return (
                                 <g key={`leader-${marker.id}`} data-leader={marker.id}>
-                                    <line x1={position.anchorLeft} y1={position.anchorTop} x2={position.left} y2={position.top} stroke="#111827" strokeWidth="1" />
-                                    <circle cx={position.anchorLeft} cy={position.anchorTop} r="3.5" fill="#111827" />
+                                    <line x1={startX} y1={startY} x2={baseX} y2={baseY} stroke="#ffffff" strokeWidth="4" strokeLinecap="round" />
+                                    <line x1={startX} y1={startY} x2={position.anchorLeft} y2={position.anchorTop} stroke="#111827" strokeWidth="1.5" markerEnd="url(#takeoff-count-arrow)" />
                                 </g>
                             );
                         })}
@@ -430,6 +563,10 @@ export default function PdfWorkspace({
                         }
 
                         const selected = marker.id === selectedMarkerId || opening.id === selectedOpeningId;
+                        const line = lineByOpening.get(opening.id) ?? 1;
+                        const mark = countMark(opening.callout, line);
+                        const door = opening.opening_type !== 'window';
+                        const renaming = renamingId === opening.id;
                         const forget = () => {
                             if (opening.markers.length === 1) {
                                 onDelete(opening.id);
@@ -443,57 +580,14 @@ export default function PdfWorkspace({
                         return (
                             <div
                                 key={marker.id}
-                                className="absolute z-10 -translate-x-1/2 -translate-y-1/2"
+                                className={`absolute z-10 -translate-x-1/2 -translate-y-1/2 ${canEdit && tool !== 'remove' ? 'cursor-grab active:cursor-grabbing' : ''}`}
                                 style={{ left: position.left, top: position.top }}
                                 onPointerDown={(event) => {
-                                    if (!canEdit || tool === 'remove' || (event.target as HTMLElement).closest('[data-remove-mark]')) {
+                                    if (renaming || (event.target as HTMLElement).closest('[data-remove-mark], [data-callout-input]')) {
                                         return;
                                     }
 
-                                    const target = event.currentTarget;
-                                    delete target.dataset.moved;
-                                    delete target.dataset.x;
-                                    delete target.dataset.y;
-                                    target.setPointerCapture(event.pointerId);
-                                    const move = (moveEvent: PointerEvent) => {
-                                        target.dataset.moved = '1';
-                                        const point = pointFromEvent(moveEvent);
-
-                                        if (!point) {
-                                            return;
-                                        }
-
-                                        const canvas = canvasRef.current;
-                                        const viewport = viewportRef.current;
-
-                                        if (!canvas || !viewport) {
-                                            return;
-                                        }
-
-                                        const leader = target.parentElement?.querySelector(`[data-leader="${marker.id}"]`);
-
-                                        if (leader instanceof SVGElement) {
-                                            leader.style.visibility = 'hidden';
-                                        }
-
-                                        const [left, top] = viewport.convertToViewportPoint(point.x * pageSizeRef.current.width, (1 - point.y) * pageSizeRef.current.height);
-                                        target.style.left = `${left}px`;
-                                        target.style.top = `${top}px`;
-                                        target.dataset.x = String(point.x);
-                                        target.dataset.y = String(point.y);
-                                    };
-                                    const up = () => {
-                                        target.removeEventListener('pointermove', move);
-                                        target.removeEventListener('pointerup', up);
-                                        const x = Number(target.dataset.x);
-                                        const y = Number(target.dataset.y);
-
-                                        if (target.dataset.moved === '1' && !Number.isNaN(x) && !Number.isNaN(y)) {
-                                            onMove(marker.id, { documentId: document.id, page, x, y });
-                                        }
-                                    };
-                                    target.addEventListener('pointermove', move);
-                                    target.addEventListener('pointerup', up);
+                                    beginDrag(event, marker.id, 'label');
                                 }}
                                 onClick={(event) => {
                                     event.stopPropagation();
@@ -505,9 +599,47 @@ export default function PdfWorkspace({
                                     onSelectOpening(opening.id);
                                 }}
                             >
+                            {renaming ? (
+                                <input
+                                    data-callout-input
+                                    autoFocus
+                                    aria-label={`Number for ${opening.tag || opening.label}`}
+                                    value={renameDraft}
+                                    maxLength={12}
+                                    style={{ width: Math.max(position.width, 44), height: position.height }}
+                                    className="rounded-full border border-[#111827] bg-white px-1 text-center text-xs font-semibold text-[#111827] outline-none"
+                                    onPointerDown={(event) => event.stopPropagation()}
+                                    onClick={(event) => event.stopPropagation()}
+                                    onChange={(event) => setRenameDraft(event.target.value)}
+                                    onBlur={() => {
+                                        if (skipRename.current) {
+                                            skipRename.current = false;
+
+                                            return;
+                                        }
+
+                                        commitRename(opening.id, line);
+                                    }}
+                                    onKeyDown={(event) => {
+                                        event.stopPropagation();
+
+                                        if (event.key === 'Enter') {
+                                            event.preventDefault();
+                                            event.currentTarget.blur();
+                                        }
+
+                                        if (event.key === 'Escape') {
+                                            skipRename.current = true;
+                                            setRenamingId(null);
+                                        }
+                                    }}
+                                />
+                            ) : (
                             <button
                                 type="button"
-                                className={`flex h-7 min-w-7 items-center justify-center rounded-full px-1 text-xs font-semibold ${tool === 'remove' ? 'cursor-pointer' : ''} ${selected ? 'bg-[#3FCF8E] text-[#111827] ring-2 ring-[#111827]' : 'bg-[#111827] text-white'}`}
+                                title={`${mark}. ${opening.tag || opening.label}. Double-click to change this number.`}
+                                style={{ width: position.width, height: position.height }}
+                                className={`flex items-center justify-center rounded-full px-1 text-xs font-semibold tabular-nums ${tool === 'remove' ? 'cursor-pointer' : ''} ${selected ? 'bg-[#3FCF8E] text-[#111827] ring-2 ring-[#111827]' : door ? 'bg-emerald-700 text-white' : 'bg-sky-700 text-white'}`}
                                 onClick={(event) => {
                                     event.stopPropagation();
 
@@ -519,6 +651,17 @@ export default function PdfWorkspace({
 
                                     onSelectOpening(opening.id);
                                 }}
+                                onDoubleClick={(event) => {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+
+                                    if (!canEdit || tool === 'remove') {
+                                        return;
+                                    }
+
+                                    setRenameDraft(mark);
+                                    setRenamingId(opening.id);
+                                }}
                                 onContextMenu={(event) => {
                                     event.preventDefault();
                                     event.stopPropagation();
@@ -528,8 +671,9 @@ export default function PdfWorkspace({
                                     }
                                 }}
                             >
-                                {opening.tag || opening.label}
+                                {mark}
                             </button>
+                            )}
                             {canEdit ? (
                                 <button
                                     type="button"
@@ -546,6 +690,23 @@ export default function PdfWorkspace({
                                 </button>
                             ) : null}
                             </div>
+                        );
+                    })}
+                    {markers.map(({ marker }) => {
+                        const position = positions[marker.id];
+
+                        if (!position) {
+                            return null;
+                        }
+
+                        return (
+                            <div
+                                key={`point-${marker.id}`}
+                                title="Arrow point. Drag to set where this count lands."
+                                className={`absolute z-20 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-[#111827] shadow ${canEdit && tool !== 'remove' ? 'cursor-move' : 'pointer-events-none'}`}
+                                style={{ left: position.anchorLeft, top: position.anchorTop }}
+                                onPointerDown={(event) => beginDrag(event, marker.id, 'point')}
+                            />
                         );
                     })}
                 </div>

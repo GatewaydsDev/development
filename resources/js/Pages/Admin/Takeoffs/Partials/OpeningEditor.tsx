@@ -4,6 +4,7 @@ import { Button } from '@/Components/ui/button';
 import { router } from '@inertiajs/react';
 import { SearchIcon } from 'lucide-react';
 import { createContext, FormEvent, ReactNode, useContext, useEffect, useState } from 'react';
+import { countMark } from '../pinLabels';
 import type { TakeoffDocument, TakeoffOpening } from '../types';
 import type { PdfPoint } from './PdfWorkspace';
 
@@ -146,6 +147,50 @@ function PropertyRow({ name, children }: { name: string; children: ReactNode }) 
             </div>
             <div className="min-w-0 bg-white">{children}</div>
         </div>
+    );
+}
+
+function MarkField({ takeoffUuid, opening, openings, canEdit }: { takeoffUuid: string; opening: TakeoffOpening; openings: TakeoffOpening[]; canEdit: boolean }) {
+    const line = openings.findIndex((item) => item.id === opening.id) + 1;
+    const effective = countMark(opening.callout, Math.max(line, 1));
+    const [value, setValue] = useState(effective);
+
+    useEffect(() => {
+        setValue(effective);
+    }, [opening.id, effective]);
+
+    const save = () => {
+        const next = value.trim();
+        const stored = next === '' || next === String(Math.max(line, 1)) ? null : next;
+        const current = opening.callout?.trim() || null;
+
+        if (stored === current) {
+            setValue(effective);
+
+            return;
+        }
+
+        router.patch(route('admin.takeoffs.openings.callout', [takeoffUuid, opening.id]), { callout: stored }, { preserveScroll: true });
+    };
+
+    return (
+        <PropertyRow name="Mark">
+            <input
+                aria-label="Mark"
+                className={inspectorInput}
+                value={value}
+                disabled={!canEdit}
+                maxLength={12}
+                onChange={(event) => setValue(event.target.value)}
+                onBlur={save}
+                onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        event.currentTarget.blur();
+                    }
+                }}
+            />
+        </PropertyRow>
     );
 }
 
@@ -410,6 +455,7 @@ export default function OpeningEditor({
                                     <PropertyRow name="Bulk quantity">
                                         <InspectorCheck label="Bulk quantity record" checked={form.is_bulk} disabled={!canEdit} onChange={(checked) => set('is_bulk', checked)} />
                                     </PropertyRow>
+                                    {opening && !creating ? <MarkField takeoffUuid={takeoffUuid} opening={opening} openings={openings} canEdit={canEdit} /> : null}
                                     {text('Opening tag', 'tag')}
                                     {text('Location / floor', 'location')}
                                     <PropertyRow name="Type">

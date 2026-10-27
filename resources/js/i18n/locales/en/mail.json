@@ -62,6 +62,7 @@
   "attachmentUnavailable": "This file could not be opened.",
   "attachmentMissing": "This message has an attachment. Refresh the mailbox, then open the message again.",
   "reply": "Reply",
+  "replyAll": "Reply all",
   "forward": "Forward",
   "bold": "Bold",
   "italic": "Italic",

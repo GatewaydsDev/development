@@ -18,6 +18,8 @@ class TakeoffOpening extends Model
         'origin_opening_id',
         'group_id',
         'tag',
+        'callout',
+        'counted_tag',
         'is_bulk',
         'opening_type',
         'location',
@@ -67,6 +69,7 @@ class TakeoffOpening extends Model
     {
         return [
             'is_bulk' => 'boolean',
+            'counted_tag' => 'boolean',
             'needs_review' => 'boolean',
             'quantity' => 'decimal:2',
             'width' => 'decimal:3',

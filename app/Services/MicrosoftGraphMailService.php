@@ -186,7 +186,7 @@ class MicrosoftGraphMailService
     public function readMessage(string $mailbox, string $messageId): array
     {
         $url = $this->userUrl($mailbox).'/messages/'.rawurlencode($messageId)
-            .'?$select=id,subject,from,toRecipients,receivedDateTime,sentDateTime,body,bodyPreview,hasAttachments';
+            .'?$select=id,subject,from,toRecipients,ccRecipients,receivedDateTime,sentDateTime,body,bodyPreview,hasAttachments';
 
         $response = $this->graph('GET', $url, null, false);
 
@@ -213,6 +213,7 @@ class MicrosoftGraphMailService
             'subject' => (string) ($item['subject'] ?? ''),
             'from' => $this->address($item['from'] ?? null),
             'to' => $this->addresses($item['toRecipients'] ?? []),
+            'cc' => $this->addresses($item['ccRecipients'] ?? []),
             'received_at' => $item['receivedDateTime'] ?? null,
             'sent_at' => $item['sentDateTime'] ?? null,
             'body' => EmailPlainText::fromGraph(

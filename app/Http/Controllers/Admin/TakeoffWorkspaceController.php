@@ -148,9 +148,11 @@ class TakeoffWorkspaceController extends Controller
         $specs = TakeoffScopeImporter::specsAt($document, (int) $data['page'], (float) $data['x'], (float) $data['y']) ?? [];
         $type = ($specs['opening_type'] ?? $data['opening_type']) === 'window' ? 'window' : 'door';
         $tag = strtoupper(trim((string) ($specs['tag'] ?? '')));
+        $countedTag = false;
 
         if ($tag === '') {
             $tag = $this->nextCountTag($takeoff, $type === 'window' ? 'W' : 'D');
+            $countedTag = true;
         } elseif ($takeoff->openings()->whereRaw('upper(tag) = ?', [$tag])->exists()) {
             return back()->with('error', 'Door '.$tag.' is already on this scope.');
         }
@@ -159,6 +161,7 @@ class TakeoffWorkspaceController extends Controller
         $unit = $specs['dimension_unit'] ?? 'in';
         $opening = $takeoff->openings()->create([
             'tag' => $tag,
+            'counted_tag' => $countedTag,
             'is_bulk' => false,
             'opening_type' => $type,
             'location' => $specs['location'] ?? null,
@@ -188,6 +191,9 @@ class TakeoffWorkspaceController extends Controller
             'sort_order' => ((int) $takeoff->openings()->max('sort_order')) + 1,
         ]);
         $this->createMarker($takeoff, $opening, $data);
+        $takeoff->resequenceCounts();
+        $opening->refresh();
+        $tag = (string) $opening->tag;
         $opening->references()->create([
             'document_id' => $document->id,
             'page' => $data['page'],
@@ -226,7 +232,13 @@ class TakeoffWorkspaceController extends Controller
         $this->ownedOpening($takeoff, $opening);
         $this->guardFresh($request, $opening);
         $data = $this->validatedOpening($request, $takeoff);
-        $opening->update($this->openingAttributes($data, $user, $opening));
+        $attributes = $this->openingAttributes($data, $user, $opening);
+
+        if (($attributes['tag'] ?? null) !== $opening->tag) {
+            $attributes['counted_tag'] = false;
+        }
+
+        $opening->update($attributes);
 
         if ($opening->group_id) {
             $this->refreshMismatch($opening->group);
@@ -244,10 +256,25 @@ class TakeoffWorkspaceController extends Controller
         $this->ownedOpening($takeoff, $opening);
         $label = $opening->label();
         $opening->delete();
+        $takeoff->resequenceCounts();
         $this->clearApproval($takeoff, $user);
         $takeoff->record($user, 'opening.deleted', 'Removed opening '.$label.'.');
 
         return back()->with('success', 'Opening removed.');
+    }
+
+    public function updateCallout(Request $request, Takeoff $takeoff, TakeoffOpening $opening): RedirectResponse
+    {
+        $this->ensureEditable($request, $takeoff);
+        $this->ownedOpening($takeoff, $opening);
+        $data = $request->validate([
+            'callout' => ['nullable', 'string', 'max:12'],
+        ]);
+        $opening->update([
+            'callout' => $this->blank($data['callout'] ?? null),
+        ]);
+
+        return back()->with('success', 'Count number updated.');
     }
 
     public function storeMarker(Request $request, Takeoff $takeoff, TakeoffOpening $opening): RedirectResponse
@@ -269,15 +296,24 @@ class TakeoffWorkspaceController extends Controller
             'x' => ['required', 'numeric', 'between:0,1'],
             'y' => ['required', 'numeric', 'between:0,1'],
             'page' => ['required', 'integer', 'min:1', 'max:500'],
+            'label_x' => ['nullable', 'numeric', 'between:0,1'],
+            'label_y' => ['nullable', 'numeric', 'between:0,1'],
         ]);
-        $marker->update([
+        $changes = [
             'x' => bcadd(TakeoffMoney::raw($data['x']), '0', 6),
             'y' => bcadd(TakeoffMoney::raw($data['y']), '0', 6),
             'page' => $data['page'],
-        ]);
-        $takeoff->record($user, 'marker.updated', 'Moved a marker for '.$marker->opening->label().'.');
+        ];
 
-        return back()->with('success', 'Marker moved.');
+        if ($request->exists('label_x') || $request->exists('label_y')) {
+            $changes['label_x'] = isset($data['label_x']) ? bcadd(TakeoffMoney::raw($data['label_x']), '0', 6) : null;
+            $changes['label_y'] = isset($data['label_y']) ? bcadd(TakeoffMoney::raw($data['label_y']), '0', 6) : null;
+        }
+
+        $marker->update($changes);
+        $takeoff->record($user, 'marker.updated', 'Moved a count arrow for '.$marker->opening->label().'.');
+
+        return back()->with('success', 'Count arrow moved.');
     }
 
     public function destroyMarker(Request $request, Takeoff $takeoff, TakeoffMarker $marker): RedirectResponse

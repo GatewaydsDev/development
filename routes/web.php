@@ -544,6 +544,9 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::patch('/takeoffs/{takeoff}/openings/{opening}', [TakeoffWorkspaceController::class, 'updateOpening'])
             ->middleware('can:update-takeoffs')
             ->name('takeoffs.openings.update');
+        Route::patch('/takeoffs/{takeoff}/openings/{opening}/callout', [TakeoffWorkspaceController::class, 'updateCallout'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.openings.callout');
         Route::delete('/takeoffs/{takeoff}/openings/{opening}', [TakeoffWorkspaceController::class, 'destroyOpening'])
             ->middleware('can:update-takeoffs')
             ->name('takeoffs.openings.destroy');

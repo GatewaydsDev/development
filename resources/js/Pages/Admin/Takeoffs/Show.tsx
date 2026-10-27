@@ -9,6 +9,7 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { cn } from '@/lib/utils';
 import { DownloadIcon, DraftingCompassIcon, GitBranchIcon, ListIcon, PlusIcon } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { countMark } from './pinLabels';
 import OpeningEditor from './Partials/OpeningEditor';
 import PdfWorkspace, { type PdfPoint } from './Partials/PdfWorkspace';
 import {
@@ -163,6 +164,10 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
         });
     };
 
+    const lineByOpening = useMemo(
+        () => new Map(takeoff.openings.map((opening, index) => [opening.id, index + 1])),
+        [takeoff.openings],
+    );
     const filtered = useMemo(() => takeoff.openings.filter((opening) => {
         const haystack = `${opening.tag ?? ''} ${opening.label}`.toLowerCase();
 
@@ -454,7 +459,14 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
 
                                         router.delete(route('admin.takeoffs.openings.destroy', [takeoff.uuid, openingId]), { preserveScroll: true });
                                     }}
-                                    onMove={(markerId, point) => router.patch(route('admin.takeoffs.markers.update', [takeoff.uuid, markerId]), { x: point.x, y: point.y, page: point.page }, { preserveScroll: true })}
+                                    onPlace={(markerId, point) => router.patch(route('admin.takeoffs.markers.update', [takeoff.uuid, markerId]), {
+                                        x: point.x,
+                                        y: point.y,
+                                        page: point.page,
+                                        label_x: point.labelX,
+                                        label_y: point.labelY,
+                                    }, { preserveScroll: true })}
+                                    onRename={(openingId, callout) => router.patch(route('admin.takeoffs.openings.callout', [takeoff.uuid, openingId]), { callout }, { preserveScroll: true })}
                                     onRemove={(markerId) => router.delete(route('admin.takeoffs.markers.destroy', [takeoff.uuid, markerId]), { preserveScroll: true })}
                                     onUpload={editable ? uploadPdf : undefined}
                                     onScan={editable && selectedDocumentId ? () => router.post(route('admin.takeoffs.documents.scan', [takeoff.uuid, selectedDocumentId]), {}, { preserveScroll: true }) : undefined}
@@ -502,6 +514,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                     <table className="min-w-full text-sm">
                                         <thead className="sticky top-0 text-left text-white">
                                             <tr>
+                                                <th className="bg-[#16324F] px-2 py-2 text-right">#</th>
                                                 <th className="bg-[#16324F] px-2 py-2">Tag</th>
                                                 <th className="bg-[#16324F] px-2 py-2">Type</th>
                                                 <th className="bg-[#16324F] px-2 py-2">Qty</th>
@@ -515,11 +528,12 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                         <tbody>
                                             {filtered.length === 0 ? (
                                                 <tr>
-                                                    <td className="px-2 py-4 text-muted-foreground" colSpan={editable ? 8 : 7}>No openings yet. Choose Count door or Count window, then click a door on the sheet.</td>
+                                                    <td className="px-2 py-4 text-muted-foreground" colSpan={editable ? 9 : 8}>No openings yet. Choose Count door or Count window, then click a door on the sheet.</td>
                                                 </tr>
                                             ) : null}
                                             {filtered.map((opening) => (
                                                 <tr key={opening.id} className={`cursor-pointer border-t ${selectedOpeningId === opening.id ? 'bg-[#3FCF8E]/20' : ''}`} onClick={() => openOpening(opening.id)}>
+                                                    <td className="px-2 py-2 text-right font-semibold tabular-nums">{countMark(opening.callout, lineByOpening.get(opening.id) ?? 1)}</td>
                                                     <td className="px-2 py-2">{opening.is_bulk ? `Bulk ${opening.tag ?? ''}`.trim() : opening.tag}</td>
                                                     <td className="px-2 py-2">{opening.opening_type}</td>
                                                     <td className="px-2 py-2">{opening.quantity}</td>
