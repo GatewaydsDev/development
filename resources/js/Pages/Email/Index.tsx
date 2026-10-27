@@ -148,12 +148,14 @@ function replyAllAddresses(message: MailMessage, mailbox: string): { to: string;
 
         return true;
     };
+    const addressed = Array.isArray(message.to) ? message.to : [];
+    const copiedOnMessage = Array.isArray(message.cc) ? message.cc : [];
     const sender = mailboxAddress(message.from);
     const fromUs = mailboxAddress(sender).toLowerCase() === own;
     const to = fromUs
-        ? message.to.filter(keep)
+        ? addressed.filter(keep)
         : [sender].filter(keep);
-    const copied = fromUs ? message.cc ?? [] : [...message.to, ...(message.cc ?? [])];
+    const copied = fromUs ? copiedOnMessage : [...addressed, ...copiedOnMessage];
 
     return {
         to: to.map((value) => mailboxAddress(value)).join(', '),
@@ -293,6 +295,7 @@ export default function Index({
     unreadCount = 0,
     deliveryProblems = [],
 }: Props) {
+    const list = Array.isArray(messages) ? messages : [];
     const { t } = useTranslation('mail');
     const mailRef = useRef<HTMLDivElement>(null);
     const flash = usePage().props.flash as { success?: string | null } | undefined;
@@ -306,22 +309,22 @@ export default function Index({
 
     useEffect(() => {
         const visible =
-            folder === 'inbox' ? messages.filter((item) => !item.is_read).length : 0;
+            folder === 'inbox' ? list.filter((item) => !item.is_read).length : 0;
 
         setUnreadMail(Math.max(unreadCount, visible));
-    }, [unreadCount, folder, messages]);
+    }, [unreadCount, folder, list]);
 
     useEffect(() => {
         if (folder !== 'inbox' || message === null) {
             return;
         }
 
-        const opened = messages.find((item) => item.id === message.id);
+        const opened = list.find((item) => item.id === message.id);
 
         if (opened && !opened.is_read) {
             acknowledgeUnreadMail(message.id);
         }
-    }, [folder, message, messages]);
+    }, [folder, message, list]);
 
     const folderHref = (nextFolder: 'inbox' | 'sent' | 'archive', cursor?: string | null) =>
         route('mailbox.index', {
@@ -476,10 +479,10 @@ export default function Index({
                                         <CardTitle>{folderTitle}</CardTitle>
                                     </CardHeader>
                                     <CardContent className="grid gap-2">
-                                        {messages.length === 0 ? (
+                                        {list.length === 0 ? (
                                             <p className="text-sm text-muted-foreground">{t('empty')}</p>
                                         ) : (
-                                            messages.map((item) => (
+                                            list.map((item) => (
                                                 <div
                                                     key={item.id}
                                                     className={cn(
@@ -521,7 +524,7 @@ export default function Index({
                                                         ) : null}
                                                     </p>
                                                     <p className="break-all text-sm text-muted-foreground">
-                                                        {folder === 'sent' ? item.to.join(', ') : item.from}
+                                                        {folder === 'sent' ? (Array.isArray(item.to) ? item.to : []).join(', ') : item.from}
                                                     </p>
                                                     <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
                                                         {item.preview}
@@ -562,7 +565,7 @@ export default function Index({
                                                     <MessageStatus
                                                         folder={folder}
                                                         isRead={
-                                                            messages.find((item) => item.id === message.id)
+                                                            list.find((item) => item.id === message.id)
                                                                 ?.is_read ?? true
                                                         }
                                                     />
@@ -742,9 +745,9 @@ export default function Index({
                                                     </section>
                                                 ) : null}
                                                 <p className="break-all text-sm text-muted-foreground">
-                                                    {t('to')}: {message.to.join(', ')}
+                                                    {t('to')}: {(Array.isArray(message.to) ? message.to : []).join(', ')}
                                                 </p>
-                                                {(message.cc ?? []).length > 0 ? (
+                                                {(Array.isArray(message.cc) ? message.cc : []).length > 0 ? (
                                                     <p className="break-all text-sm text-muted-foreground">
                                                         {t('cc')}: {message.cc?.join(', ')}
                                                     </p>

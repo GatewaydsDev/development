@@ -50,31 +50,6 @@ class MailboxController extends Controller
                 ? $cursors->resolve($user->id, $mailbox, $folder, $cursor)
                 : null;
             $page = $graph->actingAs($user)->listFolder($mailbox, $folder, $nextUrl);
-            $message = null;
-
-            if (is_string($messageToken) && $messageToken !== '') {
-                $messageId = EmailPlainText::decodeMessageId($messageToken);
-                abort_if($messageId === null, 404);
-                $message = $graph->actingAs($user)->readMessage($mailbox, $messageId);
-
-                if ($folder === 'inbox') {
-                    $states->markRead(
-                        $user,
-                        $mailbox,
-                        $messageId,
-                        true,
-                        $graph->actingAs($user),
-                        $states->summaryFor($page['messages'], $messageToken),
-                    );
-                    Cache::forget($this->unreadCacheKey($user, $mailbox));
-                }
-            }
-
-            $messages = $states->applyToList($user, $mailbox, $folder, $page['messages']);
-
-            if ($folder === 'inbox') {
-                Cache::forget($this->unreadCacheKey($user, $mailbox));
-            }
         } catch (MicrosoftGraphException $exception) {
             return Inertia::render('Email/Index', $this->props(
                 $mailbox,
@@ -89,13 +64,48 @@ class MailboxController extends Controller
             ));
         }
 
+        $message = null;
+        $messageError = null;
+
+        if (is_string($messageToken) && $messageToken !== '') {
+            $messageId = EmailPlainText::decodeMessageId($messageToken);
+            abort_if($messageId === null, 404);
+
+            try {
+                $message = $graph->actingAs($user)->readMessage($mailbox, $messageId);
+
+                if ($folder === 'inbox') {
+                    $states->markRead(
+                        $user,
+                        $mailbox,
+                        $messageId,
+                        true,
+                        $graph->actingAs($user),
+                        $states->summaryFor($page['messages'], $messageToken),
+                    );
+                    Cache::forget($this->unreadCacheKey($user, $mailbox));
+                }
+            } catch (MicrosoftGraphException $exception) {
+                $messageError = $exception->getMessage();
+            } catch (\Throwable $exception) {
+                report($exception);
+                $messageError = 'That message could not be opened.';
+            }
+        }
+
+        $messages = $states->applyToList($user, $mailbox, $folder, $page['messages']);
+
+        if ($folder === 'inbox') {
+            Cache::forget($this->unreadCacheKey($user, $mailbox));
+        }
+
         return Inertia::render('Email/Index', $this->props(
             $mailbox,
             $folder,
             $messages,
             $cursors->store($user->id, $mailbox, $folder, $page['nextLink']),
             $message,
-            null,
+            $messageError,
             $savedRecipients,
             $user,
             $this->unreadFloor($folder, $messages, $this->unreadTotal($user, $mailbox, $graph, $states)),
@@ -645,7 +655,7 @@ class MailboxController extends Controller
      */
     private function withoutMailbox(array $emails, string $mailbox, array $skip = []): array
     {
-        $skip = array_map(strtolower(...), $skip);
+        $skip = array_map(static fn (string $email): string => strtolower($email), $skip);
         $kept = [];
 
         foreach ($emails as $email) {

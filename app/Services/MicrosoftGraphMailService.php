@@ -185,10 +185,19 @@ class MicrosoftGraphMailService
      */
     public function readMessage(string $mailbox, string $messageId): array
     {
-        $url = $this->userUrl($mailbox).'/messages/'.rawurlencode($messageId)
-            .'?$select=id,subject,from,toRecipients,ccRecipients,receivedDateTime,sentDateTime,body,bodyPreview,hasAttachments';
+        $query = http_build_query([
+            '$select' => 'id,subject,from,toRecipients,ccRecipients,receivedDateTime,sentDateTime,body,bodyPreview,hasAttachments',
+        ]);
+        $url = $this->userUrl($mailbox).'/messages/'.rawurlencode($messageId).'?'.$query;
 
         $response = $this->graph('GET', $url, null, false);
+
+        if ($response->failed() && $response->status() !== 404) {
+            $fallback = http_build_query([
+                '$select' => 'id,subject,from,toRecipients,receivedDateTime,sentDateTime,body,bodyPreview,hasAttachments',
+            ]);
+            $response = $this->graph('GET', $this->userUrl($mailbox).'/messages/'.rawurlencode($messageId).'?'.$fallback, null, false);
+        }
 
         if ($response->status() === 404) {
             throw new MicrosoftGraphException('Microsoft 365 could not find that message.');

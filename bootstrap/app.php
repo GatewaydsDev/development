@@ -9,6 +9,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -52,6 +53,20 @@ return Application::configure(basePath: dirname(__DIR__))
                 return back()->withErrors([
                     'body' => 'Too many messages were sent in a short time. Wait a minute and try again.',
                 ]);
+            }
+
+            $status = $response->getStatusCode();
+            $showErrorPage = in_array($status, [401, 403, 404, 419, 429, 500, 503], true)
+                && ($status !== 500 || ! config('app.debug'));
+
+            if ($showErrorPage && $request->header('X-Inertia') && ! $request->expectsJson()) {
+                try {
+                    return Inertia::render('Error', ['status' => $status])
+                        ->toResponse($request)
+                        ->setStatusCode($status);
+                } catch (Throwable) {
+                    return $response;
+                }
             }
 
             return $response;

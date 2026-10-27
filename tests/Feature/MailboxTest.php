@@ -712,6 +712,54 @@ test('incoming mail is shown as plain text and pagination stays on the graph mai
     Http::assertNotSent(fn ($request) => str_contains($request->url(), 'evil.example'));
 });
 
+test('a message that cannot be opened leaves the rest of the folder on screen', function () {
+    $user = mailboxUser();
+    Cache::flush();
+    config([
+        'services.microsoft.tenant_id' => 'tenant-id',
+        'services.microsoft.client_id' => 'client-id',
+        'services.microsoft.client_secret' => 'client-secret',
+        'services.microsoft.mail_from' => 'sales@gateway-ds.com',
+    ]);
+
+    Http::fake(function ($request) {
+        if (str_contains($request->url(), 'login.microsoftonline.com')) {
+            return Http::response([
+                'access_token' => 'graph-token',
+                'expires_in' => 3600,
+            ]);
+        }
+
+        $path = rawurldecode((string) (parse_url($request->url(), PHP_URL_PATH) ?? ''));
+
+        if (preg_match('#/messages/[^/?]+$#', $path) === 1) {
+            return Http::response(['error' => ['message' => 'ErrorItemNotFound']], 500);
+        }
+
+        return Http::response([
+            'value' => [[
+                'id' => 'msg-1',
+                'subject' => 'Hello',
+                'from' => ['emailAddress' => ['name' => 'Buyer', 'address' => 'buyer@example.com']],
+                'toRecipients' => [],
+                'bodyPreview' => 'Preview text',
+                'receivedDateTime' => '2026-10-15T15:00:00Z',
+                'isRead' => false,
+            ]],
+            'unreadItemCount' => 1,
+        ]);
+    });
+
+    $this->actingAs($user)
+        ->get(route('mailbox.index', ['message' => EmailPlainText::encodeMessageId('msg-1')]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('messages.0.subject', 'Hello')
+            ->where('message', null)
+            ->where('graphError', fn ($error) => is_string($error) && $error !== '')
+        );
+});
+
 test('a cursor cannot be exchanged for another mailbox or an arbitrary graph url', function () {
     $cursors = app(MicrosoftGraphPageCursor::class);
 
