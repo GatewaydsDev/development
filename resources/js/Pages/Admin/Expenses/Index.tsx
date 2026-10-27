@@ -1,5 +1,4 @@
 import ActionHint from '@/Components/ActionHint';
-import DirectoryFieldLabel from '@/Components/DirectoryFieldLabel';
 import PaginationNav, { type Paginator } from '@/Components/PaginationNav';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
@@ -11,7 +10,6 @@ import {
     CardTitle,
 } from '@/Components/ui/card';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { cn } from '@/lib/utils';
 import { Head, Link, router } from '@inertiajs/react';
 import { EditIcon, PlusIcon, ReceiptIcon, SearchIcon, Trash2Icon } from 'lucide-react';
 import { FormEvent, useState } from 'react';
@@ -60,8 +58,8 @@ const displayDate = (value: string) => {
     return `${match[2]}/${match[3]}/${match[1]}`;
 };
 
-const rowGridClassName =
-    'xl:grid-cols-[3.5rem_7rem_minmax(7rem,0.9fr)_minmax(7rem,1fr)_minmax(10rem,1.4fr)_7.5rem_6.5rem_6.5rem_7rem_4.75rem]';
+const cell = 'border-b border-border px-2 py-2 align-middle whitespace-nowrap';
+const headCell = 'sticky top-0 z-20 border-b border-border bg-muted px-2 py-2 text-left text-[11px] font-semibold tracking-wide whitespace-nowrap text-muted-foreground uppercase';
 
 type HoverPreview = {
     src: string;
@@ -84,7 +82,7 @@ export default function Index({
     const [confirming, setConfirming] = useState<number | null>(null);
     const [hover, setHover] = useState<HoverPreview | null>(null);
 
-    const showReceipt = (expense: ExpenseRow, row: HTMLDivElement) => {
+    const showReceipt = (expense: ExpenseRow, row: HTMLTableRowElement) => {
         if (!expense.receipt_preview_url) {
             setHover(null);
 
@@ -214,130 +212,110 @@ export default function Index({
                             </form>
                         </CardHeader>
                         <CardContent>
-                            <div className="overflow-x-auto rounded-lg border border-border">
-                                <div className={cn('hidden items-center gap-3 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase xl:grid', rowGridClassName)}>
-                                    <div>Receipt</div>
-                                    <div>Date</div>
-                                    <div>Person</div>
-                                    <div>Paid to</div>
-                                    <div>What it was for</div>
-                                    <div>Category</div>
-                                    <div className="text-right">Total</div>
-                                    <div className="text-right">Paid</div>
-                                    <div className="text-right">To be paid</div>
-                                    <div className="text-right">Actions</div>
-                                </div>
-
-                                {expenses.data.length > 0 ? (
-                                    expenses.data.map((expense) => (
-                                        <div
-                                            key={expense.id}
-                                            className={cn(
-                                                'grid gap-3 border-b border-border px-4 py-4 last:border-b-0 xl:min-h-20 xl:items-center xl:gap-3',
-                                                rowGridClassName,
-                                            )}
-                                            onMouseEnter={(event) => showReceipt(expense, event.currentTarget)}
-                                            onMouseLeave={() => setHover(null)}
-                                        >
-                                            <div>
-                                                <DirectoryFieldLabel hideFrom="xl">Receipt</DirectoryFieldLabel>
-                                                {expense.receipt_preview_url ? (
-                                                    <img
-                                                        src={expense.receipt_preview_url}
-                                                        alt={expense.receipt_name || 'Receipt'}
-                                                        className="h-10 w-10 rounded-md border border-border bg-background object-cover"
-                                                    />
-                                                ) : (
-                                                    <span className="text-sm text-muted-foreground">—</span>
-                                                )}
-                                            </div>
-                                            <div>
-                                                <DirectoryFieldLabel hideFrom="xl">Date</DirectoryFieldLabel>
-                                                <p className="text-sm text-foreground">{displayDate(expense.spent_on)}</p>
-                                            </div>
-                                            <div className="min-w-0">
-                                                <DirectoryFieldLabel hideFrom="xl">Person</DirectoryFieldLabel>
-                                                <p className="truncate text-sm text-foreground">{expense.person_name || 'No person'}</p>
-                                            </div>
-                                            <div className="min-w-0">
-                                                <DirectoryFieldLabel hideFrom="xl">Paid to</DirectoryFieldLabel>
-                                                <p className="truncate text-sm text-muted-foreground">{expense.payee}</p>
-                                            </div>
-                                            <div className="min-w-0">
-                                                <DirectoryFieldLabel hideFrom="xl">What it was for</DirectoryFieldLabel>
-                                                <p className="font-medium wrap-break-word text-foreground">{expense.description}</p>
-                                            </div>
-                                            <div>
-                                                <DirectoryFieldLabel hideFrom="xl">Category</DirectoryFieldLabel>
-                                                <Badge variant="outline">{expense.category_label}</Badge>
-                                            </div>
-                                            <div className="xl:text-right">
-                                                <DirectoryFieldLabel hideFrom="xl">Total</DirectoryFieldLabel>
-                                                <p className="text-sm font-medium tabular-nums text-foreground">{money(expense.amount)}</p>
-                                            </div>
-                                            <div className="xl:text-right">
-                                                <DirectoryFieldLabel hideFrom="xl">Paid</DirectoryFieldLabel>
-                                                <p className="text-sm tabular-nums text-foreground">{money(expense.paid_amount)}</p>
-                                            </div>
-                                            <div className="xl:text-right">
-                                                <DirectoryFieldLabel hideFrom="xl">To be paid</DirectoryFieldLabel>
-                                                <p className="text-sm tabular-nums text-foreground">{money(expense.scheduled_amount)}</p>
-                                            </div>
-                                            <div className="flex min-w-0 flex-col gap-1 md:items-end">
-                                                <DirectoryFieldLabel hideFrom="xl">Actions</DirectoryFieldLabel>
-                                                <div className="flex flex-wrap gap-1.5 md:justify-end">
-                                                    <ActionHint hint="Edit this expense">
-                                                        <Button
-                                                            variant="outline"
-                                                            size="icon-sm"
-                                                            className="border-amber-200 text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:border-amber-800/60 dark:text-amber-400 dark:hover:bg-amber-950/40"
-                                                            asChild
-                                                        >
-                                                            <Link
-                                                                href={route('admin.expenses.edit', expense.id)}
-                                                                aria-label="Edit this expense"
-                                                            >
-                                                                <EditIcon className="size-4" />
-                                                            </Link>
-                                                        </Button>
-                                                    </ActionHint>
-                                                    {confirming === expense.id ? (
-                                                        <Button
-                                                            type="button"
-                                                            variant="destructive"
-                                                            size="sm"
-                                                            onClick={() =>
-                                                                router.delete(route('admin.expenses.destroy', expense.id), {
-                                                                    preserveScroll: true,
-                                                                    onFinish: () => setConfirming(null),
-                                                                })
-                                                            }
-                                                        >
-                                                            Confirm
-                                                        </Button>
-                                                    ) : (
-                                                        <ActionHint hint="Delete this expense">
-                                                            <Button
-                                                                type="button"
-                                                                variant="outline"
-                                                                size="icon-sm"
-                                                                className="border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-800/60 dark:text-rose-400 dark:hover:bg-rose-950/40"
-                                                                aria-label="Delete this expense"
-                                                                onClick={() => setConfirming(expense.id)}
-                                                            >
-                                                                <Trash2Icon className="size-4" />
-                                                            </Button>
-                                                        </ActionHint>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <div className="px-4 py-10 text-center text-sm text-muted-foreground">
-                                        No expenses found.
-                                    </div>
-                                )}
+                            <div className="-mx-1 overflow-x-auto rounded-lg border border-border">
+                                <table className="w-full min-w-[48rem] table-fixed border-collapse text-xs text-foreground sm:text-sm">
+                                    <thead>
+                                        <tr>
+                                            <th className={`${headCell} sticky left-0 z-30 w-12 bg-muted`}>Receipt</th>
+                                            <th className={`${headCell} w-24`}>Date</th>
+                                            <th className={`${headCell} w-32`}>Person</th>
+                                            <th className={`${headCell} w-32`}>Paid to</th>
+                                            <th className={`${headCell} min-w-40`}>What it was for</th>
+                                            <th className={`${headCell} w-28`}>Category</th>
+                                            <th className={`${headCell} w-24 text-right`}>Total</th>
+                                            <th className={`${headCell} w-24 text-right`}>Paid</th>
+                                            <th className={`${headCell} w-28 text-right`}>To be paid</th>
+                                            <th className={`${headCell} w-32 text-right`}>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {expenses.data.length > 0 ? (
+                                            expenses.data.map((expense) => (
+                                                <tr
+                                                    key={expense.id}
+                                                    className="bg-background"
+                                                    onMouseEnter={(event) => showReceipt(expense, event.currentTarget)}
+                                                    onMouseLeave={() => setHover(null)}
+                                                >
+                                                    <td className={`${cell} sticky left-0 z-10 bg-background`}>
+                                                        {expense.receipt_preview_url ? (
+                                                            <img
+                                                                src={expense.receipt_preview_url}
+                                                                alt={expense.receipt_name || 'Receipt'}
+                                                                className="h-8 w-8 rounded border border-border bg-background object-cover"
+                                                            />
+                                                        ) : (
+                                                            <span className="text-muted-foreground">—</span>
+                                                        )}
+                                                    </td>
+                                                    <td className={`${cell} tabular-nums`}>{displayDate(expense.spent_on)}</td>
+                                                    <td className={`${cell} max-w-32 truncate`}>{expense.person_name || 'No person'}</td>
+                                                    <td className={`${cell} max-w-32 truncate text-muted-foreground`}>{expense.payee}</td>
+                                                    <td className={`${cell} max-w-56 truncate font-medium`}>{expense.description}</td>
+                                                    <td className={cell}>
+                                                        <Badge variant="outline" className="max-w-28 truncate">{expense.category_label}</Badge>
+                                                    </td>
+                                                    <td className={`${cell} text-right font-medium tabular-nums`}>{money(expense.amount)}</td>
+                                                    <td className={`${cell} text-right tabular-nums`}>{money(expense.paid_amount)}</td>
+                                                    <td className={`${cell} text-right tabular-nums`}>{money(expense.scheduled_amount)}</td>
+                                                    <td className={cell}>
+                                                        <div className="flex justify-end gap-1">
+                                                            <ActionHint hint="Edit this expense">
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="icon-sm"
+                                                                    className="border-amber-200 text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:border-amber-800/60 dark:text-amber-400 dark:hover:bg-amber-950/40"
+                                                                    asChild
+                                                                >
+                                                                    <Link
+                                                                        href={route('admin.expenses.edit', expense.id)}
+                                                                        aria-label="Edit this expense"
+                                                                    >
+                                                                        <EditIcon className="size-4" />
+                                                                    </Link>
+                                                                </Button>
+                                                            </ActionHint>
+                                                            {confirming === expense.id ? (
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="destructive"
+                                                                    size="sm"
+                                                                    onClick={() =>
+                                                                        router.delete(route('admin.expenses.destroy', expense.id), {
+                                                                            preserveScroll: true,
+                                                                            onFinish: () => setConfirming(null),
+                                                                        })
+                                                                    }
+                                                                >
+                                                                    Confirm
+                                                                </Button>
+                                                            ) : (
+                                                                <ActionHint hint="Delete this expense">
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="outline"
+                                                                        size="icon-sm"
+                                                                        className="border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-800/60 dark:text-rose-400 dark:hover:bg-rose-950/40"
+                                                                        aria-label="Delete this expense"
+                                                                        onClick={() => setConfirming(expense.id)}
+                                                                    >
+                                                                        <Trash2Icon className="size-4" />
+                                                                    </Button>
+                                                                </ActionHint>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr>
+                                                <td className="px-4 py-10 text-center text-sm text-muted-foreground" colSpan={10}>
+                                                    No expenses found.
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
                             </div>
                             <PaginationNav paginator={expenses} itemLabel="expenses" />
                             {hover
