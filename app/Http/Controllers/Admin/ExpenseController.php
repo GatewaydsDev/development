@@ -412,7 +412,7 @@ class ExpenseController extends Controller
      */
     private function people(): array
     {
-        $users = User::query()->orderBy('name')->get(['id', 'name']);
+        $users = User::query()->visibleTo(auth()->user())->orderBy('name')->get(['id', 'name']);
         $known = $users
             ->map(fn (User $user): string => mb_strtolower(trim($user->name)))
             ->all();

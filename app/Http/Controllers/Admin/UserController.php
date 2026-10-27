@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Employee;
 use App\Models\Language;
+use App\Models\Profession;
 use App\Models\User;
 use App\Models\UserEmail;
 use App\Models\UserLevel;
@@ -11,6 +13,7 @@ use App\Models\UserPhone;
 use App\Support\UserContacts;
 use App\Support\UserLevelAccess;
 use Carbon\CarbonImmutable;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -32,7 +35,9 @@ class UserController extends Controller
             'filters' => [
                 'search' => $search,
             ],
+            'canManageMicrosoft' => (bool) $request->user()?->managesMicrosoft365(),
             'users' => User::query()
+                ->visibleTo($request->user())
                 ->with([
                     'level:id,uuid,name',
                     'preferredLanguage:id,name,abbreviation',
@@ -56,10 +61,11 @@ class UserController extends Controller
                     'uuid' => $user->uuid,
                     'name' => $user->name,
                     'email' => $user->email,
-                    'microsoft_mailbox' => $request->user()?->isSuperAdmin()
+                    'job_title' => $this->userIsSuperAdmin($user) ? $user->job_title : null,
+                    'microsoft_mailbox' => $request->user()?->managesMicrosoft365()
                         ? $user->microsoft_mailbox
                         : null,
-                    'microsoft_app_ready' => $request->user()?->isSuperAdmin()
+                    'microsoft_app_ready' => $request->user()?->managesMicrosoft365()
                         && $this->userIsSuperAdmin($user)
                         && filled($user->microsoft_client_secret),
                     'primary_email' => $user->emails->first()?->email,
@@ -96,8 +102,9 @@ class UserController extends Controller
             'languages' => $this->languages(),
             'accessPermissions' => UserLevelAccess::catalog(),
             'canCreateUserLevel' => (bool) $request->user()?->isSuperAdmin(),
-            'canAssignMailbox' => (bool) $request->user()?->isSuperAdmin(),
+            'canAssignMailbox' => (bool) $request->user()?->managesMicrosoft365(),
             'superAdminLevelNames' => UserLevel::SUPER_ADMIN_ALIASES,
+            'positions' => $this->positions(),
         ]);
     }
 
@@ -139,6 +146,7 @@ class UserController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'job_title' => ['nullable', 'string', 'max:80'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'avatar' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
             'date_of_birth' => ['nullable', 'date_format:m/d/Y'],
@@ -161,6 +169,9 @@ class UserController extends Controller
         DB::transaction(function () use ($request, $validated, $level, $emails, $phones): void {
             $user = User::create([
                 'name' => $validated['name'],
+                'job_title' => $level->isSuperAdminLevel()
+                    ? ($this->position($validated['job_title'] ?? null))
+                    : null,
                 'email' => $validated['email'],
                 'avatar' => $request->hasFile('avatar')
                     ? $request->file('avatar')->store('avatars', 'public')
@@ -173,6 +184,8 @@ class UserController extends Controller
             ]);
 
             UserContacts::sync($user, $emails, $phones);
+            $this->syncEmployeePosition($user);
+            $this->rememberPosition($user->job_title);
             $this->assignMailbox($request, $user, $validated);
             $this->assignMicrosoftCredentials($request, $user, $validated, $level);
         });
@@ -184,33 +197,37 @@ class UserController extends Controller
 
     public function edit(User $user): Response
     {
+        abort_unless(request()->user()?->canViewUserAccount($user), 404);
         $user->load(['level:id,uuid,name', 'preferredLanguage:id,name,abbreviation', 'emails', 'phones']);
+        $canManageMicrosoft = (bool) request()->user()?->managesMicrosoft365();
 
         return Inertia::render('Admin/Users/Edit', [
             'levels' => $this->levels(),
             'languages' => $this->languages(),
             'accessPermissions' => UserLevelAccess::catalog(),
             'canCreateUserLevel' => (bool) request()->user()?->isSuperAdmin(),
-            'canAssignMailbox' => (bool) request()->user()?->isSuperAdmin(),
+            'canAssignMailbox' => $canManageMicrosoft,
+            'positions' => $this->positions(),
             'superAdminLevelNames' => UserLevel::SUPER_ADMIN_ALIASES,
             'managedUser' => [
                 'id' => $user->id,
                 'uuid' => $user->uuid,
                 'name' => $user->name,
+                'job_title' => $user->job_title,
                 'email' => $user->email,
-                'microsoft_mailbox' => request()->user()?->isSuperAdmin()
+                'microsoft_mailbox' => $canManageMicrosoft
                     ? $user->microsoft_mailbox
                     : null,
-                'microsoft_tenant_id' => request()->user()?->isSuperAdmin()
+                'microsoft_tenant_id' => $canManageMicrosoft
                     ? $user->microsoft_tenant_id
                     : null,
-                'microsoft_client_id' => request()->user()?->isSuperAdmin()
+                'microsoft_client_id' => $canManageMicrosoft
                     ? $user->microsoft_client_id
                     : null,
-                'microsoft_client_secret_id' => request()->user()?->isSuperAdmin()
+                'microsoft_client_secret_id' => $canManageMicrosoft
                     ? $user->microsoft_client_secret_id
                     : null,
-                'microsoft_client_secret_saved' => request()->user()?->isSuperAdmin()
+                'microsoft_client_secret_saved' => $canManageMicrosoft
                     && filled($user->microsoft_client_secret),
                 'avatar_url' => $user->avatar_url,
                 'initials' => $user->initials,
@@ -250,11 +267,13 @@ class UserController extends Controller
 
     public function update(Request $request, User $user): RedirectResponse
     {
+        abort_unless($request->user()?->canViewUserAccount($user), 404);
         $this->prepareMailbox($request);
         $this->prepareMicrosoftCredentials($request);
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'job_title' => ['nullable', 'string', 'max:80'],
             'email' => [
                 'required',
                 'string',
@@ -283,6 +302,9 @@ class UserController extends Controller
 
         $user->fill([
             'name' => $validated['name'],
+            'job_title' => $level->isSuperAdminLevel()
+                ? $this->position($validated['job_title'] ?? null)
+                : null,
             'email' => $validated['email'],
             'date_of_birth' => $this->dateOfBirth($validated['date_of_birth'] ?? null),
             'language_id' => $validated['language_id'] ?? null,
@@ -305,6 +327,8 @@ class UserController extends Controller
         DB::transaction(function () use ($request, $user, $emails, $phones, $validated, $level): void {
             $user->save();
             UserContacts::sync($user, $emails, $phones);
+            $this->syncEmployeePosition($user);
+            $this->rememberPosition($user->job_title);
             $this->assignMailbox($request, $user, $validated);
             $this->assignMicrosoftCredentials($request, $user, $validated, $level);
         });
@@ -326,11 +350,11 @@ class UserController extends Controller
     }
 
     /**
-     * @return array<string, list<\Illuminate\Contracts\Validation\ValidationRule|string>>
+     * @return array<string, list<ValidationRule|string>>
      */
     private function mailboxRules(Request $request, ?User $user = null): array
     {
-        if (! $request->user()?->isSuperAdmin()) {
+        if (! $request->user()?->managesMicrosoft365()) {
             return [];
         }
 
@@ -351,7 +375,7 @@ class UserController extends Controller
      */
     private function assignMailbox(Request $request, User $user, array $validated): void
     {
-        if (! $request->user()?->isSuperAdmin() || ! $request->exists('microsoft_mailbox')) {
+        if (! $request->user()?->managesMicrosoft365() || ! $request->exists('microsoft_mailbox')) {
             return;
         }
 
@@ -382,11 +406,11 @@ class UserController extends Controller
     }
 
     /**
-     * @return array<string, list<\Illuminate\Contracts\Validation\ValidationRule|string|\Closure>>
+     * @return array<string, list<ValidationRule|string|\Closure>>
      */
     private function microsoftCredentialRules(Request $request): array
     {
-        if (! $request->user()?->isSuperAdmin() || ! $this->requestLevelIsSuperAdmin($request)) {
+        if (! $request->user()?->managesMicrosoft365() || ! $this->requestLevelIsSuperAdmin($request)) {
             return [];
         }
 
@@ -417,7 +441,7 @@ class UserController extends Controller
      */
     private function assignMicrosoftCredentials(Request $request, User $user, array $validated, UserLevel $level): void
     {
-        if (! $request->user()?->isSuperAdmin()) {
+        if (! $request->user()?->managesMicrosoft365()) {
             return;
         }
 
@@ -508,6 +532,63 @@ class UserController extends Controller
                 'abbreviation' => $language->abbreviation,
             ])
             ->all();
+    }
+
+    /**
+     * @return list<array{id: int, name: string}>
+     */
+    private function positions(): array
+    {
+        $names = Profession::query()->orderBy('name')->pluck('name')
+            ->merge(User::query()->whereNotNull('job_title')->where('job_title', '!=', '')->pluck('job_title'))
+            ->merge(Employee::query()->whereNotNull('job_title')->where('job_title', '!=', '')->pluck('job_title'))
+            ->map(fn (mixed $name): string => trim((string) $name))
+            ->filter(fn (string $name): bool => $name !== '')
+            ->unique(fn (string $name): string => mb_strtolower($name))
+            ->sort(fn (string $left, string $right): int => strcasecmp($left, $right))
+            ->values();
+
+        return $names
+            ->map(fn (string $name, int $index): array => [
+                'id' => $index + 1,
+                'name' => $name,
+            ])
+            ->all();
+    }
+
+    private function rememberPosition(?string $position): void
+    {
+        if (! is_string($position) || $position === '') {
+            return;
+        }
+
+        $exists = Profession::query()
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($position)])
+            ->exists();
+
+        if ($exists) {
+            return;
+        }
+
+        Profession::create(['name' => $position]);
+    }
+
+    private function position(mixed $value): ?string
+    {
+        $position = trim((string) $value);
+
+        return $position === '' ? null : mb_substr($position, 0, 80);
+    }
+
+    private function syncEmployeePosition(User $user): void
+    {
+        if (! is_string($user->job_title) || $user->job_title === '') {
+            return;
+        }
+
+        Employee::query()->where('user_id', $user->id)->update([
+            'job_title' => $user->job_title,
+        ]);
     }
 
     private function dateOfBirth(?string $dateOfBirth): ?string

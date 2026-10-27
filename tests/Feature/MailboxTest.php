@@ -1,6 +1,7 @@
 <?php
 
 use App\Exceptions\MicrosoftGraphException;
+use App\Models\Employee;
 use App\Models\MailSavedRecipient;
 use App\Models\User;
 use App\Models\UserActivity;
@@ -8,6 +9,7 @@ use App\Models\UserLevel;
 use App\Services\MicrosoftGraphMailService;
 use App\Services\MicrosoftGraphPageCursor;
 use App\Support\EmailPlainText;
+use App\Support\MailStationery;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
@@ -1163,6 +1165,48 @@ test('saved stationery is part of the message and a placed signature is not adde
             && ! str_contains($content, 'Project desk')
             && ! isset($request->data()['message']['attachments']);
     });
+});
+
+test('a super admin gets one logo header and a signature with name, phone, and position', function () {
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $user = mailboxUser();
+    $user->forceFill([
+        'name' => 'Ricardo Scarpim',
+        'role' => 'super_admin',
+        'level_id' => $level->id,
+    ])->save();
+    Employee::query()->create([
+        'first_name' => 'Ricardo',
+        'last_name' => 'Scarpim',
+        'email' => 'ricardo-staff-'.$user->id.'@gateway-ds.com',
+        'phone_number' => '305-555-0100',
+        'job_title' => 'Estimator',
+        'user_id' => $user->id,
+    ]);
+
+    $stationery = app(MailStationery::class);
+    $payload = $stationery->payload($user->fresh());
+
+    expect($payload['header'])->toContain('Gateway_Door_Systems_Logo.png')
+        ->and($payload['header'])->not->toContain('>Gateway Door Systems<')
+        ->and($payload['footer'])->toBe('')
+        ->and($payload['signatures'][0]['html'])->toContain('Ricardo Scarpim')
+        ->and($payload['signatures'][0]['html'])->toContain('305-555-0100')
+        ->and($payload['signatures'][0]['html'])->toContain('Estimator')
+        ->and($user->fresh()->mail_stationery['header'])->toContain('Gateway_Door_Systems_Logo.png');
+
+    $composed = $stationery->compose(
+        $user->fresh(),
+        '<p>The opening is ready.</p><p><img src="'.$stationery->logoUrl().'" alt="Gateway Door Systems"></p><p><strong>Ricardo Scarpim</strong><br>305-555-0100<br>Estimator</p>',
+        'HTML',
+        [],
+    );
+    $content = $composed['content'];
+
+    expect(substr_count($content, 'Gateway_Door_Systems_Logo.png'))->toBe(1)
+        ->and(substr_count($content, 'Ricardo Scarpim'))->toBe(1)
+        ->and(substr_count($content, 'Estimator'))->toBe(1)
+        ->and($content)->not->toContain('data-mail-section="footer"');
 });
 
 test('header size and footer color boxes are saved for later messages', function () {

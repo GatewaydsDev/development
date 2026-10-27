@@ -1,3 +1,4 @@
+import type { CreatableOption } from '@/Components/CreatableSelect';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import UserForm from '@/Pages/Admin/Users/Partials/UserForm';
 import { Head, Link } from '@inertiajs/react';
@@ -18,6 +19,7 @@ type ManagedUser = {
     id: number;
     uuid: string;
     name: string;
+    job_title?: string | null;
     email: string;
     microsoft_mailbox?: string | null;
     microsoft_tenant_id?: string | null;
@@ -53,6 +55,7 @@ type EditProps = {
     canCreateUserLevel?: boolean;
     canAssignMailbox?: boolean;
     superAdminLevelNames?: string[];
+    positions?: CreatableOption[];
     managedUser: ManagedUser;
 };
 
@@ -63,6 +66,7 @@ export default function Edit({
     canCreateUserLevel = false,
     canAssignMailbox = false,
     superAdminLevelNames,
+    positions = [],
     managedUser,
 }: EditProps) {
     return (
@@ -102,6 +106,7 @@ export default function Edit({
                         canCreateUserLevel={canCreateUserLevel}
                         canAssignMailbox={canAssignMailbox}
                         superAdminLevelNames={superAdminLevelNames}
+                        positions={positions}
                         microsoftSecretSaved={
                             managedUser.microsoft_client_secret_saved ?? false
                         }
@@ -114,6 +119,7 @@ export default function Edit({
                         currentAvatarUrl={managedUser.avatar_url}
                         initialValues={{
                             name: managedUser.name,
+                            job_title: managedUser.job_title ?? '',
                             email: managedUser.email,
                             microsoft_mailbox:
                                 managedUser.microsoft_mailbox ?? '',

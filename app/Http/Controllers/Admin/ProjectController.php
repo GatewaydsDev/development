@@ -1259,6 +1259,7 @@ class ProjectController extends Controller
                     UserLevel::ADMIN,
                     UserLevel::PROJECT_MANAGER,
                 ]))
+                ->visibleTo(auth()->user())
                 ->orderBy('name')
                 ->get(['id', 'name'])
                 ->map(fn (User $assignee): array => [

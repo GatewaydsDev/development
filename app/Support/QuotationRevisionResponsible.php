@@ -54,6 +54,7 @@ class QuotationRevisionResponsible
     public static function options(): array
     {
         return self::eligibleUsers()
+            ->visibleTo(auth()->user())
             ->orderBy('name')
             ->get(['id', 'name'])
             ->map(fn (User $user): array => ['id' => $user->id, 'name' => $user->name])

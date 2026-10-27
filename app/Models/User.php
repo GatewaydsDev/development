@@ -7,6 +7,7 @@ use App\Notifications\ResetPasswordNotification;
 use App\Support\AccountPhone;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -22,6 +23,10 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, HasUuidRouteKey, Notifiable;
 
+    public const PRIVATE_ACCOUNT_EMAIL = 'ricardo@gateway-ds.com';
+
+    public const PRIVATE_ACCOUNT_NAME = 'ricardo scarpim';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -29,6 +34,7 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
+        'job_title',
         'email',
         'avatar',
         'signature_path',
@@ -274,6 +280,43 @@ class User extends Authenticatable
     public function isMaster(): bool
     {
         return (bool) $this->is_master;
+    }
+
+    public function isPrivateAccountOwner(): bool
+    {
+        $email = strtolower(trim((string) $this->email));
+        $name = strtolower(trim((string) preg_replace('/\s+/', ' ', (string) $this->name)));
+
+        return $email === self::PRIVATE_ACCOUNT_EMAIL || $name === self::PRIVATE_ACCOUNT_NAME;
+    }
+
+    public function managesMicrosoft365(): bool
+    {
+        return $this->isSuperAdmin() && $this->isPrivateAccountOwner();
+    }
+
+    public function canViewUserAccount(self $subject): bool
+    {
+        if (! $subject->isPrivateAccountOwner()) {
+            return true;
+        }
+
+        return $this->is($subject);
+    }
+
+    /**
+     * @param  Builder<User>  $query
+     * @return Builder<User>
+     */
+    public function scopeVisibleTo(Builder $query, ?self $viewer): Builder
+    {
+        if ($viewer?->isPrivateAccountOwner()) {
+            return $query;
+        }
+
+        return $query
+            ->whereRaw('LOWER(COALESCE(email, "")) != ?', [self::PRIVATE_ACCOUNT_EMAIL])
+            ->whereRaw('LOWER(TRIM(name)) != ?', [self::PRIVATE_ACCOUNT_NAME]);
     }
 
     public function isSuperAdmin(): bool

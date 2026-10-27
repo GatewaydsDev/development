@@ -220,6 +220,7 @@ class InternalChatController extends Controller
                     ->orWhereHas('level', fn ($level) => $level->whereIn('name', UserLevel::SUPER_ADMIN_ALIASES));
             })
             ->whereKeyNot($user->id)
+            ->visibleTo($user)
             ->orderBy('name')
             ->get(['id', 'name'])
             ->map(fn (User $person): array => [

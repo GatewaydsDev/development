@@ -82,47 +82,37 @@ export function applyLayout(
     return next.replace(writingRoom(), writing);
 }
 
-export function buildLayout(layout: MailLayoutId, stationery: MailStationeryData): string {
-    const header = section('header', stationery.header);
-    const signature = section('signature', signatureHtml(stationery, 'new'));
-    const footer = section('footer', stationery.footer);
-
-    if (layout === 'blank') {
-        return `<div data-gateway-mail="blank">${writingRoom()}${signature}</div>`;
-    }
-
-    if (layout === 'note') {
-        return `<div data-gateway-mail="note">${writingRoom()}${signature}</div>`;
-    }
-
+function layoutLabel(layout: MailLayoutId): string {
     if (layout === 'announcement') {
-        const banner = section(
-            'header',
-            `${stationery.header}<p style="margin:14px 0 0;text-align:center;font-family:Calibri,Arial,sans-serif;font-size:22px;font-weight:700;color:#06281c;">Announcement</p>`,
-        );
-
-        return `<div data-gateway-mail="announcement">${banner}${writingRoom()}${signature}${footer}</div>`;
+        return '<p style="margin:14px 0 0;text-align:center;font-family:Calibri,Arial,sans-serif;font-size:22px;font-weight:700;color:#06281c;">Announcement</p>';
     }
 
     if (layout === 'project') {
-        const banner = section(
-            'header',
-            `${stationery.header}<p style="margin:12px 0 0;font-family:Calibri,Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:0.14em;color:#047857;">PROJECT UPDATE</p>`,
-        );
-
-        return `<div data-gateway-mail="project">${banner}${writingRoom()}${signature}${footer}</div>`;
+        return '<p style="margin:12px 0 0;font-family:Calibri,Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:0.14em;color:#047857;">PROJECT UPDATE</p>';
     }
 
     if (layout === 'followUp') {
-        const banner = section(
-            'header',
-            `${stationery.header}<p style="margin:12px 0 0;font-family:Calibri,Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:0.14em;color:#047857;">FOLLOWING UP</p>`,
-        );
-
-        return `<div data-gateway-mail="followUp">${banner}${writingRoom()}${signature}${footer}</div>`;
+        return '<p style="margin:12px 0 0;font-family:Calibri,Arial,sans-serif;font-size:12px;font-weight:700;letter-spacing:0.14em;color:#047857;">FOLLOWING UP</p>';
     }
 
-    return `<div data-gateway-mail="letter">${header}${writingRoom()}${signature}${footer}</div>`;
+    return '';
+}
+
+export function buildLayout(layout: MailLayoutId, stationery: MailStationeryData): string {
+    const signature = section('signature', signatureHtml(stationery, 'new'));
+    const hasHeader = stationery.header.trim() !== '';
+    const hasFooter = stationery.footer.trim() !== '';
+    const label = layoutLabel(layout);
+    const header = hasHeader || label !== ''
+        ? section('header', `${hasHeader ? stationery.header : ''}${label}`)
+        : '';
+    const footer = hasFooter ? section('footer', stationery.footer) : '';
+
+    if (layout === 'blank' || layout === 'note') {
+        return `<div data-gateway-mail="${layout}">${writingRoom()}${signature}</div>`;
+    }
+
+    return `<div data-gateway-mail="${layout}">${header}${writingRoom()}${signature}${footer}</div>`;
 }
 
 export function placeReplySignature(body: string, signature: string): string {

@@ -43,6 +43,7 @@ type UserRow = {
     microsoft_app_ready?: boolean;
     primary_email?: string | null;
     primary_phone?: string | null;
+    job_title?: string | null;
     date_of_birth: string | null;
     preferred_language: {
         id: number;
@@ -286,6 +287,11 @@ export default function Index({ filters, users }: IndexProps) {
                                                 {user.primary_phone ? (
                                                     <span className="block">
                                                         {user.primary_phone}
+                                                    </span>
+                                                ) : null}
+                                                {user.job_title ? (
+                                                    <span className="block">
+                                                        {user.job_title}
                                                     </span>
                                                 ) : null}
                                             </div>

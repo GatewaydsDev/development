@@ -1,3 +1,6 @@
+import CreatableSelect, {
+    type CreatableOption,
+} from '@/Components/CreatableSelect';
 import EmailAddressInput from '@/Components/EmailAddressInput';
 import FormActionFab from '@/Components/FormActionFab';
 import UserContactFields, {
@@ -49,6 +52,7 @@ type UserFormData = {
     level_id: string;
     password: string;
     password_confirmation: string;
+    job_title: string;
     microsoft_mailbox: string;
     microsoft_tenant_id: string;
     microsoft_client_id: string;
@@ -67,6 +71,7 @@ type UserFormProps = {
     canCreateUserLevel?: boolean;
     canAssignMailbox?: boolean;
     superAdminLevelNames?: string[];
+    positions?: CreatableOption[];
     microsoftSecretSaved?: boolean;
     submitLabel: string;
     title: string;
@@ -201,6 +206,7 @@ export default function UserForm({
     canCreateUserLevel = false,
     canAssignMailbox = false,
     superAdminLevelNames = ['Super Admin', 'Super Administrator'],
+    positions = [],
     microsoftSecretSaved = false,
     submitLabel,
     title,
@@ -211,6 +217,7 @@ export default function UserForm({
     currentAvatarUrl = null,
     passwordOptional = false,
 }: UserFormProps) {
+    const [addedPositions, setAddedPositions] = useState<CreatableOption[]>([]);
     const [showPassword, setShowPassword] = useState(false);
     const [showMicrosoftSecret, setShowMicrosoftSecret] = useState(false);
     const [showPasswordConfirmation, setShowPasswordConfirmation] =
@@ -230,6 +237,7 @@ export default function UserForm({
             level_id: initialValues.level_id ?? '',
             password: '',
             password_confirmation: '',
+            job_title: initialValues.job_title ?? '',
             microsoft_mailbox: initialValues.microsoft_mailbox ?? '',
             microsoft_tenant_id: initialValues.microsoft_tenant_id ?? '',
             microsoft_client_id: initialValues.microsoft_client_id ?? '',
@@ -243,8 +251,33 @@ export default function UserForm({
 
     const selectedLevelName =
         levels.find((level) => String(level.id) === data.level_id)?.name ?? '';
-    const showMicrosoftCredentials =
-        canAssignMailbox && superAdminLevelNames.includes(selectedLevelName);
+    const editingSuperAdmin = superAdminLevelNames.includes(selectedLevelName);
+    const positionOptions = useMemo(() => {
+        const options = new Map<string, CreatableOption>();
+
+        [...positions, ...addedPositions].forEach((position) => {
+            const name = position.name.trim();
+
+            if (name !== '') {
+                options.set(name.toLowerCase(), { ...position, name });
+            }
+        });
+
+        const current = data.job_title.trim();
+
+        if (current !== '' && !options.has(current.toLowerCase())) {
+            options.set(current.toLowerCase(), { id: -1, name: current });
+        }
+
+        return [...options.values()].sort((left, right) =>
+            left.name.localeCompare(right.name),
+        );
+    }, [addedPositions, data.job_title, positions]);
+    const selectedPosition = positionOptions.find(
+        (position) =>
+            position.name.toLowerCase() === data.job_title.trim().toLowerCase(),
+    );
+    const showMicrosoftCredentials = canAssignMailbox && editingSuperAdmin;
 
     transform((formData) => {
         const payload = method === 'patch'
@@ -440,6 +473,63 @@ export default function UserForm({
                             <InputError message={errors.name} />
                         </div>
 
+                        {editingSuperAdmin ? (
+                            <div className="flex flex-col gap-2">
+                                <CreatableSelect
+                                    id="job_title"
+                                    label="Position"
+                                    value={
+                                        selectedPosition
+                                            ? String(selectedPosition.id)
+                                            : ''
+                                    }
+                                    options={positionOptions}
+                                    allowCreate
+                                    showCreateFooter
+                                    entityLabel="position"
+                                    placeholder="Choose a position"
+                                    error={errors.job_title}
+                                    onCreateName={(name) => {
+                                        const position = name
+                                            .trim()
+                                            .slice(0, 80);
+                                        const existing = positionOptions.find(
+                                            (option) =>
+                                                option.name.toLowerCase() ===
+                                                position.toLowerCase(),
+                                        );
+
+                                        if (existing) {
+                                            setData(
+                                                'job_title',
+                                                existing.name,
+                                            );
+
+                                            return;
+                                        }
+
+                                        setAddedPositions((current) => [
+                                            ...current,
+                                            { id: -Date.now(), name: position },
+                                        ]);
+                                        setData('job_title', position);
+                                    }}
+                                    onChange={(_id, option) =>
+                                        setData(
+                                            'job_title',
+                                            option?.name ?? '',
+                                        )
+                                    }
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    The email signature uses this full name,
+                                    the primary phone number, and this
+                                    position. The message header uses the
+                                    company logo.
+                                </p>
+                            </div>
+                        ) : null}
+
                         <div className="flex flex-col gap-2">
                             <InputLabel
                                 htmlFor="email"
@@ -590,7 +680,11 @@ export default function UserForm({
 
                     <UserContactFields
                         legend="Phone numbers"
-                        description="Add every phone number for this person. One number is the primary phone."
+                        description={
+                            editingSuperAdmin
+                                ? 'The primary phone number is placed in the email signature with the full name and position.'
+                                : 'Add every phone number for this person. One number is the primary phone.'
+                        }
                         addLabel="Add phone"
                         placeholder="(555) 555-0100"
                         inputType="tel"

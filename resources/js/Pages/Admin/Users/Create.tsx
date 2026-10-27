@@ -1,3 +1,4 @@
+import type { CreatableOption } from '@/Components/CreatableSelect';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import UserForm from '@/Pages/Admin/Users/Partials/UserForm';
 import { Head, Link } from '@inertiajs/react';
@@ -28,6 +29,7 @@ type CreateProps = {
     canCreateUserLevel?: boolean;
     canAssignMailbox?: boolean;
     superAdminLevelNames?: string[];
+    positions?: CreatableOption[];
 };
 
 export default function Create({
@@ -37,6 +39,7 @@ export default function Create({
     canCreateUserLevel = false,
     canAssignMailbox = false,
     superAdminLevelNames,
+    positions = [],
 }: CreateProps) {
     return (
         <AuthenticatedLayout
@@ -74,6 +77,7 @@ export default function Create({
                         canCreateUserLevel={canCreateUserLevel}
                         canAssignMailbox={canAssignMailbox}
                         superAdminLevelNames={superAdminLevelNames}
+                        positions={positions}
                         title="Create a team member"
                         description="Invite an internal user and choose the correct access level for Gateway Door Systems."
                         action={route('admin.users.store')}

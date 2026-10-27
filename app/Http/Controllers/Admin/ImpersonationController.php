@@ -15,6 +15,7 @@ class ImpersonationController extends Controller
         $actor = $request->user();
 
         abort_unless($actor instanceof User && $actor->isMaster(), 403);
+        abort_unless($actor->canViewUserAccount($user), 404);
         abort_if($request->session()->has('impersonator_id'), 403);
         abort_if($actor->is($user), 403);
 

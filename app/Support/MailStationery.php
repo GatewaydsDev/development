@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\Employee;
 use App\Models\User;
 
 class MailStationery
@@ -27,7 +28,10 @@ class MailStationery
             return $this->withLogo($this->normalize($stored, $user));
         }
 
-        return $this->withLogo($this->fromLegacy($user));
+        $legacy = $this->fromLegacy($user);
+        $this->rememberSuperAdmin($user, $legacy);
+
+        return $this->withLogo($legacy);
     }
 
     public function logoUrl(): string
@@ -55,9 +59,18 @@ class MailStationery
         }
 
         $stationery = $this->payload($user);
-        $header = $this->section('header', $stationery['header']);
-        $signature = $this->section('signature', $this->chosenHtml($stationery, 'new'));
-        $footer = $this->section('footer', $stationery['footer']);
+        $body = strcasecmp($type, 'HTML') === 0
+            ? $content
+            : nl2br(e($content));
+        $header = $this->alreadyContains($body, $stationery['header'])
+            ? ''
+            : $this->section('header', $stationery['header']);
+        $signature = $this->alreadyContains($body, $this->chosenHtml($stationery, 'new'))
+            ? ''
+            : $this->section('signature', $this->chosenHtml($stationery, 'new'));
+        $footer = $this->alreadyContains($body, $stationery['footer'])
+            ? ''
+            : $this->section('footer', $stationery['footer']);
 
         if ($header === '' && $signature === '' && $footer === '') {
             return [
@@ -66,10 +79,6 @@ class MailStationery
                 'attachments' => $attachments,
             ];
         }
-
-        $body = strcasecmp($type, 'HTML') === 0
-            ? $content
-            : nl2br(e($content));
 
         return [
             'content' => '<div data-gateway-mail="letter">'.$header.$body.$signature.$footer.'</div>',
@@ -226,11 +235,6 @@ class MailStationery
      */
     private function fromLegacy(User $user): array
     {
-        $written = trim((string) $user->mail_signature);
-        $lines = $written !== ''
-            ? implode('<br>', array_map(fn (string $line): string => e($line), preg_split("/\r\n|\n|\r/", $written) ?: []))
-            : e($user->name).'<br>Gateway Door Systems<br>'.e((string) $user->microsoft_mailbox);
-
         $colors = $user->mailFooterColors();
         $bar = '';
 
@@ -238,22 +242,122 @@ class MailStationery
             $bar .= '<td width="36" height="8" bgcolor="'.$color.'" style="width:36px;height:8px;background:'.$color.';line-height:8px;">&nbsp;</td>';
         }
 
-        $identity = '<p style="margin:12px 0 0;font-family:Calibri,Arial,sans-serif;font-size:12px;line-height:1.4;color:#5c6f66;">Gateway Door Systems LLC</p>';
-        $footer = $bar !== ''
-            ? '<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:12px;border-collapse:collapse;"><tr>'.$bar.'</tr></table>'.$identity
-            : '<p style="margin:18px 0 0;border-top:1px solid #d5e4db;padding-top:8px;font-family:Calibri,Arial,sans-serif;font-size:12px;line-height:1.4;color:#5c6f66;">Gateway Door Systems LLC</p>';
+        $signature = $this->personalSignature($user);
 
         return [
-            'header' => '<p style="margin:0 0 12px;">'.$this->logoMarkup().'</p><p style="margin:0;font-family:Calibri,Arial,sans-serif;font-size:20px;font-weight:700;color:#06281c;">Gateway Door Systems</p><p style="margin:2px 0 16px;padding-bottom:8px;border-bottom:3px solid #047857;font-family:Calibri,Arial,sans-serif;font-size:12px;color:#5c6f66;">Security door installations</p>',
-            'footer' => $footer,
-            'signatures' => [[
+            'header' => '<p style="margin:0 0 12px;">'.$this->logoMarkup().'</p>',
+            'footer' => $bar === ''
+                ? ''
+                : '<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:12px;border-collapse:collapse;"><tr>'.$bar.'</tr></table>',
+            'signatures' => $signature === '' ? [] : [[
                 'id' => 'default',
                 'name' => 'Signature',
-                'html' => '<p style="margin:16px 0 0;font-family:Calibri,Arial,sans-serif;font-size:15px;line-height:1.45;color:#111827;">'.$lines.'</p>',
+                'html' => $signature,
             ]],
-            'newSignatureId' => 'default',
-            'replySignatureId' => 'default',
+            'newSignatureId' => $signature === '' ? null : 'default',
+            'replySignatureId' => $signature === '' ? null : 'default',
         ];
+    }
+
+    private function personalSignature(User $user): string
+    {
+        $written = trim((string) $user->mail_signature);
+
+        if ($written !== '') {
+            $lines = array_map(
+                fn (string $line): string => e($line),
+                preg_split("/\r\n|\n|\r/", $written) ?: [],
+            );
+
+            return '<p style="margin:16px 0 0;font-family:Calibri,Arial,sans-serif;font-size:15px;line-height:1.45;color:#111827;">'.implode('<br>', $lines).'</p>';
+        }
+
+        $employee = Employee::query()->where('user_id', $user->id)->first();
+        $name = trim((string) $user->name);
+
+        if ($name === '') {
+            $name = trim((string) ($employee?->fullName() ?? ''));
+        }
+
+        $user->loadMissing('phones');
+        $phone = trim((string) ($user->phones->first()?->phone ?? ''));
+
+        if ($phone === '') {
+            $phone = trim((string) ($employee?->phone_number ?? ''));
+        }
+
+        $position = trim((string) ($user->job_title ?: $employee?->job_title));
+        $rows = [];
+
+        if ($name !== '') {
+            $rows[] = '<strong>'.e($name).'</strong>';
+        }
+
+        if ($phone !== '') {
+            $rows[] = e($phone);
+        }
+
+        if ($position !== '') {
+            $rows[] = e($position);
+        }
+
+        if ($rows === []) {
+            return '';
+        }
+
+        return '<p style="margin:16px 0 0;font-family:Calibri,Arial,sans-serif;font-size:15px;line-height:1.45;color:#111827;">'.implode('<br>', $rows).'</p>';
+    }
+
+    /**
+     * @param  array{header: string, footer: string, signatures: list<array{id: string, name: string, html: string}>, newSignatureId: string|null, replySignatureId: string|null}  $stationery
+     */
+    private function rememberSuperAdmin(User $user, array $stationery): void
+    {
+        if (! $user->isSuperAdmin() || $stationery['signatures'] === []) {
+            return;
+        }
+
+        $user->forceFill([
+            'mail_stationery' => [
+                'header' => $stationery['header'],
+                'footer' => $stationery['footer'],
+                'signatures' => $stationery['signatures'],
+                'new_signature_id' => $stationery['newSignatureId'],
+                'reply_signature_id' => $stationery['replySignatureId'],
+            ],
+        ])->save();
+    }
+
+    private function alreadyContains(string $content, string $fragment): bool
+    {
+        $fragment = trim($fragment);
+
+        if ($fragment === '') {
+            return true;
+        }
+
+        if (str_contains($content, $fragment)) {
+            return true;
+        }
+
+        if (preg_match_all('/\bsrc\s*=\s*"([^"]+)"/i', $fragment, $sources) > 0) {
+            foreach ($sources[1] as $src) {
+                if ($src !== '' && str_contains($content, $src)) {
+                    return true;
+                }
+            }
+        }
+
+        $plain = $this->plain($fragment);
+
+        return mb_strlen($plain) >= 8 && str_contains($this->plain($content), $plain);
+    }
+
+    private function plain(string $html): string
+    {
+        $text = html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        return trim(preg_replace('/\s+/u', ' ', $text) ?? $text);
     }
 
     /**

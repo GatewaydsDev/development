@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Profession;
 use App\Models\User;
 use App\Models\UserEmail;
 use App\Models\UserLevel;
@@ -116,6 +117,10 @@ test('contact emails stay unique and a list keeps a single primary', function ()
 
 test('a super admin assigns a microsoft mailbox from user management', function () {
     $superAdmin = userWithLevel(UserLevel::SUPER_ADMIN);
+    $superAdmin->forceFill([
+        'name' => 'Ricardo Scarpim',
+        'email' => 'ricardo@gateway-ds.com',
+    ])->save();
     $adminLevel = UserLevel::firstOrCreate(['name' => UserLevel::ADMIN]);
 
     $this->actingAs($superAdmin)
@@ -188,6 +193,10 @@ test('a super admin assigns a microsoft mailbox from user management', function 
 
 test('microsoft credentials are stored for a super administrator and kept off the page', function () {
     $superAdmin = userWithLevel(UserLevel::SUPER_ADMIN);
+    $superAdmin->forceFill([
+        'name' => 'Ricardo Scarpim',
+        'email' => 'ricardo@gateway-ds.com',
+    ])->save();
     $superAdminLevel = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
     $adminLevel = UserLevel::firstOrCreate(['name' => UserLevel::ADMIN]);
     $secret = 'super-admin-secret-value';
@@ -260,4 +269,87 @@ test('microsoft credentials are stored for a super administrator and kept off th
 
     expect($office->microsoft_client_secret)->toBeNull()
         ->and($office->microsoft_client_secret_id)->toBeNull();
+});
+
+test('only ricardo scarpim can see his account and the microsoft 365 section', function () {
+    $ricardo = userWithLevel(UserLevel::SUPER_ADMIN);
+    $ricardo->forceFill([
+        'name' => 'Ricardo Scarpim',
+        'email' => 'ricardo@gateway-ds.com',
+        'job_title' => 'Owner',
+    ])->save();
+
+    $other = userWithLevel(UserLevel::SUPER_ADMIN);
+    $level = UserLevel::query()->where('name', UserLevel::SUPER_ADMIN)->firstOrFail();
+    Profession::create(['name' => 'Estimator']);
+
+    $this->actingAs($other)
+        ->get(route('admin.users.index'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('canManageMicrosoft', false)
+            ->where('users.data', fn ($users) => collect($users)->pluck('email')->doesntContain('ricardo@gateway-ds.com')));
+
+    $this->actingAs($other)
+        ->get(route('admin.users.index', ['search' => 'ricardo@gateway-ds.com']))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('users.data', fn ($users) => collect($users)->pluck('email')->doesntContain('ricardo@gateway-ds.com')));
+
+    $this->actingAs($other)
+        ->get(route('admin.users.edit', $ricardo))
+        ->assertNotFound();
+
+    $this->actingAs($other)
+        ->patch(route('admin.users.update', $ricardo), [
+            'name' => 'Ricardo Scarpim',
+            'email' => 'ricardo@gateway-ds.com',
+            'level_id' => $level->id,
+            'microsoft_mailbox' => 'other@gateway-ds.com',
+            'job_title' => 'Changed',
+        ])
+        ->assertNotFound();
+
+    expect($ricardo->fresh()->microsoft_mailbox)->toBeNull()
+        ->and($ricardo->fresh()->job_title)->toBe('Owner');
+
+    $this->actingAs($other)
+        ->get(route('admin.users.create'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('canAssignMailbox', false)
+            ->where('positions', fn ($positions) => collect($positions)->pluck('name')->contains('Estimator')));
+
+    $target = userWithLevel(UserLevel::ADMIN);
+
+    $this->actingAs($other)
+        ->patch(route('admin.users.update', $target), [
+            'name' => $target->name,
+            'email' => $target->email,
+            'level_id' => $target->level_id,
+            'microsoft_mailbox' => 'sneak@gateway-ds.com',
+        ])
+        ->assertRedirect();
+
+    expect($target->fresh()->microsoft_mailbox)->toBeNull();
+
+    $this->actingAs($ricardo)
+        ->get(route('admin.users.edit', $ricardo))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('canAssignMailbox', true)
+            ->where('managedUser.job_title', 'Owner')
+            ->where('positions', fn ($positions) => collect($positions)->pluck('name')->contains('Owner')));
+
+    $this->actingAs($ricardo)
+        ->patch(route('admin.users.update', $other), [
+            'name' => $other->name,
+            'email' => $other->email,
+            'level_id' => $level->id,
+            'job_title' => 'Project Manager',
+        ])
+        ->assertRedirect();
+
+    expect($other->fresh()->job_title)->toBe('Project Manager')
+        ->and(Profession::query()->where('name', 'Project Manager')->exists())->toBeTrue();
 });
