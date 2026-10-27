@@ -13,8 +13,8 @@ import {
 import { PageProps } from '@/types';
 import { cn } from '@/lib/utils';
 import { useForm, usePage } from '@inertiajs/react';
-import { BanknoteIcon, PlusIcon, ReceiptIcon, ShoppingBagIcon, Trash2Icon } from 'lucide-react';
-import { FormEvent, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { BanknoteIcon, CameraIcon, PlusIcon, ReceiptIcon, ShoppingBagIcon, Trash2Icon, UploadIcon } from 'lucide-react';
+import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 type PaymentRow = {
     id: number;
@@ -109,6 +109,67 @@ const fieldClass =
 
 const datePattern = /^(\d{4})-(\d{2})-(\d{2})$/;
 const receiptTypes = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+
+const shrinkReceiptPhoto = (file: File) => new Promise<File>((resolve) => {
+    const looksLikeImage = file.type.startsWith('image/') || /\.(png|jpe?g|gif|webp)$/i.test(file.name);
+
+    if (!looksLikeImage || file.size <= 1_500_000) {
+        resolve(file);
+
+        return;
+    }
+
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+
+    image.onload = () => {
+        const longest = Math.max(image.width, image.height);
+        const scale = longest > 2000 ? 2000 / longest : 1;
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(image.width * scale));
+        canvas.height = Math.max(1, Math.round(image.height * scale));
+        const context = canvas.getContext('2d');
+
+        if (!context) {
+            URL.revokeObjectURL(url);
+            resolve(file);
+
+            return;
+        }
+
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+        const finish = (quality: number) => {
+            canvas.toBlob((blob) => {
+                if (!blob) {
+                    URL.revokeObjectURL(url);
+                    resolve(file);
+
+                    return;
+                }
+
+                if (blob.size > 4_500_000 && quality > 0.5) {
+                    finish(Number((quality - 0.12).toFixed(2)));
+
+                    return;
+                }
+
+                URL.revokeObjectURL(url);
+                const name = file.name.replace(/\.\w+$/, '') || 'receipt';
+                resolve(new File([blob], `${name}.jpg`, { type: 'image/jpeg', lastModified: Date.now() }));
+            }, 'image/jpeg', quality);
+        };
+
+        finish(0.82);
+    };
+
+    image.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve(file);
+    };
+
+    image.src = url;
+});
 
 const isRealDate = (value: string) => {
     const match = value.match(datePattern);
@@ -458,6 +519,22 @@ export default function ExpenseForm({
     const selectedPayee = payeeOptions.find(
         (option) => option.name.trim().toLowerCase() === form.data.payee.trim().toLowerCase(),
     );
+    const cameraRef = useRef<HTMLInputElement>(null);
+    const receiptRef = useRef<HTMLInputElement>(null);
+
+    const chooseReceipt = (event: ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0] ?? null;
+        event.target.value = '';
+
+        if (!file) {
+            return;
+        }
+
+        void shrinkReceiptPhoto(file).then((next) => {
+            form.setData('receipt', next);
+            form.setData('remove_receipt', false);
+        });
+    };
 
     const addPerson = (name: string) => {
         const trimmed = name.trim();
@@ -692,16 +769,44 @@ export default function ExpenseForm({
                     <FormSection
                         icon={<ReceiptIcon className="size-4 text-indigo-700 dark:text-indigo-300" />}
                         title="Receipt"
-                        hint="Optional. A photo is saved as a one-page PDF."
+                        hint="Optional. On a phone, take a photo of the receipt. A photo is saved as a one-page PDF."
                         className="border-indigo-200 bg-indigo-50/80 dark:border-indigo-900 dark:bg-indigo-950/30"
                     >
                         <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
                             <div className="grid gap-3">
                                 <input
+                                    ref={cameraRef}
+                                    type="file"
+                                    accept="image/*"
+                                    capture="environment"
+                                    className="sr-only"
+                                    onChange={chooseReceipt}
+                                />
+                                <div className="grid gap-2 lg:hidden">
+                                    <Button
+                                        type="button"
+                                        className="min-h-11 touch-manipulation border-indigo-800 bg-indigo-700 text-white hover:bg-indigo-800"
+                                        onClick={() => cameraRef.current?.click()}
+                                    >
+                                        <CameraIcon data-icon="inline-start" />
+                                        Take a photo
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="min-h-11 touch-manipulation"
+                                        onClick={() => receiptRef.current?.click()}
+                                    >
+                                        <UploadIcon data-icon="inline-start" />
+                                        Upload a file
+                                    </Button>
+                                </div>
+                                <input
+                                    ref={receiptRef}
                                     type="file"
                                     accept="application/pdf,image/jpeg,image/png,image/webp,image/gif"
-                                    className="block w-full text-sm text-foreground file:me-3 file:min-h-11 file:rounded-md file:border-0 file:bg-muted file:px-3 file:text-sm file:text-foreground"
-                                    onChange={(event) => form.setData('receipt', event.target.files?.[0] ?? null)}
+                                    className="sr-only w-full text-sm text-foreground file:me-3 file:min-h-11 file:rounded-md file:border-0 file:bg-muted file:px-3 file:text-sm file:text-foreground lg:not-sr-only lg:block"
+                                    onChange={chooseReceipt}
                                 />
                                 <InputError message={form.errors.receipt} />
                                 {expense?.receipt_name ? (
