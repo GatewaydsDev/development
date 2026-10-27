@@ -85,7 +85,7 @@ export default function Create({ projects, projectId }: { projects: ProjectOptio
                             </Button>
                         ) : null}
                     </div>
-                    <select id="project_id" className="mt-1 w-full rounded-md border-gray-300 shadow-sm" value={form.data.project_id} onChange={(event) => form.setData('project_id', event.target.value)}>
+                    <select id="project_id" className="mt-1 h-12 w-full rounded-md border-gray-300 py-2 text-sm leading-6 shadow-sm" value={form.data.project_id} onChange={(event) => form.setData('project_id', event.target.value)}>
                         <option value="">Select a project</option>
                         {projects.map((project) => (
                             <option key={project.id} value={project.id}>{project.project_number ? `${project.project_number} — ` : ''}{project.name}</option>

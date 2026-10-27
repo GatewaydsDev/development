@@ -415,7 +415,7 @@ export default function PdfWorkspace({
                         <span className={labelClass}>Drawing</span>
                         <select
                             aria-label="Drawing"
-                            className="h-10 w-full min-w-0 truncate rounded-md border border-[#c5ced8] bg-white px-2 text-sm text-[#111827] shadow-sm sm:h-8"
+                            className="h-12 w-full min-w-0 rounded-md border border-[#c5ced8] bg-white px-2 py-2 text-sm leading-6 text-[#111827] shadow-sm"
                             style={{ color: '#111827', WebkitTextFillColor: '#111827', backgroundColor: '#ffffff' }}
                             value={document?.id ?? ''}
                             onChange={(event) => onSelectDocument(Number(event.target.value))}

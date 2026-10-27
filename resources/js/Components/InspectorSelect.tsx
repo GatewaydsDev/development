@@ -177,14 +177,14 @@ export default function InspectorSelect({
                 aria-expanded={open}
                 aria-controls={listId}
                 style={{ ...style, color: '#0a2540', WebkitTextFillColor: '#0a2540' }}
-                className={cn(className, 'flex min-h-9 w-full items-center justify-between gap-1 text-left disabled:text-neutral-500')}
+                className={cn('flex min-h-12 w-full items-center justify-between gap-1 text-left disabled:text-neutral-500', className)}
                 onClick={() => {
                     if (!disabled) {
                         setOpen((currentOpen) => !currentOpen);
                     }
                 }}
             >
-                <span className="min-w-0 flex-1 truncate text-left" style={{ color: '#0a2540', WebkitTextFillColor: '#0a2540' }}>
+                <span className="min-w-0 flex-1 whitespace-normal break-words py-1 text-left leading-6" style={{ color: '#0a2540', WebkitTextFillColor: '#0a2540' }}>
                     {label || ' '}
                 </span>
                 <ChevronDownIcon className="size-3.5 shrink-0" style={{ color: '#0a2540' }} />
@@ -221,7 +221,7 @@ export default function InspectorSelect({
                                             fontWeight: isSelected ? 700 : 400,
                                             backgroundColor: isSelected ? '#d6e6f8' : undefined,
                                         }}
-                                        className="block min-h-9 w-full bg-white px-2 py-1.5 text-left text-sm leading-5 hover:bg-[#e7f0fb] disabled:text-neutral-400"
+                                        className="block min-h-12 w-full whitespace-normal break-words bg-white px-2 py-2.5 text-left text-sm leading-6 hover:bg-[#e7f0fb] disabled:text-neutral-400"
                                         onMouseDown={(event) => {
                                             event.preventDefault();
                                             event.stopPropagation();

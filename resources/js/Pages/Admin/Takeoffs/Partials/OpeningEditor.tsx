@@ -127,6 +127,7 @@ const empty = {
 };
 
 const inspectorInput = 'h-6 w-full bg-transparent px-1 text-[13px] text-[#1a3d8f] outline-none focus:bg-[#fff8dc] disabled:text-neutral-500';
+const inspectorSelect = 'h-auto min-h-12 w-full bg-transparent px-1 py-1 text-sm leading-6 text-[#1a3d8f] outline-none focus:bg-[#fff8dc] disabled:text-neutral-500';
 const InspectorQuery = createContext('');
 const InspectorDepth = createContext(0);
 const InspectorGroupMatch = createContext(false);
@@ -432,7 +433,7 @@ export default function OpeningEditor({
                 <div className="border-b border-[#b0b0b0] bg-white p-1">
                     <InspectorSelect
                         aria-label="Opening"
-                        className="h-8 w-full border border-[#b0b0b0] bg-white px-1 text-sm font-semibold text-neutral-900"
+                        className="h-auto min-h-12 w-full border border-[#b0b0b0] bg-white px-2 py-1 text-sm font-semibold leading-6 text-neutral-900"
                         value={creating ? 'new' : opening ? String(opening.id) : ''}
                         onChange={(event) => {
                             const value = event.target.value;
@@ -484,7 +485,7 @@ export default function OpeningEditor({
                                     {text('Opening tag', 'tag')}
                                     {text('Location / floor', 'location')}
                                     <PropertyRow name="Type">
-                                        <InspectorSelect aria-label="Type" className={inspectorInput} value={form.opening_type} disabled={!canEdit} onChange={(event) => set('opening_type', event.target.value)}>
+                                        <InspectorSelect aria-label="Type" className={inspectorSelect} value={form.opening_type} disabled={!canEdit} onChange={(event) => set('opening_type', event.target.value)}>
                                             <option value="door">Door</option>
                                             <option value="window">Window</option>
                                         </InspectorSelect>
@@ -492,7 +493,7 @@ export default function OpeningEditor({
                                     {text('Quantity', 'quantity')}
                                     {text('Category', 'product_category')}
                                     <PropertyRow name="Scope">
-                                        <InspectorSelect aria-label="Scope" className={inspectorInput} value={form.scope} disabled={!canEdit} onChange={(event) => set('scope', event.target.value)}>
+                                        <InspectorSelect aria-label="Scope" className={inspectorSelect} value={form.scope} disabled={!canEdit} onChange={(event) => set('scope', event.target.value)}>
                                             <option value="both">Supply and installation</option>
                                             <option value="supply">Supply only</option>
                                             <option value="installation">Installation only</option>
@@ -504,7 +505,7 @@ export default function OpeningEditor({
                                     {text('Height', 'height')}
                                     {text('Depth', 'depth')}
                                     <PropertyRow name="Unit">
-                                        <InspectorSelect aria-label="Unit" className={inspectorInput} value={form.dimension_unit} disabled={!canEdit} onChange={(event) => set('dimension_unit', event.target.value)}>
+                                        <InspectorSelect aria-label="Unit" className={inspectorSelect} value={form.dimension_unit} disabled={!canEdit} onChange={(event) => set('dimension_unit', event.target.value)}>
                                             <option value="in">Inches</option>
                                             <option value="ft">Feet</option>
                                             <option value="mm">Millimeters</option>
@@ -533,7 +534,7 @@ export default function OpeningEditor({
                                         <PropertyRow name="Catalog product">
                                             <InspectorSelect
                                                 aria-label="Catalog product"
-                                                className={inspectorInput}
+                                                className={inspectorSelect}
                                                 value={form.product_id}
                                                 disabled={!canEdit}
                                                 onChange={(event) => {
@@ -558,7 +559,7 @@ export default function OpeningEditor({
                                     {area('Ballistic', 'ballistic_requirement')}
                                     {area('Other', 'other_requirements')}
                                     <PropertyRow name="Source document">
-                                        <InspectorSelect aria-label="Source document" className={inspectorInput} value={form.requirement_document_id} disabled={!canEdit} onChange={(event) => set('requirement_document_id', event.target.value)}>
+                                        <InspectorSelect aria-label="Source document" className={inspectorSelect} value={form.requirement_document_id} disabled={!canEdit} onChange={(event) => set('requirement_document_id', event.target.value)}>
                                             <option value="">None</option>
                                             {documents.map((item) => <option key={item.id} value={item.id}>{item.original_filename}</option>)}
                                         </InspectorSelect>
@@ -566,7 +567,7 @@ export default function OpeningEditor({
                                     {text('Source page', 'requirement_page')}
                                     {text('Source section', 'requirement_section')}
                                     <PropertyRow name="Verification">
-                                        <InspectorSelect aria-label="Verification" className={inspectorInput} value={form.verification_status} disabled={!canEdit} onChange={(event) => set('verification_status', event.target.value)}>
+                                        <InspectorSelect aria-label="Verification" className={inspectorSelect} value={form.verification_status} disabled={!canEdit} onChange={(event) => set('verification_status', event.target.value)}>
                                             <option value="recorded">Requirement recorded</option>
                                             <option value="proposed">Product proposed</option>
                                             <option value="pending">Technical verification pending</option>
@@ -585,7 +586,7 @@ export default function OpeningEditor({
                                 </PropertyGroup>
                                 <PropertyGroup name="Notes" summary={form.disposition === 'active' ? 'Active' : form.disposition === 'excluded' ? 'Excluded' : 'Not applicable'}>
                                     <PropertyRow name="Disposition">
-                                        <InspectorSelect aria-label="Disposition" className={inspectorInput} value={form.disposition} disabled={!canEdit} onChange={(event) => set('disposition', event.target.value)}>
+                                        <InspectorSelect aria-label="Disposition" className={inspectorSelect} value={form.disposition} disabled={!canEdit} onChange={(event) => set('disposition', event.target.value)}>
                                             <option value="active">Active</option>
                                             <option value="excluded">Excluded</option>
                                             <option value="not_applicable">Not applicable</option>

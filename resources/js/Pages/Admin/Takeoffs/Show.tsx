@@ -364,14 +364,14 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                         <TextInput className="mt-1 w-full" value={details.data.revision_label} placeholder="A" maxLength={40} onChange={(event) => details.setData('revision_label', event.target.value)} />
                     </label>
                     <label className="text-sm">Status
-                        <select className="mt-1 w-full rounded-md border-gray-300 shadow-sm" value={details.data.status} onChange={(event) => details.setData('status', event.target.value)}>
+                        <select className="mt-1 h-12 w-full rounded-md border-gray-300 py-2 text-sm leading-6 shadow-sm" value={details.data.status} onChange={(event) => details.setData('status', event.target.value)}>
                             {Object.entries(statusLabel).map(([value, label]) => <option key={value} value={value} disabled={value === 'approved' && !can.approve}>{label}</option>)}
                         </select>
                     </label>
                     {can.pricing ? (
                         <>
                             <label className="text-sm">Pricing method
-                                <select className="mt-1 w-full rounded-md border-gray-300 shadow-sm" value={details.data.pricing_method} onChange={(event) => details.setData('pricing_method', event.target.value as 'markup' | 'margin')}>
+                                <select className="mt-1 h-12 w-full rounded-md border-gray-300 py-2 text-sm leading-6 shadow-sm" value={details.data.pricing_method} onChange={(event) => details.setData('pricing_method', event.target.value as 'markup' | 'margin')}>
                                     <option value="markup">Markup</option>
                                     <option value="margin">Target gross margin</option>
                                 </select>
@@ -488,13 +488,13 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                     <TextInput value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Opening tag" />
                                     <TextInput value={category} onChange={(event) => setCategory(event.target.value)} placeholder="Category" />
                                     <TextInput value={location} onChange={(event) => setLocation(event.target.value)} placeholder="Location" />
-                                    <select className="rounded-md border-gray-300 text-sm" value={scope} onChange={(event) => setScope(event.target.value)}>
+                                    <select className="h-12 rounded-md border-gray-300 py-2 text-sm leading-6" value={scope} onChange={(event) => setScope(event.target.value)}>
                                         <option value="">All scopes</option>
                                         <option value="supply">Supply only</option>
                                         <option value="installation">Installation only</option>
                                         <option value="both">Supply and installation</option>
                                     </select>
-                                    <select className="rounded-md border-gray-300 text-sm" value={review} onChange={(event) => setReview(event.target.value)}>
+                                    <select className="h-12 rounded-md border-gray-300 py-2 text-sm leading-6" value={review} onChange={(event) => setReview(event.target.value)}>
                                         <option value="">All review states</option>
                                         <option value="flagged">Has review flags</option>
                                         <option value="clear">No flags</option>
@@ -574,7 +574,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                         <a className="text-sm text-indigo-700" href={route('admin.takeoffs.import-template')}>Download the import template</a>
                                         <input type="file" accept=".csv,text/csv" onChange={(event) => setImportFile(event.target.files?.[0] ?? null)} />
                                         <label className="block text-sm">Duplicate tags
-                                            <select className="mt-1 w-full rounded-md border-gray-300" value={duplicateMode} onChange={(event) => setDuplicateMode(event.target.value as 'reject' | 'flag')}>
+                                            <select className="mt-1 h-12 w-full rounded-md border-gray-300 py-2 text-sm leading-6" value={duplicateMode} onChange={(event) => setDuplicateMode(event.target.value as 'reject' | 'flag')}>
                                                 <option value="reject">Reject the file</option>
                                                 <option value="flag">Import and keep them flagged</option>
                                             </select>
@@ -661,7 +661,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                                 event.currentTarget.reset();
                                             }}>
                                                 <p className="text-sm">Add a schedule or specification reference. This does not change quantity.</p>
-                                                <select name="document_id" className="rounded-md border-gray-300 text-sm">
+                                                <select name="document_id" className="h-12 rounded-md border-gray-300 py-2 text-sm leading-6">
                                                     <option value="">Document</option>
                                                     {takeoff.documents.map((item) => <option key={item.id} value={item.id}>{item.original_filename}</option>)}
                                                 </select>
@@ -738,7 +738,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                     event.currentTarget.reset();
                                 }}>
                                     <TextInput name="name" placeholder="Template name" required />
-                                    <select name="opening_type" className="rounded-md border-gray-300 text-sm" defaultValue="door"><option value="door">Door</option><option value="window">Window</option></select>
+                                    <select name="opening_type" className="h-12 rounded-md border-gray-300 py-2 text-sm leading-6" defaultValue="door"><option value="door">Door</option><option value="window">Window</option></select>
                                     <TextInput name="frame_type" placeholder="Frame" />
                                     <TextInput name="hardware_set" placeholder="Hardware" />
                                     <TextInput name="glazing" placeholder="Glazing" />
@@ -762,7 +762,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                 <TextInput name="revision_label" placeholder="Revision" />
                                 <TextInput name="quote_date" type="date" />
                                 <TextInput name="expires_at" type="date" />
-                                <select name="opening_id" className="rounded-md border-gray-300 text-sm" defaultValue={selected?.id ?? ''}>
+                                <select name="opening_id" className="h-12 rounded-md border-gray-300 py-2 text-sm leading-6" defaultValue={selected?.id ?? ''}>
                                     <option value="">Opening</option>
                                     {takeoff.openings.map((opening) => <option key={opening.id} value={opening.id}>{opening.label}</option>)}
                                 </select>
@@ -816,7 +816,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                         {can.convert ? (
                             <>
                                 <p className="text-sm text-muted-foreground">Selling prices are copied onto the quotation. Internal costs and supplier files stay on the takeoff. Later takeoff edits do not change the quotation unless you replace the transferred lines.</p>
-                                <select className="rounded-md border-gray-300" value={quotationId} onChange={(event) => setQuotationId(event.target.value)}>
+                                <select className="h-12 w-full rounded-md border-gray-300 py-2 text-sm leading-6" value={quotationId} onChange={(event) => setQuotationId(event.target.value)}>
                                     {quotations.map((quotation) => <option key={quotation.id} value={quotation.id}>{quotation.number} — {quotation.title}</option>)}
                                 </select>
                                 <Button type="button" variant="outline" size="sm" onClick={() => void loadPreview()}>Preview lines</Button>
@@ -882,7 +882,7 @@ function CostForm({ takeoffUuid, openingId, groupId }: { takeoffUuid: string; op
             }, { preserveScroll: true });
             event.currentTarget.reset();
         }}>
-            <select name="kind" className="rounded-md border-gray-300 text-sm" defaultValue="material">
+            <select name="kind" className="h-12 rounded-md border-gray-300 py-2 text-sm leading-6" defaultValue="material">
                 <option value="material">Material</option>
                 <option value="labor">Labor</option>
                 <option value="freight">Freight</option>
@@ -890,7 +890,7 @@ function CostForm({ takeoffUuid, openingId, groupId }: { takeoffUuid: string; op
                 <option value="subcontract">Subcontract</option>
                 <option value="other">Other</option>
             </select>
-            <select name="basis" className="rounded-md border-gray-300 text-sm" defaultValue="per_unit">
+            <select name="basis" className="h-12 rounded-md border-gray-300 py-2 text-sm leading-6" defaultValue="per_unit">
                 <option value="per_unit">Per unit</option>
                 <option value="one_time">One time</option>
             </select>
