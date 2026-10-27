@@ -100,11 +100,18 @@ class MailboxController extends Controller
             Cache::forget($this->unreadCacheKey($user, $mailbox));
         }
 
+        try {
+            $nextCursor = $cursors->store($user->id, $mailbox, $folder, $page['nextLink']);
+        } catch (MicrosoftGraphException $exception) {
+            report($exception);
+            $nextCursor = null;
+        }
+
         return Inertia::render('Email/Index', $this->props(
             $mailbox,
             $folder,
             $messages,
-            $cursors->store($user->id, $mailbox, $folder, $page['nextLink']),
+            $nextCursor,
             $message,
             $messageError,
             $savedRecipients,

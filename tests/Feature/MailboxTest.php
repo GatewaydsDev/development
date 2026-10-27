@@ -772,6 +772,36 @@ test('a cursor cannot be exchanged for another mailbox or an arbitrary graph url
         'inbox',
     ))->toThrow(MicrosoftGraphException::class);
 
+    expect(fn () => $cursors->assertLink(
+        'https://graph.microsoft.com/v1.0/users/'.rawurlencode('ricardo@gateway-ds.com').'/mailFolders/sentitems/messages',
+        'ricardo@gateway-ds.com',
+        'inbox',
+    ))->toThrow(MicrosoftGraphException::class);
+
+    $folderId = 'AAMkAGI2THVSAAA=';
+    $folderLink = 'https://graph.microsoft.com/v1.0/users/'.rawurlencode('ricardo@gateway-ds.com').'/mailFolders/'.rawurlencode($folderId).'/messages?$skip=25';
+
+    expect($cursors->store(4, 'ricardo@gateway-ds.com', 'sent', $folderLink))->toBeString();
+
+    expect($cursors->store(
+        4,
+        'ricardo@gateway-ds.com',
+        'inbox',
+        "https://graph.microsoft.com/v1.0/users('ricardo@gateway-ds.com')/mailFolders('".$folderId."')/messages?%24skip=25",
+    ))->toBeString();
+
+    $user = mailboxUser();
+    fakeMailboxGraph(['nextLink' => $folderLink]);
+
+    $this->actingAs($user)
+        ->get(route('mailbox.index', ['folder' => 'sent']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('folder', 'sent')
+            ->where('messages.0.subject', 'Hello')
+            ->where('nextCursor', fn ($cursor) => is_string($cursor) && $cursor !== '')
+        );
+
     $token = $cursors->store(
         4,
         'ricardo@gateway-ds.com',
