@@ -1,3 +1,4 @@
+import { dropdownMaxHeight, dropdownOpensUp } from '@/lib/dropdownMenuFrame';
 import { cn } from '@/lib/utils';
 import { ChevronDownIcon } from 'lucide-react';
 import {
@@ -105,10 +106,8 @@ export default function InspectorSelect({
             return;
         }
 
-        const roomBelow = window.innerHeight - rect.bottom - 8;
-        const roomAbove = rect.top - 8;
-        const openUp = roomBelow < 160 && roomAbove > roomBelow;
-        const maxHeight = Math.max(120, Math.min(240, openUp ? roomAbove : roomBelow));
+        const openUp = dropdownOpensUp(rect);
+        const maxHeight = dropdownMaxHeight(rect, openUp);
 
         setBox({
             top: openUp ? Math.max(8, rect.top - maxHeight - 4) : rect.bottom + 4,
@@ -178,7 +177,7 @@ export default function InspectorSelect({
                 aria-expanded={open}
                 aria-controls={listId}
                 style={{ ...style, color: '#0a2540', WebkitTextFillColor: '#0a2540' }}
-                className={cn(className, 'flex w-full items-center justify-between gap-1 text-left disabled:text-neutral-500')}
+                className={cn(className, 'flex min-h-9 w-full items-center justify-between gap-1 text-left disabled:text-neutral-500')}
                 onClick={() => {
                     if (!disabled) {
                         setOpen((currentOpen) => !currentOpen);
@@ -222,7 +221,7 @@ export default function InspectorSelect({
                                             fontWeight: isSelected ? 700 : 400,
                                             backgroundColor: isSelected ? '#d6e6f8' : undefined,
                                         }}
-                                        className="block w-full bg-white px-2 py-1 text-left text-[13px] hover:bg-[#e7f0fb] disabled:text-neutral-400"
+                                        className="block min-h-9 w-full bg-white px-2 py-1.5 text-left text-sm leading-5 hover:bg-[#e7f0fb] disabled:text-neutral-400"
                                         onMouseDown={(event) => {
                                             event.preventDefault();
                                             event.stopPropagation();

@@ -381,7 +381,7 @@ function AddressField({
                     <span
                         role="listbox"
                         aria-label={t('addressSuggestions')}
-                        className="absolute top-full z-20 mt-1 grid max-h-60 w-full overflow-y-auto rounded-md border border-border bg-background shadow-sm"
+                        className="absolute top-full z-20 mt-1 grid max-h-[min(32rem,70dvh)] w-full overflow-y-auto rounded-md border border-border bg-background shadow-sm"
                     >
                         {savedMatches.map((recipient, index) => (
                             <button

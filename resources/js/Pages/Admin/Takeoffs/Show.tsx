@@ -7,7 +7,7 @@ import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { cn } from '@/lib/utils';
-import { DownloadIcon, DraftingCompassIcon, GitBranchIcon, ListIcon, PlusIcon } from 'lucide-react';
+import { DownloadIcon, DraftingCompassIcon, ListIcon, PlusIcon } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { countMark } from './pinLabels';
 import OpeningEditor from './Partials/OpeningEditor';
@@ -101,6 +101,8 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
     const [importPreview, setImportPreview] = useState<{ errors: { row: number; messages: string[] }[]; duplicates: string[]; rows: unknown[] } | null>(null);
     const details = useForm({
         title: takeoff.title,
+        revision_number: String(takeoff.revision_number ?? 1),
+        revision_label: takeoff.revision_label ?? '',
         notes: takeoff.notes ?? '',
         status: takeoff.status,
         pricing_method: takeoff.pricing_method,
@@ -294,7 +296,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
             <div className="space-y-4 px-4 py-6 pb-28 sm:px-6 lg:px-8">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                        <p className="text-sm text-muted-foreground">{takeoff.project?.project_number} {takeoff.project?.name} · Revision {takeoff.revision_number}</p>
+                        <p className="text-sm text-muted-foreground">{takeoff.project?.project_number} {takeoff.project?.name} · Revision {takeoff.revision_number}{takeoff.revision_label ? ` ${takeoff.revision_label}` : ''}</p>
                         <p className="mt-1 text-sm font-medium text-gray-800 dark:text-gray-100">
                             Scope of work: {takeoff.openings.length === 0 ? 'mark each opening on the drawing' : `${takeoff.openings.length} ${takeoff.openings.length === 1 ? 'opening' : 'openings'} marked on the drawing`}
                         </p>
@@ -302,12 +304,6 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                         <p className="mt-2 max-w-3xl text-sm text-muted-foreground">Estimates are internal. Approval means this takeoff was reviewed inside Gateway. It does not certify that a product meets the specification.</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-1.5">
-                        {editable ? (
-                            <Button type="button" variant="outline" size="sm" onClick={() => router.post(route('admin.takeoffs.revise', takeoff.uuid))}>
-                                <GitBranchIcon data-icon="inline-start" />
-                                New revision
-                            </Button>
-                        ) : null}
                         {can.export ? (
                             <Button type="button" variant="outline" size="sm" asChild>
                                 <a href={route('admin.takeoffs.export', takeoff.uuid)}>
@@ -340,7 +336,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                             project: takeoff.project?.name ?? '',
                             project_number: takeoff.project?.project_number ?? '',
                             status: statusLabel[takeoff.status] ?? takeoff.status,
-                            revision: String(takeoff.revision_number),
+                            revision: [String(takeoff.revision_number), takeoff.revision_label].filter(Boolean).join(' '),
                             openings: String(takeoff.openings.length),
                         }}
                         currentText={[details.data.notes, openingSummary].filter(Boolean).join('\n')}
@@ -361,6 +357,12 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                         }}
                     />
                     <label className="text-sm">Title<TextInput className="mt-1 w-full" value={details.data.title} onChange={(event) => details.setData('title', event.target.value)} /></label>
+                    <label className="text-sm">Revision number
+                        <TextInput className="mt-1 w-full" inputMode="numeric" value={details.data.revision_number} onChange={(event) => details.setData('revision_number', event.target.value.replace(/\D/g, '').slice(0, 4))} />
+                    </label>
+                    <label className="text-sm">Revision
+                        <TextInput className="mt-1 w-full" value={details.data.revision_label} placeholder="A" maxLength={40} onChange={(event) => details.setData('revision_label', event.target.value)} />
+                    </label>
                     <label className="text-sm">Status
                         <select className="mt-1 w-full rounded-md border-gray-300 shadow-sm" value={details.data.status} onChange={(event) => details.setData('status', event.target.value)}>
                             {Object.entries(statusLabel).map(([value, label]) => <option key={value} value={value} disabled={value === 'approved' && !can.approve}>{label}</option>)}

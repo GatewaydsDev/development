@@ -12,7 +12,7 @@ use App\Models\UserLevel;
 use App\Support\TakeoffCsv;
 use App\Support\TakeoffPricing;
 use App\Support\TakeoffReview;
-use App\Support\TakeoffRevision;
+use App\Support\TakeoffRevisionCopies;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -348,10 +348,44 @@ test('csv import validates the whole file and export neutralizes formulas', func
     expect($export->getContent())->toContain("'=SUM(A1)");
 });
 
-test('a revision keeps the previous takeoff and reports opening changes', function () {
+test('duplicated takeoff revisions are removed and the original stays', function () {
+    $admin = takeoffUser();
+    $original = takeoffRecord($admin);
+    $original->forceFill(['root_takeoff_id' => $original->id])->save();
+    $original->openings()->create([
+        'tag' => 'D101',
+        'opening_type' => 'door',
+        'quantity' => '1.00',
+        'dimension_unit' => 'in',
+        'scope' => 'both',
+    ]);
+    $copy = takeoffRecord($admin, $original->project);
+    $copy->forceFill([
+        'root_takeoff_id' => $original->id,
+        'source_takeoff_id' => $original->id,
+        'revision_number' => 2,
+        'title' => 'Door takeoff revision',
+    ])->save();
+    $copy->openings()->create([
+        'tag' => 'D101',
+        'opening_type' => 'door',
+        'quantity' => '1.00',
+        'dimension_unit' => 'in',
+        'scope' => 'both',
+    ]);
+
+    TakeoffRevisionCopies::remove();
+
+    expect(Takeoff::query()->pluck('id')->all())->toBe([$original->id])
+        ->and($original->fresh()->root_takeoff_id)->toBeNull()
+        ->and($original->fresh()->openings)->toHaveCount(1)
+        ->and(Takeoff::query()->find($copy->id))->toBeNull();
+});
+
+test('a takeoff revision is saved on the same record', function () {
     $admin = takeoffUser();
     $takeoff = takeoffRecord($admin);
-    $original = $takeoff->openings()->create([
+    $takeoff->openings()->create([
         'tag' => 'D101',
         'opening_type' => 'door',
         'quantity' => '1.00',
@@ -361,28 +395,18 @@ test('a revision keeps the previous takeoff and reports opening changes', functi
         'height' => '84.000',
     ]);
 
-    $this->actingAs($admin)->post(route('admin.takeoffs.revise', $takeoff))->assertRedirect();
-    $copy = Takeoff::query()->where('source_takeoff_id', $takeoff->id)->first();
-    expect($copy)->not->toBeNull()
-        ->and($takeoff->fresh()->status)->toBe('draft')
-        ->and($copy->revision_number)->toBe(2)
-        ->and($copy->openings)->toHaveCount(1);
+    $this->actingAs($admin)->patch(route('admin.takeoffs.update', $takeoff), [
+        'title' => $takeoff->title,
+        'status' => 'draft',
+        'revision_number' => 2,
+        'revision_label' => 'B',
+        'notes' => 'Revised the door width on the drawing.',
+    ])->assertRedirect();
 
-    $copied = $copy->openings()->first();
-    $copied->update(['width' => '42.000']);
-    $copy->openings()->create([
-        'tag' => 'W03',
-        'opening_type' => 'window',
-        'quantity' => '1.00',
-        'dimension_unit' => 'in',
-        'scope' => 'supply',
-    ]);
-
-    $diff = TakeoffRevision::diff($copy->fresh('openings'), $takeoff->fresh('openings'));
-    expect($diff['changed'])->toHaveCount(1)
-        ->and($diff['added'])->toHaveCount(1)
-        ->and($diff['removed'])->toHaveCount(0)
-        ->and($original->fresh()->width)->toBe('36.000');
+    expect(Takeoff::query()->count())->toBe(1)
+        ->and($takeoff->fresh()->revision_number)->toBe(2)
+        ->and($takeoff->fresh()->revision_label)->toBe('B')
+        ->and($takeoff->fresh()->openings)->toHaveCount(1);
 });
 
 test('quotation conversion is transactional and does not copy internal costs', function () {

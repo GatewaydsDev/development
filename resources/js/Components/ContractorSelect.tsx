@@ -453,7 +453,7 @@ export default function ContractorSelect({
                     <div
                         id={listboxId}
                         role="listbox"
-                        className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-md border border-border bg-background py-1 shadow-lg"
+                        className="absolute z-20 mt-1 max-h-[min(32rem,70dvh)] w-full overflow-auto rounded-md border border-border bg-background py-1 shadow-lg"
                     >
                         {filteredContractors.map((contractor, index) => {
                             const contractorId = String(contractor.id);

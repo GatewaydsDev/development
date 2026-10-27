@@ -77,7 +77,7 @@ export default function Index({ filters, takeoffs, projects, can }: Props) {
                                         <Link className="font-medium text-indigo-700" href={route('admin.takeoffs.show', takeoff.uuid)}>{takeoff.title}</Link>
                                     </td>
                                     <td className="px-3 py-2">{takeoff.project?.project_number} {takeoff.project?.name}</td>
-                                    <td className="px-3 py-2">{takeoff.revision_number}</td>
+                                    <td className="px-3 py-2">{takeoff.revision_number}{takeoff.revision_label ? ` ${takeoff.revision_label}` : ''}</td>
                                     <td className="px-3 py-2"><Badge variant="outline">{statusLabel[takeoff.status] ?? takeoff.status}</Badge></td>
                                     <td className="px-3 py-2">{takeoff.opening_count}</td>
                                     <td className="px-3 py-2">

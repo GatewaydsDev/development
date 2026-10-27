@@ -13,7 +13,6 @@ use App\Models\TakeoffOpening;
 use App\Models\User;
 use App\Support\TakeoffAccess;
 use App\Support\TakeoffConversion;
-use App\Support\TakeoffCopier;
 use App\Support\TakeoffCsv;
 use App\Support\TakeoffMoney;
 use App\Support\TakeoffNamer;
@@ -205,6 +204,8 @@ class TakeoffController extends Controller
 
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
+            'revision_number' => ['sometimes', 'integer', 'min:1', 'max:9999'],
+            'revision_label' => ['sometimes', 'nullable', 'string', 'max:40'],
             'notes' => ['nullable', 'string', 'max:5000'],
             'status' => ['required', Rule::in(config('takeoffs.statuses'))],
             'pricing_method' => ['nullable', Rule::in(config('takeoffs.pricing_methods'))],
@@ -231,6 +232,15 @@ class TakeoffController extends Controller
             'notes' => $data['notes'] ?? null,
             'status' => $data['status'],
         ];
+
+        if (array_key_exists('revision_number', $data)) {
+            $changes['revision_number'] = $data['revision_number'];
+        }
+
+        if (array_key_exists('revision_label', $data)) {
+            $label = trim((string) ($data['revision_label'] ?? ''));
+            $changes['revision_label'] = $label === '' ? null : $label;
+        }
 
         if ($data['status'] === 'approved' && $takeoff->status !== 'approved') {
             $changes['approved_by'] = $user->id;
@@ -285,14 +295,6 @@ class TakeoffController extends Controller
         $takeoff->delete();
 
         return redirect()->route('admin.takeoffs.index')->with('success', 'Takeoff deleted.');
-    }
-
-    public function revise(Request $request, Takeoff $takeoff): RedirectResponse
-    {
-        $user = $this->ensureEditable($request, $takeoff);
-        $copy = TakeoffCopier::copy($takeoff, $user);
-
-        return redirect()->route('admin.takeoffs.show', $copy)->with('success', 'Revision '.$copy->revision_number.' created. The previous revision is unchanged.');
     }
 
     public function export(Request $request, Takeoff $takeoff): Response

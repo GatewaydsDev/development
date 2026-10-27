@@ -12,6 +12,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/Components/ui/alert-dialog';
+import { dropdownMaxHeight, dropdownOpensUp } from '@/lib/dropdownMenuFrame';
 import { cn } from '@/lib/utils';
 import type { ReactNode } from 'react';
 import {
@@ -210,19 +211,13 @@ export default function CreatableSelect({
             }
 
             const rect = input.getBoundingClientRect();
-            const spaceBelow = window.innerHeight - rect.bottom - 8;
-            const spaceAbove = rect.top - 8;
-            const maxHeight = Math.min(
-                wrapOptions ? 420 : 320,
-                Math.max(spaceBelow, spaceAbove, 160),
-            );
 
             if (openDirectionRef.current === null) {
-                openDirectionRef.current =
-                    spaceBelow < 160 && spaceAbove > spaceBelow ? 'up' : 'down';
+                openDirectionRef.current = dropdownOpensUp(rect) ? 'up' : 'down';
             }
 
             const openUp = openDirectionRef.current === 'up';
+            const maxHeight = dropdownMaxHeight(rect, openUp, wrapOptions ? 560 : 512);
             const minWidth = stateInitials
                 ? 288
                 : wrapOptions

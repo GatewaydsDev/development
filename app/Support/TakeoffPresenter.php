@@ -23,6 +23,7 @@ class TakeoffPresenter
             'title' => $takeoff->title,
             'status' => $takeoff->status,
             'revision_number' => $takeoff->revision_number,
+            'revision_label' => $takeoff->revision_label,
             'opening_count' => $takeoff->openings->count(),
             'project' => $takeoff->project ? [
                 'id' => $takeoff->project->id,
@@ -85,6 +86,7 @@ class TakeoffPresenter
             'title' => $takeoff->title,
             'status' => $takeoff->status,
             'revision_number' => $takeoff->revision_number,
+            'revision_label' => $takeoff->revision_label,
             'notes' => $takeoff->notes,
             'pricing_method' => $takeoff->pricing_method,
             'markup_percent' => $showPricing ? TakeoffMoney::percent($takeoff->markup_rate) : null,

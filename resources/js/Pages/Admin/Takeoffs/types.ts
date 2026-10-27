@@ -11,6 +11,7 @@ export type TakeoffSummary = {
     title: string;
     status: string;
     revision_number: number;
+    revision_label?: string | null;
     opening_count: number;
     project: { id: number; name: string; project_number: string | null } | null;
     estimate: TakeoffEstimate | null;
@@ -156,6 +157,7 @@ export type TakeoffDetail = {
     title: string;
     status: string;
     revision_number: number;
+    revision_label: string | null;
     notes: string | null;
     pricing_method: 'markup' | 'margin';
     markup_percent: string | null;

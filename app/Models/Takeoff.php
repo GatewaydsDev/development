@@ -18,6 +18,7 @@ class Takeoff extends Model
         'root_takeoff_id',
         'source_takeoff_id',
         'revision_number',
+        'revision_label',
         'title',
         'status',
         'pricing_method',

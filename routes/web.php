@@ -504,9 +504,6 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::delete('/takeoffs/{takeoff}', [TakeoffController::class, 'destroy'])
             ->middleware('can:delete-takeoffs')
             ->name('takeoffs.destroy');
-        Route::post('/takeoffs/{takeoff}/revise', [TakeoffController::class, 'revise'])
-            ->middleware('can:update-takeoffs')
-            ->name('takeoffs.revise');
         Route::get('/takeoffs/{takeoff}/export', [TakeoffController::class, 'export'])
             ->middleware('can:export-takeoffs')
             ->name('takeoffs.export');
