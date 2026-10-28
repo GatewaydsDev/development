@@ -1,4 +1,5 @@
 import DashboardSidebar from '@/Components/DashboardSidebar';
+import ExpenseUpdates from '@/Components/ExpenseUpdates';
 import InternalChat from '@/Components/InternalChat';
 import DashboardSnapDrawer from '@/Components/DashboardSnapDrawer';
 import NavLink from '@/Components/NavLink';
@@ -468,6 +469,7 @@ export default function Authenticated({
     return (
         <div className="min-h-screen bg-muted/30 text-foreground">
             <RevisionAssignmentListener userId={user.id} />
+            {canManageExpenses ? <ExpenseUpdates /> : null}
             {/* Full-height sidebar covering the whole left side (desktop) */}
             <DashboardSidebar
                 collapsed={sidebarCollapsed}

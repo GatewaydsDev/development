@@ -7,6 +7,7 @@ import SavingNotice from '@/Components/SavingNotice';
 import { ThemeProvider } from '@/Components/ThemeProvider';
 import { Toaster } from '@/Components/ui/sonner';
 import { TooltipProvider } from '@/Components/ui/tooltip';
+import { realtimeSocketId } from '@/lib/echo';
 import { requestValidationScroll } from '@/lib/scrollToValidationError';
 import { createInertiaApp, router } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
@@ -24,6 +25,19 @@ document.addEventListener(
 
 router.on('invalid', () => {
     requestValidationScroll();
+});
+
+router.on('before', (event) => {
+    const socketId = realtimeSocketId();
+
+    if (!socketId) {
+        return;
+    }
+
+    event.detail.visit.headers = {
+        ...event.detail.visit.headers,
+        'X-Socket-ID': socketId,
+    };
 });
 
 createInertiaApp({

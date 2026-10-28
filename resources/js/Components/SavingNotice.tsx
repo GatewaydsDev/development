@@ -2,9 +2,9 @@ import { router } from '@inertiajs/react';
 import { LoaderCircleIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-type NoticeKind = 'saving' | 'dashboard' | 'sending-mail';
+type NoticeKind = 'saving' | 'dashboard' | 'sending-mail' | 'reading';
 
-const counts: Record<NoticeKind, number> = { saving: 0, dashboard: 0, 'sending-mail': 0 };
+const counts: Record<NoticeKind, number> = { saving: 0, dashboard: 0, 'sending-mail': 0, reading: 0 };
 let pending = 0;
 let noticeKind: NoticeKind = 'saving';
 const listeners = new Set<() => void>();
@@ -16,11 +16,13 @@ const notify = () => {
 
 const publish = (kind: NoticeKind, delta: number) => {
     counts[kind] = Math.max(0, counts[kind] + delta);
-    pending = counts.saving + counts.dashboard + counts['sending-mail'];
+    pending = counts.saving + counts.dashboard + counts['sending-mail'] + counts.reading;
     if (counts['sending-mail'] > 0) {
         noticeKind = 'sending-mail';
     } else if (counts.saving > 0) {
         noticeKind = 'saving';
+    } else if (counts.reading > 0) {
+        noticeKind = 'reading';
     } else if (counts.dashboard > 0) {
         noticeKind = 'dashboard';
     }
@@ -151,12 +153,16 @@ export default function SavingNotice() {
                         ? 'Loading dashboard'
                         : kind === 'sending-mail'
                           ? 'Sending your email'
-                          : 'Saving data'}
+                          : kind === 'reading'
+                            ? 'Reading updates'
+                            : 'Saving data'}
                 </p>
                 <p id="saving-notice-description" className="mt-1 text-sm text-muted-foreground">
                     {kind === 'sending-mail'
                         ? 'Please wait. Your message, recipients, and attachments are being saved, and then the email is sent.'
-                        : 'Please wait.'}
+                        : kind === 'reading'
+                          ? 'Please wait. Expense changes from another signed-in device are loading.'
+                          : 'Please wait.'}
                 </p>
             </div>
         </div>

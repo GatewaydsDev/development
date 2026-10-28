@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Events\ExpenseChanged;
 use App\Http\Controllers\Controller;
 use App\Models\Expense;
 use App\Models\ExpensePayment;
@@ -11,6 +12,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -115,6 +117,7 @@ class ExpenseController extends Controller
         ]);
         $this->syncPayments($expense, $validated['payments']);
         $this->storeReceipt($expense, $request->file('receipt'));
+        $this->publishExpense('saved', $expense);
 
         return redirect()
             ->route('admin.expenses.index')
@@ -137,6 +140,7 @@ class ExpenseController extends Controller
         $expense->save();
         $this->syncPayments($expense, $validated['payments']);
         $this->storeReceipt($expense, $request->file('receipt'));
+        $this->publishExpense('saved', $expense);
 
         return redirect()
             ->route('admin.expenses.index')
@@ -146,6 +150,7 @@ class ExpenseController extends Controller
     public function destroy(Request $request, Expense $expense): RedirectResponse
     {
         $this->authorizeExpenses($request);
+        $this->publishExpense('removed', $expense);
         $this->deleteReceipt($expense);
         $expense->delete();
 
@@ -278,6 +283,23 @@ class ExpenseController extends Controller
         $expense->payments()
             ->when($kept !== [], fn ($query) => $query->whereNotIn('id', $kept))
             ->delete();
+    }
+
+    private function publishExpense(string $action, Expense $expense): void
+    {
+        $expenseId = $expense->id;
+        $summary = trim(implode(' ', array_filter([
+            $expense->group_name,
+            $expense->description,
+        ])));
+
+        DB::afterCommit(function () use ($action, $expenseId, $summary): void {
+            rescue(fn () => broadcast(new ExpenseChanged(
+                $action,
+                $expenseId,
+                $summary !== '' ? $summary : 'Expense',
+            ))->toOthers());
+        });
     }
 
     private function storeReceipt(Expense $expense, ?UploadedFile $file): void

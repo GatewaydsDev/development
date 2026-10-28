@@ -1,4 +1,14 @@
 import ActionHint from '@/Components/ActionHint';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/Components/ui/alert-dialog';
 import PaginationNav, { type Paginator } from '@/Components/PaginationNav';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
@@ -85,6 +95,7 @@ export default function Index({
     const [category, setCategory] = useState(filters.category);
     const [group, setGroup] = useState(filters.group);
     const [confirming, setConfirming] = useState<number | null>(null);
+    const [deleting, setDeleting] = useState(false);
     const [hover, setHover] = useState<HoverPreview | null>(null);
 
     const showReceipt = (expense: ExpenseRow, row: HTMLTableRowElement) => {
@@ -121,6 +132,7 @@ export default function Index({
         );
     };
     const showGroups = expenses.data.some((expense) => expense.group_name.trim() !== '');
+    const pendingDelete = expenses.data.find((expense) => expense.id === confirming) ?? null;
     let previousGroup = '\u0000';
 
     return (
@@ -309,34 +321,18 @@ export default function Index({
                                                                     </Link>
                                                                 </Button>
                                                             </ActionHint>
-                                                            {confirming === expense.id ? (
+                                                            <ActionHint hint="Delete this expense">
                                                                 <Button
                                                                     type="button"
-                                                                    variant="destructive"
-                                                                    size="sm"
-                                                                    onClick={() =>
-                                                                        router.delete(route('admin.expenses.destroy', expense.id), {
-                                                                            preserveScroll: true,
-                                                                            onFinish: () => setConfirming(null),
-                                                                        })
-                                                                    }
+                                                                    variant="outline"
+                                                                    size="icon-sm"
+                                                                    className="border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-800/60 dark:text-rose-400 dark:hover:bg-rose-950/40"
+                                                                    aria-label="Delete this expense"
+                                                                    onClick={() => setConfirming(expense.id)}
                                                                 >
-                                                                    Confirm
+                                                                    <Trash2Icon className="size-4" />
                                                                 </Button>
-                                                            ) : (
-                                                                <ActionHint hint="Delete this expense">
-                                                                    <Button
-                                                                        type="button"
-                                                                        variant="outline"
-                                                                        size="icon-sm"
-                                                                        className="border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-800/60 dark:text-rose-400 dark:hover:bg-rose-950/40"
-                                                                        aria-label="Delete this expense"
-                                                                        onClick={() => setConfirming(expense.id)}
-                                                                    >
-                                                                        <Trash2Icon className="size-4" />
-                                                                    </Button>
-                                                                </ActionHint>
-                                                            )}
+                                                            </ActionHint>
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -354,6 +350,43 @@ export default function Index({
                                 </table>
                             </div>
                             <PaginationNav paginator={expenses} itemLabel="expenses" />
+                            <AlertDialog open={pendingDelete !== null} onOpenChange={(open) => { if (!open && !deleting) { setConfirming(null); } }}>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Delete this expense?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            {pendingDelete
+                                                ? `This removes ${pendingDelete.description}${pendingDelete.group_name ? ` from ${pendingDelete.group_name}` : ''} and its receipt.`
+                                                : 'This removes the expense and its receipt.'}
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel disabled={deleting}>No, keep it</AlertDialogCancel>
+                                        <AlertDialogAction
+                                            disabled={deleting || pendingDelete === null}
+                                            className="bg-rose-600 text-white hover:bg-rose-700"
+                                            onClick={(event) => {
+                                                event.preventDefault();
+
+                                                if (!pendingDelete) {
+                                                    return;
+                                                }
+
+                                                setDeleting(true);
+                                                router.delete(route('admin.expenses.destroy', pendingDelete.id), {
+                                                    preserveScroll: true,
+                                                    onFinish: () => {
+                                                        setDeleting(false);
+                                                        setConfirming(null);
+                                                    },
+                                                });
+                                            }}
+                                        >
+                                            {deleting ? 'Deleting…' : 'Yes, delete it'}
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
                             {hover
                                 ? createPortal(
                                     <div

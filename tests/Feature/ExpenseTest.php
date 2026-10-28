@@ -1,9 +1,11 @@
 <?php
 
+use App\Events\ExpenseChanged;
 use App\Models\Expense;
 use App\Models\User;
 use App\Models\UserLevel;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -299,6 +301,31 @@ test('a pdf receipt shows its picture on the expense list', function () {
         );
 
     expect(Storage::disk('local')->exists('expenses/'.$expense->id.'/preview.jpg'))->toBeTrue();
+});
+
+test('saving an expense tells the other signed-in devices', function () {
+    Event::fake([ExpenseChanged::class]);
+    $admin = expenseAdmin();
+
+    $this->actingAs($admin)
+        ->post(route('admin.expenses.store'), [
+            'spent_on' => '2026-10-20',
+            'payee' => 'Training School',
+            'person_name' => 'Alex Rivera',
+            'description' => 'Tuition',
+            'category' => 'course',
+            'group_name' => 'Course in Maryland',
+            'amount' => '40.00',
+        ])
+        ->assertRedirect(route('admin.expenses.index'));
+
+    Event::assertDispatched(
+        ExpenseChanged::class,
+        fn (ExpenseChanged $event) => $event->action === 'saved'
+            && $event->summary === 'Course in Maryland Tuition'
+            && $event->broadcastAs() === 'expense.changed'
+            && $event->broadcastOn()[0]->name === 'private-expenses',
+    );
 });
 
 test('expenses are saved and listed under a group name', function () {
