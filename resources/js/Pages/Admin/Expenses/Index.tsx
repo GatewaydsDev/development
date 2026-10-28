@@ -12,7 +12,7 @@ import {
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router } from '@inertiajs/react';
 import { EditIcon, PlusIcon, ReceiptIcon, SearchIcon, Trash2Icon } from 'lucide-react';
-import { FormEvent, useState } from 'react';
+import { FormEvent, Fragment, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 type ExpenseRow = {
@@ -22,6 +22,7 @@ type ExpenseRow = {
     payee: string;
     description: string;
     category_label: string;
+    group_name: string;
     amount: string;
     paid_amount: string;
     scheduled_amount: string;
@@ -33,8 +34,10 @@ type Props = {
     filters: {
         search: string;
         category: string;
+        group: string;
     };
     categories: Record<string, string>;
+    groups: { name: string; count: number; total: string }[];
     total: string;
     paid: string;
     scheduled: string;
@@ -71,6 +74,7 @@ type HoverPreview = {
 export default function Index({
     filters,
     categories,
+    groups,
     total,
     paid,
     scheduled,
@@ -79,6 +83,7 @@ export default function Index({
 }: Props) {
     const [search, setSearch] = useState(filters.search);
     const [category, setCategory] = useState(filters.category);
+    const [group, setGroup] = useState(filters.group);
     const [confirming, setConfirming] = useState<number | null>(null);
     const [hover, setHover] = useState<HoverPreview | null>(null);
 
@@ -111,10 +116,12 @@ export default function Index({
         event.preventDefault();
         router.get(
             route('admin.expenses.index'),
-            { search, category },
+            { search, category, group },
             { preserveState: true, replace: true },
         );
     };
+    const showGroups = expenses.data.some((expense) => expense.group_name.trim() !== '');
+    let previousGroup = '\u0000';
 
     return (
         <AuthenticatedLayout
@@ -182,7 +189,7 @@ export default function Index({
                         <CardHeader className="gap-4 md:grid-cols-[1fr_auto] md:items-center">
                             <div>
                                 <CardTitle>Expense list</CardTitle>
-                                <CardDescription>Search purchases by person, payee, or what they were for.</CardDescription>
+                                <CardDescription>Purchases are listed under a group, such as Course in Maryland.</CardDescription>
                             </div>
                             <form onSubmit={submit} className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
                                 <div className="relative">
@@ -194,6 +201,17 @@ export default function Index({
                                         className="h-11 w-full rounded-md border border-border bg-background pr-3 pl-9 text-sm text-foreground sm:w-64"
                                     />
                                 </div>
+                                <select
+                                    value={group}
+                                    onChange={(event) => setGroup(event.target.value)}
+                                    aria-label="Filter by group"
+                                    className="h-11 min-w-[8.5rem] rounded-md border border-border bg-background px-4 text-sm text-foreground"
+                                >
+                                    <option value="">All groups</option>
+                                    {groups.filter((item) => item.name !== '').map((item) => (
+                                        <option key={item.name} value={item.name}>{item.name}</option>
+                                    ))}
+                                </select>
                                 <select
                                     value={category}
                                     onChange={(event) => setCategory(event.target.value)}
@@ -230,9 +248,25 @@ export default function Index({
                                     </thead>
                                     <tbody>
                                         {expenses.data.length > 0 ? (
-                                            expenses.data.map((expense) => (
+                                            expenses.data.map((expense) => {
+                                                const groupName = expense.group_name.trim();
+                                                const heading = showGroups && groupName !== previousGroup;
+                                                const summary = groups.find((item) => item.name === groupName);
+                                                previousGroup = groupName;
+
+                                                return (
+                                                <Fragment key={expense.id}>
+                                                {heading ? (
+                                                    <tr>
+                                                        <td colSpan={10} className="border-b border-emerald-200 bg-emerald-50 px-2 py-2 text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-100">
+                                                            <div className="flex items-center justify-between gap-3">
+                                                                <span className="font-semibold">{groupName || 'No group'}</span>
+                                                                <span className="shrink-0 tabular-nums">{summary ? `${summary.count} · ${money(summary.total)}` : ''}</span>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ) : null}
                                                 <tr
-                                                    key={expense.id}
                                                     className="bg-background"
                                                     onMouseEnter={(event) => showReceipt(expense, event.currentTarget)}
                                                     onMouseLeave={() => setHover(null)}
@@ -306,7 +340,9 @@ export default function Index({
                                                         </div>
                                                     </td>
                                                 </tr>
-                                            ))
+                                                </Fragment>
+                                                );
+                                            })
                                         ) : (
                                             <tr>
                                                 <td className="px-4 py-10 text-center text-sm text-muted-foreground" colSpan={10}>

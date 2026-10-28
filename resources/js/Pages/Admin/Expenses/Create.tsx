@@ -6,6 +6,7 @@ import ExpenseForm from './Partials/ExpenseForm';
 type CreateProps = {
     people: CreatableOption[];
     categoryChoices: CreatableOption[];
+    groups: CreatableOption[];
     payees: CreatableOption[];
     paymentStatuses: Record<string, string>;
     paymentMethods: Record<string, string>;

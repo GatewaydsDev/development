@@ -301,6 +301,40 @@ test('a pdf receipt shows its picture on the expense list', function () {
     expect(Storage::disk('local')->exists('expenses/'.$expense->id.'/preview.jpg'))->toBeTrue();
 });
 
+test('expenses are saved and listed under a group name', function () {
+    $admin = expenseAdmin();
+
+    foreach ([
+        ['description' => 'Tuition', 'amount' => '800.00'],
+        ['description' => 'Hotel', 'amount' => '220.50'],
+    ] as $purchase) {
+        $this->actingAs($admin)
+            ->post(route('admin.expenses.store'), [
+                'spent_on' => '2026-10-20',
+                'payee' => 'Training School',
+                'person_name' => 'Alex Rivera',
+                'description' => $purchase['description'],
+                'category' => 'course',
+                'group_name' => 'Course in Maryland',
+                'amount' => $purchase['amount'],
+            ])
+            ->assertRedirect(route('admin.expenses.index'));
+    }
+
+    expect(Expense::query()->where('group_name', 'Course in Maryland')->count())->toBe(2);
+
+    $this->actingAs($admin)
+        ->get(route('admin.expenses.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('groups.0.name', 'Course in Maryland')
+            ->where('groups.0.count', 2)
+            ->where('groups.0.total', '1020.50')
+            ->where('expenses.data.0.group_name', 'Course in Maryland')
+            ->where('expenses.data.1.group_name', 'Course in Maryland')
+        );
+});
+
 function expenseJpegPdf(string $jpeg, int $pixelWidth, int $pixelHeight): string
 {
     $content = "q\n{$pixelWidth} 0 0 {$pixelHeight} 36 36 cm\n/Im0 Do\nQ\n";

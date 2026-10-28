@@ -7,6 +7,7 @@ use App\Models\Expense;
 use App\Models\ExpensePayment;
 use App\Models\User;
 use App\Support\ExpenseReceiptFile;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -26,19 +27,26 @@ class ExpenseController extends Controller
 
         $search = trim((string) $request->query('search', ''));
         $category = trim((string) $request->query('category', ''));
+        $group = trim((string) $request->query('group', ''));
 
         if (strlen($category) > 80) {
             $category = '';
         }
 
+        if (strlen($group) > 160) {
+            $group = '';
+        }
+
         $filtered = Expense::query()
             ->when($category !== '', fn ($query) => $query->where('category', $category))
+            ->when($group !== '', fn ($query) => $query->where('group_name', $group))
             ->when($search !== '', function ($query) use ($search): void {
                 $query->where(function ($query) use ($search): void {
                     $query
                         ->where('payee', 'like', "%{$search}%")
                         ->orWhere('person_name', 'like', "%{$search}%")
                         ->orWhere('description', 'like', "%{$search}%")
+                        ->orWhere('group_name', 'like', "%{$search}%")
                         ->orWhere('notes', 'like', "%{$search}%");
                 });
             });
@@ -58,14 +66,18 @@ class ExpenseController extends Controller
             'filters' => [
                 'search' => $search,
                 'category' => $category,
+                'group' => $group,
             ],
             'categories' => $this->categoryLabels(),
+            'groups' => $this->groupSummaries($filtered),
             'total' => number_format((float) $total, 2, '.', ''),
             'paid' => number_format((float) $paid, 2, '.', ''),
             'scheduled' => number_format((float) $scheduled, 2, '.', ''),
             'count' => $filtered->clone()->count(),
             'expenses' => $filtered
                 ->with(['recorder:id,name', 'payments'])
+                ->orderByRaw('case when group_name is null or group_name = ? then 1 else 0 end', [''])
+                ->orderBy('group_name')
                 ->orderByDesc('spent_on')
                 ->orderByDesc('id')
                 ->paginate(15)
@@ -177,7 +189,7 @@ class ExpenseController extends Controller
     }
 
     /**
-     * @return array{expense: array{spent_on: string, person_name: string, payee: string, description: string, category: string, amount: string, notes: ?string}, payments: list<array{id: ?int, due_on: string, paid_on: ?string, amount: string, status: string, method: string}>}
+     * @return array{expense: array{spent_on: string, person_name: string, payee: string, description: string, category: string, group_name: ?string, amount: string, notes: ?string}, payments: list<array{id: ?int, due_on: string, paid_on: ?string, amount: string, status: string, method: string}>}
      */
     private function validated(Request $request): array
     {
@@ -187,6 +199,7 @@ class ExpenseController extends Controller
             'payee' => ['required', 'string', 'max:160'],
             'description' => ['required', 'string', 'max:255'],
             'category' => ['required', 'string', 'max:80'],
+            'group_name' => ['nullable', 'string', 'max:160'],
             'amount' => ['required', 'numeric', 'min:0.01', 'max:99999999.99'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'receipt' => ['nullable', 'file', 'mimes:pdf,jpeg,jpg,png,webp,gif', 'max:5120'],
@@ -201,6 +214,7 @@ class ExpenseController extends Controller
         ]);
 
         $notes = trim((string) ($validated['notes'] ?? ''));
+        $groupName = trim((string) ($validated['group_name'] ?? ''));
         $payments = [];
 
         foreach ($validated['payments'] ?? [] as $payment) {
@@ -224,6 +238,7 @@ class ExpenseController extends Controller
                 'payee' => trim($validated['payee']),
                 'description' => trim($validated['description']),
                 'category' => $this->categoryValue(trim($validated['category'])),
+                'group_name' => $groupName === '' ? null : $groupName,
                 'amount' => number_format((float) $validated['amount'], 2, '.', ''),
                 'notes' => $notes === '' ? null : $notes,
             ],
@@ -303,11 +318,35 @@ class ExpenseController extends Controller
     {
         return [
             'categoryChoices' => $this->categoryChoices(),
+            'groups' => $this->namedOptions('group_name'),
             'payees' => $this->namedOptions('payee'),
             'paymentStatuses' => ExpensePayment::STATUSES,
             'paymentMethods' => ExpensePayment::METHODS,
             'people' => $this->people(),
         ];
+    }
+
+    /**
+     * @param  Builder<Expense>  $filtered
+     * @return list<array{name: string, count: int, total: string}>
+     */
+    private function groupSummaries($filtered): array
+    {
+        return $filtered->clone()
+            ->reorder()
+            ->select('group_name')
+            ->selectRaw('COUNT(*) as expense_count, SUM(amount) as total')
+            ->groupBy('group_name')
+            ->orderBy('group_name')
+            ->get()
+            ->map(fn (Expense $row): array => [
+                'name' => (string) ($row->group_name ?? ''),
+                'count' => (int) $row->expense_count,
+                'total' => number_format((float) $row->total, 2, '.', ''),
+            ])
+            ->sortBy(fn (array $group): string => $group['name'] === '' ? '1' : '0'.$group['name'])
+            ->values()
+            ->all();
     }
 
     /**
@@ -455,6 +494,7 @@ class ExpenseController extends Controller
             'description' => $expense->description,
             'category' => $expense->category,
             'category_label' => Expense::CATEGORIES[$expense->category] ?? $expense->category,
+            'group_name' => $expense->group_name ?: '',
             'amount' => $expense->amount,
             'notes' => $expense->notes,
             'receipt_name' => $expense->receipt_name,

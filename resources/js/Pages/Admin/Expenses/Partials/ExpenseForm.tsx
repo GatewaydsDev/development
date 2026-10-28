@@ -1,4 +1,5 @@
 import CreatableSelect, { type CreatableOption } from '@/Components/CreatableSelect';
+import ReceiptCamera from '@/Components/ReceiptCamera';
 import FormActionFab from '@/Components/FormActionFab';
 import InputError from '@/Components/InputError';
 import MaskedDecimalInput from '@/Components/MaskedDecimalInput';
@@ -44,6 +45,7 @@ export type ExpenseRecord = {
     description: string;
     category: string;
     category_label: string;
+    group_name: string;
     amount: string;
     notes: string | null;
     receipt_name: string | null;
@@ -59,6 +61,7 @@ type ExpenseFormProps = {
     expense?: ExpenseRecord | null;
     people: CreatableOption[];
     categoryChoices: CreatableOption[];
+    groups: CreatableOption[];
     payees: CreatableOption[];
     paymentStatuses: Record<string, string>;
     paymentMethods: Record<string, string>;
@@ -69,16 +72,6 @@ const money = (value: string) =>
         style: 'currency',
         currency: 'USD',
     }).format(Number(value || 0));
-
-const displayDate = (value: string) => {
-    const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
-
-    if (!match) {
-        return value || 'the purchase date';
-    }
-
-    return `${match[2]}/${match[3]}/${match[1]}`;
-};
 
 const today = () => {
     const date = new Date();
@@ -217,6 +210,7 @@ function expenseFieldErrors(
         payee: string;
         description: string;
         category: string;
+        group_name: string;
         amount: string;
         notes: string;
         receipt: File | null;
@@ -232,6 +226,7 @@ function expenseFieldErrors(
     const totalError = amountError(data.amount, 'total amount');
     const person = data.person_name.trim();
     const category = data.category.trim();
+    const groupName = data.group_name.trim();
 
     if (!isRealDate(data.spent_on)) {
         errors.spent_on = 'Enter the purchase date.';
@@ -259,6 +254,10 @@ function expenseFieldErrors(
         errors.category = 'Choose a category or add one.';
     } else if (category.length > 80) {
         errors.category = 'Category must be 80 characters or fewer.';
+    }
+
+    if (groupName.length > 160) {
+        errors.group_name = 'Group must be 160 characters or fewer.';
     }
 
     if (totalError) {
@@ -458,6 +457,7 @@ export default function ExpenseForm({
     expense = null,
     people,
     categoryChoices,
+    groups,
     payees,
     paymentStatuses,
     paymentMethods,
@@ -466,6 +466,7 @@ export default function ExpenseForm({
     const currentPerson = page.props.auth.user?.name ?? '';
     const [addedPeople, setAddedPeople] = useState<CreatableOption[]>([]);
     const [addedCategories, setAddedCategories] = useState<CreatableOption[]>([]);
+    const [addedGroups, setAddedGroups] = useState<CreatableOption[]>([]);
     const [addedPayees, setAddedPayees] = useState<CreatableOption[]>([]);
     const [oneTime, setOneTime] = useState(!expense || expense.payments.length <= 1);
     const [onceStatus, setOnceStatus] = useState<PaymentDraft['status']>(expense?.payments[0]?.status ?? 'scheduled');
@@ -477,6 +478,7 @@ export default function ExpenseForm({
         payee: expense?.payee ?? '',
         description: expense?.description ?? '',
         category: expense?.category || 'course',
+        group_name: expense?.group_name ?? '',
         amount: expense?.amount ?? '',
         notes: expense?.notes ?? '',
         receipt: null as File | null,
@@ -510,6 +512,10 @@ export default function ExpenseForm({
         () => [...categoryChoices, ...addedCategories],
         [categoryChoices, addedCategories],
     );
+    const groupOptions = useMemo(() => [...groups, ...addedGroups], [groups, addedGroups]);
+    const selectedGroup = groupOptions.find(
+        (option) => option.name.trim().toLowerCase() === form.data.group_name.trim().toLowerCase(),
+    );
     const selectedCategory = categoryOptions.find((option) => {
         const stored = option.slug || option.name;
 
@@ -521,6 +527,48 @@ export default function ExpenseForm({
     );
     const cameraRef = useRef<HTMLInputElement>(null);
     const receiptRef = useRef<HTMLInputElement>(null);
+    const [scanner, setScanner] = useState<MediaStream | null>(null);
+    const scannerRef = useRef<MediaStream | null>(null);
+
+    useEffect(() => () => {
+        scannerRef.current?.getTracks().forEach((track) => track.stop());
+    }, []);
+
+    const attachReceipt = (file: File) => {
+        void shrinkReceiptPhoto(file).then((next) => {
+            form.setData('receipt', next);
+            form.setData('remove_receipt', false);
+        });
+    };
+
+    const openScanner = async () => {
+        if (!navigator.mediaDevices?.getUserMedia) {
+            cameraRef.current?.click();
+
+            return;
+        }
+
+        try {
+            const next = await navigator.mediaDevices.getUserMedia({
+                audio: false,
+                video: {
+                    facingMode: { ideal: 'environment' },
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 },
+                },
+            });
+            scannerRef.current = next;
+            setScanner(next);
+        } catch {
+            cameraRef.current?.click();
+        }
+    };
+
+    const closeScanner = () => {
+        scannerRef.current?.getTracks().forEach((track) => track.stop());
+        scannerRef.current = null;
+        setScanner(null);
+    };
 
     const chooseReceipt = (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0] ?? null;
@@ -530,10 +578,7 @@ export default function ExpenseForm({
             return;
         }
 
-        void shrinkReceiptPhoto(file).then((next) => {
-            form.setData('receipt', next);
-            form.setData('remove_receipt', false);
-        });
+        attachReceipt(file);
     };
 
     const addPerson = (name: string) => {
@@ -556,7 +601,7 @@ export default function ExpenseForm({
         name: string,
         options: CreatableOption[],
         setAdded: (update: (current: CreatableOption[]) => CreatableOption[]) => void,
-        field: 'category' | 'payee',
+        field: 'category' | 'payee' | 'group_name',
     ) => {
         const trimmed = name.trim();
         const existing = options.find(
@@ -676,6 +721,19 @@ export default function ExpenseForm({
                         hint="Who the expense is for, who was paid, and what it cost. The person starts as you."
                         className="border-emerald-200 bg-emerald-50/80 dark:border-emerald-900 dark:bg-emerald-950/30"
                     >
+                        <CreatableSelect
+                            id="expense-group"
+                            label="Group"
+                            value={selectedGroup ? String(selectedGroup.id) : ''}
+                            options={groupOptions}
+                            allowCreate
+                            showCreateFooter
+                            entityLabel="group"
+                            placeholder="Course in Maryland"
+                            error={form.errors.group_name}
+                            onCreateName={(name) => addNamedOption(name, groupOptions, setAddedGroups, 'group_name')}
+                            onChange={(_id, option) => form.setData('group_name', option?.name ?? '')}
+                        />
                         <div className="grid items-end gap-x-3 gap-y-4 sm:grid-cols-2">
                             <CreatableSelect
                                 id="expense-person"
@@ -752,6 +810,62 @@ export default function ExpenseForm({
                                 />
                                 <InputError message={form.errors.amount} />
                             </label>
+                            <div className="grid w-full grid-cols-3 gap-2 sm:w-auto sm:min-w-[28rem] sm:flex-1">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    aria-pressed={oneTime && onceStatus === 'paid'}
+                                    className={`min-h-11 whitespace-normal px-2 text-center text-xs leading-tight sm:text-sm ${oneTime && onceStatus === 'paid'
+                                        ? 'border-sky-700 bg-sky-600 text-white hover:bg-sky-700 hover:text-white'
+                                        : 'border-sky-300 bg-sky-50 text-sky-950 hover:bg-sky-100 dark:border-sky-700 dark:bg-sky-950 dark:text-sky-100 dark:hover:bg-sky-900'}`}
+                                    onClick={() => {
+                                        setOneTime(true);
+                                        setOnceStatus('paid');
+                                    }}
+                                >
+                                    Paid in full
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    aria-pressed={oneTime && onceStatus === 'scheduled'}
+                                    className={`min-h-11 whitespace-normal px-2 text-center text-xs leading-tight sm:text-sm ${oneTime && onceStatus === 'scheduled'
+                                        ? 'border-amber-700 bg-amber-600 text-white hover:bg-amber-700 hover:text-white'
+                                        : 'border-amber-300 bg-amber-50 text-amber-950 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100 dark:hover:bg-amber-900'}`}
+                                    onClick={() => {
+                                        setOneTime(true);
+                                        setOnceStatus('scheduled');
+                                    }}
+                                >
+                                    Will be paid
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    aria-pressed={!oneTime}
+                                    className={`min-h-11 whitespace-normal px-2 text-center text-xs leading-tight sm:text-sm ${!oneTime
+                                        ? 'border-emerald-700 bg-emerald-600 text-white hover:bg-emerald-700 hover:text-white'
+                                        : 'border-emerald-300 bg-emerald-50 text-emerald-950 hover:bg-emerald-100 dark:border-emerald-700 dark:bg-emerald-950 dark:text-emerald-100 dark:hover:bg-emerald-900'}`}
+                                    onClick={() => {
+                                        if (!oneTime) {
+                                            return;
+                                        }
+
+                                        const first = form.data.payments[0];
+                                        setOneTime(false);
+                                        form.setData('payments', [{
+                                            id: first?.id ?? null,
+                                            due_on: form.data.spent_on || today(),
+                                            paid_on: onceStatus === 'paid' ? (form.data.spent_on || today()) : '',
+                                            amount: form.data.amount,
+                                            status: onceStatus,
+                                            method: first?.method || 'other',
+                                        }]);
+                                    }}
+                                >
+                                    Split payments
+                                </Button>
+                            </div>
                         </div>
                         <label className="grid gap-2 text-sm font-medium text-foreground">
                             Notes
@@ -769,7 +883,7 @@ export default function ExpenseForm({
                     <FormSection
                         icon={<ReceiptIcon className="size-4 text-indigo-700 dark:text-indigo-300" />}
                         title="Receipt"
-                        hint="Optional. On a phone, take a photo of the receipt. A photo is saved as a one-page PDF."
+                        hint="Optional. On a phone, fit the receipt in the frame. The camera keeps the paper and drops the background. A photo is saved as a one-page PDF."
                         className="border-indigo-200 bg-indigo-50/80 dark:border-indigo-900 dark:bg-indigo-950/30"
                     >
                         <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
@@ -786,7 +900,7 @@ export default function ExpenseForm({
                                     <Button
                                         type="button"
                                         className="min-h-11 touch-manipulation border-indigo-800 bg-indigo-700 text-white hover:bg-indigo-800"
-                                        onClick={() => cameraRef.current?.click()}
+                                        onClick={() => void openScanner()}
                                     >
                                         <CameraIcon data-icon="inline-start" />
                                         Take a photo
@@ -808,6 +922,13 @@ export default function ExpenseForm({
                                     className="sr-only w-full text-sm text-foreground file:me-3 file:min-h-11 file:rounded-md file:border-0 file:bg-muted file:px-3 file:text-sm file:text-foreground lg:not-sr-only lg:block"
                                     onChange={chooseReceipt}
                                 />
+                                {scanner ? (
+                                    <ReceiptCamera
+                                        stream={scanner}
+                                        onClose={closeScanner}
+                                        onCapture={attachReceipt}
+                                    />
+                                ) : null}
                                 <InputError message={form.errors.receipt} />
                                 {expense?.receipt_name ? (
                                     <label className="inline-flex min-h-11 items-center gap-2 text-sm text-foreground">
@@ -848,64 +969,13 @@ export default function ExpenseForm({
                         </div>
                     </FormSection>
 
+                    {oneTime ? null : (
                     <FormSection
                         icon={<BanknoteIcon className="size-4 text-amber-700 dark:text-amber-300" />}
                         title="Payments"
-                        hint={oneTime
-                            ? 'One payment uses the purchase date and total. Open a schedule only when the cost is split.'
-                            : 'Each row is one payment. Mark it paid when the money has been sent, or leave it to be paid later.'}
+                        hint="Each row is one part of the total. Mark it paid when the money has been sent, or leave it to be paid later."
                         className="border-amber-200 bg-amber-50/80 dark:border-amber-900 dark:bg-amber-950/30"
                     >
-                        {oneTime ? (
-                            <div className="grid gap-3 rounded-lg border border-amber-200 bg-background px-3 py-3 dark:border-amber-900">
-                                <p className="text-sm text-foreground">
-                                    This is one payment of {money(form.data.amount || '0')} on {displayDate(form.data.spent_on)}. Amount and due date stay with the purchase.
-                                </p>
-                                <div className="flex flex-wrap gap-2">
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        aria-pressed={onceStatus === 'paid'}
-                                        className={onceStatus === 'paid'
-                                            ? 'min-h-11 border-sky-700 bg-sky-600 text-white hover:bg-sky-700 hover:text-white'
-                                            : 'min-h-11 border-sky-300 bg-sky-50 text-sky-950 hover:bg-sky-100 dark:border-sky-700 dark:bg-sky-950 dark:text-sky-100 dark:hover:bg-sky-900'}
-                                        onClick={() => setOnceStatus('paid')}
-                                    >
-                                        Already paid
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        aria-pressed={onceStatus === 'scheduled'}
-                                        className={onceStatus === 'scheduled'
-                                            ? 'min-h-11 border-amber-700 bg-amber-600 text-white hover:bg-amber-700 hover:text-white'
-                                            : 'min-h-11 border-amber-300 bg-amber-50 text-amber-950 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100 dark:hover:bg-amber-900'}
-                                        onClick={() => setOnceStatus('scheduled')}
-                                    >
-                                        To be paid
-                                    </Button>
-                                </div>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    className="min-h-11 w-fit touch-manipulation"
-                                    onClick={() => {
-                                        const first = form.data.payments[0];
-                                        setOneTime(false);
-                                        form.setData('payments', [{
-                                            id: first?.id ?? null,
-                                            due_on: form.data.spent_on || today(),
-                                            paid_on: onceStatus === 'paid' ? (form.data.spent_on || today()) : '',
-                                            amount: form.data.amount,
-                                            status: onceStatus,
-                                            method: first?.method || 'other',
-                                        }]);
-                                    }}
-                                >
-                                    Split into payments
-                                </Button>
-                            </div>
-                        ) : (
                             <>
                                 <div className="flex flex-wrap items-end justify-between gap-3 rounded-lg border border-amber-200 bg-background px-3 py-2 dark:border-amber-900">
                                     <div>
@@ -928,14 +998,6 @@ export default function ExpenseForm({
                                     >
                                         <PlusIcon className="size-4" />
                                         Add payment
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        className="min-h-11 touch-manipulation"
-                                        onClick={() => setOneTime(true)}
-                                    >
-                                        Use one payment
                                     </Button>
                                 </div>
                                 <div className="flex flex-wrap items-end gap-2 rounded-lg border border-dashed border-amber-400 bg-background p-3">
@@ -1056,8 +1118,8 @@ export default function ExpenseForm({
                                     ))}
                                 </div>
                             </>
-                        )}
                     </FormSection>
+                    )}
                 </form>
             </CardContent>
         </Card>

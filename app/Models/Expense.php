@@ -25,6 +25,7 @@ class Expense extends Model
         'payee',
         'description',
         'category',
+        'group_name',
         'amount',
         'notes',
         'receipt_path',
