@@ -267,7 +267,7 @@ export default function Home({
                         <p className="mt-3 max-w-2xl text-base leading-7 text-[#111827]/70">
                             {tCertifications('preview.description')}
                         </p>
-                        <div className="mt-8 grid gap-4 lg:grid-cols-3">
+                        <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                             {certifications.map((certification) => (
                                 <CertificationCard
                                     key={certification.key}

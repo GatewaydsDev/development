@@ -13,6 +13,8 @@ const plateClassName: Record<Certification['plate'], string> = {
     dark: 'bg-black text-white',
     emerald: 'bg-emerald-950 text-emerald-50',
     slate: 'bg-slate-950 text-slate-50',
+    navy: 'bg-[#10233f] text-white',
+    bronze: 'bg-[#3f2a16] text-[#f6e7cf]',
 };
 
 type CertificationCardProps = {
@@ -37,29 +39,23 @@ export default function CertificationCard({
     const translationRoot = `items.${certification.key}`;
 
     return (
-        <article className="overflow-hidden rounded-3xl border border-border bg-card shadow-xl shadow-emerald-950/5 ring-1 ring-emerald-500/10">
+        <article className="flex h-full flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-xl shadow-emerald-950/5 ring-1 ring-emerald-500/10">
             <div
                 className={
-                    compact
-                        ? 'grid gap-5 p-5 sm:p-6'
-                        : 'grid gap-8 p-6 sm:p-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:p-10'
+                    'flex min-h-36 items-center justify-center px-6 py-8 ' +
+                    plateClassName[certification.plate]
                 }
             >
-                <div
-                    className={
-                        'flex items-center justify-center rounded-2xl p-4 ' +
-                        plateClassName[certification.plate]
-                    }
-                >
+                <div className="flex flex-col items-center justify-center gap-4">
                     {certification.logo ? (
                         <img
                             src={certification.logo}
                             alt={t(`${translationRoot}.logoAlt`)}
                             width={220}
                             height={56}
-                            className="h-12 w-auto max-w-[11rem] object-contain sm:h-14"
+                            className="h-12 w-auto max-w-[12rem] object-contain sm:h-14"
                         />
-                    ) : (
+                    ) : certification.image ? (
                         <img
                             src={certification.image}
                             alt={t(`${translationRoot}.imageAlt`)}
@@ -67,48 +63,57 @@ export default function CertificationCard({
                             height={certificationImageSize.height}
                             className="h-24 w-32 object-contain sm:h-28 sm:w-36"
                         />
-                    )}
-                </div>
-
-                <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <Badge
-                            variant="outline"
-                            className="border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                        >
-                            <BadgeCheckIcon className="size-3.5" />
-                            {t(`${translationRoot}.issuer`)}
-                        </Badge>
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                            {t(`${translationRoot}.issuedBy`)}
+                    ) : (
+                        <p className="text-4xl font-semibold tracking-tight">
+                            {certification.monogram}
                         </p>
-                    </div>
-
-                    <h3 className="mt-4 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-                        {t(`${translationRoot}.title`)}
-                    </h3>
-
-                    <p className="mt-3 text-sm leading-6 text-muted-foreground sm:leading-7">
-                        {compact
-                            ? t(`${translationRoot}.summary`)
-                            : t(`${translationRoot}.description`)}
-                    </p>
-
-                    {website ? (
-                        <div className="mt-6">
-                            <Button asChild size={compact ? 'default' : 'lg'}>
-                                <a
-                                    href={website}
-                                    target="_blank"
-                                    rel="noreferrer noopener"
-                                >
-                                    {t(`${translationRoot}.websiteLabel`)}
-                                    <ArrowUpRightIcon className="size-4" />
-                                </a>
-                            </Button>
-                        </div>
+                    )}
+                    {certification.mark ? (
+                        <p className="rounded-full border border-current/30 bg-white/10 px-4 py-1 text-sm font-semibold tracking-[0.22em]">
+                            {certification.mark}
+                        </p>
                     ) : null}
                 </div>
+            </div>
+
+            <div className="flex flex-1 flex-col p-6 sm:p-7">
+                <div className="flex flex-wrap items-center gap-2">
+                    <Badge
+                        variant="outline"
+                        className="border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                    >
+                        <BadgeCheckIcon className="size-3.5" />
+                        {t(`${translationRoot}.issuer`)}
+                    </Badge>
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        {t(`${translationRoot}.issuedBy`)}
+                    </p>
+                </div>
+
+                <h3 className="mt-4 text-xl font-semibold tracking-tight text-foreground">
+                    {t(`${translationRoot}.title`)}
+                </h3>
+
+                <p className="mt-3 flex-1 text-sm leading-6 text-muted-foreground">
+                    {compact
+                        ? t(`${translationRoot}.summary`)
+                        : t(`${translationRoot}.description`)}
+                </p>
+
+                {website ? (
+                    <div className="mt-6">
+                        <Button asChild size={compact ? 'default' : 'lg'}>
+                            <a
+                                href={website}
+                                target="_blank"
+                                rel="noreferrer noopener"
+                            >
+                                {t(`${translationRoot}.websiteLabel`)}
+                                <ArrowUpRightIcon className="size-4" />
+                            </a>
+                        </Button>
+                    </div>
+                ) : null}
             </div>
         </article>
     );

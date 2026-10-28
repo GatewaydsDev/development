@@ -8,6 +8,8 @@ import { Head } from '@inertiajs/react';
 import {
     BadgeCheckIcon,
     DoorOpenIcon,
+    KeyRoundIcon,
+    LockKeyholeIcon,
     RadioTowerIcon,
     ShieldCheckIcon,
 } from 'lucide-react';
@@ -19,6 +21,8 @@ type CertificationsProps = {
 
 const highlightItems = [
     { key: 'factory', Icon: BadgeCheckIcon },
+    { key: 'kabaMasX10', Icon: KeyRoundIcon },
+    { key: 'lkm10k', Icon: LockKeyholeIcon },
     { key: 'rf', Icon: RadioTowerIcon },
     { key: 'scifRooms', Icon: ShieldCheckIcon },
 ] as const;
@@ -112,7 +116,7 @@ export default function Certifications({ canonicalUrl }: CertificationsProps) {
             </section>
 
             <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-24">
-                <div className="grid gap-6">
+                <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
                     {certifications.map((certification) => (
                         <CertificationCard
                             key={certification.key}
@@ -121,7 +125,7 @@ export default function Certifications({ canonicalUrl }: CertificationsProps) {
                     ))}
                 </div>
 
-                <div className="mt-8 grid gap-4 sm:mt-10 sm:grid-cols-3">
+                <div className="mt-8 grid gap-4 sm:mt-10 sm:grid-cols-2 lg:grid-cols-3">
                     {highlightItems.map(({ key, Icon }) => (
                         <div
                             key={key}

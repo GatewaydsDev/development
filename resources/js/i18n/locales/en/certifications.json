@@ -1,17 +1,17 @@
 {
   "meta": {
     "title": "SCIF Rooms Construction Certifications | Gateway Door Systems",
-    "description": "Gateway Door Systems holds Lockmasters, RF, and SCIF room construction credentials for high-security doors, shielded openings, and secure facility work."
+    "description": "Gateway Door Systems holds Lockmasters, Kaba Mas X-10, LKM10K, RF, and SCIF room construction credentials for high-security locks, shielded openings, and secure facility work."
   },
   "hero": {
     "badge": "Verified credentials",
-    "title": "Certified for high-security doors, RF openings, and SCIF rooms.",
-    "description": "Gateway Door Systems is Lockmasters certified and works with Lockmasters. We also hold credentials for radio-frequency shielded doors and SCIF room construction."
+    "title": "Certified for high-security locks, RF openings, and SCIF rooms.",
+    "description": "Gateway Door Systems is Lockmasters certified, including Kaba Mas X-10 and LKM10K factory credentials, and works with Lockmasters. We also hold credentials for radio-frequency shielded doors and SCIF room construction."
   },
   "preview": {
     "badge": "Certifications",
-    "title": "Certified for Lockmasters, RF, and SCIF room construction.",
-    "description": "Our credentials support high-security hardware, radio-frequency shielded openings, and the construction of SCIF rooms for controlled-access facilities.",
+    "title": "Certified for Lockmasters, Kaba Mas X-10, LKM10K, RF, and SCIF rooms.",
+    "description": "Our credentials cover Kaba Mas X-10 and Lockmasters LKM10K locks, radio-frequency shielded openings, and the construction of SCIF rooms for controlled-access facilities.",
     "viewAll": "View certifications"
   },
   "items": {
@@ -23,6 +23,26 @@
       "websiteLabel": "Visit Lockmasters",
       "logoAlt": "Lockmasters Security Institute logo",
       "imageAlt": "High-security reinforced door and lock hardware",
+      "issuedBy": "Issued by Lockmasters Security Institute"
+    },
+    "kabaMasX10": {
+      "issuer": "Kaba Mas",
+      "title": "Kaba Mas X-10 Lock Certification",
+      "summary": "Factory certification to install and service the FF-L-2740B Kaba Mas X-10 high-security lock.",
+      "description": "This Kaba Mas factory certification covers the X-10 electromechanical combination lock used on GSA and SCIF openings. Training includes measuring and fitting the lock, setting operating modes, recovering a lost combination, and the FF-L-2740B installation requirements. Gateway Door Systems holds this credential for high-security lock work.",
+      "websiteLabel": "Visit Kaba Mas",
+      "logoAlt": "Kaba Mas certification mark",
+      "imageAlt": "Kaba Mas X-10 certification mark",
+      "issuedBy": "Kaba Mas factory certification"
+    },
+    "lkm10k": {
+      "issuer": "Lockmasters",
+      "title": "LKM10K Lock Series Certification",
+      "summary": "Lockmasters factory certification for the LockOne LKM10K lock series on FF-L-2890C openings.",
+      "description": "The LKM10K certification from Lockmasters Security Institute qualifies a technician to install, service, and maintain the LockOne LKM10K lock series. It covers the FF-L-2890C specification, wood and hollow-metal door installation, and the mechanical and electromechanical parts of the panic and push/pull models. Gateway Door Systems holds this Lockmasters factory credential.",
+      "websiteLabel": "Visit Lockmasters Security Institute",
+      "logoAlt": "Lockmasters LKM10K certification mark",
+      "imageAlt": "Lockmasters LKM10K certification mark",
       "issuedBy": "Issued by Lockmasters Security Institute"
     },
     "rf": {
@@ -48,6 +68,14 @@
     "factory": {
       "title": "Factory-authorized hardware",
       "description": "Gateway is Lockmasters certified and works with Lockmasters on high-security locks, strikes, and specialty door hardware."
+    },
+    "kabaMasX10": {
+      "title": "Kaba Mas X-10",
+      "description": "Factory-certified to install and service the FF-L-2740B Kaba Mas X-10 high-security lock."
+    },
+    "lkm10k": {
+      "title": "LKM10K from Lockmasters",
+      "description": "Factory-certified on the LockOne LKM10K lock series for FF-L-2890C secure openings."
     },
     "rf": {
       "title": "RF-shielded openings",
