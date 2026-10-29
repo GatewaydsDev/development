@@ -11,7 +11,6 @@ use App\Services\MicrosoftGraphMailService;
 use App\Services\TwilioSmsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 use Throwable;
@@ -79,22 +78,28 @@ class ContactSubmissionController extends Controller
         ContactSubmission $submission,
         string $recipient,
     ): void {
-        try {
-            Mail::to($recipient)->send(new ContactSubmissionReceived($submission));
-
-            return;
-        } catch (Throwable $exception) {
-            report($exception);
-        }
-
         $message = new ContactSubmissionReceived($submission);
+        $sender = $this->salesMailboxUser($recipient);
+        $graph = $sender instanceof User ? $mail->actingAs($sender) : $mail;
 
-        $mail->send(
+        $graph->send(
             $recipient,
             (string) $message->envelope()->subject,
             $message->render(),
             $submission->email,
         );
+    }
+
+    private function salesMailboxUser(string $recipient): ?User
+    {
+        return User::query()
+            ->with('level')
+            ->whereRaw('lower(microsoft_mailbox) = ?', [$recipient])
+            ->get()
+            ->first(function (User $user): bool {
+                return $user->isSuperAdmin()
+                    && trim((string) $user->microsoft_client_secret) !== '';
+            });
     }
 
     private function notificationRecipient(): string

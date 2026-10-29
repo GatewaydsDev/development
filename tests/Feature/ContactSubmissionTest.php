@@ -8,7 +8,6 @@ use App\Models\UserLevel;
 use App\Notifications\NewContactSubmissionNotification;
 use App\Services\MicrosoftGraphMailService;
 use App\Services\TwilioSmsService;
-use Illuminate\Support\Facades\Mail;
 use Inertia\Testing\AssertableInertia as Assert;
 
 function fakeMicrosoftGraphMail(): MicrosoftGraphMailService
@@ -36,7 +35,7 @@ function fakeMicrosoftGraphMail(): MicrosoftGraphMailService
 }
 
 test('contact form submissions are saved before notifications are sent', function () {
-    Mail::fake();
+    $mail = fakeMicrosoftGraphMail();
 
     config(['contact.recipient' => 'leads@gatewaydoors.test']);
 
@@ -71,16 +70,18 @@ test('contact form submissions are saved before notifications are sent', functio
         ->and($submission->ip_address)->toBe('203.0.113.10')
         ->and($submission->user_agent)->toBe('Gateway Browser');
 
-    Mail::assertSent(ContactSubmissionReceived::class, function (ContactSubmissionReceived $mail): bool {
-        return $mail->hasTo('leads@gatewaydoors.test')
-            && $mail->hasReplyTo('jane@example.com')
-            && $mail->hasSubject('New secure door contact request from Jane Builder')
-            && $mail->submission->message === 'We need a secure specialty door installation.';
-    });
+    expect($mail->messages)->toHaveCount(1)
+        ->and($mail->messages[0]['to'])->toBe('leads@gatewaydoors.test')
+        ->and($mail->messages[0]['replyTo'])->toBe('jane@example.com')
+        ->and($mail->messages[0]['subject'])->toBe(
+            'New secure door contact request from Jane Builder',
+        )
+        ->and($mail->messages[0]['html'])->toContain('Jane Builder')
+        ->and($mail->messages[0]['html'])->toContain('We need a secure specialty door installation.');
 });
 
 test('contact notifications fall back to the active company email', function () {
-    Mail::fake();
+    $mail = fakeMicrosoftGraphMail();
 
     config([
         'contact.recipient' => null,
@@ -107,14 +108,13 @@ test('contact notifications fall back to the active company email', function () 
         ->assertRedirect()
         ->assertSessionHas('contact.success', true);
 
-    Mail::assertSent(ContactSubmissionReceived::class, function (ContactSubmissionReceived $mail): bool {
-        return $mail->hasTo('office@gatewaydoors.test')
-            && $mail->hasReplyTo('alex@example.com');
-    });
+    expect($mail->messages)->toHaveCount(1)
+        ->and($mail->messages[0]['to'])->toBe('office@gatewaydoors.test')
+        ->and($mail->messages[0]['replyTo'])->toBe('alex@example.com');
 });
 
 test('contact emails fall back to the microsoft mailbox when no company email is set', function () {
-    Mail::fake();
+    $mail = fakeMicrosoftGraphMail();
 
     config([
         'contact.recipient' => null,
@@ -135,14 +135,13 @@ test('contact emails fall back to the microsoft mailbox when no company email is
         ->assertRedirect()
         ->assertSessionHas('contact.success', true);
 
-    Mail::assertSent(ContactSubmissionReceived::class, function (ContactSubmissionReceived $mail): bool {
-        return $mail->hasTo('sales@gateway-ds.com')
-            && $mail->hasReplyTo('riley@example.com');
-    });
+    expect($mail->messages)->toHaveCount(1)
+        ->and($mail->messages[0]['to'])->toBe('sales@gateway-ds.com')
+        ->and($mail->messages[0]['replyTo'])->toBe('riley@example.com');
 });
 
 test('contact emails go to the sales mailbox even when a company email is saved', function () {
-    Mail::fake();
+    $mail = fakeMicrosoftGraphMail();
 
     config(['contact.recipient' => 'sales@gateway-ds.com']);
 
@@ -167,10 +166,67 @@ test('contact emails go to the sales mailbox even when a company email is saved'
         ->assertSessionHas('contact.success', true)
         ->assertSessionHas('contact.status', 'Your message has been sent to Gateway Door Systems.');
 
-    Mail::assertSent(ContactSubmissionReceived::class, function (ContactSubmissionReceived $mail): bool {
-        return $mail->hasTo('sales@gateway-ds.com')
-            && $mail->hasReplyTo('taylor@example.com');
-    });
+    expect($mail->messages)->toHaveCount(1)
+        ->and($mail->messages[0]['to'])->toBe('sales@gateway-ds.com')
+        ->and($mail->messages[0]['replyTo'])->toBe('taylor@example.com');
+});
+
+test('a quote is sent with the saved sales microsoft account', function () {
+    $capture = new stdClass;
+    $capture->messages = [];
+    $capture->actorId = null;
+
+    $mail = new class($capture) extends MicrosoftGraphMailService
+    {
+        public function __construct(public stdClass $capture) {}
+
+        public function actingAs(?User $user): self
+        {
+            $copy = parent::actingAs($user);
+            $copy->capture->actorId = $user?->id;
+
+            return $copy;
+        }
+
+        public function send(
+            string $to,
+            string $subject,
+            string $html,
+            ?string $replyTo = null
+        ): void {
+            $this->capture->messages[] = compact('to', 'subject', 'html', 'replyTo');
+        }
+    };
+    app()->instance(MicrosoftGraphMailService::class, $mail);
+
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $sales = User::factory()->create([
+        'level_id' => $level->id,
+        'microsoft_mailbox' => 'sales@gateway-ds.com',
+        'microsoft_client_secret' => 'working-sales-secret~',
+    ]);
+
+    config(['contact.recipient' => 'sales@gateway-ds.com']);
+
+    $this
+        ->post(route('contact.store'), [
+            'name' => 'Casey Buyer',
+            'email' => 'casey@example.com',
+            'phone_number' => '',
+            'organization' => '',
+            'project_type' => '',
+            'message' => 'Please send a quote for a secure door.',
+            'source_url' => 'https://gatewaydoors.test/',
+            'website' => '',
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('contact.success', true);
+
+    expect($capture->actorId)->toBe($sales->id)
+        ->and($capture->messages)->toHaveCount(1)
+        ->and($capture->messages[0]['to'])->toBe('sales@gateway-ds.com')
+        ->and($capture->messages[0]['replyTo'])->toBe('casey@example.com')
+        ->and($capture->messages[0]['html'])->toContain('Please send a quote for a secure door.');
 });
 
 test('the quote email keeps a single tag for the mailer', function () {
