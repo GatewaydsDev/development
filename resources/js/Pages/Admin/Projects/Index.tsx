@@ -130,6 +130,7 @@ export default function Index({
 
     return (
         <AuthenticatedLayout
+            fullWidth
             header={
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
@@ -157,7 +158,7 @@ export default function Index({
             <Head title="Projects" />
 
             <div className="py-6 sm:py-8">
-                <div className="mx-auto flex max-w-[96rem] flex-col gap-6 px-4 sm:px-6 lg:px-8">
+                <div className="flex w-full flex-col gap-6 px-4 sm:px-6 lg:px-8">
                     <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
                         <ProjectTotal
                             label="Total"
