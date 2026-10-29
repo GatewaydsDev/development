@@ -52,6 +52,31 @@ class DashboardTheme
                 'description' => 'A neutral gray workspace.',
                 'swatches' => ['#f8fafc', '#94a3b8', '#1e293b'],
             ],
+            'indigo' => [
+                'name' => 'Indigo',
+                'description' => 'A deep blue-purple workspace.',
+                'swatches' => ['#eef2ff', '#818cf8', '#4338ca'],
+            ],
+            'cyan' => [
+                'name' => 'Cyan',
+                'description' => 'A bright blue-green workspace.',
+                'swatches' => ['#ecfeff', '#22d3ee', '#0e7490'],
+            ],
+            'fuchsia' => [
+                'name' => 'Fuchsia',
+                'description' => 'A vivid magenta workspace.',
+                'swatches' => ['#fdf4ff', '#e879f9', '#a21caf'],
+            ],
+            'lime' => [
+                'name' => 'Lime',
+                'description' => 'A fresh yellow-green workspace.',
+                'swatches' => ['#f7fee7', '#a3e635', '#4d7c0f'],
+            ],
+            'crimson' => [
+                'name' => 'Crimson',
+                'description' => 'A strong red workspace.',
+                'swatches' => ['#fef2f2', '#f87171', '#b91c1c'],
+            ],
         ];
     }
 

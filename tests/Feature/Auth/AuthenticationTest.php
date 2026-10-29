@@ -4,10 +4,23 @@ use App\Models\User;
 use App\Models\UserLevel;
 use Inertia\SessionKey;
 
-test('login screen can be rendered', function () {
+test('signed-in users leave the login page for the dashboard', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->get('/login')
+        ->assertRedirect(route('dashboard'));
+});
+
+test('the login page is not kept for the browser back button', function () {
     $response = $this->get('/login');
 
-    $response->assertStatus(200);
+    $response->assertOk();
+
+    $cacheControl = $response->headers->get('Cache-Control');
+
+    expect($cacheControl)->toContain('no-store')
+        ->and($cacheControl)->toContain('no-cache');
 });
 
 test('users can authenticate using the login screen', function () {

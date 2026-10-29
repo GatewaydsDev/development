@@ -42,12 +42,12 @@ export default function LanguageSwitcher({
                 )}
             >
                 <span aria-hidden="true">{currentLanguage.flag}</span>
-                <span className="hidden lg:inline">
+                <span className="hidden xl:inline">
                     {t(currentLanguage.labelKey)}
                 </span>
-                <LanguagesIcon className="lg:hidden" data-icon="inline-end" />
+                <LanguagesIcon className="xl:hidden" data-icon="inline-end" />
                 <ChevronDownIcon
-                    className="hidden lg:block"
+                    className="hidden xl:block"
                     data-icon="inline-end"
                 />
             </DropdownMenuTrigger>

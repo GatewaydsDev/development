@@ -286,7 +286,7 @@ function QuotationSectionNav({
     navRef: { current: HTMLDivElement | null };
 }) {
     return (
-        <div data-section-stack className="z-30 -mx-4 bg-background px-4 pb-2 sm:-mx-6 sm:px-6 lg:sticky lg:top-[7.25rem] lg:-mx-8 lg:px-8">
+        <div data-section-stack className="z-30 -mx-4 bg-background px-4 pb-2 sm:-mx-6 sm:px-6 md:sticky md:top-[4.75rem] lg:top-[7.25rem] lg:-mx-8 lg:px-8">
             <nav
                 aria-label="Quotation sections"
                 className="rounded-xl border border-[#c5d0dc] bg-[#eef3f8] p-1.5 text-[#0a2540] shadow-sm"

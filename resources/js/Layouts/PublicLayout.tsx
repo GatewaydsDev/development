@@ -41,7 +41,13 @@ import {
     isSiteVaultIntroPending,
     SITE_VAULT_INTRO_MS,
 } from '@/lib/siteVaultIntro';
-import { PropsWithChildren, useEffect, useState } from 'react';
+import {
+    PropsWithChildren,
+    useEffect,
+    useLayoutEffect,
+    useRef,
+    useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 
 const navigation = [
@@ -65,7 +71,7 @@ const footerMarkets = [
 ];
 
 export default function PublicLayout({ children }: PropsWithChildren) {
-    const { t } = useTranslation('common');
+    const { i18n, t } = useTranslation('common');
     const { t: tHome } = useTranslation('home');
     const { auth, companyPhoneNumber, companyEmail } = usePage<
         PageProps<{
@@ -79,6 +85,78 @@ export default function PublicLayout({ children }: PropsWithChildren) {
     const quotePhoneNumber = companyPhoneNumber?.replace(/\D/g, '') ?? '';
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
         useState(false);
+    const headerRef = useRef<HTMLElement>(null);
+    const navRowRef = useRef<HTMLDivElement>(null);
+    const navClusterRef = useRef<HTMLDivElement>(null);
+    const [desktopNavFits, setDesktopNavFits] = useState(false);
+
+    useEffect(() => {
+        const header = headerRef.current;
+
+        if (!header) {
+            return;
+        }
+
+        const syncHeaderBottom = () => {
+            document.documentElement.style.setProperty(
+                '--public-header-bottom',
+                `${Math.round(header.getBoundingClientRect().bottom)}px`,
+            );
+        };
+
+        syncHeaderBottom();
+        const observer = new ResizeObserver(syncHeaderBottom);
+        observer.observe(header);
+        window.addEventListener('resize', syncHeaderBottom);
+
+        return () => {
+            observer.disconnect();
+            window.removeEventListener('resize', syncHeaderBottom);
+        };
+    }, []);
+
+    useLayoutEffect(() => {
+        const row = navRowRef.current;
+        const cluster = navClusterRef.current;
+
+        if (!row || !cluster) {
+            return;
+        }
+
+        const measure = () => {
+            const logo = row.querySelector<HTMLElement>('[data-public-logo]');
+            const gap =
+                Number.parseFloat(getComputedStyle(row).columnGap || '0') || 0;
+            const previous = {
+                position: cluster.style.position,
+                visibility: cluster.style.visibility,
+                width: cluster.style.width,
+            };
+
+            cluster.style.position = 'absolute';
+            cluster.style.visibility = 'hidden';
+            cluster.style.width = 'max-content';
+            const needed = cluster.scrollWidth;
+            cluster.style.position = previous.position;
+            cluster.style.visibility = previous.visibility;
+            cluster.style.width = previous.width;
+
+            const available = row.clientWidth - (logo?.offsetWidth ?? 0) - gap;
+            const fits = needed + 16 <= available;
+
+            setDesktopNavFits((current) => (current === fits ? current : fits));
+        };
+
+        measure();
+        const observer = new ResizeObserver(measure);
+        observer.observe(row);
+        window.addEventListener('resize', measure);
+
+        return () => {
+            observer.disconnect();
+            window.removeEventListener('resize', measure);
+        };
+    }, [auth.user, i18n.language]);
 
     useEffect(() => {
         if (!isAuthPage) {
@@ -91,6 +169,65 @@ export default function PublicLayout({ children }: PropsWithChildren) {
             document.documentElement.classList.remove('auth-static');
         };
     }, [isAuthPage]);
+
+    useEffect(() => {
+        const authScreen =
+            isAuthPage ||
+            route().current('password.request') ||
+            route().current('password.reset');
+
+        if (!authScreen) {
+            return;
+        }
+
+        if (auth.user) {
+            window.location.assign(route('dashboard'));
+
+            return;
+        }
+
+        let cancelled = false;
+
+        const leaveIfSignedIn = () => {
+            const dashboardUrl = new URL(
+                route('dashboard'),
+                window.location.origin,
+            );
+
+            fetch(dashboardUrl.toString(), {
+                credentials: 'same-origin',
+                headers: { Accept: 'text/html' },
+                redirect: 'manual',
+            })
+                .then((response) => {
+                    if (cancelled || response.status !== 200 || !response.url) {
+                        return;
+                    }
+
+                    const arrived = new URL(response.url);
+
+                    if (arrived.pathname === dashboardUrl.pathname) {
+                        window.location.assign(dashboardUrl.toString());
+                    }
+                })
+                .catch(() => {});
+        };
+
+        leaveIfSignedIn();
+
+        const onPageShow = (event: PageTransitionEvent) => {
+            if (event.persisted) {
+                window.location.reload();
+            }
+        };
+
+        window.addEventListener('pageshow', onPageShow);
+
+        return () => {
+            cancelled = true;
+            window.removeEventListener('pageshow', onPageShow);
+        };
+    }, [auth.user, isAuthPage]);
 
     useEffect(() => {
         if (!showingNavigationDropdown) {
@@ -116,10 +253,12 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                 />
             )}
             <header
+                ref={headerRef}
                 className={cn(
-                    'sticky top-0 z-40',
+                    'sticky top-0 z-50',
                     showingNavigationDropdown &&
-                        'flex h-svh flex-col lg:block lg:h-auto',
+                        !desktopNavFits &&
+                        'flex h-svh flex-col',
                 )}
             >
                 {isHome ? (
@@ -134,23 +273,35 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                     className={cn(
                         'border-b border-white/10 bg-[#111827] text-white',
                         showingNavigationDropdown &&
-                            'flex min-h-0 flex-1 flex-col lg:block',
+                            !desktopNavFits &&
+                            'flex min-h-0 flex-1 flex-col',
                     )}
                 >
-                <div className="mx-auto w-full max-w-7xl shrink-0 px-4 sm:px-6 lg:px-8">
-                    <div className="flex items-center justify-between gap-3 overflow-visible py-2 sm:py-2.5 md:py-3 lg:gap-8">
-                        <div className="flex min-w-0 items-center">
-                            <div className="flex shrink-0 items-center">
-                                <Link href={route('home')} className="shrink-0">
-                                    <ApplicationLogo className="block size-12 sm:size-16 md:size-20 lg:size-24" />
-                                </Link>
-                            </div>
+                <div className="mx-auto w-full shrink-0 px-4 sm:px-6 lg:px-8">
+                    <div
+                        ref={navRowRef}
+                        className="relative flex items-center justify-between gap-3 overflow-visible py-2 sm:py-2.5 md:py-3"
+                    >
+                        <div className="flex shrink-0 items-center" data-public-logo>
+                            <Link href={route('home')} className="shrink-0">
+                                <ApplicationLogo className="block size-12 sm:size-16 lg:size-20" />
+                            </Link>
+                        </div>
 
+                        <div
+                            ref={navClusterRef}
+                            className={cn(
+                                'flex items-center gap-3',
+                                desktopNavFits
+                                    ? 'min-w-0 flex-1 justify-between'
+                                    : 'pointer-events-none invisible absolute left-0 top-0 w-max',
+                            )}
+                        >
                             <NavigationMenu
                                 viewport={false}
-                                className="hidden max-w-none justify-start lg:ms-12 lg:flex"
+                                className="max-w-none flex-none justify-start"
                             >
-                                <NavigationMenuList className="gap-1">
+                                <NavigationMenuList className="flex-nowrap gap-1">
                                     {navigation.map((item) => (
                                         <NavigationMenuItem key={item.href}>
                                             <NavigationMenuLink
@@ -180,9 +331,8 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                                     </NavigationMenuItem>
                                 </NavigationMenuList>
                             </NavigationMenu>
-                        </div>
 
-                        <div className="hidden gap-2 lg:ms-6 lg:flex lg:items-center lg:gap-4">
+                            <div className="flex shrink-0 items-center gap-3">
                             <button
                                 type="button"
                                 className={quoteButtonClass}
@@ -210,9 +360,15 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                                     {t('auth.login')}
                                 </Link>
                             )}
+                            </div>
                         </div>
 
-                        <div className="-me-2 flex items-center lg:hidden">
+                        <div
+                            className={cn(
+                                '-me-2 items-center',
+                                desktopNavFits ? 'hidden' : 'flex',
+                            )}
+                        >
                             <button
                                 type="button"
                                 onClick={() =>
@@ -260,11 +416,11 @@ export default function PublicLayout({ children }: PropsWithChildren) {
 
                 <div
                     className={cn(
-                        showingNavigationDropdown ? 'flex' : 'hidden',
-                        'min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain border-t border-white/10 bg-[#111827] text-white lg:hidden',
+                        showingNavigationDropdown && !desktopNavFits ? 'flex' : 'hidden',
+                        'min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain border-t border-white/10 bg-[#111827] text-white',
                     )}
                 >
-                    <div className="flex flex-col gap-1 px-4 pb-3 pt-4">
+                    <div className="grid grid-cols-1 gap-1 px-4 pb-3 pt-4">
                         <button
                             type="button"
                             className={cn(quoteButtonClass, 'mb-2 w-full')}
@@ -489,20 +645,36 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                                     {t('footer.access')}
                                 </h2>
                                 <div className="mt-4 flex flex-col gap-3 text-sm text-emerald-50/70">
-                                    <Link
-                                        href={route('login')}
-                                        className="group inline-flex items-center gap-2 transition hover:text-white"
-                                    >
-                                        <LogInIcon className="size-4 shrink-0 text-emerald-300 transition group-hover:animate-bell-shake" />
-                                        <span>{t('auth.customerPortal')}</span>
-                                    </Link>
-                                    <Link
-                                        href={route('register')}
-                                        className="group inline-flex items-center gap-2 transition hover:text-white"
-                                    >
-                                        <KeyRoundIcon className="size-4 shrink-0 text-emerald-300 transition group-hover:animate-bell-shake" />
-                                        <span>{t('auth.createAccount')}</span>
-                                    </Link>
+                                    {auth.user ? (
+                                        <Link
+                                            href={route('dashboard')}
+                                            className="group inline-flex items-center gap-2 transition hover:text-white"
+                                        >
+                                            <LayoutDashboardIcon className="size-4 shrink-0 text-emerald-300 transition group-hover:animate-bell-shake" />
+                                            <span>{t('auth.dashboard')}</span>
+                                        </Link>
+                                    ) : (
+                                        <>
+                                            <Link
+                                                href={route('login')}
+                                                className="group inline-flex items-center gap-2 transition hover:text-white"
+                                            >
+                                                <LogInIcon className="size-4 shrink-0 text-emerald-300 transition group-hover:animate-bell-shake" />
+                                                <span>
+                                                    {t('auth.customerPortal')}
+                                                </span>
+                                            </Link>
+                                            <Link
+                                                href={route('register')}
+                                                className="group inline-flex items-center gap-2 transition hover:text-white"
+                                            >
+                                                <KeyRoundIcon className="size-4 shrink-0 text-emerald-300 transition group-hover:animate-bell-shake" />
+                                                <span>
+                                                    {t('auth.createAccount')}
+                                                </span>
+                                            </Link>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -525,7 +697,19 @@ export default function PublicLayout({ children }: PropsWithChildren) {
 
             <ContactSlideOver showTrigger={false} />
             <HelpCenter showTrigger={false} />
-            <PublicActionFab callPhoneNumber={quotePhoneNumber} />
+            {!isAuthPage &&
+                !route().current('password.request') &&
+                !route().current('password.reset') && (
+                    <PublicActionFab
+                        callPhoneNumber={quotePhoneNumber}
+                        forceFab={desktopNavFits}
+                        className={
+                            showingNavigationDropdown && !desktopNavFits
+                                ? '!hidden'
+                                : undefined
+                        }
+                    />
+                )}
         </div>
     );
 }

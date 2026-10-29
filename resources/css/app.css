@@ -1542,6 +1542,86 @@ html.dark[data-dashboard-theme='slate'] {
   --dashboard-accent-icon: #cbd5e1;
 }
 
+html[data-dashboard-theme='indigo'] {
+  --dashboard-accent: #4f46e5;
+  --dashboard-accent-hover: #4338ca;
+  --dashboard-accent-soft: rgb(238 242 255 / 0.84);
+  --dashboard-accent-border: #c7d2fe;
+  --dashboard-accent-text: #3730a3;
+  --dashboard-accent-icon: #4f46e5;
+}
+
+html.dark[data-dashboard-theme='indigo'] {
+  --dashboard-accent-soft: rgb(30 27 75 / 0.55);
+  --dashboard-accent-border: rgb(49 46 129 / 0.8);
+  --dashboard-accent-text: #c7d2fe;
+  --dashboard-accent-icon: #818cf8;
+}
+
+html[data-dashboard-theme='cyan'] {
+  --dashboard-accent: #0891b2;
+  --dashboard-accent-hover: #0e7490;
+  --dashboard-accent-soft: rgb(236 254 255 / 0.84);
+  --dashboard-accent-border: #a5f3fc;
+  --dashboard-accent-text: #155e75;
+  --dashboard-accent-icon: #0891b2;
+}
+
+html.dark[data-dashboard-theme='cyan'] {
+  --dashboard-accent-soft: rgb(8 51 68 / 0.55);
+  --dashboard-accent-border: rgb(22 78 99 / 0.8);
+  --dashboard-accent-text: #a5f3fc;
+  --dashboard-accent-icon: #22d3ee;
+}
+
+html[data-dashboard-theme='fuchsia'] {
+  --dashboard-accent: #c026d3;
+  --dashboard-accent-hover: #a21caf;
+  --dashboard-accent-soft: rgb(253 244 255 / 0.84);
+  --dashboard-accent-border: #f5d0fe;
+  --dashboard-accent-text: #86198f;
+  --dashboard-accent-icon: #c026d3;
+}
+
+html.dark[data-dashboard-theme='fuchsia'] {
+  --dashboard-accent-soft: rgb(74 4 78 / 0.55);
+  --dashboard-accent-border: rgb(112 26 117 / 0.8);
+  --dashboard-accent-text: #f5d0fe;
+  --dashboard-accent-icon: #e879f9;
+}
+
+html[data-dashboard-theme='lime'] {
+  --dashboard-accent: #4d7c0f;
+  --dashboard-accent-hover: #3f6212;
+  --dashboard-accent-soft: rgb(247 254 231 / 0.88);
+  --dashboard-accent-border: #d9f99d;
+  --dashboard-accent-text: #3f6212;
+  --dashboard-accent-icon: #4d7c0f;
+}
+
+html.dark[data-dashboard-theme='lime'] {
+  --dashboard-accent-soft: rgb(26 46 5 / 0.55);
+  --dashboard-accent-border: rgb(54 83 20 / 0.8);
+  --dashboard-accent-text: #d9f99d;
+  --dashboard-accent-icon: #a3e635;
+}
+
+html[data-dashboard-theme='crimson'] {
+  --dashboard-accent: #dc2626;
+  --dashboard-accent-hover: #b91c1c;
+  --dashboard-accent-soft: rgb(254 242 242 / 0.86);
+  --dashboard-accent-border: #fecaca;
+  --dashboard-accent-text: #991b1b;
+  --dashboard-accent-icon: #dc2626;
+}
+
+html.dark[data-dashboard-theme='crimson'] {
+  --dashboard-accent-soft: rgb(69 10 10 / 0.55);
+  --dashboard-accent-border: rgb(127 29 29 / 0.8);
+  --dashboard-accent-text: #fecaca;
+  --dashboard-accent-icon: #f87171;
+}
+
 .dash-accent {
   background-color: var(--dashboard-accent);
   color: #fff;

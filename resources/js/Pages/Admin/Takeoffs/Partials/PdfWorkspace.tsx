@@ -381,10 +381,10 @@ export default function PdfWorkspace({
 
     return (
         <div className="flex h-full min-h-[28rem] min-w-0 flex-col gap-3">
-            <div className="z-20 flex min-w-0 flex-col gap-3 rounded-xl border border-[#c5d0dc] bg-[#eef3f8] p-2 text-[#111827] shadow-sm sm:p-3 lg:sticky lg:top-[14.75rem]">
-                <div className="flex min-w-0 flex-col gap-2 lg:flex-row lg:items-end">
+            <div className="z-20 flex min-w-0 flex-col gap-3 rounded-xl border border-[#c5d0dc] bg-[#eef3f8] p-2 text-[#111827] shadow-sm sm:p-3 md:sticky md:top-[4.75rem] lg:top-[14.75rem]">
+                <div className="flex min-w-0 flex-col gap-2 xl:flex-row xl:items-end">
                     {canEdit && onUpload ? (
-                        <div className="grid min-w-0 grid-cols-2 gap-2 lg:flex lg:shrink-0">
+                        <div className="grid min-w-0 grid-cols-2 gap-2 xl:flex xl:shrink-0">
                             <input
                                 ref={fileRef}
                                 type="file"
@@ -399,12 +399,12 @@ export default function PdfWorkspace({
                                     }
                                 }}
                             />
-                            <Button type="button" size="sm" className={`${controlClass} w-full border-sky-800 bg-sky-700 text-white hover:bg-sky-800 hover:text-white lg:w-auto ${onScan && document ? '' : 'col-span-2'}`} disabled={uploading} onClick={choosePdf}>
+                            <Button type="button" size="sm" className={`${controlClass} w-full border-sky-800 bg-sky-700 text-white hover:bg-sky-800 hover:text-white xl:w-auto ${onScan && document ? '' : 'col-span-2'}`} disabled={uploading} onClick={choosePdf}>
                                 <UploadIcon data-icon="inline-start" />
                                 {uploading ? 'Scanning…' : 'Upload PDF'}
                             </Button>
                             {onScan && document ? (
-                                <Button type="button" size="sm" variant="outline" className={`${controlClass} w-full border-indigo-700 bg-indigo-600 text-white hover:bg-indigo-700 hover:text-white lg:w-auto`} disabled={uploading} onClick={onScan}>
+                                <Button type="button" size="sm" variant="outline" className={`${controlClass} w-full border-indigo-700 bg-indigo-600 text-white hover:bg-indigo-700 hover:text-white xl:w-auto`} disabled={uploading} onClick={onScan}>
                                     <ScanSearchIcon data-icon="inline-start" />
                                     Scan drawing
                                 </Button>

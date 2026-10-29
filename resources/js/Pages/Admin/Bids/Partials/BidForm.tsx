@@ -691,7 +691,7 @@ export default function BidForm({
 
     return (
         <form onSubmit={submit} className="flex w-full min-w-0 max-w-full flex-col gap-6 pr-4 pb-28 sm:pr-20 lg:pb-6">
-            <div data-section-stack className="z-30 bg-background pb-2 lg:sticky lg:top-[7.25rem]">
+            <div data-section-stack className="z-30 bg-background pb-2 md:sticky md:top-[4.75rem] lg:top-[7.25rem]">
             <nav
                 aria-label="Bid sections"
                 className="flex gap-1 overflow-x-auto rounded-xl border border-[#c5d0dc] bg-[#eef3f8] p-1.5 text-[#0a2540] shadow-sm"

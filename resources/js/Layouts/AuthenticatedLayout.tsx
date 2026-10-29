@@ -282,6 +282,9 @@ export default function Authenticated({
             'sidebarCollapsed',
             sidebarCollapsed ? '1' : '0',
         );
+        document.documentElement.dataset.sidebarCollapsed = sidebarCollapsed
+            ? '1'
+            : '0';
     }, [sidebarCollapsed]);
 
     const navRef = useRef<HTMLElement>(null);
@@ -517,7 +520,7 @@ export default function Authenticated({
                                 Gateway
                             </Link>
 
-                            <div className="hidden gap-6 lg:-my-px lg:flex lg:items-center">
+                            <div className="hidden gap-6 xl:-my-px xl:flex xl:items-center">
                                 <NavLink
                                     href={route('home')}
                                     active={route().current('home')}
@@ -562,7 +565,7 @@ export default function Authenticated({
                                 title="Fast menu (⌘K)"
                             >
                                 <ZapIcon data-icon="inline-start" />
-                                Fast
+                                <span className="hidden xl:inline">Fast</span>
                             </Button>
                             <UnreadMailButton />
                             <ThemeModeToggle />

@@ -52,11 +52,11 @@ export default function ThemeModeToggle({
                 )}
             >
                 <ActiveIcon data-icon="inline-start" />
-                <span className="hidden lg:inline">
+                <span className="hidden xl:inline">
                     {t(activeTheme?.labelKey ?? 'theme.system')}
                 </span>
                 <ChevronDownIcon
-                    className="hidden lg:block"
+                    className="hidden xl:block"
                     data-icon="inline-end"
                 />
             </DropdownMenuTrigger>

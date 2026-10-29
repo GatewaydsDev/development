@@ -66,8 +66,8 @@ export function PublicServicesNavigationContent({
     const { t: tHome } = useTranslation('home');
 
     return (
-        <NavigationMenuContent className="left-1/2 overflow-visible p-4 pb-8 md:w-[min(72rem,calc(100vw-3rem))] md:-translate-x-1/2">
-            <div className="grid gap-4 pb-2 lg:grid-cols-4">
+        <NavigationMenuContent className="!fixed !inset-x-4 !top-[calc(var(--public-header-bottom,7rem)+0.5rem)] z-40 !w-auto max-h-[calc(100dvh-var(--public-header-bottom,7rem)-1.5rem)] !translate-x-0 overflow-y-auto p-4 pb-8">
+            <div className="grid min-w-0 gap-6 pb-2 md:grid-cols-2 xl:grid-cols-4">
                 {serviceGroups.map((group) => {
                     const groupHref = group.slug
                         ? route('services.show', group.slug)
@@ -78,8 +78,8 @@ export function PublicServicesNavigationContent({
                         <div
                             key={group.key}
                             className={cn(
-                                'flex flex-col gap-2',
-                                isSpecialty && 'lg:col-span-2',
+                                'flex min-w-0 flex-col gap-2',
+                                isSpecialty && 'md:col-span-2',
                             )}
                         >
                             {group.slug ? (
@@ -119,12 +119,7 @@ export function PublicServicesNavigationContent({
                                 </div>
                             )}
 
-                            <ul
-                                className={cn(
-                                    'flex flex-col gap-1',
-                                    isSpecialty && 'sm:grid sm:grid-cols-2',
-                                )}
-                            >
+                            <ul className="flex min-w-0 flex-col gap-1">
                                 {catalogItemsForGroup(group.key).map(
                                     (item) => (
                                         <ServiceNavLink
@@ -152,7 +147,7 @@ export function PublicMobileServiceLinks({
     const { t: tHome } = useTranslation('home');
 
     return (
-        <div className="mt-1 flex flex-col gap-3">
+        <div className="mt-1 flex min-w-0 flex-col gap-3">
             {serviceGroups.map((group) => {
                 const groupHref = group.slug
                     ? route('services.show', group.slug)
