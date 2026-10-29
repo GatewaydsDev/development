@@ -1,5 +1,6 @@
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { isEmptyHtml } from '@/Pages/Admin/Bids/bidText';
 import ActionHint from '@/Components/ActionHint';
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -43,6 +44,33 @@ type ShowProps = {
     project: ProjectPayload;
     options: ProjectOptions;
 };
+
+function ProjectNote({
+    value,
+    empty,
+}: {
+    value?: string | null;
+    empty: string;
+}) {
+    if (isEmptyHtml(value)) {
+        return <p className="mt-2 text-sm text-muted-foreground">{empty}</p>;
+    }
+
+    if (value && /<[a-z][\s\S]*>/i.test(value)) {
+        return (
+            <div
+                className="rich-text-content mt-2 text-sm text-foreground"
+                dangerouslySetInnerHTML={{ __html: value }}
+            />
+        );
+    }
+
+    return (
+        <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">
+            {value}
+        </p>
+    );
+}
 
 function DetailItem({
     label,
@@ -432,24 +460,25 @@ export default function Show({ project, options }: ShowProps) {
                         <CardHeader>
                             <CardTitle>Notes</CardTitle>
                         </CardHeader>
-                        <CardContent className="grid gap-4 md:grid-cols-2">
+                        <CardContent className="flex flex-col gap-5">
                             <div>
                                 <h3 className="text-sm font-medium text-muted-foreground">
                                     Project notes
                                 </h3>
-                                <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">
-                                    {project.public_notes || 'No notes added.'}
-                                </p>
+                                <ProjectNote
+                                    value={project.public_notes}
+                                    empty="No notes added."
+                                />
                             </div>
                             {options.can.viewSensitiveFields && (
                                 <div>
                                     <h3 className="text-sm font-medium text-muted-foreground">
                                         Internal notes
                                     </h3>
-                                    <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">
-                                        {project.internal_notes ||
-                                            'No internal notes added.'}
-                                    </p>
+                                    <ProjectNote
+                                        value={project.internal_notes}
+                                        empty="No internal notes added."
+                                    />
                                 </div>
                             )}
                         </CardContent>

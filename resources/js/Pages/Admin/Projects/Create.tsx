@@ -10,6 +10,7 @@ type CreateProps = {
 export default function Create({ options }: CreateProps) {
     return (
         <AuthenticatedLayout
+            fullWidth
             header={
                 <div>
                     <nav
@@ -36,7 +37,7 @@ export default function Create({ options }: CreateProps) {
             <Head title="Add Project" />
 
             <div className="py-6 sm:py-8">
-                <div className="mx-auto max-w-[96rem] px-4 sm:px-6 lg:px-8">
+                <div className="w-full px-4 sm:px-6 lg:px-8">
                     <ProjectForm
                         action={route('admin.projects.store')}
                         submitLabel="Create project"

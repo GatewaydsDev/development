@@ -511,7 +511,7 @@ class ProjectController extends Controller
             'estimated_start_date' => ['nullable', 'date'],
             'estimated_end_date' => ['nullable', 'date', 'after_or_equal:estimated_start_date'],
             'completed_at' => ['nullable', 'date'],
-            'public_notes' => ['nullable', 'string', 'max:5000'],
+            'public_notes' => ['nullable', 'string', 'max:60000'],
         ];
 
         if (! $isProjectManager) {
@@ -573,7 +573,7 @@ class ProjectController extends Controller
             $rules = [
                 ...$rules,
                 'budget_amount' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99'],
-                'internal_notes' => ['nullable', 'string', 'max:5000'],
+                'internal_notes' => ['nullable', 'string', 'max:60000'],
                 'prices' => ['sometimes', 'array'],
                 'prices.*.id' => [
                     'nullable',
@@ -663,7 +663,7 @@ class ProjectController extends Controller
             'estimated_start_date' => $validated['estimated_start_date'] ?? null,
             'estimated_end_date' => $validated['estimated_end_date'] ?? null,
             'completed_at' => $validated['completed_at'] ?? null,
-            'public_notes' => $validated['public_notes'] ?? null,
+            'public_notes' => BidApplicationText::sanitize($validated['public_notes'] ?? null),
         ];
 
         if (array_key_exists('assigned_to', $validated)) {
@@ -691,10 +691,10 @@ class ProjectController extends Controller
             $attributes = [
                 ...$attributes,
                 'budget_amount' => $validated['budget_amount'] ?? null,
-                'internal_notes' => $validated['internal_notes'] ?? null,
+                'internal_notes' => BidApplicationText::sanitize($validated['internal_notes'] ?? null),
             ];
         } elseif (ProjectAccess::canViewSensitiveFields($user)) {
-            $attributes['internal_notes'] = $validated['internal_notes'] ?? null;
+            $attributes['internal_notes'] = BidApplicationText::sanitize($validated['internal_notes'] ?? null);
         }
 
         return $attributes;
