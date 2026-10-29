@@ -1,6 +1,8 @@
 <?php
 
 use App\Models\Contractor;
+use App\Models\DoorConfiguration;
+use App\Models\OpeningCategory;
 use App\Models\Project;
 use App\Models\Quotation;
 use App\Models\Takeoff;
@@ -1000,4 +1002,78 @@ test('the dashboard charts takeoffs by status', function () {
             ])
             ->where('charts.takeoffs.1.value', 0)
             ->where('charts.takeoffs.3.value', 0));
+});
+
+test('door openings reuse a type and a category from the object inspector lists', function () {
+    $admin = takeoffUser();
+    $takeoff = takeoffRecord($admin);
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.door-types.store'), [
+        'name' => 'Bifold',
+    ])->assertRedirect();
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.door-types.store'), [
+        'name' => 'bifold',
+    ])->assertRedirect();
+
+    expect(DoorConfiguration::query()->whereRaw('LOWER(name) = ?', ['bifold'])->count())->toBe(1)
+        ->and(DoorConfiguration::query()->where('name', 'Single')->exists())->toBeTrue()
+        ->and(DoorConfiguration::query()->where('name', 'Pair')->exists())->toBeTrue();
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.opening-categories.store'), [
+        'name' => 'Acoustic',
+    ])->assertRedirect();
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.opening-categories.store'), [
+        'name' => 'acoustic',
+    ])->assertRedirect();
+
+    expect(OpeningCategory::query()->whereRaw('LOWER(name) = ?', ['acoustic'])->count())->toBe(1);
+
+    $bifold = DoorConfiguration::query()->where('name', 'Bifold')->firstOrFail();
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.openings.store', $takeoff), [
+        'tag' => 'D1',
+        'is_bulk' => false,
+        'opening_type' => 'door',
+        'door_configuration_id' => $bifold->id,
+        'quantity' => '1',
+        'product_category' => 'acoustic',
+        'dimension_unit' => 'in',
+        'scope' => 'both',
+        'disposition' => 'active',
+        'verification_status' => 'recorded',
+    ])->assertRedirect();
+
+    $opening = $takeoff->openings()->firstOrFail();
+
+    expect($opening->door_configuration_id)->toBe($bifold->id)
+        ->and($opening->product_category)->toBe('Acoustic');
+
+    $this->actingAs($admin)->patch(route('admin.takeoffs.openings.update', [$takeoff, $opening]), [
+        'tag' => 'D1',
+        'is_bulk' => false,
+        'opening_type' => 'window',
+        'door_configuration_id' => $bifold->id,
+        'quantity' => '1',
+        'product_category' => 'Fixed',
+        'dimension_unit' => 'in',
+        'scope' => 'both',
+        'disposition' => 'active',
+        'verification_status' => 'recorded',
+    ])->assertRedirect();
+
+    $opening->refresh();
+
+    expect($opening->door_configuration_id)->toBeNull()
+        ->and($opening->product_category)->toBe('Fixed')
+        ->and(OpeningCategory::query()->where('name', 'Fixed')->exists())->toBeTrue();
+
+    $this->actingAs($admin)->get(route('admin.takeoffs.show', $takeoff))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('doorTypes')
+            ->has('openingCategories')
+            ->where('takeoff.openings.0.door_type', null)
+            ->where('takeoff.openings.0.product_category', 'Fixed'));
 });

@@ -11,7 +11,7 @@ import { DownloadIcon, DraftingCompassIcon, ListIcon, PlusIcon } from 'lucide-re
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { countMark } from './pinLabels';
 import OpeningEditor from './Partials/OpeningEditor';
-import PdfWorkspace, { type PdfPoint } from './Partials/PdfWorkspace';
+import PdfWorkspace, { savedCountTool, type CountTool, type PdfPoint } from './Partials/PdfWorkspace';
 import {
     marginLabel,
     money,
@@ -39,6 +39,8 @@ const sections = [
 
 function openingSpecs(opening: TakeoffDetail['openings'][number]): string {
     return [
+        opening.door_type,
+        opening.product_category,
         opening.frame_type ? `Frame ${opening.frame_type}` : null,
         opening.hardware_set ? `Hardware ${opening.hardware_set}` : null,
         opening.finish,
@@ -79,6 +81,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
     }, [selectedDocumentId, takeoff.uuid]);
     const [uploadingPdf, setUploadingPdf] = useState(false);
     const [uploadError, setUploadError] = useState<string | null>(null);
+    const [countTool, setCountTool] = useState<CountTool>(() => savedCountTool());
     const documentIds = useRef(takeoff.documents.map((document) => document.id));
     const workspaceRef = useRef<HTMLDivElement>(null);
     const [creating, setCreating] = useState(false);
@@ -474,6 +477,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                     onScan={editable && selectedDocumentId ? () => router.post(route('admin.takeoffs.documents.scan', [takeoff.uuid, selectedDocumentId]), {}, { preserveScroll: true }) : undefined}
                                     uploading={uploadingPdf}
                                     uploadError={uploadError}
+                                    tool={countTool}
                                 />
                             </div>
                             <div id="takeoff-openings" className="flex flex-col gap-3">
@@ -537,7 +541,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                                 <tr key={opening.id} className={`cursor-pointer border-t ${selectedOpeningId === opening.id ? 'bg-[#3FCF8E]/20' : ''}`} onClick={() => openOpening(opening.id)}>
                                                     <td className="px-2 py-2 text-right font-semibold tabular-nums">{countMark(opening.callout, lineByOpening.get(opening.id) ?? 1)}</td>
                                                     <td className="px-2 py-2">{opening.is_bulk ? `Bulk ${opening.tag ?? ''}`.trim() : opening.tag}</td>
-                                                    <td className="px-2 py-2">{opening.opening_type}</td>
+                                                    <td className="px-2 py-2">{opening.opening_type === 'door' ? (opening.door_type || 'Door') : 'Window'}</td>
                                                     <td className="px-2 py-2">{opening.quantity}</td>
                                                     <td className="px-2 py-2">{[opening.width, opening.height, opening.depth].filter(Boolean).join(' x ')} {opening.dimension_unit}</td>
                                                     <td className={`px-2 py-2 ${selectedOpeningId === opening.id ? 'font-medium' : ''}`}>{opening.location || '—'}</td>
@@ -620,6 +624,8 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                             documents={takeoff.documents}
                                             pendingMarker={pendingMarker}
                                             canEdit={editable}
+                                            tool={countTool}
+                                            onToolChange={setCountTool}
                                             onDirty={setDirty}
                                             onSelect={(choice) => {
                                                 if (choice !== null && choice !== 'new') {

@@ -75,6 +75,8 @@ export type TakeoffOpening = {
     label: string;
     is_bulk: boolean;
     opening_type: 'door' | 'window';
+    door_configuration_id: number | null;
+    door_type: string | null;
     location: string | null;
     quantity: string;
     product_category: string | null;

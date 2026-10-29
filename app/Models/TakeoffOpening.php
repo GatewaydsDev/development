@@ -22,6 +22,7 @@ class TakeoffOpening extends Model
         'counted_tag',
         'is_bulk',
         'opening_type',
+        'door_configuration_id',
         'location',
         'quantity',
         'product_category',
@@ -101,6 +102,11 @@ class TakeoffOpening extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function doorConfiguration(): BelongsTo
+    {
+        return $this->belongsTo(DoorConfiguration::class);
     }
 
     public function verifier(): BelongsTo

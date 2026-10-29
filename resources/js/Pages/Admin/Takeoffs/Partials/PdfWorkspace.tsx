@@ -1,13 +1,9 @@
 import { Button } from '@/Components/ui/button';
 import {
-    AppWindowIcon,
     ChevronLeftIcon,
     ChevronRightIcon,
-    DoorOpenIcon,
-    MousePointer2Icon,
     RotateCwIcon,
     ScanSearchIcon,
-    Trash2Icon,
     UploadIcon,
     ZoomInIcon,
     ZoomOutIcon,
@@ -24,6 +20,12 @@ type Point = { documentId: number; page: number; x: number; y: number };
 type Placement = Point & { labelX: number | null; labelY: number | null };
 type PinPosition = { anchorLeft: number; anchorTop: number; left: number; top: number; width: number; height: number };
 type CountTool = 'door' | 'window' | 'select' | 'remove';
+
+export type { CountTool };
+
+export function savedCountTool(): CountTool {
+    return readDrawingTools().tool;
+}
 
 const drawingToolsKey = 'gateway.takeoff-drawing-tools';
 
@@ -77,6 +79,7 @@ type Props = {
     onScan?: () => void;
     uploading?: boolean;
     uploadError?: string | null;
+    tool: CountTool;
 };
 
 export default function PdfWorkspace({
@@ -97,6 +100,7 @@ export default function PdfWorkspace({
     onScan,
     uploading = false,
     uploadError = null,
+    tool,
 }: Props) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const fileRef = useRef<HTMLInputElement>(null);
@@ -109,7 +113,6 @@ export default function PdfWorkspace({
     const [zoom, setZoom] = useState(savedTools.current.zoom);
     const [rotation, setRotation] = useState(0);
     const [error, setError] = useState<string | null>(null);
-    const [tool, setTool] = useState<CountTool>(savedTools.current.tool);
     const [positions, setPositions] = useState<Record<number, PinPosition>>({});
     const positionsRef = useRef(positions);
     const draggingRef = useRef(false);
@@ -377,40 +380,11 @@ export default function PdfWorkspace({
 
     const controlClass = 'h-10 min-w-0 shrink gap-1.5 whitespace-normal px-2 text-center sm:h-7';
     const labelClass = 'text-[11px] font-semibold uppercase tracking-wide text-[#0a2540]';
-    const toolTone = (active: boolean, solid: string, soft: string) => (active ? `${solid} text-white hover:text-white` : soft);
 
     return (
         <div className="flex h-full min-h-[28rem] min-w-0 flex-col gap-3">
             <div className="z-20 flex min-w-0 flex-col gap-3 rounded-xl border border-[#c5d0dc] bg-[#eef3f8] p-2 text-[#111827] shadow-sm sm:p-3 md:sticky md:top-[4.75rem] lg:top-[14.75rem]">
-                <div className="flex min-w-0 flex-col gap-2 xl:flex-row xl:items-end">
-                    {canEdit && onUpload ? (
-                        <div className="grid min-w-0 grid-cols-2 gap-2 xl:flex xl:shrink-0">
-                            <input
-                                ref={fileRef}
-                                type="file"
-                                accept="application/pdf,.pdf"
-                                className="hidden"
-                                onChange={(event) => {
-                                    const file = event.target.files?.[0];
-                                    event.target.value = '';
-
-                                    if (file) {
-                                        onUpload(file);
-                                    }
-                                }}
-                            />
-                            <Button type="button" size="sm" className={`${controlClass} w-full border-sky-800 bg-sky-700 text-white hover:bg-sky-800 hover:text-white xl:w-auto ${onScan && document ? '' : 'col-span-2'}`} disabled={uploading} onClick={choosePdf}>
-                                <UploadIcon data-icon="inline-start" />
-                                {uploading ? 'Scanning…' : 'Upload PDF'}
-                            </Button>
-                            {onScan && document ? (
-                                <Button type="button" size="sm" variant="outline" className={`${controlClass} w-full border-indigo-700 bg-indigo-600 text-white hover:bg-indigo-700 hover:text-white xl:w-auto`} disabled={uploading} onClick={onScan}>
-                                    <ScanSearchIcon data-icon="inline-start" />
-                                    Scan drawing
-                                </Button>
-                            ) : null}
-                        </div>
-                    ) : null}
+                <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end">
                     <label className="flex min-w-0 flex-1 flex-col gap-1">
                         <span className={labelClass}>Drawing</span>
                         <select
@@ -428,6 +402,34 @@ export default function PdfWorkspace({
                             ))}
                         </select>
                     </label>
+                    {canEdit && onUpload ? (
+                        <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                            <input
+                                ref={fileRef}
+                                type="file"
+                                accept="application/pdf,.pdf"
+                                className="hidden"
+                                onChange={(event) => {
+                                    const file = event.target.files?.[0];
+                                    event.target.value = '';
+
+                                    if (file) {
+                                        onUpload(file);
+                                    }
+                                }}
+                            />
+                            <Button type="button" size="sm" className={`${controlClass} border-sky-800 bg-sky-700 text-white hover:bg-sky-800 hover:text-white`} disabled={uploading} onClick={choosePdf}>
+                                <UploadIcon data-icon="inline-start" />
+                                {uploading ? 'Scanning…' : 'Upload PDF'}
+                            </Button>
+                            {onScan && document ? (
+                                <Button type="button" size="sm" variant="outline" className={`${controlClass} border-indigo-700 bg-indigo-600 text-white hover:bg-indigo-700 hover:text-white`} disabled={uploading} onClick={onScan}>
+                                    <ScanSearchIcon data-icon="inline-start" />
+                                    Scan drawing
+                                </Button>
+                            ) : null}
+                        </div>
+                    ) : null}
                 </div>
                 <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
                     <div className="flex min-w-0 flex-col gap-1">
@@ -461,33 +463,7 @@ export default function PdfWorkspace({
                         </div>
                     </div>
                 </div>
-                {canEdit ? (
-                    <div className="flex min-w-0 flex-col gap-1">
-                        <span className={labelClass}>Tool</span>
-                        <div role="group" aria-label="Drawing tools" className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-4">
-                            <Button type="button" size="sm" className={`${controlClass} w-full ${toolTone(tool === 'door', 'border-emerald-700 bg-emerald-600 hover:bg-emerald-700', 'border-emerald-300 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 hover:text-emerald-950')}`} variant="outline" aria-pressed={tool === 'door'} onClick={() => setTool('door')}>
-                                <DoorOpenIcon data-icon="inline-start" />
-                                Count door
-                            </Button>
-                            <Button type="button" size="sm" className={`${controlClass} w-full ${toolTone(tool === 'window', 'border-sky-700 bg-sky-600 hover:bg-sky-700', 'border-sky-300 bg-sky-50 text-sky-900 hover:bg-sky-100 hover:text-sky-950')}`} variant="outline" aria-pressed={tool === 'window'} onClick={() => setTool('window')}>
-                                <AppWindowIcon data-icon="inline-start" />
-                                Count window
-                            </Button>
-                            <Button type="button" size="sm" className={`${controlClass} w-full ${toolTone(tool === 'select', 'border-amber-700 bg-amber-600 hover:bg-amber-700', 'border-amber-300 bg-amber-50 text-amber-950 hover:bg-amber-100 hover:text-amber-950')}`} variant="outline" aria-pressed={tool === 'select'} onClick={() => setTool('select')}>
-                                <MousePointer2Icon data-icon="inline-start" />
-                                Select
-                            </Button>
-                            <Button type="button" size="sm" className={`${controlClass} w-full ${toolTone(tool === 'remove', 'border-rose-700 bg-rose-600 hover:bg-rose-700', 'border-rose-300 bg-rose-50 text-rose-900 hover:bg-rose-100 hover:text-rose-950')}`} variant="outline" aria-pressed={tool === 'remove'} onClick={() => setTool('remove')}>
-                                <Trash2Icon data-icon="inline-start" />
-                                Remove
-                            </Button>
-                        </div>
-                    </div>
-                ) : null}
             </div>
-            <p className="text-xs leading-5 text-muted-foreground">
-                Count door or Count window, then click the opening. The first number is 1, and removing a count closes the gap. Double-click a number to type a different one. Drag the number to stretch the arrow, or drag the point to move where it lands.
-            </p>
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
             {uploadError ? <p className="text-sm text-destructive">{uploadError}</p> : null}
             {!document ? (

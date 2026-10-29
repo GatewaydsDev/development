@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Admin\Concerns\AuthorizesTakeoffs;
 use App\Http\Controllers\Controller;
+use App\Models\DoorConfiguration;
+use App\Models\OpeningCategory;
 use App\Models\Product;
 use App\Models\Project;
 use App\Models\Quotation;
@@ -194,6 +196,16 @@ class TakeoffController extends Controller
                 'status' => $quotation->status,
             ])->values()->all(),
             'can' => $this->abilities($user),
+            'doorTypes' => DoorConfiguration::query()
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->map(fn (DoorConfiguration $type): array => [
+                    'id' => $type->id,
+                    'name' => $type->name,
+                ])
+                ->values()
+                ->all(),
+            'openingCategories' => OpeningCategory::choices(),
         ]);
     }
 
@@ -400,6 +412,38 @@ class TakeoffController extends Controller
         ]);
 
         return back()->with('success', count($parsed['rows']).' opening(s) imported.');
+    }
+
+    public function storeDoorType(Request $request): RedirectResponse
+    {
+        abort_unless(TakeoffAccess::canUpdate($this->takeoffUser($request)), 403);
+
+        $name = trim($request->validate([
+            'name' => ['required', 'string', 'max:255'],
+        ])['name']);
+
+        $existing = DoorConfiguration::query()
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
+            ->first();
+
+        if (! $existing) {
+            DoorConfiguration::create(['name' => $name]);
+        }
+
+        return back();
+    }
+
+    public function storeOpeningCategory(Request $request): RedirectResponse
+    {
+        abort_unless(TakeoffAccess::canUpdate($this->takeoffUser($request)), 403);
+
+        $name = trim($request->validate([
+            'name' => ['required', 'string', 'max:255'],
+        ])['name']);
+
+        OpeningCategory::remember($name);
+
+        return back();
     }
 
     public function products(Request $request): JsonResponse

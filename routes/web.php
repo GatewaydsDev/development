@@ -492,6 +492,12 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::get('/takeoffs/product-search', [TakeoffController::class, 'products'])
             ->middleware('can:view-takeoffs')
             ->name('takeoffs.products');
+        Route::post('/takeoffs/door-types', [TakeoffController::class, 'storeDoorType'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.door-types.store');
+        Route::post('/takeoffs/opening-categories', [TakeoffController::class, 'storeOpeningCategory'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.opening-categories.store');
         Route::get('/takeoffs/import-template', [TakeoffController::class, 'importTemplate'])
             ->middleware('can:update-takeoffs')
             ->name('takeoffs.import-template');

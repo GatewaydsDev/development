@@ -10,6 +10,7 @@ class TakeoffGrouping
     {
         $parts = [
             $opening->opening_type,
+            (string) ($opening->door_configuration_id ?? ''),
             self::text($opening->product_category),
             self::number($opening->width),
             self::number($opening->height),

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Admin\Concerns\AuthorizesTakeoffs;
 use App\Http\Controllers\Controller;
+use App\Models\OpeningCategory;
 use App\Models\Takeoff;
 use App\Models\TakeoffAssemblyTemplate;
 use App\Models\TakeoffCost;
@@ -578,6 +579,7 @@ class TakeoffWorkspaceController extends Controller
             'tag' => ['nullable', 'string', 'max:50'],
             'is_bulk' => ['required', 'boolean'],
             'opening_type' => ['required', Rule::in(config('takeoffs.opening_types'))],
+            'door_configuration_id' => ['nullable', 'integer', 'exists:door_configurations,id'],
             'location' => ['nullable', 'string', 'max:255'],
             'quantity' => ['required', 'numeric', 'gt:0', 'max:999999'],
             'product_category' => ['nullable', 'string', 'max:255'],
@@ -681,9 +683,10 @@ class TakeoffWorkspaceController extends Controller
             'tag' => $this->blank($data['tag'] ?? null),
             'is_bulk' => (bool) $data['is_bulk'],
             'opening_type' => $data['opening_type'],
+            'door_configuration_id' => $data['opening_type'] === 'door' ? ($data['door_configuration_id'] ?? null) : null,
             'location' => $this->blank($data['location'] ?? null),
             'quantity' => TakeoffMoney::money($data['quantity']),
-            'product_category' => $this->blank($data['product_category'] ?? null),
+            'product_category' => OpeningCategory::remember($data['product_category'] ?? null),
             'width' => TakeoffMoney::dimension($data['width'] ?? null),
             'height' => TakeoffMoney::dimension($data['height'] ?? null),
             'depth' => TakeoffMoney::dimension($data['depth'] ?? null),
