@@ -79,24 +79,22 @@ class ContactSubmissionController extends Controller
         ContactSubmission $submission,
         string $recipient,
     ): void {
-        $message = new ContactSubmissionReceived($submission);
-
         try {
-            $mail->send(
-                $recipient,
-                (string) $message->envelope()->subject,
-                $message->render(),
-                $submission->email,
-            );
+            Mail::to($recipient)->send(new ContactSubmissionReceived($submission));
+
+            return;
         } catch (Throwable $exception) {
             report($exception);
-
-            if (str_contains($exception->getMessage(), 'did not confirm')) {
-                throw $exception;
-            }
-
-            Mail::to($recipient)->send($message);
         }
+
+        $message = new ContactSubmissionReceived($submission);
+
+        $mail->send(
+            $recipient,
+            (string) $message->envelope()->subject,
+            $message->render(),
+            $submission->email,
+        );
     }
 
     private function notificationRecipient(): string

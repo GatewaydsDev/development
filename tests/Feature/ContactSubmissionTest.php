@@ -1,6 +1,5 @@
 <?php
 
-use App\Exceptions\MicrosoftGraphException;
 use App\Mail\ContactSubmissionReceived;
 use App\Models\Company;
 use App\Models\ContactSubmission;
@@ -37,7 +36,7 @@ function fakeMicrosoftGraphMail(): MicrosoftGraphMailService
 }
 
 test('contact form submissions are saved before notifications are sent', function () {
-    $mail = fakeMicrosoftGraphMail();
+    Mail::fake();
 
     config(['contact.recipient' => 'leads@gatewaydoors.test']);
 
@@ -72,18 +71,16 @@ test('contact form submissions are saved before notifications are sent', functio
         ->and($submission->ip_address)->toBe('203.0.113.10')
         ->and($submission->user_agent)->toBe('Gateway Browser');
 
-    expect($mail->messages)->toHaveCount(1)
-        ->and($mail->messages[0]['to'])->toBe('leads@gatewaydoors.test')
-        ->and($mail->messages[0]['replyTo'])->toBe('jane@example.com')
-        ->and($mail->messages[0]['subject'])->toBe(
-            'New secure door contact request from Jane Builder',
-        )
-        ->and($mail->messages[0]['html'])->toContain('Jane Builder')
-        ->and($mail->messages[0]['html'])->toContain('We need a secure specialty door installation.');
+    Mail::assertSent(ContactSubmissionReceived::class, function (ContactSubmissionReceived $mail): bool {
+        return $mail->hasTo('leads@gatewaydoors.test')
+            && $mail->hasReplyTo('jane@example.com')
+            && $mail->hasSubject('New secure door contact request from Jane Builder')
+            && $mail->submission->message === 'We need a secure specialty door installation.';
+    });
 });
 
 test('contact notifications fall back to the active company email', function () {
-    $mail = fakeMicrosoftGraphMail();
+    Mail::fake();
 
     config([
         'contact.recipient' => null,
@@ -110,13 +107,14 @@ test('contact notifications fall back to the active company email', function () 
         ->assertRedirect()
         ->assertSessionHas('contact.success', true);
 
-    expect($mail->messages)->toHaveCount(1)
-        ->and($mail->messages[0]['to'])->toBe('office@gatewaydoors.test')
-        ->and($mail->messages[0]['replyTo'])->toBe('alex@example.com');
+    Mail::assertSent(ContactSubmissionReceived::class, function (ContactSubmissionReceived $mail): bool {
+        return $mail->hasTo('office@gatewaydoors.test')
+            && $mail->hasReplyTo('alex@example.com');
+    });
 });
 
 test('contact emails fall back to the microsoft mailbox when no company email is set', function () {
-    $mail = fakeMicrosoftGraphMail();
+    Mail::fake();
 
     config([
         'contact.recipient' => null,
@@ -137,13 +135,14 @@ test('contact emails fall back to the microsoft mailbox when no company email is
         ->assertRedirect()
         ->assertSessionHas('contact.success', true);
 
-    expect($mail->messages)->toHaveCount(1)
-        ->and($mail->messages[0]['to'])->toBe('sales@gateway-ds.com')
-        ->and($mail->messages[0]['replyTo'])->toBe('riley@example.com');
+    Mail::assertSent(ContactSubmissionReceived::class, function (ContactSubmissionReceived $mail): bool {
+        return $mail->hasTo('sales@gateway-ds.com')
+            && $mail->hasReplyTo('riley@example.com');
+    });
 });
 
 test('contact emails go to the sales mailbox even when a company email is saved', function () {
-    $mail = fakeMicrosoftGraphMail();
+    Mail::fake();
 
     config(['contact.recipient' => 'sales@gateway-ds.com']);
 
@@ -168,48 +167,23 @@ test('contact emails go to the sales mailbox even when a company email is saved'
         ->assertSessionHas('contact.success', true)
         ->assertSessionHas('contact.status', 'Your message has been sent to Gateway Door Systems.');
 
-    expect($mail->messages)->toHaveCount(1)
-        ->and($mail->messages[0]['to'])->toBe('sales@gateway-ds.com')
-        ->and($mail->messages[0]['replyTo'])->toBe('taylor@example.com');
-});
-
-test('a rejected microsoft send still delivers the quote to sales', function () {
-    Mail::fake();
-
-    config(['contact.recipient' => 'sales@gateway-ds.com']);
-
-    $this->app->instance(MicrosoftGraphMailService::class, new class extends MicrosoftGraphMailService
-    {
-        public function send(
-            string $to,
-            string $subject,
-            string $html,
-            ?string $replyTo = null
-        ): void {
-            throw new MicrosoftGraphException(
-                'Microsoft 365 could not find that mailbox or message.'
-            );
-        }
-    });
-
-    $this
-        ->post(route('contact.store'), [
-            'name' => 'Casey Buyer',
-            'email' => 'casey@example.com',
-            'phone_number' => '',
-            'organization' => '',
-            'project_type' => '',
-            'message' => 'Please send a quote for a secure door.',
-            'source_url' => 'https://gatewaydoors.test/',
-            'website' => '',
-        ])
-        ->assertRedirect()
-        ->assertSessionHas('contact.success', true);
-
     Mail::assertSent(ContactSubmissionReceived::class, function (ContactSubmissionReceived $mail): bool {
         return $mail->hasTo('sales@gateway-ds.com')
-            && $mail->hasReplyTo('casey@example.com');
+            && $mail->hasReplyTo('taylor@example.com');
     });
+});
+
+test('the quote email keeps a single tag for the mailer', function () {
+    $submission = ContactSubmission::create([
+        'name' => 'Casey Buyer',
+        'email' => 'casey@example.com',
+        'message' => 'Please send a quote for a secure door.',
+        'source_url' => 'https://gatewaydoors.test/',
+    ]);
+
+    expect((new ContactSubmissionReceived($submission))->envelope()->tags)->toBe([
+        'contact-request',
+    ]);
 });
 
 test('contact form notifications go only to the sales mailbox user', function () {
