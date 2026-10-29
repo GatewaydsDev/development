@@ -6,7 +6,7 @@ import {
     ChartTooltipContent,
     type ChartConfig,
 } from '@/Components/ui/chart';
-import { type ComponentProps } from 'react';
+import { type ComponentProps, useEffect, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, LabelList, XAxis } from 'recharts';
 
 export type BarChartItem = {
@@ -70,14 +70,73 @@ function CategoryTooltip(props: ComponentProps<typeof ChartTooltipContent>) {
     return <ChartTooltipContent {...props} hideLabel payload={payload} />;
 }
 
+function RowBars({
+    series,
+}: {
+    series: Array<BarChartItem & { configKey: string; color: string }>;
+}) {
+    const max = Math.max(...series.map((item) => item.value), 1);
+    const [grown, setGrown] = useState(false);
+
+    useEffect(() => {
+        const frame = requestAnimationFrame(() => setGrown(true));
+
+        return () => cancelAnimationFrame(frame);
+    }, []);
+
+    return (
+        <ul className="flex flex-col gap-2">
+            {series.map((item) => {
+                const amount = item.display ?? item.value.toLocaleString();
+                const percent = item.value <= 0 ? 0 : Math.max(8, (item.value / max) * 100);
+
+                return (
+                    <li
+                        key={item.configKey}
+                        className="grid grid-cols-[minmax(0,11rem)_minmax(2.5rem,1fr)_auto] items-center gap-2"
+                    >
+                        <span className="flex min-w-0 items-start gap-1.5">
+                            <span
+                                aria-hidden
+                                className="mt-1 size-2 shrink-0 rounded-sm"
+                                style={{ backgroundColor: item.color }}
+                            />
+                            <span
+                                className="line-clamp-2 min-w-0 text-xs font-medium leading-4 text-foreground"
+                                title={item.label}
+                            >
+                                {item.label}
+                            </span>
+                        </span>
+                        <span className="relative h-2.5 overflow-hidden rounded-full bg-muted">
+                            <span
+                                className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-700 ease-out"
+                                style={{
+                                    width: grown ? `${percent}%` : '0%',
+                                    backgroundColor: item.color,
+                                }}
+                            />
+                        </span>
+                        <span className="min-w-4 text-right text-xs font-semibold tabular-nums text-foreground">
+                            {amount}
+                        </span>
+                    </li>
+                );
+            })}
+        </ul>
+    );
+}
+
 export function AnimatedBarChart({
     items,
     emptyLabel = 'Nothing to show yet.',
     hideZeros = true,
+    layout = 'columns',
 }: {
     items: BarChartItem[];
     emptyLabel?: string;
     hideZeros?: boolean;
+    layout?: 'columns' | 'rows';
 }) {
     if (
         items.length === 0 ||
@@ -104,6 +163,10 @@ export function AnimatedBarChart({
             label: item.label,
             color: item.color,
         };
+    }
+
+    if (layout === 'rows') {
+        return <RowBars series={series} />;
     }
 
     const chartData = series.map((item) => ({

@@ -76,6 +76,7 @@ function ChartCard({
     money = false,
     hideZeros = true,
     accent,
+    layout = 'columns',
 }: {
     title: string;
     description: string;
@@ -85,6 +86,7 @@ function ChartCard({
     money?: boolean;
     hideZeros?: boolean;
     accent: string;
+    layout?: 'columns' | 'rows';
 }) {
     return (
         <Card size="sm" className={cn('h-full border-t-2 pb-0 shadow-sm', accent)}>
@@ -98,6 +100,7 @@ function ChartCard({
                     items={items}
                     emptyLabel={emptyLabel}
                     hideZeros={hideZeros}
+                    layout={layout}
                 />
             </CardContent>
             <ChartTotal items={items} money={money} />
@@ -181,6 +184,7 @@ export default function Dashboard({
                                     chartKey={listVersion ?? 'status'}
                                     emptyLabel="No projects yet."
                                     accent="border-t-teal-600"
+                                    layout="rows"
                                 />
                                 <ChartCard
                                     title="Projects by priority"
