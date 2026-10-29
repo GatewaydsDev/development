@@ -11,6 +11,7 @@ use App\Services\MicrosoftGraphMailService;
 use App\Services\TwilioSmsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 use Throwable;
@@ -44,20 +45,10 @@ class ContactSubmissionController extends Controller
             'user_agent' => $request->userAgent(),
         ]);
 
-        $this->notifyDashboardUsers($submission);
-        $this->sendSmsNotification($submission, $sms);
-
         $recipient = $this->notificationRecipient();
 
         try {
-            $message = new ContactSubmissionReceived($submission);
-
-            $mail->send(
-                $recipient,
-                (string) $message->envelope()->subject,
-                $message->render(),
-                $submission->email,
-            );
+            $this->deliverToSales($mail, $submission, $recipient);
 
             $submission->forceFill([
                 'emailed_at' => now(),
@@ -70,36 +61,84 @@ class ContactSubmissionController extends Controller
             ]);
         }
 
+        try {
+            $this->notifyDashboardUsers($submission);
+            $this->sendSmsNotification($submission, $sms);
+        } catch (Throwable $exception) {
+            report($exception);
+        }
+
         return back()->with([
             'contact.success' => true,
             'contact.status' => 'Your message has been sent to Gateway Door Systems.',
         ]);
     }
 
+    private function deliverToSales(
+        MicrosoftGraphMailService $mail,
+        ContactSubmission $submission,
+        string $recipient,
+    ): void {
+        $message = new ContactSubmissionReceived($submission);
+
+        try {
+            $mail->send(
+                $recipient,
+                (string) $message->envelope()->subject,
+                $message->render(),
+                $submission->email,
+            );
+        } catch (Throwable $exception) {
+            report($exception);
+
+            if (str_contains($exception->getMessage(), 'did not confirm')) {
+                throw $exception;
+            }
+
+            Mail::to($recipient)->send($message);
+        }
+    }
+
     private function notificationRecipient(): string
     {
-        $companyEmail = Company::query()
-            ->where('is_active', true)
-            ->latest()
-            ->value('email');
+        foreach ([
+            config('contact.recipient'),
+            config('services.microsoft.mail_from'),
+        ] as $address) {
+            $sales = $this->mailbox($address);
 
-        if (is_string($companyEmail) && $companyEmail !== '') {
+            if ($sales !== null) {
+                return $sales;
+            }
+        }
+
+        $companyEmail = $this->mailbox(
+            Company::query()
+                ->where('is_active', true)
+                ->latest()
+                ->value('email')
+        );
+
+        if ($companyEmail !== null) {
             return $companyEmail;
         }
 
-        $configuredRecipient = config('contact.recipient');
+        return (string) config('mail.from.address');
+    }
 
-        if (is_string($configuredRecipient) && $configuredRecipient !== '') {
-            return $configuredRecipient;
+    private function mailbox(mixed $address): ?string
+    {
+        if (! is_string($address)) {
+            return null;
         }
 
-        $microsoftMailbox = config('services.microsoft.mail_from');
+        $address = strtolower(trim($address));
 
-        if (is_string($microsoftMailbox) && $microsoftMailbox !== '') {
-            return $microsoftMailbox;
+        if (filter_var($address, FILTER_VALIDATE_EMAIL) === false) {
+            return null;
         }
 
-        return config('mail.from.address');
+        return $address;
     }
 
     private function notifyDashboardUsers(ContactSubmission $submission): void

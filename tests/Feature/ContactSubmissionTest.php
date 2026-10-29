@@ -1,5 +1,7 @@
 <?php
 
+use App\Exceptions\MicrosoftGraphException;
+use App\Mail\ContactSubmissionReceived;
 use App\Models\Company;
 use App\Models\ContactSubmission;
 use App\Models\User;
@@ -7,6 +9,7 @@ use App\Models\UserLevel;
 use App\Notifications\NewContactSubmissionNotification;
 use App\Services\MicrosoftGraphMailService;
 use App\Services\TwilioSmsService;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Testing\AssertableInertia as Assert;
 
 function fakeMicrosoftGraphMail(): MicrosoftGraphMailService
@@ -82,7 +85,10 @@ test('contact form submissions are saved before notifications are sent', functio
 test('contact notifications fall back to the active company email', function () {
     $mail = fakeMicrosoftGraphMail();
 
-    config(['contact.recipient' => null]);
+    config([
+        'contact.recipient' => null,
+        'services.microsoft.mail_from' => null,
+    ]);
 
     Company::create([
         'name' => 'Gateway Door Systems',
@@ -136,10 +142,10 @@ test('contact emails fall back to the microsoft mailbox when no company email is
         ->and($mail->messages[0]['replyTo'])->toBe('riley@example.com');
 });
 
-test('contact emails prefer the active company email over configured fallback', function () {
+test('contact emails go to the sales mailbox even when a company email is saved', function () {
     $mail = fakeMicrosoftGraphMail();
 
-    config(['contact.recipient' => 'fallback@gatewaydoors.test']);
+    config(['contact.recipient' => 'sales@gateway-ds.com']);
 
     Company::create([
         'name' => 'Gateway Door Systems',
@@ -163,8 +169,47 @@ test('contact emails prefer the active company email over configured fallback', 
         ->assertSessionHas('contact.status', 'Your message has been sent to Gateway Door Systems.');
 
     expect($mail->messages)->toHaveCount(1)
-        ->and($mail->messages[0]['to'])->toBe('company@gatewaydoors.test')
+        ->and($mail->messages[0]['to'])->toBe('sales@gateway-ds.com')
         ->and($mail->messages[0]['replyTo'])->toBe('taylor@example.com');
+});
+
+test('a rejected microsoft send still delivers the quote to sales', function () {
+    Mail::fake();
+
+    config(['contact.recipient' => 'sales@gateway-ds.com']);
+
+    $this->app->instance(MicrosoftGraphMailService::class, new class extends MicrosoftGraphMailService
+    {
+        public function send(
+            string $to,
+            string $subject,
+            string $html,
+            ?string $replyTo = null
+        ): void {
+            throw new MicrosoftGraphException(
+                'Microsoft 365 could not find that mailbox or message.'
+            );
+        }
+    });
+
+    $this
+        ->post(route('contact.store'), [
+            'name' => 'Casey Buyer',
+            'email' => 'casey@example.com',
+            'phone_number' => '',
+            'organization' => '',
+            'project_type' => '',
+            'message' => 'Please send a quote for a secure door.',
+            'source_url' => 'https://gatewaydoors.test/',
+            'website' => '',
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('contact.success', true);
+
+    Mail::assertSent(ContactSubmissionReceived::class, function (ContactSubmissionReceived $mail): bool {
+        return $mail->hasTo('sales@gateway-ds.com')
+            && $mail->hasReplyTo('casey@example.com');
+    });
 });
 
 test('contact form notifications go only to the sales mailbox user', function () {

@@ -4,7 +4,7 @@ The website reads and sends mail through Microsoft Graph. Microsoft 365 still re
 
 Each signed-in user sees only the mailbox stored on their user row. The Email screen does not accept a mailbox from the browser, including for a super admin.
 
-The public contact form is separate. It sends as `MICROSOFT_MAIL_FROM`, with the visitor address as Reply-To only. It does not use the signed-in user's mailbox. Delivery still prefers the active company email, then `CONTACT_FORM_TO`, then `MICROSOFT_MAIL_FROM`.
+The public contact form is separate. It sends as `MICROSOFT_MAIL_FROM`, with the visitor address as Reply-To only. It does not use the signed-in user's mailbox. Delivery goes to `CONTACT_FORM_TO`, then `MICROSOFT_MAIL_FROM`, and uses the active company email only when neither sales address is set. If Microsoft 365 rejects the send, the same message is delivered to that address through the application mailer.
 
 ## Azure application
 
