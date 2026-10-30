@@ -282,6 +282,11 @@ class User extends Authenticatable
         return (bool) $this->is_master;
     }
 
+    public function canCorrectRecords(): bool
+    {
+        return $this->isMaster();
+    }
+
     public function isPrivateAccountOwner(): bool
     {
         $email = strtolower(trim((string) $this->email));

@@ -121,6 +121,7 @@ class HandleInertiaRequests extends Middleware
                         : false,
                     'viewUserActivity' => $request->user()?->isSuperAdmin() ?? false,
                     'manageExpenses' => $request->user()?->isSuperAdmin() ?? false,
+                    'correctRecords' => $request->user()?->canCorrectRecords() ?? false,
                     'manageDocumentColors' => $request->user()?->isSuperAdmin() ?? false,
                     'useInternalChat' => $request->user()?->isSuperAdmin() ?? false,
                     'viewCompany' => $request->user()

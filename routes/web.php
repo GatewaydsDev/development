@@ -22,6 +22,7 @@ use App\Http\Controllers\Admin\ProfessionController;
 use App\Http\Controllers\Admin\ProjectController;
 use App\Http\Controllers\Admin\QuotationController;
 use App\Http\Controllers\Admin\QuotationRevisionAssignmentController;
+use App\Http\Controllers\Admin\RecordCorrectionController;
 use App\Http\Controllers\Admin\ServiceController;
 use App\Http\Controllers\Admin\SignatureController;
 use App\Http\Controllers\Admin\SkillController;
@@ -190,6 +191,13 @@ Route::middleware(['auth', 'prevent-back-history'])
     ->prefix('administration')
     ->name('admin.')
     ->group(function () {
+        Route::get('/record-corrections', [RecordCorrectionController::class, 'index'])
+            ->name('record-corrections.index');
+        Route::patch('/record-corrections/{table}/{record}', [RecordCorrectionController::class, 'update'])
+            ->where('table', '[a-z_]+')
+            ->whereNumber('record')
+            ->name('record-corrections.update');
+
         Route::get('/company', [CompanyController::class, 'show'])
             ->middleware('can:view-company')
             ->name('company.show');

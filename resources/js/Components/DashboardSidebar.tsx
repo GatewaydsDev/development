@@ -124,6 +124,7 @@ export default function DashboardSidebar({
     const canManageAccess = Boolean(can.manageAccess);
     const canViewUserActivity = Boolean(can.viewUserActivity);
     const canManageExpenses = Boolean(can.manageExpenses);
+    const canCorrectRecords = Boolean(can.correctRecords);
     const canViewCompany = Boolean(can.viewCompany);
     const canManageDocumentColors = Boolean(can.manageDocumentColors);
 
@@ -145,6 +146,18 @@ export default function DashboardSidebar({
                     icon: LayoutDashboardIcon,
                     active: isRouteActive('dashboard'),
                 },
+                ...(canCorrectRecords
+                    ? [
+                          {
+                              title: 'Record corrections',
+                              href: route('admin.record-corrections.index'),
+                              icon: ShieldCheckIcon,
+                              active: isRouteActive(
+                                  'admin.record-corrections.*',
+                              ),
+                          },
+                      ]
+                    : []),
                 {
                     title: 'Email',
                     href: route('mailbox.index'),

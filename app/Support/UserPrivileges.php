@@ -72,6 +72,7 @@ class UserPrivileges
             'updateUsers' => self::granted($user, 'update-users'),
             'viewUserActivity' => $user->isSuperAdmin(),
             'manageExpenses' => $user->isSuperAdmin(),
+            'correctRecords' => $user->canCorrectRecords(),
             'manageDocumentColors' => $user->isSuperAdmin(),
             'viewCompany' => self::granted($user, 'view-company'),
             'manageAccess' => self::granted($user, 'manage-access'),
