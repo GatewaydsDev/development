@@ -4,6 +4,7 @@ import { PageProps } from '@/types';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { usePage } from '@inertiajs/react';
 import { ArrowLeftIcon, DownloadIcon, FileTextIcon, MessageCircleIcon, PaperclipIcon, SendIcon, XIcon } from 'lucide-react';
+import { setUnreadChat } from '@/lib/unreadChat';
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -178,6 +179,13 @@ export default function InternalChat() {
     }, []);
 
     useEffect(() => {
+        const openChat = () => setOpen(true);
+        window.addEventListener('gateway:open-chat', openChat);
+
+        return () => window.removeEventListener('gateway:open-chat', openChat);
+    }, []);
+
+    useEffect(() => {
         if (!enabled) {
             return;
         }
@@ -229,6 +237,7 @@ export default function InternalChat() {
 
         if (typeof payload.unread === 'number') {
             setUnread(payload.unread);
+            setUnreadChat(payload.unread);
         }
 
         setParticipants((current) => current.map((item) => item.id === withUserId ? { ...item, unread: 0 } : item));
@@ -304,11 +313,14 @@ export default function InternalChat() {
 
         if (typeof payload.unread === 'number') {
             setUnread(payload.unread);
+            setUnreadChat(payload.unread);
         }
     };
 
     useEffect(() => {
         if (!enabled) {
+            setUnreadChat(0);
+
             return;
         }
 
@@ -348,6 +360,7 @@ export default function InternalChat() {
             }
 
             setUnread(count);
+            setUnreadChat(count);
 
             if (openRef.current) {
                 if (personRef.current) {

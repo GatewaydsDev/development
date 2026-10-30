@@ -1,5 +1,7 @@
 import DashboardSidebar from '@/Components/DashboardSidebar';
 import ExpenseUpdates from '@/Components/ExpenseUpdates';
+import IncomingAlert from '@/Components/IncomingAlert';
+import TabUnreadBadge from '@/Components/TabUnreadBadge';
 import InternalChat from '@/Components/InternalChat';
 import DashboardSnapDrawer from '@/Components/DashboardSnapDrawer';
 import NavLink from '@/Components/NavLink';
@@ -472,6 +474,7 @@ export default function Authenticated({
     return (
         <div className="min-h-screen bg-muted/30 text-foreground">
             <RevisionAssignmentListener userId={user.id} />
+            <TabUnreadBadge />
             {canManageExpenses ? <ExpenseUpdates /> : null}
             {/* Full-height sidebar covering the whole left side (desktop) */}
             <DashboardSidebar
@@ -1223,6 +1226,8 @@ export default function Authenticated({
                     </div>
                 </div>
             </nav>
+
+                <IncomingAlert />
 
                 {/* Main Content Area */}
                 <div className="flex min-w-0 flex-1 flex-col">
