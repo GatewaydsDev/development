@@ -42,6 +42,39 @@ class ProjectControlTakeoff
         return $takeoff;
     }
 
+    public function connect(ProjectControl $control): void
+    {
+        $this->adopt($control);
+        $control->refresh();
+        $this->sync($control);
+    }
+
+    public function connectTakeoff(Takeoff $takeoff): void
+    {
+        $takeoff->loadMissing('project');
+        $project = $takeoff->project;
+
+        if (! $project instanceof Project) {
+            return;
+        }
+
+        foreach (ProjectControl::query()->orderBy('id')->get() as $control) {
+            if ($this->matchScore($control, $project) < 85) {
+                continue;
+            }
+
+            if ($this->projectHasOpenings($control->project_id) && (int) $control->project_id !== (int) $project->id) {
+                continue;
+            }
+
+            if ((int) $control->project_id !== (int) $project->id) {
+                $control->forceFill(['project_id' => $project->id])->save();
+            }
+
+            $this->sync($control);
+        }
+    }
+
     public function sync(ProjectControl $control): void
     {
         if (! $control->project_id) {
@@ -50,7 +83,9 @@ class ProjectControlTakeoff
 
         $takeoff = Takeoff::query()
             ->where('project_id', $control->project_id)
-            ->latest('id')
+            ->withCount('openings')
+            ->orderByDesc('openings_count')
+            ->orderByDesc('id')
             ->first();
 
         if (! $takeoff instanceof Takeoff) {
@@ -60,6 +95,106 @@ class ProjectControlTakeoff
         $this->pull($control, $takeoff);
         $control->unsetRelation('openings');
         $this->push($control, $takeoff);
+    }
+
+    private function adopt(ProjectControl $control): void
+    {
+        if ($this->projectHasOpenings($control->project_id)) {
+            return;
+        }
+
+        $best = null;
+        $bestScore = 0;
+
+        foreach (Project::query()->whereKeyNot($control->project_id ?? 0)->orderBy('id')->get(['id', 'name', 'project_number']) as $project) {
+            $score = $this->matchScore($control, $project);
+
+            if ($score < 85) {
+                continue;
+            }
+
+            $hasOpenings = $this->projectHasOpenings($project->id);
+            $bestHasOpenings = $best instanceof Project && $this->projectHasOpenings($best->id);
+
+            if ($score > $bestScore || ($score === $bestScore && $hasOpenings && ! $bestHasOpenings)) {
+                $best = $project;
+                $bestScore = $score;
+            }
+        }
+
+        if ($best instanceof Project) {
+            $control->forceFill(['project_id' => $best->id])->save();
+        }
+    }
+
+    private function matchScore(ProjectControl $control, Project $project): int
+    {
+        $job = mb_strtolower(trim($control->name));
+        $name = mb_strtolower(trim((string) $project->name));
+        $number = mb_strtolower(trim((string) $project->project_number));
+        $head = mb_strtolower($this->headName($control->name));
+        $haystack = mb_strtolower(trim($job.' '.((string) $control->bid_document).' '.((string) $control->customer)));
+
+        if ($name !== '' && $name === $job) {
+            return 100;
+        }
+
+        if ($number !== '' && mb_strlen($number) >= 6 && str_contains($haystack, $number)) {
+            return 95;
+        }
+
+        if ($head !== '' && $name === $head) {
+            return 90;
+        }
+
+        if ($head !== '' && $this->projectTakeoffMentions($project, $head)) {
+            return 85;
+        }
+
+        return 0;
+    }
+
+    private function headName(string $name): string
+    {
+        $parts = preg_split('/\s*(?:\/|–|—)\s*|\s+-\s+/u', trim($name)) ?: [];
+        $head = trim((string) ($parts[0] ?? ''));
+
+        return mb_strlen($head) >= 4 ? $head : '';
+    }
+
+    private function projectTakeoffMentions(Project $project, string $head): bool
+    {
+        $titles = Takeoff::query()->where('project_id', $project->id)->pluck('title');
+
+        foreach ($titles as $title) {
+            if ($this->containsPhrase((string) $title, $head)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function containsPhrase(string $haystack, string $needle): bool
+    {
+        $needle = trim($needle);
+
+        if ($needle === '' || mb_strlen($needle) < 4) {
+            return false;
+        }
+
+        return preg_match('/(?<![\p{L}\p{N}])'.preg_quote($needle, '/').'(?![\p{L}\p{N}])/iu', $haystack) === 1;
+    }
+
+    private function projectHasOpenings(?int $projectId): bool
+    {
+        if (! $projectId) {
+            return false;
+        }
+
+        return TakeoffOpening::query()
+            ->whereHas('takeoff', fn ($query) => $query->where('project_id', $projectId))
+            ->exists();
     }
 
     private function pull(ProjectControl $control, Takeoff $takeoff): void
@@ -139,22 +274,25 @@ class ProjectControlTakeoff
     {
         $category = $this->limited($opening->product_category, 120);
         $term = ProjectControlTerm::findOrCreate('opening_category', (string) $category);
-        $description = $this->plain($opening->notes) ?? '';
+        $description = $this->limited(implode(' · ', array_filter([
+            $this->plain($opening->location),
+            $category,
+            $this->plain($opening->manufacturer),
+            $this->plain($opening->product_model),
+            $this->plain($opening->frame_type),
+            $this->plain($opening->handing),
+        ])), 500);
 
-        if (str_contains($description, "\n")) {
-            $description = trim(strtok($description, "\n") ?: '');
+        if ($description === null) {
+            $notes = $this->plain($opening->notes) ?? '';
+            $description = str_contains($notes, "\n") ? trim(strtok($notes, "\n") ?: '') : $notes;
         }
 
         if ($description === '') {
             $description = trim(implode(' ', array_filter([
-                $category,
                 $opening->tag,
-                $opening->location,
+                ucfirst((string) $opening->opening_type).' opening',
             ])));
-        }
-
-        if ($description === '') {
-            $description = ucfirst((string) $opening->opening_type).' opening';
         }
 
         $requirement = $this->limited(implode(' · ', array_filter([
@@ -163,6 +301,8 @@ class ProjectControlTakeoff
             $this->plain($opening->ballistic_requirement),
             $this->plain($opening->rf_requirement),
             $this->plain($opening->other_requirements),
+            $this->plain($opening->glazing),
+            $this->plain($opening->finish),
         ])), 255);
 
         return [
@@ -171,16 +311,18 @@ class ProjectControlTakeoff
             'category' => $category,
             'category_id' => $term?->id,
             'description' => $this->limited($description, 500) ?: 'Opening',
-            'mark' => $this->limited($opening->tag ?: $opening->location, 120),
-            'size' => $this->sizeLabel($opening->width, $opening->height),
+            'mark' => $this->limited($opening->tag ?: $opening->callout ?: $opening->location, 120),
+            'size' => $this->sizeLabel($opening->width, $opening->height, $opening->depth, $opening->dimension_unit),
             'quantity' => $opening->quantity ?? 1,
             'requirement' => $requirement,
+            'supplier' => $this->limited($opening->manufacturer, 255),
             'hardware' => $this->plain($opening->hardware_set),
+            'additional_needed' => $this->plain($opening->exclusions),
             'notes' => $this->plain($opening->notes),
         ];
     }
 
-    private function sizeLabel(mixed $width, mixed $height): ?string
+    private function sizeLabel(mixed $width, mixed $height, mixed $depth = null, mixed $unit = null): ?string
     {
         if ($width === null || $height === null || $width === '' || $height === '') {
             return null;
@@ -192,7 +334,15 @@ class ProjectControlTakeoff
             return $number === '' ? '0' : $number;
         };
 
-        return $format($width).' x '.$format($height);
+        $label = $format($width).' x '.$format($height);
+
+        if ($depth !== null && $depth !== '' && (float) $depth > 0) {
+            $label .= ' x '.$format($depth);
+        }
+
+        $unitText = trim((string) $unit);
+
+        return $unitText === '' ? $label : $label.' '.$unitText;
     }
 
     private function limited(?string $value, int $limit): ?string

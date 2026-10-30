@@ -82,7 +82,7 @@ class ProjectControlController extends Controller
     public function edit(Request $request, ProjectControl $projectControl): Response
     {
         $this->authorizeControl($request);
-        app(ProjectControlTakeoff::class)->sync($projectControl);
+        app(ProjectControlTakeoff::class)->connect($projectControl);
         $projectControl->refresh();
         $projectControl->load(['bids', 'openings', 'procurements']);
 

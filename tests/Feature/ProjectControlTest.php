@@ -474,8 +474,9 @@ it('brings every takeoff opening onto the job and keeps the link', function () {
             return $rows->count() === 3
                 && $kept['id'] === $matched->id
                 && $kept['description'] === 'Existing pair'
-                && $brought['description'] === 'North window'
-                && $brought['size'] === '48 x 60'
+                && $brought['description'] === 'Acoustic Window'
+                && $brought['notes'] === 'North window'
+                && $brought['size'] === '48 x 60 in'
                 && $brought['category'] === 'Acoustic Window'
                 && $matched->fresh()->takeoff_opening_id === $takeoffMatch->id;
         }));
@@ -491,6 +492,93 @@ it('brings every takeoff opening onto the job and keeps the link', function () {
 
     expect($job->openings()->count())->toBe(3)
         ->and($takeoff->openings()->count())->toBe(3);
+});
+
+it('links the longacre job to the longacre takeoff and copies its openings', function () {
+    $admin = controlAdmin();
+    $project = Project::query()->create([
+        'name' => 'Longacre',
+        'project_number' => 'GDS-2026-0001',
+    ]);
+    $duplicate = Project::query()->create([
+        'name' => 'Longacre / Open Jar Studios – GDS-10.430.26',
+    ]);
+    $job = ProjectControl::query()->create([
+        'job_code' => 'J-014',
+        'name' => 'Longacre / Open Jar Studios – GDS-10.430.26',
+        'pipeline_status' => 'active',
+        'project_id' => $duplicate->id,
+        'bid_document' => 'GDS_Open_Jar_Studios_Installed_Bid_GDS-10.430.26.pdf',
+    ]);
+    $takeoff = Takeoff::query()->create([
+        'project_id' => $project->id,
+        'title' => 'GDS-2026-0001 Longacre — A-600.00',
+        'status' => 'draft',
+        'pricing_method' => 'markup',
+    ]);
+    $takeoff->openings()->create([
+        'opening_type' => 'door',
+        'tag' => '101',
+        'location' => 'Lobby',
+        'quantity' => 1,
+        'width' => 36,
+        'height' => 84,
+        'product_category' => 'Acoustic Door',
+        'manufacturer' => 'Krieger',
+        'hardware_set' => 'Set A',
+        'acoustic_requirement' => 'STC 53',
+        'fire_requirement' => '45 min',
+        'notes' => 'Single leaf',
+        'sort_order' => 1,
+    ]);
+    $takeoff->openings()->create([
+        'opening_type' => 'door',
+        'tag' => '102',
+        'location' => 'Corridor',
+        'quantity' => 2,
+        'width' => 72,
+        'height' => 84,
+        'product_category' => 'Acoustic Door',
+        'manufacturer' => 'Krieger',
+        'hardware_set' => 'Set B',
+        'notes' => 'Pair',
+        'sort_order' => 2,
+    ]);
+
+    $this->actingAs($admin)
+        ->post(route('admin.takeoffs.store'), [
+            'project_id' => $project->id,
+            'title' => 'GDS-2026-0001 Longacre — follow-up',
+        ])
+        ->assertRedirect();
+
+    expect($job->fresh()->project_id)->toBe($project->id)
+        ->and($job->openings()->count())->toBe(2);
+
+    $this->actingAs($admin)
+        ->get(route('admin.project-control.edit', $job))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('control.openings', function ($openings) {
+            $rows = collect($openings);
+            $first = $rows->firstWhere('mark', '101');
+
+            return $rows->count() === 2
+                && $first['description'] === 'Lobby · Acoustic Door · Krieger'
+                && $first['size'] === '36 x 84 in'
+                && $first['hardware'] === 'Set A'
+                && $first['supplier'] === 'Krieger'
+                && $first['requirement'] === '45 min · STC 53'
+                && $first['notes'] === 'Single leaf'
+                && $first['quantity'] === '1.00';
+        }));
+
+    $this->actingAs($admin)
+        ->get(route('admin.project-control.edit', $job))
+        ->assertOk();
+
+    expect($job->openings()->count())->toBe(2)
+        ->and($job->openings()->whereNull('takeoff_opening_id')->count())->toBe(0)
+        ->and($takeoff->openings()->count())->toBe(2);
 });
 
 it('adds the september jobs and their projects once', function () {

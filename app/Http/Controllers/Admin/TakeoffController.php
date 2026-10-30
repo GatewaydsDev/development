@@ -13,6 +13,7 @@ use App\Models\Takeoff;
 use App\Models\TakeoffAssemblyTemplate;
 use App\Models\TakeoffOpening;
 use App\Models\User;
+use App\Support\ProjectControlTakeoff;
 use App\Support\TakeoffAccess;
 use App\Support\TakeoffConversion;
 use App\Support\TakeoffCsv;
@@ -156,6 +157,7 @@ class TakeoffController extends Controller
             $file ? 'Takeoff was created from '.$file->getClientOriginalName().'.' : 'Takeoff was created.',
             ['title' => $takeoff->title],
         );
+        app(ProjectControlTakeoff::class)->connectTakeoff($takeoff);
 
         return redirect()
             ->route('admin.takeoffs.show', $takeoff)
@@ -406,6 +408,7 @@ class TakeoffController extends Controller
         }
 
         $this->clearApproval($takeoff, $user);
+        app(ProjectControlTakeoff::class)->connectTakeoff($takeoff);
         $takeoff->record($user, 'import.completed', count($parsed['rows']).' opening(s) imported from a spreadsheet.', [
             'duplicate_mode' => $mode,
             'duplicates' => $duplicates,

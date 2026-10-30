@@ -506,7 +506,7 @@ export default function ProjectControlForm({
 
             <LineSection
                 title="Openings"
-                description="Every opening on the project takeoff is listed here and stays linked. A saved line opens that takeoff. These prices do not change the pipeline value."
+                description="Openings from the matching project takeoff are listed here with their mark, size, hardware, and requirements. Saving either side keeps the two linked."
                 className="border-violet-200 bg-violet-50/70 dark:border-violet-900 dark:bg-violet-950/30"
                 onAdd={() => form.setData('openings', [...form.data.openings, blankOpening()])}
             >

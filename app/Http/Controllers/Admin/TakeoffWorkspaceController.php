@@ -15,6 +15,7 @@ use App\Models\TakeoffOpening;
 use App\Models\TakeoffReference;
 use App\Models\TakeoffSupplierQuote;
 use App\Models\User;
+use App\Support\ProjectControlTakeoff;
 use App\Support\TakeoffAccess;
 use App\Support\TakeoffGrouping;
 use App\Support\TakeoffMoney;
@@ -202,6 +203,7 @@ class TakeoffWorkspaceController extends Controller
             'note' => $fromSchedule ? 'Specs read from the schedule row at this mark.' : 'Marked on the drawing.',
         ]);
         $this->clearApproval($takeoff, $user);
+        app(ProjectControlTakeoff::class)->connectTakeoff($takeoff);
         $takeoff->record($user, 'opening.counted', 'Counted '.$tag.' on the drawing.');
 
         return back()
@@ -222,6 +224,7 @@ class TakeoffWorkspaceController extends Controller
         }
 
         $this->clearApproval($takeoff, $user);
+        app(ProjectControlTakeoff::class)->connectTakeoff($takeoff);
         $takeoff->record($user, 'opening.created', 'Added opening '.$opening->label().'.');
 
         return back()->with('success', 'Opening saved.');
