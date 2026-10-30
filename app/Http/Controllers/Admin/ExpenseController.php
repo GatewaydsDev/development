@@ -4,11 +4,14 @@ namespace App\Http\Controllers\Admin;
 
 use App\Events\ExpenseChanged;
 use App\Http\Controllers\Controller;
+use App\Models\Contact;
 use App\Models\Expense;
 use App\Models\ExpensePayment;
 use App\Models\User;
 use App\Support\ExpenseReceiptFile;
+use App\Support\ExpenseShareMail;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -183,6 +186,92 @@ class ExpenseController extends Controller
         $type = str_ends_with(strtolower($name), '.pdf') ? 'application/pdf' : 'image/jpeg';
 
         return $this->inlineFile($path, $type, $name);
+    }
+
+    public function shareGroup(Request $request): JsonResponse
+    {
+        $this->authorizeExpenses($request);
+        $group = trim((string) $request->query('group', ''));
+
+        if (strlen($group) > 160) {
+            $group = '';
+        }
+
+        $expenses = Expense::query()
+            ->with('payments')
+            ->when(
+                $group === '',
+                fn (Builder $query) => $query->where(fn (Builder $inner) => $inner
+                    ->whereNull('group_name')
+                    ->orWhere('group_name', '')),
+                fn (Builder $query) => $query->where('group_name', $group),
+            )
+            ->orderByDesc('spent_on')
+            ->orderByDesc('id')
+            ->limit(51)
+            ->get();
+        $truncated = $expenses->count() > 50;
+        $expenses = $expenses->take(50);
+
+        $contacts = Contact::query()
+            ->where('is_active', true)
+            ->whereNotNull('email')
+            ->where('email', '!=', '')
+            ->orderBy('name')
+            ->limit(200)
+            ->get(['id', 'name', 'email', 'company'])
+            ->filter(fn (Contact $contact): bool => filter_var($contact->email, FILTER_VALIDATE_EMAIL) !== false)
+            ->map(fn (Contact $contact): array => [
+                'id' => $contact->id,
+                'name' => $contact->name,
+                'email' => $contact->email,
+                'company' => $contact->company ?: '',
+            ])
+            ->values();
+
+        return response()->json([
+            'group' => $group,
+            'truncated' => $truncated,
+            'expenses' => $expenses->map(fn (Expense $expense): array => [
+                'id' => $expense->id,
+                'spent_on' => $expense->spent_on?->toDateString(),
+                'person_name' => $expense->person_name ?: '',
+                'payee' => $expense->payee,
+                'description' => $expense->description,
+                'category_label' => Expense::CATEGORIES[$expense->category] ?? $expense->category,
+                'amount' => $expense->amount,
+                'notes' => $expense->notes ?: '',
+                'payment_count' => $expense->payments->count(),
+                'receipt_name' => $expense->receipt_name,
+                'has_receipt' => is_string($expense->receipt_path) && $expense->receipt_path !== '',
+            ])->values(),
+            'contacts' => $contacts,
+        ]);
+    }
+
+    public function share(Request $request, ExpenseShareMail $mail): RedirectResponse
+    {
+        $user = $this->authorizeExpenses($request);
+        $validated = $request->validate([
+            'email' => ['required', 'email', 'max:255'],
+            'message' => ['nullable', 'string', 'max:2000'],
+            'group' => ['nullable', 'string', 'max:160'],
+            'expenses' => ['required', 'array', 'min:1', 'max:50'],
+            'expenses.*' => ['integer', 'distinct'],
+            'receipts' => ['nullable', 'array', 'max:50'],
+            'receipts.*' => ['integer', 'distinct'],
+        ]);
+
+        $mail->send(
+            $user,
+            array_map('intval', $validated['expenses']),
+            array_map('intval', $validated['receipts'] ?? []),
+            $validated['email'],
+            $validated['message'] ?? null,
+            $validated['group'] ?? null,
+        );
+
+        return back()->with('success', 'The expense details were emailed.');
     }
 
     private function authorizeExpenses(Request $request): User

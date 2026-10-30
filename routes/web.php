@@ -222,6 +222,8 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::get('/user-activities', [UserActivityController::class, 'index'])
             ->name('user-activities.index');
         Route::get('/expenses', [ExpenseController::class, 'index'])->name('expenses.index');
+        Route::get('/expenses/share', [ExpenseController::class, 'shareGroup'])->name('expenses.share');
+        Route::post('/expenses/share', [ExpenseController::class, 'share'])->name('expenses.share.store');
         Route::get('/expenses/create', [ExpenseController::class, 'create'])->name('expenses.create');
         Route::post('/expenses', [ExpenseController::class, 'store'])->name('expenses.store');
         Route::get('/expenses/{expense}/edit', [ExpenseController::class, 'edit'])->name('expenses.edit');

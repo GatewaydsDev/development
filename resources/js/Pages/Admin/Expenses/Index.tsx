@@ -21,9 +21,10 @@ import {
 } from '@/Components/ui/card';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router } from '@inertiajs/react';
-import { EditIcon, PlusIcon, ReceiptIcon, SearchIcon, Trash2Icon } from 'lucide-react';
+import { EditIcon, MailIcon, PlusIcon, ReceiptIcon, SearchIcon, Trash2Icon } from 'lucide-react';
 import { FormEvent, Fragment, useState } from 'react';
 import { createPortal } from 'react-dom';
+import ShareExpensesDialog from './Partials/ShareExpensesDialog';
 
 type ExpenseRow = {
     id: number;
@@ -97,6 +98,7 @@ export default function Index({
     const [confirming, setConfirming] = useState<number | null>(null);
     const [deleting, setDeleting] = useState(false);
     const [hover, setHover] = useState<HoverPreview | null>(null);
+    const [shareGroup, setShareGroup] = useState<string | null>(null);
 
     const showReceipt = (expense: ExpenseRow, row: HTMLTableRowElement) => {
         if (!expense.receipt_preview_url) {
@@ -131,7 +133,7 @@ export default function Index({
             { preserveState: true, replace: true },
         );
     };
-    const showGroups = expenses.data.some((expense) => expense.group_name.trim() !== '');
+    const showGroups = expenses.data.length > 0;
     const pendingDelete = expenses.data.find((expense) => expense.id === confirming) ?? null;
     let previousGroup = '\u0000';
 
@@ -273,7 +275,18 @@ export default function Index({
                                                         <td colSpan={10} className="border-b border-emerald-200 bg-emerald-50 px-2 py-2 text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-100">
                                                             <div className="flex items-center justify-between gap-3">
                                                                 <span className="font-semibold">{groupName || 'No group'}</span>
-                                                                <span className="shrink-0 tabular-nums">{summary ? `${summary.count} · ${money(summary.total)}` : ''}</span>
+                                                                <span className="flex shrink-0 items-center gap-3">
+                                                                    <span className="tabular-nums">{summary ? `${summary.count} · ${money(summary.total)}` : ''}</span>
+                                                                    <Button
+                                                                        type="button"
+                                                                        size="sm"
+                                                                        className="border-sky-800 bg-sky-700 text-white hover:bg-sky-800"
+                                                                        onClick={() => setShareGroup(groupName)}
+                                                                    >
+                                                                        <MailIcon data-icon="inline-start" />
+                                                                        Share
+                                                                    </Button>
+                                                                </span>
                                                             </div>
                                                         </td>
                                                     </tr>
@@ -387,6 +400,7 @@ export default function Index({
                                     </AlertDialogFooter>
                                 </AlertDialogContent>
                             </AlertDialog>
+                            <ShareExpensesDialog group={shareGroup} onClose={() => setShareGroup(null)} />
                             {hover
                                 ? createPortal(
                                     <div

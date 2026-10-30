@@ -1,9 +1,11 @@
 <?php
 
 use App\Events\ExpenseChanged;
+use App\Models\Contact;
 use App\Models\Expense;
 use App\Models\User;
 use App\Models\UserLevel;
+use App\Services\MicrosoftGraphMailService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
@@ -360,6 +362,127 @@ test('expenses are saved and listed under a group name', function () {
             ->where('expenses.data.0.group_name', 'Course in Maryland')
             ->where('expenses.data.1.group_name', 'Course in Maryland')
         );
+});
+
+test('a super administrator emails a group of expenses and the receipts they choose', function () {
+    Storage::fake('local');
+    $admin = expenseAdmin();
+    $admin->forceFill(['microsoft_mailbox' => 'ricardo@gateway-ds.com'])->save();
+    $sent = new stdClass;
+    $sent->messages = [];
+    $mail = new class($sent) extends MicrosoftGraphMailService
+    {
+        public function __construct(private stdClass $sent) {}
+
+        public function sendComposed(
+            string $mailbox,
+            array $to,
+            string $subject,
+            string $content,
+            string $contentType = 'Text',
+            array $cc = [],
+            array $bcc = [],
+            string $importance = 'normal',
+            array $attachments = [],
+        ): void {
+            $this->sent->messages[] = compact(
+                'mailbox',
+                'to',
+                'subject',
+                'content',
+                'contentType',
+                'attachments',
+            );
+        }
+    };
+    app()->instance(MicrosoftGraphMailService::class, $mail);
+
+    $course = Expense::query()->create([
+        'user_id' => $admin->id,
+        'spent_on' => '2026-10-16',
+        'person_name' => 'Alex Rivera',
+        'payee' => 'Training School',
+        'description' => 'New course',
+        'category' => 'course',
+        'group_name' => 'Course in Maryland',
+        'amount' => '250.50',
+        'notes' => 'For the office team.',
+    ]);
+    $course->forceFill([
+        'receipt_path' => 'expenses/'.$course->id.'/receipt.pdf',
+        'receipt_name' => 'course.pdf',
+    ])->save();
+    Storage::disk('local')->put($course->receipt_path, '%PDF-1.4 receipt');
+    $course->payments()->create([
+        'due_on' => '2026-10-20',
+        'paid_on' => '2026-10-20',
+        'amount' => '100.00',
+        'status' => 'paid',
+        'method' => 'card',
+    ]);
+    $hotel = Expense::query()->create([
+        'user_id' => $admin->id,
+        'spent_on' => '2026-10-17',
+        'person_name' => 'Alex Rivera',
+        'payee' => 'Hotel',
+        'description' => 'Hotel stay',
+        'category' => 'travel',
+        'group_name' => 'Course in Maryland',
+        'amount' => '180.00',
+    ]);
+    Contact::query()->create([
+        'name' => 'Pat Owner',
+        'email' => 'pat@example.com',
+        'company' => 'North Yard',
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.expenses.share', ['group' => 'Course in Maryland']))
+        ->assertOk()
+        ->assertJsonPath('group', 'Course in Maryland')
+        ->assertJsonPath('contacts.0.email', 'pat@example.com')
+        ->assertJsonCount(2, 'expenses');
+
+    $this->actingAs($admin)
+        ->post(route('admin.expenses.share.store'), [
+            'email' => 'pat@example.com',
+            'group' => 'Course in Maryland',
+            'message' => 'Please review these.',
+            'expenses' => [$course->id, $hotel->id],
+            'receipts' => [$course->id],
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    expect($sent->messages)->toHaveCount(1)
+        ->and($sent->messages[0]['mailbox'])->toBe('ricardo@gateway-ds.com')
+        ->and($sent->messages[0]['to'])->toBe(['pat@example.com'])
+        ->and($sent->messages[0]['subject'])->toBe('Expenses: Course in Maryland')
+        ->and($sent->messages[0]['content'])->toContain('New course')
+        ->and($sent->messages[0]['content'])->toContain('Hotel stay')
+        ->and($sent->messages[0]['content'])->toContain('Please review these.')
+        ->and($sent->messages[0]['content'])->toContain('Paid')
+        ->and($sent->messages[0]['attachments'])->toHaveCount(1)
+        ->and($sent->messages[0]['attachments'][0]['name'])->toContain('course.pdf');
+
+    $this->actingAs(User::factory()->create())
+        ->post(route('admin.expenses.share.store'), [
+            'email' => 'pat@example.com',
+            'expenses' => [$course->id],
+        ])
+        ->assertForbidden();
+
+    $admin->forceFill(['microsoft_mailbox' => null])->save();
+
+    $this->actingAs($admin)
+        ->post(route('admin.expenses.share.store'), [
+            'email' => 'pat@example.com',
+            'expenses' => [$course->id],
+            'receipts' => [$course->id],
+        ])
+        ->assertSessionHasErrors('email');
+
+    expect($sent->messages)->toHaveCount(1);
 });
 
 function expenseJpegPdf(string $jpeg, int $pixelWidth, int $pixelHeight): string
