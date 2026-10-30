@@ -97,34 +97,63 @@ class ProjectControlTakeoff
         $this->push($control, $takeoff);
     }
 
-    private function adopt(ProjectControl $control): void
+    public function linkedTakeoff(ProjectControl $control): ?Takeoff
     {
-        if ($this->projectHasOpenings($control->project_id)) {
-            return;
+        if (! $control->project_id) {
+            return null;
         }
 
+        $takeoff = Takeoff::query()
+            ->where('project_id', $control->project_id)
+            ->withCount('openings')
+            ->orderByDesc('openings_count')
+            ->orderByDesc('id')
+            ->first();
+
+        return $takeoff instanceof Takeoff ? $takeoff : null;
+    }
+
+    private function adopt(ProjectControl $control): void
+    {
+        $currentCount = $this->openingCount($control->project_id);
         $best = null;
         $bestScore = 0;
+        $bestCount = 0;
 
-        foreach (Project::query()->whereKeyNot($control->project_id ?? 0)->orderBy('id')->get(['id', 'name', 'project_number']) as $project) {
+        foreach (Project::query()->orderBy('id')->get(['id', 'name', 'project_number']) as $project) {
+            if ((int) $project->id === (int) $control->project_id) {
+                continue;
+            }
+
             $score = $this->matchScore($control, $project);
 
             if ($score < 85) {
                 continue;
             }
 
-            $hasOpenings = $this->projectHasOpenings($project->id);
-            $bestHasOpenings = $best instanceof Project && $this->projectHasOpenings($best->id);
+            $count = $this->openingCount($project->id);
 
-            if ($score > $bestScore || ($score === $bestScore && $hasOpenings && ! $bestHasOpenings)) {
+            if ($score > $bestScore || ($score === $bestScore && $count > $bestCount)) {
                 $best = $project;
                 $bestScore = $score;
+                $bestCount = $count;
             }
         }
 
-        if ($best instanceof Project) {
+        if ($best instanceof Project && $bestCount > $currentCount) {
             $control->forceFill(['project_id' => $best->id])->save();
         }
+    }
+
+    private function openingCount(?int $projectId): int
+    {
+        if (! $projectId) {
+            return 0;
+        }
+
+        return TakeoffOpening::query()
+            ->whereHas('takeoff', fn ($query) => $query->where('project_id', $projectId))
+            ->count();
     }
 
     private function matchScore(ProjectControl $control, Project $project): int

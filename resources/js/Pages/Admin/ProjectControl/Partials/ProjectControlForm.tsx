@@ -14,8 +14,17 @@ import {
     AlertDialogTitle,
 } from '@/Components/ui/alert-dialog';
 import { Button } from '@/Components/ui/button';
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/Components/ui/dialog';
 import { Link, router, useForm, usePage } from '@inertiajs/react';
-import { BellIcon, MailIcon, PlusIcon, RulerIcon, Trash2Icon } from 'lucide-react';
+import { BellIcon, MailIcon, PencilIcon, PlusIcon, RulerIcon, Trash2Icon } from 'lucide-react';
 import { FormEvent, ReactNode, useState } from 'react';
 import type { ReminderPerson } from './ReminderDialog';
 
@@ -109,6 +118,12 @@ export type ControlDraft = {
     procurements: ProcurementDraft[];
 };
 
+export type ConnectedTakeoff = {
+    title: string;
+    url: string;
+    openings: number;
+};
+
 export type ControlTerms = {
     awardStatuses: CreatableOption[];
     pricingClasses: CreatableOption[];
@@ -177,6 +192,41 @@ const amount = (value: string) => {
     return Number.isFinite(parsed) ? parsed : null;
 };
 
+const tally = (value: number) => new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(value);
+
+const cell = (value: string) => {
+    const text = value.trim();
+
+    if (text === '') {
+        return <span className="text-muted-foreground">—</span>;
+    }
+
+    return <span className="line-clamp-2" title={text}>{text}</span>;
+};
+
+const summarizeOpenings = (openings: OpeningDraft[]) => {
+    let sell: number | null = null;
+
+    const quantity = openings.reduce((sum, opening) => sum + (amount(opening.quantity) ?? 0), 0);
+    openings.forEach((opening) => {
+        const unit = amount(opening.unit_sell);
+
+        if (unit === null) {
+            return;
+        }
+
+        const qty = amount(opening.quantity);
+        sell = (sell ?? 0) + unit * (qty === null || qty === 0 ? 1 : qty);
+    });
+
+    return {
+        count: openings.length,
+        quantity,
+        categories: new Set(openings.map((opening) => opening.category.trim()).filter((name) => name !== '')).size,
+        sell,
+    };
+};
+
 const money = (value: number | null) => {
     if (value === null) {
         return '—';
@@ -194,12 +244,14 @@ export default function ProjectControlForm({
     control,
     people = [],
     terms,
+    connectedTakeoff = null,
 }: {
     action: string;
     method: 'post' | 'patch';
     control: ControlDraft;
     people?: ReminderPerson[];
     terms: ControlTerms;
+    connectedTakeoff?: ConnectedTakeoff | null;
 }) {
     const userId = usePage().props.auth.user.id;
     const form = useForm<ControlDraft>({
@@ -208,6 +260,9 @@ export default function ProjectControlForm({
     });
     const [confirmingDelete, setConfirmingDelete] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [openingIndex, setOpeningIndex] = useState<number | null>(null);
+    const [openingDraft, setOpeningDraft] = useState<OpeningDraft | null>(null);
+    const [openingDraftError, setOpeningDraftError] = useState('');
     const costs = [form.data.material_cost, form.data.freight_cost, form.data.labor_cost, form.data.other_cost]
         .map(amount)
         .filter((value): value is number => value !== null);
@@ -254,6 +309,47 @@ export default function ProjectControlForm({
 
         return key ? form.errors[key as keyof typeof form.errors] : undefined;
     };
+
+    const openOpening = (index: number | null) => {
+        setOpeningDraftError('');
+        setOpeningIndex(index);
+        setOpeningDraft(index === null ? blankOpening() : { ...form.data.openings[index] });
+    };
+
+    const closeOpening = () => {
+        setOpeningDraft(null);
+        setOpeningIndex(null);
+        setOpeningDraftError('');
+    };
+
+    const saveOpening = () => {
+        if (!openingDraft || openingDraft.description.trim() === '') {
+            setOpeningDraftError('Enter a description for this opening.');
+
+            return;
+        }
+
+        if (openingIndex === null) {
+            form.setData('openings', [...form.data.openings, openingDraft]);
+        } else {
+            updateOpening(form, openingIndex, openingDraft);
+        }
+
+        closeOpening();
+    };
+
+    const removeOpening = () => {
+        if (openingIndex === null) {
+            closeOpening();
+
+            return;
+        }
+
+        form.setData('openings', form.data.openings.filter((_, item) => item !== openingIndex));
+        closeOpening();
+    };
+
+    const openingTotals = summarizeOpenings(form.data.openings);
 
     const removeJob = () => {
         if (!control.uuid) {
@@ -506,82 +602,87 @@ export default function ProjectControlForm({
 
             <LineSection
                 title="Openings"
-                description="Openings from the matching project takeoff are listed here with their mark, size, hardware, and requirements. Saving either side keeps the two linked."
+                description="Openings from the connected takeoff are listed in this table. Click a row to edit it."
                 className="border-violet-200 bg-violet-50/70 dark:border-violet-900 dark:bg-violet-950/30"
-                onAdd={() => form.setData('openings', [...form.data.openings, blankOpening()])}
+                onAdd={() => openOpening(null)}
             >
-                {form.data.openings.map((opening, index) => (
-                    <div key={index} className="grid gap-3 border-t border-border py-4 md:grid-cols-4">
-                        <Field label="Description" className="md:col-span-2">
-                            <input value={opening.description} onChange={(event) => updateOpening(form, index, { description: event.target.value })} className={fieldClass} />
-                        </Field>
-                        <TermSelect
-                            id={`opening-category-${index}`}
-                            label="Category"
-                            kind="opening_category"
-                            catalogKey="openingCategories"
-                            value={opening.category_id}
-                            options={terms.openingCategories}
-                            onChange={(id, option) => updateOpening(form, index, { category_id: id, category: option?.name ?? '' })}
-                        />
-                        <Field label="Mark / building">
-                            <input value={opening.mark} onChange={(event) => updateOpening(form, index, { mark: event.target.value })} className={fieldClass} />
-                        </Field>
-                        <Field label="Size">
-                            <input value={opening.size} onChange={(event) => updateOpening(form, index, { size: event.target.value })} className={fieldClass} />
-                        </Field>
-                        <Field label="Qty">
-                            <input value={opening.quantity} onChange={(event) => updateOpening(form, index, { quantity: event.target.value.replace(/[^0-9.]/g, '') })} inputMode="decimal" className={fieldClass} />
-                        </Field>
-                        <Field label="Requirement">
-                            <input value={opening.requirement} onChange={(event) => updateOpening(form, index, { requirement: event.target.value })} className={fieldClass} />
-                        </Field>
-                        <TermSelect
-                            id={`opening-procurement-${index}`}
-                            label="Procurement status"
-                            kind="procurement_status"
-                            catalogKey="procurementStatuses"
-                            value={opening.procurement_status_id}
-                            options={terms.procurementStatuses}
-                            onChange={(id, option) => updateOpening(form, index, { procurement_status_id: id, procurement_status: option?.name ?? '' })}
-                        />
-                        <Field label="Supplier">
-                            <input value={opening.supplier} onChange={(event) => updateOpening(form, index, { supplier: event.target.value })} className={fieldClass} />
-                        </Field>
-                        <Field label="Unit sell">
-                            <input value={opening.unit_sell} onChange={(event) => updateOpening(form, index, { unit_sell: event.target.value.replace(/[^0-9.]/g, '') })} inputMode="decimal" className={fieldClass} />
-                        </Field>
-                        <Field label="Hardware" className="md:col-span-2">
-                            <input value={opening.hardware} onChange={(event) => updateOpening(form, index, { hardware: event.target.value })} className={fieldClass} />
-                        </Field>
-                        <Field label="Still needed" className="md:col-span-2">
-                            <input value={opening.additional_needed} onChange={(event) => updateOpening(form, index, { additional_needed: event.target.value })} className={fieldClass} />
-                        </Field>
-                        <Field label="Notes" className="md:col-span-3">
-                            <input value={opening.notes} onChange={(event) => updateOpening(form, index, { notes: event.target.value })} className={fieldClass} />
-                        </Field>
-                        <div className="flex flex-wrap items-end gap-2 md:col-span-4">
-                            {opening.id && control.uuid ? (
-                                <Button asChild className={`${takeoffButtonClass} min-h-11 w-full sm:w-auto`}>
-                                    <Link href={route('admin.project-control.openings.takeoff', [control.uuid, opening.id])}>
-                                        <RulerIcon className="h-4 w-4" />
-                                        Takeoff
-                                    </Link>
-                                </Button>
-                            ) : (
-                                <Button type="button" disabled className="min-h-11 w-full bg-sky-600/50 text-white sm:w-auto">
-                                    <RulerIcon className="h-4 w-4" />
-                                    Save to open takeoff
-                                </Button>
-                            )}
-                            <Button type="button" variant="destructive" className="min-h-11 w-full sm:w-auto" onClick={() => form.setData('openings', form.data.openings.filter((_, item) => item !== index))}>
-                                <Trash2Icon className="h-4 w-4" />
-                                Remove
-                            </Button>
-                        </div>
-                        <InputError message={lineError('openings', index)} className="md:col-span-4" />
-                    </div>
-                ))}
+                <div className="mt-4 rounded-lg border border-violet-300 bg-white px-3 py-3 text-sm dark:border-violet-800 dark:bg-violet-950/40">
+                    {connectedTakeoff ? (
+                        <p className="text-foreground">
+                            Connected takeoff:{' '}
+                            <Link href={connectedTakeoff.url} className="font-semibold text-sky-700 underline dark:text-sky-300">
+                                {connectedTakeoff.title}
+                            </Link>
+                            {' '}· {connectedTakeoff.openings} {connectedTakeoff.openings === 1 ? 'opening' : 'openings'} on that takeoff
+                        </p>
+                    ) : (
+                        <p className="text-muted-foreground">No takeoff is connected to this job yet. Save an opening, then use Takeoff inside the row.</p>
+                    )}
+                </div>
+                <div className="mt-4 overflow-x-auto rounded-lg border border-violet-200 bg-background dark:border-violet-900">
+                    <table className="w-full min-w-[44rem] border-collapse text-left text-sm">
+                        <thead className="bg-violet-100/80 text-xs uppercase tracking-wide text-violet-950 dark:bg-violet-950/60 dark:text-violet-100">
+                            <tr>
+                                <th className="px-3 py-2 font-medium">Mark</th>
+                                <th className="px-3 py-2 font-medium">Description</th>
+                                <th className="px-3 py-2 font-medium">Size</th>
+                                <th className="px-3 py-2 text-right font-medium">Qty</th>
+                                <th className="px-3 py-2 font-medium">Category</th>
+                                <th className="px-3 py-2 font-medium">Requirement</th>
+                                <th className="px-3 py-2 font-medium">Supplier</th>
+                                <th className="px-3 py-2 font-medium"><span className="sr-only">Edit</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {form.data.openings.length === 0 ? (
+                                <tr>
+                                    <td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">
+                                        No openings yet. Use Add to enter the first one.
+                                    </td>
+                                </tr>
+                            ) : form.data.openings.map((opening, index) => {
+                                const error = lineError('openings', index);
+
+                                return (
+                                    <tr
+                                        key={opening.id ?? `new-${index}`}
+                                        className={`cursor-pointer border-t border-border hover:bg-violet-50 dark:hover:bg-violet-950/40 ${error ? 'bg-red-50 dark:bg-red-950/30' : ''}`}
+                                        onClick={() => openOpening(index)}
+                                    >
+                                        <td className="max-w-[7rem] px-3 py-3 align-top font-medium text-foreground">{cell(opening.mark)}</td>
+                                        <td className="max-w-[16rem] px-3 py-3 align-top text-foreground">{cell(opening.description)}</td>
+                                        <td className="whitespace-nowrap px-3 py-3 align-top">{cell(opening.size)}</td>
+                                        <td className="whitespace-nowrap px-3 py-3 text-right align-top tabular-nums">{cell(opening.quantity)}</td>
+                                        <td className="max-w-[10rem] px-3 py-3 align-top">{cell(opening.category)}</td>
+                                        <td className="max-w-[12rem] px-3 py-3 align-top">{cell(opening.requirement)}</td>
+                                        <td className="max-w-[10rem] px-3 py-3 align-top">{cell(opening.supplier)}</td>
+                                        <td className="px-3 py-3 align-top">
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                aria-label={`Edit opening ${opening.mark || index + 1}`}
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    openOpening(index);
+                                                }}
+                                            >
+                                                <PencilIcon className="h-4 w-4" />
+                                                Edit
+                                            </Button>
+                                            {error ? <InputError message={error} className="mt-1 max-w-40" /> : null}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+                <dl className="mt-4 grid grid-cols-2 gap-3 rounded-lg border border-violet-200 bg-violet-100/50 p-4 sm:grid-cols-4 dark:border-violet-900 dark:bg-violet-950/40">
+                    <SummaryStat label="Openings" value={String(openingTotals.count)} />
+                    <SummaryStat label="Total quantity" value={tally(openingTotals.quantity)} />
+                    <SummaryStat label="Categories" value={String(openingTotals.categories)} />
+                    <SummaryStat label="Extended sell" value={openingTotals.sell === null ? '—' : money(openingTotals.sell)} />
+                </dl>
             </LineSection>
 
             <LineSection
@@ -730,6 +831,96 @@ export default function ProjectControlForm({
             <FormActionFab cancelHref={route('admin.project-control.index')} form="project-control-form" disabled={form.processing || emailBlocked} />
         </form>
 
+            <Dialog open={openingDraft !== null} onOpenChange={(open) => { if (!open) closeOpening(); }}>
+                <DialogContent className="flex max-h-[calc(100dvh-2rem)] max-w-3xl flex-col gap-0 overflow-hidden p-0 sm:p-0">
+                    <DialogHeader className="shrink-0 px-4 pt-4 pr-14 pb-2 sm:px-6 sm:pt-6">
+                        <DialogTitle>{openingIndex === null ? 'Add opening' : `Opening ${openingDraft?.mark || openingIndex + 1}`}</DialogTitle>
+                        <DialogDescription>
+                            Mark, size, hardware, and the other details for this opening. Save the job afterward to keep the change.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {openingDraft ? (
+                        <div className="grid min-h-0 flex-1 gap-3 overflow-y-auto px-4 py-3 sm:grid-cols-2 sm:px-6">
+                            <Field label="Description" error={openingDraftError} className="sm:col-span-2">
+                                <input value={openingDraft.description} onChange={(event) => setOpeningDraft({ ...openingDraft, description: event.target.value })} className={fieldClass} />
+                            </Field>
+                            <TermSelect
+                                id="opening-editor-category"
+                                label="Category"
+                                kind="opening_category"
+                                catalogKey="openingCategories"
+                                value={openingDraft.category_id}
+                                options={terms.openingCategories}
+                                onChange={(id, option) => setOpeningDraft({ ...openingDraft, category_id: id, category: option?.name ?? '' })}
+                            />
+                            <Field label="Mark / building">
+                                <input value={openingDraft.mark} onChange={(event) => setOpeningDraft({ ...openingDraft, mark: event.target.value })} className={fieldClass} />
+                            </Field>
+                            <Field label="Size">
+                                <input value={openingDraft.size} onChange={(event) => setOpeningDraft({ ...openingDraft, size: event.target.value })} className={fieldClass} />
+                            </Field>
+                            <Field label="Qty">
+                                <input value={openingDraft.quantity} onChange={(event) => setOpeningDraft({ ...openingDraft, quantity: event.target.value.replace(/[^0-9.]/g, '') })} inputMode="decimal" className={fieldClass} />
+                            </Field>
+                            <Field label="Requirement" className="sm:col-span-2">
+                                <input value={openingDraft.requirement} onChange={(event) => setOpeningDraft({ ...openingDraft, requirement: event.target.value })} className={fieldClass} />
+                            </Field>
+                            <TermSelect
+                                id="opening-editor-procurement"
+                                label="Procurement status"
+                                kind="procurement_status"
+                                catalogKey="procurementStatuses"
+                                value={openingDraft.procurement_status_id}
+                                options={terms.procurementStatuses}
+                                onChange={(id, option) => setOpeningDraft({ ...openingDraft, procurement_status_id: id, procurement_status: option?.name ?? '' })}
+                            />
+                            <Field label="Supplier">
+                                <input value={openingDraft.supplier} onChange={(event) => setOpeningDraft({ ...openingDraft, supplier: event.target.value })} className={fieldClass} />
+                            </Field>
+                            <Field label="Unit sell">
+                                <input value={openingDraft.unit_sell} onChange={(event) => setOpeningDraft({ ...openingDraft, unit_sell: event.target.value.replace(/[^0-9.]/g, '') })} inputMode="decimal" className={fieldClass} />
+                            </Field>
+                            <Field label="Hardware">
+                                <input value={openingDraft.hardware} onChange={(event) => setOpeningDraft({ ...openingDraft, hardware: event.target.value })} className={fieldClass} />
+                            </Field>
+                            <Field label="Still needed" className="sm:col-span-2">
+                                <input value={openingDraft.additional_needed} onChange={(event) => setOpeningDraft({ ...openingDraft, additional_needed: event.target.value })} className={fieldClass} />
+                            </Field>
+                            <Field label="Notes" className="sm:col-span-2">
+                                <textarea value={openingDraft.notes ?? ''} onChange={(event) => setOpeningDraft({ ...openingDraft, notes: event.target.value })} rows={3} className={`${fieldClass} h-auto py-2`} />
+                            </Field>
+                            {openingIndex !== null ? <InputError message={lineError('openings', openingIndex)} className="sm:col-span-2" /> : null}
+                        </div>
+                    ) : null}
+                    <DialogFooter className="shrink-0 flex-row flex-wrap items-center justify-end gap-2 border-t border-border bg-background px-4 py-3 sm:justify-between sm:px-6">
+                        <div className="flex flex-wrap gap-2">
+                            {openingIndex !== null ? (
+                                <Button type="button" variant="destructive" className="shrink-0" onClick={removeOpening}>
+                                    <Trash2Icon className="h-4 w-4" />
+                                    Remove
+                                </Button>
+                            ) : null}
+                            {openingDraft?.id && control.uuid ? (
+                                <Button asChild className={`${takeoffButtonClass} shrink-0`}>
+                                    <Link href={route('admin.project-control.openings.takeoff', [control.uuid, openingDraft.id])}>
+                                        <RulerIcon className="h-4 w-4" />
+                                        Takeoff
+                                    </Link>
+                                </Button>
+                            ) : null}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            <DialogClose asChild>
+                                <Button type="button" variant="outline" className="shrink-0">Close</Button>
+                            </DialogClose>
+                            <Button type="button" className={`${addButtonClass} shrink-0`} onClick={saveOpening}>
+                                Save opening
+                            </Button>
+                        </div>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
             <AlertDialog open={confirmingDelete} onOpenChange={setConfirmingDelete}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
@@ -791,6 +982,15 @@ function MoneyField({
         <Field label={label} error={error}>
             <MaskedDecimalInput id={id} value={value} onChange={onChange} prefix="$" className={fieldClass} />
         </Field>
+    );
+}
+
+function SummaryStat({ label, value }: { label: string; value: string }) {
+    return (
+        <div>
+            <dt className="text-xs uppercase tracking-wide text-violet-900/70 dark:text-violet-200/80">{label}</dt>
+            <dd className="mt-1 text-lg font-semibold tabular-nums text-foreground">{value}</dd>
+        </div>
     );
 }
 

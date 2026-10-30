@@ -484,9 +484,9 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                 <div>
                                     <h3 className="flex items-center gap-2 text-base font-semibold text-indigo-800">
                                         <ListIcon className="size-4" />
-                                        Scope of work
+                                        Openings
                                     </h3>
-                                    <p className="text-sm text-muted-foreground">Every door and window found on the drawing is listed once, with its specs. Remove any row you will not use.</p>
+                                    <p className="text-sm text-muted-foreground">Every opening on this takeoff is one row. Click a row to edit it in the object inspector.</p>
                                 </div>
                                 <div className="grid gap-2 md:grid-cols-2">
                                     <TextInput value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Opening tag" />
@@ -572,6 +572,24 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                         </tbody>
                                     </table>
                                 </div>
+                                <dl className="grid grid-cols-2 gap-3 rounded-md border bg-muted/40 p-3 sm:grid-cols-4">
+                                    <div>
+                                        <dt className="text-xs uppercase tracking-wide text-muted-foreground">Openings</dt>
+                                        <dd className="text-lg font-semibold tabular-nums">{filtered.length}</dd>
+                                    </div>
+                                    <div>
+                                        <dt className="text-xs uppercase tracking-wide text-muted-foreground">Total quantity</dt>
+                                        <dd className="text-lg font-semibold tabular-nums">{filtered.reduce((sum, opening) => sum + Number(opening.quantity || 0), 0).toLocaleString('en-US', { maximumFractionDigits: 2 })}</dd>
+                                    </div>
+                                    <div>
+                                        <dt className="text-xs uppercase tracking-wide text-muted-foreground">Doors</dt>
+                                        <dd className="text-lg font-semibold tabular-nums">{filtered.filter((opening) => opening.opening_type !== 'window').length}</dd>
+                                    </div>
+                                    <div>
+                                        <dt className="text-xs uppercase tracking-wide text-muted-foreground">Windows</dt>
+                                        <dd className="text-lg font-semibold tabular-nums">{filtered.filter((opening) => opening.opening_type === 'window').length}</dd>
+                                    </div>
+                                </dl>
                                 {editable ? (
                                     <form className="space-y-2 rounded-md border p-3" onSubmit={previewImport}>
                                         <p className="text-sm font-medium">Spreadsheet import</p>

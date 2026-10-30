@@ -86,10 +86,17 @@ class ProjectControlController extends Controller
         $projectControl->refresh();
         $projectControl->load(['bids', 'openings', 'procurements']);
 
+        $takeoff = app(ProjectControlTakeoff::class)->linkedTakeoff($projectControl);
+
         return Inertia::render('Admin/ProjectControl/Edit', [
             'control' => $this->formState($projectControl),
             'people' => $this->people(),
             'terms' => $this->terms(),
+            'connectedTakeoff' => $takeoff ? [
+                'title' => $takeoff->title,
+                'url' => route('admin.takeoffs.show', $takeoff),
+                'openings' => (int) $takeoff->openings_count,
+            ] : null,
         ]);
     }
 

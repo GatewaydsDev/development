@@ -558,19 +558,22 @@ it('links the longacre job to the longacre takeoff and copies its openings', fun
     $this->actingAs($admin)
         ->get(route('admin.project-control.edit', $job))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page->where('control.openings', function ($openings) {
-            $rows = collect($openings);
-            $first = $rows->firstWhere('mark', '101');
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('connectedTakeoff.title', 'GDS-2026-0001 Longacre — A-600.00')
+            ->where('connectedTakeoff.openings', 2)
+            ->where('control.openings', function ($openings) {
+                $rows = collect($openings);
+                $first = $rows->firstWhere('mark', '101');
 
-            return $rows->count() === 2
-                && $first['description'] === 'Lobby · Acoustic Door · Krieger'
-                && $first['size'] === '36 x 84 in'
-                && $first['hardware'] === 'Set A'
-                && $first['supplier'] === 'Krieger'
-                && $first['requirement'] === '45 min · STC 53'
-                && $first['notes'] === 'Single leaf'
-                && $first['quantity'] === '1.00';
-        }));
+                return $rows->count() === 2
+                    && $first['description'] === 'Lobby · Acoustic Door · Krieger'
+                    && $first['size'] === '36 x 84 in'
+                    && $first['hardware'] === 'Set A'
+                    && $first['supplier'] === 'Krieger'
+                    && $first['requirement'] === '45 min · STC 53'
+                    && $first['notes'] === 'Single leaf'
+                    && $first['quantity'] === '1.00';
+            }));
 
     $this->actingAs($admin)
         ->get(route('admin.project-control.edit', $job))
