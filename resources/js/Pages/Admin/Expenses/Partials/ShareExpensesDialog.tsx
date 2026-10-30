@@ -170,7 +170,7 @@ export default function ShareExpensesDialog({
                 <DialogHeader>
                     <DialogTitle>{title}</DialogTitle>
                     <DialogDescription>
-                        Send the expense details to a contact. Checked receipts and images are attached. Uncheck any document you do not want to share.
+                        Send the expense details to a contact. The email lists them in a table and attaches a QuickBooks CSV that can be opened in Excel and imported. Checked receipts and images are attached with that file. Uncheck any document you do not want to share.
                     </DialogDescription>
                 </DialogHeader>
 

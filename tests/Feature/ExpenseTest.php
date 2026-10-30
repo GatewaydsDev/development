@@ -1,6 +1,7 @@
 <?php
 
 use App\Events\ExpenseChanged;
+use App\Models\Company;
 use App\Models\Contact;
 use App\Models\Expense;
 use App\Models\User;
@@ -367,7 +368,10 @@ test('expenses are saved and listed under a group name', function () {
 test('a super administrator emails a group of expenses and the receipts they choose', function () {
     Storage::fake('local');
     $admin = expenseAdmin();
-    $admin->forceFill(['microsoft_mailbox' => 'ricardo@gateway-ds.com'])->save();
+    $admin->forceFill([
+        'microsoft_mailbox' => 'ricardo@gateway-ds.com',
+        'job_title' => 'Project Manager',
+    ])->save();
     $sent = new stdClass;
     $sent->messages = [];
     $mail = new class($sent) extends MicrosoftGraphMailService
@@ -435,6 +439,11 @@ test('a super administrator emails a group of expenses and the receipts they cho
         'email' => 'pat@example.com',
         'company' => 'North Yard',
     ]);
+    Company::query()->create([
+        'name' => 'Gateway Door Systems',
+        'logo_path' => 'company-logos/logo.png',
+        'is_active' => true,
+    ]);
 
     $this->actingAs($admin)
         ->get(route('admin.expenses.share', ['group' => 'Course in Maryland']))
@@ -458,12 +467,23 @@ test('a super administrator emails a group of expenses and the receipts they cho
         ->and($sent->messages[0]['mailbox'])->toBe('ricardo@gateway-ds.com')
         ->and($sent->messages[0]['to'])->toBe(['pat@example.com'])
         ->and($sent->messages[0]['subject'])->toBe('Expenses: Course in Maryland')
+        ->and($sent->messages[0]['content'])->toContain('<table')
+        ->and($sent->messages[0]['content'])->toContain('width="72"')
+        ->and($sent->messages[0]['content'])->toContain('company-logos/logo.png')
+        ->and($sent->messages[0]['content'])->toContain('Gateway Door Systems')
+        ->and($sent->messages[0]['content'])->toContain($admin->name)
+        ->and($sent->messages[0]['content'])->toContain('Project Manager')
+        ->and($sent->messages[0]['content'])->toContain('Paid to')
         ->and($sent->messages[0]['content'])->toContain('New course')
         ->and($sent->messages[0]['content'])->toContain('Hotel stay')
         ->and($sent->messages[0]['content'])->toContain('Please review these.')
-        ->and($sent->messages[0]['content'])->toContain('Paid')
-        ->and($sent->messages[0]['attachments'])->toHaveCount(1)
-        ->and($sent->messages[0]['attachments'][0]['name'])->toContain('course.pdf');
+        ->and($sent->messages[0]['attachments'])->toHaveCount(2)
+        ->and($sent->messages[0]['attachments'][0]['name'])->toBe('QuickBooks-Course-in-Maryland.csv')
+        ->and($sent->messages[0]['attachments'][0]['bytes'])->toContain('Payee,Account,Amount,Memo')
+        ->and($sent->messages[0]['attachments'][0]['bytes'])->toContain('Training School')
+        ->and($sent->messages[0]['attachments'][0]['bytes'])->toContain('250.50')
+        ->and($sent->messages[0]['attachments'][0]['bytes'])->toContain('Hotel')
+        ->and($sent->messages[0]['attachments'][1]['name'])->toContain('course.pdf');
 
     $this->actingAs(User::factory()->create())
         ->post(route('admin.expenses.share.store'), [

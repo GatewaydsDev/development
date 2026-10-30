@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Exceptions\MicrosoftGraphException;
+use App\Models\Employee;
 use App\Models\Expense;
 use App\Models\ExpensePayment;
 use App\Models\User;
@@ -41,6 +42,7 @@ class ExpenseShareMail
 
         $wantedReceipts = array_fill_keys($receiptIds, true);
         $attachments = [];
+        $receiptNames = [];
         $bytes = 0;
         $missing = [];
 
@@ -73,14 +75,31 @@ class ExpenseShareMail
                 ]);
             }
 
+            $name = $expense->id.'-'.$this->filename($expense);
+            $receiptNames[$expense->id] = $name;
             $attachments[] = [
-                'name' => $expense->id.'-'.$this->filename($expense),
+                'name' => $name,
                 'contentType' => $this->contentType($path),
                 'bytes' => $contents,
             ];
         }
 
         $groupName = trim((string) $group);
+        $csvName = $this->quickBooksFilename($groupName);
+        $csv = $this->quickBooksCsv($expenses->all(), $receiptNames);
+        $bytes += strlen($csv);
+
+        if ($bytes > 3_000_000) {
+            throw ValidationException::withMessages([
+                'receipts' => 'Those documents are too large to email together. Uncheck some receipts and try again.',
+            ]);
+        }
+
+        array_unshift($attachments, [
+            'name' => $csvName,
+            'contentType' => 'text/csv',
+            'bytes' => $csv,
+        ]);
         $subject = mb_substr(
             $groupName !== '' ? 'Expenses: '.$groupName : 'Expense details',
             0,
@@ -92,7 +111,7 @@ class ExpenseShareMail
                 $mailbox,
                 [$recipient],
                 $subject,
-                $this->html($sender, $expenses->all(), $groupName, $message, $attachments, $missing),
+                $this->html($sender, $expenses->all(), $groupName, $message, $csvName, $receiptNames, $missing),
                 'HTML',
                 [],
                 [],
@@ -108,10 +127,10 @@ class ExpenseShareMail
 
     /**
      * @param  list<Expense>  $expenses
-     * @param  list<array{name: string, contentType: string, bytes: string}>  $attachments
+     * @param  array<int, string>  $receiptNames
      * @param  list<string>  $missing
      */
-    private function html(User $sender, array $expenses, string $group, ?string $message, array $attachments, array $missing): string
+    private function html(User $sender, array $expenses, string $group, ?string $message, string $csvName, array $receiptNames, array $missing): string
     {
         $intro = e($sender->name).' shared expense details';
 
@@ -119,69 +138,170 @@ class ExpenseShareMail
             $intro .= ' for '.e($group);
         }
 
-        $blocks = ['<p>'.$intro.'.</p>'];
+        $blocks = [$this->letterhead($sender), '<p style="font-family:Arial,sans-serif;font-size:14px;">'.$intro.'.</p>'];
         $note = trim((string) $message);
 
         if ($note !== '') {
-            $blocks[] = '<p>'.nl2br(e($note), false).'</p>';
+            $blocks[] = '<p style="font-family:Arial,sans-serif;font-size:14px;">'.nl2br(e($note), false).'</p>';
         }
 
-        foreach ($expenses as $expense) {
-            $rows = [
-                ['Date', $expense->spent_on?->format('m/d/Y') ?? ''],
-                ['Person', (string) $expense->person_name],
-                ['Paid to', $expense->payee],
-                ['What it was for', $expense->description],
-                ['Category', Expense::CATEGORIES[$expense->category] ?? $expense->category],
-                ['Group', (string) ($expense->group_name ?: '')],
-                ['Total', '$'.number_format((float) $expense->amount, 2)],
-                ['Notes', (string) ($expense->notes ?: '')],
+        $headers = [
+            ['Date', '120'],
+            ['Person', '150'],
+            ['Paid to', '170'],
+            ['What it was for', '280'],
+            ['Category', '120'],
+            ['Total', '110'],
+            ['Paid', '110'],
+            ['To be paid', '120'],
+            ['Receipt', '220'],
+        ];
+        $head = '';
+
+        foreach ($headers as [$header, $width]) {
+            $head .= '<th align="left" width="'.$width.'" style="padding:16px 18px;border:1px solid #d7e3dc;font-size:16px;line-height:22px;font-family:Arial,sans-serif;">'.e($header).'</th>';
+        }
+
+        $body = '';
+
+        foreach ($expenses as $index => $expense) {
+            $paid = (float) $expense->payments->where('status', 'paid')->sum('amount');
+            $scheduled = (float) $expense->payments->where('status', 'scheduled')->sum('amount');
+            $background = $index % 2 === 0 ? '#ffffff' : '#f4faf7';
+            $cells = [
+                $expense->spent_on?->format('m/d/Y') ?? '',
+                (string) $expense->person_name,
+                $expense->payee,
+                trim($expense->description.(filled($expense->notes) ? ' — '.$expense->notes : '')),
+                Expense::CATEGORIES[$expense->category] ?? $expense->category,
+                '$'.number_format((float) $expense->amount, 2),
+                '$'.number_format($paid, 2),
+                '$'.number_format($scheduled, 2),
+                $receiptNames[$expense->id] ?? '',
             ];
-            $body = '';
+            $body .= '<tr style="background:'.$background.';">';
 
-            foreach ($rows as [$label, $value]) {
-                if (trim($value) === '') {
-                    continue;
-                }
-
-                $body .= '<tr><th align="left" style="padding:4px 12px 4px 0;">'.e($label).'</th><td>'.e($value).'</td></tr>';
+            foreach ($cells as $cellIndex => $cell) {
+                $body .= '<td width="'.$headers[$cellIndex][1].'" style="padding:16px 18px;border:1px solid #d7e3dc;font-size:16px;line-height:24px;font-family:Arial,sans-serif;">'.e($cell).'</td>';
             }
 
-            if ($expense->payments->isNotEmpty()) {
-                $payments = $expense->payments->map(function (ExpensePayment $payment): string {
-                    $when = $payment->status === 'paid'
-                        ? ($payment->paid_on?->format('m/d/Y') ?? $payment->due_on?->format('m/d/Y') ?? '')
-                        : ($payment->due_on?->format('m/d/Y') ?? '');
-
-                    return e(trim(implode(' · ', array_filter([
-                        $when,
-                        '$'.number_format((float) $payment->amount, 2),
-                        ExpensePayment::STATUSES[$payment->status] ?? $payment->status,
-                        ExpensePayment::METHODS[$payment->method] ?? $payment->method,
-                    ]))));
-                })->implode('<br>');
-
-                $body .= '<tr><th align="left" style="padding:4px 12px 4px 0;vertical-align:top;">Payments</th><td>'.$payments.'</td></tr>';
-            }
-
-            $blocks[] = '<h2 style="font-size:16px;margin:16px 0 8px;">'.e($expense->description).'</h2><table>'.$body.'</table>';
+            $body .= '</tr>';
         }
 
-        if ($attachments !== []) {
-            $names = array_map(
-                fn (array $file): string => e($file['name']),
-                $attachments,
-            );
-            $blocks[] = '<p>Attached documents:<br>'.implode('<br>', $names).'</p>';
-        } else {
-            $blocks[] = '<p>No documents were attached.</p>';
-        }
+        $blocks[] = '<table width="1400" cellpadding="0" cellspacing="0" style="border-collapse:collapse;width:1400px;font-family:Arial,sans-serif;font-size:16px;color:#111827;">'
+            .'<thead><tr style="background:#0f3d32;color:#ffffff;">'.$head.'</tr></thead>'
+            .'<tbody>'.$body.'</tbody></table>';
+        $blocks[] = '<p style="font-family:Arial,sans-serif;font-size:14px;">'
+            .e($csvName).' is attached for QuickBooks. Open it in Excel, or import it and map Date, Payee, Account, Amount, and Memo. '
+            .'Receipt files use the names in the Receipt column so they can be attached to those transactions.'
+            .'</p>';
 
         if ($missing !== []) {
-            $blocks[] = '<p>A receipt could not be attached for: '.e(implode(', ', $missing)).'.</p>';
+            $blocks[] = '<p style="font-family:Arial,sans-serif;font-size:14px;">A receipt could not be attached for: '.e(implode(', ', $missing)).'.</p>';
         }
 
         return implode('', $blocks);
+    }
+
+    private function letterhead(User $sender): string
+    {
+        $company = DocumentLogo::company();
+        $companyName = trim((string) ($company?->name ?: 'Gateway Door Systems'));
+        $logoUrl = is_string($company?->logo_path) && $company->logo_path !== ''
+            ? asset('storage/'.$company->logo_path)
+            : asset('images/Gateway_Door_Systems_Logo.png');
+        $employee = Employee::query()->where('user_id', $sender->id)->first();
+        $name = trim((string) $sender->name);
+
+        if ($name === '') {
+            $name = trim((string) ($employee?->fullName() ?? ''));
+        }
+
+        $position = trim((string) ($sender->job_title ?: $employee?->job_title));
+        $senderLines = '';
+
+        if ($name !== '') {
+            $senderLines .= '<div style="font-size:15px;line-height:20px;color:#111827;">'.e($name).'</div>';
+        }
+
+        if ($position !== '') {
+            $senderLines .= '<div style="font-size:14px;line-height:20px;color:#4b5563;">'.e($position).'</div>';
+        }
+
+        return '<table cellpadding="0" cellspacing="0" style="margin:0 0 18px;font-family:Arial,sans-serif;">'
+            .'<tr>'
+            .'<td style="padding:0 14px 0 0;vertical-align:middle;">'
+            .'<img src="'.e($logoUrl).'" alt="'.e($companyName).'" width="72" style="display:block;width:72px;max-width:72px;height:auto;border:0;">'
+            .'</td>'
+            .'<td style="vertical-align:middle;">'
+            .'<div style="font-size:18px;line-height:24px;font-weight:bold;color:#0f3d32;">'.e($companyName).'</div>'
+            .$senderLines
+            .'</td>'
+            .'</tr></table>';
+    }
+
+    /**
+     * @param  list<Expense>  $expenses
+     * @param  array<int, string>  $receiptNames
+     */
+    private function quickBooksCsv(array $expenses, array $receiptNames): string
+    {
+        $handle = fopen('php://temp', 'r+');
+
+        if ($handle === false) {
+            return '';
+        }
+
+        fwrite($handle, "\xEF\xBB\xBF");
+        fputcsv($handle, [
+            'Date',
+            'Payee',
+            'Account',
+            'Amount',
+            'Memo',
+            'Payment Method',
+            'Person',
+            'Group',
+            'Paid',
+            'To Be Paid',
+            'Receipt File',
+        ]);
+
+        foreach ($expenses as $expense) {
+            $methods = $expense->payments
+                ->map(fn (ExpensePayment $payment): string => ExpensePayment::METHODS[$payment->method] ?? $payment->method)
+                ->filter()
+                ->unique()
+                ->implode('; ');
+            $memo = trim($expense->description.(filled($expense->notes) ? ' - '.$expense->notes : ''));
+
+            fputcsv($handle, [
+                $expense->spent_on?->format('m/d/Y') ?? '',
+                $expense->payee,
+                Expense::CATEGORIES[$expense->category] ?? $expense->category,
+                number_format((float) $expense->amount, 2, '.', ''),
+                $memo,
+                $methods,
+                (string) $expense->person_name,
+                (string) ($expense->group_name ?: ''),
+                number_format((float) $expense->payments->where('status', 'paid')->sum('amount'), 2, '.', ''),
+                number_format((float) $expense->payments->where('status', 'scheduled')->sum('amount'), 2, '.', ''),
+                $receiptNames[$expense->id] ?? '',
+            ]);
+        }
+
+        rewind($handle);
+        $csv = stream_get_contents($handle);
+        fclose($handle);
+
+        return is_string($csv) ? $csv : '';
+    }
+
+    private function quickBooksFilename(string $group): string
+    {
+        $slug = trim((string) preg_replace('/[^A-Za-z0-9]+/', '-', $group), '-');
+
+        return 'QuickBooks-'.($slug !== '' ? $slug : 'expenses').'.csv';
     }
 
     private function filename(Expense $expense): string
