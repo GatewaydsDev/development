@@ -529,7 +529,7 @@ export default function CreatableSelect({
                             : placeholder
                     }
                     className={cn(
-                        'h-11 w-full min-w-0 border-border bg-background pr-10 text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring',
+                        'h-11 w-full min-w-0 border-border bg-background pr-10 text-base text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring sm:text-sm',
                         stateInitials && stateInitialsInputClassName,
                     )}
                     onFocus={() => {

@@ -9,6 +9,7 @@ use App\Models\Contractor;
 use App\Models\Product;
 use App\Models\Project;
 use App\Models\ProjectPrice;
+use App\Models\ProjectPriority;
 use App\Models\ProjectRevision;
 use App\Models\ProjectScope;
 use App\Models\ProjectScopeType;
@@ -354,6 +355,31 @@ class ProjectController extends Controller
         return back()->with('success', 'Status added successfully.');
     }
 
+    public function storePriority(Request $request): RedirectResponse
+    {
+        abort_unless(
+            ProjectAccess::canCreate($request->user()) || ProjectAccess::canUpdate($request->user()),
+            403,
+        );
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+        ]);
+
+        $name = trim($validated['name']);
+        $existing = ProjectPriority::query()
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
+            ->first();
+
+        if ($existing) {
+            return back()->with('success', 'Priority already exists.');
+        }
+
+        ProjectPriority::create(['name' => $name]);
+
+        return back()->with('success', 'Priority added successfully.');
+    }
+
     public function storeScopeType(Request $request): RedirectResponse
     {
         abort_unless(
@@ -506,7 +532,7 @@ class ProjectController extends Controller
 
         $rules = [
             'status_id' => ['required', 'integer', Rule::exists(ProjectStatus::class, 'id')],
-            'priority' => ['required', 'string', Rule::in(Project::PRIORITIES)],
+            'priority' => ['required', 'string', 'max:255', Rule::exists(ProjectPriority::class, 'slug')],
             'assigned_to' => ['sometimes', 'nullable', 'integer', Rule::exists(User::class, 'id')],
             'estimated_start_date' => ['nullable', 'date'],
             'estimated_end_date' => ['nullable', 'date', 'after_or_equal:estimated_start_date'],
@@ -518,6 +544,7 @@ class ProjectController extends Controller
             $rules = [
                 ...$rules,
                 'name' => ['required', 'string', 'max:255', $this->uniqueProjectNameRule($project)],
+                'project_number' => ['nullable', 'string', 'max:255', $this->uniqueProjectNumberRule($project)],
                 'site_address_line_1' => ['nullable', 'string', 'max:255'],
                 'site_address_line_2' => ['nullable', 'string', 'max:255'],
                 'site_city' => ['nullable', 'string', 'max:255'],
@@ -639,6 +666,29 @@ class ProjectController extends Controller
         };
     }
 
+    private function uniqueProjectNumberRule(?Project $project = null): Closure
+    {
+        return function (string $attribute, mixed $value, Closure $fail) use ($project): void {
+            $number = trim((string) $value);
+
+            if ($number === '') {
+                return;
+            }
+
+            $taken = Project::query()
+                ->where('project_number', $number)
+                ->when(
+                    $project,
+                    fn ($query) => $query->whereKeyNot($project->id),
+                )
+                ->exists();
+
+            if ($taken) {
+                $fail('That project number is already used.');
+            }
+        };
+    }
+
     private function projectNameExists(string $name, ?int $ignoreProjectId = null): bool
     {
         return Project::query()
@@ -685,6 +735,12 @@ class ProjectController extends Controller
                 'site_postal_code' => $validated['site_postal_code'] ?? null,
                 'site_country' => $validated['site_country'] ?? null,
             ];
+
+            $projectNumber = trim((string) ($validated['project_number'] ?? ''));
+
+            if ($projectNumber !== '') {
+                $attributes['project_number'] = $projectNumber;
+            }
         }
 
         if (ProjectAccess::canViewSensitiveFields($user) && array_key_exists('budget_amount', $validated)) {
@@ -1207,6 +1263,15 @@ class ProjectController extends Controller
                 ])
                 ->all(),
             'priorities' => Project::PRIORITIES,
+            'priorityOptions' => ProjectPriority::query()
+                ->orderBy('name')
+                ->get(['id', 'name', 'slug'])
+                ->map(fn (ProjectPriority $priority): array => [
+                    'id' => $priority->id,
+                    'name' => $priority->name,
+                    'slug' => $priority->slug,
+                ])
+                ->all(),
             'serviceTypes' => Project::SERVICE_TYPES,
             'scopeTypes' => ProjectScopeType::query()
                 ->orderBy('name')

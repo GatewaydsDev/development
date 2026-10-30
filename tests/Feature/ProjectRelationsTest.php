@@ -5,6 +5,7 @@ use App\Models\BidScopeTitle;
 use App\Models\BidStageType;
 use App\Models\Contractor;
 use App\Models\Project;
+use App\Models\ProjectPriority;
 use App\Models\ProjectScopeType;
 use App\Models\ProjectStatus;
 use App\Models\Quotation;
@@ -1139,4 +1140,80 @@ test('the projects list shows the linked quotation bid and takeoff with their st
             ->where('summary.in_bid', 1)
             ->where('summary.in_takeoff', 1)
         );
+});
+
+test('a typed project number is saved and a duplicate number is rejected', function () {
+    $admin = projectAdmin();
+    $payload = [
+        'name' => 'Numbered dock project',
+        'project_number' => 'GDS-CUSTOM-9',
+        'assigned_to' => '',
+        'status_id' => projectStatusId(),
+        'priority' => 'normal',
+        'site_address_line_1' => '',
+        'site_address_line_2' => '',
+        'site_city' => '',
+        'site_state' => '',
+        'site_postal_code' => '',
+        'site_country' => '',
+        'estimated_start_date' => '',
+        'estimated_end_date' => '',
+        'completed_at' => '',
+        'public_notes' => '',
+        'internal_notes' => '',
+        'contractors' => [],
+        'scopes' => [],
+        'revisions' => [],
+    ];
+
+    $this->actingAs($admin)
+        ->post(route('admin.projects.store'), $payload)
+        ->assertSessionHasNoErrors();
+
+    expect(Project::query()->where('name', 'Numbered dock project')->value('project_number'))
+        ->toBe('GDS-CUSTOM-9');
+
+    $this->actingAs($admin)
+        ->post(route('admin.projects.store'), [
+            ...$payload,
+            'name' => 'Another dock project',
+        ])
+        ->assertSessionHasErrors('project_number');
+});
+
+test('a new priority can be added and saved on a project', function () {
+    $admin = projectAdmin();
+
+    $this->actingAs($admin)
+        ->post(route('admin.project-priorities.store'), ['name' => 'Rush'])
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Priority added successfully.');
+
+    expect(ProjectPriority::query()->where('name', 'Rush')->value('slug'))->toBe('rush');
+
+    $this->actingAs($admin)
+        ->post(route('admin.projects.store'), [
+            'name' => 'Rush dock project',
+            'project_number' => '',
+            'assigned_to' => '',
+            'status_id' => projectStatusId(),
+            'priority' => 'rush',
+            'site_address_line_1' => '',
+            'site_address_line_2' => '',
+            'site_city' => '',
+            'site_state' => '',
+            'site_postal_code' => '',
+            'site_country' => '',
+            'estimated_start_date' => '',
+            'estimated_end_date' => '',
+            'completed_at' => '',
+            'public_notes' => '',
+            'internal_notes' => '',
+            'contractors' => [],
+            'scopes' => [],
+            'revisions' => [],
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect(Project::query()->where('name', 'Rush dock project')->value('priority'))->toBe('rush');
 });

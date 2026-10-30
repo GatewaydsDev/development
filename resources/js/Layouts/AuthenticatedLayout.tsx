@@ -1,6 +1,7 @@
 import DashboardSidebar from '@/Components/DashboardSidebar';
 import ExpenseUpdates from '@/Components/ExpenseUpdates';
 import IncomingAlert from '@/Components/IncomingAlert';
+import FollowUpReminders from '@/Components/FollowUpReminders';
 import TabUnreadBadge from '@/Components/TabUnreadBadge';
 import InternalChat from '@/Components/InternalChat';
 import DashboardSnapDrawer from '@/Components/DashboardSnapDrawer';
@@ -1228,6 +1229,7 @@ export default function Authenticated({
             </nav>
 
                 <IncomingAlert />
+                {Boolean(auth.can?.manageProjectControl) ? <FollowUpReminders /> : null}
 
                 {/* Main Content Area */}
                 <div className="flex min-w-0 flex-1 flex-col">

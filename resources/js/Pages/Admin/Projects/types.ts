@@ -37,6 +37,7 @@ export type ProjectCatalogOption = {
 export type ProjectOptions = {
     statuses: ProjectStatusOption[];
     priorities: string[];
+    priorityOptions: ProjectStatusOption[];
     serviceTypes: string[];
     scopeTypes: ProjectScopeTypeOption[];
     products: ProjectCatalogOption[];

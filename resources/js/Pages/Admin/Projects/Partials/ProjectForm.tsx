@@ -29,7 +29,7 @@ import {
 } from '@/lib/stateInitials';
 import { cn } from '@/lib/utils';
 import { PlusIcon, Trash2Icon } from 'lucide-react';
-import { FormEventHandler, useMemo, useRef, useState } from 'react';
+import { FormEventHandler, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
     FieldErrors,
@@ -45,7 +45,6 @@ import {
     blankPrice,
     blankRevision,
     blankScope,
-    optionLabel,
     projectToFormData,
     type ProjectFormData,
     type ProjectOptions,
@@ -92,6 +91,7 @@ const optionalEmailSchema = z
 
 function projectSchema(options: ProjectOptions, canEditCoreFields: boolean) {
     const scopeTypeSlugs = (options.scopeTypes ?? []).map((type) => type.slug);
+    const prioritySlugs = (options.priorityOptions ?? []).map((priority) => priority.slug);
 
     return z
         .object({
@@ -103,8 +103,10 @@ function projectSchema(options: ProjectOptions, canEditCoreFields: boolean) {
             status_id: z.string().trim().min(1, 'Select a status.'),
             priority: z
                 .string()
+                .trim()
+                .min(1, 'Select a priority.')
                 .refine(
-                    (value) => options.priorities.includes(value),
+                    (value) => prioritySlugs.includes(value),
                     'Select a valid priority.',
                 ),
             site_address_line_1: z.string().trim().max(255),
@@ -449,6 +451,14 @@ export default function ProjectForm({
         }
     };
 
+    useEffect(() => {
+        const timer = window.setTimeout(() => {
+            void checkProjectNameAvailability(data.name);
+        }, 350);
+
+        return () => window.clearTimeout(timer);
+    }, [data.name]);
+
     const submit = handleSubmit(
         async (values) => {
         const nameIsAvailable = await checkProjectNameAvailability(values.name);
@@ -530,8 +540,6 @@ export default function ProjectForm({
 
     const inputClassName =
         'h-11 w-full border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring';
-    const selectClassName =
-        'h-11 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring';
     const labelClassName = 'text-emerald-700 dark:text-emerald-300';
     const addButtonClassName =
         'border-emerald-700 bg-emerald-600 text-white hover:bg-emerald-700 hover:text-white';
@@ -595,12 +603,42 @@ export default function ProjectForm({
                     <FormActionFab
                         cancelHref={route('admin.projects.index')}
                         saveLabel={submitLabel}
-                        disabled={processing}
+                        disabled={processing || nameTaken || checkingName}
                     />
                     <section className="flex flex-col gap-5 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
-                        <div className="grid items-start gap-5 md:grid-cols-2 xl:grid-cols-3">
+                        {canEditCoreFields && (
+                            <div className="flex justify-end">
+                                <div className="flex w-full max-w-xs flex-col items-end gap-2 lg:w-80">
+                                    <InputLabel
+                                        htmlFor="project-number"
+                                        value="Project number"
+                                        className={`${labelClassName} text-right`}
+                                    />
+                                    <TextInput
+                                        id="project-number"
+                                        value={data.project_number}
+                                        className={`${inputClassName} text-right`}
+                                        onChange={(event) =>
+                                            setData(
+                                                'project_number',
+                                                event.target.value,
+                                            )
+                                        }
+                                    />
+                                    <p className="text-right text-sm text-muted-foreground">
+                                        Leave blank to assign the next number,
+                                        such as GDS-2026-0001.
+                                    </p>
+                                    <InputError
+                                        className="text-right"
+                                        message={errors.project_number}
+                                    />
+                                </div>
+                            </div>
+                        )}
+                        <div className="grid items-start gap-5 xl:grid-cols-2">
                             {canEditCoreFields && (
-                                <div className="flex flex-col gap-2">
+                                <div className="flex flex-col gap-2 xl:col-span-2">
                                     <InputLabel
                                         htmlFor="project-name"
                                         value="Project name"
@@ -633,30 +671,6 @@ export default function ProjectForm({
                                 </div>
                             )}
 
-                            {canEditCoreFields && (
-                                <div className="flex flex-col gap-2">
-                                    <InputLabel
-                                        htmlFor="project-number"
-                                        value="Project number"
-                                        className={labelClassName}
-                                    />
-                                    <TextInput
-                                        id="project-number"
-                                        value={data.project_number}
-                                        disabled
-                                        readOnly
-                                        className={`${inputClassName} cursor-not-allowed bg-muted`}
-                                    />
-                                    <p className="text-sm text-muted-foreground">
-                                        Assigned automatically as GDS, year, and
-                                        sequence — for example GDS-2026-0001.
-                                    </p>
-                                    <InputError
-                                        message={errors.project_number}
-                                    />
-                                </div>
-                            )}
-
                             <CreatableSelect
                                 id="project-status"
                                 label="Status"
@@ -675,62 +689,43 @@ export default function ProjectForm({
                                 }
                             />
 
-                            <div className="flex flex-col gap-2">
-                                <InputLabel
-                                    htmlFor="project-priority"
-                                    value="Priority"
-                                    className={labelClassName}
-                                />
-                                <select
-                                    id="project-priority"
-                                    value={data.priority}
-                                    onChange={(event) =>
-                                        setData('priority', event.target.value)
-                                    }
-                                    className={selectClassName}
-                                >
-                                    {options.priorities.map((priority) => (
-                                        <option
-                                            key={priority}
-                                            value={priority}
-                                        >
-                                            {optionLabel(priority)}
-                                        </option>
-                                    ))}
-                                </select>
-                                <InputError message={errors.priority} />
-                            </div>
+                            <CreatableSelect
+                                id="project-priority"
+                                label="Priority"
+                                compact
+                                value={String(
+                                    options.priorityOptions.find(
+                                        (priority) =>
+                                            priority.slug === data.priority,
+                                    )?.id ?? '',
+                                )}
+                                options={options.priorityOptions}
+                                createRoute={route(
+                                    'admin.project-priorities.store',
+                                )}
+                                catalogKey="priorityOptions"
+                                entityLabel="priority"
+                                placeholder="Low, Normal, High..."
+                                error={errors.priority}
+                                onChange={(_id, option) =>
+                                    setData('priority', option?.slug ?? '')
+                                }
+                            />
 
                             {canEditCoreFields && (
-                                <div className="flex flex-col gap-2">
-                                    <InputLabel
-                                        htmlFor="assigned-to"
-                                        value="Assigned to"
-                                        className={labelClassName}
-                                    />
-                                    <select
-                                        id="assigned-to"
-                                        value={data.assigned_to}
-                                        onChange={(event) =>
-                                            setData(
-                                                'assigned_to',
-                                                event.target.value,
-                                            )
-                                        }
-                                        className={selectClassName}
-                                    >
-                                        <option value="">Unassigned</option>
-                                        {options.assignees.map((assignee) => (
-                                            <option
-                                                key={assignee.id}
-                                                value={assignee.id}
-                                            >
-                                                {assignee.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <InputError message={errors.assigned_to} />
-                                </div>
+                                <CreatableSelect
+                                    id="assigned-to"
+                                    label="Assigned to"
+                                    compact
+                                    allowCreate={false}
+                                    value={data.assigned_to}
+                                    options={options.assignees}
+                                    placeholder="Unassigned"
+                                    error={errors.assigned_to}
+                                    onChange={(assigneeId) =>
+                                        setData('assigned_to', assigneeId)
+                                    }
+                                />
                             )}
                         </div>
 

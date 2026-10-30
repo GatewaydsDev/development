@@ -73,6 +73,7 @@ export type PageProps<
             updateUsers: boolean;
             viewUserActivity: boolean;
             manageExpenses: boolean;
+            manageProjectControl?: boolean;
             correctRecords?: boolean;
             manageDocumentColors: boolean;
             useInternalChat?: boolean;

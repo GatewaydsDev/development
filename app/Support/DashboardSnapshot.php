@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\Bid;
 use App\Models\Project;
+use App\Models\ProjectPriority;
 use App\Models\ProjectStatus;
 use App\Models\Quotation;
 use App\Models\Takeoff;
@@ -153,18 +154,13 @@ class DashboardSnapshot
             ->groupBy('priority')
             ->pluck('project_count', 'priority');
 
-        $priorityLabels = [
-            'low' => 'Low',
-            'normal' => 'Normal',
-            'high' => 'High',
-            'urgent' => 'Urgent',
-        ];
-
-        return collect(Project::PRIORITIES)
-            ->map(fn (string $priority): array => [
-                'key' => $priority,
-                'label' => $priorityLabels[$priority] ?? ucfirst($priority),
-                'value' => (int) ($priorityCounts[$priority] ?? 0),
+        return ProjectPriority::query()
+            ->orderBy('name')
+            ->get(['slug', 'name'])
+            ->map(fn (ProjectPriority $priority): array => [
+                'key' => $priority->slug,
+                'label' => $priority->name,
+                'value' => (int) ($priorityCounts[$priority->slug] ?? 0),
             ])
             ->values()
             ->all();

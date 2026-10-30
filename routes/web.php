@@ -19,6 +19,7 @@ use App\Http\Controllers\Admin\ImpersonationController;
 use App\Http\Controllers\Admin\LanguageController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ProfessionController;
+use App\Http\Controllers\Admin\ProjectControlController;
 use App\Http\Controllers\Admin\ProjectController;
 use App\Http\Controllers\Admin\QuotationController;
 use App\Http\Controllers\Admin\QuotationRevisionAssignmentController;
@@ -229,6 +230,23 @@ Route::middleware(['auth', 'prevent-back-history'])
             ->name('users.impersonate');
         Route::get('/user-activities', [UserActivityController::class, 'index'])
             ->name('user-activities.index');
+        Route::get('/project-control', [ProjectControlController::class, 'index'])->name('project-control.index');
+        Route::get('/project-control/export', [ProjectControlController::class, 'export'])->name('project-control.export');
+        Route::post('/project-control/import', [ProjectControlController::class, 'import'])->name('project-control.import');
+        Route::get('/project-control/reminders/due', [ProjectControlController::class, 'dueReminders'])->name('project-control.reminders.due');
+        Route::post('/project-control/reminders', [ProjectControlController::class, 'storeReminder'])->name('project-control.reminders.store');
+        Route::delete('/project-control/reminders/{reminder}', [ProjectControlController::class, 'destroyReminder'])->name('project-control.reminders.destroy');
+        Route::post('/project-control/reminders/{reminder}/dismiss', [ProjectControlController::class, 'dismissReminder'])->name('project-control.reminders.dismiss');
+        Route::post('/project-control/terms', [ProjectControlController::class, 'storeTerm'])->name('project-control.terms.store');
+        Route::get('/project-control/create', [ProjectControlController::class, 'create'])->name('project-control.create');
+        Route::post('/project-control', [ProjectControlController::class, 'store'])->name('project-control.store');
+        Route::get('/project-control/{projectControl}/openings/{opening}/takeoff', [ProjectControlController::class, 'openingTakeoff'])
+            ->whereNumber('opening')
+            ->name('project-control.openings.takeoff');
+        Route::get('/project-control/{projectControl}/edit', [ProjectControlController::class, 'edit'])->name('project-control.edit');
+        Route::patch('/project-control/{projectControl}', [ProjectControlController::class, 'update'])->name('project-control.update');
+        Route::delete('/project-control/{projectControl}', [ProjectControlController::class, 'destroy'])->name('project-control.destroy');
+
         Route::get('/expenses', [ExpenseController::class, 'index'])->name('expenses.index');
         Route::get('/expenses/share', [ExpenseController::class, 'shareGroup'])->name('expenses.share');
         Route::post('/expenses/share', [ExpenseController::class, 'share'])->name('expenses.share.store');
@@ -710,6 +728,8 @@ Route::middleware(['auth', 'prevent-back-history'])
             ->name('projects.name-availability');
         Route::post('/project-statuses', [ProjectController::class, 'storeStatus'])
             ->name('project-statuses.store');
+        Route::post('/project-priorities', [ProjectController::class, 'storePriority'])
+            ->name('project-priorities.store');
         Route::post('/project-scope-types', [ProjectController::class, 'storeScopeType'])
             ->name('project-scope-types.store');
         Route::post('/projects', [ProjectController::class, 'store'])

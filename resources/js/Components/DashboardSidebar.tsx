@@ -26,6 +26,7 @@ import {
     PackageIcon,
     PaletteIcon,
     PanelLeftCloseIcon,
+    ChartLineIcon,
     ReceiptIcon,
     PanelLeftOpenIcon,
     ShieldCheckIcon,
@@ -124,6 +125,7 @@ export default function DashboardSidebar({
     const canManageAccess = Boolean(can.manageAccess);
     const canViewUserActivity = Boolean(can.viewUserActivity);
     const canManageExpenses = Boolean(can.manageExpenses);
+    const canManageProjectControl = Boolean(can.manageProjectControl);
     const canCorrectRecords = Boolean(can.correctRecords);
     const canViewCompany = Boolean(can.viewCompany);
     const canManageDocumentColors = Boolean(can.manageDocumentColors);
@@ -179,6 +181,16 @@ export default function DashboardSidebar({
                               href: route('admin.projects.index'),
                               icon: BriefcaseIcon,
                               active: isRouteActive('admin.projects.*'),
+                          },
+                      ]
+                    : []),
+                ...(canManageProjectControl
+                    ? [
+                          {
+                              title: 'Project control',
+                              href: route('admin.project-control.index'),
+                              icon: ChartLineIcon,
+                              active: isRouteActive('admin.project-control.*'),
                           },
                       ]
                     : []),
