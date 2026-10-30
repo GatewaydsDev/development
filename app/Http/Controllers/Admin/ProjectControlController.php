@@ -82,6 +82,8 @@ class ProjectControlController extends Controller
     public function edit(Request $request, ProjectControl $projectControl): Response
     {
         $this->authorizeControl($request);
+        app(ProjectControlTakeoff::class)->sync($projectControl);
+        $projectControl->refresh();
         $projectControl->load(['bids', 'openings', 'procurements']);
 
         return Inertia::render('Admin/ProjectControl/Edit', [
@@ -715,6 +717,7 @@ class ProjectControlController extends Controller
         abort_unless($opening->project_control_id === $projectControl->id, 404);
 
         $takeoff = app(ProjectControlTakeoff::class)->ensure($projectControl, $opening, $user);
+        app(ProjectControlTakeoff::class)->sync($projectControl->fresh() ?? $projectControl);
 
         return redirect()->route('admin.takeoffs.show', $takeoff);
     }

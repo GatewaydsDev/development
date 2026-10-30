@@ -415,6 +415,84 @@ it('links an opening to a takeoff and saves a reminder with the job', function (
         );
 });
 
+it('brings every takeoff opening onto the job and keeps the link', function () {
+    $admin = controlAdmin();
+    $project = Project::query()->create(['name' => 'Linked barn']);
+    $job = ProjectControl::query()->create([
+        'job_code' => 'J-882',
+        'name' => 'Linked barn',
+        'pipeline_status' => 'active',
+        'project_id' => $project->id,
+    ]);
+    $matched = $job->openings()->create([
+        'sort_order' => 1,
+        'description' => 'Existing pair',
+        'mark' => 'A1',
+        'quantity' => 1,
+    ]);
+    $job->openings()->create([
+        'sort_order' => 2,
+        'description' => 'Job only leaf',
+        'mark' => 'B1',
+        'quantity' => 1,
+    ]);
+    $takeoff = Takeoff::query()->create([
+        'project_id' => $project->id,
+        'title' => 'Linked takeoff',
+        'status' => 'draft',
+        'pricing_method' => 'markup',
+    ]);
+    $takeoffMatch = $takeoff->openings()->create([
+        'opening_type' => 'door',
+        'tag' => 'A1',
+        'quantity' => 2,
+        'width' => 36,
+        'height' => 84,
+        'product_category' => 'Acoustic Door',
+        'notes' => 'Existing pair from drawings',
+        'sort_order' => 1,
+    ]);
+    $takeoff->openings()->create([
+        'opening_type' => 'window',
+        'tag' => 'W2',
+        'quantity' => 3,
+        'width' => 48,
+        'height' => 60,
+        'product_category' => 'Acoustic Window',
+        'notes' => 'North window',
+        'sort_order' => 2,
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.project-control.edit', $job))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('control.openings', function ($openings) use ($matched, $takeoffMatch) {
+            $rows = collect($openings);
+            $kept = $rows->firstWhere('mark', 'A1');
+            $brought = $rows->firstWhere('mark', 'W2');
+
+            return $rows->count() === 3
+                && $kept['id'] === $matched->id
+                && $kept['description'] === 'Existing pair'
+                && $brought['description'] === 'North window'
+                && $brought['size'] === '48 x 60'
+                && $brought['category'] === 'Acoustic Window'
+                && $matched->fresh()->takeoff_opening_id === $takeoffMatch->id;
+        }));
+
+    expect($job->openings()->count())->toBe(3)
+        ->and($takeoff->openings()->count())->toBe(3)
+        ->and($job->openings()->where('mark', 'B1')->value('takeoff_opening_id'))->not->toBeNull()
+        ->and($job->openings()->where('mark', 'W2')->value('takeoff_opening_id'))->not->toBeNull();
+
+    $this->actingAs($admin)
+        ->get(route('admin.project-control.edit', $job))
+        ->assertOk();
+
+    expect($job->openings()->count())->toBe(3)
+        ->and($takeoff->openings()->count())->toBe(3);
+});
+
 it('adds the september jobs and their projects once', function () {
     $existing = Project::query()->create([
         'name' => 'Ebtech STC-48 Acoustic Door Quote',
