@@ -1098,7 +1098,7 @@ export default function ComposeMail({
             </details>
             </div>
 
-            <div className="fixed inset-x-0 bottom-0 z-[60] border-t border-border bg-background/95 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] backdrop-blur lg:left-72 xl:left-80 [[data-sidebar-collapsed=1]_&]:lg:left-16 [[data-sidebar-collapsed=1]_&]:xl:left-16">
+            <div className="fixed inset-x-0 bottom-0 z-[60] border-t border-border bg-background/95 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] backdrop-blur lg:left-72 xl:left-80 [[data-sidebar-collapsed='1']_&]:lg:left-16 [[data-sidebar-collapsed='1']_&]:xl:left-16">
                 <div className="mx-auto flex max-w-[96rem] items-center gap-2 px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
                     <Button
                         className="h-12 shrink-0 bg-emerald-600 px-5 text-white hover:bg-emerald-700"
