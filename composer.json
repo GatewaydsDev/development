@@ -48,6 +48,7 @@
     },
     "scripts": {
         "post-autoload-dump": [
+            "@php scripts/patch-php85-mysql-ssl.php",
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi"
         ],

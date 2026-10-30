@@ -1,5 +1,9 @@
 <?php
 
+require_once __DIR__.'/../scripts/patch-php85-mysql-ssl.php';
+
+patchPhp85MysqlSslCa(dirname(__DIR__));
+
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\LogUserPageAccess;
 use App\Http\Middleware\PreventBackHistory;
