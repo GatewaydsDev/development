@@ -224,10 +224,39 @@ export default function Index({
                         </p>
                     </div>
                     <div className="flex shrink-0 flex-wrap items-center gap-2">
+
+
+                        <Button variant="outline" asChild className="border-sky-300 bg-sky-600 text-white hover:bg-sky-700 hover:text-white">
+                                <a href={route('admin.project-control.export', {
+                                search: filters.search || undefined,
+                                start: filters.start || undefined,
+                                end: filters.end || undefined,
+                            })}>
+                                <DownloadIcon className="h-4 w-4" />
+                                Export Excel
+                            </a>
+                        </Button>
+
+                        <form onSubmit={submitImport} className="flex flex-wrap items-center justify-end gap-2">
+                            <input
+                                name="workbook"
+                                type="file"
+                                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                                required
+                                className="h-8 max-w-40 text-sm text-muted-foreground file:mr-2 file:h-8 file:rounded-md file:border-0 file:bg-amber-100 file:px-2 file:text-sm file:font-medium file:text-amber-900"
+                                aria-label="September workbook"
+                            />
+                            <Button type="submit" className="bg-amber-600 text-white hover:bg-amber-700" disabled={importing}>
+                                <UploadIcon className="h-4 w-4" />
+                                {importing ? 'Importing' : 'Import'}
+                            </Button>
+                        </form>                        
+
                         <Button type="button" className="bg-sky-700 text-white hover:bg-sky-800" onClick={() => openReminder(catalog[0]?.uuid ?? '')}>
                             <BellIcon className="h-4 w-4" />
                             Reminder
                         </Button>
+
                         <Button asChild variant="create">
                             <Link href={route('admin.project-control.create')}>
                                 <PlusIcon className="h-4 w-4" />
@@ -309,32 +338,7 @@ export default function Index({
                             </Link>
                         ))}
                     </nav>
-                    <div className="flex flex-wrap items-center justify-end gap-2">
-                        <Button variant="outline" asChild className="border-sky-300 bg-sky-600 text-white hover:bg-sky-700 hover:text-white">
-                            <a href={route('admin.project-control.export', {
-                                search: filters.search || undefined,
-                                start: filters.start || undefined,
-                                end: filters.end || undefined,
-                            })}>
-                                <DownloadIcon className="h-4 w-4" />
-                                Export Excel
-                            </a>
-                        </Button>
-                        <form onSubmit={submitImport} className="flex flex-wrap items-center justify-end gap-2">
-                            <input
-                                name="workbook"
-                                type="file"
-                                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                                required
-                                className="h-8 max-w-40 text-sm text-muted-foreground file:mr-2 file:h-8 file:rounded-md file:border-0 file:bg-amber-100 file:px-2 file:text-sm file:font-medium file:text-amber-900"
-                                aria-label="September workbook"
-                            />
-                            <Button type="submit" className="bg-amber-600 text-white hover:bg-amber-700" disabled={importing}>
-                                <UploadIcon className="h-4 w-4" />
-                                {importing ? 'Importing' : 'Import'}
-                            </Button>
-                        </form>
-                    </div>
+
                 </div>
                 {errors.workbook ? <p className="text-sm text-destructive">{errors.workbook}</p> : null}
                 <p className="text-sm text-muted-foreground">
