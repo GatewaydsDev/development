@@ -18,6 +18,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -70,7 +71,7 @@ class ProjectControlController extends Controller
     {
         $user = $this->authorizeControl($request);
         $data = $this->validated($request);
-        $control = ProjectControl::query()->create(Arr::except($data, ['bids', 'openings', 'procurements', 'remind_at', 'reminder_note', 'reminder_user_ids', 'notify_popup', 'notify_email']));
+        $control = ProjectControl::query()->create(Arr::except($data, ['bids', 'openings', 'procurements', 'remind_at', 'reminder_note', 'reminder_user_ids', 'notify_popup', 'notify_email', 'reminder_email']));
         $this->syncLines($control, $data);
         $this->attachReminder($user, $control, $data);
 
@@ -92,6 +93,7 @@ class ProjectControlController extends Controller
             'control' => $this->formState($projectControl),
             'people' => $this->people(),
             'terms' => $this->terms(),
+            'reminders' => $this->jobReminders($projectControl),
             'connectedTakeoff' => $takeoff ? [
                 'title' => $takeoff->title,
                 'url' => route('admin.takeoffs.show', $takeoff),
@@ -104,7 +106,7 @@ class ProjectControlController extends Controller
     {
         $user = $this->authorizeControl($request);
         $data = $this->validated($request, $projectControl);
-        $projectControl->update(Arr::except($data, ['bids', 'openings', 'procurements', 'remind_at', 'reminder_note', 'reminder_user_ids', 'notify_popup', 'notify_email']));
+        $projectControl->update(Arr::except($data, ['bids', 'openings', 'procurements', 'remind_at', 'reminder_note', 'reminder_user_ids', 'notify_popup', 'notify_email', 'reminder_email']));
         $this->syncLines($projectControl, $data);
         $this->attachReminder($user, $projectControl, $data);
 
@@ -192,10 +194,11 @@ class ProjectControlController extends Controller
             'project_control_id' => ['required', 'uuid', Rule::exists(ProjectControl::class, 'uuid')],
             'remind_at' => ['required', 'date'],
             'note' => ['nullable', 'string', 'max:2000'],
-            'user_ids' => ['required', 'array', 'min:1', 'max:20'],
+            'user_ids' => ['nullable', 'array', 'max:20'],
             'user_ids.*' => ['integer', 'distinct', Rule::exists(User::class, 'id')],
             'notify_popup' => ['boolean'],
             'notify_email' => ['boolean'],
+            'reminder_email' => ['nullable', 'email', 'max:255'],
         ]);
 
         $popup = $request->boolean('notify_popup');
@@ -207,40 +210,26 @@ class ProjectControlController extends Controller
             ]);
         }
 
-        $people = User::query()->with('level')->whereIn('id', $validated['user_ids'])->get();
+        $people = User::query()->with('level')->whereIn('id', $validated['user_ids'] ?? [])->get();
 
-        if ($people->count() !== count($validated['user_ids']) || $people->contains(fn (User $person): bool => ! $person->isSuperAdmin())) {
+        if ($popup && ($people->isEmpty() || $people->count() !== count($validated['user_ids'] ?? []) || $people->contains(fn (User $person): bool => ! $person->isSuperAdmin()))) {
             throw ValidationException::withMessages([
                 'user_ids' => 'Choose a super administrator.',
             ]);
         }
 
-        if ($email) {
-            $missing = $people
-                ->filter(fn (User $person): bool => ! $this->canEmail($person))
-                ->map(fn (User $person): string => $person->name)
-                ->implode(', ');
-
-            if ($missing !== '') {
-                throw ValidationException::withMessages([
-                    'notify_email' => $missing.' need a personal email and a Microsoft 365 mailbox before an email reminder can be sent.',
-                ]);
-            }
-        }
-
+        $address = $this->emailAddress($validated, $email, $creator);
         $control = ProjectControl::query()->where('uuid', $validated['project_control_id'])->firstOrFail();
-
-        foreach ($people as $person) {
-            ProjectControlReminder::query()->create([
-                'project_control_id' => $control->id,
-                'user_id' => $person->id,
-                'created_by' => $creator->id,
-                'remind_at' => $validated['remind_at'],
-                'note' => $validated['note'] ?? null,
-                'notify_popup' => $popup,
-                'notify_email' => $email,
-            ]);
-        }
+        $this->createReminders(
+            $control,
+            $creator,
+            $popup ? $people : collect(),
+            $address,
+            $validated['remind_at'],
+            $validated['note'] ?? null,
+            $popup,
+            $email,
+        );
 
         return back()->with('success', 'Reminder saved.');
     }
@@ -328,16 +317,21 @@ class ProjectControlController extends Controller
     private function people(): array
     {
         return User::query()
-            ->with('level')
+            ->with(['level', 'emails'])
             ->orderBy('name')
             ->get()
             ->filter(fn (User $user): bool => $user->isSuperAdmin())
-            ->map(fn (User $user): array => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => (string) $user->email,
-                'mailbox' => filter_var(strtolower(trim((string) $user->microsoft_mailbox)), FILTER_VALIDATE_EMAIL) !== false,
-            ])
+            ->map(function (User $user): array {
+                $emails = $this->personalEmails($user);
+
+                return [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $emails[0] ?? strtolower(trim((string) $user->email)),
+                    'emails' => $emails,
+                    'mailbox' => filter_var(strtolower(trim((string) $user->microsoft_mailbox)), FILTER_VALIDATE_EMAIL) !== false,
+                ];
+            })
             ->values()
             ->all();
     }
@@ -365,13 +359,41 @@ class ProjectControlController extends Controller
      */
     private function reminders(): array
     {
-        return ProjectControlReminder::query()
-            ->with(['control', 'user'])
-            ->whereNull('dismissed_at')
-            ->where('remind_at', '>=', now()->subDay())
-            ->orderBy('remind_at')
-            ->limit(20)
-            ->get()
+        return $this->presentReminders(
+            ProjectControlReminder::query()
+                ->with(['control', 'user'])
+                ->where('remind_at', '>=', now()->subDays(90))
+                ->orderBy('remind_at')
+                ->limit(60)
+                ->get()
+        );
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function jobReminders(ProjectControl $control): array
+    {
+        return $this->presentReminders(
+            $control->reminders()
+                ->with(['control', 'user'])
+                ->where('remind_at', '>=', now()->subDays(90))
+                ->orderBy('remind_at')
+                ->get()
+        );
+    }
+
+    /**
+     * @param  Collection<int, ProjectControlReminder>  $reminders
+     * @return list<array<string, mixed>>
+     */
+    private function presentReminders($reminders): array
+    {
+        $upcoming = $reminders->filter(fn (ProjectControlReminder $reminder): bool => $reminder->remind_at?->isFuture() ?? false)->sortBy('remind_at');
+        $already = $reminders->reject(fn (ProjectControlReminder $reminder): bool => $reminder->remind_at?->isFuture() ?? false)->sortByDesc('remind_at');
+
+        return $upcoming->concat($already)
+            ->take(40)
             ->map(fn (ProjectControlReminder $reminder): array => [
                 'uuid' => $reminder->uuid,
                 'job_uuid' => $reminder->control?->uuid,
@@ -382,8 +404,31 @@ class ProjectControlController extends Controller
                 'note' => $reminder->note,
                 'notify_popup' => $reminder->notify_popup,
                 'notify_email' => $reminder->notify_email,
+                'recipient_email' => $reminder->recipient_email,
+                'status' => $this->reminderStatus($reminder),
             ])
+            ->values()
             ->all();
+    }
+
+    private function reminderStatus(ProjectControlReminder $reminder): string
+    {
+        if ($reminder->dismissed_at !== null) {
+            return 'Dismissed';
+        }
+
+        if ($reminder->notify_email && filled($reminder->email_error) && $reminder->email_sent_at === null) {
+            return 'Email failed';
+        }
+
+        if ($reminder->remind_at?->isFuture()) {
+            return 'Scheduled';
+        }
+
+        $popupDone = ! $reminder->notify_popup || $reminder->popup_sent_at !== null;
+        $emailDone = ! $reminder->notify_email || $reminder->email_sent_at !== null;
+
+        return $popupDone && $emailDone ? 'Sent' : 'Due';
     }
 
     public function storeTerm(Request $request): RedirectResponse
@@ -494,13 +539,87 @@ class ProjectControlController extends Controller
         return $data;
     }
 
-    private function canEmail(User $user): bool
+    /**
+     * @return list<string>
+     */
+    private function personalEmails(User $user): array
     {
-        $mailbox = strtolower(trim((string) $user->microsoft_mailbox));
-        $email = strtolower(trim((string) $user->email));
+        $saved = $user->emails
+            ->pluck('email')
+            ->map(fn (mixed $email): string => strtolower(trim((string) $email)))
+            ->filter(fn (string $email): bool => filter_var($email, FILTER_VALIDATE_EMAIL) !== false)
+            ->unique()
+            ->values();
 
-        return filter_var($mailbox, FILTER_VALIDATE_EMAIL) !== false
-            && filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
+        if ($saved->isNotEmpty()) {
+            return $saved->all();
+        }
+
+        $account = strtolower(trim((string) $user->email));
+
+        return filter_var($account, FILTER_VALIDATE_EMAIL) !== false ? [$account] : [];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function emailAddress(array $data, bool $email, User $sender): string
+    {
+        if (! $email) {
+            return '';
+        }
+
+        $address = strtolower(trim((string) ($data['reminder_email'] ?? '')));
+
+        if (filter_var($address, FILTER_VALIDATE_EMAIL) === false) {
+            throw ValidationException::withMessages([
+                'reminder_email' => $address === ''
+                    ? 'Choose an email from the list or type one.'
+                    : 'Enter an email address like name@example.com.',
+            ]);
+        }
+
+        if (filter_var(strtolower(trim((string) $sender->microsoft_mailbox)), FILTER_VALIDATE_EMAIL) === false) {
+            throw ValidationException::withMessages([
+                'reminder_email' => 'Your Microsoft 365 mailbox is required to send this email.',
+            ]);
+        }
+
+        return $address;
+    }
+
+    /**
+     * @param  Collection<int, User>  $popupPeople
+     */
+    private function createReminders(ProjectControl $control, User $creator, $popupPeople, string $address, mixed $remindAt, ?string $note, bool $popup, bool $email): void
+    {
+        $seen = [];
+
+        foreach ($popupPeople as $person) {
+            $sendsEmail = $email && $person->id === $creator->id;
+            $control->reminders()->create([
+                'user_id' => $person->id,
+                'created_by' => $creator->id,
+                'remind_at' => $remindAt,
+                'note' => $note,
+                'notify_popup' => $popup,
+                'notify_email' => $sendsEmail,
+                'recipient_email' => $sendsEmail ? $address : null,
+            ]);
+            $seen[$person->id] = true;
+        }
+
+        if ($email && ! isset($seen[$creator->id])) {
+            $control->reminders()->create([
+                'user_id' => $creator->id,
+                'created_by' => $creator->id,
+                'remind_at' => $remindAt,
+                'note' => $note,
+                'notify_popup' => false,
+                'notify_email' => true,
+                'recipient_email' => $address,
+            ]);
+        }
     }
 
     private function authorizeControl(Request $request): User
@@ -571,6 +690,7 @@ class ProjectControlController extends Controller
             'reminder_user_ids.*' => ['integer', 'distinct', Rule::exists(User::class, 'id')],
             'notify_popup' => ['sometimes', 'boolean'],
             'notify_email' => ['sometimes', 'boolean'],
+            'reminder_email' => ['nullable', 'email', 'max:255'],
             'bids' => ['array', 'max:40'],
             'bids.*.name' => ['required', 'string', 'max:255'],
             'bids.*.quoted_on' => ['nullable', 'date'],
@@ -738,12 +858,10 @@ class ProjectControlController extends Controller
             return;
         }
 
-        $channels = [
-            'notify_popup' => (bool) ($data['notify_popup'] ?? false),
-            'notify_email' => (bool) ($data['notify_email'] ?? false),
-        ];
+        $popup = (bool) ($data['notify_popup'] ?? false);
+        $email = (bool) ($data['notify_email'] ?? false);
 
-        if (! $channels['notify_popup'] && ! $channels['notify_email']) {
+        if (! $popup && ! $email) {
             throw ValidationException::withMessages([
                 'notify_popup' => 'Choose a popup, an email, or both.',
             ]);
@@ -754,31 +872,23 @@ class ProjectControlController extends Controller
             ->get()
             ->filter(fn (User $person): bool => $person->isSuperAdmin());
 
-        if ($people->isEmpty()) {
+        if ($popup && $people->isEmpty()) {
             throw ValidationException::withMessages([
                 'reminder_user_ids' => 'Choose at least one super administrator.',
             ]);
         }
 
-        if ($channels['notify_email']) {
-            $missing = $people->reject(fn (User $person): bool => $this->canEmail($person))->pluck('name');
-
-            if ($missing->isNotEmpty()) {
-                throw ValidationException::withMessages([
-                    'notify_email' => $missing->implode(', ').' needs a personal email and a Microsoft 365 mailbox.',
-                ]);
-            }
-        }
-
-        foreach ($people as $person) {
-            $control->reminders()->create([
-                'user_id' => $person->id,
-                'created_by' => $user->id,
-                'remind_at' => $data['remind_at'],
-                'note' => $data['reminder_note'] ?? null,
-                ...$channels,
-            ]);
-        }
+        $address = $this->emailAddress($data, $email, $user);
+        $this->createReminders(
+            $control,
+            $user,
+            $popup ? $people : collect(),
+            $address,
+            $data['remind_at'],
+            $data['reminder_note'] ?? null,
+            $popup,
+            $email,
+        );
     }
 
     private function blank(): array
@@ -823,6 +933,7 @@ class ProjectControlController extends Controller
             'reminder_note' => '',
             'notify_popup' => true,
             'notify_email' => false,
+            'reminder_email' => '',
             'reminder_user_ids' => [],
             'bids' => [],
             'openings' => [],
@@ -876,6 +987,7 @@ class ProjectControlController extends Controller
             'reminder_note' => '',
             'notify_popup' => true,
             'notify_email' => false,
+            'reminder_email' => '',
             'reminder_user_ids' => [],
             'bids' => $control->bids->map(fn ($bid): array => [
                 'name' => $bid->name,

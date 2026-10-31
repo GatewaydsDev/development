@@ -1,3 +1,4 @@
+import ActionHint from '@/Components/ActionHint';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import {
@@ -10,8 +11,9 @@ import {
 } from '@/Components/ui/dialog';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { BellIcon, DownloadIcon, ExpandIcon, PlusIcon, SearchIcon, UploadIcon } from 'lucide-react';
+import { BellIcon, DownloadIcon, EditIcon, ExpandIcon, EyeIcon, PlusIcon, SearchIcon, UploadIcon } from 'lucide-react';
 import { FormEvent, useState } from 'react';
+import { displayReminderWhen, reminderHow, reminderLabel, ReminderStatus, type ScheduledReminder } from './Partials/ReminderCards';
 import ReminderDialog, { type ReminderJob, type ReminderPerson } from './Partials/ReminderDialog';
 
 type JobRow = {
@@ -38,6 +40,8 @@ type JobRow = {
     material_payment_date: string | null;
     customer_payment_date: string | null;
     counts_in_demonstrated: boolean;
+    project: string | null;
+    project_edit: string | null;
     records: {
         bid: string | null;
         quotation: string | null;
@@ -95,17 +99,7 @@ type Props = {
     };
     people: ReminderPerson[];
     catalog: ReminderJob[];
-    reminders: {
-        uuid: string;
-        job_uuid: string | null;
-        job_code: string;
-        job_name: string;
-        user_name: string;
-        remind_at: string;
-        note: string | null;
-        notify_popup: boolean;
-        notify_email: boolean;
-    }[];
+    reminders: ScheduledReminder[];
     summary: Summary;
     jobs: JobRow[];
     calls: JobRow[];
@@ -140,21 +134,6 @@ const displayDate = (value: string | null) => {
     }
 
     return `${match[2]}/${match[3]}/${match[1]}`;
-};
-
-const displayDateTime = (value: string) => {
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-        return value;
-    }
-
-    return new Intl.DateTimeFormat('en-US', {
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-    }).format(date);
 };
 
 const statusLabel = (status: string) => {
@@ -235,13 +214,27 @@ export default function Index({
         <AuthenticatedLayout
             fullWidth
             header={
-                <div>
-                    <h2 className="text-xl font-semibold leading-tight text-emerald-700 dark:text-emerald-300">
-                        Project control
-                    </h2>
-                    <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-                        Update the job, its current bid, and its openings. Pipeline value uses each active job&apos;s current value. Subset bids and opening prices stay out of that total.
-                    </p>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                        <h2 className="text-xl font-semibold leading-tight text-emerald-700 dark:text-emerald-300">
+                            Project control
+                        </h2>
+                        <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+                            Update the job, its current bid, and its openings. Pipeline value uses each active job&apos;s current value. Subset bids and opening prices stay out of that total.
+                        </p>
+                    </div>
+                    <div className="flex shrink-0 flex-wrap items-center gap-2">
+                        <Button type="button" className="bg-sky-700 text-white hover:bg-sky-800" onClick={() => openReminder(catalog[0]?.uuid ?? '')}>
+                            <BellIcon className="h-4 w-4" />
+                            Reminder
+                        </Button>
+                        <Button asChild variant="create">
+                            <Link href={route('admin.project-control.create')}>
+                                <PlusIcon className="h-4 w-4" />
+                                Add job
+                            </Link>
+                        </Button>
+                    </div>
                 </div>
             }
         >
@@ -287,35 +280,6 @@ export default function Index({
                     ) : null}
                 </form>
 
-                {reminders.length > 0 ? (
-                    <section className="rounded-lg border border-border bg-card p-4">
-                        <h3 className="font-semibold text-foreground">Scheduled reminders</h3>
-                        <ul className="mt-3 divide-y divide-border">
-                            {reminders.map((reminder) => (
-                                <li key={reminder.uuid} className="flex flex-wrap items-center justify-between gap-3 py-3">
-                                    <div>
-                                        <p className="font-medium text-foreground">{reminder.job_code} · {reminder.job_name}</p>
-                                        <p className="text-sm text-muted-foreground">
-                                            {displayDateTime(reminder.remind_at)} · {reminder.user_name}
-                                            {reminder.notify_popup ? ' · Popup' : ''}
-                                            {reminder.notify_email ? ' · Email' : ''}
-                                        </p>
-                                        {reminder.note ? <p className="mt-1 text-sm text-foreground">{reminder.note}</p> : null}
-                                    </div>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        className="min-h-11 w-full sm:w-auto"
-                                        onClick={() => router.delete(route('admin.project-control.reminders.destroy', reminder.uuid), { preserveScroll: true })}
-                                    >
-                                        Remove
-                                    </Button>
-                                </li>
-                            ))}
-                        </ul>
-                    </section>
-                ) : null}
-
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
                     <SummaryCard label="Pipeline value" value={money(summary.pipeline_value)} detail={`${summary.active_count} active jobs`} />
                     <SummaryCard label="Known margin" value={summary.known_margin === null ? '—' : `${summary.known_margin}%`} detail={`${money(summary.known_profit)} on ${money(summary.known_cost)} known cost`} />
@@ -356,16 +320,6 @@ export default function Index({
                                 Export Excel
                             </a>
                         </Button>
-                        <Button type="button" className="bg-sky-700 text-white hover:bg-sky-800" onClick={() => openReminder(catalog[0]?.uuid ?? '')}>
-                            <BellIcon className="h-4 w-4" />
-                            Reminder
-                        </Button>
-                        <Button asChild className="bg-emerald-600 text-white hover:bg-emerald-700">
-                            <Link href={route('admin.project-control.create')}>
-                                <PlusIcon className="h-4 w-4" />
-                                Add job
-                            </Link>
-                        </Button>
                         <form onSubmit={submitImport} className="flex flex-wrap items-center justify-end gap-2">
                             <input
                                 name="workbook"
@@ -390,14 +344,15 @@ export default function Index({
                 {report === 'queue' ? <CallList calls={calls} /> : null}
                 {report === 'hold' ? (
                     <div className="space-y-6">
-                        <JobTable title="On hold" jobs={holdJobs} mode="hold" onRemind={openReminder} />
-                        <JobTable title="Lost" jobs={lostJobs} mode="hold" onRemind={openReminder} />
+                        <JobTable title="On hold" jobs={holdJobs} mode="hold" reminders={reminders} onRemind={openReminder} />
+                        <JobTable title="Lost" jobs={lostJobs} mode="hold" reminders={reminders} onRemind={openReminder} />
                     </div>
                 ) : (
                     <JobTable
                         title={reports.find((item) => item.id === report)?.label ?? 'Pipeline'}
                         jobs={jobs}
                         mode={report === 'cash' ? 'cash' : report === 'queue' ? 'queue' : 'pipeline'}
+                        reminders={reminders}
                         onRemind={openReminder}
                     />
                 )}
@@ -467,13 +422,18 @@ function JobTable({
     title,
     jobs,
     mode,
+    reminders,
     onRemind,
 }: {
     title: string;
     jobs: JobRow[];
     mode: 'pipeline' | 'hold' | 'queue' | 'cash';
+    reminders: ScheduledReminder[];
     onRemind: (uuid: string) => void;
 }) {
+    const [openReminder, setOpenReminder] = useState<ScheduledReminder | null>(null);
+    const forJob = (uuid: string) => reminders.filter((reminder) => reminder.job_uuid === uuid);
+
     return (
         <section className="overflow-hidden rounded-lg border border-border">
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
@@ -487,9 +447,13 @@ function JobTable({
                     jobs.map((job) => (
                         <article key={job.uuid} className="rounded-lg border border-border bg-card p-4">
                             <div className="flex items-start justify-between gap-3">
-                                <Link href={route('admin.project-control.edit', job.uuid)} className="text-base font-semibold text-emerald-700 hover:underline dark:text-emerald-300">
-                                    {job.job_code}
-                                </Link>
+                                <div>
+                                    <Link href={route('admin.project-control.edit', job.uuid)} className="text-base font-semibold text-emerald-700 hover:underline dark:text-emerald-300">
+                                        {job.job_code}
+                                    </Link>
+                                    <ReminderBadges reminders={forJob(job.uuid)} onOpen={setOpenReminder} />
+                                    <JobActions jobUuid={job.uuid} />
+                                </div>
                                 <p className="text-sm font-medium text-foreground">{money(job.current_value)}</p>
                             </div>
                             <div className="mt-2">
@@ -548,6 +512,7 @@ function JobTable({
                 <table className="min-w-full border-separate border-spacing-0 text-sm">
                     <thead>
                         <tr>
+                            <th className={`${headCell} left-0 z-30`}>Actions</th>
                             <th className={headCell}>Job</th>
                             <th className={headCell}>Project</th>
                             <th className={headCell}>Customer</th>
@@ -586,10 +551,14 @@ function JobTable({
                         ) : (
                             jobs.map((job) => (
                                 <tr key={job.uuid} className="hover:bg-muted/40">
+                                    <td className={`${cell} sticky left-0 z-10 whitespace-nowrap bg-card`}>
+                                        <JobActions jobUuid={job.uuid} />
+                                    </td>
                                     <td className={`${cell} whitespace-nowrap font-medium`}>
                                         <Link href={route('admin.project-control.edit', job.uuid)} className="text-emerald-700 hover:underline dark:text-emerald-300">
                                             {job.job_code}
                                         </Link>
+                                        <ReminderBadges reminders={forJob(job.uuid)} onOpen={setOpenReminder} />
                                         <button type="button" className="mt-1 block text-xs font-medium text-emerald-700 hover:underline dark:text-emerald-300" onClick={() => onRemind(job.uuid)}>
                                             Reminder
                                         </button>
@@ -641,7 +610,97 @@ function JobTable({
                     </tbody>
                 </table>
             </div>
+            <Dialog open={openReminder !== null} onOpenChange={(open) => { if (!open) setOpenReminder(null); }}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>{openReminder ? reminderLabel(openReminder) : 'Reminder'}</DialogTitle>
+                        <DialogDescription>
+                            {openReminder ? `${openReminder.job_code} · ${openReminder.job_name}` : ''}
+                        </DialogDescription>
+                    </DialogHeader>
+                    {openReminder ? (
+                        <table className="w-full text-sm">
+                            <tbody>
+                                <tr className="border-t border-border">
+                                    <th className="w-24 py-2 pr-3 text-left font-medium text-muted-foreground">When</th>
+                                    <td className="py-2 text-right text-foreground">{displayReminderWhen(openReminder.remind_at)}</td>
+                                </tr>
+                                <tr className="border-t border-border">
+                                    <th className="py-2 pr-3 text-left font-medium text-muted-foreground">Who</th>
+                                    <td className="py-2 text-right text-foreground">{openReminder.user_name || '—'}</td>
+                                </tr>
+                                <tr className="border-t border-border">
+                                    <th className="py-2 pr-3 text-left font-medium text-muted-foreground">How</th>
+                                    <td className="py-2 text-right text-foreground">{reminderHow(openReminder)}</td>
+                                </tr>
+                                <tr className="border-t border-border">
+                                    <th className="py-2 pr-3 text-left font-medium text-muted-foreground">Status</th>
+                                    <td className="py-2 text-right"><ReminderStatus status={openReminder.status} /></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    ) : null}
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setOpenReminder(null)}>Close</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </section>
+    );
+}
+
+function ReminderBadges({ reminders, onOpen }: { reminders: ScheduledReminder[]; onOpen: (reminder: ScheduledReminder) => void }) {
+    if (reminders.length === 0) {
+        return null;
+    }
+
+    return (
+        <div className="mt-1 flex max-w-48 flex-wrap gap-1">
+            {reminders.map((reminder) => (
+                <button
+                    key={reminder.uuid}
+                    type="button"
+                    title={reminderLabel(reminder)}
+                    className="max-w-40 truncate rounded-full bg-rose-600 px-2 py-0.5 text-xs font-medium text-white hover:bg-rose-700"
+                    onClick={() => onOpen(reminder)}
+                >
+                    {reminderLabel(reminder)}
+                </button>
+            ))}
+        </div>
+    );
+}
+
+function JobActions({ jobUuid }: { jobUuid: string }) {
+    const jobHref = route('admin.project-control.edit', jobUuid);
+
+    return (
+        <div className="flex flex-nowrap gap-1">
+            <ActionHint hint="View job">
+                <Button
+                    asChild
+                    variant="outline"
+                    size="icon-sm"
+                    className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 dark:border-indigo-800/60 dark:text-indigo-400 dark:hover:bg-indigo-950/40"
+                >
+                    <Link href={jobHref} aria-label="View job">
+                        <EyeIcon className="size-4" />
+                    </Link>
+                </Button>
+            </ActionHint>
+            <ActionHint hint="Edit job">
+                <Button
+                    asChild
+                    variant="outline"
+                    size="icon-sm"
+                    className="border-amber-200 text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:border-amber-800/60 dark:text-amber-400 dark:hover:bg-amber-950/40"
+                >
+                    <Link href={jobHref} aria-label="Edit job">
+                        <EditIcon className="size-4" />
+                    </Link>
+                </Button>
+            </ActionHint>
+        </div>
     );
 }
 

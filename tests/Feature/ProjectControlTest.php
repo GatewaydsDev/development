@@ -283,6 +283,7 @@ test('a follow-up reminder can use a popup and the person microsoft 365 mailbox'
             'user_ids' => [$admin->id],
             'notify_popup' => true,
             'notify_email' => true,
+            'reminder_email' => 'outside@example.com',
         ])
         ->assertRedirect()
         ->assertSessionHas('success');
@@ -295,7 +296,7 @@ test('a follow-up reminder can use a popup and the person microsoft 365 mailbox'
 
     expect($sent->messages)->toHaveCount(1)
         ->and($sent->messages[0]['mailbox'])->toBe('ricardo@gateway-ds.com')
-        ->and($sent->messages[0]['to'])->toBe(['personal@example.com'])
+        ->and($sent->messages[0]['to'])->toBe(['outside@example.com'])
         ->and($sent->messages[0]['content'])->toContain('width="72"')
         ->and($sent->messages[0]['content'])->toContain('Reminder barn')
         ->and($sent->messages[0]['content'])->not->toContain('cid:');
@@ -311,21 +312,18 @@ test('a follow-up reminder can use a popup and the person microsoft 365 mailbox'
         ->assertOk()
         ->assertJsonCount(0, 'reminders');
 
-    $blocked = controlAdmin();
-    $blocked->forceFill([
-        'email' => 'blocked@example.com',
-        'microsoft_mailbox' => null,
-    ])->save();
+    $admin->forceFill(['microsoft_mailbox' => null])->save();
 
     $this->actingAs($admin)
         ->post(route('admin.project-control.reminders.store'), [
             'project_control_id' => $job->uuid,
             'remind_at' => now()->addHour()->toISOString(),
-            'user_ids' => [$blocked->id],
+            'user_ids' => [$admin->id],
             'notify_popup' => false,
             'notify_email' => true,
+            'reminder_email' => 'someone@example.com',
         ])
-        ->assertSessionHasErrors('notify_email');
+        ->assertSessionHasErrors('reminder_email');
 });
 
 it('links an opening to a takeoff and saves a reminder with the job', function () {

@@ -1,3 +1,4 @@
+import CreatableSelect from '@/Components/CreatableSelect';
 import InputError from '@/Components/InputError';
 import { Button } from '@/Components/ui/button';
 import {
@@ -16,8 +17,23 @@ export type ReminderPerson = {
     id: number;
     name: string;
     email: string;
+    emails?: string[];
     mailbox: boolean;
 };
+
+export function reminderEmails(person: ReminderPerson): string[] {
+    const source = person.emails?.length ? person.emails : person.email ? [person.email] : [];
+
+    return source.map((email) => email.trim()).filter((email) => email !== '');
+}
+
+export function isEmailAddress(value: string): boolean {
+    return /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(value.trim());
+}
+
+export function emailTyping(value: string): string {
+    return value.replace(/[^A-Za-z0-9.@_+%-]/g, '');
+}
 
 export type ReminderJob = {
     uuid: string;
@@ -49,6 +65,7 @@ export default function ReminderDialog({
         user_ids: [userId] as number[],
         notify_popup: true,
         notify_email: false,
+        reminder_email: '',
     });
 
     useEffect(() => {
@@ -63,14 +80,16 @@ export default function ReminderDialog({
             user_ids: [userId],
             notify_popup: true,
             notify_email: false,
+            reminder_email: '',
         });
         form.clearErrors();
         // Reset only when the dialog opens for a job.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, jobUuid]);
 
-    const selected = people.filter((person) => form.data.user_ids.includes(person.id));
-    const emailBlocked = form.data.notify_email && selected.some((person) => !person.mailbox || !person.email);
+    const sender = people.find((person) => person.id === userId);
+    const reminderAddress = form.data.reminder_email.trim();
+    const emailBlocked = form.data.notify_email && (!isEmailAddress(reminderAddress) || !sender?.mailbox);
 
     const togglePerson = (id: number) => {
         const ids = form.data.user_ids.includes(id)
@@ -91,9 +110,23 @@ export default function ReminderDialog({
         });
     };
 
+    const jobOptions = jobs.map((job) => ({
+        id: job.uuid,
+        name: `${job.job_code} · ${job.name}`,
+    }));
+
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-xl">
+        <Dialog open={open} onOpenChange={onOpenChange} modal={false}>
+            <DialogContent
+                className="max-w-xl"
+                onInteractOutside={(event) => {
+                    const target = event.target;
+
+                    if (target instanceof Element && target.closest('[role="listbox"]')) {
+                        event.preventDefault();
+                    }
+                }}
+            >
                 <DialogHeader>
                     <DialogTitle>Follow-up reminder</DialogTitle>
                     <DialogDescription>
@@ -102,21 +135,17 @@ export default function ReminderDialog({
                 </DialogHeader>
 
                 <div className="grid gap-4">
-                    <label className="block text-sm font-medium text-foreground">
-                        Job
-                        <select
-                            value={form.data.project_control_id}
-                            onChange={(event) => form.setData('project_control_id', event.target.value)}
-                            className={`${fieldClass} mt-1`}
-                        >
-                            {jobs.map((job) => (
-                                <option key={job.uuid} value={job.uuid}>
-                                    {job.job_code} · {job.name}
-                                </option>
-                            ))}
-                        </select>
-                        <InputError message={form.errors.project_control_id} className="mt-1" />
-                    </label>
+                    <CreatableSelect
+                        id="reminder-job"
+                        label="Job"
+                        compact
+                        allowCreate={false}
+                        value={form.data.project_control_id}
+                        options={jobOptions}
+                        placeholder="Type to search for a job"
+                        error={form.errors.project_control_id}
+                        onChange={(jobId) => form.setData('project_control_id', jobId)}
+                    />
 
                     <label className="block text-sm font-medium text-foreground">
                         When
@@ -142,7 +171,7 @@ export default function ReminderDialog({
 
                     <fieldset>
                         <legend className="text-sm font-medium text-foreground">How should they be notified?</legend>
-                        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                        <div className="mt-2 grid items-start gap-2 sm:grid-cols-2">
                             <Channel
                                 pressed={form.data.notify_popup}
                                 icon={<BellIcon className="size-4" />}
@@ -154,10 +183,20 @@ export default function ReminderDialog({
                                 pressed={form.data.notify_email}
                                 icon={<MailIcon className="size-4" />}
                                 title="Personal email"
-                                detail="Sent from each person's Microsoft 365 mailbox."
+                                detail="Choose one address or type another. Sent from your Microsoft 365 mailbox."
                                 onClick={() => form.setData('notify_email', !form.data.notify_email)}
                             />
                         </div>
+                        {form.data.notify_email ? (
+                            <EmailChoices
+                                people={people}
+                                value={form.data.reminder_email}
+                                error={form.errors.reminder_email}
+                                blocked={emailBlocked}
+                                senderReady={Boolean(sender?.mailbox)}
+                                onChange={(email) => form.setData('reminder_email', email)}
+                            />
+                        ) : null}
                         <InputError message={form.errors.notify_popup || form.errors.notify_email} className="mt-1" />
                     </fieldset>
 
@@ -183,11 +222,6 @@ export default function ReminderDialog({
                             ))}
                         </div>
                         <InputError message={form.errors.user_ids} className="mt-1" />
-                        {emailBlocked ? (
-                            <p className="mt-1 text-sm text-destructive">
-                                Email needs a personal address and a Microsoft 365 mailbox for every person selected.
-                            </p>
-                        ) : null}
                     </fieldset>
                 </div>
 
@@ -195,12 +229,76 @@ export default function ReminderDialog({
                     <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                         Close
                     </Button>
-                    <Button type="button" className="bg-sky-600 text-white hover:bg-sky-700" disabled={form.processing || emailBlocked || form.data.user_ids.length === 0} onClick={submit}>
+                    <Button type="button" className="bg-sky-600 text-white hover:bg-sky-700" disabled={form.processing || emailBlocked || (form.data.notify_popup && form.data.user_ids.length === 0) || (form.data.notify_email && !form.data.reminder_email)} onClick={submit}>
                         Save reminder
                     </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+    );
+}
+
+function EmailChoices({
+    people,
+    value,
+    error,
+    blocked,
+    senderReady,
+    onChange,
+}: {
+    people: ReminderPerson[];
+    value: string;
+    error?: string;
+    blocked: boolean;
+    senderReady: boolean;
+    onChange: (email: string) => void;
+}) {
+    const choices = people.flatMap((person) => reminderEmails(person).map((email) => ({ person, email })));
+    const listed = choices.some((choice) => choice.email === value);
+
+    return (
+        <div className="mt-2 space-y-2 rounded-xl border border-border bg-background p-3">
+            <div className="max-h-40 space-y-2 overflow-auto pl-4">
+                {choices.length === 0 ? <p className="text-sm text-muted-foreground">No personal email is on file.</p> : null}
+                {choices.map(({ person, email }) => (
+                    <label key={`${person.id}-${email}`} className="flex items-start gap-3 pl-1 text-sm">
+                        <input
+                            type="radio"
+                            name="reminder-email"
+                            checked={value === email}
+                            onChange={() => onChange(email)}
+                            className="mt-1 h-4 w-4 border-border"
+                        />
+                        <span>
+                            <span className="font-medium text-foreground">{email}</span>
+                            <span className="block text-muted-foreground">{person.name}</span>
+                        </span>
+                    </label>
+                ))}
+            </div>
+            <div className="pl-5">
+                <input
+                    type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    spellCheck={false}
+                    pattern="^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$"
+                    value={listed ? '' : value}
+                    onChange={(event) => onChange(emailTyping(event.target.value))}
+                    className={fieldClass}
+                    placeholder="Or type an email"
+                />
+                {listed || value.trim() === '' || isEmailAddress(value) ? null : (
+                    <p className="mt-1 text-sm text-destructive">Enter an email address like name@example.com.</p>
+                )}
+            </div>
+            <InputError message={error} />
+            {blocked && (listed || value.trim() === '' || isEmailAddress(value)) ? (
+                <p className="text-sm text-destructive">
+                    {senderReady ? 'Choose an email from the list or type one.' : 'Your Microsoft 365 mailbox is required to send this email.'}
+                </p>
+            ) : null}
+        </div>
     );
 }
 

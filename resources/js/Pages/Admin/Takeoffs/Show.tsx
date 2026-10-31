@@ -572,23 +572,18 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                         </tbody>
                                     </table>
                                 </div>
-                                <dl className="grid grid-cols-2 gap-3 rounded-md border bg-muted/40 p-3 sm:grid-cols-4">
-                                    <div>
-                                        <dt className="text-xs uppercase tracking-wide text-muted-foreground">Openings</dt>
-                                        <dd className="text-lg font-semibold tabular-nums">{filtered.length}</dd>
-                                    </div>
-                                    <div>
-                                        <dt className="text-xs uppercase tracking-wide text-muted-foreground">Total quantity</dt>
-                                        <dd className="text-lg font-semibold tabular-nums">{filtered.reduce((sum, opening) => sum + Number(opening.quantity || 0), 0).toLocaleString('en-US', { maximumFractionDigits: 2 })}</dd>
-                                    </div>
-                                    <div>
-                                        <dt className="text-xs uppercase tracking-wide text-muted-foreground">Doors</dt>
-                                        <dd className="text-lg font-semibold tabular-nums">{filtered.filter((opening) => opening.opening_type !== 'window').length}</dd>
-                                    </div>
-                                    <div>
-                                        <dt className="text-xs uppercase tracking-wide text-muted-foreground">Windows</dt>
-                                        <dd className="text-lg font-semibold tabular-nums">{filtered.filter((opening) => opening.opening_type === 'window').length}</dd>
-                                    </div>
+                                <dl className="grid grid-cols-2 rounded-md border bg-muted/40 px-2 py-3 lg:grid-cols-4">
+                                    {([
+                                        ['Openings', String(filtered.length)],
+                                        ['Total quantity', filtered.reduce((sum, opening) => sum + Number(opening.quantity || 0), 0).toLocaleString('en-US', { maximumFractionDigits: 2 })],
+                                        ['Doors', String(filtered.filter((opening) => opening.opening_type !== 'window').length)],
+                                        ['Windows', String(filtered.filter((opening) => opening.opening_type === 'window').length)],
+                                    ] as const).map(([label, value]) => (
+                                        <div key={label} className="px-4 even:border-l even:border-border lg:[&:nth-child(4n+3)]:border-l lg:[&:nth-child(4n+3)]:border-border lg:[&:nth-child(4n+1)]:border-l-0">
+                                            <dt className="text-xs uppercase tracking-wide text-muted-foreground">{label}</dt>
+                                            <dd className="mt-1 text-right text-lg font-semibold tabular-nums">{value}</dd>
+                                        </div>
+                                    ))}
                                 </dl>
                                 {editable ? (
                                     <form className="space-y-2 rounded-md border p-3" onSubmit={previewImport}>

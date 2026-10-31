@@ -1,9 +1,10 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link } from '@inertiajs/react';
 import ProjectControlForm, { type ConnectedTakeoff, type ControlDraft, type ControlTerms } from './Partials/ProjectControlForm';
+import type { ScheduledReminder } from './Partials/ReminderCards';
 import type { ReminderPerson } from './Partials/ReminderDialog';
 
-export default function Edit({ control, people, terms, connectedTakeoff = null }: { control: ControlDraft & { uuid: string }; people: ReminderPerson[]; terms: ControlTerms; connectedTakeoff?: ConnectedTakeoff }) {
+export default function Edit({ control, people, terms, connectedTakeoff = null, reminders = [] }: { control: ControlDraft & { uuid: string }; people: ReminderPerson[]; terms: ControlTerms; connectedTakeoff?: ConnectedTakeoff; reminders?: ScheduledReminder[] }) {
     return (
         <AuthenticatedLayout
             fullWidth
@@ -31,6 +32,7 @@ export default function Edit({ control, people, terms, connectedTakeoff = null }
                     people={people}
                     terms={terms}
                     connectedTakeoff={connectedTakeoff}
+                    reminders={reminders}
                 />
             </div>
         </AuthenticatedLayout>

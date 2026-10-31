@@ -12,7 +12,7 @@ class ProjectControlReminderDelivery
     public function deliver(?User $only = null): void
     {
         $reminders = ProjectControlReminder::query()
-            ->with(['user', 'control'])
+            ->with(['user', 'control', 'creator'])
             ->when($only, fn ($query) => $query->where('user_id', $only->id))
             ->where('remind_at', '<=', now())
             ->where(function ($query): void {
@@ -43,15 +43,15 @@ class ProjectControlReminderDelivery
 
     private function email(ProjectControlReminder $reminder): void
     {
-        $person = $reminder->user;
-        $mailbox = strtolower(trim((string) $person?->microsoft_mailbox));
-        $email = strtolower(trim((string) $person?->email));
+        $sender = $reminder->creator instanceof User ? $reminder->creator : $reminder->user;
+        $mailbox = strtolower(trim((string) $sender?->microsoft_mailbox));
+        $email = strtolower(trim((string) ($reminder->recipient_email ?: $reminder->user?->email)));
 
-        if (! $person instanceof User || filter_var($mailbox, FILTER_VALIDATE_EMAIL) === false || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+        if (! $sender instanceof User || filter_var($mailbox, FILTER_VALIDATE_EMAIL) === false || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
             $reminder->forceFill([
                 'email_attempts' => 3,
                 'email_sent_at' => now(),
-                'email_error' => 'A personal email and Microsoft 365 mailbox are required.',
+                'email_error' => 'Your Microsoft 365 mailbox is required to send this email.',
             ])->save();
 
             return;
@@ -59,8 +59,8 @@ class ProjectControlReminderDelivery
 
         try {
             app(MicrosoftGraphMailService::class)
-                ->actingAs($person)
-                ->sendComposed($mailbox, [$email], $this->subject($reminder), $this->html($reminder, $person), 'HTML');
+                ->actingAs($sender)
+                ->sendComposed($mailbox, [$email], $this->subject($reminder), $this->html($reminder, $sender), 'HTML');
 
             $reminder->forceFill([
                 'email_sent_at' => now(),

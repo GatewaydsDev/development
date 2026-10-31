@@ -27,7 +27,7 @@ import { createPortal } from 'react-dom';
 import { z } from 'zod';
 
 export type CreatableOption = {
-    id: number;
+    id: number | string;
     name: string;
     slug?: string | null;
     abbreviation?: string | null;

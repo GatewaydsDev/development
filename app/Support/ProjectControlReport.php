@@ -123,7 +123,7 @@ class ProjectControlReport
     private function jobs(array $filters): Collection
     {
         $jobs = ProjectControl::query()
-            ->with(['openings.takeoffOpening.takeoff', 'procurements'])
+            ->with(['openings.takeoffOpening.takeoff', 'procurements', 'project'])
             ->get()
             ->sortBy(fn (ProjectControl $job): string => $job->job_code, SORT_NATURAL)
             ->values();
@@ -228,6 +228,8 @@ class ProjectControlReport
             'material_payment_date' => $job->material_payment_date?->toDateString(),
             'customer_payment_date' => $job->customer_payment_date?->toDateString(),
             'counts_in_demonstrated' => $job->counts_in_demonstrated,
+            'project' => $job->project ? route('admin.projects.show', $job->project) : null,
+            'project_edit' => $job->project ? route('admin.projects.edit', $job->project) : null,
             'records' => $this->records($job),
         ];
     }

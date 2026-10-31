@@ -19,6 +19,7 @@ class ProjectControlReminder extends Model
         'note',
         'notify_popup',
         'notify_email',
+        'recipient_email',
         'popup_sent_at',
         'email_sent_at',
         'email_attempts',

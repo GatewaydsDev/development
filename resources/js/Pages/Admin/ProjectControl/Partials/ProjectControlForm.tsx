@@ -24,9 +24,10 @@ import {
     DialogTitle,
 } from '@/Components/ui/dialog';
 import { Link, router, useForm, usePage } from '@inertiajs/react';
-import { BellIcon, MailIcon, PencilIcon, PlusIcon, RulerIcon, Trash2Icon } from 'lucide-react';
+import { BellIcon, CheckIcon, MailIcon, PencilIcon, PlusIcon, RulerIcon, Trash2Icon } from 'lucide-react';
 import { FormEvent, ReactNode, useState } from 'react';
-import type { ReminderPerson } from './ReminderDialog';
+import ReminderCards, { type ScheduledReminder } from './ReminderCards';
+import { emailTyping, isEmailAddress, reminderEmails, type ReminderPerson } from './ReminderDialog';
 
 export type BidDraft = {
     name: string;
@@ -112,6 +113,7 @@ export type ControlDraft = {
     reminder_note: string;
     notify_popup: boolean;
     notify_email: boolean;
+    reminder_email: string;
     reminder_user_ids: number[];
     bids: BidDraft[];
     openings: OpeningDraft[];
@@ -138,6 +140,9 @@ export type ControlTerms = {
 
 const fieldClass =
     'h-11 w-full rounded-md border border-border bg-background px-3 text-base text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-sm dark:[color-scheme:dark]';
+
+const reminderInputClass =
+    'h-8 w-full rounded-md border border-border bg-background px-3 py-1 text-sm leading-none text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring dark:[color-scheme:dark]';
 
 const blankBid = (): BidDraft => ({
     name: '',
@@ -194,6 +199,12 @@ const amount = (value: string) => {
 
 const tally = (value: number) => new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(value);
 
+const displayDate = (value: string) => {
+    const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value.trim());
+
+    return match ? `${match[2]}/${match[3]}/${match[1]}` : value.trim();
+};
+
 const cell = (value: string) => {
     const text = value.trim();
 
@@ -202,6 +213,47 @@ const cell = (value: string) => {
     }
 
     return <span className="line-clamp-2" title={text}>{text}</span>;
+};
+
+const bidStandings = [
+    { value: 'current', label: 'Current' },
+    { value: 'subset', label: 'Subset' },
+    { value: 'superseded', label: 'Superseded' },
+    { value: 'historical', label: 'Historical' },
+];
+
+const standingLabel = (value: string) => bidStandings.find((item) => item.value === value)?.label ?? (value || '—');
+
+const summarizeBids = (bids: BidDraft[]) => {
+    const priced = (standing: string | null) => bids.filter((bid) => (standing === null ? bid.standing !== 'current' : bid.standing === standing) && amount(bid.amount) !== null);
+    const sum = (rows: BidDraft[]) => rows.reduce((total, bid) => total + (amount(bid.amount) ?? 0), 0);
+    const currentRows = priced('current');
+    const outsideRows = priced(null);
+    const dates = bids.map((bid) => bid.quoted_on).filter((date) => date !== '').sort();
+
+    return {
+        count: bids.length,
+        current: currentRows.length === 0 ? null : sum(currentRows),
+        outside: outsideRows.length === 0 ? null : sum(outsideRows),
+        latest: dates.at(-1) ?? '',
+    };
+};
+
+const summarizeProcurements = (rows: ProcurementDraft[]) => {
+    const costRows = rows.filter((row) => amount(row.supplier_cost) !== null);
+    const cost = costRows.reduce((total, row) => {
+        const unit = amount(row.supplier_cost) ?? 0;
+        const qty = amount(row.quantity);
+
+        return total + unit * (qty === null || qty === 0 ? 1 : qty);
+    }, 0);
+
+    return {
+        count: rows.length,
+        quantity: rows.reduce((total, row) => total + (amount(row.quantity) ?? 0), 0),
+        cost: costRows.length === 0 ? null : cost,
+        unordered: rows.filter((row) => row.po_number.trim() === '').length,
+    };
 };
 
 const summarizeOpenings = (openings: OpeningDraft[]) => {
@@ -245,6 +297,7 @@ export default function ProjectControlForm({
     people = [],
     terms,
     connectedTakeoff = null,
+    reminders = [],
 }: {
     action: string;
     method: 'post' | 'patch';
@@ -252,6 +305,7 @@ export default function ProjectControlForm({
     people?: ReminderPerson[];
     terms: ControlTerms;
     connectedTakeoff?: ConnectedTakeoff | null;
+    reminders?: ScheduledReminder[];
 }) {
     const userId = usePage().props.auth.user.id;
     const form = useForm<ControlDraft>({
@@ -263,6 +317,12 @@ export default function ProjectControlForm({
     const [openingIndex, setOpeningIndex] = useState<number | null>(null);
     const [openingDraft, setOpeningDraft] = useState<OpeningDraft | null>(null);
     const [openingDraftError, setOpeningDraftError] = useState('');
+    const [bidIndex, setBidIndex] = useState<number | null>(null);
+    const [bidDraft, setBidDraft] = useState<BidDraft | null>(null);
+    const [bidDraftError, setBidDraftError] = useState('');
+    const [procurementIndex, setProcurementIndex] = useState<number | null>(null);
+    const [procurementDraft, setProcurementDraft] = useState<ProcurementDraft | null>(null);
+    const [procurementDraftError, setProcurementDraftError] = useState('');
     const costs = [form.data.material_cost, form.data.freight_cost, form.data.labor_cost, form.data.other_cost]
         .map(amount)
         .filter((value): value is number => value !== null);
@@ -272,9 +332,11 @@ export default function ProjectControlForm({
     const margin = direct === null || current <= 0 ? null : (profit ?? 0) / current * 100;
     const depositPercent = amount(form.data.deposit_percent);
     const deposit = depositPercent === null || depositPercent <= 0 ? null : current * depositPercent / 100;
-    const selectedPeople = people.filter((person) => form.data.reminder_user_ids.includes(person.id));
     const reminderActive = form.data.remind_at.trim() !== '';
-    const emailBlocked = reminderActive && form.data.notify_email && selectedPeople.some((person) => !person.mailbox || !person.email);
+    const emailChoices = people.flatMap((person) => reminderEmails(person).map((email) => ({ person, email })));
+    const sender = people.find((person) => person.id === userId);
+    const reminderAddress = form.data.reminder_email.trim();
+    const emailBlocked = reminderActive && form.data.notify_email && (!isEmailAddress(reminderAddress) || !sender?.mailbox);
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
@@ -350,6 +412,86 @@ export default function ProjectControlForm({
     };
 
     const openingTotals = summarizeOpenings(form.data.openings);
+    const bidTotals = summarizeBids(form.data.bids);
+    const procurementTotals = summarizeProcurements(form.data.procurements);
+
+    const openBid = (index: number | null) => {
+        setBidDraftError('');
+        setBidIndex(index);
+        setBidDraft(index === null ? blankBid() : { ...form.data.bids[index] });
+    };
+
+    const closeBid = () => {
+        setBidDraft(null);
+        setBidIndex(null);
+        setBidDraftError('');
+    };
+
+    const saveBid = () => {
+        if (!bidDraft || bidDraft.name.trim() === '') {
+            setBidDraftError('Enter a name for this revision.');
+
+            return;
+        }
+
+        if (bidIndex === null) {
+            form.setData('bids', [...form.data.bids, bidDraft]);
+        } else {
+            updateBid(form, bidIndex, bidDraft);
+        }
+
+        closeBid();
+    };
+
+    const removeBid = () => {
+        if (bidIndex === null) {
+            closeBid();
+
+            return;
+        }
+
+        form.setData('bids', form.data.bids.filter((_, item) => item !== bidIndex));
+        closeBid();
+    };
+
+    const openProcurement = (index: number | null) => {
+        setProcurementDraftError('');
+        setProcurementIndex(index);
+        setProcurementDraft(index === null ? blankProcurement() : { ...form.data.procurements[index] });
+    };
+
+    const closeProcurement = () => {
+        setProcurementDraft(null);
+        setProcurementIndex(null);
+        setProcurementDraftError('');
+    };
+
+    const saveProcurement = () => {
+        if (!procurementDraft || procurementDraft.assembly.trim() === '') {
+            setProcurementDraftError('Enter an assembly for this line.');
+
+            return;
+        }
+
+        if (procurementIndex === null) {
+            form.setData('procurements', [...form.data.procurements, procurementDraft]);
+        } else {
+            updateProcurement(form, procurementIndex, procurementDraft);
+        }
+
+        closeProcurement();
+    };
+
+    const removeProcurement = () => {
+        if (procurementIndex === null) {
+            closeProcurement();
+
+            return;
+        }
+
+        form.setData('procurements', form.data.procurements.filter((_, item) => item !== procurementIndex));
+        closeProcurement();
+    };
 
     const removeJob = () => {
         if (!control.uuid) {
@@ -556,48 +698,71 @@ export default function ProjectControlForm({
             </section>
 
             <LineSection
-                title="Bid versions"
-                description="Mark one version Current. A subset or superseded bid is kept here and stays out of the pipeline total."
+                title="Bid revisions"
+                description="Each revision is one row. Click a row to edit it. Mark one revision Current. A subset or superseded bid stays out of the pipeline total."
                 className="border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30"
-                onAdd={() => form.setData('bids', [...form.data.bids, blankBid()])}
+                onAdd={() => openBid(null)}
             >
-                {form.data.bids.map((bid, index) => (
-                    <div key={index} className="grid gap-3 border-t border-border py-4 md:grid-cols-4">
-                        <Field label="Version">
-                            <input value={bid.name} onChange={(event) => updateBid(form, index, { name: event.target.value })} className={fieldClass} />
-                        </Field>
-                        <Field label="Date">
-                            <input type="date" value={bid.quoted_on} onChange={(event) => updateBid(form, index, { quoted_on: event.target.value })} className={fieldClass} />
-                        </Field>
-                        <Field label="Amount">
-                            <input value={bid.amount} onChange={(event) => updateBid(form, index, { amount: event.target.value.replace(/[^0-9.]/g, '') })} inputMode="decimal" className={fieldClass} />
-                        </Field>
-                        <Field label="Standing">
-                            <select value={bid.standing} onChange={(event) => updateBid(form, index, { standing: event.target.value })} className={fieldClass}>
-                                <option value="current">Current</option>
-                                <option value="subset">Subset</option>
-                                <option value="superseded">Superseded</option>
-                                <option value="historical">Historical</option>
-                            </select>
-                        </Field>
-                        <Field label="Double-count rule" className="md:col-span-2">
-                            <input value={bid.count_rule} onChange={(event) => updateBid(form, index, { count_rule: event.target.value })} className={fieldClass} />
-                        </Field>
-                        <Field label="Document" className="md:col-span-2">
-                            <input value={bid.document} onChange={(event) => updateBid(form, index, { document: event.target.value })} className={fieldClass} />
-                        </Field>
-                        <Field label="Notes" className="md:col-span-3">
-                            <input value={bid.notes} onChange={(event) => updateBid(form, index, { notes: event.target.value })} className={fieldClass} />
-                        </Field>
-                        <div className="flex items-end">
-                            <Button type="button" variant="destructive" onClick={() => form.setData('bids', form.data.bids.filter((_, item) => item !== index))}>
-                                <Trash2Icon className="h-4 w-4" />
-                                Remove
-                            </Button>
-                        </div>
-                        <InputError message={lineError('bids', index)} className="md:col-span-4" />
-                    </div>
-                ))}
+                <div className="mt-4 overflow-x-auto rounded-lg border border-amber-200 bg-background dark:border-amber-900">
+                    <table className="w-full min-w-[40rem] border-collapse text-left text-sm">
+                        <thead className="bg-amber-100/80 text-xs uppercase tracking-wide text-amber-950 dark:bg-amber-950/60 dark:text-amber-100">
+                            <tr>
+                                <th className="px-3 py-2 font-medium">Revision</th>
+                                <th className="px-3 py-2 text-right font-medium">Date</th>
+                                <th className="px-3 py-2 text-right font-medium">Amount</th>
+                                <th className="px-3 py-2 font-medium">Standing</th>
+                                <th className="px-3 py-2 font-medium">Document</th>
+                                <th className="px-3 py-2 font-medium"><span className="sr-only">Edit</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {form.data.bids.length === 0 ? (
+                                <tr>
+                                    <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">
+                                        No revisions yet. Use Add to enter the first one.
+                                    </td>
+                                </tr>
+                            ) : form.data.bids.map((bid, index) => {
+                                const error = lineError('bids', index);
+
+                                return (
+                                    <tr
+                                        key={`${bid.name}-${index}`}
+                                        className={`cursor-pointer border-t border-border hover:bg-amber-50 dark:hover:bg-amber-950/40 ${error ? 'bg-red-50 dark:bg-red-950/30' : ''}`}
+                                        onClick={() => openBid(index)}
+                                    >
+                                        <td className="max-w-[16rem] px-3 py-3 align-top font-medium text-foreground">{cell(bid.name)}</td>
+                                        <td className="whitespace-nowrap px-3 py-3 text-right align-top tabular-nums">{cell(displayDate(bid.quoted_on))}</td>
+                                        <td className="whitespace-nowrap px-3 py-3 text-right align-top tabular-nums">{amount(bid.amount) === null ? cell('') : money(amount(bid.amount))}</td>
+                                        <td className="whitespace-nowrap px-3 py-3 align-top">{standingLabel(bid.standing)}</td>
+                                        <td className="max-w-[14rem] px-3 py-3 align-top">{cell(bid.document)}</td>
+                                        <td className="px-3 py-3 align-top">
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                aria-label={`Edit revision ${bid.name || index + 1}`}
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    openBid(index);
+                                                }}
+                                            >
+                                                <PencilIcon className="h-4 w-4" />
+                                                Edit
+                                            </Button>
+                                            {error ? <InputError message={error} className="mt-1 max-w-40" /> : null}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+                <dl className="mt-4 grid grid-cols-2 rounded-lg border border-amber-200 bg-amber-100/50 px-2 py-3 lg:grid-cols-4 dark:border-amber-900 dark:bg-amber-950/40">
+                    <SummaryStat label="Revisions" value={String(bidTotals.count)} tone="amber" />
+                    <SummaryStat label="Current" value={money(bidTotals.current)} tone="amber" />
+                    <SummaryStat label="Outside the total" value={money(bidTotals.outside)} tone="amber" />
+                    <SummaryStat label="Latest date" value={bidTotals.latest ? displayDate(bidTotals.latest) : '—'} tone="amber" />
+                </dl>
             </LineSection>
 
             <LineSection
@@ -677,7 +842,7 @@ export default function ProjectControlForm({
                         </tbody>
                     </table>
                 </div>
-                <dl className="mt-4 grid grid-cols-2 gap-3 rounded-lg border border-violet-200 bg-violet-100/50 p-4 sm:grid-cols-4 dark:border-violet-900 dark:bg-violet-950/40">
+                <dl className="mt-4 grid grid-cols-2 rounded-lg border border-violet-200 bg-violet-100/50 px-2 py-3 lg:grid-cols-4 dark:border-violet-900 dark:bg-violet-950/40">
                     <SummaryStat label="Openings" value={String(openingTotals.count)} />
                     <SummaryStat label="Total quantity" value={tally(openingTotals.quantity)} />
                     <SummaryStat label="Categories" value={String(openingTotals.categories)} />
@@ -687,63 +852,72 @@ export default function ProjectControlForm({
 
             <LineSection
                 title="Procurement"
-                description="Supplier quotes and purchase orders. A line with no PO stays on the unordered list."
+                description="Each supplier line is one row. Click a row to edit it. A line with no PO stays on the unordered list."
                 className="border-orange-200 bg-orange-50/70 dark:border-orange-900 dark:bg-orange-950/30"
-                onAdd={() => form.setData('procurements', [...form.data.procurements, blankProcurement()])}
+                onAdd={() => openProcurement(null)}
             >
-                {form.data.procurements.map((procurement, index) => (
-                    <div key={index} className="grid gap-3 border-t border-border py-4 md:grid-cols-4">
-                        <Field label="Assembly" className="md:col-span-2">
-                            <input value={procurement.assembly} onChange={(event) => updateProcurement(form, index, { assembly: event.target.value })} className={fieldClass} />
-                        </Field>
-                        <Field label="Qty">
-                            <input value={procurement.quantity} onChange={(event) => updateProcurement(form, index, { quantity: event.target.value.replace(/[^0-9.]/g, '') })} inputMode="decimal" className={fieldClass} />
-                        </Field>
-                        <Field label="Manufacturer">
-                            <input value={procurement.manufacturer} onChange={(event) => updateProcurement(form, index, { manufacturer: event.target.value })} className={fieldClass} />
-                        </Field>
-                        <Field label="Quote number">
-                            <input value={procurement.quote_number} onChange={(event) => updateProcurement(form, index, { quote_number: event.target.value })} className={fieldClass} />
-                        </Field>
-                        <Field label="Quote date">
-                            <input type="date" value={procurement.quoted_on} onChange={(event) => updateProcurement(form, index, { quoted_on: event.target.value })} className={fieldClass} />
-                        </Field>
-                        <Field label="Supplier cost">
-                            <input value={procurement.supplier_cost} onChange={(event) => updateProcurement(form, index, { supplier_cost: event.target.value.replace(/[^0-9.]/g, '') })} inputMode="decimal" className={fieldClass} />
-                        </Field>
-                        <TermSelect
-                            id={`procurement-order-${index}`}
-                            label="Order status"
-                            kind="order_status"
-                            catalogKey="orderStatuses"
-                            value={procurement.order_status_id}
-                            options={terms.orderStatuses}
-                            onChange={(id, option) => updateProcurement(form, index, { order_status_id: id, order_status: option?.name ?? '' })}
-                        />
-                        <Field label="PO number">
-                            <input value={procurement.po_number} onChange={(event) => updateProcurement(form, index, { po_number: event.target.value })} className={fieldClass} />
-                        </Field>
-                        <TermSelect
-                            id={`procurement-lead-${index}`}
-                            label="Lead time"
-                            kind="lead_time"
-                            catalogKey="leadTimes"
-                            value={procurement.lead_time_id}
-                            options={terms.leadTimes}
-                            onChange={(id, option) => updateProcurement(form, index, { lead_time_id: id, lead_time: option?.name ?? '' })}
-                        />
-                        <Field label="Next action" className="md:col-span-3">
-                            <input value={procurement.next_action} onChange={(event) => updateProcurement(form, index, { next_action: event.target.value })} className={fieldClass} />
-                        </Field>
-                        <div className="flex items-end">
-                            <Button type="button" variant="destructive" onClick={() => form.setData('procurements', form.data.procurements.filter((_, item) => item !== index))}>
-                                <Trash2Icon className="h-4 w-4" />
-                                Remove
-                            </Button>
-                        </div>
-                        <InputError message={lineError('procurements', index)} className="md:col-span-4" />
-                    </div>
-                ))}
+                <div className="mt-4 overflow-x-auto rounded-lg border border-orange-200 bg-background dark:border-orange-900">
+                    <table className="w-full min-w-[44rem] border-collapse text-left text-sm">
+                        <thead className="bg-orange-100/80 text-xs uppercase tracking-wide text-orange-950 dark:bg-orange-950/60 dark:text-orange-100">
+                            <tr>
+                                <th className="px-3 py-2 font-medium">Assembly</th>
+                                <th className="px-3 py-2 text-right font-medium">Qty</th>
+                                <th className="px-3 py-2 font-medium">Manufacturer</th>
+                                <th className="px-3 py-2 text-right font-medium">Supplier cost</th>
+                                <th className="px-3 py-2 font-medium">Status</th>
+                                <th className="px-3 py-2 font-medium">PO</th>
+                                <th className="px-3 py-2 font-medium"><span className="sr-only">Edit</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {form.data.procurements.length === 0 ? (
+                                <tr>
+                                    <td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">
+                                        No procurement lines yet. Use Add to enter the first one.
+                                    </td>
+                                </tr>
+                            ) : form.data.procurements.map((procurement, index) => {
+                                const error = lineError('procurements', index);
+
+                                return (
+                                    <tr
+                                        key={`${procurement.assembly}-${index}`}
+                                        className={`cursor-pointer border-t border-border hover:bg-orange-50 dark:hover:bg-orange-950/40 ${error ? 'bg-red-50 dark:bg-red-950/30' : ''}`}
+                                        onClick={() => openProcurement(index)}
+                                    >
+                                        <td className="max-w-[16rem] px-3 py-3 align-top font-medium text-foreground">{cell(procurement.assembly)}</td>
+                                        <td className="whitespace-nowrap px-3 py-3 text-right align-top tabular-nums">{cell(procurement.quantity)}</td>
+                                        <td className="max-w-[12rem] px-3 py-3 align-top">{cell(procurement.manufacturer)}</td>
+                                        <td className="whitespace-nowrap px-3 py-3 text-right align-top tabular-nums">{amount(procurement.supplier_cost) === null ? cell('') : money(amount(procurement.supplier_cost))}</td>
+                                        <td className="max-w-[12rem] px-3 py-3 align-top">{cell(procurement.order_status)}</td>
+                                        <td className="whitespace-nowrap px-3 py-3 align-top">{cell(procurement.po_number)}</td>
+                                        <td className="px-3 py-3 align-top">
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                aria-label={`Edit procurement ${procurement.assembly || index + 1}`}
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    openProcurement(index);
+                                                }}
+                                            >
+                                                <PencilIcon className="h-4 w-4" />
+                                                Edit
+                                            </Button>
+                                            {error ? <InputError message={error} className="mt-1 max-w-40" /> : null}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+                <dl className="mt-4 grid grid-cols-2 rounded-lg border border-orange-200 bg-orange-100/50 px-2 py-3 lg:grid-cols-4 dark:border-orange-900 dark:bg-orange-950/40">
+                    <SummaryStat label="Lines" value={String(procurementTotals.count)} tone="orange" />
+                    <SummaryStat label="Total quantity" value={tally(procurementTotals.quantity)} tone="orange" />
+                    <SummaryStat label="Supplier cost" value={money(procurementTotals.cost)} tone="orange" />
+                    <SummaryStat label="Without a PO" value={String(procurementTotals.unordered)} tone="orange" />
+                </dl>
             </LineSection>
 
             <section className="rounded-lg border border-rose-200 bg-rose-50/70 p-4 dark:border-rose-900 dark:bg-rose-950/30 sm:p-6">
@@ -751,26 +925,34 @@ export default function ProjectControlForm({
                 <p className="mt-1 text-sm text-muted-foreground">
                     Leave the date blank to save the job without a new reminder. A filled date is sent to the people you choose.
                 </p>
+                {method === 'patch' ? (
+                    <div className="mt-4">
+                        <ReminderCards reminders={reminders} />
+                    </div>
+                ) : null}
                 <div className="mt-4 grid gap-4">
-                    <Field label="When" error={form.errors.remind_at}>
-                        <input
-                            type="datetime-local"
-                            value={form.data.remind_at}
-                            onChange={(event) => form.setData('remind_at', event.target.value)}
-                            className={fieldClass}
-                        />
-                    </Field>
+                    <div className="grid sm:grid-cols-12">
+                        <Field label="When" error={form.errors.remind_at} className="sm:col-span-3">
+                            <input
+                                type="datetime-local"
+                                value={form.data.remind_at}
+                                onChange={(event) => form.setData('remind_at', event.target.value)}
+                                className={reminderInputClass}
+                            />
+                        </Field>
+                    </div>
                     <Field label="Reminder note" error={form.errors.reminder_note}>
-                        <input
+                        <textarea
                             value={form.data.reminder_note}
                             onChange={(event) => form.setData('reminder_note', event.target.value)}
-                            className={fieldClass}
+                            rows={3}
+                            className={`${reminderInputClass} h-auto min-h-20 py-2 leading-normal`}
                             placeholder="What should they remember?"
                         />
                     </Field>
                     <fieldset>
                         <legend className="text-sm font-medium text-foreground">How should they be notified?</legend>
-                        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                        <div className="mt-2 grid items-start gap-2 sm:grid-cols-2">
                             <NotifyChoice
                                 pressed={form.data.notify_popup}
                                 icon={<BellIcon className="size-4" />}
@@ -782,10 +964,58 @@ export default function ProjectControlForm({
                                 pressed={form.data.notify_email}
                                 icon={<MailIcon className="size-4" />}
                                 title="Personal email"
-                                detail="Sent from each person's Microsoft 365 mailbox."
+                                detail="Choose one address or type another. Sent from your Microsoft 365 mailbox."
                                 onClick={() => form.setData('notify_email', !form.data.notify_email)}
                             />
                         </div>
+                        {form.data.notify_email ? (
+                            <div className="mt-2 space-y-2 rounded-xl border border-rose-200 bg-background p-3 dark:border-rose-900">
+                                <div className="max-h-40 space-y-2 overflow-auto pl-4">
+                                    {emailChoices.length === 0 ? (
+                                        <p className="text-sm text-muted-foreground">No personal email is on file.</p>
+                                    ) : null}
+                                    {emailChoices.map(({ person, email }) => (
+                                        <label key={`${person.id}-${email}`} className="flex items-start gap-3 pl-1 text-sm">
+                                            <input
+                                                type="radio"
+                                                name="project-control-reminder-email"
+                                                checked={form.data.reminder_email === email}
+                                                onChange={() => form.setData('reminder_email', email)}
+                                                className="mt-1 h-4 w-4 border-border"
+                                            />
+                                            <span>
+                                                <span className="font-medium text-foreground">{email}</span>
+                                                <span className="block text-muted-foreground">{person.name}</span>
+                                            </span>
+                                        </label>
+                                    ))}
+                                </div>
+                                <div className="pl-5">
+                                    <input
+                                        type="email"
+                                        inputMode="email"
+                                        autoComplete="email"
+                                        spellCheck={false}
+                                        pattern="^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$"
+                                        value={emailChoices.some((choice) => choice.email === form.data.reminder_email) ? '' : form.data.reminder_email}
+                                        onChange={(event) => form.setData('reminder_email', emailTyping(event.target.value))}
+                                        className={reminderInputClass}
+                                        placeholder="Or type an email"
+                                    />
+                                    {emailChoices.some((choice) => choice.email === reminderAddress) || reminderAddress === '' || isEmailAddress(reminderAddress) ? null : (
+                                        <p className="mt-1 text-sm text-destructive">Enter an email address like name@example.com.</p>
+                                    )}
+                                </div>
+                                <InputError message={form.errors.reminder_email} />
+                                {emailBlocked && (emailChoices.some((choice) => choice.email === reminderAddress) || reminderAddress === '' || isEmailAddress(reminderAddress)) ? (
+                                    <p className="text-sm text-destructive">
+                                        {sender?.mailbox
+                                            ? 'Choose an email from the list or type one.'
+                                            : 'Your Microsoft 365 mailbox is required to send this email.'}
+                                    </p>
+                                ) : null}
+                            </div>
+                        ) : null}
                         <InputError message={form.errors.notify_popup || form.errors.notify_email} className="mt-1" />
                     </fieldset>
                     <fieldset>
@@ -810,11 +1040,6 @@ export default function ProjectControlForm({
                             ))}
                         </div>
                         <InputError message={form.errors.reminder_user_ids} className="mt-1" />
-                        {emailBlocked ? (
-                            <p className="mt-1 text-sm text-destructive">
-                                Email needs a personal address and a Microsoft 365 mailbox for every person selected.
-                            </p>
-                        ) : null}
                     </fieldset>
                 </div>
             </section>
@@ -830,6 +1055,141 @@ export default function ProjectControlForm({
 
             <FormActionFab cancelHref={route('admin.project-control.index')} form="project-control-form" disabled={form.processing || emailBlocked} />
         </form>
+
+            <Dialog open={bidDraft !== null} onOpenChange={(open) => { if (!open) closeBid(); }}>
+                <DialogContent className="flex max-h-[calc(100dvh-2rem)] max-w-3xl flex-col gap-0 overflow-hidden p-0 sm:p-0">
+                    <DialogHeader className="shrink-0 px-4 pt-4 pr-14 pb-2 sm:px-6 sm:pt-6">
+                        <DialogTitle>{bidIndex === null ? 'Add revision' : `Revision ${bidDraft?.name || bidIndex + 1}`}</DialogTitle>
+                        <DialogDescription>
+                            Name, amount, and standing for this bid revision. Save the job afterward to keep the change.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {bidDraft ? (
+                        <div className="grid min-h-0 flex-1 gap-3 overflow-y-auto px-4 py-3 sm:grid-cols-2 sm:px-6">
+                            <Field label="Revision" error={bidDraftError} className="sm:col-span-2">
+                                <input value={bidDraft.name} onChange={(event) => setBidDraft({ ...bidDraft, name: event.target.value })} className={fieldClass} />
+                            </Field>
+                            <Field label="Date">
+                                <input type="date" value={bidDraft.quoted_on} onChange={(event) => setBidDraft({ ...bidDraft, quoted_on: event.target.value })} className={fieldClass} />
+                            </Field>
+                            <Field label="Amount">
+                                <input value={bidDraft.amount} onChange={(event) => setBidDraft({ ...bidDraft, amount: event.target.value.replace(/[^0-9.]/g, '') })} inputMode="decimal" className={fieldClass} />
+                            </Field>
+                            <Field label="Standing" className="sm:col-span-2">
+                                <select value={bidDraft.standing} onChange={(event) => setBidDraft({ ...bidDraft, standing: event.target.value })} className={fieldClass}>
+                                    {bidStandings.map((item) => (
+                                        <option key={item.value} value={item.value}>{item.label}</option>
+                                    ))}
+                                </select>
+                            </Field>
+                            <Field label="Double-count rule" className="sm:col-span-2">
+                                <input value={bidDraft.count_rule} onChange={(event) => setBidDraft({ ...bidDraft, count_rule: event.target.value })} className={fieldClass} />
+                            </Field>
+                            <Field label="Document" className="sm:col-span-2">
+                                <input value={bidDraft.document} onChange={(event) => setBidDraft({ ...bidDraft, document: event.target.value })} className={fieldClass} />
+                            </Field>
+                            <Field label="Notes" className="sm:col-span-2">
+                                <textarea value={bidDraft.notes} onChange={(event) => setBidDraft({ ...bidDraft, notes: event.target.value })} rows={3} className={`${fieldClass} h-auto py-2`} />
+                            </Field>
+                            {bidIndex !== null ? <InputError message={lineError('bids', bidIndex)} className="sm:col-span-2" /> : null}
+                        </div>
+                    ) : null}
+                    <DialogFooter className="shrink-0 flex-row flex-wrap items-center justify-end gap-2 border-t border-border bg-background px-4 py-3 sm:justify-between sm:px-6">
+                        <div className="flex flex-wrap gap-2">
+                            {bidIndex !== null ? (
+                                <Button type="button" variant="destructive" className="shrink-0" onClick={removeBid}>
+                                    <Trash2Icon className="h-4 w-4" />
+                                    Remove
+                                </Button>
+                            ) : null}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            <DialogClose asChild>
+                                <Button type="button" variant="outline" className="shrink-0">Close</Button>
+                            </DialogClose>
+                            <Button type="button" className={`${addButtonClass} shrink-0`} onClick={saveBid}>
+                                Save revision
+                            </Button>
+                        </div>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={procurementDraft !== null} onOpenChange={(open) => { if (!open) closeProcurement(); }}>
+                <DialogContent className="flex max-h-[calc(100dvh-2rem)] max-w-3xl flex-col gap-0 overflow-hidden p-0 sm:p-0">
+                    <DialogHeader className="shrink-0 px-4 pt-4 pr-14 pb-2 sm:px-6 sm:pt-6">
+                        <DialogTitle>{procurementIndex === null ? 'Add procurement line' : `Procurement ${procurementDraft?.assembly || procurementIndex + 1}`}</DialogTitle>
+                        <DialogDescription>
+                            Assembly, supplier cost, and purchase order for this line. Save the job afterward to keep the change.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {procurementDraft ? (
+                        <div className="grid min-h-0 flex-1 gap-3 overflow-y-auto px-4 py-3 sm:grid-cols-2 sm:px-6">
+                            <Field label="Assembly" error={procurementDraftError} className="sm:col-span-2">
+                                <input value={procurementDraft.assembly} onChange={(event) => setProcurementDraft({ ...procurementDraft, assembly: event.target.value })} className={fieldClass} />
+                            </Field>
+                            <Field label="Qty">
+                                <input value={procurementDraft.quantity} onChange={(event) => setProcurementDraft({ ...procurementDraft, quantity: event.target.value.replace(/[^0-9.]/g, '') })} inputMode="decimal" className={fieldClass} />
+                            </Field>
+                            <Field label="Manufacturer">
+                                <input value={procurementDraft.manufacturer} onChange={(event) => setProcurementDraft({ ...procurementDraft, manufacturer: event.target.value })} className={fieldClass} />
+                            </Field>
+                            <Field label="Quote number">
+                                <input value={procurementDraft.quote_number} onChange={(event) => setProcurementDraft({ ...procurementDraft, quote_number: event.target.value })} className={fieldClass} />
+                            </Field>
+                            <Field label="Quote date">
+                                <input type="date" value={procurementDraft.quoted_on} onChange={(event) => setProcurementDraft({ ...procurementDraft, quoted_on: event.target.value })} className={fieldClass} />
+                            </Field>
+                            <Field label="Supplier cost">
+                                <input value={procurementDraft.supplier_cost} onChange={(event) => setProcurementDraft({ ...procurementDraft, supplier_cost: event.target.value.replace(/[^0-9.]/g, '') })} inputMode="decimal" className={fieldClass} />
+                            </Field>
+                            <TermSelect
+                                id="procurement-editor-order"
+                                label="Order status"
+                                kind="order_status"
+                                catalogKey="orderStatuses"
+                                value={procurementDraft.order_status_id}
+                                options={terms.orderStatuses}
+                                onChange={(id, option) => setProcurementDraft({ ...procurementDraft, order_status_id: id, order_status: option?.name ?? '' })}
+                            />
+                            <Field label="PO number">
+                                <input value={procurementDraft.po_number} onChange={(event) => setProcurementDraft({ ...procurementDraft, po_number: event.target.value })} className={fieldClass} />
+                            </Field>
+                            <TermSelect
+                                id="procurement-editor-lead"
+                                label="Lead time"
+                                kind="lead_time"
+                                catalogKey="leadTimes"
+                                value={procurementDraft.lead_time_id}
+                                options={terms.leadTimes}
+                                onChange={(id, option) => setProcurementDraft({ ...procurementDraft, lead_time_id: id, lead_time: option?.name ?? '' })}
+                            />
+                            <Field label="Next action" className="sm:col-span-2">
+                                <input value={procurementDraft.next_action} onChange={(event) => setProcurementDraft({ ...procurementDraft, next_action: event.target.value })} className={fieldClass} />
+                            </Field>
+                            {procurementIndex !== null ? <InputError message={lineError('procurements', procurementIndex)} className="sm:col-span-2" /> : null}
+                        </div>
+                    ) : null}
+                    <DialogFooter className="shrink-0 flex-row flex-wrap items-center justify-end gap-2 border-t border-border bg-background px-4 py-3 sm:justify-between sm:px-6">
+                        <div className="flex flex-wrap gap-2">
+                            {procurementIndex !== null ? (
+                                <Button type="button" variant="destructive" className="shrink-0" onClick={removeProcurement}>
+                                    <Trash2Icon className="h-4 w-4" />
+                                    Remove
+                                </Button>
+                            ) : null}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            <DialogClose asChild>
+                                <Button type="button" variant="outline" className="shrink-0">Close</Button>
+                            </DialogClose>
+                            <Button type="button" className={`${addButtonClass} shrink-0`} onClick={saveProcurement}>
+                                Save line
+                            </Button>
+                        </div>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <Dialog open={openingDraft !== null} onOpenChange={(open) => { if (!open) closeOpening(); }}>
                 <DialogContent className="flex max-h-[calc(100dvh-2rem)] max-w-3xl flex-col gap-0 overflow-hidden p-0 sm:p-0">
@@ -985,11 +1345,22 @@ function MoneyField({
     );
 }
 
-function SummaryStat({ label, value }: { label: string; value: string }) {
+function SummaryStat({ label, value, tone = 'violet' }: { label: string; value: string; tone?: 'violet' | 'amber' | 'orange' }) {
+    const labelClass = tone === 'amber'
+        ? 'text-amber-900/70 dark:text-amber-200/80'
+        : tone === 'orange'
+            ? 'text-orange-900/70 dark:text-orange-200/80'
+            : 'text-violet-900/70 dark:text-violet-200/80';
+    const lineClass = tone === 'amber'
+        ? 'border-amber-300 dark:border-amber-800'
+        : tone === 'orange'
+            ? 'border-orange-300 dark:border-orange-800'
+            : 'border-violet-300 dark:border-violet-800';
+
     return (
-        <div>
-            <dt className="text-xs uppercase tracking-wide text-violet-900/70 dark:text-violet-200/80">{label}</dt>
-            <dd className="mt-1 text-lg font-semibold tabular-nums text-foreground">{value}</dd>
+        <div className={`px-4 even:border-l lg:[&:nth-child(4n+3)]:border-l lg:[&:nth-child(4n+1)]:border-l-0 ${lineClass}`}>
+            <dt className={`text-xs uppercase tracking-wide ${labelClass}`}>{label}</dt>
+            <dd className="mt-1 text-right text-lg font-semibold tabular-nums text-foreground">{value}</dd>
         </div>
     );
 }
@@ -1044,10 +1415,11 @@ function NotifyChoice({
             onClick={onClick}
             className={
                 pressed
-                    ? 'rounded-xl border border-rose-700 bg-rose-100 p-3 text-left dark:bg-rose-950/50'
-                    : 'rounded-xl border border-border bg-background p-3 text-left hover:bg-muted'
+                    ? 'relative rounded-xl border border-rose-700 bg-rose-100 p-3 pr-9 text-left dark:bg-rose-950/50'
+                    : 'relative rounded-xl border border-border bg-background p-3 pr-9 text-left hover:bg-muted'
             }
         >
+            {pressed ? <CheckIcon className="absolute top-2 right-2 size-4 text-rose-700 dark:text-rose-300" aria-hidden /> : null}
             <span className="flex items-center gap-2 font-medium text-foreground">
                 {icon}
                 {title}
