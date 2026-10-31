@@ -8,9 +8,9 @@ import { Button } from '@/Components/ui/button';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { cn } from '@/lib/utils';
 import { DownloadIcon, DraftingCompassIcon, ListIcon, PlusIcon } from 'lucide-react';
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { countMark } from './pinLabels';
-import OpeningEditor from './Partials/OpeningEditor';
+import OpeningEditor, { openingPayload, type OpeningForm } from './Partials/OpeningEditor';
 import PdfWorkspace, { savedCountTool, type CountTool, type PdfPoint } from './Partials/PdfWorkspace';
 import {
     marginLabel,
@@ -86,7 +86,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
     const workspaceRef = useRef<HTMLDivElement>(null);
     const [creating, setCreating] = useState(false);
     const [pendingMarker, setPendingMarker] = useState<PdfPoint | null>(null);
-    const [dirty, setDirty] = useState(false);
+    const [drafts, setDrafts] = useState<Record<string, OpeningForm>>({});
     const [query, setQuery] = useState('');
     const [category, setCategory] = useState('');
     const [location, setLocation] = useState('');
@@ -113,9 +113,26 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
         margin_percent: takeoff.margin_percent ?? '',
     });
     const selected = takeoff.openings.find((opening) => opening.id === selectedOpeningId) ?? null;
+    const unsavedCount = Object.keys(drafts).length;
+    const rememberDraft = useCallback((key: string, form: OpeningForm | null) => {
+        setDrafts((current) => {
+            if (form === null) {
+                if (!(key in current)) {
+                    return current;
+                }
+
+                const next = { ...current };
+                delete next[key];
+
+                return next;
+            }
+
+            return { ...current, [key]: form };
+        });
+    }, []);
 
     useEffect(() => {
-        if (!dirty) {
+        if (unsavedCount === 0) {
             return;
         }
 
@@ -127,7 +144,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
         window.addEventListener('beforeunload', warn);
 
         return () => window.removeEventListener('beforeunload', warn);
-    }, [dirty]);
+    }, [unsavedCount]);
 
     useEffect(() => {
         if (!countedOpeningId) {
@@ -205,9 +222,6 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
 
     const openOpening = (id: number) => {
         const opening = takeoff.openings.find((item) => item.id === id);
-        if (dirty && id !== selectedOpeningId && !window.confirm('This opening still has changes to save. Leave them and open the other one?')) {
-            return;
-        }
 
         setSelectedOpeningId(id);
         setCreating(false);
@@ -277,7 +291,34 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
 
     const saveDetails = (event: FormEvent) => {
         event.preventDefault();
-        details.patch(route('admin.takeoffs.update', takeoff.uuid), { preserveScroll: true });
+        const activeKey = creating ? 'new' : selectedOpeningId ? String(selectedOpeningId) : '';
+        const openings = Object.fromEntries(Object.entries(drafts).map(([key, form]) => {
+            const opening = takeoff.openings.find((item) => String(item.id) === key) ?? null;
+
+            return [key, openingPayload(form, opening?.updated_at ?? null, key === activeKey ? pendingMarker : null)];
+        }));
+
+        details.transform((data) => ({
+            ...data,
+            ...(Object.keys(openings).length > 0 ? { openings } : {}),
+        }));
+        details.patch(route('admin.takeoffs.update', takeoff.uuid), {
+            preserveScroll: true,
+            onSuccess: () => setDrafts({}),
+        });
+    };
+
+    const fieldErrorsFor = (key: string) => {
+        const prefix = `openings.${key}.`;
+        const errors: Record<string, string> = {};
+
+        Object.entries(details.errors).forEach(([name, message]) => {
+            if (name.startsWith(prefix) && typeof message === 'string') {
+                errors[name.slice(prefix.length)] = message;
+            }
+        });
+
+        return errors;
     };
 
         const editable = can.update && takeoff.status !== 'archived';
@@ -330,7 +371,13 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                         form="takeoff-details"
                         cancelHref={route('admin.takeoffs.index')}
                         saveLabel="Save takeoff"
+                        attention={unsavedCount > 0}
                         disabled={!editable || details.processing}
+                        onCancel={unsavedCount > 0 ? () => {
+                            if (window.confirm('Openings on this takeoff are not saved. Leave without saving them?')) {
+                                router.visit(route('admin.takeoffs.index'));
+                            }
+                        } : undefined}
                     />
                     <AiDraftButton
                         surface="takeoff"
@@ -514,7 +561,11 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                             Add opening
                                         </Button>
                                     ) : null}
-                                    {dirty ? <p className="text-sm text-amber-700 dark:text-amber-300">Save opening to keep the location and the other fields on this tag.</p> : null}
+                                    {unsavedCount > 0 ? (
+                                        <p className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800">
+                                            {unsavedCount === 1 ? '1 opening is not saved.' : `${unsavedCount} openings are not saved.`} Open Actions and choose Save takeoff to keep them.
+                                        </p>
+                                    ) : null}
                                 </div>
                                 <div className="max-h-[32rem] overflow-auto rounded-md border">
                                     <table className="min-w-full text-sm">
@@ -537,14 +588,42 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                                     <td className="px-2 py-4 text-muted-foreground" colSpan={editable ? 9 : 8}>No openings yet. Choose Count door or Count window, then click a door on the sheet.</td>
                                                 </tr>
                                             ) : null}
-                                            {filtered.map((opening) => (
-                                                <tr key={opening.id} className={`cursor-pointer border-t ${selectedOpeningId === opening.id ? 'bg-[#3FCF8E]/20' : ''}`} onClick={() => openOpening(opening.id)}>
+                                            {drafts.new ? (
+                                                <tr className="cursor-pointer border-t border-l-4 border-l-red-600 bg-red-100 text-red-950" onClick={() => { setCreating(true); setSelectedOpeningId(null); }}>
+                                                    <td className="px-2 py-2 text-right font-semibold"> </td>
+                                                    <td className="px-2 py-2 font-semibold">
+                                                        {drafts.new.tag || 'New opening'}
+                                                        <span className="ml-2 rounded bg-red-600 px-1.5 py-0.5 text-[11px] font-semibold text-white">Not saved</span>
+                                                    </td>
+                                                    <td className="px-2 py-2">{drafts.new.opening_type === 'window' ? 'Window' : 'Door'}</td>
+                                                    <td className="px-2 py-2">{drafts.new.quantity}</td>
+                                                    <td className="px-2 py-2">{[drafts.new.width, drafts.new.height, drafts.new.depth].filter(Boolean).join(' x ')} {drafts.new.dimension_unit}</td>
+                                                    <td className="px-2 py-2">{drafts.new.location || '—'}</td>
+                                                </tr>
+                                            ) : null}
+                                            {filtered.map((opening) => {
+                                                const draft = drafts[String(opening.id)];
+                                                const unsaved = Boolean(draft);
+                                                const tag = draft?.tag ?? opening.tag;
+                                                const locationText = draft?.location ?? opening.location;
+                                                const quantity = draft?.quantity ?? opening.quantity;
+                                                const width = draft?.width || opening.width;
+                                                const height = draft?.height || opening.height;
+                                                const depth = draft?.depth || opening.depth;
+                                                const unit = draft?.dimension_unit ?? opening.dimension_unit;
+                                                const kind = draft?.opening_type ?? opening.opening_type;
+
+                                                return (
+                                                <tr key={opening.id} className={`cursor-pointer border-t ${unsaved ? 'border-l-4 border-l-red-600 bg-red-100 text-red-950' : selectedOpeningId === opening.id ? 'bg-[#3FCF8E]/20' : ''}`} onClick={() => openOpening(opening.id)}>
                                                     <td className="px-2 py-2 text-right font-semibold tabular-nums">{countMark(opening.callout, lineByOpening.get(opening.id) ?? 1)}</td>
-                                                    <td className="px-2 py-2">{opening.is_bulk ? `Bulk ${opening.tag ?? ''}`.trim() : opening.tag}</td>
-                                                    <td className="px-2 py-2">{opening.opening_type === 'door' ? (opening.door_type || 'Door') : 'Window'}</td>
-                                                    <td className="px-2 py-2">{opening.quantity}</td>
-                                                    <td className="px-2 py-2">{[opening.width, opening.height, opening.depth].filter(Boolean).join(' x ')} {opening.dimension_unit}</td>
-                                                    <td className={`px-2 py-2 ${selectedOpeningId === opening.id ? 'font-medium' : ''}`}>{opening.location || '—'}</td>
+                                                    <td className="px-2 py-2">
+                                                        {opening.is_bulk ? `Bulk ${tag ?? ''}`.trim() : tag}
+                                                        {unsaved ? <span className="ml-2 rounded bg-red-600 px-1.5 py-0.5 text-[11px] font-semibold text-white">Not saved</span> : null}
+                                                    </td>
+                                                    <td className="px-2 py-2">{kind === 'door' ? (opening.door_type || 'Door') : 'Window'}</td>
+                                                    <td className="px-2 py-2">{quantity}</td>
+                                                    <td className="px-2 py-2">{[width, height, depth].filter(Boolean).join(' x ')} {unit}</td>
+                                                    <td className={`px-2 py-2 ${selectedOpeningId === opening.id ? 'font-medium' : ''}`}>{locationText || '—'}</td>
                                                     <td className="px-2 py-2">{openingSpecs(opening)}</td>
                                                     <td className="px-2 py-2">{opening.flags.length || '—'}</td>
                                                     {editable ? (
@@ -560,6 +639,16 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                                                         setSelectedOpeningId(null);
                                                                     }
 
+                                                                    setDrafts((current) => {
+                                                                        if (!(String(opening.id) in current)) {
+                                                                            return current;
+                                                                        }
+
+                                                                        const next = { ...current };
+                                                                        delete next[String(opening.id)];
+
+                                                                        return next;
+                                                                    });
                                                                     router.delete(route('admin.takeoffs.openings.destroy', [takeoff.uuid, opening.id]), { preserveScroll: true });
                                                                 }}
                                                             >
@@ -568,7 +657,8 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                                         </td>
                                                     ) : null}
                                                 </tr>
-                                            ))}
+                                                );
+                                            })}
                                         </tbody>
                                     </table>
                                 </div>
@@ -638,15 +728,15 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                             pendingMarker={pendingMarker}
                                             canEdit={editable}
                                             tool={countTool}
+                                            unsavedIds={Object.keys(drafts).filter((key) => key !== 'new').map((key) => Number(key))}
+                                            newUnsaved={Boolean(drafts.new)}
+                                            fieldErrors={fieldErrorsFor(creating ? 'new' : String(selectedOpeningId ?? ''))}
+                                            draft={creating ? drafts.new ?? null : selectedOpeningId ? drafts[String(selectedOpeningId)] ?? null : null}
                                             onToolChange={setCountTool}
-                                            onDirty={setDirty}
+                                            onDraft={rememberDraft}
                                             onSelect={(choice) => {
                                                 if (choice !== null && choice !== 'new') {
                                                     openOpening(choice);
-                                                    return;
-                                                }
-
-                                                if (dirty && !window.confirm('This opening still has changes to save. Leave them and open the other one?')) {
                                                     return;
                                                 }
 
@@ -659,17 +749,6 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                                 setPendingMarker(null);
                                                 setCreating(false);
                                                 setSelectedOpeningId(null);
-                                                setDirty(false);
-                                            }}
-                                            onClose={() => {
-                                                if (dirty && !window.confirm('This opening still has changes to save. Leave them and open the other one?')) {
-                                                    return;
-                                                }
-
-                                                setPendingMarker(null);
-                                                setCreating(false);
-                                                setSelectedOpeningId(null);
-                                                setDirty(false);
                                             }}
                                         />
                                         {selected && !creating ? (

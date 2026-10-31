@@ -241,6 +241,12 @@ class TakeoffController extends Controller
             abort_unless(TakeoffAccess::canApprove($user), 403);
         }
 
+        $openingDrafts = app(TakeoffWorkspaceController::class)->validatedOpeningDrafts($takeoff, $user, $request->input('openings', []));
+
+        if ($openingDrafts !== [] && $takeoff->status === 'approved' && $data['status'] === 'approved') {
+            $data['status'] = 'in_review';
+        }
+
         $changes = [
             'title' => $data['title'],
             'notes' => $data['notes'] ?? null,
@@ -286,12 +292,15 @@ class TakeoffController extends Controller
         }
 
         $takeoff->fill($changes)->save();
+        $savedOpenings = app(TakeoffWorkspaceController::class)->storeOpeningDrafts($takeoff, $openingDrafts);
         $action = $data['status'] === 'approved' && $takeoff->wasChanged('approved_at')
             ? 'takeoff.approved'
             : 'takeoff.updated';
         $summary = $action === 'takeoff.approved'
             ? 'Takeoff was approved internally. Approval does not certify product compliance.'
-            : 'Takeoff details were updated.';
+            : ($savedOpenings > 0
+                ? 'Takeoff saved, including '.$savedOpenings.' opening '.($savedOpenings === 1 ? 'change' : 'changes').'.'
+                : 'Takeoff details were updated.');
         $takeoff->record($user, $action, $summary, ['status' => $takeoff->status]);
 
         return back()->with('success', $summary);

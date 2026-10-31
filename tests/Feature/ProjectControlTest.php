@@ -582,6 +582,77 @@ it('links the longacre job to the longacre takeoff and copies its openings', fun
         ->and($takeoff->openings()->count())->toBe(2);
 });
 
+it('copies a later takeoff door edit onto the linked job opening', function () {
+    $admin = controlAdmin();
+    $project = Project::query()->create([
+        'name' => 'Door barn',
+        'project_number' => 'GDS-2026-0410',
+    ]);
+    $job = ProjectControl::query()->create([
+        'job_code' => 'J-410',
+        'name' => 'Door barn',
+        'pipeline_status' => 'active',
+        'project_id' => $project->id,
+    ]);
+    $takeoff = Takeoff::query()->create([
+        'project_id' => $project->id,
+        'title' => 'Door barn takeoff',
+        'status' => 'draft',
+        'pricing_method' => 'markup',
+    ]);
+    $door = $takeoff->openings()->create([
+        'opening_type' => 'door',
+        'tag' => 'D1',
+        'location' => 'Lobby',
+        'quantity' => 1,
+        'width' => 36,
+        'height' => 84,
+        'dimension_unit' => 'in',
+        'product_category' => 'Acoustic Door',
+        'manufacturer' => 'Krieger',
+        'hardware_set' => 'Set A',
+        'notes' => 'Original leaf',
+        'sort_order' => 1,
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.project-control.edit', $job))
+        ->assertOk();
+
+    $opening = $job->openings()->first();
+    $opening->forceFill([
+        'procurement_status' => 'Not ordered',
+        'unit_sell' => '1250.00',
+    ])->save();
+
+    $this->travel(2)->minutes();
+
+    $door->update([
+        'location' => 'Level 2',
+        'quantity' => 2,
+        'width' => 42,
+        'height' => 90,
+        'hardware_set' => 'Set B',
+        'manufacturer' => 'Overly',
+        'notes' => 'Revised leaf',
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.project-control.edit', $job))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('control.openings.0', function ($row) {
+            return $row['mark'] === 'D1'
+                && $row['description'] === 'Level 2 · Acoustic Door · Overly'
+                && $row['size'] === '42 x 90 in'
+                && $row['quantity'] === '2.00'
+                && $row['hardware'] === 'Set B'
+                && $row['supplier'] === 'Overly'
+                && $row['notes'] === 'Revised leaf'
+                && $row['procurement_status'] === 'Not ordered'
+                && $row['unit_sell'] === '1250.00';
+        }));
+});
+
 it('adds the september jobs and their projects once', function () {
     $existing = Project::query()->create([
         'name' => 'Ebtech STC-48 Acoustic Door Quote',

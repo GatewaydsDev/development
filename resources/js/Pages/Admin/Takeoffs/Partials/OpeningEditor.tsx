@@ -3,7 +3,7 @@ import InputError from '@/Components/InputError';
 import { Button } from '@/Components/ui/button';
 import { router, usePage } from '@inertiajs/react';
 import { AppWindowIcon, DoorOpenIcon, MousePointer2Icon, SearchIcon, Trash2Icon } from 'lucide-react';
-import { createContext, FormEvent, ReactNode, useContext, useEffect, useState } from 'react';
+import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import { countMark } from '../pinLabels';
 import type { TakeoffDocument, TakeoffOpening } from '../types';
 import type { PdfPoint } from './PdfWorkspace';
@@ -20,9 +20,12 @@ type Props = {
     pendingMarker: PdfPoint | null;
     canEdit: boolean;
     tool: CountTool;
+    unsavedIds: number[];
+    newUnsaved: boolean;
+    fieldErrors: Errors;
+    draft: OpeningForm | null;
     onToolChange: (tool: CountTool) => void;
-    onClose: () => void;
-    onDirty: (dirty: boolean) => void;
+    onDraft: (key: string, form: OpeningForm | null) => void;
     onSelect: (choice: number | 'new' | null) => void;
 };
 
@@ -83,7 +86,85 @@ function openingForm(opening: TakeoffOpening | null, creating: boolean) {
     };
 }
 
-const empty = {
+export type OpeningForm = {
+    tag: string;
+    is_bulk: boolean;
+    opening_type: string;
+    door_configuration_id: string;
+    location: string;
+    quantity: string;
+    product_category: string;
+    width: string;
+    height: string;
+    depth: string;
+    dimension_unit: string;
+    frame_type: string;
+    handing: string;
+    hardware_set: string;
+    glazing: string;
+    finish: string;
+    manufacturer: string;
+    product_model: string;
+    product_id: string;
+    scope: string;
+    notes: string;
+    exclusions: string;
+    assumptions: string;
+    disposition: string;
+    disposition_reason: string;
+    acoustic_requirement: string;
+    rf_requirement: string;
+    fire_requirement: string;
+    ballistic_requirement: string;
+    other_requirements: string;
+    verified_acoustic: string;
+    verified_rf: string;
+    verified_fire: string;
+    verified_ballistic: string;
+    verification_status: string;
+    requirement_document_id: string;
+    requirement_page: string;
+    requirement_section: string;
+    group_id: string;
+    needs_review: boolean;
+    waive_dimensions: string;
+    waive_product: string;
+    waive_technical: string;
+    waive_hardware: string;
+    waive_pricing: string;
+};
+
+export function openingPayload(form: OpeningForm, updatedAt: string | null, marker: PdfPoint | null) {
+    return {
+        ...form,
+        product_id: form.product_id || null,
+        door_configuration_id: form.opening_type === 'door' && form.door_configuration_id ? form.door_configuration_id : null,
+        requirement_document_id: form.requirement_document_id || null,
+        group_id: form.group_id || null,
+        width: form.width || null,
+        height: form.height || null,
+        depth: form.depth || null,
+        requirement_page: form.requirement_page || null,
+        waived_checks: {
+            dimensions: form.waive_dimensions,
+            product: form.waive_product,
+            technical: form.waive_technical,
+            hardware: form.waive_hardware,
+            pricing: form.waive_pricing,
+        },
+        updated_at: updatedAt,
+        marker: marker
+            ? {
+                document_id: marker.documentId,
+                page: marker.page,
+                x: marker.x,
+                y: marker.y,
+            }
+            : null,
+    };
+}
+
+const empty: OpeningForm = {
     tag: '',
     is_bulk: false,
     opening_type: 'door',
@@ -404,19 +485,19 @@ export default function OpeningEditor({
     pendingMarker,
     canEdit,
     tool,
+    unsavedIds,
+    newUnsaved,
+    fieldErrors,
+    draft,
     onToolChange,
-    onClose,
-    onDirty,
+    onDraft,
     onSelect,
 }: Props) {
     const selectionKey = creating ? 'new' : opening?.id ?? null;
-    const [form, setForm] = useState(() => openingForm(opening, creating));
+    const [form, setForm] = useState<OpeningForm>(() => draft ?? openingForm(opening, creating));
     const [formSource, setFormSource] = useState<number | 'new' | null>(selectionKey);
-    const [errors, setErrors] = useState<Errors>({});
     const [products, setProducts] = useState<{ id: number; name: string; manufacturer: string | null }[]>([]);
-    const [saving, setSaving] = useState(false);
-    const [saved, setSaved] = useState(false);
-    const [changed, setChanged] = useState(creating);
+    const [changed, setChanged] = useState(draft !== null);
     const [query, setQuery] = useState('');
     const [inspectorTab, setInspectorTab] = useState<'tools' | 'properties'>(canEdit ? 'tools' : 'properties');
     const page = usePage<{
@@ -429,21 +510,34 @@ export default function OpeningEditor({
 
     if (formSource !== selectionKey) {
         setFormSource(selectionKey);
-        setForm(openingForm(opening, creating));
-        setErrors({});
-        setSaved(false);
-        setChanged(creating);
+        setForm(draft ?? openingForm(opening, creating));
+        setChanged(draft !== null);
     }
 
     useEffect(() => {
-        onDirty(false);
-    }, [selectionKey]);
+        if (selectionKey === null) {
+            return;
+        }
+
+        onDraft(String(selectionKey), changed ? form : null);
+    }, [changed, form, onDraft, selectionKey]);
+
+    useEffect(() => {
+        if (draft !== null || selectionKey === null) {
+            return;
+        }
+
+        setForm(openingForm(opening, creating));
+        setChanged(false);
+    }, [creating, draft, opening, selectionKey]);
 
     const set = (key: string, value: string | boolean) => {
-        setForm((current) => ({ ...current, [key]: value }));
-        setSaved(false);
-        setChanged(true);
-        onDirty(true);
+        setForm((current) => {
+            const next = { ...current, [key]: value };
+            setChanged(JSON.stringify(next) !== JSON.stringify(openingForm(opening, creating)));
+
+            return next;
+        });
     };
 
     const searchProducts = (value: string) => {
@@ -455,59 +549,7 @@ export default function OpeningEditor({
         }).then((response) => response.json()).then((rows) => setProducts(Array.isArray(rows) ? rows : [])).catch(() => setProducts([]));
     };
 
-    const submit = (event: FormEvent) => {
-        event.preventDefault();
-
-        if (!canEdit || !editing) {
-            return;
-        }
-
-        setSaving(true);
-        const payload = {
-            ...form,
-            product_id: form.product_id || null,
-            door_configuration_id: form.opening_type === 'door' && form.door_configuration_id ? form.door_configuration_id : null,
-            requirement_document_id: form.requirement_document_id || null,
-            group_id: form.group_id || null,
-            width: form.width || null,
-            height: form.height || null,
-            depth: form.depth || null,
-            requirement_page: form.requirement_page || null,
-            waived_checks: {
-                dimensions: form.waive_dimensions,
-                product: form.waive_product,
-                technical: form.waive_technical,
-                hardware: form.waive_hardware,
-                pricing: form.waive_pricing,
-            },
-            updated_at: opening?.updated_at,
-            marker: pendingMarker ? {
-                document_id: pendingMarker.documentId,
-                page: pendingMarker.page,
-                x: pendingMarker.x,
-                y: pendingMarker.y,
-            } : null,
-        };
-        const options = {
-            preserveScroll: true,
-            preserveState: true,
-            onError: (formErrors: Errors) => setErrors(formErrors),
-            onSuccess: () => {
-                onDirty(false);
-                setChanged(false);
-                setSaved(true);
-            },
-            onFinish: () => setSaving(false),
-        };
-
-        if (opening) {
-            router.patch(route('admin.takeoffs.openings.update', [takeoffUuid, opening.id]), payload, options);
-        } else {
-            router.post(route('admin.takeoffs.openings.store', takeoffUuid), payload, options);
-        }
-    };
-
-    const text = (name: string, key: keyof typeof empty) => (
+    const text = (name: string, key: keyof OpeningForm) => (
         <PropertyRow name={name}>
             <input
                 aria-label={name}
@@ -516,11 +558,11 @@ export default function OpeningEditor({
                 disabled={!canEdit}
                 onChange={(event) => set(key, event.target.value)}
             />
-            <InputError message={errors[key]} className="px-1" />
+            <InputError message={fieldErrors[key]} className="px-1" />
         </PropertyRow>
     );
 
-    const area = (name: string, key: keyof typeof empty) => (
+    const area = (name: string, key: keyof OpeningForm) => (
         <PropertyRow name={name}>
             <textarea
                 aria-label={name}
@@ -530,11 +572,11 @@ export default function OpeningEditor({
                 disabled={!canEdit}
                 onChange={(event) => set(key, event.target.value)}
             />
-            <InputError message={errors[key]} className="px-1" />
+            <InputError message={fieldErrors[key]} className="px-1" />
         </PropertyRow>
     );
 
-    const messages = Object.values(errors).filter(Boolean);
+    const messages = Object.values(fieldErrors).filter(Boolean);
     const sizeSummary = [form.width, form.height, form.depth].filter(Boolean).join(' × ');
     const scopeLabel = form.scope === 'supply' ? 'Supply' : form.scope === 'installation' ? 'Installation' : 'Supply and installation';
     const spotLabel = form.opening_type === 'window' ? 'window' : 'door';
@@ -543,35 +585,13 @@ export default function OpeningEditor({
     return (
         <aside aria-label="Object Inspector" className="object-inspector min-w-0">
             <div className="overflow-visible border border-[#b0b0b0] bg-[#f0f0f0] text-neutral-900 shadow-sm">
-                <div className={`flex items-center justify-between gap-2 border-b border-[#b0b0b0] px-2 py-1.5 ${needsSave ? 'bg-emerald-50' : 'bg-[#f4f4f4]'}`}>
+                <div className={`flex items-center justify-between gap-2 border-b px-2 py-1.5 ${needsSave ? 'border-red-300 bg-red-600 text-white' : 'border-[#b0b0b0] bg-[#f4f4f4]'}`}>
                     <p className="text-sm font-semibold">Object Inspector</p>
-                    <div className="flex items-center gap-1">
-                        {saved && !needsSave ? <span className="text-[12px] font-medium text-emerald-800">Saved</span> : null}
-                        {canEdit && editing ? (
-                            <Button
-                                type="submit"
-                                form="opening-editor"
-                                size="sm"
-                                disabled={saving}
-                                className={`border-emerald-800 bg-emerald-600 text-white hover:bg-emerald-700 ${needsSave ? 'inspector-save-pulse' : ''}`}
-                            >
-                                {saving ? 'Saving…' : 'Save'}
-                            </Button>
-                        ) : null}
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className={`border-neutral-700 bg-neutral-700 text-white hover:bg-neutral-800 hover:text-white ${needsSave ? 'inspector-close-pulse' : ''}`}
-                            onClick={onClose}
-                        >
-                            Close
-                        </Button>
-                    </div>
+                    {needsSave ? <span className="text-[12px] font-semibold uppercase tracking-wide">Not saved</span> : null}
                 </div>
                 {needsSave ? (
-                    <p className="inspector-save-cue border-b border-emerald-300 bg-emerald-600 px-2 py-1.5 text-[12px] font-semibold text-white">
-                        Click the green Save button to keep this {spotLabel}.
+                    <p className="border-b border-red-300 bg-red-50 px-2 py-1.5 text-[12px] font-semibold text-red-800">
+                        This {spotLabel} is not saved. Save takeoff keeps it with every other change on this takeoff.
                     </p>
                 ) : null}
                 <div className="border-b border-[#b0b0b0] bg-white p-1">
@@ -591,10 +611,10 @@ export default function OpeningEditor({
                         }}
                     >
                         <option value="">Select an opening</option>
-                        {canEdit ? <option value="new">New opening</option> : null}
+                        {canEdit ? <option value="new">New opening{newUnsaved ? ' · not saved' : ''}</option> : null}
                         {openings.map((item) => (
                             <option key={item.id} value={item.id}>
-                                {item.is_bulk ? `Bulk ${item.tag ?? item.label}`.trim() : item.label}
+                                {(item.is_bulk ? `Bulk ${item.tag ?? item.label}`.trim() : item.label)}{unsavedIds.includes(item.id) ? ' · not saved' : ''}
                             </option>
                         ))}
                     </InspectorSelect>
@@ -663,7 +683,7 @@ export default function OpeningEditor({
                     </div>
                 ) : null}
                 <InspectorQuery.Provider value={query}>
-                    <form id="opening-editor" onSubmit={submit} className="bg-white">
+                    <form id="opening-editor" onSubmit={(event) => event.preventDefault()} className="bg-white">
                         {editing ? (
                             <>
                                 <PropertyGroup name="Basics" summary={form.tag || (creating ? 'New' : opening?.label)} defaultOpen>
@@ -696,7 +716,7 @@ export default function OpeningEditor({
                                                 addLabel="Add type…"
                                                 createRoute="admin.takeoffs.door-types.store"
                                                 catalogKey="doorTypes"
-                                                error={errors.door_configuration_id}
+                                                error={fieldErrors.door_configuration_id}
                                                 onChange={(value) => set('door_configuration_id', value)}
                                             />
                                         </PropertyRow>
@@ -712,7 +732,7 @@ export default function OpeningEditor({
                                             addLabel="Add category…"
                                             createRoute="admin.takeoffs.opening-categories.store"
                                             catalogKey="openingCategories"
-                                            error={errors.product_category}
+                                            error={fieldErrors.product_category}
                                             onChange={(value) => set('product_category', value)}
                                         />
                                     </PropertyRow>
@@ -843,8 +863,8 @@ export default function OpeningEditor({
                         ? `Showing matches for “${query.trim()}”`
                         : editing
                             ? needsSave
-                                ? `Click the green Save button to keep this ${spotLabel}. Close leaves it unchanged.`
-                                : `${form.is_bulk ? 'Bulk quantity record.' : 'Tagged opening.'} ${scopeLabel}. The green Save button keeps this ${spotLabel}. The corner button saves the takeoff.`
+                                ? `This ${spotLabel} is marked not saved. Save takeoff keeps every change.`
+                                : `${form.is_bulk ? 'Bulk quantity record.' : 'Tagged opening.'} ${scopeLabel}. Changes stay marked until Save takeoff.`
                             : 'All shown'}
                 </div>
             </div>

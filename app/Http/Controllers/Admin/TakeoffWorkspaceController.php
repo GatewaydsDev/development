@@ -27,7 +27,9 @@ use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -249,6 +251,7 @@ class TakeoffWorkspaceController extends Controller
         }
 
         $this->clearApproval($takeoff, $user);
+        app(ProjectControlTakeoff::class)->reflectOpening($opening->fresh() ?? $opening);
         $takeoff->record($user, 'opening.updated', 'Updated opening '.$opening->label().'.');
 
         return back()->with('success', 'Opening saved.');
@@ -277,6 +280,7 @@ class TakeoffWorkspaceController extends Controller
         $opening->update([
             'callout' => $this->blank($data['callout'] ?? null),
         ]);
+        app(ProjectControlTakeoff::class)->reflectOpening($opening->fresh() ?? $opening);
 
         return back()->with('success', 'Count number updated.');
     }
@@ -568,17 +572,174 @@ class TakeoffWorkspaceController extends Controller
         }
 
         $this->clearApproval($takeoff, $user);
+        app(ProjectControlTakeoff::class)->reflectOpening($opening->fresh() ?? $opening);
         $takeoff->record($user, 'template.applied', 'Applied template '.$template->name.' to '.$opening->label().'. The template itself was not changed.');
 
         return back()->with('success', 'Template applied as a snapshot.');
     }
 
     /**
+     * @return list<array{opening: ?TakeoffOpening, attributes: array<string, mixed>, marker: ?array<string, mixed>}>
+     */
+    public function validatedOpeningDrafts(Takeoff $takeoff, User $user, mixed $drafts): array
+    {
+        if (! is_array($drafts) || $drafts === []) {
+            return [];
+        }
+
+        return $this->prepareOpeningDrafts($takeoff, $user, $drafts);
+    }
+
+    /**
+     * @param  list<array{opening: ?TakeoffOpening, attributes: array<string, mixed>, marker: ?array<string, mixed>}>  $prepared
+     */
+    public function storeOpeningDrafts(Takeoff $takeoff, array $prepared): int
+    {
+        if ($prepared === []) {
+            return 0;
+        }
+
+        DB::transaction(function () use ($takeoff, $prepared): void {
+            foreach ($prepared as $item) {
+                $opening = $item['opening'];
+                $attributes = $item['attributes'];
+
+                if ($opening instanceof TakeoffOpening) {
+                    if (($attributes['tag'] ?? null) !== $opening->tag) {
+                        $attributes['counted_tag'] = false;
+                    }
+
+                    $opening->update($attributes);
+
+                    if ($opening->group_id) {
+                        $this->refreshMismatch($opening->group);
+                    }
+
+                    continue;
+                }
+
+                $created = $takeoff->openings()->create($attributes + [
+                    'sort_order' => ((int) $takeoff->openings()->max('sort_order')) + 1,
+                ]);
+
+                if (is_array($item['marker'])) {
+                    $this->createMarker($takeoff, $created, $item['marker']);
+                }
+            }
+        });
+
+        app(ProjectControlTakeoff::class)->connectTakeoff($takeoff->fresh() ?? $takeoff);
+
+        return count($prepared);
+    }
+
+    /**
+     * @param  array<string, mixed>  $drafts
+     * @return list<array{opening: ?TakeoffOpening, attributes: array<string, mixed>, marker: ?array<string, mixed>}>
+     */
+    private function prepareOpeningDrafts(Takeoff $takeoff, User $user, array $drafts): array
+    {
+        $prepared = [];
+        $errors = [];
+
+        foreach ($drafts as $key => $draft) {
+            $prefix = 'openings.'.$key;
+
+            if (! is_array($draft)) {
+                $errors[$prefix] = 'This opening could not be read.';
+
+                continue;
+            }
+
+            $validator = Validator::make($draft, $this->openingRules());
+
+            if ($validator->fails()) {
+                foreach ($validator->errors()->messages() as $field => $messages) {
+                    $errors[$prefix.'.'.$field] = $messages[0] ?? 'Check this field.';
+                }
+
+                continue;
+            }
+
+            $data = $validator->validated();
+            $problem = $this->openingDraftProblem($takeoff, $data);
+
+            if ($problem !== null) {
+                $errors[$prefix.'.'.$problem['field']] = $problem['message'];
+
+                continue;
+            }
+
+            $opening = null;
+
+            if ($key !== 'new') {
+                $opening = $takeoff->openings()->whereKey((int) $key)->first();
+
+                if (! $opening instanceof TakeoffOpening) {
+                    $errors[$prefix] = 'This opening is not on the takeoff.';
+
+                    continue;
+                }
+
+                $stamp = $draft['updated_at'] ?? null;
+
+                if (is_string($stamp) && $stamp !== '' && $opening->updated_at) {
+                    $current = $opening->updated_at->utc()->format('Y-m-d H:i:s');
+                    $expected = Carbon::parse($stamp)->utc()->format('Y-m-d H:i:s');
+
+                    if ($current !== $expected) {
+                        $errors[$prefix.'.updated_at'] = 'This opening was updated by someone else. Reload the takeoff before saving.';
+
+                        continue;
+                    }
+                }
+            }
+
+            $prepared[] = [
+                'opening' => $opening,
+                'attributes' => $this->openingAttributes($data, $user, $opening),
+                'marker' => is_array($draft['marker'] ?? null) ? $draft['marker'] : null,
+            ];
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+
+        return $prepared;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return ?array{field: string, message: string}
+     */
+    private function openingDraftProblem(Takeoff $takeoff, array $data): ?array
+    {
+        if (! ($data['is_bulk'] ?? false) && $this->blank($data['tag'] ?? null) === null) {
+            return ['field' => 'tag', 'message' => 'A tagged opening needs an opening tag. Use a bulk record for quantity-only items.'];
+        }
+
+        if (($data['disposition'] ?? 'active') !== 'active' && $this->blank($data['disposition_reason'] ?? null) === null) {
+            return ['field' => 'disposition_reason', 'message' => 'Enter a reason for an exclusion or not-applicable decision.'];
+        }
+
+        if (! empty($data['requirement_document_id']) && ! $takeoff->documents()->whereKey((int) $data['requirement_document_id'])->exists()) {
+            return ['field' => 'requirement_document_id', 'message' => 'Choose a document on this takeoff.'];
+        }
+
+        if (! empty($data['group_id']) && ! $takeoff->groups()->whereKey((int) $data['group_id'])->exists()) {
+            return ['field' => 'group_id', 'message' => 'Choose a group on this takeoff.'];
+        }
+
+        return null;
+    }
+
+    /**
      * @return array<string, mixed>
      */
-    private function validatedOpening(Request $request, Takeoff $takeoff): array
+    private function openingRules(): array
     {
-        $data = $request->validate([
+        return [
             'tag' => ['nullable', 'string', 'max:50'],
             'is_bulk' => ['required', 'boolean'],
             'opening_type' => ['required', Rule::in(config('takeoffs.opening_types'))],
@@ -625,6 +786,15 @@ class TakeoffWorkspaceController extends Controller
             'requirement_section' => ['nullable', 'string', 'max:255'],
             'group_id' => ['nullable', 'integer'],
             'needs_review' => ['nullable', 'boolean'],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function validatedOpening(Request $request, Takeoff $takeoff): array
+    {
+        $data = $request->validate($this->openingRules() + [
             'updated_at' => ['nullable', 'string'],
             'marker' => ['nullable', 'array'],
             'marker.document_id' => ['required_with:marker', 'integer'],

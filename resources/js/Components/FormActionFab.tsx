@@ -17,6 +17,7 @@ type FormActionFabProps = {
     onPrint?: () => void;
     printLabel?: string;
     showPrint?: boolean;
+    attention?: boolean;
 };
 
 export default function FormActionFab({
@@ -30,6 +31,7 @@ export default function FormActionFab({
     onPrint,
     printLabel = 'Print',
     showPrint = false,
+    attention = false,
 }: FormActionFabProps) {
     const [isOpen, setIsOpen] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
@@ -269,11 +271,15 @@ export default function FormActionFab({
 
             <Button
                 type="button"
-                className="size-14 sm:size-16 landscape:size-12 rounded-full bg-primary text-primary-foreground shadow-xl shadow-primary/20 transition hover:scale-105 hover:bg-primary/90"
+                className={cn(
+                    'relative size-14 sm:size-16 landscape:size-12 rounded-full bg-primary text-primary-foreground shadow-xl shadow-primary/20 transition hover:scale-105 hover:bg-primary/90',
+                    attention && 'ring-2 ring-red-600 ring-offset-2',
+                )}
                 aria-expanded={isOpen}
-                aria-label="Toggle form actions"
+                aria-label={attention ? 'Toggle form actions. Changes are not saved.' : 'Toggle form actions'}
                 onClick={() => setIsOpen((current) => !current)}
             >
+                {attention ? <span className="absolute top-1 right-1 size-3 rounded-full bg-red-600 ring-2 ring-white" /> : null}
                 <MenuIcon
                     className={cn(
                         'size-6 sm:size-7 landscape:size-5 transition duration-200',
@@ -281,8 +287,11 @@ export default function FormActionFab({
                     )}
                 />
             </Button>
-            <span className="rounded-full bg-background/90 px-2.5 py-0.5 text-[11px] sm:text-xs font-semibold uppercase tracking-wide text-muted-foreground shadow-sm ring-1 ring-border backdrop-blur">
-                Actions
+            <span className={cn(
+                'rounded-full bg-background/90 px-2.5 py-0.5 text-[11px] sm:text-xs font-semibold uppercase tracking-wide shadow-sm ring-1 backdrop-blur',
+                attention ? 'text-red-700 ring-red-300' : 'text-muted-foreground ring-border',
+            )}>
+                {attention ? 'Not saved' : 'Actions'}
             </span>
         </div>
     );

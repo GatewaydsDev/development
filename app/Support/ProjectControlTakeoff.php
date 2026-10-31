@@ -97,6 +97,14 @@ class ProjectControlTakeoff
         $this->push($control, $takeoff);
     }
 
+    public function reflectOpening(TakeoffOpening $takeoffOpening): void
+    {
+        ProjectControlOpening::query()
+            ->where('takeoff_opening_id', $takeoffOpening->id)
+            ->get()
+            ->each(fn (ProjectControlOpening $opening) => $this->copyTakeoffFields($opening, $takeoffOpening));
+    }
+
     public function linkedTakeoff(ProjectControl $control): ?Takeoff
     {
         if (! $control->project_id) {
@@ -235,6 +243,14 @@ class ProjectControlTakeoff
 
         foreach ($takeoff->openings as $takeoffOpening) {
             if (in_array($takeoffOpening->id, $linked, true)) {
+                $current = $control->openings->first(
+                    fn (ProjectControlOpening $opening): bool => (int) $opening->takeoff_opening_id === (int) $takeoffOpening->id
+                );
+
+                if ($current instanceof ProjectControlOpening && $this->takeoffIsNewer($takeoffOpening, $current)) {
+                    $this->copyTakeoffFields($current, $takeoffOpening);
+                }
+
                 continue;
             }
 
@@ -272,6 +288,37 @@ class ProjectControlTakeoff
             $opening->forceFill(['takeoff_opening_id' => $created->id])->save();
             $takeoffIds[] = $created->id;
         }
+    }
+
+    private function takeoffIsNewer(TakeoffOpening $takeoffOpening, ProjectControlOpening $opening): bool
+    {
+        $source = $takeoffOpening->updated_at;
+        $target = $opening->updated_at;
+
+        if ($source === null || $target === null) {
+            return false;
+        }
+
+        return $source->greaterThan($target);
+    }
+
+    private function copyTakeoffFields(ProjectControlOpening $opening, TakeoffOpening $takeoffOpening): void
+    {
+        $fresh = $this->fromTakeoff($takeoffOpening, (int) $opening->sort_order);
+
+        $opening->forceFill([
+            'category' => $fresh['category'],
+            'category_id' => $fresh['category_id'],
+            'description' => $fresh['description'],
+            'mark' => $fresh['mark'],
+            'size' => $fresh['size'],
+            'quantity' => $fresh['quantity'],
+            'requirement' => $fresh['requirement'],
+            'supplier' => $fresh['supplier'],
+            'hardware' => $fresh['hardware'],
+            'additional_needed' => $fresh['additional_needed'],
+            'notes' => $fresh['notes'],
+        ])->save();
     }
 
     private function matchOpening(ProjectControl $control, TakeoffOpening $takeoffOpening): ?ProjectControlOpening
