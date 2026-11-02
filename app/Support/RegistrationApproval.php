@@ -224,8 +224,12 @@ class RegistrationApproval
         return '<div style="font-family:Arial,sans-serif;color:#111827;max-width:560px">'
             .'<h2 style="margin:0 0 12px">'.e($title).'</h2><p>'.e($intro).'</p>'
             .'<table style="border-collapse:collapse;margin:16px 0">'.$table.'</table>'
-            .'<p><a href="'.e($url).'" style="display:inline-block;background:#3FCF8E;color:#111827;'
-            .'padding:10px 18px;border-radius:6px;text-decoration:none;font-weight:600">'.e($button).'</a></p>'
+            .'<table role="presentation" cellpadding="0" cellspacing="0" style="margin:16px 0"><tr>'
+            .'<td bgcolor="#3FCF8E" style="background:#3FCF8E;border-radius:6px;padding:12px 22px">'
+            .'<a href="'.e($url).'" target="_blank" style="color:#111827;font-weight:600;font-size:15px;'
+            .'text-decoration:none;display:inline-block">'.e($button).'</a></td></tr></table>'
+            .'<p style="font-size:13px;color:#374151">Button not working? Click this link: '
+            .'<a href="'.e($url).'" target="_blank" style="color:#047857;word-break:break-all">'.e($url).'</a></p>'
             .'<p style="color:#6b7280;font-size:12px">'.e($note).'</p></div>';
     }
 }

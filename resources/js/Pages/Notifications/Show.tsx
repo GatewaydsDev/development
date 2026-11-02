@@ -308,7 +308,7 @@ export default function Show({
                                                             >
                                                                 <input
                                                                     type="checkbox"
-                                                                    className="mt-1 size-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                                                                    className="mt-1 size-4 rounded border-gray-300 text-emerald-600 dark:border-border focus:ring-emerald-500"
                                                                     checked={
                                                                         checked
                                                                     }
@@ -365,7 +365,7 @@ export default function Show({
                                             <label className="flex items-center gap-2 text-sm text-foreground">
                                                 <input
                                                     type="checkbox"
-                                                    className="size-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                                                    className="size-4 rounded border-gray-300 text-emerald-600 dark:border-border focus:ring-emerald-500"
                                                     checked={
                                                         emailForm.data
                                                             .include_company
@@ -415,7 +415,7 @@ export default function Show({
                                             <textarea
                                                 id="message"
                                                 rows={4}
-                                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm dark:border-border focus:border-indigo-500 focus:ring-indigo-500"
                                                 value={emailForm.data.message}
                                                 onChange={(event) =>
                                                     emailForm.setData(

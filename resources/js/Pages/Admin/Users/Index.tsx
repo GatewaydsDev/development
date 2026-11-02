@@ -195,7 +195,7 @@ function RegistrationStatusControl({
                     aria-label={`Change status for ${request.name}`}
                     className="rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                    <Badge className={`gap-1.5 ${style.badge}`}>
+                    <Badge className={`h-6 gap-1.5 px-2.5 text-xs font-semibold ${style.badge}`}>
                         <span className={`size-1.5 rounded-full ${style.dot}`} />
                         {style.label}
                         <ChevronDownIcon className="size-3" />
@@ -316,9 +316,9 @@ function NotifyUserButton({ log }: { log: BlockLogRow }) {
                             Defaults to {log.email}. Enter a different address to send it there instead.
                         </p>
                         {email.trim() !== '' && !emailValid ? (
-                            <p className="text-sm text-red-600">Enter a valid email address, like name@example.com.</p>
+                            <p className="text-sm text-red-600 dark:text-red-400">Enter a valid email address, like name@example.com.</p>
                         ) : error ? (
-                            <p className="text-sm text-red-600">{error}</p>
+                            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
                         ) : null}
                     </div>
                     <DialogFooter>
@@ -485,7 +485,7 @@ function UserStatusControl({
     const current = user.status ?? 'active';
     const style = STATUS_STYLES[current] ?? STATUS_STYLES.active;
     const badge = (
-        <Badge className={`gap-1.5 ${style.badge}`}>
+        <Badge className={`h-6 gap-1.5 px-2.5 text-xs font-semibold ${style.badge}`}>
             <span className={`size-1.5 rounded-full ${style.dot}`} />
             {style.label}
             {user.can_change_status ? <ChevronDownIcon className="size-3" /> : null}

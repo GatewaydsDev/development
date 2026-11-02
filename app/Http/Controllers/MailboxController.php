@@ -552,11 +552,15 @@ class MailboxController extends Controller
         $messages = [];
         $bounces = ['unread' => 0, 'total' => 0];
 
+        $failed = false;
+
         try {
             $graphUnread = $graph->actingAs($user)->unreadInboxCount($mailbox);
             $bounces = $graph->actingAs($user)->bounceStats($mailbox);
-        } catch (MicrosoftGraphException) {
-            // Keep the zero defaults when Graph is unavailable.
+        } catch (MicrosoftGraphException $exception) {
+            // Keep the zero defaults when Graph is unavailable, but leave a trace in the log.
+            $failed = true;
+            report($exception);
         }
 
         try {
@@ -565,8 +569,10 @@ class MailboxController extends Controller
                 $mailbox,
                 $graph->actingAs($user)->recentUnread($mailbox),
             );
-        } catch (MicrosoftGraphException) {
+        } catch (MicrosoftGraphException $exception) {
+            $failed = true;
             $messages = [];
+            report($exception);
         }
 
         $snapshot = [
@@ -577,7 +583,7 @@ class MailboxController extends Controller
 
         Cache::put($cacheKey, $snapshot, 15);
 
-        return $snapshot;
+        return $failed ? $snapshot + ['error' => true] : $snapshot;
     }
 
     private function unreadTotal(

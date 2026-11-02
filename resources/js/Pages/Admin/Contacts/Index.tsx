@@ -370,7 +370,7 @@ export default function Index({ filters, contacts }: IndexProps) {
                                         <input
                                             id="is_active"
                                             type="checkbox"
-                                            className="size-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                                            className="size-4 rounded border-gray-300 text-emerald-600 dark:border-border focus:ring-emerald-500"
                                             {...register('is_active')}
                                         />
                                         <InputLabel

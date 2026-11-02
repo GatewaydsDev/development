@@ -175,7 +175,7 @@ export default function ShareExpensesDialog({
                 </DialogHeader>
 
                 {loading ? <p className="text-sm text-muted-foreground">Loading this group…</p> : null}
-                {loadError ? <p className="text-sm text-rose-700">{loadError}</p> : null}
+                {loadError ? <p className="text-sm text-rose-700 dark:text-rose-400">{loadError}</p> : null}
 
                 {!loading && !loadError ? (
                     <div className="flex flex-col gap-4">
@@ -211,7 +211,7 @@ export default function ShareExpensesDialog({
                                 />
                             </label>
                         </div>
-                        {form.errors.email ? <p className="text-sm text-rose-700">{form.errors.email}</p> : null}
+                        {form.errors.email ? <p className="text-sm text-rose-700 dark:text-rose-400">{form.errors.email}</p> : null}
 
                         <label className="flex flex-col gap-1 text-sm">
                             <span className="font-medium text-foreground">Message</span>
@@ -253,8 +253,8 @@ export default function ShareExpensesDialog({
                         {truncated ? (
                             <p className="text-sm text-muted-foreground">Only the latest 50 expenses in this group are included.</p>
                         ) : null}
-                        {form.errors.expenses ? <p className="text-sm text-rose-700">{form.errors.expenses}</p> : null}
-                        {form.errors.receipts ? <p className="text-sm text-rose-700">{form.errors.receipts}</p> : null}
+                        {form.errors.expenses ? <p className="text-sm text-rose-700 dark:text-rose-400">{form.errors.expenses}</p> : null}
+                        {form.errors.receipts ? <p className="text-sm text-rose-700 dark:text-rose-400">{form.errors.receipts}</p> : null}
 
                         <ul className="flex flex-col gap-2">
                             {expenses.length === 0 ? (

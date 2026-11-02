@@ -18,6 +18,30 @@ let primed = false;
 const announced = new Set<string>();
 const acknowledgedIds = new Set<string>();
 const listeners = new Set<(count: number) => void>();
+const errorListeners = new Set<(failing: boolean) => void>();
+let failing = false;
+
+function setFailing(next: boolean): void {
+    if (failing !== next) {
+        failing = next;
+        errorListeners.forEach((listener) => listener(failing));
+    }
+}
+
+export function useUnreadMailFailing(): boolean {
+    const [value, setValue] = useState(failing);
+
+    useEffect(() => {
+        errorListeners.add(setValue);
+        setValue(failing);
+
+        return () => {
+            errorListeners.delete(setValue);
+        };
+    }, []);
+
+    return value;
+}
 
 function notify(): void {
     listeners.forEach((listener) => listener(shown));
@@ -96,7 +120,7 @@ async function refreshUnreadMail(): Promise<void> {
             return;
         }
 
-        const data = (await response.json()) as { unread?: unknown; messages?: unknown };
+        const data = (await response.json()) as { unread?: unknown; messages?: unknown; error?: unknown };
         const count = Number(data.unread);
         const messages = unreadMessages(data.messages);
 
@@ -104,6 +128,7 @@ async function refreshUnreadMail(): Promise<void> {
             return;
         }
 
+        setFailing(data.error === true);
         announceNewMail(messages);
         applyServerCount(Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0);
     } catch {
