@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use Closure;
 use App\Http\Controllers\Controller;
 use App\Models\RegistrationRequest;
 use App\Models\User;
@@ -131,7 +132,18 @@ class RegisteredUserController extends Controller
         abort_unless($registration->isUsable(), 404);
 
         $request->validate([
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'password' => [
+                'required',
+                'confirmed',
+                Rules\Password::min(8)->mixedCase()->numbers()->symbols(),
+                function (string $attribute, mixed $value, Closure $fail) use ($registration): void {
+                    $local = strtolower(strstr($registration->email, '@', true) ?: '');
+
+                    if (strlen($local) >= 4 && str_contains(strtolower((string) $value), $local)) {
+                        $fail('The password cannot contain your email name.');
+                    }
+                },
+            ],
         ]);
 
         if (User::where('email', $registration->email)->exists()) {

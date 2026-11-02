@@ -21,7 +21,7 @@ import {
 } from '@/Components/ui/card';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router } from '@inertiajs/react';
-import { EditIcon, MailIcon, PlusIcon, ReceiptIcon, SearchIcon, Trash2Icon } from 'lucide-react';
+import { EditIcon, MailIcon, PlusIcon, ReceiptIcon, RepeatIcon, SearchIcon, Trash2Icon } from 'lucide-react';
 import { FormEvent, Fragment, useState } from 'react';
 import { createPortal } from 'react-dom';
 import ShareExpensesDialog from './Partials/ShareExpensesDialog';
@@ -35,6 +35,8 @@ type ExpenseRow = {
     category_label: string;
     group_name: string;
     amount: string;
+    recurring_label?: string | null;
+    next_charge_on?: string | null;
     paid_amount: string;
     scheduled_amount: string;
     receipt_name: string | null;
@@ -310,7 +312,16 @@ export default function Index({
                                                     <td className={`${cell} tabular-nums`}>{displayDate(expense.spent_on)}</td>
                                                     <td className={`${cell} max-w-32 truncate`}>{expense.person_name || 'No person'}</td>
                                                     <td className={`${cell} max-w-32 truncate text-muted-foreground`}>{expense.payee}</td>
-                                                    <td className={`${cell} max-w-56 truncate font-medium`}>{expense.description}</td>
+                                                    <td className={`${cell} max-w-56 font-medium`}>
+                                                        <span className="block truncate">{expense.description}</span>
+                                                        {expense.recurring_label ? (
+                                                            <Badge variant="outline" className="mt-1 gap-1 border-emerald-300 text-emerald-700 dark:text-emerald-300">
+                                                                <RepeatIcon className="size-3" />
+                                                                {expense.recurring_label}
+                                                                {expense.next_charge_on ? ` · next ${displayDate(expense.next_charge_on)}` : ' · ended'}
+                                                            </Badge>
+                                                        ) : null}
+                                                    </td>
                                                     <td className={cell}>
                                                         <Badge variant="outline" className="max-w-28 truncate">{expense.category_label}</Badge>
                                                     </td>

@@ -41,8 +41,8 @@ class RegistrationReviewController extends Controller
             'role' => ['required', Rule::in(array_column(RegistrationApproval::levelOptions(), 'role'))],
         ]);
 
-        if ($registration->status !== RegistrationRequest::PENDING) {
-            return back()->withErrors(['role' => 'This request was already handled.']);
+        if ($registration->status === RegistrationRequest::COMPLETED) {
+            return back()->withErrors(['role' => 'This person already created an account.']);
         }
 
         if (! $approval->approve($registration, $data['role'], $request->user())) {
@@ -57,11 +57,20 @@ class RegistrationReviewController extends Controller
     {
         abort_unless($request->user()?->isSuperAdmin(), 403);
 
-        if ($registration->status === RegistrationRequest::PENDING) {
+        if (in_array($registration->status, [RegistrationRequest::PENDING, RegistrationRequest::APPROVED], true)) {
             $approval->deny($registration);
         }
 
         return $this->done($request)->with('status', 'Request from '.$registration->email.' was denied.');
+    }
+
+    public function reopen(Request $request, RegistrationRequest $registration, RegistrationApproval $approval): RedirectResponse
+    {
+        abort_unless($request->user()?->isSuperAdmin(), 403);
+
+        $approval->reopen($registration);
+
+        return $this->done($request)->with('status', 'Request from '.$registration->email.' is pending again.');
     }
 
     private function done(Request $request): RedirectResponse

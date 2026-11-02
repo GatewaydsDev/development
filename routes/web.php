@@ -239,6 +239,9 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::patch('/users/{user}', [UserController::class, 'update'])
             ->middleware('can:update-users')
             ->name('users.update');
+        Route::post('/users/block-logs/{log}/notify', [UserController::class, 'notifyBlockLog'])
+            ->middleware('can:update-users')
+            ->name('users.block-logs.notify');
         Route::patch('/users/{user}/status', [UserController::class, 'updateStatus'])
             ->middleware('can:update-users')
             ->name('users.status');

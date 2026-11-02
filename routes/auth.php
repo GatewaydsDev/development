@@ -65,6 +65,9 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
 
     Route::post('register-review/{registration}/deny', [RegistrationReviewController::class, 'deny'])
         ->name('register.deny');
+
+    Route::post('register-review/{registration}/reopen', [RegistrationReviewController::class, 'reopen'])
+        ->name('register.reopen');
 });
 
 Route::middleware(['auth', 'prevent-back-history', 'can:manage-profile'])->group(function () {

@@ -65,28 +65,40 @@ class UserController extends Controller
             : collect();
 
         $isSuperAdmin = (bool) $request->user()?->isSuperAdmin();
+        $recentLogs = $canSeeHistory ? LoginBlockLog::query()->latest('blocked_at')->limit(25)->get() : collect();
+        $logUsers = User::query()->whereIn('id', $recentLogs->pluck('user_id')->filter())->get()->keyBy('id');
 
         return Inertia::render('Admin/Users/Index', [
             'registrationRequests' => $isSuperAdmin
                 ? RegistrationRequest::query()
-                    ->where('status', RegistrationRequest::PENDING)
-                    ->oldest()
+                    ->where('status', '!=', RegistrationRequest::COMPLETED)
+                    ->orderByRaw("status = 'pending' desc")
+                    ->latest()
+                    ->limit(50)
                     ->get()
                     ->map(fn (RegistrationRequest $registration): array => [
                         'id' => $registration->id,
                         'name' => $registration->name,
                         'email' => $registration->email,
+                        'status' => $registration->isExpired() ? RegistrationRequest::EXPIRED : $registration->status,
+                        'level' => $registration->role ? RegistrationApproval::levelLabel($registration->role) : null,
+                        'role' => $registration->role,
                         'ip_address' => $registration->ip_address,
                         'requested_at' => $registration->created_at?->format('M j, Y g:i A'),
                         'approve_url' => route('register.approve', $registration),
                         'deny_url' => route('register.deny', $registration),
+                        'reopen_url' => route('register.reopen', $registration),
                     ])->all()
                 : [],
             'registrationLevels' => $isSuperAdmin ? RegistrationApproval::levelOptions() : [],
-            'blockLogs' => $canSeeHistory
-                ? LoginBlockLog::query()->latest('blocked_at')->limit(25)->get()
-                    ->map(fn (LoginBlockLog $log): array => $this->blockLogPayload($log))->all()
-                : [],
+            'blockLogs' => $recentLogs->map(function (LoginBlockLog $log) use ($request, $logUsers): array {
+                $target = $logUsers->get($log->user_id);
+
+                return $this->blockLogPayload($log) + [
+                    'user_status' => $target?->account_status,
+                    'can_change_status' => $target !== null && $this->canChangeStatus($request->user(), $target),
+                ];
+            })->all(),
             'filters' => [
                 'search' => $search,
             ],
@@ -418,11 +430,34 @@ class UserController extends Controller
         $validated = $request->validate([
             'status' => ['required', Rule::in(LoginLockout::STATUSES)],
             'reason' => ['required', 'string', 'min:3', 'max:500'],
+            'notify_user' => ['sometimes', 'boolean'],
         ]);
 
         $lockout->setStatus($user, $validated['status'], 'user_management', $request->user(), trim($validated['reason']));
 
-        return back()->with('success', $user->name.' is now '.$validated['status'].'.');
+        $message = $user->name.' is now '.$validated['status'].'.';
+
+        if ($request->boolean('notify_user')) {
+            $message .= $lockout->notifyUser($user, $validated['status'])
+                ? ' An email was sent to the user.'
+                : ' The email to the user could not be sent.';
+        }
+
+        return back()->with('success', $message);
+    }
+
+    public function notifyBlockLog(Request $request, LoginBlockLog $log, LoginLockout $lockout): RedirectResponse
+    {
+        $user = User::query()->find($log->user_id);
+
+        abort_unless($user !== null && $request->user()?->canViewUserAccount($user), 404);
+        abort_unless($this->canChangeStatus($request->user(), $user), 403);
+
+        if (! $lockout->notifyUser($user, $user->account_status)) {
+            return back()->with('error', 'The email to '.$user->email.' could not be sent. Try again.');
+        }
+
+        return back()->with('success', 'Email sent to '.$user->email.'. Microsoft 365 accepted it for delivery.');
     }
 
     private function canChangeStatus(?User $actor, User $target): bool

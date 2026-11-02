@@ -4,7 +4,7 @@ import RegistrationShell from '@/Components/RegistrationShell';
 import TextInput from '@/Components/TextInput';
 import { Button } from '@/Components/ui/button';
 import { Link, useForm } from '@inertiajs/react';
-import { Eye, EyeOff, LinkIcon, TimerIcon, TimerOffIcon } from 'lucide-react';
+import { CheckCircle2Icon, CircleIcon, Eye, EyeOff, LinkIcon, ShieldCheckIcon, TimerIcon, TimerOffIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 type Props = {
@@ -58,10 +58,71 @@ function Countdown({ expiresAt, serverNow, onDone }: { expiresAt: string; server
     );
 }
 
+const STRENGTH = [
+    { label: 'Too weak', bar: 'bg-red-500' },
+    { label: 'Weak', bar: 'bg-orange-500' },
+    { label: 'Fair', bar: 'bg-amber-500' },
+    { label: 'Good', bar: 'bg-lime-500' },
+    { label: 'Strong', bar: 'bg-emerald-500' },
+];
+
+function passwordChecks(password: string, email = '') {
+    const local = email.split('@')[0]?.toLowerCase() ?? '';
+
+    return [
+        { label: 'At least 8 characters', ok: password.length >= 8 },
+        { label: 'An uppercase and a lowercase letter', ok: /[a-z]/.test(password) && /[A-Z]/.test(password) },
+        { label: 'At least one number', ok: /\d/.test(password) },
+        { label: 'At least one symbol (!@#$…)', ok: /[^A-Za-z0-9]/.test(password) },
+        {
+            label: 'Does not contain your email name',
+            ok: password.length > 0 && !(local.length >= 4 && password.toLowerCase().includes(local)),
+        },
+    ];
+}
+
+function PasswordStrength({ password, email }: { password: string; email?: string }) {
+    const checks = passwordChecks(password, email);
+    const passed = checks.filter((check) => check.ok).length;
+    const filled = password === '' ? 0 : Math.max(1, passed);
+    const strength = STRENGTH[Math.max(0, filled - 1)];
+
+    return (
+        <div className="flex flex-col gap-3 rounded-lg border border-border bg-muted/30 p-3" aria-live="polite">
+            <div className="flex items-center gap-3">
+                <div className="flex flex-1 gap-1">
+                    {STRENGTH.map((_, index) => (
+                        <span
+                            key={index}
+                            className={`h-1.5 flex-1 rounded-full ${index < filled ? strength.bar : 'bg-border'}`}
+                        />
+                    ))}
+                </div>
+                <span className="w-16 text-right text-xs font-medium text-muted-foreground">
+                    {password === '' ? '' : strength.label}
+                </span>
+            </div>
+            <ul className="grid gap-1.5 text-xs">
+                {checks.map((check) => (
+                    <li
+                        key={check.label}
+                        className={`flex items-center gap-2 ${check.ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}
+                    >
+                        {check.ok ? <CheckCircle2Icon className="size-3.5" /> : <CircleIcon className="size-3.5" />}
+                        {check.label}
+                    </li>
+                ))}
+            </ul>
+        </div>
+    );
+}
+
 export default function CompleteRegistration(props: Props) {
     const [expired, setExpired] = useState(props.state === 'expired');
     const [show, setShow] = useState(false);
     const form = useForm({ password: '', password_confirmation: '' });
+    const matches = form.data.password !== '' && form.data.password === form.data.password_confirmation;
+    const canSubmit = matches && passwordChecks(form.data.password, props.email).every((check) => check.ok);
 
     if (props.state === 'invalid') {
         return (
@@ -142,6 +203,7 @@ export default function CompleteRegistration(props: Props) {
                                 {show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                             </button>
                         </div>
+                        <PasswordStrength password={form.data.password} email={props.email} />
                         <FieldAlert title="Check your password" message={form.errors.password} />
                     </div>
 
@@ -155,9 +217,18 @@ export default function CompleteRegistration(props: Props) {
                             value={form.data.password_confirmation}
                             onChange={(event) => form.setData('password_confirmation', event.target.value)}
                         />
+                        {form.data.password_confirmation !== '' && (
+                            <p
+                                className={`flex items-center gap-1.5 text-xs ${matches ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}
+                            >
+                                {matches ? <CheckCircle2Icon className="size-3.5" /> : <CircleIcon className="size-3.5" />}
+                                {matches ? 'Passwords match' : 'Passwords do not match yet'}
+                            </p>
+                        )}
                     </div>
 
-                    <Button type="submit" size="lg" className="w-full" disabled={form.processing}>
+                    <Button type="submit" size="lg" className="w-full gap-2" disabled={form.processing || !canSubmit}>
+                        <ShieldCheckIcon className="size-4" />
                         Create account
                     </Button>
                 </form>

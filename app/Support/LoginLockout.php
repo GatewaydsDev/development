@@ -126,6 +126,39 @@ class LoginLockout
         ])->save();
     }
 
+    /** Tells the user their sign-in access changed. Returns whether the email was sent. */
+    public function notifyUser(User $user, string $status): bool
+    {
+        $active = $status === self::ACTIVE;
+        $title = $active ? 'Your account is active again' : 'Your account access was changed';
+        $intro = $active
+            ? 'Hi '.e($user->name).', your Gateway account was reactivated. You can sign in again.'
+            : 'Hi '.e($user->name).', your Gateway account was '.e($status).' by an administrator. '
+                .'Contact the administrator if you think this is a mistake.';
+        $button = $active
+            ? '<p><a href="'.e(route('login')).'" style="display:inline-block;background:#3FCF8E;color:#111827;'
+                .'padding:10px 18px;border-radius:6px;text-decoration:none;font-weight:600">Sign in</a></p>'
+            : '';
+        $html = '<div style="font-family:Arial,sans-serif;color:#111827;max-width:560px">'
+            .'<h2 style="margin:0 0 12px">'.e($title).'</h2><p>'.$intro.'</p>'.$button.'</div>';
+
+        try {
+            app(MicrosoftGraphMailService::class)->sendFromMailbox(
+                RegistrationApproval::SENDER_MAILBOX,
+                $user->email,
+                $title,
+                $html,
+                'Ricardo Scarpim',
+            );
+
+            return true;
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return false;
+        }
+    }
+
     public function unlockUrl(User $user): string
     {
         return URL::temporarySignedRoute('login.unlock.show', now()->addDays(7), ['user' => $user->id]);

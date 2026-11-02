@@ -295,6 +295,9 @@ class ExpenseController extends Controller
             'category' => ['required', 'string', 'max:80'],
             'group_name' => ['nullable', 'string', 'max:160'],
             'amount' => ['required', 'numeric', 'min:0.01', 'max:99999999.99'],
+            'recurring_frequency' => ['nullable', Rule::in(array_keys(Expense::FREQUENCIES))],
+            'recurring_starts_on' => ['nullable', 'required_with:recurring_frequency', 'date'],
+            'recurring_ends_on' => ['nullable', 'date', 'after_or_equal:recurring_starts_on'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'receipt' => ['nullable', 'file', 'mimes:pdf,jpeg,jpg,png,webp,gif', 'max:5120'],
             'remove_receipt' => ['sometimes', 'boolean'],
@@ -307,6 +310,7 @@ class ExpenseController extends Controller
             'payments.*.method' => ['required', Rule::in(array_keys(ExpensePayment::METHODS))],
         ]);
 
+        $recurring = filled($validated['recurring_frequency'] ?? null);
         $notes = trim((string) ($validated['notes'] ?? ''));
         $groupName = trim((string) ($validated['group_name'] ?? ''));
         $payments = [];
@@ -334,6 +338,9 @@ class ExpenseController extends Controller
                 'category' => $this->categoryValue(trim($validated['category'])),
                 'group_name' => $groupName === '' ? null : $groupName,
                 'amount' => number_format((float) $validated['amount'], 2, '.', ''),
+                'recurring_frequency' => $recurring ? $validated['recurring_frequency'] : null,
+                'recurring_starts_on' => $recurring ? $validated['recurring_starts_on'] : null,
+                'recurring_ends_on' => $recurring ? ($validated['recurring_ends_on'] ?? null) : null,
                 'notes' => $notes === '' ? null : $notes,
             ],
             'payments' => $payments,
@@ -607,6 +614,13 @@ class ExpenseController extends Controller
             'category_label' => Expense::CATEGORIES[$expense->category] ?? $expense->category,
             'group_name' => $expense->group_name ?: '',
             'amount' => $expense->amount,
+            'recurring_frequency' => $expense->recurring_frequency ?: '',
+            'recurring_label' => $expense->recurring_frequency
+                ? (Expense::FREQUENCIES[$expense->recurring_frequency] ?? $expense->recurring_frequency)
+                : null,
+            'recurring_starts_on' => $expense->recurring_starts_on?->toDateString(),
+            'recurring_ends_on' => $expense->recurring_ends_on?->toDateString(),
+            'next_charge_on' => $expense->nextChargeOn()?->toDateString(),
             'notes' => $expense->notes,
             'receipt_name' => $expense->receipt_name,
             'receipt_is_image' => $preview !== null,

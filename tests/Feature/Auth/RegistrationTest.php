@@ -32,7 +32,7 @@ function ricardo(): User
     ]);
 }
 
-test('sign-up request emails only Ricardo', function () {
+test('sign-up request emails Ricardo and confirms to the requester', function () {
     $sent = fakeMail();
     ricardo();
     User::factory()->create(['name' => 'Larry', 'role' => 'super_admin', 'microsoft_mailbox' => 'larry@gateway-ds.com']);
@@ -41,9 +41,10 @@ test('sign-up request emails only Ricardo', function () {
         ->assertRedirect('/register')
         ->assertSessionHas('registration_requested.emailed', true);
 
-    expect($sent)->toHaveCount(1)
+    expect($sent)->toHaveCount(2)
         ->and($sent[0]['to'])->toBe('ricardo@gateway-ds.com')
-        ->and($sent[0]['mailbox'])->toBe('ricardo@gateway-ds.com');
+        ->and($sent[0]['mailbox'])->toBe('ricardo@gateway-ds.com')
+        ->and($sent[1]['to'])->toBe('new@example.com');
     $this->assertDatabaseHas('registration_requests', ['email' => 'new@example.com', 'status' => 'pending']);
     $this->assertGuest();
 });
@@ -74,9 +75,9 @@ test('super admin approves with a level and the user gets an 8 minute link', fun
     expect($registration->status)->toBe('approved')
         ->and($registration->role)->toBe('project_manager')
         ->and((int) round(now()->diffInMinutes($registration->expires_at, true)))->toBeIn([7, 8])
-        ->and($sent)->toHaveCount(2)
-        ->and($sent[1]['to'])->toBe('new@example.com')
-        ->and($sent[1]['html'])->toContain('/register/complete/')->toContain('Project Manager');
+        ->and($sent)->toHaveCount(3)
+        ->and($sent[2]['to'])->toBe('new@example.com')
+        ->and($sent[2]['html'])->toContain('/register/complete/')->toContain('Project Manager');
 });
 
 test('non super admins cannot approve and super admin level cannot be granted', function () {
@@ -99,7 +100,7 @@ function approvedToken(): string
     test()->post('/register', ['name' => 'New Person', 'email' => 'new@example.com']);
     test()->actingAs($admin)->post(route('register.approve', RegistrationRequest::first()), ['role' => 'project_manager']);
     auth()->logout();
-    preg_match('#register/complete/([A-Za-z0-9]+)#', $sent[1]['html'], $m);
+    preg_match('#register/complete/([A-Za-z0-9]+)#', $sent[2]['html'], $m);
 
     return $m[1];
 }
@@ -110,7 +111,7 @@ test('approved link creates the account with the approved level and works once',
     $this->get("/register/complete/$token")->assertOk()
         ->assertInertia(fn ($page) => $page->where('state', 'ready')->where('level', 'Project Manager'));
 
-    $this->post("/register/complete/$token", ['password' => 'password', 'password_confirmation' => 'password'])
+    $this->post("/register/complete/$token", ['password' => 'Str0ng!Passw0rd', 'password_confirmation' => 'Str0ng!Passw0rd'])
         ->assertRedirect(route('dashboard', absolute: false));
 
     $this->assertAuthenticated();
@@ -178,7 +179,7 @@ test('sign-up works when the robot check passes', function () {
     $this->post('/register', ['name' => 'Human', 'email' => 'human@example.com', 'cf-turnstile-response' => 'ok'])
         ->assertSessionDoesntHaveErrors();
 
-    expect($sent)->toHaveCount(1);
+    expect($sent)->toHaveCount(2);
 });
 
 test('the hidden honeypot field silently blocks bots', function () {
@@ -243,5 +244,88 @@ test('super admin sees pending sign-up requests on user management and can appro
         ->assertRedirect(route('admin.users.index'));
 
     $this->actingAs($admin)->get(route('admin.users.index'))
-        ->assertInertia(fn (Assert $page) => $page->has('registrationRequests', 0));
+        ->assertInertia(fn (Assert $page) => $page->where('registrationRequests.0.status', 'approved'));
+});
+
+test('reactivating a blocked user can email them', function () {
+    $sent = fakeMail();
+    $admin = ricardo();
+    $user = User::factory()->create(['account_status' => 'blocked']);
+
+    $this->actingAs($admin)->patch(route('admin.users.status', $user), [
+        'status' => 'active', 'reason' => 'Verified identity', 'notify_user' => true,
+    ])->assertSessionHas('success');
+
+    expect($user->fresh()->account_status)->toBe('active')
+        ->and(collect($sent)->contains(fn ($mail) => in_array($user->email, (array) $mail, true)))->toBeTrue();
+});
+
+test('denying a request emails the requester', function () {
+    $sent = fakeMail();
+    $admin = ricardo();
+    $this->post('/register', ['name' => 'New Person', 'email' => 'new@example.com']);
+
+    $this->actingAs($admin)->post(route('register.deny', RegistrationRequest::first()), ['return' => 'users'])
+        ->assertRedirect(route('admin.users.index'));
+
+    expect(collect($sent)->last()['to'])->toBe('new@example.com');
+});
+
+test('super admin can change a request status back and forth and re-approve a denied one', function () {
+    $sent = fakeMail();
+    $admin = ricardo();
+    $this->post('/register', ['name' => 'New Person', 'email' => 'new@example.com']);
+    $registration = RegistrationRequest::first();
+
+    $this->actingAs($admin)->post(route('register.deny', $registration));
+    expect($registration->fresh()->status)->toBe('denied');
+
+    $this->actingAs($admin)->post(route('register.reopen', $registration));
+    expect($registration->fresh()->status)->toBe('pending');
+
+    $this->actingAs($admin)->post(route('register.deny', $registration));
+    $this->actingAs($admin)->post(route('register.approve', $registration), ['role' => 'project_manager']);
+
+    expect($registration->fresh()->status)->toBe('approved')
+        ->and(collect($sent)->last()['html'])->toContain('/register/complete/');
+});
+
+test('login block log rows expose the current status and whether it can be changed', function () {
+    fakeMail();
+    $admin = ricardo();
+    $user = User::factory()->create(['name' => 'Jose']);
+    app(App\Support\LoginLockout::class)->setStatus($user, 'blocked', 'user_management', $admin, 'Test block');
+
+    $this->actingAs($admin)->get(route('admin.users.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('blockLogs.0.user_status', 'blocked')
+            ->where('blockLogs.0.can_change_status', true));
+});
+
+test('block log email can be sent to the affected user', function () {
+    $sent = fakeMail();
+    $admin = ricardo();
+    $user = User::factory()->create(['name' => 'Jose']);
+    app(App\Support\LoginLockout::class)->setStatus($user, 'blocked', 'user_management', $admin, 'Test block');
+    $log = App\Models\LoginBlockLog::first();
+
+    $this->actingAs($admin)->post(route('admin.users.block-logs.notify', $log))
+        ->assertSessionHas('success');
+
+    expect(collect($sent)->last()['to'])->toBe($user->email);
+
+    $this->actingAs(User::factory()->create())->post(route('admin.users.block-logs.notify', $log))
+        ->assertForbidden();
+});
+
+test('weak passwords are rejected when finishing sign-up', function () {
+    $token = approvedToken();
+
+    foreach (['short1!', 'alllowercase1!', 'NoNumbers!!', 'NoSymbols123A'] as $weak) {
+        $this->post(route('register.complete.store', $token), ['password' => $weak, 'password_confirmation' => $weak])
+            ->assertSessionHasErrors('password');
+    }
+
+    $this->post(route('register.complete.store', $token), ['password' => 'Str0ng!Passw0rd', 'password_confirmation' => 'Str0ng!Passw0rd'])
+        ->assertSessionDoesntHaveErrors();
 });

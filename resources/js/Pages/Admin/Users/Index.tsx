@@ -99,12 +99,14 @@ type UsersPaginator = {
     links: PaginationLink[];
 };
 
+type BlockLogRow = BlockLog & { user_status?: string | null; can_change_status?: boolean };
+
 type IndexProps = {
     filters: {
         search?: string;
     };
     users: UsersPaginator;
-    blockLogs?: BlockLog[];
+    blockLogs?: BlockLogRow[];
     registrationRequests?: RegistrationRequestRow[];
     registrationLevels?: { role: string; label: string }[];
 };
@@ -113,107 +115,219 @@ type RegistrationRequestRow = {
     id: number;
     name: string;
     email: string;
+    status: string;
+    level: string | null;
+    role: string | null;
     ip_address: string | null;
     requested_at: string | null;
     approve_url: string;
     deny_url: string;
+    reopen_url: string;
 };
 
-function RegistrationRequests({
-    requests,
+const REQUEST_STATUS: Record<string, { label: string; dot: string; badge: string }> = {
+    pending: {
+        label: 'Pending',
+        dot: 'bg-amber-500',
+        badge: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300',
+    },
+    approved: {
+        label: 'Approved',
+        dot: 'bg-emerald-500',
+        badge: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300',
+    },
+    denied: {
+        label: 'Denied',
+        dot: 'bg-red-500',
+        badge: 'border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300',
+    },
+    expired: {
+        label: 'Link expired',
+        dot: 'bg-slate-400',
+        badge: 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-500/30 dark:bg-slate-500/10 dark:text-slate-300',
+    },
+};
+
+function RegistrationStatusControl({
+    request,
     levels,
 }: {
-    requests: RegistrationRequestRow[];
+    request: RegistrationRequestRow;
     levels: { role: string; label: string }[];
 }) {
-    const [roles, setRoles] = useState<Record<number, string>>({});
-    const [busy, setBusy] = useState<number | null>(null);
+    const [approving, setApproving] = useState<RegistrationRequestRow | null>(null);
+    const [role, setRole] = useState('');
+    const [error, setError] = useState('');
+    const [busy, setBusy] = useState(false);
+    const style = REQUEST_STATUS[request.status] ?? REQUEST_STATUS.pending;
 
-    const act = (request: RegistrationRequestRow, approve: boolean) => {
-        setBusy(request.id);
+    const post = (url: string, data: Record<string, string>, onSuccess?: () => void) => {
+        setBusy(true);
         router.post(
-            approve ? request.approve_url : request.deny_url,
-            approve
-                ? { role: roles[request.id], return: 'users' }
-                : { return: 'users' },
-            { preserveScroll: true, onFinish: () => setBusy(null) },
+            url,
+            { ...data, return: 'users' },
+            {
+                preserveScroll: true,
+                onSuccess,
+                onError: (errors) => setError(errors.role ?? 'Could not complete this action.'),
+                onFinish: () => setBusy(false),
+            },
         );
     };
 
+    const change = (status: string) => {
+        if (status === 'approved') {
+            setRole(request.role ?? '');
+            setError('');
+            setApproving(request);
+        } else if (status === 'denied') {
+            post(request.deny_url, {});
+        } else if (status === 'pending') {
+            post(request.reopen_url, {});
+        }
+    };
+
     return (
-        <Card className="border-amber-300 dark:border-amber-500/40">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <UserPlusIcon className="size-5 text-amber-500" />
-                    Sign-up requests
-                    <Badge variant="secondary">{requests.length}</Badge>
-                </CardTitle>
-                <CardDescription>
-                    Choose an access level to approve. The person gets a
-                    sign-up link by email.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-                {requests.map((request) => (
-                    <div
-                        key={request.id}
-                        className="flex flex-col gap-3 rounded-md border border-border p-3 lg:flex-row lg:items-center lg:justify-between"
+        <>
+            <DropdownMenu>
+                <DropdownMenuTrigger
+                    disabled={busy}
+                    aria-label={`Change status for ${request.name}`}
+                    className="rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                    <Badge className={`gap-1.5 ${style.badge}`}>
+                        <span className={`size-1.5 rounded-full ${style.dot}`} />
+                        {style.label}
+                        <ChevronDownIcon className="size-3" />
+                    </Badge>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-44">
+                    <DropdownMenuRadioGroup value={request.status} onValueChange={change}>
+                        {['pending', 'approved', 'denied'].map((value) => (
+                            <DropdownMenuRadioItem key={value} value={value}>
+                                <span className={`size-2 rounded-full ${REQUEST_STATUS[value].dot}`} />
+                                {REQUEST_STATUS[value].label}
+                            </DropdownMenuRadioItem>
+                        ))}
+                    </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+            </DropdownMenu>
+            <Dialog open={approving !== null} onOpenChange={(open) => !open && setApproving(null)}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Approve {approving?.name}</DialogTitle>
+                        <DialogDescription>
+                            Choose the access level. A sign-up link will be emailed to {approving?.email}.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <select
+                        aria-label="Access level"
+                        className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                        value={role}
+                        onChange={(event) => setRole(event.target.value)}
                     >
-                        <div className="min-w-0">
-                            <p className="font-medium">{request.name}</p>
-                            <p className="truncate text-sm text-muted-foreground">
-                                {request.email}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                                {request.requested_at}
-                                {request.ip_address
-                                    ? ` · ${request.ip_address}`
-                                    : ''}
-                            </p>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                            <select
-                                aria-label={`Access level for ${request.name}`}
-                                className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-                                value={roles[request.id] ?? ''}
-                                onChange={(event) =>
-                                    setRoles({
-                                        ...roles,
-                                        [request.id]: event.target.value,
-                                    })
-                                }
-                            >
-                                <option value="">Select level…</option>
-                                {levels.map((level) => (
-                                    <option key={level.role} value={level.role}>
-                                        {level.label}
-                                    </option>
-                                ))}
-                            </select>
-                            <Button
-                                size="sm"
-                                disabled={busy === request.id || !roles[request.id]}
-                                onClick={() => act(request, true)}
-                            >
-                                Approve
-                            </Button>
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                disabled={busy === request.id}
-                                onClick={() => act(request, false)}
-                            >
-                                Deny
-                            </Button>
-                        </div>
-                    </div>
-                ))}
-            </CardContent>
-        </Card>
+                        <option value="">Select level…</option>
+                        {levels.map((level) => (
+                            <option key={level.role} value={level.role}>
+                                {level.label}
+                            </option>
+                        ))}
+                    </select>
+                    {error && <p className="text-xs text-destructive">{error}</p>}
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setApproving(null)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            disabled={busy || !role}
+                            onClick={() =>
+                                approving && post(approving.approve_url, { role }, () => setApproving(null))
+                            }
+                        >
+                            Approve and send email
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
     );
 }
 
-function BlockLogTable({ logs }: { logs: BlockLog[] }) {
+function NotifyUserButton({ log }: { log: BlockLogRow }) {
+    const [open, setOpen] = useState(false);
+    const [sending, setSending] = useState(false);
+    const sent = log.emails_sent > 0;
+    const badge = (
+        <Badge
+            variant="outline"
+            className={sent ? 'border-emerald-300 text-emerald-700 dark:text-emerald-300' : 'border-amber-300 text-amber-700 dark:text-amber-300'}
+        >
+            {sent ? 'Sent' : 'Not sent'}
+            {log.can_change_status ? <MailIcon className="ml-1 size-3" /> : null}
+        </Badge>
+    );
+
+    if (!log.can_change_status) {
+        return badge;
+    }
+
+    return (
+        <>
+            <button
+                type="button"
+                aria-label={`Send email to ${log.name}`}
+                className="rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                onClick={() => setOpen(true)}
+            >
+                {badge}
+            </button>
+            <Dialog open={open} onOpenChange={setOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Email {log.name}</DialogTitle>
+                        <DialogDescription>
+                            Send an email to {log.email} about their current account status
+                            {log.user_status ? ` (${log.user_status})` : ''}. If the account is active, the email
+                            tells them they can sign in.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            disabled={sending}
+                            onClick={() => {
+                                setSending(true);
+                                router.post(
+                                    route('admin.users.block-logs.notify', log.id),
+                                    {},
+                                    {
+                                        preserveScroll: true,
+                                        onSuccess: () => setOpen(false),
+                                        onFinish: () => setSending(false),
+                                    },
+                                );
+                            }}
+                        >
+                            Send email
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
+    );
+}
+
+function BlockLogTable({
+    logs,
+    requests,
+    levels,
+}: {
+    logs: BlockLogRow[];
+    requests: RegistrationRequestRow[];
+    levels: { role: string; label: string }[];
+}) {
     return (
         <Card className="mt-6">
             <CardHeader>
@@ -222,11 +336,11 @@ function BlockLogTable({ logs }: { logs: BlockLog[] }) {
                     Login block log
                 </CardTitle>
                 <p className="text-sm text-muted-foreground">
-                    Every time an account was blocked (failed sign-ins or by an administrator). Latest 25.
+                    Sign-up requests from people who want access, and every time an account was blocked (failed sign-ins or by an administrator). Latest 25 blocks.
                 </p>
             </CardHeader>
             <CardContent>
-                {logs.length === 0 ? (
+                {logs.length === 0 && requests.length === 0 ? (
                     <p className="py-6 text-center text-sm text-muted-foreground">
                         No blocked logins yet.
                     </p>
@@ -244,6 +358,23 @@ function BlockLogTable({ logs }: { logs: BlockLog[] }) {
                                 </tr>
                             </thead>
                             <tbody>
+                                {requests.map((request) => (
+                                    <tr key={`request-${request.id}`} className="border-b border-border/60 align-top">
+                                        <td className="py-3 pr-3 whitespace-nowrap">{request.requested_at}</td>
+                                        <td className="py-3 pr-3">
+                                            <p className="font-medium">{request.name}</p>
+                                            <p className="text-xs text-muted-foreground">{request.email}</p>
+                                        </td>
+                                        <td className="py-3 pr-3">Sign-up request</td>
+                                        <td className="py-3 pr-3">{request.ip_address ?? '—'}</td>
+                                        <td className="py-3 pr-3 text-xs text-muted-foreground">
+                                            {request.level ? `Level: ${request.level}` : '—'}
+                                        </td>
+                                        <td className="py-3">
+                                            <RegistrationStatusControl request={request} levels={levels} />
+                                        </td>
+                                    </tr>
+                                ))}
                                 {logs.map((log) => (
                                     <tr key={log.id} className="border-b border-border/60 align-top last:border-0">
                                         <td className="py-3 pr-3 whitespace-nowrap">{fmt(log.blocked_at)}</td>
@@ -260,27 +391,24 @@ function BlockLogTable({ logs }: { logs: BlockLog[] }) {
                                             </p>
                                         </td>
                                         <td className="py-3 pr-3">
-                                            <Badge variant="outline" className={log.emails_sent > 0 ? 'border-emerald-300 text-emerald-700 dark:text-emerald-300' : 'border-amber-300 text-amber-700 dark:text-amber-300'}>
-                                                {log.emails_sent > 0 ? 'Sent' : 'Not sent'}
-                                            </Badge>
+                                            <NotifyUserButton log={log} />
                                         </td>
                                         <td className="py-3">
-                                            {log.released_at ? (
-                                                <>
-                                                    <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
-                                                        Released
-                                                    </Badge>
-                                                    <p className="mt-1 text-xs text-muted-foreground">
-                                                        {fmt(log.released_at)}
-                                                        <br />
-                                                        {RELEASE_METHODS[log.release_method ?? ''] ?? log.release_method}
-                                                        {log.released_by ? ` · ${log.released_by}` : ''}
-                                                    </p>
-                                                </>
-                                            ) : (
-                                                <Badge className="border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
-                                                    Still blocked
-                                                </Badge>
+                                            <UserStatusControl
+                                                user={{
+                                                    id: log.user_id,
+                                                    name: log.name,
+                                                    status: log.user_status ?? (log.released_at ? 'active' : log.kind),
+                                                    can_change_status: log.can_change_status,
+                                                }}
+                                            />
+                                            {log.released_at && (
+                                                <p className="mt-1 text-xs text-muted-foreground">
+                                                    Released {fmt(log.released_at)}
+                                                    <br />
+                                                    {RELEASE_METHODS[log.release_method ?? ''] ?? log.release_method}
+                                                    {log.released_by ? ` · ${log.released_by}` : ''}
+                                                </p>
                                             )}
                                         </td>
                                     </tr>
@@ -321,6 +449,7 @@ function UserStatusControl({
     const [reason, setReason] = useState('');
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
+    const [notifyUser, setNotifyUser] = useState(true);
     const current = user.status ?? 'active';
     const style = STATUS_STYLES[current] ?? STATUS_STYLES.active;
     const badge = (
@@ -350,6 +479,8 @@ function UserStatusControl({
                         onValueChange={(status) => {
                             if (status !== current) {
                                 setReason('');
+                                setError('');
+                                setNotifyUser(true);
                                 setPending(status);
                             }
                         }}
@@ -371,7 +502,7 @@ function UserStatusControl({
                             Change status to {STATUS_STYLES[pending ?? 'active']?.label}
                         </DialogTitle>
                         <DialogDescription>
-                            {user.name} is now {style.label.toLowerCase()}. Tell us why you are changing it. Your name and
+                            {user.name} is currently {style.label.toLowerCase()}. Tell us why you are changing it. Your name and
                             the time are saved with the reason.
                         </DialogDescription>
                     </DialogHeader>
@@ -389,6 +520,16 @@ function UserStatusControl({
                             className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                             placeholder="Example: suspicious sign-in attempts, left the company…"
                         />
+                        <label className="mt-1 flex items-center gap-2 text-sm">
+                            <input
+                                type="checkbox"
+                                checked={notifyUser}
+                                onChange={(event) => setNotifyUser(event.target.checked)}
+                            />
+                            {pending === 'active'
+                                ? 'Email the user that they can sign in again'
+                                : 'Email the user about this change'}
+                        </label>
                         {error && <p className="text-xs text-destructive">{error}</p>}
                     </div>
                     <DialogFooter>
@@ -402,7 +543,7 @@ function UserStatusControl({
                                 setSaving(true);
                                 router.patch(
                                     route('admin.users.status', user.id),
-                                    { status: pending, reason },
+                                    { status: pending, reason, notify_user: notifyUser },
                                     {
                                         preserveScroll: true,
                                         onSuccess: () => setPending(null),
@@ -500,12 +641,6 @@ export default function Index({
 
             <div className="py-6 sm:py-8">
                 <div className="mx-auto flex max-w-[96rem] flex-col gap-6 px-4 sm:px-6 lg:px-8">
-                    {registrationRequests.length > 0 && (
-                        <RegistrationRequests
-                            requests={registrationRequests}
-                            levels={registrationLevels}
-                        />
-                    )}
                     <div className="grid gap-4 sm:grid-cols-3">
                         <Card size="sm" className="border-l-4 border-l-emerald-500">
                             <CardHeader>
@@ -755,7 +890,13 @@ export default function Index({
                         </CardContent>
                     </Card>
 
-                    {canUpdateUsers && blockLogs && <BlockLogTable logs={blockLogs} />}
+                    {canUpdateUsers && blockLogs && (
+                        <BlockLogTable
+                            logs={blockLogs}
+                            requests={registrationRequests}
+                            levels={registrationLevels}
+                        />
+                    )}
                 </div>
             </div>
 

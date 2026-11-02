@@ -14,7 +14,7 @@ import {
 import { PageProps } from '@/types';
 import { cn } from '@/lib/utils';
 import { useForm, usePage } from '@inertiajs/react';
-import { BanknoteIcon, CameraIcon, PlusIcon, ReceiptIcon, ShoppingBagIcon, Trash2Icon, UploadIcon } from 'lucide-react';
+import { BanknoteIcon, CameraIcon, PlusIcon, ReceiptIcon, RepeatIcon, ShoppingBagIcon, Trash2Icon, UploadIcon } from 'lucide-react';
 import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 type PaymentRow = {
@@ -47,6 +47,10 @@ export type ExpenseRecord = {
     category_label: string;
     group_name: string;
     amount: string;
+    recurring_frequency?: string;
+    recurring_starts_on?: string | null;
+    recurring_ends_on?: string | null;
+    next_charge_on?: string | null;
     notes: string | null;
     receipt_name: string | null;
     receipt_url: string | null;
@@ -212,6 +216,9 @@ function expenseFieldErrors(
         category: string;
         group_name: string;
         amount: string;
+        recurring_frequency: string;
+        recurring_starts_on: string;
+        recurring_ends_on: string;
         notes: string;
         receipt: File | null;
         payments: PaymentDraft[];
@@ -275,6 +282,16 @@ function expenseFieldErrors(
             errors.receipt = 'Use a PDF or a picture (JPEG, PNG, WEBP, or GIF).';
         } else if (data.receipt.size > 5 * 1024 * 1024) {
             errors.receipt = 'The receipt must be 5 MB or smaller.';
+        }
+    }
+
+    if (data.recurring_frequency !== '') {
+        if (!isRealDate(data.recurring_starts_on)) {
+            errors.recurring_starts_on = 'Enter the date of the first charge.';
+        } else if (data.recurring_ends_on !== '' && !isRealDate(data.recurring_ends_on)) {
+            errors.recurring_ends_on = 'Enter a real end date, or leave it empty.';
+        } else if (data.recurring_ends_on !== '' && data.recurring_ends_on < data.recurring_starts_on) {
+            errors.recurring_ends_on = 'The end date cannot be before the first charge.';
         }
     }
 
@@ -435,6 +452,13 @@ function FormSection({
     );
 }
 
+const FREQUENCIES: Record<string, string> = {
+    weekly: 'Weekly',
+    monthly: 'Monthly',
+    quarterly: 'Every 3 months',
+    yearly: 'Yearly',
+};
+
 const paymentsFromExpense = (expense?: ExpenseRecord | null): PaymentDraft[] => {
     if (!expense || expense.payments.length === 0) {
         return [blankPayment(expense?.amount ?? '')];
@@ -480,6 +504,9 @@ export default function ExpenseForm({
         category: expense?.category || 'course',
         group_name: expense?.group_name ?? '',
         amount: expense?.amount ?? '',
+        recurring_frequency: expense?.recurring_frequency ?? '',
+        recurring_starts_on: expense?.recurring_starts_on ?? '',
+        recurring_ends_on: expense?.recurring_ends_on ?? '',
         notes: expense?.notes ?? '',
         receipt: null as File | null,
         remove_receipt: false,
@@ -866,6 +893,75 @@ export default function ExpenseForm({
                                     Split payments
                                 </Button>
                             </div>
+                        </div>
+                        <div className="grid gap-3 rounded-lg border border-border bg-background p-3">
+                            <label className="flex items-center gap-2 text-sm font-medium text-foreground">
+                                <input
+                                    type="checkbox"
+                                    className="size-4"
+                                    checked={form.data.recurring_frequency !== ''}
+                                    onChange={(event) => {
+                                        if (event.target.checked) {
+                                            form.setData((data) => ({
+                                                ...data,
+                                                recurring_frequency: 'monthly',
+                                                recurring_starts_on: data.recurring_starts_on || data.spent_on || today(),
+                                            }));
+                                        } else {
+                                            form.setData((data) => ({
+                                                ...data,
+                                                recurring_frequency: '',
+                                                recurring_starts_on: '',
+                                                recurring_ends_on: '',
+                                            }));
+                                        }
+                                    }}
+                                />
+                                <RepeatIcon className="size-4 text-emerald-700 dark:text-emerald-300" />
+                                This repeats (monthly subscription)
+                            </label>
+                            {form.data.recurring_frequency !== '' ? (
+                                <div className="grid gap-3 sm:grid-cols-3">
+                                    <label className="grid gap-2 text-sm font-medium text-foreground">
+                                        Repeats
+                                        <select
+                                            value={form.data.recurring_frequency}
+                                            onChange={(event) => form.setData('recurring_frequency', event.target.value)}
+                                            className="h-11 w-full rounded-md border border-border bg-background px-3 text-base text-foreground md:text-sm"
+                                        >
+                                            {Object.entries(FREQUENCIES).map(([value, label]) => (
+                                                <option key={value} value={value}>{label}</option>
+                                            ))}
+                                        </select>
+                                    </label>
+                                    <label className="grid gap-2 text-sm font-medium text-foreground">
+                                        First charge date
+                                        <input
+                                            type="date"
+                                            value={form.data.recurring_starts_on}
+                                            onChange={(event) => form.setData('recurring_starts_on', event.target.value)}
+                                            aria-invalid={Boolean(fieldError('recurring_starts_on'))}
+                                            className="h-11 w-full rounded-md border border-border bg-background px-3 text-base text-foreground md:text-sm dark:[color-scheme:dark]"
+                                        />
+                                        <InputError message={fieldError('recurring_starts_on')} />
+                                    </label>
+                                    <label className="grid gap-2 text-sm font-medium text-foreground">
+                                        Ends on (optional)
+                                        <input
+                                            type="date"
+                                            value={form.data.recurring_ends_on}
+                                            onChange={(event) => form.setData('recurring_ends_on', event.target.value)}
+                                            aria-invalid={Boolean(fieldError('recurring_ends_on'))}
+                                            className="h-11 w-full rounded-md border border-border bg-background px-3 text-base text-foreground md:text-sm dark:[color-scheme:dark]"
+                                        />
+                                        <InputError message={fieldError('recurring_ends_on')} />
+                                    </label>
+                                    <p className="text-xs text-muted-foreground sm:col-span-3">
+                                        The total amount above is charged each time. Leave the end date empty for a
+                                        subscription that continues until you cancel it.
+                                    </p>
+                                </div>
+                            ) : null}
                         </div>
                         <label className="grid gap-2 text-sm font-medium text-foreground">
                             Notes

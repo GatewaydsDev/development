@@ -73,7 +73,15 @@ class RegistrationApproval
             'Approving sends the person a sign-up link that works for '.self::ACCESS_MINUTES.' minutes.',
         );
 
-        return $this->send($this->recipients(), 'Sign-up request: '.$email, $html);
+        $sent = $this->send($this->recipients(), 'Sign-up request: '.$email, $html);
+
+        $this->send([$email], 'We received your Gateway sign-up request', $this->notice(
+            'Request received',
+            'Hi '.$name.', we received your request for access to Gateway. An administrator will review it, '
+                .'and you will get an email with the result.',
+        ));
+
+        return $sent;
     }
 
     public function approve(RegistrationRequest $registration, string $role, User $approver): bool
@@ -121,6 +129,27 @@ class RegistrationApproval
     public function deny(RegistrationRequest $registration): void
     {
         $registration->update(['status' => RegistrationRequest::DENIED, 'token_hash' => null]);
+
+        $this->send([$registration->email], 'Your Gateway sign-up request', $this->notice(
+            'Request not approved',
+            'Hi '.$registration->name.', your request for access to Gateway was not approved. '
+                .'Contact the administrator if you think this is a mistake.',
+        ));
+    }
+
+    public function reopen(RegistrationRequest $registration): void
+    {
+        if ($registration->status === RegistrationRequest::COMPLETED) {
+            return;
+        }
+
+        $registration->update([
+            'status' => RegistrationRequest::PENDING,
+            'token_hash' => null,
+            'expires_at' => null,
+            'approved_at' => null,
+            'approved_by' => null,
+        ]);
     }
 
     public function findByToken(string $token): ?RegistrationRequest
@@ -174,6 +203,12 @@ class RegistrationApproval
         }
 
         return $sent;
+    }
+
+    private function notice(string $title, string $message): string
+    {
+        return '<div style="font-family:Arial,sans-serif;color:#111827;max-width:560px">'
+            .'<h2 style="margin:0 0 12px">'.e($title).'</h2><p>'.e($message).'</p></div>';
     }
 
     /** @param array<string, string> $rows */

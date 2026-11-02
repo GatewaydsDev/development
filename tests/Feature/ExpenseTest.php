@@ -533,3 +533,50 @@ function expenseJpegPdf(string $jpeg, int $pixelWidth, int $pixelHeight): string
 
     return $pdf."trailer\n<< /Size {$count} /Root 1 0 R >>\nstartxref\n{$xref}\n%%EOF";
 }
+
+test('a recurring subscription saves its schedule and computes the next charge date', function () {
+    $this->travelTo('2026-11-10');
+    $admin = expenseAdmin();
+
+    $this->actingAs($admin)
+        ->post(route('admin.expenses.store'), [
+            'spent_on' => '2026-01-31',
+            'payee' => 'Software Co',
+            'person_name' => 'Alex Rivera',
+            'description' => 'Team subscription',
+            'category' => 'software',
+            'amount' => '29.99',
+            'recurring_frequency' => 'monthly',
+            'recurring_starts_on' => '2026-01-31',
+        ])
+        ->assertRedirect(route('admin.expenses.index'));
+
+    $expense = Expense::firstOrFail();
+
+    expect($expense->recurring_frequency)->toBe('monthly')
+        ->and($expense->nextChargeOn()->toDateString())->toBe('2026-11-30');
+
+    $this->actingAs($admin)
+        ->get(route('admin.expenses.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('expenses.data.0.recurring_label', 'Monthly')
+            ->where('expenses.data.0.next_charge_on', '2026-11-30'));
+
+    $expense->update(['recurring_ends_on' => '2026-10-31']);
+    expect($expense->fresh()->nextChargeOn())->toBeNull();
+});
+
+test('a recurring expense needs a start date and the end cannot be before it', function () {
+    $admin = expenseAdmin();
+    $base = [
+        'spent_on' => '2026-10-16', 'payee' => 'Co', 'person_name' => 'Alex', 'description' => 'Sub',
+        'category' => 'software', 'amount' => '10', 'recurring_frequency' => 'monthly',
+    ];
+
+    $this->actingAs($admin)->post(route('admin.expenses.store'), $base)
+        ->assertSessionHasErrors('recurring_starts_on');
+
+    $this->actingAs($admin)->post(route('admin.expenses.store'), $base + [
+        'recurring_starts_on' => '2026-10-16', 'recurring_ends_on' => '2026-09-01',
+    ])->assertSessionHasErrors('recurring_ends_on');
+});
