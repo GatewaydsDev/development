@@ -646,7 +646,7 @@ export default function DashboardSidebar({
                     asChild
                     variant="ghost"
                     size="sm"
-                    className="w-full justify-start px-2.5 text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/40"
+                    className="w-full justify-start px-2.5 text-xs text-rose-600 lg:hidden hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/40"
                 >
                     <Link
                         href={route('logout')}
@@ -670,7 +670,7 @@ export default function DashboardSidebar({
                         size="sm"
                         onClick={onToggleCollapse}
                         title={collapsed ? 'Show sidebar' : 'Hide sidebar'}
-                        className="mt-1 w-full justify-start gap-2 px-2.5 text-xs text-muted-foreground hover:text-foreground"
+                        className="mt-1 w-full justify-start gap-2 border-primary/50 bg-primary/10 px-2.5 text-xs font-semibold text-primary shadow-sm hover:bg-primary/20 hover:text-primary"
                     >
                         <span className="relative size-3.5 shrink-0">
                             <PanelLeftOpenIcon

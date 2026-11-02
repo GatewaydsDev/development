@@ -48,6 +48,7 @@ import {
     MailOpenIcon,
     PackageIcon,
     PaletteIcon,
+    LogOutIcon,
     PenLineIcon,
     ReceiptIcon,
     PlusCircleIcon,
@@ -599,6 +600,16 @@ export default function Authenticated({
                                 </DropdownMenuContent>
                             </DropdownMenu>
                             )}
+                            <Link
+                                href={route('logout')}
+                                method="post"
+                                as="button"
+                                className="inline-flex size-9 items-center justify-center rounded-md border border-red-500/50 bg-background text-red-600 transition hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background dark:text-red-400 dark:hover:bg-red-950/30"
+                                aria-label="Log out"
+                                title="Log out"
+                            >
+                                <LogOutIcon className="size-4" />
+                            </Link>
                             </div>
                         </div>
 
