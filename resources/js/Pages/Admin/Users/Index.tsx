@@ -129,22 +129,22 @@ const REQUEST_STATUS: Record<string, { label: string; dot: string; badge: string
     pending: {
         label: 'Pending',
         dot: 'bg-amber-500',
-        badge: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300',
+        badge: 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300',
     },
     approved: {
         label: 'Approved',
         dot: 'bg-emerald-500',
-        badge: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300',
+        badge: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
     },
     denied: {
         label: 'Denied',
         dot: 'bg-red-500',
-        badge: 'border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300',
+        badge: 'border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300',
     },
     expired: {
         label: 'Link expired',
         dot: 'bg-slate-400',
-        badge: 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-500/30 dark:bg-slate-500/10 dark:text-slate-300',
+        badge: 'border-slate-500/30 bg-slate-500/10 text-slate-700 dark:text-slate-300',
     },
 };
 
@@ -458,17 +458,17 @@ const STATUS_STYLES: Record<string, { label: string; dot: string; badge: string 
     active: {
         label: 'Active',
         dot: 'bg-emerald-500',
-        badge: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300',
+        badge: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
     },
     deactivated: {
         label: 'Deactivated',
         dot: 'bg-slate-400',
-        badge: 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-500/30 dark:bg-slate-500/10 dark:text-slate-300',
+        badge: 'border-slate-500/30 bg-slate-500/10 text-slate-700 dark:text-slate-300',
     },
     blocked: {
         label: 'Blocked',
         dot: 'bg-red-500',
-        badge: 'border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300',
+        badge: 'border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300',
     },
 };
 

@@ -1,5 +1,14 @@
 /* Recolors emerald utilities while a signed-in theme is active. Gateway keeps the default green. */
 
+/* In dark mode the pale emerald backgrounds below must not stay light. They come first so any more specific dark rule still wins. */
+html.dark[data-dashboard-theme] :is(.bg-emerald-50, .bg-emerald-100, .bg-emerald-50\/50, .bg-emerald-50\/70, .bg-emerald-50\/80) {
+  background-color: var(--dashboard-accent-soft, rgb(16 185 129 / 0.12)) !important;
+}
+
+html.dark[data-dashboard-theme] :is(.border-emerald-200) {
+  border-color: var(--dashboard-accent-border, rgb(16 185 129 / 0.3)) !important;
+}
+
 html[data-dashboard-theme='ocean'] .from-emerald-500 {
   --tw-gradient-from: rgb(14 165 233) var(--tw-gradient-from-position) !important;
   --tw-gradient-to: rgb(14 165 233 / 0) var(--tw-gradient-to-position) !important;
