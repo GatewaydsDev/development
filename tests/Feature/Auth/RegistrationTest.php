@@ -202,3 +202,27 @@ test('sign-up requests are rate limited', function () {
 
     $this->post('/register', ['name' => 'Six', 'email' => 'six@example.com'])->assertStatus(429);
 });
+
+
+test('built-in robot check blocks wrong, missing and reused answers', function () {
+    config(['services.robot_challenge' => true, 'services.turnstile.site_key' => null]);
+    fakeMail();
+    ricardo();
+
+    $this->get('/register')->assertInertia(fn ($page) => $page->has('robotChallenge.question'));
+
+    $make = function (int $answer, int $age) {
+        return \Illuminate\Support\Facades\Crypt::encryptString(json_encode(['answer' => $answer, 'at' => time() - $age, 'id' => uniqid()]));
+    };
+    $payload = fn ($token, $answer) => ['name' => 'H', 'email' => uniqid().'@example.com', 'challenge_token' => $token, 'challenge_answer' => $answer];
+
+    $this->post('/register', ['name' => 'H', 'email' => 'x@example.com'])->assertSessionHasErrors('captcha');
+
+    $token = $make(10, 10);
+    $this->post('/register', $payload($token, 11))->assertSessionHasErrors('captcha');
+    $this->post('/register', $payload($token, 10))->assertSessionHasNoErrors();
+    $this->post('/register', $payload($token, 10))->assertSessionHasErrors('captcha');
+
+    $fresh = \Illuminate\Support\Facades\Crypt::encryptString(json_encode(['answer' => 5, 'at' => time(), 'id' => uniqid()]));
+    $this->post('/register', $payload($fresh, 5))->assertSessionHasErrors('captcha');
+});

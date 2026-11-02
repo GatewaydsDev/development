@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\RegistrationRequest;
 use App\Models\User;
 use App\Support\RegistrationApproval;
+use App\Support\RobotChallenge;
 use App\Support\Turnstile;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
@@ -33,6 +34,7 @@ class RegisteredUserController extends Controller
                 : null,
             'requested' => session('registration_requested'),
             'turnstileSiteKey' => Turnstile::enabled() ? Turnstile::siteKey() : null,
+            'robotChallenge' => RobotChallenge::enabled() ? RobotChallenge::make() : null,
         ]);
     }
 
@@ -56,6 +58,12 @@ class RegisteredUserController extends Controller
         if (! Turnstile::passes($request->input('cf-turnstile-response'), $request->ip())) {
             throw ValidationException::withMessages([
                 'captcha' => 'Please confirm you are not a robot and try again.',
+            ]);
+        }
+
+        if (! RobotChallenge::passes($request->input('challenge_token'), $request->input('challenge_answer'))) {
+            throw ValidationException::withMessages([
+                'captcha' => 'The robot check answer was wrong or expired. Please try again.',
             ]);
         }
 

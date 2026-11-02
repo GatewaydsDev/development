@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Exceptions\MicrosoftGraphException;
 use App\Models\User;
 use App\Support\EmailPlainText;
+use App\Support\MailBounceFilter;
 use App\Support\OutboundMailHtml;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
@@ -120,7 +121,13 @@ class MicrosoftGraphMailService
                 continue;
             }
 
-            $messages[] = $this->summary($item, $folder);
+            $summary = $this->summary($item, $folder);
+
+            if ($folder === 'inbox' && MailBounceFilter::isBounce((string) $summary['from'], (string) $summary['subject'])) {
+                continue;
+            }
+
+            $messages[] = $summary;
         }
 
         return [
@@ -169,6 +176,11 @@ class MicrosoftGraphMailService
             }
 
             $summary = $this->summary($item, 'inbox');
+
+            if (MailBounceFilter::isBounce((string) $summary['from'], (string) $summary['subject'])) {
+                continue;
+            }
+
             $messages[] = [
                 'id' => (string) $summary['id'],
                 'subject' => (string) $summary['subject'],

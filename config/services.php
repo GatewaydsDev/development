@@ -80,6 +80,8 @@ return [
         'mail_port' => env('MICROSOFT_MAIL_PORT', 587),
     ],
 
+    'robot_challenge' => env('ROBOT_CHALLENGE', true),
+
     'turnstile' => [
         'site_key' => env('TURNSTILE_SITE_KEY'),
         'secret_key' => env('TURNSTILE_SECRET_KEY'),

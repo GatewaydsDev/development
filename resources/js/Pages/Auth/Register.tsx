@@ -6,23 +6,35 @@ import TurnstileWidget from '@/Components/TurnstileWidget';
 import { Button } from '@/Components/ui/button';
 import { Link, useForm } from '@inertiajs/react';
 import { MailCheckIcon, MailWarningIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 type Props = {
     emailAvailability?: { email: string; taken: boolean } | null;
     requested?: { email: string; emailed: boolean } | null;
     turnstileSiteKey?: string | null;
+    robotChallenge?: { question: string; token: string } | null;
 };
 
-export default function Register({ emailAvailability, requested, turnstileSiteKey }: Props) {
+export default function Register({ emailAvailability, requested, turnstileSiteKey, robotChallenge }: Props) {
     const [captchaReset, setCaptchaReset] = useState(0);
     const form = useForm({
         name: '',
         email: emailAvailability?.email ?? '',
         website: '',
         'cf-turnstile-response': '',
+        challenge_token: robotChallenge?.token ?? '',
+        challenge_answer: '',
     });
-    const captchaMissing = Boolean(turnstileSiteKey) && !form.data['cf-turnstile-response'];
+    const captchaMissing =
+        (Boolean(turnstileSiteKey) && !form.data['cf-turnstile-response']) ||
+        (Boolean(robotChallenge) && !form.data.challenge_answer);
+
+    // A fresh question arrives after every attempt.
+    useEffect(() => {
+        if (robotChallenge) {
+            form.setData((data) => ({ ...data, challenge_token: robotChallenge.token, challenge_answer: '' }));
+        }
+    }, [robotChallenge?.token]);
 
     if (requested) {
         const ok = requested.emailed;
@@ -131,6 +143,25 @@ export default function Register({ emailAvailability, requested, turnstileSiteKe
                             siteKey={turnstileSiteKey}
                             resetKey={captchaReset}
                             onToken={(token) => form.setData('cf-turnstile-response', token)}
+                        />
+                        <FieldAlert title="Robot check" message={(form.errors as Record<string, string>).captcha} />
+                    </div>
+                )}
+
+                {robotChallenge && (
+                    <div className="flex flex-col gap-2">
+                        <InputLabel
+                            htmlFor="challenge_answer"
+                            value={`Robot check: ${robotChallenge.question}`}
+                            className="text-foreground"
+                        />
+                        <TextInput
+                            id="challenge_answer"
+                            className="block h-10 w-full border-border bg-background px-3 text-foreground"
+                            inputMode="numeric"
+                            autoComplete="off"
+                            value={form.data.challenge_answer}
+                            onChange={(event) => form.setData('challenge_answer', event.target.value)}
                         />
                         <FieldAlert title="Robot check" message={(form.errors as Record<string, string>).captcha} />
                     </div>
