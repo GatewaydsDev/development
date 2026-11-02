@@ -4,6 +4,7 @@ import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import NamedCatalogSelect from '@/Components/NamedCatalogSelect';
 import { Button } from '@/Components/ui/button';
+import { router } from '@inertiajs/react';
 import { PlusIcon, Trash2Icon } from 'lucide-react';
 import { FieldErrors } from 'react-hook-form';
 import type {
@@ -108,6 +109,39 @@ export default function EmployeeCertificationsFields({
                                                 selected.is_competent_person
                                             }
                                         />
+                                    )}
+                                    {selected?.name && (
+                                        <label className="flex items-center gap-2 text-sm text-foreground">
+                                            <input
+                                                type="checkbox"
+                                                checked={Boolean(
+                                                    selected.is_competent_person,
+                                                )}
+                                                onChange={(event) =>
+                                                    router.patch(
+                                                        route(
+                                                            'admin.certifications.update',
+                                                            selected.id,
+                                                        ),
+                                                        {
+                                                            is_competent_person:
+                                                                event.target
+                                                                    .checked,
+                                                        },
+                                                        {
+                                                            preserveScroll: true,
+                                                            preserveState: true,
+                                                            only: [
+                                                                'certifications',
+                                                                'flash',
+                                                            ],
+                                                        },
+                                                    )
+                                                }
+                                            />
+                                            This certification makes the
+                                            employee a competent person
+                                        </label>
                                     )}
                                 </div>
                                 <div className="flex flex-col gap-2">

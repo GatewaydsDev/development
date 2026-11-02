@@ -1,12 +1,13 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link } from '@inertiajs/react';
 import ScheduleForm from './Partials/ScheduleForm';
-import type { ScheduleOption, ScheduleStatusOption } from './types';
+import type { ScheduleDailyTask, ScheduleOption, ScheduleStatusOption } from './types';
 
 type CreateProps = {
     projects: ScheduleOption[];
     foremen: ScheduleOption[];
     employees: ScheduleOption[];
+    dailyTasks?: ScheduleDailyTask[];
     statuses: ScheduleStatusOption[];
     defaultDate: string;
 };
@@ -15,6 +16,7 @@ export default function Create({
     projects,
     foremen,
     employees,
+    dailyTasks = [],
     statuses,
     defaultDate,
 }: CreateProps) {
@@ -52,6 +54,7 @@ export default function Create({
                         projects={projects}
                         foremen={foremen}
                         employees={employees}
+                        dailyTasks={dailyTasks}
                         statuses={statuses}
                         defaultDate={defaultDate}
                     />

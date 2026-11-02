@@ -74,6 +74,7 @@ export type PageProps<
             viewUserActivity: boolean;
             manageExpenses: boolean;
             manageProjectControl?: boolean;
+            openDailyTasks?: boolean;
             correctRecords?: boolean;
             manageDocumentColors: boolean;
             useInternalChat?: boolean;
@@ -105,6 +106,7 @@ export type PageProps<
             createContractors: boolean;
             updateContractors: boolean;
             deleteContractors: boolean;
+            viewMySchedule?: boolean;
             viewEmployees: boolean;
             createEmployees: boolean;
             updateEmployees: boolean;

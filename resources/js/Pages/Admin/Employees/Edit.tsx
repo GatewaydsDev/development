@@ -19,6 +19,7 @@ import type {
 type EditProps = {
     employee: EmployeePayload;
     languages: NamedOption[];
+    jobTitles?: NamedOption[];
     certifications?: NamedOption[];
     skills: NamedOption[];
     skillsVersion?: string | null;
@@ -33,6 +34,7 @@ type EditProps = {
 export default function Edit({
     employee,
     languages,
+    jobTitles = [],
     certifications = [],
     skills,
     skillsVersion = null,
@@ -114,6 +116,7 @@ export default function Edit({
                         description="Contact details, employment, app login, and skill rates."
                         employee={employee}
                         languages={languages}
+                        jobTitles={jobTitles}
                         certifications={certifications}
                         skills={skills}
                         skillsVersion={skillsVersion}

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\DailyTask;
 use App\Models\Employee;
 use App\Models\EmployeeCertification;
 use App\Models\EmployeeWorkSchedule;
@@ -137,6 +138,7 @@ class EmployeeWorkScheduleController extends Controller
                 FILTER_VALIDATE_BOOLEAN,
             ),
             'competent_person_uuid' => $request->input('competent_person_uuid') ?: null,
+            'quality_control_uuid' => $request->input('quality_control_uuid') ?: null,
         ]);
 
         $validated = $request->validate([
@@ -164,7 +166,10 @@ class EmployeeWorkScheduleController extends Controller
             }],
             'requires_competent_person' => ['required', 'boolean'],
             'competent_person_uuid' => ['nullable', 'string'],
+            'quality_control_uuid' => ['nullable', 'string'],
             'notes' => ['nullable', 'string', 'max:60000'],
+            'daily_task_uuids' => ['nullable', 'array'],
+            'daily_task_uuids.*' => ['string', 'distinct', Rule::exists(DailyTask::class, 'uuid')],
         ], [
             'ends_on.after_or_equal' => 'Choose an end date on or after the start date.',
         ]);
@@ -194,6 +199,22 @@ class EmployeeWorkScheduleController extends Controller
             }
         }
 
+        $qualityControlId = null;
+
+        if (! empty($validated['quality_control_uuid'])) {
+            $qualityControlId = $this->recordId(Employee::class, $validated['quality_control_uuid']);
+
+            if ($qualityControlId === null || ! Employee::query()->whereKey($qualityControlId)->where('is_quality_control', true)->exists()) {
+                throw ValidationException::withMessages([
+                    'quality_control_uuid' => 'Choose an employee marked as a quality control person.',
+                ]);
+            }
+
+            if (! in_array($qualityControlId, $employeeIds, true)) {
+                $employeeIds[] = $qualityControlId;
+            }
+        }
+
         $duplicate = EmployeeWorkSchedule::query()
             ->where('project_id', $projectId)
             ->whereDate('starts_on', '<=', $validated['ends_on'])
@@ -215,6 +236,7 @@ class EmployeeWorkScheduleController extends Controller
             'foreman_user_id' => $validated['foreman_user_id'],
             'requires_competent_person' => $validated['requires_competent_person'],
             'competent_person_employee_id' => $competentPersonId,
+            'quality_control_employee_id' => $qualityControlId,
             'notes' => $validated['notes'] ?? null,
         ];
 
@@ -225,6 +247,12 @@ class EmployeeWorkScheduleController extends Controller
         }
 
         $schedule->employees()->sync($employeeIds);
+
+        if ($request->has('daily_task_uuids')) {
+            $schedule->dailyTasks()->sync(
+                DailyTask::query()->whereIn('uuid', $validated['daily_task_uuids'] ?? [])->pluck('id'),
+            );
+        }
         $schedule->load($this->relations());
 
         return $schedule;
@@ -235,9 +263,13 @@ class EmployeeWorkScheduleController extends Controller
      */
     public function payload(EmployeeWorkSchedule $schedule): array
     {
-        return $this->listingPayload(
-            WorkScheduleListing::query()->findOrFail($schedule->id),
-        );
+        return [
+            ...$this->listingPayload(WorkScheduleListing::query()->findOrFail($schedule->id)),
+            'quality_control' => ($qc = $schedule->qualityControl()->first(['id', 'uuid', 'first_name', 'last_name', 'email']))
+                ? ['id' => $qc->id, 'uuid' => $qc->uuid, 'full_name' => $qc->fullName(), 'email' => $qc->email]
+                : null,
+            'daily_task_uuids' => $schedule->dailyTasks()->pluck('daily_tasks.uuid')->all(),
+        ];
     }
 
     /**
@@ -279,11 +311,7 @@ class EmployeeWorkScheduleController extends Controller
                 ]
                 : null,
             'foreman' => $listing->foreman_user_id
-                ? [
-                    'id' => (int) $listing->foreman_user_id,
-                    'name' => $listing->foreman_name,
-                    'email' => $listing->foreman_email,
-                ]
+                ? $this->foremanPayload($listing)
                 : null,
             'employees' => $this->listingEmployees($listing),
         ];
@@ -296,6 +324,22 @@ class EmployeeWorkScheduleController extends Controller
     {
         return [
             'statuses' => $this->statusOptions(),
+            'dailyTasks' => DailyTask::query()
+                ->active()
+                ->ordered()
+                ->get(['uuid', 'title', 'description', 'requires_photo', 'requires_quality_control', 'performed_by'])
+                ->map(fn (DailyTask $task): array => [
+                    'id' => $task->uuid,
+                    'name' => $task->title,
+                    'uuid' => $task->uuid,
+                    'title' => $task->title,
+                    'description' => $task->description,
+                    'requires_photo' => $task->requires_photo,
+                    'requires_quality_control' => $task->requires_quality_control,
+                    'performed_by' => $task->performed_by,
+                    'performed_by_label' => DailyTask::PERFORMERS[$task->performed_by] ?? null,
+                ])
+                ->all(),
             'projects' => Project::query()
                 ->orderBy('name')
                 ->get(['id', 'uuid', 'name', 'project_number'])
@@ -306,19 +350,11 @@ class EmployeeWorkScheduleController extends Controller
                     'project_number' => $project->project_number,
                 ])
                 ->all(),
-            'foremen' => User::query()
-                ->whereHas('level', fn ($query) => $query->where('name', UserLevel::FOREMAN))
-                ->orderBy('name')
-                ->get(['id', 'name', 'email'])
-                ->map(fn (User $user): array => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                ])
-                ->all(),
+            'foremen' => $this->foremanOptions(),
             'employees' => Employee::query()
                 ->with([
                     'skills:id,name',
+                    'jobTitle:id,name',
                     'certifications:id,employee_id,certification_id',
                     'certifications.certification:id,name,is_competent_person',
                 ])
@@ -328,12 +364,15 @@ class EmployeeWorkScheduleController extends Controller
                 ])
                 ->orderBy('first_name')
                 ->orderBy('last_name')
-                ->get(['id', 'uuid', 'first_name', 'last_name', 'email'])
+                ->get(['id', 'uuid', 'first_name', 'last_name', 'email', 'job_title', 'job_title_id', 'is_quality_control', 'foreman_user_id'])
                 ->map(fn (Employee $employee): array => [
                     'id' => $employee->id,
                     'uuid' => $employee->uuid,
                     'full_name' => $employee->fullName(),
                     'email' => $employee->email,
+                    'job_title' => $employee->jobTitle?->name ?? $employee->job_title,
+                    'foreman_user_id' => $employee->foreman_user_id,
+                    'quality_control' => (bool) $employee->is_quality_control,
                     'competent_person' => $employee->certifications->contains(
                         fn (EmployeeCertification $assignment): bool => (bool) $assignment->certification?->is_competent_person,
                     ),
@@ -598,5 +637,58 @@ class EmployeeWorkScheduleController extends Controller
         ])->filter(fn (mixed $part): bool => is_string($part) && trim($part) !== '')->implode(', ');
 
         return $address !== '' ? $address : null;
+    }
+
+    /**
+     * Foremen are chosen from employees. Each employee maps one-to-one to a login account, and that
+     * account is what the schedule stores. Foreman accounts without an employee record stay selectable.
+     *
+     * @return list<array{id: int, name: string, email: ?string, job_title: ?string, employee_uuid: ?string}>
+     */
+    private function foremanOptions(): array
+    {
+        $foremanUsers = User::query()
+            ->whereHas('level', fn ($query) => $query->where('name', UserLevel::FOREMAN))
+            ->get(['id', 'name', 'email']);
+        $employees = Employee::query()
+            ->with('jobTitle:id,name')
+            ->whereIn('user_id', $foremanUsers->pluck('id'))
+            ->get()
+            ->keyBy('user_id');
+
+        return $foremanUsers
+            ->map(function (User $user) use ($employees): array {
+                $employee = $employees->get($user->id);
+
+                return [
+                    'id' => $user->id,
+                    'name' => $employee?->fullName() ?: $user->name,
+                    'email' => $employee?->email ?: $user->email,
+                    'job_title' => $employee?->jobTitle?->name ?? $employee?->job_title,
+                    'employee_uuid' => $employee?->uuid,
+                ];
+            })
+            ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array{id: int, name: ?string, email: ?string, job_title: ?string, employee_uuid: ?string}
+     */
+    private function foremanPayload(WorkScheduleListing $listing): array
+    {
+        $employee = Employee::query()
+            ->with('jobTitle:id,name')
+            ->where('user_id', $listing->foreman_user_id)
+            ->first();
+
+        return [
+            'id' => (int) $listing->foreman_user_id,
+            'name' => $employee?->fullName() ?: $listing->foreman_name,
+            'email' => $employee?->email ?: $listing->foreman_email,
+            'job_title' => $employee?->jobTitle?->name ?? $employee?->job_title,
+            'employee_uuid' => $employee?->uuid,
+        ];
     }
 }

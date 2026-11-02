@@ -12,7 +12,7 @@ import {
     AlertDialogTitle,
 } from '@/Components/ui/alert-dialog';
 import { router } from '@inertiajs/react';
-import { ChevronDownIcon, SparklesIcon } from 'lucide-react';
+import { ChevronDownIcon, PlusIcon, SparklesIcon } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 export type UserLevelOption = {
@@ -114,7 +114,16 @@ export default function UserLevelSelect({
             : levels.filter((level) =>
                   level.name.toLowerCase().includes(normalizedQuery),
               );
-    const showMatches = open && matches.length > 0;
+    const typedName = query.trim();
+    const canAddTyped =
+        canCreate &&
+        isEditing &&
+        typedName.length >= 2 &&
+        !reservedLevelNames.includes(typedName.toLowerCase()) &&
+        !levels.some(
+            (level) => level.name.toLowerCase() === typedName.toLowerCase(),
+        );
+    const showMatches = open && (matches.length > 0 || canAddTyped);
 
     const chooseLevel = (level: UserLevelOption) => {
         cancelClose();
@@ -141,6 +150,16 @@ export default function UserLevelSelect({
         setNameError(undefined);
     };
 
+    const openCreateDialog = (name: string) => {
+        cancelClose();
+        setOpen(false);
+        setPendingName(name);
+        setGrantMobile(true);
+        setSelectedPermissions({});
+        setNameError(undefined);
+        setDialogOpen(true);
+    };
+
     const finishTyping = () => {
         const typed = query.trim();
         const exact = levels.find(
@@ -163,11 +182,7 @@ export default function UserLevelSelect({
             typed.length >= 2 &&
             !reservedLevelNames.includes(typed.toLowerCase())
         ) {
-            setPendingName(typed);
-            setGrantMobile(true);
-            setSelectedPermissions({});
-            setNameError(undefined);
-            setDialogOpen(true);
+            openCreateDialog(typed);
             return;
         }
 
@@ -347,21 +362,20 @@ export default function UserLevelSelect({
                                 {level.name}
                             </button>
                         ))}
+                        {canAddTyped && (
+                            <button
+                                type="button"
+                                className="flex w-full items-center gap-2 border-t border-border px-3 py-2 text-left text-sm font-medium text-emerald-700 hover:bg-muted dark:text-emerald-300"
+                                onClick={() => openCreateDialog(typedName)}
+                            >
+                                <PlusIcon className="size-4 shrink-0" />
+                                Add “{typedName}”
+                            </button>
+                        )}
                     </div>
                 )}
             </div>
             <InputError message={error ?? nameError} />
-            {open &&
-                isEditing &&
-                normalizedQuery.length >= 2 &&
-                matches.length === 0 &&
-                canCreate && (
-                    <p className="text-sm text-muted-foreground">
-                        No level named {query.trim()}. Leave this field and you
-                        can add it.
-                    </p>
-                )}
-
             <AlertDialog
                 open={dialogOpen}
                 onOpenChange={(open) => {

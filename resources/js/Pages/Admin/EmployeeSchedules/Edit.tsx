@@ -2,6 +2,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link } from '@inertiajs/react';
 import ScheduleForm from './Partials/ScheduleForm';
 import type {
+    ScheduleDailyTask,
     ScheduleOption,
     SchedulePayload,
     ScheduleStatusOption,
@@ -11,6 +12,7 @@ type EditProps = {
     projects: ScheduleOption[];
     foremen: ScheduleOption[];
     employees: ScheduleOption[];
+    dailyTasks?: ScheduleDailyTask[];
     statuses: ScheduleStatusOption[];
     schedule: SchedulePayload;
 };
@@ -19,6 +21,7 @@ export default function Edit({
     projects,
     foremen,
     employees,
+    dailyTasks = [],
     statuses,
     schedule,
 }: EditProps) {
@@ -62,6 +65,7 @@ export default function Edit({
                         projects={projects}
                         foremen={foremen}
                         employees={employees}
+                        dailyTasks={dailyTasks}
                         statuses={statuses}
                         schedule={schedule}
                     />

@@ -38,6 +38,7 @@ class EmployeeWorkSchedule extends Model
         'foreman_user_id',
         'requires_competent_person',
         'competent_person_employee_id',
+        'quality_control_employee_id',
         'notes',
     ];
 
@@ -79,9 +80,19 @@ class EmployeeWorkSchedule extends Model
         return $this->belongsTo(Employee::class, 'competent_person_employee_id');
     }
 
+    public function qualityControl(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'quality_control_employee_id');
+    }
+
     public function employees(): BelongsToMany
     {
         return $this->belongsToMany(Employee::class, 'work_schedule_employees')
             ->withTimestamps();
+    }
+
+    public function dailyTasks(): BelongsToMany
+    {
+        return $this->belongsToMany(DailyTask::class, 'daily_task_work_schedule')->withTimestamps();
     }
 }

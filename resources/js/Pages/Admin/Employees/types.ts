@@ -22,6 +22,8 @@ export type EmployeePayload = {
     email: string;
     phone_number: string | null;
     job_title: string | null;
+    job_title_id: number | null;
+    is_quality_control?: boolean;
     department: string | null;
     employment_status: string;
     hire_date: string | null;
@@ -114,7 +116,8 @@ export type EmployeeFormData = {
     last_name: string;
     email: string;
     phone_number: string;
-    job_title: string;
+    job_title_id: string;
+    is_quality_control: boolean;
     department: string;
     account_level_id: string;
     account_password: string;
@@ -152,6 +155,7 @@ export type EmployeeSkillPayload = NamedOption & {
 
 export type EmployeeSkillRateFormData = {
     rate_type: string;
+    custom_rate_type: string;
     amount: string;
 };
 
@@ -202,6 +206,7 @@ export function emptyProfessionRate(): EmployeeProfessionRateFormData {
 export function emptySkillRate(): EmployeeSkillRateFormData {
     return {
         rate_type: 'hourly',
+        custom_rate_type: '',
         amount: '',
     };
 }
@@ -237,6 +242,7 @@ export function employeeToFormData(
 
         rates.push({
             rate_type: payRate.rate_type,
+            custom_rate_type: payRate.custom_rate_type ?? '',
             amount: payRate.amount,
         });
         ratesBySkill.set(skillId, rates);
@@ -247,7 +253,8 @@ export function employeeToFormData(
         last_name: employee?.last_name ?? '',
         email: employee?.email ?? '',
         phone_number: employee?.phone_number ?? '',
-        job_title: employee?.job_title ?? '',
+        job_title_id: employee?.job_title_id ? String(employee.job_title_id) : '',
+        is_quality_control: employee?.is_quality_control ?? false,
         department: employee?.department ?? '',
         account_level_id: employee?.user?.level
             ? String(employee.user.level.id)

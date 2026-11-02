@@ -274,6 +274,11 @@ export default function Index({ filters, statuses, schedules, can }: IndexProps)
                                             {schedule.foreman?.name ??
                                                 'Not set'}
                                         </p>
+                                        {schedule.foreman?.job_title && (
+                                            <p className="text-xs text-muted-foreground">
+                                                {schedule.foreman.job_title}
+                                            </p>
+                                        )}
                                     </div>
                                     <div>
                                         <p className="text-xs text-muted-foreground">

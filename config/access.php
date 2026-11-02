@@ -169,6 +169,11 @@ return [
             'group' => 'Employees',
             'description' => 'Open the employees and attendance pages. Foremen only see the employees designated to them.',
         ],
+        'view-my-schedule' => [
+            'name' => 'See my work schedule',
+            'group' => 'Employees',
+            'description' => 'Open the personal schedule with the project, address, foreman and tasks of the jobs the signed-in employee is assigned to.',
+        ],
         'create-employees' => [
             'name' => 'Add new employees',
             'group' => 'Employees',
@@ -353,10 +358,12 @@ return [
             'view-dashboard',
             'manage-profile',
             'view-employees',
+            'view-my-schedule',
         ],
         UserLevel::EMPLOYEE => [
             'view-dashboard',
             'manage-profile',
+            'view-my-schedule',
         ],
         UserLevel::PROJECT_MANAGER => [
             'view-dashboard',

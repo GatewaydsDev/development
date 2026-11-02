@@ -6,6 +6,7 @@ use App\Models\Company;
 use App\Models\User;
 use App\Support\BidAccess;
 use App\Support\ContractorAccess;
+use App\Support\DailyTaskAccess;
 use App\Support\EmployeeAccess;
 use App\Support\ProductAccess;
 use App\Support\ProjectAccess;
@@ -83,6 +84,9 @@ class HandleInertiaRequests extends Middleware
             ],
             'companyPhoneNumber' => $company?->contact_phone_number,
             'companyEmail' => $company?->email,
+            'dailyTasksPending' => fn (): int => $request->user() instanceof User
+                ? DailyTaskAccess::pendingCount($request->user())
+                : 0,
             'session' => [
                 'idleTimeoutMinutes' => max(0, (int) config('session.idle_timeout_minutes')),
             ],
@@ -122,6 +126,8 @@ class HandleInertiaRequests extends Middleware
                     'viewUserActivity' => $request->user()?->isSuperAdmin() ?? false,
                     'manageExpenses' => $request->user()?->isSuperAdmin() ?? false,
                     'manageProjectControl' => $request->user()?->isSuperAdmin() ?? false,
+                    'openDailyTasks' => $request->user() instanceof User
+                        && DailyTaskAccess::canOpen($request->user()),
                     'correctRecords' => $request->user()?->canCorrectRecords() ?? false,
                     'manageDocumentColors' => $request->user()?->isSuperAdmin() ?? false,
                     'useInternalChat' => $request->user()?->isSuperAdmin() ?? false,
@@ -208,6 +214,9 @@ class HandleInertiaRequests extends Middleware
                         : false,
                     'deleteContractors' => $request->user()
                         ? ContractorAccess::canDelete($request->user())
+                        : false,
+                    'viewMySchedule' => $request->user()
+                        ? Gate::forUser($request->user())->allows('view-my-schedule')
                         : false,
                     'viewEmployees' => $request->user()
                         ? EmployeeAccess::canView($request->user())

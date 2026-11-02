@@ -13,11 +13,14 @@ use App\Http\Controllers\Admin\DocumentSettingController;
 use App\Http\Controllers\Admin\EditorImageController;
 use App\Http\Controllers\Admin\EmployeeAttendanceController;
 use App\Http\Controllers\Admin\EmployeeController;
+use App\Http\Controllers\Admin\DailyTaskController;
 use App\Http\Controllers\Admin\EmployeeWorkScheduleController;
+use App\Http\Controllers\Admin\MyScheduleController;
 use App\Http\Controllers\Admin\ExpenseController;
 use App\Http\Controllers\Admin\ImpersonationController;
 use App\Http\Controllers\Admin\LanguageController;
 use App\Http\Controllers\Admin\ProductController;
+use App\Http\Controllers\Admin\JobTitleController;
 use App\Http\Controllers\Admin\ProfessionController;
 use App\Http\Controllers\Admin\ProjectControlController;
 use App\Http\Controllers\Admin\ProjectController;
@@ -230,6 +233,15 @@ Route::middleware(['auth', 'prevent-back-history'])
             ->name('users.impersonate');
         Route::get('/user-activities', [UserActivityController::class, 'index'])
             ->name('user-activities.index');
+        Route::get('/daily-tasks', [DailyTaskController::class, 'index'])->name('daily-tasks.index');
+        Route::post('/daily-task-titles', [\App\Http\Controllers\Admin\DailyTaskTitleController::class, 'store'])->name('daily-task-titles.store');
+        Route::post('/daily-tasks', [DailyTaskController::class, 'store'])->name('daily-tasks.store');
+        Route::patch('/daily-tasks/{dailyTask}', [DailyTaskController::class, 'update'])->name('daily-tasks.update');
+        Route::delete('/daily-tasks/{dailyTask}', [DailyTaskController::class, 'destroy'])->name('daily-tasks.destroy');
+        Route::post('/daily-tasks/{dailyTask}/complete', [DailyTaskController::class, 'complete'])->name('daily-tasks.complete');
+        Route::post('/daily-tasks/{dailyTask}/progress', [DailyTaskController::class, 'progress'])->name('daily-tasks.progress');
+        Route::get('/daily-task-photos/{photo}', [DailyTaskController::class, 'photo'])->name('daily-task-photos.show');
+        Route::delete('/daily-task-photos/{photo}', [DailyTaskController::class, 'destroyPhoto'])->name('daily-task-photos.destroy');
         Route::get('/project-control', [ProjectControlController::class, 'index'])->name('project-control.index');
         Route::get('/project-control/export', [ProjectControlController::class, 'export'])->name('project-control.export');
         Route::post('/project-control/import', [ProjectControlController::class, 'import'])->name('project-control.import');
@@ -310,6 +322,10 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::get('/contractor-contacts/availability', [ContractorController::class, 'contactAvailability'])
             ->name('contractor-contacts.availability');
 
+        Route::get('/my-schedule', [MyScheduleController::class, 'index'])
+            ->middleware('can:view-my-schedule')
+            ->name('my-schedule.index');
+
         Route::get('/employees/schedules', [EmployeeWorkScheduleController::class, 'index'])
             ->middleware('can:view-employees')
             ->name('employee-schedules.index');
@@ -380,6 +396,8 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::delete('/employees/{employee}', [EmployeeController::class, 'destroy'])
             ->middleware('can:delete-employees')
             ->name('employees.destroy');
+        Route::post('/job-titles', [JobTitleController::class, 'store'])
+            ->name('job-titles.store');
         Route::post('/professions', [ProfessionController::class, 'store'])
             ->name('professions.store');
         Route::post('/languages', [LanguageController::class, 'store'])
@@ -390,6 +408,8 @@ Route::middleware(['auth', 'prevent-back-history'])
             ->name('skills.store');
         Route::post('/certifications', [CertificationController::class, 'store'])
             ->name('certifications.store');
+        Route::patch('/certifications/{certification}', [CertificationController::class, 'update'])
+            ->name('certifications.update');
 
         Route::get('/bids', [BidController::class, 'index'])
             ->middleware('can:view-bids')

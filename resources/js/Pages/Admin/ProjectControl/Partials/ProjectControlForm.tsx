@@ -784,9 +784,9 @@ export default function ProjectControlForm({
                         <p className="text-muted-foreground">No takeoff is connected to this job yet. Save an opening, then use Takeoff inside the row.</p>
                     )}
                 </div>
-                <div className="mt-4 overflow-x-auto rounded-lg border border-violet-200 bg-background dark:border-violet-900">
+                <div className="mt-4 overflow-x-auto max-h-96 overflow-y-auto rounded-lg border border-violet-200 bg-background dark:border-violet-900">
                     <table className="w-full min-w-[44rem] border-collapse text-left text-sm">
-                        <thead className="bg-violet-100/80 text-xs uppercase tracking-wide text-violet-950 dark:bg-violet-950/60 dark:text-violet-100">
+                        <thead className="sticky top-0 z-10 bg-violet-100/80 text-xs uppercase tracking-wide text-violet-950 dark:bg-violet-950/60 dark:text-violet-100">
                             <tr>
                                 <th className="px-3 py-2 font-medium">Mark</th>
                                 <th className="px-3 py-2 font-medium">Description</th>

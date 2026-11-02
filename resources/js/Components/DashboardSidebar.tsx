@@ -27,6 +27,7 @@ import {
     PaletteIcon,
     PanelLeftCloseIcon,
     ChartLineIcon,
+    ClipboardCheckIcon,
     ReceiptIcon,
     PanelLeftOpenIcon,
     ShieldCheckIcon,
@@ -121,11 +122,14 @@ export default function DashboardSidebar({
     const canViewServices = Boolean(can.viewServices);
     const canViewContractors = Boolean(can.viewContractors);
     const canViewEmployees = Boolean(can.viewEmployees);
+    const canViewMySchedule = Boolean(can.viewMySchedule);
     const canViewUsers = Boolean(can.viewUsers);
     const canManageAccess = Boolean(can.manageAccess);
     const canViewUserActivity = Boolean(can.viewUserActivity);
     const canManageExpenses = Boolean(can.manageExpenses);
     const canManageProjectControl = Boolean(can.manageProjectControl);
+    const canOpenDailyTasks = Boolean(can.openDailyTasks);
+    const dailyTasksPending = Number(page.props.dailyTasksPending ?? 0);
     const canCorrectRecords = Boolean(can.correctRecords);
     const canViewCompany = Boolean(can.viewCompany);
     const canManageDocumentColors = Boolean(can.manageDocumentColors);
@@ -181,6 +185,22 @@ export default function DashboardSidebar({
                               href: route('admin.projects.index'),
                               icon: BriefcaseIcon,
                               active: isRouteActive('admin.projects.*'),
+                          },
+                      ]
+                    : []),
+                ...(canOpenDailyTasks
+                    ? [
+                          {
+                              title: 'Daily tasks',
+                              href: route('admin.daily-tasks.index'),
+                              icon: ClipboardCheckIcon,
+                              active: isRouteActive('admin.daily-tasks.*'),
+                              alert: dailyTasksPending > 0,
+                              badge:
+                                  dailyTasksPending > 0
+                                      ? dailyTasksPending
+                                      : undefined,
+                              badgeVariant: 'destructive' as const,
                           },
                       ]
                     : []),
@@ -270,6 +290,16 @@ export default function DashboardSidebar({
                     icon: IdCardIcon,
                     active: isRouteActive('admin.contacts.*'),
                 },
+                ...(canViewMySchedule && !canViewEmployees
+                    ? [
+                          {
+                              title: 'My schedule',
+                              href: route('admin.my-schedule.index'),
+                              icon: CalendarClockIcon,
+                              active: isRouteActive('admin.my-schedule.*'),
+                          },
+                      ]
+                    : []),
                 ...(canViewEmployees
                     ? [
                           {

@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\EmployeeAttendanceController;
 use App\Http\Controllers\Api\EmployeeController;
 use App\Http\Controllers\Api\EmployeeWorkdayController;
+use App\Http\Controllers\Api\ForemanDailyTaskController;
 use App\Http\Controllers\Api\ForemanScheduleController;
 use App\Http\Controllers\Api\EmployeeWorkScheduleController;
 use App\Http\Controllers\Api\ProjectController;
@@ -38,6 +39,13 @@ Route::middleware('auth:sanctum')->get('/user', [AuthController::class, 'user'])
 Route::middleware('auth:sanctum')->get('/dashboard', [DashboardController::class, 'show']);
 
 Route::middleware('auth:sanctum')->get('/me/work-schedule', [ForemanScheduleController::class, 'show']);
+
+Route::middleware('auth:sanctum')->prefix('me/daily-tasks')->group(function () {
+    Route::get('/', [ForemanDailyTaskController::class, 'index']);
+    Route::post('/{dailyTask}/progress', [ForemanDailyTaskController::class, 'progress']);
+    Route::get('/photos/{photo}', [ForemanDailyTaskController::class, 'photo'])->name('api.daily-task-photos.show');
+    Route::delete('/photos/{photo}', [ForemanDailyTaskController::class, 'destroyPhoto']);
+});
 
 Route::middleware('auth:sanctum')->prefix('bids')->group(function () {
     Route::get('/', [BidController::class, 'index']);
