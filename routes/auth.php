@@ -17,7 +17,8 @@ Route::middleware(['guest', 'prevent-back-history'])->group(function () {
     Route::get('register', [RegisteredUserController::class, 'create'])
         ->name('register');
 
-    Route::post('register', [RegisteredUserController::class, 'store']);
+    Route::post('register', [RegisteredUserController::class, 'store'])
+        ->middleware('throttle:5,10');
 
     Route::get('register/complete/{token}', [RegisteredUserController::class, 'complete'])
         ->name('register.complete');

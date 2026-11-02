@@ -271,7 +271,7 @@ test('microsoft credentials are stored for a super administrator and kept off th
         ->and($office->microsoft_client_secret_id)->toBeNull();
 });
 
-test('only ricardo scarpim can see his account and the microsoft 365 section', function () {
+test('only ricardo scarpim can see his account, while every super admin can manage microsoft 365', function () {
     $ricardo = userWithLevel(UserLevel::SUPER_ADMIN);
     $ricardo->forceFill([
         'name' => 'Ricardo Scarpim',
@@ -287,7 +287,7 @@ test('only ricardo scarpim can see his account and the microsoft 365 section', f
         ->get(route('admin.users.index'))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
-            ->where('canManageMicrosoft', false)
+            ->where('canManageMicrosoft', true)
             ->where('users.data', fn ($users) => collect($users)->pluck('email')->doesntContain('ricardo@gateway-ds.com')));
 
     $this->actingAs($other)
@@ -317,7 +317,7 @@ test('only ricardo scarpim can see his account and the microsoft 365 section', f
         ->get(route('admin.users.create'))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
-            ->where('canAssignMailbox', false)
+            ->where('canAssignMailbox', true)
             ->where('positions', fn ($positions) => collect($positions)->pluck('name')->contains('Estimator')));
 
     $target = userWithLevel(UserLevel::ADMIN);
@@ -331,7 +331,7 @@ test('only ricardo scarpim can see his account and the microsoft 365 section', f
         ])
         ->assertRedirect();
 
-    expect($target->fresh()->microsoft_mailbox)->toBeNull();
+    expect($target->fresh()->microsoft_mailbox)->toBe('sneak@gateway-ds.com');
 
     $this->actingAs($ricardo)
         ->get(route('admin.users.edit', $ricardo))

@@ -153,3 +153,52 @@ test('registration email availability can be checked', function () {
             ->where('emailAvailability.taken', false)
         );
 });
+
+test('sign-up is refused when the robot check fails', function () {
+    config(['services.turnstile.site_key' => 'site', 'services.turnstile.secret_key' => 'secret']);
+    Illuminate\Support\Facades\Http::fake(['challenges.cloudflare.com/*' => Illuminate\Support\Facades\Http::response(['success' => false])]);
+    $sent = fakeMail();
+    ricardo();
+
+    $this->post('/register', ['name' => 'Bot', 'email' => 'bot@example.com', 'cf-turnstile-response' => 'bad'])
+        ->assertSessionHasErrors('captcha');
+    $this->post('/register', ['name' => 'Bot', 'email' => 'bot@example.com'])
+        ->assertSessionHasErrors('captcha');
+
+    expect($sent)->toHaveCount(0)
+        ->and(RegistrationRequest::count())->toBe(0);
+});
+
+test('sign-up works when the robot check passes', function () {
+    config(['services.turnstile.site_key' => 'site', 'services.turnstile.secret_key' => 'secret']);
+    Illuminate\Support\Facades\Http::fake(['challenges.cloudflare.com/*' => Illuminate\Support\Facades\Http::response(['success' => true])]);
+    $sent = fakeMail();
+    ricardo();
+
+    $this->post('/register', ['name' => 'Human', 'email' => 'human@example.com', 'cf-turnstile-response' => 'ok'])
+        ->assertSessionDoesntHaveErrors();
+
+    expect($sent)->toHaveCount(1);
+});
+
+test('the hidden honeypot field silently blocks bots', function () {
+    $sent = fakeMail();
+    ricardo();
+
+    $this->post('/register', ['name' => 'Bot', 'email' => 'bot@example.com', 'website' => 'http://spam.test'])
+        ->assertRedirect(route('register'));
+
+    expect($sent)->toHaveCount(0)
+        ->and(RegistrationRequest::count())->toBe(0);
+});
+
+test('sign-up requests are rate limited', function () {
+    fakeMail();
+    ricardo();
+
+    foreach (range(1, 5) as $i) {
+        $this->post('/register', ['name' => 'P'.$i, 'email' => "p{$i}@example.com"]);
+    }
+
+    $this->post('/register', ['name' => 'Six', 'email' => 'six@example.com'])->assertStatus(429);
+});

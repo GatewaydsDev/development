@@ -322,7 +322,11 @@ export default function UserForm({
         (position) =>
             position.name.toLowerCase() === data.job_title.trim().toLowerCase(),
     );
-    const showMicrosoftCredentials = canAssignMailbox && editingSuperAdmin;
+    const [hasMicrosoft, setHasMicrosoft] = useState(
+        Boolean(initialValues.microsoft_mailbox),
+    );
+    const showMicrosoftCredentials =
+        canAssignMailbox && editingSuperAdmin && hasMicrosoft;
 
     transform((formData) => {
         const payload = method === 'patch'
@@ -335,6 +339,8 @@ export default function UserForm({
 
         if (!canAssignMailbox) {
             delete rest.microsoft_mailbox;
+        } else if (!hasMicrosoft) {
+            rest.microsoft_mailbox = '';
         }
 
         if (
@@ -606,33 +612,6 @@ export default function UserForm({
                                 )}
                             </div>
 
-                            {canAssignMailbox ? (
-                                <div className="flex max-w-md flex-col gap-2 md:col-span-2">
-                                    <InputLabel
-                                        htmlFor="microsoft-mailbox"
-                                        value="Microsoft 365 mailbox"
-                                        className="text-emerald-700 dark:text-emerald-300"
-                                    />
-                                    <EmailAddressInput
-                                        id="microsoft-mailbox"
-                                        value={data.microsoft_mailbox}
-                                        placeholder="name@gateway-ds.com"
-                                        className="h-9 w-full border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
-                                        onChange={(mailbox) =>
-                                            setData('microsoft_mailbox', mailbox)
-                                        }
-                                    />
-                                    <p className="text-xs text-muted-foreground">
-                                        Mail in the app is sent and read from this
-                                        address. Leave it blank when this person
-                                        has no mailbox. It does not change the
-                                        sign-in email.
-                                    </p>
-                                    <InputError
-                                        message={errors.microsoft_mailbox}
-                                    />
-                                </div>
-                            ) : null}
                         </div>
 
                         <div className="grid gap-5 md:grid-cols-2">
@@ -814,9 +793,52 @@ export default function UserForm({
                         ) : null}
                     </FormSection>
 
-                    {showMicrosoftCredentials ? (
-                        <FormSection icon={PlugIcon} title="Integration"
-                                     description="Microsoft 365 application settings.">
+                    {canAssignMailbox ? (
+                        <FormSection icon={PlugIcon} title="Microsoft 365"
+                                     description="Mailbox and application settings. Super administrators only.">
+                            {canAssignMailbox ? (
+                                <label className="flex items-center gap-2 text-sm font-medium">
+                                    <input
+                                        type="checkbox"
+                                        checked={hasMicrosoft}
+                                        onChange={(event) =>
+                                            setHasMicrosoft(event.target.checked)
+                                        }
+                                        className="rounded border-border text-emerald-700 focus:ring-ring"
+                                    />
+                                    This user has a Microsoft 365 account
+                                </label>
+                            ) : null}
+
+                            {canAssignMailbox && hasMicrosoft ? (
+                                <div className="flex max-w-md flex-col gap-2">
+                                    <InputLabel
+                                        htmlFor="microsoft-mailbox"
+                                        value="Microsoft 365 mailbox"
+                                        className="text-emerald-700 dark:text-emerald-300"
+                                    />
+                                    <EmailAddressInput
+                                        id="microsoft-mailbox"
+                                        value={data.microsoft_mailbox}
+                                        placeholder="name@gateway-ds.com"
+                                        className="h-9 w-full border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
+                                        onChange={(mailbox) =>
+                                            setData('microsoft_mailbox', mailbox)
+                                        }
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                        Mail in the app is sent and read from this
+                                        address. Leave it blank when this person
+                                        has no mailbox. It does not change the
+                                        sign-in email.
+                                    </p>
+                                    <InputError
+                                        message={errors.microsoft_mailbox}
+                                    />
+                                </div>
+                            ) : null}
+                            {showMicrosoftCredentials ? (
+                                <>
                             <div className="grid gap-5 md:grid-cols-2">
                                 <div className="md:col-span-2">
                                     <h3 className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
@@ -935,6 +957,8 @@ export default function UserForm({
                                     ) : null}
                                 </div>
                             </div>
+                                </>
+                            ) : null}
                         </FormSection>
                     ) : null}
 

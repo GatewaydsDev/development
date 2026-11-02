@@ -303,7 +303,7 @@ class User extends Authenticatable
 
     public function managesMicrosoft365(): bool
     {
-        return $this->isSuperAdmin() && $this->isPrivateAccountOwner();
+        return $this->isSuperAdmin();
     }
 
     public function canViewUserAccount(self $subject): bool

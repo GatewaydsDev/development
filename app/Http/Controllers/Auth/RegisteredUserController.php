@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\RegistrationRequest;
 use App\Models\User;
 use App\Support\RegistrationApproval;
+use App\Support\Turnstile;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -31,6 +32,7 @@ class RegisteredUserController extends Controller
                 ]
                 : null,
             'requested' => session('registration_requested'),
+            'turnstileSiteKey' => Turnstile::enabled() ? Turnstile::siteKey() : null,
         ]);
     }
 
@@ -42,6 +44,20 @@ class RegisteredUserController extends Controller
     public function store(Request $request, RegistrationApproval $approval): RedirectResponse
     {
         $request->merge(['email' => strtolower(trim((string) $request->input('email')))]);
+
+        // Hidden field that people never fill in; bots do. Pretend it worked and send nothing.
+        if (filled($request->input('website'))) {
+            return redirect()->route('register')->with('registration_requested', [
+                'email' => (string) $request->input('email'),
+                'emailed' => true,
+            ]);
+        }
+
+        if (! Turnstile::passes($request->input('cf-turnstile-response'), $request->ip())) {
+            throw ValidationException::withMessages([
+                'captcha' => 'Please confirm you are not a robot and try again.',
+            ]);
+        }
 
         $data = $request->validate([
             'name' => 'required|string|max:255',

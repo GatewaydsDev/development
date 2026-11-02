@@ -2,20 +2,27 @@ import FieldAlert from '@/Components/FieldAlert';
 import InputLabel from '@/Components/InputLabel';
 import RegistrationShell from '@/Components/RegistrationShell';
 import TextInput from '@/Components/TextInput';
+import TurnstileWidget from '@/Components/TurnstileWidget';
 import { Button } from '@/Components/ui/button';
 import { Link, useForm } from '@inertiajs/react';
 import { MailCheckIcon, MailWarningIcon } from 'lucide-react';
+import { useState } from 'react';
 
 type Props = {
     emailAvailability?: { email: string; taken: boolean } | null;
     requested?: { email: string; emailed: boolean } | null;
+    turnstileSiteKey?: string | null;
 };
 
-export default function Register({ emailAvailability, requested }: Props) {
+export default function Register({ emailAvailability, requested, turnstileSiteKey }: Props) {
+    const [captchaReset, setCaptchaReset] = useState(0);
     const form = useForm({
         name: '',
         email: emailAvailability?.email ?? '',
+        website: '',
+        'cf-turnstile-response': '',
     });
+    const captchaMissing = Boolean(turnstileSiteKey) && !form.data['cf-turnstile-response'];
 
     if (requested) {
         const ok = requested.emailed;
@@ -73,7 +80,10 @@ export default function Register({ emailAvailability, requested }: Props) {
             <form
                 onSubmit={(event) => {
                     event.preventDefault();
-                    form.post(route('register'), { preserveScroll: true });
+                    form.post(route('register'), {
+                        preserveScroll: true,
+                        onError: () => setCaptchaReset((n) => n + 1),
+                    });
                 }}
                 className="flex flex-col gap-5"
             >
@@ -103,13 +113,36 @@ export default function Register({ emailAvailability, requested }: Props) {
                     <FieldAlert title="Check your email" message={form.errors.email} />
                 </div>
 
+                <div className="absolute -left-[9999px] h-0 w-0 overflow-hidden" aria-hidden="true">
+                    <label htmlFor="website">Leave this field empty</label>
+                    <input
+                        id="website"
+                        type="text"
+                        tabIndex={-1}
+                        autoComplete="off"
+                        value={form.data.website}
+                        onChange={(event) => form.setData('website', event.target.value)}
+                    />
+                </div>
+
+                {turnstileSiteKey && (
+                    <div className="flex flex-col gap-2">
+                        <TurnstileWidget
+                            siteKey={turnstileSiteKey}
+                            resetKey={captchaReset}
+                            onToken={(token) => form.setData('cf-turnstile-response', token)}
+                        />
+                        <FieldAlert title="Robot check" message={(form.errors as Record<string, string>).captcha} />
+                    </div>
+                )}
+
                 <p className="text-xs leading-5 text-muted-foreground">
                     An administrator will review your request. If approved, you
                     will receive an email with a link to create your password.
                     The link is valid for 8 minutes.
                 </p>
 
-                <Button type="submit" size="lg" className="w-full" disabled={form.processing}>
+                <Button type="submit" size="lg" className="w-full" disabled={form.processing || captchaMissing}>
                     Request access
                 </Button>
             </form>

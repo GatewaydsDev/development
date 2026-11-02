@@ -80,4 +80,9 @@ return [
         'mail_port' => env('MICROSOFT_MAIL_PORT', 587),
     ],
 
+    'turnstile' => [
+        'site_key' => env('TURNSTILE_SITE_KEY'),
+        'secret_key' => env('TURNSTILE_SECRET_KEY'),
+    ],
+
 ];
