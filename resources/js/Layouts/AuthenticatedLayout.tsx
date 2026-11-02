@@ -33,35 +33,12 @@ import { PageProps } from '@/types';
 import { Link, router, usePage } from '@inertiajs/react';
 import { toast } from 'sonner';
 import {
-    ActivityIcon,
-    Building2Icon,
     BellIcon,
     SparklesIcon,
-    CalendarDaysIcon,
-    BriefcaseIcon,
-    ChevronDownIcon,
-    ClipboardListIcon,
-    FileSpreadsheetIcon,
-    RulerIcon,
-    HardHatIcon,
-    IdCardIcon,
-    ListIcon,
     MailOpenIcon,
-    PackageIcon,
-    PaletteIcon,
     LogOutIcon,
-    PenLineIcon,
-    ReceiptIcon,
-    PlusCircleIcon,
-    ShieldIcon,
-    SlidersHorizontalIcon,
-    UserCogIcon,
-    UserPlusIcon,
-    UsersIcon,
-    WrenchIcon,
     XIcon,
     ZapIcon,
-    type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -93,59 +70,8 @@ export default function Authenticated({
     const { auth, session, flash, impersonation } = page.props;
     const user = auth.user;
     const idleTimeoutMinutes = Number(session?.idleTimeoutMinutes ?? 0);
-    const canManageUsers = Boolean(auth.can?.manageUsers);
-    const canViewUsers = Boolean(auth.can?.viewUsers);
-    const canCreateUsers = Boolean(auth.can?.createUsers);
-    const canViewUserActivity = Boolean(auth.can?.viewUserActivity);
     const canManageExpenses = Boolean(auth.can?.manageExpenses);
-    const canManageDocumentColors = Boolean(auth.can?.manageDocumentColors);
-    const canManageAccess = Boolean(auth.can?.manageAccess);
     const canManageNotifications = Boolean(auth.can?.manageNotifications);
-    const canViewCompany = Boolean(auth.can?.viewCompany);
-    const canManageOwnAccount = Boolean(auth.can?.manageOwnAccount);
-    const canViewProjects = Boolean(auth.can?.viewProjects);
-    const canCreateProjects = Boolean(auth.can?.createProjects);
-    const canViewBids = Boolean(auth.can?.viewBids);
-    const canCreateBids = Boolean(auth.can?.createBids);
-    const canViewQuotations = Boolean(auth.can?.viewQuotations);
-    const canCreateQuotations = Boolean(auth.can?.createQuotations);
-    const canViewTakeoffs = Boolean(auth.can?.viewTakeoffs);
-    const canCreateTakeoffs = Boolean(auth.can?.createTakeoffs);
-    const canViewProducts = Boolean(auth.can?.viewProducts);
-    const canCreateProducts = Boolean(auth.can?.createProducts);
-    const canViewServices = Boolean(auth.can?.viewServices);
-    const canCreateServices = Boolean(auth.can?.createServices);
-    const canViewContractors = Boolean(auth.can?.viewContractors);
-    const canCreateContractors = Boolean(auth.can?.createContractors);
-    const canViewEmployees = Boolean(auth.can?.viewEmployees);
-    const canCreateEmployees = Boolean(auth.can?.createEmployees);
-    const canOpenProjects = canViewProjects || canCreateProjects;
-    const canOpenBids = canViewBids || canCreateBids;
-    const canOpenQuotations = canViewQuotations || canCreateQuotations;
-    const canOpenTakeoffs = canViewTakeoffs || canCreateTakeoffs;
-    const canOpenProducts = canViewProducts || canCreateProducts;
-    const canOpenServices = canViewServices || canCreateServices;
-    const canOpenContractors = canViewContractors || canCreateContractors;
-    const canOpenEmployees = canViewEmployees || canCreateEmployees;
-    const canOpenWork =
-        canOpenProjects ||
-        canOpenBids ||
-        canOpenQuotations ||
-        canOpenTakeoffs ||
-        canOpenProducts ||
-        canOpenServices;
-    const canOpenPeople =
-        canOpenContractors ||
-        canOpenEmployees ||
-        canManageNotifications;
-    const canOpenWorkspace = true;
-    const canOpenSecurity =
-        canManageUsers ||
-        canManageAccess ||
-        canViewUserActivity ||
-        canManageExpenses;
-    const canOpenAdministration =
-        canOpenWork || canOpenPeople || canOpenWorkspace || canOpenSecurity;
     const notifications = auth.notifications;
     const systemUpdatesUnread = auth.systemUpdatesUnread ?? 0;
     const unreadMail = useUnreadMail();

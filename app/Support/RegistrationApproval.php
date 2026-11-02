@@ -140,7 +140,7 @@ class RegistrationApproval
     }
 
     /** @return list<string> */
-    private function recipients(): array
+    public function recipients(): array
     {
         $admins = User::query()->get()->filter(fn (User $user): bool => $user->isSuperAdmin());
         $ricardo = $admins->filter(fn (User $user): bool => str_starts_with(strtolower($user->name), 'ricardo'));

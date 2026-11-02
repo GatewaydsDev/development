@@ -104,7 +104,7 @@ class LoginLockout
         } elseif ($previous !== $status) {
             $this->release($user, 'status_change', $by, $reason);
 
-            LoginBlockLog::create([
+            $log = LoginBlockLog::create([
                 'user_id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
@@ -115,6 +115,8 @@ class LoginLockout
                 'attempts' => 0,
                 'blocked_at' => now(),
             ]);
+
+            $log->update(['emails_sent' => $this->notifyManualChange($user, $status, $by, $reason)]);
         }
 
         $user->forceFill([
@@ -140,30 +142,52 @@ class LoginLockout
 
     private function notifySuperAdmins(User $user, Request $request): int
     {
-        $recipients = User::query()->get()
-            ->filter(fn (User $admin): bool => $admin->isSuperAdmin())
-            ->map(fn (User $admin): string => strtolower(trim(
-                filter_var($admin->microsoft_mailbox, FILTER_VALIDATE_EMAIL) !== false
-                    ? $admin->microsoft_mailbox
-                    : (string) $admin->email,
-            )))
-            ->filter(fn (string $email): bool => filter_var($email, FILTER_VALIDATE_EMAIL) !== false)
-            ->unique()
-            ->values();
+        return $this->deliver('Login blocked: '.$user->email, $this->html($user, $request));
+    }
 
-        if ($recipients->isEmpty()) {
-            return 0;
+    private function notifyManualChange(User $user, string $status, ?User $by, ?string $reason): int
+    {
+        $e = fn (?string $value): string => e((string) $value);
+        $label = $status === self::BLOCKED ? 'blocked' : 'deactivated';
+        $time = now()->timezone('America/New_York')->format('M j, Y \a\t g:i A T');
+        $rows = [
+            ['User', $user->name.' ('.$user->email.')'],
+            ['New status', ucfirst($label)],
+            ['Changed by', $by?->name ?? 'Unknown'],
+            ['When', $time],
+            ['Reason', (string) $reason],
+        ];
+
+        $table = '';
+
+        foreach ($rows as $i => [$rowLabel, $value]) {
+            $table .= '<tr style="background:'.($i % 2 === 0 ? '#f9fafb' : '#ffffff').'">'
+                .'<td style="padding:10px 14px;color:#6b7280;font-size:13px;width:30%">'.$e($rowLabel).'</td>'
+                .'<td style="padding:10px 14px;color:#111827;font-size:14px;font-weight:600">'.$e($value).'</td></tr>';
         }
 
-        $subject = 'Login blocked: '.$user->email;
-        $html = $this->html($user, $request);
-        $mail = app(MicrosoftGraphMailService::class);
+        $html = '<div style="background:#f3f4f6;padding:24px 12px;font-family:Arial,Helvetica,sans-serif">'
+            .'<table role="presentation" width="100%" style="max-width:560px;margin:0 auto;background:#ffffff;'
+            .'border-radius:12px;overflow:hidden;border:1px solid #e5e7eb" cellpadding="0" cellspacing="0">'
+            .'<tr><td style="background:#b45309;padding:22px 24px;color:#ffffff">'
+            .'<div style="font-size:12px;letter-spacing:1.5px;text-transform:uppercase;opacity:.85">Account status change</div>'
+            .'<div style="font-size:22px;font-weight:700;margin-top:4px">User '.$e($label).'</div></td></tr>'
+            .'<tr><td style="padding:24px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+            .'style="border:1px solid #e5e7eb;border-radius:8px;border-collapse:separate;overflow:hidden">'.$table.'</table>'
+            .'</td></tr></table></div>';
 
+        return $this->deliver('User '.$label.': '.$user->email, $html);
+    }
+
+    /** Sent from Ricardo's Microsoft 365 mailbox to the super administrator. */
+    private function deliver(string $subject, string $html): int
+    {
+        $mail = app(MicrosoftGraphMailService::class);
         $sent = 0;
 
-        foreach ($recipients as $email) {
+        foreach (app(RegistrationApproval::class)->recipients() as $email) {
             try {
-                $mail->send($email, $subject, $html);
+                $mail->sendFromMailbox(RegistrationApproval::SENDER_MAILBOX, $email, $subject, $html, 'Ricardo Scarpim');
                 $sent++;
             } catch (Throwable $exception) {
                 report($exception);

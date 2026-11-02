@@ -20,9 +20,20 @@ import {
     CardHeader,
     CardTitle,
 } from '@/Components/ui/card';
-import { useForm } from '@inertiajs/react';
-import { Check, Copy, Eye, EyeOff } from 'lucide-react';
-import { ChangeEvent, FormEventHandler, useEffect, useMemo, useState } from 'react';
+import {useForm} from '@inertiajs/react';
+import {
+    Check,
+    ContactIcon,
+    Copy,
+    Eye,
+    EyeOff,
+    KeyRoundIcon,
+    PlugIcon,
+    ShieldCheckIcon,
+    UserRoundIcon,
+    type LucideIcon,
+} from 'lucide-react';
+import {ChangeEvent, FormEventHandler, ReactNode, useEffect, useMemo, useState} from 'react';
 
 type Level = {
     id: number;
@@ -139,14 +150,42 @@ const getAgeInYears = (dateOfBirth: Date) => {
     return age;
 };
 
+function FormSection({
+                         icon: Icon,
+                         title,
+                         description,
+                         children,
+                     }: {
+    icon: LucideIcon;
+    title: string;
+    description: string;
+    children: ReactNode;
+}) {
+    return (
+        <section className="overflow-hidden rounded-xl border border-border">
+            <header className="flex items-center gap-3 border-b border-border bg-muted/50 px-4 py-3">
+                <span
+                    className="flex size-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                    <Icon className="size-4"/>
+                </span>
+                <div>
+                    <h3 className="text-sm font-semibold">{title}</h3>
+                    <p className="text-xs text-muted-foreground">{description}</p>
+                </div>
+            </header>
+            <div className="flex flex-col gap-5 p-4 sm:p-5">{children}</div>
+        </section>
+    );
+}
+
 function CopyableIdInput({
-    id,
-    label,
-    value,
-    placeholder,
-    error,
-    onChange,
-}: {
+                             id,
+                             label,
+                             value,
+                             placeholder,
+                             error,
+                             onChange,
+                         }: {
     id: string;
     label: string;
     value: string;
@@ -190,37 +229,37 @@ function CopyableIdInput({
                     aria-label={copied ? `${label} copied` : `Copy ${label}`}
                 >
                     {copied ? (
-                        <Check className="size-4" />
+                        <Check className="size-4"/>
                     ) : (
-                        <Copy className="size-4" />
+                        <Copy className="size-4"/>
                     )}
                 </button>
             </div>
-            <InputError message={error} />
+            <InputError message={error}/>
         </div>
     );
 }
 
 export default function UserForm({
-    userId,
-    levels,
-    languages,
-    accessPermissions = [],
-    canCreateUserLevel = false,
-    canAssignMailbox = false,
-    superAdminLevelNames = ['Super Admin', 'Super Administrator'],
-    canChangeStatus = false,
-    positions = [],
-    microsoftSecretSaved = false,
-    submitLabel,
-    title,
-    description,
-    action,
-    method = 'post',
-    initialValues = {},
-    currentAvatarUrl = null,
-    passwordOptional = false,
-}: UserFormProps) {
+                                     userId,
+                                     levels,
+                                     languages,
+                                     accessPermissions = [],
+                                     canCreateUserLevel = false,
+                                     canAssignMailbox = false,
+                                     superAdminLevelNames = ['Super Admin', 'Super Administrator'],
+                                     canChangeStatus = false,
+                                     positions = [],
+                                     microsoftSecretSaved = false,
+                                     submitLabel,
+                                     title,
+                                     description,
+                                     action,
+                                     method = 'post',
+                                     initialValues = {},
+                                     currentAvatarUrl = null,
+                                     passwordOptional = false,
+                                 }: UserFormProps) {
     const [addedPositions, setAddedPositions] = useState<CreatableOption[]>([]);
     const [showPassword, setShowPassword] = useState(false);
     const [showMicrosoftSecret, setShowMicrosoftSecret] = useState(false);
@@ -231,7 +270,7 @@ export default function UserForm({
     const [avatarPreview, setAvatarPreview] = useState<string | null>(
         currentAvatarUrl,
     );
-    const { data, setData, errors, processing, post, transform } =
+    const {data, setData, errors, processing, post, transform} =
         useForm<UserFormData>({
             name: initialValues.name ?? '',
             email: initialValues.email ?? '',
@@ -265,14 +304,14 @@ export default function UserForm({
             const name = position.name.trim();
 
             if (name !== '') {
-                options.set(name.toLowerCase(), { ...position, name });
+                options.set(name.toLowerCase(), {...position, name});
             }
         });
 
         const current = data.job_title.trim();
 
         if (current !== '' && !options.has(current.toLowerCase())) {
-            options.set(current.toLowerCase(), { id: -1, name: current });
+            options.set(current.toLowerCase(), {id: -1, name: current});
         }
 
         return [...options.values()].sort((left, right) =>
@@ -287,12 +326,12 @@ export default function UserForm({
 
     transform((formData) => {
         const payload = method === 'patch'
-            ? { ...formData, _method: 'PATCH' }
+            ? {...formData, _method: 'PATCH'}
             : formData;
         const levelName =
             levels.find((level) => String(level.id) === formData.level_id)
                 ?.name ?? '';
-        const rest = { ...payload };
+        const rest = {...payload};
 
         if (!canAssignMailbox) {
             delete rest.microsoft_mailbox;
@@ -365,7 +404,7 @@ export default function UserForm({
         const timeout = window.setTimeout(async () => {
             setCheckingEmail(true);
 
-            const params = new URLSearchParams({ email });
+            const params = new URLSearchParams({email});
 
             if (userId) {
                 params.set('user_id', String(userId));
@@ -412,7 +451,7 @@ export default function UserForm({
             return;
         }
 
-        post(action, { forceFormData: true });
+        post(action, {forceFormData: true});
     };
     return (
         <Card className="shadow-sm">
@@ -421,7 +460,8 @@ export default function UserForm({
                 <CardDescription>{description}</CardDescription>
             </CardHeader>
             <CardContent>
-                <form onSubmit={submit} className="flex w-full min-w-0 max-w-full flex-col gap-6 pr-4 pb-28 sm:pr-20 lg:pb-6">
+                <form onSubmit={submit}
+                      className="flex w-full min-w-0 max-w-full flex-col gap-6 pr-4 pb-28 sm:pr-20 lg:pb-6">
                     <FormActionFab
                         cancelHref={route('admin.users.index')}
                         saveLabel={submitLabel}
@@ -432,411 +472,502 @@ export default function UserForm({
                             hasDateOfBirthError
                         }
                     />
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                        <UserAvatar
-                            name={data.name}
-                            avatarUrl={avatarPreview}
-                            className="size-16 text-xl"
-                        />
-                        <div className="flex flex-col gap-2">
-                            <InputLabel
-                                htmlFor="avatar"
-                                value="Avatar image"
-                                className="text-emerald-700 dark:text-emerald-300"
+                    <FormSection icon={UserRoundIcon} title="Profile"
+                                 description="Name, photo, sign-in email and preferences.">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                            <UserAvatar
+                                name={data.name}
+                                avatarUrl={avatarPreview}
+                                className="size-16 text-xl"
                             />
-                            <input
-                                id="avatar"
-                                type="file"
-                                accept="image/png,image/jpeg,image/jpg,image/webp"
-                                onChange={onAvatarChange}
-                                className="block w-full text-sm text-muted-foreground file:mr-4 file:rounded-md file:border-0 file:bg-emerald-600 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-emerald-700"
-                            />
-                            <p className="text-xs text-muted-foreground">
-                                PNG, JPG, or WEBP up to 4MB. Leave empty to keep
-                                the current image.
-                            </p>
-                            <InputError message={errors.avatar} />
-                        </div>
-                    </div>
-
-                    <div className="grid gap-5 md:grid-cols-2">
-                        <div className="flex flex-col gap-2">
-                            <InputLabel
-                                htmlFor="name"
-                                value="Full name"
-                                className="text-emerald-700 dark:text-emerald-300"
-                            />
-                            <TextInput
-                                id="name"
-                                value={data.name}
-                                className="h-11 w-full border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
-                                autoComplete="name"
-                                isFocused
-                                onChange={(event) =>
-                                    setData('name', event.target.value)
-                                }
-                            />
-                            <InputError message={errors.name} />
-                        </div>
-
-                        {editingSuperAdmin ? (
                             <div className="flex flex-col gap-2">
-                                <CreatableSelect
-                                    id="job_title"
-                                    label="Position"
-                                    value={
-                                        selectedPosition
-                                            ? String(selectedPosition.id)
-                                            : ''
-                                    }
-                                    options={positionOptions}
-                                    allowCreate
-                                    showCreateFooter
-                                    entityLabel="position"
-                                    placeholder="Choose a position"
-                                    error={errors.job_title}
-                                    onCreateName={(name) => {
-                                        const position = name
-                                            .trim()
-                                            .slice(0, 80);
-                                        const existing = positionOptions.find(
-                                            (option) =>
-                                                option.name.toLowerCase() ===
-                                                position.toLowerCase(),
-                                        );
-
-                                        if (existing) {
-                                            setData(
-                                                'job_title',
-                                                existing.name,
-                                            );
-
-                                            return;
-                                        }
-
-                                        setAddedPositions((current) => [
-                                            ...current,
-                                            { id: -Date.now(), name: position },
-                                        ]);
-                                        setData('job_title', position);
-                                    }}
-                                    onChange={(_id, option) =>
-                                        setData(
-                                            'job_title',
-                                            option?.name ?? '',
-                                        )
-                                    }
+                                <InputLabel
+                                    htmlFor="avatar"
+                                    value="Avatar image"
+                                    className="text-emerald-700 dark:text-emerald-300"
+                                />
+                                <input
+                                    id="avatar"
+                                    type="file"
+                                    accept="image/png,image/jpeg,image/jpg,image/webp"
+                                    onChange={onAvatarChange}
+                                    className="block w-full text-sm text-muted-foreground file:mr-4 file:rounded-md file:border-0 file:bg-emerald-600 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-emerald-700"
                                 />
                                 <p className="text-xs text-muted-foreground">
-                                    The email signature uses this full name,
-                                    the primary phone number, and this
-                                    position. The message header uses the
-                                    company logo.
+                                    PNG, JPG, or WEBP up to 4MB. Leave empty to keep
+                                    the current image.
                                 </p>
+                                <InputError message={errors.avatar}/>
                             </div>
-                        ) : null}
-
-                        <div className="flex flex-col gap-2">
-                            <InputLabel
-                                htmlFor="email"
-                                value="Email Address (Use name)"
-                                className="text-emerald-700 dark:text-emerald-300"
-                            />
-                            <EmailAddressInput
-                                id="email"
-                                value={data.email}
-                                className="h-11 w-full border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
-                                onChange={(email) => setData('email', email)}
-                            />
-                            <p className="text-xs text-muted-foreground">
-                                This address is used to sign in.
-                            </p>
-                            <InputError message={errors.email} />
-                            {checkingEmail && (
-                                <p className="text-sm text-muted-foreground">
-                                    Checking email availability...
-                                </p>
-                            )}
-                            {emailTaken && !checkingEmail && (
-                                <p className="text-sm text-destructive">
-                                    This email address has already been taken.
-                                </p>
-                            )}
                         </div>
 
-                        {canAssignMailbox ? (
-                            <div className="flex max-w-md flex-col gap-2 md:col-span-2">
+                        <div className="grid gap-5 md:grid-cols-2">
+                            <div className="flex flex-col gap-2">
                                 <InputLabel
-                                    htmlFor="microsoft-mailbox"
-                                    value="Microsoft 365 mailbox"
+                                    htmlFor="name"
+                                    value="Full name"
+                                    className="text-emerald-700 dark:text-emerald-300"
+                                />
+                                <TextInput
+                                    id="name"
+                                    value={data.name}
+                                    className="h-11 w-full border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
+                                    autoComplete="name"
+                                    isFocused
+                                    onChange={(event) =>
+                                        setData('name', event.target.value)
+                                    }
+                                />
+                                <InputError message={errors.name}/>
+                            </div>
+
+                            {editingSuperAdmin ? (
+                                <div className="flex flex-col gap-2">
+                                    <CreatableSelect
+                                        id="job_title"
+                                        label="Position"
+                                        value={
+                                            selectedPosition
+                                                ? String(selectedPosition.id)
+                                                : ''
+                                        }
+                                        options={positionOptions}
+                                        allowCreate
+                                        showCreateFooter
+                                        entityLabel="position"
+                                        placeholder="Choose a position"
+                                        error={errors.job_title}
+                                        onCreateName={(name) => {
+                                            const position = name
+                                                .trim()
+                                                .slice(0, 80);
+                                            const existing = positionOptions.find(
+                                                (option) =>
+                                                    option.name.toLowerCase() ===
+                                                    position.toLowerCase(),
+                                            );
+
+                                            if (existing) {
+                                                setData(
+                                                    'job_title',
+                                                    existing.name,
+                                                );
+
+                                                return;
+                                            }
+
+                                            setAddedPositions((current) => [
+                                                ...current,
+                                                {id: -Date.now(), name: position},
+                                            ]);
+                                            setData('job_title', position);
+                                        }}
+                                        onChange={(_id, option) =>
+                                            setData(
+                                                'job_title',
+                                                option?.name ?? '',
+                                            )
+                                        }
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                        The email signature uses this full name,
+                                        the primary phone number, and this
+                                        position. The message header uses the
+                                        company logo.
+                                    </p>
+                                </div>
+                            ) : null}
+
+                            <div className="flex flex-col gap-2">
+                                <InputLabel
+                                    htmlFor="email"
+                                    value="Email Address (Use name)"
                                     className="text-emerald-700 dark:text-emerald-300"
                                 />
                                 <EmailAddressInput
-                                    id="microsoft-mailbox"
-                                    value={data.microsoft_mailbox}
-                                    placeholder="name@gateway-ds.com"
-                                    className="h-9 w-full border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
-                                    onChange={(mailbox) =>
-                                        setData('microsoft_mailbox', mailbox)
-                                    }
+                                    id="email"
+                                    value={data.email}
+                                    className="h-11 w-full border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
+                                    onChange={(email) => setData('email', email)}
                                 />
                                 <p className="text-xs text-muted-foreground">
-                                    Mail in the app is sent and read from this
-                                    address. Leave it blank when this person
-                                    has no mailbox. It does not change the
-                                    sign-in email.
+                                    This address is used to sign in.
                                 </p>
-                                <InputError
-                                    message={errors.microsoft_mailbox}
-                                />
+                                <InputError message={errors.email}/>
+                                {checkingEmail && (
+                                    <p className="text-sm text-muted-foreground">
+                                        Checking email availability...
+                                    </p>
+                                )}
+                                {emailTaken && !checkingEmail && (
+                                    <p className="text-sm text-destructive">
+                                        This email address has already been taken.
+                                    </p>
+                                )}
                             </div>
-                        ) : null}
-                    </div>
 
-                    <div className="grid gap-5 md:grid-cols-2">
-                        <div className="flex flex-col gap-2">
-                            <InputLabel
-                                htmlFor="date_of_birth"
-                                value="Date of birth"
-                                className="text-emerald-700 dark:text-emerald-300"
-                            />
-                            <TextInput
-                                id="date_of_birth"
-                                value={data.date_of_birth}
-                                className="h-11 w-full border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
-                                inputMode="numeric"
-                                maxLength={10}
-                                placeholder="MM/DD/YYYY"
-                                aria-invalid={
-                                    hasDateOfBirthError ? true : undefined
-                                }
-                                onChange={(event) =>
-                                    setData(
-                                        'date_of_birth',
-                                        formatDateOfBirth(event.target.value),
-                                    )
-                                }
-                            />
-                            <InputError message={errors.date_of_birth} />
-                            {dateOfBirthFeedback && (
-                                <p
-                                    className={
-                                        dateOfBirthFeedback.type === 'error'
-                                            ? 'text-sm text-destructive'
-                                            : 'text-sm text-muted-foreground'
-                                    }
-                                >
-                                    {dateOfBirthFeedback.message}
-                                </p>
-                            )}
-                        </div>
-
-                        <div className="flex flex-col gap-2">
-                            <InputLabel
-                                htmlFor="language_id"
-                                value="Preferred language"
-                                className="text-emerald-700 dark:text-emerald-300"
-                            />
-                            <select
-                                id="language_id"
-                                value={data.language_id}
-                                onChange={(event) =>
-                                    setData('language_id', event.target.value)
-                                }
-                                className="h-11 rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
-                            >
-                                <option value="">
-                                    Select a preferred language
-                                </option>
-                                {languages.map((language) => (
-                                    <option
-                                        key={language.id}
-                                        value={language.id}
-                                    >
-                                        {language.name} ({language.abbreviation.toUpperCase()})
-                                    </option>
-                                ))}
-                            </select>
-                            <InputError message={errors.language_id} />
-                        </div>
-                    </div>
-
-                    <UserContactFields
-                        legend="Email addresses"
-                        description="Add every email for this person. One address is the primary email."
-                        addLabel="Add email"
-                        placeholder="name@example.com"
-                        inputType="email"
-                        field="emails"
-                        rows={data.emails.map((row) => ({
-                            value: row.email ?? '',
-                            is_primary: row.is_primary,
-                        }))}
-                        errors={errors}
-                        onChange={(rows: UserContactRow[]) =>
-                            setData(
-                                'emails',
-                                rows.map((row) => ({
-                                    email: row.value,
-                                    is_primary: row.is_primary,
-                                })),
-                            )
-                        }
-                    />
-
-                    <UserContactFields
-                        legend="Phone numbers"
-                        description={
-                            editingSuperAdmin
-                                ? 'The primary phone number is placed in the email signature with the full name and position.'
-                                : 'Add every phone number for this person. One number is the primary phone.'
-                        }
-                        addLabel="Add phone"
-                        placeholder="(555) 555-0100"
-                        inputType="tel"
-                        field="phones"
-                        rows={data.phones.map((row) => ({
-                            value: row.phone ?? '',
-                            country: row.country ?? 'US',
-                            is_primary: row.is_primary,
-                        }))}
-                        errors={errors}
-                        onChange={(rows: UserContactRow[]) =>
-                            setData(
-                                'phones',
-                                rows.map((row) => ({
-                                    phone: row.value,
-                                    country: row.country ?? 'US',
-                                    is_primary: row.is_primary,
-                                })),
-                            )
-                        }
-                    />
-
-                    <UserLevelSelect
-                        id="level_id"
-                        value={data.level_id}
-                        levels={levels}
-                        permissions={accessPermissions}
-                        canCreate={canCreateUserLevel}
-                        emptyLabel="Select a user level"
-                        error={errors.level_id}
-                        onChange={(levelId) => setData('level_id', levelId)}
-                    />
-
-                    {userId && !editingSuperAdmin && canChangeStatus ? (
-                        <div className="flex w-full flex-col gap-2 md:w-1/4 md:min-w-48">
-                            <label
-                                htmlFor="status"
-                                className="text-sm font-medium"
-                            >
-                                Account status
-                            </label>
-                            <select
-                                id="status"
-                                value={data.status}
-                                onChange={(e) =>
-                                    setData('status', e.target.value)
-                                }
-                                className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground focus:border-ring focus:ring-ring"
-                            >
-                                <option value="active">Active</option>
-                                <option value="deactivated">Deactivated</option>
-                                <option value="blocked">Blocked</option>
-                            </select>
-                            <p className="text-xs text-muted-foreground">
-                                Only active users can sign in.
-                            </p>
-                            {data.status !== (initialValues.status ?? 'active') && (
-                                <>
-                                    <label htmlFor="status_reason" className="text-sm font-medium">
-                                        Reason for the change
-                                    </label>
-                                    <textarea
-                                        id="status_reason"
-                                        rows={3}
-                                        maxLength={500}
-                                        value={data.status_reason}
-                                        onChange={(e) => setData('status_reason', e.target.value)}
-                                        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                            {canAssignMailbox ? (
+                                <div className="flex max-w-md flex-col gap-2 md:col-span-2">
+                                    <InputLabel
+                                        htmlFor="microsoft-mailbox"
+                                        value="Microsoft 365 mailbox"
+                                        className="text-emerald-700 dark:text-emerald-300"
                                     />
-                                    <InputError message={errors.status_reason} />
-                                </>
-                            )}
+                                    <EmailAddressInput
+                                        id="microsoft-mailbox"
+                                        value={data.microsoft_mailbox}
+                                        placeholder="name@gateway-ds.com"
+                                        className="h-9 w-full border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
+                                        onChange={(mailbox) =>
+                                            setData('microsoft_mailbox', mailbox)
+                                        }
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                        Mail in the app is sent and read from this
+                                        address. Leave it blank when this person
+                                        has no mailbox. It does not change the
+                                        sign-in email.
+                                    </p>
+                                    <InputError
+                                        message={errors.microsoft_mailbox}
+                                    />
+                                </div>
+                            ) : null}
                         </div>
-                    ) : null}
 
-                    {showMicrosoftCredentials ? (
                         <div className="grid gap-5 md:grid-cols-2">
-                            <div className="md:col-span-2">
-                                <h3 className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
-                                    Microsoft 365 application
-                                </h3>
-                                <p className="mt-1 text-xs text-muted-foreground">
-                                    These credentials are used when this super
-                                    administrator sends or reads mail. Leave
-                                    the secret value blank to keep the saved
-                                    one. The Secret ID is not the secret value.
-                                </p>
-                            </div>
-                            <CopyableIdInput
-                                id="microsoft-tenant-id"
-                                label="Tenant ID"
-                                value={data.microsoft_tenant_id}
-                                placeholder="Leave blank to use the server tenant"
-                                error={errors.microsoft_tenant_id}
-                                onChange={(tenantId) =>
-                                    setData('microsoft_tenant_id', tenantId)
-                                }
-                            />
-                            <CopyableIdInput
-                                id="microsoft-client-id"
-                                label="Application (client) ID"
-                                value={data.microsoft_client_id}
-                                placeholder="Leave blank to use the server application"
-                                error={errors.microsoft_client_id}
-                                onChange={(clientId) =>
-                                    setData('microsoft_client_id', clientId)
-                                }
-                            />
-                            <CopyableIdInput
-                                id="microsoft-client-secret-id"
-                                label="Secret ID"
-                                value={data.microsoft_client_secret_id}
-                                placeholder="Secret ID from Azure"
-                                error={errors.microsoft_client_secret_id}
-                                onChange={(secretId) =>
-                                    setData(
-                                        'microsoft_client_secret_id',
-                                        secretId,
-                                    )
-                                }
-                            />
                             <div className="flex flex-col gap-2">
                                 <InputLabel
-                                    htmlFor="microsoft-client-secret"
-                                    value="Secret value"
+                                    htmlFor="date_of_birth"
+                                    value="Date of birth"
+                                    className="text-emerald-700 dark:text-emerald-300"
+                                />
+                                <TextInput
+                                    id="date_of_birth"
+                                    value={data.date_of_birth}
+                                    className="h-11 w-full border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
+                                    inputMode="numeric"
+                                    maxLength={10}
+                                    placeholder="MM/DD/YYYY"
+                                    aria-invalid={
+                                        hasDateOfBirthError ? true : undefined
+                                    }
+                                    onChange={(event) =>
+                                        setData(
+                                            'date_of_birth',
+                                            formatDateOfBirth(event.target.value),
+                                        )
+                                    }
+                                />
+                                <InputError message={errors.date_of_birth}/>
+                                {dateOfBirthFeedback && (
+                                    <p
+                                        className={
+                                            dateOfBirthFeedback.type === 'error'
+                                                ? 'text-sm text-destructive'
+                                                : 'text-sm text-muted-foreground'
+                                        }
+                                    >
+                                        {dateOfBirthFeedback.message}
+                                    </p>
+                                )}
+                            </div>
+
+                            <div className="flex flex-col gap-2">
+                                <InputLabel
+                                    htmlFor="language_id"
+                                    value="Preferred language"
+                                    className="text-emerald-700 dark:text-emerald-300"
+                                />
+                                <select
+                                    id="language_id"
+                                    value={data.language_id}
+                                    onChange={(event) =>
+                                        setData('language_id', event.target.value)
+                                    }
+                                    className="h-11 rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
+                                >
+                                    <option value="">
+                                        Select a preferred language
+                                    </option>
+                                    {languages.map((language) => (
+                                        <option
+                                            key={language.id}
+                                            value={language.id}
+                                        >
+                                            {language.name} ({language.abbreviation.toUpperCase()})
+                                        </option>
+                                    ))}
+                                </select>
+                                <InputError message={errors.language_id}/>
+                            </div>
+                        </div>
+                    </FormSection>
+
+                    <FormSection icon={ContactIcon} title="Contact details"
+                                 description="All email addresses and phone numbers for this person.">
+                        <UserContactFields
+                            legend="Email addresses"
+                            description="Add every email for this person. One address is the primary email."
+                            addLabel="Add email"
+                            placeholder="name@example.com"
+                            inputType="email"
+                            field="emails"
+                            rows={data.emails.map((row) => ({
+                                value: row.email ?? '',
+                                is_primary: row.is_primary,
+                            }))}
+                            errors={errors}
+                            onChange={(rows: UserContactRow[]) =>
+                                setData(
+                                    'emails',
+                                    rows.map((row) => ({
+                                        email: row.value,
+                                        is_primary: row.is_primary,
+                                    })),
+                                )
+                            }
+                        />
+
+                        <UserContactFields
+                            legend="Phone numbers"
+                            description={
+                                editingSuperAdmin
+                                    ? 'The primary phone number is placed in the email signature with the full name and position.'
+                                    : 'Add every phone number for this person. One number is the primary phone.'
+                            }
+                            addLabel="Add phone"
+                            placeholder="(555) 555-0100"
+                            inputType="tel"
+                            field="phones"
+                            rows={data.phones.map((row) => ({
+                                value: row.phone ?? '',
+                                country: row.country ?? 'US',
+                                is_primary: row.is_primary,
+                            }))}
+                            errors={errors}
+                            onChange={(rows: UserContactRow[]) =>
+                                setData(
+                                    'phones',
+                                    rows.map((row) => ({
+                                        phone: row.value,
+                                        country: row.country ?? 'US',
+                                        is_primary: row.is_primary,
+                                    })),
+                                )
+                            }
+                        />
+                    </FormSection>
+
+                    <FormSection icon={ShieldCheckIcon} title="Access" description="User level and account status.">
+                        <UserLevelSelect
+                            id="level_id"
+                            value={data.level_id}
+                            levels={levels}
+                            permissions={accessPermissions}
+                            canCreate={canCreateUserLevel}
+                            emptyLabel="Select a user level"
+                            error={errors.level_id}
+                            onChange={(levelId) => setData('level_id', levelId)}
+                        />
+
+                        {userId && !editingSuperAdmin && canChangeStatus ? (
+                            <div className="flex w-full flex-col gap-2 md:w-1/2">
+                                <label
+                                    htmlFor="status"
+                                    className="text-sm font-medium"
+                                >
+                                    Account status
+                                </label>
+                                <select
+                                    id="status"
+                                    value={data.status}
+                                    onChange={(e) =>
+                                        setData('status', e.target.value)
+                                    }
+                                    className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground focus:border-ring focus:ring-ring"
+                                >
+                                    <option value="active">Active</option>
+                                    <option value="deactivated">Deactivated</option>
+                                    <option value="blocked">Blocked</option>
+                                </select>
+                                <p className="text-xs text-muted-foreground">
+                                    Only active users can sign in.
+                                </p>
+                                {data.status !== (initialValues.status ?? 'active') && (
+                                    <>
+                                        <label htmlFor="status_reason" className="text-sm font-medium">
+                                            Reason for the change
+                                        </label>
+                                        <textarea
+                                            id="status_reason"
+                                            rows={3}
+                                            maxLength={500}
+                                            value={data.status_reason}
+                                            onChange={(e) => setData('status_reason', e.target.value)}
+                                            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                                        />
+                                        <InputError message={errors.status_reason}/>
+                                    </>
+                                )}
+                            </div>
+                        ) : null}
+                    </FormSection>
+
+                    {showMicrosoftCredentials ? (
+                        <FormSection icon={PlugIcon} title="Integration"
+                                     description="Microsoft 365 application settings.">
+                            <div className="grid gap-5 md:grid-cols-2">
+                                <div className="md:col-span-2">
+                                    <h3 className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                                        Microsoft 365 application
+                                    </h3>
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                        These credentials are used when this super
+                                        administrator sends or reads mail. Leave
+                                        the secret value blank to keep the saved
+                                        one. The Secret ID is not the secret value.
+                                    </p>
+                                </div>
+                                <CopyableIdInput
+                                    id="microsoft-tenant-id"
+                                    label="Tenant ID"
+                                    value={data.microsoft_tenant_id}
+                                    placeholder="Leave blank to use the server tenant"
+                                    error={errors.microsoft_tenant_id}
+                                    onChange={(tenantId) =>
+                                        setData('microsoft_tenant_id', tenantId)
+                                    }
+                                />
+                                <CopyableIdInput
+                                    id="microsoft-client-id"
+                                    label="Application (client) ID"
+                                    value={data.microsoft_client_id}
+                                    placeholder="Leave blank to use the server application"
+                                    error={errors.microsoft_client_id}
+                                    onChange={(clientId) =>
+                                        setData('microsoft_client_id', clientId)
+                                    }
+                                />
+                                <CopyableIdInput
+                                    id="microsoft-client-secret-id"
+                                    label="Secret ID"
+                                    value={data.microsoft_client_secret_id}
+                                    placeholder="Secret ID from Azure"
+                                    error={errors.microsoft_client_secret_id}
+                                    onChange={(secretId) =>
+                                        setData(
+                                            'microsoft_client_secret_id',
+                                            secretId,
+                                        )
+                                    }
+                                />
+                                <div className="flex flex-col gap-2">
+                                    <InputLabel
+                                        htmlFor="microsoft-client-secret"
+                                        value="Secret value"
+                                        className="text-emerald-700 dark:text-emerald-300"
+                                    />
+                                    <div className="relative">
+                                        <TextInput
+                                            id="microsoft-client-secret"
+                                            type={
+                                                showMicrosoftSecret
+                                                    ? 'text'
+                                                    : 'password'
+                                            }
+                                            value={data.microsoft_client_secret}
+                                            className="h-9 w-full border-border bg-background pe-11 text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
+                                            autoComplete="new-password"
+                                            placeholder={
+                                                microsoftSecretSaved
+                                                    ? 'Saved. Leave blank to keep it'
+                                                    : 'Paste the secret value'
+                                            }
+                                            onChange={(event) =>
+                                                setData(
+                                                    'microsoft_client_secret',
+                                                    event.target.value,
+                                                )
+                                            }
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setShowMicrosoftSecret(
+                                                    (current) => !current,
+                                                )
+                                            }
+                                            className="absolute inset-y-0 end-0 flex items-center px-3 text-muted-foreground transition hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+                                            aria-label={
+                                                showMicrosoftSecret
+                                                    ? 'Hide Microsoft secret'
+                                                    : 'Show Microsoft secret'
+                                            }
+                                        >
+                                            {showMicrosoftSecret ? (
+                                                <EyeOff className="size-4"/>
+                                            ) : (
+                                                <Eye className="size-4"/>
+                                            )}
+                                        </button>
+                                    </div>
+                                    <InputError
+                                        message={errors.microsoft_client_secret}
+                                    />
+                                    {microsoftSecretSaved ? (
+                                        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                                            <input
+                                                type="checkbox"
+                                                checked={
+                                                    data.remove_microsoft_client_secret
+                                                }
+                                                onChange={(event) =>
+                                                    setData(
+                                                        'remove_microsoft_client_secret',
+                                                        event.target.checked,
+                                                    )
+                                                }
+                                                className="rounded border-border text-emerald-700 focus:ring-ring"
+                                            />
+                                            Remove the saved secret value
+                                        </label>
+                                    ) : null}
+                                </div>
+                            </div>
+                        </FormSection>
+                    ) : null}
+
+                    <FormSection icon={KeyRoundIcon} title="Password"
+                                 description="Set a strong password, or leave blank to keep the current one.">
+                        <div className="grid gap-5 md:grid-cols-2">
+                            <div className="flex flex-col gap-2">
+                                <InputLabel
+                                    htmlFor="password"
+                                    value={
+                                        passwordOptional
+                                            ? 'New password'
+                                            : 'Password'
+                                    }
                                     className="text-emerald-700 dark:text-emerald-300"
                                 />
                                 <div className="relative">
                                     <TextInput
-                                        id="microsoft-client-secret"
+                                        id="password"
                                         type={
-                                            showMicrosoftSecret
-                                                ? 'text'
-                                                : 'password'
+                                            showPassword ? 'text' : 'password'
                                         }
-                                        value={data.microsoft_client_secret}
-                                        className="h-9 w-full border-border bg-background pe-11 text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
+                                        value={data.password}
+                                        className="h-11 w-full border-border bg-background pe-11 text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
                                         autoComplete="new-password"
                                         placeholder={
-                                            microsoftSecretSaved
-                                                ? 'Saved. Leave blank to keep it'
-                                                : 'Paste the secret value'
+                                            passwordOptional
+                                                ? 'Leave blank to keep current password'
+                                                : ''
                                         }
                                         onChange={(event) =>
                                             setData(
-                                                'microsoft_client_secret',
+                                                'password',
                                                 event.target.value,
                                             )
                                         }
@@ -844,153 +975,76 @@ export default function UserForm({
                                     <button
                                         type="button"
                                         onClick={() =>
-                                            setShowMicrosoftSecret(
+                                            setShowPassword((current) => !current)
+                                        }
+                                        className="absolute inset-y-0 end-0 flex items-center px-3 text-muted-foreground transition hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+                                        aria-label={
+                                            showPassword
+                                                ? 'Hide password'
+                                                : 'Show password'
+                                        }
+                                    >
+                                        {showPassword ? (
+                                            <EyeOff className="size-4"/>
+                                        ) : (
+                                            <Eye className="size-4"/>
+                                        )}
+                                    </button>
+                                </div>
+                                <InputError message={errors.password}/>
+                            </div>
+
+                            <div className="flex flex-col gap-2">
+                                <InputLabel
+                                    htmlFor="password_confirmation"
+                                    value="Confirm password"
+                                    className="text-emerald-700 dark:text-emerald-300"
+                                />
+                                <div className="relative">
+                                    <TextInput
+                                        id="password_confirmation"
+                                        type={
+                                            showPasswordConfirmation
+                                                ? 'text'
+                                                : 'password'
+                                        }
+                                        value={data.password_confirmation}
+                                        className="h-11 w-full border-border bg-background pe-11 text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
+                                        autoComplete="new-password"
+                                        onChange={(event) =>
+                                            setData(
+                                                'password_confirmation',
+                                                event.target.value,
+                                            )
+                                        }
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setShowPasswordConfirmation(
                                                 (current) => !current,
                                             )
                                         }
                                         className="absolute inset-y-0 end-0 flex items-center px-3 text-muted-foreground transition hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
                                         aria-label={
-                                            showMicrosoftSecret
-                                                ? 'Hide Microsoft secret'
-                                                : 'Show Microsoft secret'
+                                            showPasswordConfirmation
+                                                ? 'Hide password confirmation'
+                                                : 'Show password confirmation'
                                         }
                                     >
-                                        {showMicrosoftSecret ? (
-                                            <EyeOff className="size-4" />
+                                        {showPasswordConfirmation ? (
+                                            <EyeOff className="size-4"/>
                                         ) : (
-                                            <Eye className="size-4" />
+                                            <Eye className="size-4"/>
                                         )}
                                     </button>
                                 </div>
                                 <InputError
-                                    message={errors.microsoft_client_secret}
+                                    message={errors.password_confirmation}
                                 />
-                                {microsoftSecretSaved ? (
-                                    <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                                        <input
-                                            type="checkbox"
-                                            checked={
-                                                data.remove_microsoft_client_secret
-                                            }
-                                            onChange={(event) =>
-                                                setData(
-                                                    'remove_microsoft_client_secret',
-                                                    event.target.checked,
-                                                )
-                                            }
-                                            className="rounded border-border text-emerald-700 focus:ring-ring"
-                                        />
-                                        Remove the saved secret value
-                                    </label>
-                                ) : null}
                             </div>
                         </div>
-                    ) : null}
-
-                    <div className="grid gap-5 md:grid-cols-2">
-                        <div className="flex flex-col gap-2">
-                            <InputLabel
-                                htmlFor="password"
-                                value={
-                                    passwordOptional
-                                        ? 'New password'
-                                        : 'Password'
-                                }
-                                className="text-emerald-700 dark:text-emerald-300"
-                            />
-                            <div className="relative">
-                                <TextInput
-                                    id="password"
-                                    type={
-                                        showPassword ? 'text' : 'password'
-                                    }
-                                    value={data.password}
-                                    className="h-11 w-full border-border bg-background pe-11 text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
-                                    autoComplete="new-password"
-                                    placeholder={
-                                        passwordOptional
-                                            ? 'Leave blank to keep current password'
-                                            : ''
-                                    }
-                                    onChange={(event) =>
-                                        setData(
-                                            'password',
-                                            event.target.value,
-                                        )
-                                    }
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        setShowPassword((current) => !current)
-                                    }
-                                    className="absolute inset-y-0 end-0 flex items-center px-3 text-muted-foreground transition hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
-                                    aria-label={
-                                        showPassword
-                                            ? 'Hide password'
-                                            : 'Show password'
-                                    }
-                                >
-                                    {showPassword ? (
-                                        <EyeOff className="size-4" />
-                                    ) : (
-                                        <Eye className="size-4" />
-                                    )}
-                                </button>
-                            </div>
-                            <InputError message={errors.password} />
-                        </div>
-
-                        <div className="flex flex-col gap-2">
-                            <InputLabel
-                                htmlFor="password_confirmation"
-                                value="Confirm password"
-                                className="text-emerald-700 dark:text-emerald-300"
-                            />
-                            <div className="relative">
-                                <TextInput
-                                    id="password_confirmation"
-                                    type={
-                                        showPasswordConfirmation
-                                            ? 'text'
-                                            : 'password'
-                                    }
-                                    value={data.password_confirmation}
-                                    className="h-11 w-full border-border bg-background pe-11 text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
-                                    autoComplete="new-password"
-                                    onChange={(event) =>
-                                        setData(
-                                            'password_confirmation',
-                                            event.target.value,
-                                        )
-                                    }
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        setShowPasswordConfirmation(
-                                            (current) => !current,
-                                        )
-                                    }
-                                    className="absolute inset-y-0 end-0 flex items-center px-3 text-muted-foreground transition hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
-                                    aria-label={
-                                        showPasswordConfirmation
-                                            ? 'Hide password confirmation'
-                                            : 'Show password confirmation'
-                                    }
-                                >
-                                    {showPasswordConfirmation ? (
-                                        <EyeOff className="size-4" />
-                                    ) : (
-                                        <Eye className="size-4" />
-                                    )}
-                                </button>
-                            </div>
-                            <InputError
-                                message={errors.password_confirmation}
-                            />
-                        </div>
-                    </div>
+                    </FormSection>
                 </form>
             </CardContent>
         </Card>

@@ -128,8 +128,9 @@ function fakeGraphMail(): \Mockery\MockInterface
 test('a third failed password blocks the account and emails the super administrator', function () {
     lockoutSuperAdmin();
     $user = User::factory()->create(['role' => 'employee']);
-    fakeGraphMail()->shouldReceive('send')->once()->withArgs(
-        fn ($to, $subject, $html) => $to === 'boss@gateway-ds.com'
+    fakeGraphMail()->shouldReceive('sendFromMailbox')->once()->withArgs(
+        fn ($from, $to, $subject, $html) => $from === 'ricardo@gateway-ds.com'
+            && $to === 'boss@gateway-ds.com'
             && str_contains($subject, $user->email)
             && str_contains($html, 'login-unlock/'.$user->id),
     );
@@ -225,7 +226,7 @@ test('the one-click email link unlocks once without signing in', function () {
 test('each block is logged with its details and release', function () {
     $user = User::factory()->create(['role' => 'user', 'email' => 'blk@example.com']);
     $mock = Mockery::mock(\App\Services\MicrosoftGraphMailService::class);
-    $mock->shouldReceive('send')->andReturnNull();
+    $mock->shouldReceive('sendFromMailbox')->andReturnNull();
     app()->instance(\App\Services\MicrosoftGraphMailService::class, $mock);
     User::factory()->create(['role' => 'super_admin', 'microsoft_mailbox' => 'sa@example.com']);
 
@@ -278,4 +279,19 @@ test('changing status requires a reason that is stored with who and when', funct
     expect($log->reason)->toBe('Suspicious activity')
         ->and($log->blocked_by)->toBe($admin->name)
         ->and($log->blocked_at)->not->toBeNull();
+});
+
+test('a manual block emails the super administrator from the Ricardo mailbox', function () {
+    $admin = User::factory()->create(['role' => 'super_admin', 'name' => 'Ricardo Scarpim', 'microsoft_mailbox' => 'ricardo@gateway-ds.com']);
+    $user = User::factory()->create(['role' => 'user']);
+    fakeGraphMail()->shouldReceive('sendFromMailbox')->once()->withArgs(
+        fn ($from, $to, $subject, $html) => $from === 'ricardo@gateway-ds.com'
+            && $to === 'ricardo@gateway-ds.com'
+            && str_contains($html, 'Suspicious activity')
+            && str_contains($html, 'Ricardo Scarpim'),
+    );
+
+    $this->actingAs($admin)->patch(route('admin.users.status', $user), ['status' => 'blocked', 'reason' => 'Suspicious activity']);
+
+    expect(\App\Models\LoginBlockLog::where('user_id', $user->id)->first()->emails_sent)->toBe(1);
 });
