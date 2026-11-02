@@ -1273,7 +1273,33 @@ test('the signed in mailbox reports how many emails are unread', function () {
         ->assertOk()
         ->assertJson(['unread' => 3, 'messages' => []]);
 
-    Http::assertSentCount(3);
+    Http::assertSentCount(5);
+});
+
+test('blocked emails are left out of the unread count and reported separately', function () {
+    $user = mailboxUser('larryd@gateway-ds.com');
+
+    Cache::flush();
+    config([
+        'services.microsoft.tenant_id' => 'tenant-id',
+        'services.microsoft.client_id' => 'client-id',
+        'services.microsoft.client_secret' => 'client-secret',
+    ]);
+
+    $bounce = ['subject' => 'Undeliverable: Hello', 'from' => ['emailAddress' => ['address' => 'postmaster@outlook.com']]];
+
+    Http::fake([
+        'https://login.microsoftonline.com/*' => Http::response(['access_token' => 't', 'expires_in' => 3600]),
+        'https://graph.microsoft.com/*' => Http::response([
+            'unreadItemCount' => 5,
+            'value' => [$bounce, $bounce],
+        ], 200),
+    ]);
+
+    $this->actingAs($user)
+        ->getJson(route('mailbox.unread'))
+        ->assertOk()
+        ->assertJson(['unread' => 3, 'blocked' => 2]);
 });
 
 test('unread email count stays at zero when the user has no mailbox', function () {

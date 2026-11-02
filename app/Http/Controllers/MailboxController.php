@@ -117,6 +117,7 @@ class MailboxController extends Controller
             $savedRecipients,
             $user,
             $this->unreadFloor($folder, $messages, $this->unreadTotal($user, $mailbox, $graph, $states)),
+            $folder === 'inbox' ? $this->unreadSnapshot($user, $mailbox, $graph, $states)['blocked'] : 0,
         ));
     }
 
@@ -481,6 +482,7 @@ class MailboxController extends Controller
         array $savedRecipients = [],
         ?User $user = null,
         int $unreadCount = 0,
+        int $blockedCount = 0,
     ): array {
         return [
             'mailbox' => $mailbox,
@@ -496,6 +498,7 @@ class MailboxController extends Controller
             'footerColors' => $user?->mailFooterColors() ?? [],
             'stationery' => app(MailStationery::class)->payload($user),
             'unreadCount' => $unreadCount,
+            'blockedCount' => $blockedCount,
             'deliveryProblems' => app(MailAuthentication::class)->problemsForMailbox($mailbox),
         ];
     }
@@ -521,7 +524,7 @@ class MailboxController extends Controller
     }
 
     /**
-     * @return array{unread: int, messages: list<array{id: string, subject: string, from: string, preview: string}>}
+     * @return array{unread: int, blocked: int, messages: list<array{id: string, subject: string, from: string, preview: string}>}
      */
     private function unreadSnapshot(
         User $user,
@@ -536,20 +539,24 @@ class MailboxController extends Controller
             is_array($cached)
             && is_int($cached['unread'] ?? null)
             && is_array($cached['messages'] ?? null)
+            && is_int($cached['blocked'] ?? null)
         ) {
             return [
                 'unread' => $cached['unread'],
                 'messages' => $cached['messages'],
+                'blocked' => $cached['blocked'],
             ];
         }
 
         $graphUnread = 0;
         $messages = [];
+        $bounces = ['unread' => 0, 'total' => 0];
 
         try {
             $graphUnread = $graph->actingAs($user)->unreadInboxCount($mailbox);
+            $bounces = $graph->actingAs($user)->bounceStats($mailbox);
         } catch (MicrosoftGraphException) {
-            $graphUnread = 0;
+            // Keep the zero defaults when Graph is unavailable.
         }
 
         try {
@@ -563,8 +570,9 @@ class MailboxController extends Controller
         }
 
         $snapshot = [
-            'unread' => $states->unreadCount($user, $mailbox, $graphUnread),
+            'unread' => $states->unreadCount($user, $mailbox, max(0, $graphUnread - $bounces['unread'])),
             'messages' => $messages,
+            'blocked' => $bounces['total'],
         ];
 
         Cache::put($cacheKey, $snapshot, 15);

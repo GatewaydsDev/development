@@ -16,10 +16,14 @@ class MicrosoftGraphMailService
 {
     private ?User $actor = null;
 
+    /** Super admin whose saved Microsoft 365 app signs system emails with no signed-in user. */
+    private ?User $credentialOwner = null;
+
     public function actingAs(?User $user): self
     {
         $copy = clone $this;
         $copy->actor = $user;
+        $copy->credentialOwner = null;
 
         return $copy;
     }
@@ -47,7 +51,34 @@ class MicrosoftGraphMailService
         string $fromName = 'Gateway Door Systems',
     ): void {
         $this->actor = null;
-        $this->sendMessage($mailbox, $to, $subject, $html, 'HTML', null, [], [], [], 'normal', $fromName);
+        $owner = $this->mailboxOwnerWithSecret($mailbox);
+
+        if ($owner === null) {
+            $this->sendMessage($mailbox, $to, $subject, $html, 'HTML', null, [], [], [], 'normal', $fromName);
+
+            return;
+        }
+
+        // Use the mailbox owner's saved Microsoft 365 app, then the server settings if that fails.
+        $this->credentialOwner = $owner;
+
+        try {
+            $this->sendMessage($mailbox, $to, $subject, $html, 'HTML', null, [], [], [], 'normal', $fromName);
+        } catch (MicrosoftGraphException $exception) {
+            report($exception);
+            $this->credentialOwner = null;
+            $this->sendMessage($mailbox, $to, $subject, $html, 'HTML', null, [], [], [], 'normal', $fromName);
+        } finally {
+            $this->credentialOwner = null;
+        }
+    }
+
+    private function mailboxOwnerWithSecret(string $mailbox): ?User
+    {
+        return User::query()
+            ->whereRaw('lower(microsoft_mailbox) = ?', [strtolower(trim($mailbox))])
+            ->get()
+            ->first(fn (User $user): bool => $user->isSuperAdmin() && $this->hasSavedSecret($user));
     }
 
     /**
@@ -149,6 +180,39 @@ class MicrosoftGraphMailService
         }
 
         return max(0, (int) $response->json('unreadItemCount'));
+    }
+
+    /**
+     * Bounce notices hidden from the inbox, scanned over the latest 100 messages.
+     *
+     * @return array{unread: int, total: int}
+     */
+    public function bounceStats(string $mailbox): array
+    {
+        $count = function (array $query): int {
+            $response = $this->graph('GET', $this->userUrl($query['mailbox']).'/mailFolders/inbox/messages?'.http_build_query($query['params']), null, false);
+
+            if ($response->failed()) {
+                throw new MicrosoftGraphException($this->failureMessage($response, false));
+            }
+
+            $found = 0;
+
+            foreach ($response->json('value') ?? [] as $item) {
+                if (is_array($item) && MailBounceFilter::isBounce($this->address($item['from'] ?? null), (string) ($item['subject'] ?? ''))) {
+                    $found++;
+                }
+            }
+
+            return $found;
+        };
+
+        $select = '$select';
+
+        return [
+            'unread' => $count(['mailbox' => $mailbox, 'params' => [$select => 'subject,from', '$filter' => 'isRead eq false', '$top' => 100]]),
+            'total' => $count(['mailbox' => $mailbox, 'params' => [$select => 'subject,from', '$orderby' => 'receivedDateTime desc', '$top' => 100]]),
+        ];
     }
 
     /**
@@ -859,6 +923,10 @@ class MicrosoftGraphMailService
     private function credentialUser(): ?User
     {
         $actor = $this->actor;
+
+        if ($actor === null && $this->credentialOwner !== null) {
+            return $this->credentialOwner;
+        }
 
         if ($this->hasSavedSecret($actor)) {
             return $actor;

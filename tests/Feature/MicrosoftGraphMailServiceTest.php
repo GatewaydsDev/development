@@ -192,6 +192,29 @@ test('a super admin sends mail with that persons microsoft credentials', functio
     });
 });
 
+test('system emails sent with no signed-in user use the mailbox owners microsoft credentials', function () {
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    User::factory()->create([
+        'level_id' => $level->id,
+        'role' => 'super_admin',
+        'microsoft_tenant_id' => 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        'microsoft_client_id' => 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+        'microsoft_client_secret' => 'ricardo-secret-value',
+        'microsoft_mailbox' => 'ricardo@gateway-ds.com',
+    ]);
+
+    Http::fake([
+        'https://login.microsoftonline.com/*' => Http::response(['access_token' => 'graph-token', 'expires_in' => 3600], 200),
+        'https://graph.microsoft.com/*' => Http::response('', 202),
+    ]);
+
+    app(MicrosoftGraphMailService::class)
+        ->sendFromMailbox('ricardo@gateway-ds.com', 'ricardo@gateway-ds.com', 'Sign-up request', '<p>Hi</p>', 'Ricardo Scarpim');
+
+    Http::assertSent(fn ($request) => str_contains($request->url(), 'oauth2/v2.0/token')
+        && $request['client_secret'] === 'ricardo-secret-value');
+});
+
 test('impersonating a super admin without app credentials uses the master app on that mailbox', function () {
     $level = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
     $master = User::factory()->create([

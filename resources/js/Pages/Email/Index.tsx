@@ -84,6 +84,7 @@ type Props = {
     footerColors?: string[];
     stationery?: MailStationeryData;
     unreadCount?: number;
+    blockedCount?: number;
     deliveryProblems?: string[];
 };
 
@@ -296,6 +297,7 @@ export default function Index({
     footerColors = [],
     stationery = emptyStationery,
     unreadCount = 0,
+    blockedCount = 0,
     deliveryProblems = [],
 }: Props) {
     const list = Array.isArray(messages) ? messages : [];
@@ -429,6 +431,12 @@ export default function Index({
                                         ))}
                                     </ul>
                                 </div>
+                            ) : null}
+                            {folder === 'inbox' && blockedCount > 0 ? (
+                                <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-950 dark:text-amber-100">
+                                    <span className="font-medium">{blockedCount} blocked or undeliverable {blockedCount === 1 ? 'email is' : 'emails are'} hidden</span>{' '}
+                                    from this inbox (latest 100 messages checked).
+                                </p>
                             ) : null}
                             {graphError ? (
                                 <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
