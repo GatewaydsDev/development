@@ -36,6 +36,8 @@ class Expense extends Model
         'category',
         'group_name',
         'amount',
+        'tax_amount',
+        'address',
         'recurring_frequency',
         'recurring_starts_on',
         'recurring_ends_on',
@@ -49,6 +51,7 @@ class Expense extends Model
         return [
             'spent_on' => 'date',
             'amount' => 'decimal:2',
+            'tax_amount' => 'decimal:2',
             'recurring_starts_on' => 'date',
             'recurring_ends_on' => 'date',
         ];

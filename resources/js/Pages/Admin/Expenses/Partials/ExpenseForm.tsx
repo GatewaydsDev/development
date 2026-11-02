@@ -47,6 +47,8 @@ export type ExpenseRecord = {
     category_label: string;
     group_name: string;
     amount: string;
+    tax_amount?: string | null;
+    address?: string | null;
     recurring_frequency?: string;
     recurring_starts_on?: string | null;
     recurring_ends_on?: string | null;
@@ -216,6 +218,8 @@ function expenseFieldErrors(
         category: string;
         group_name: string;
         amount: string;
+        tax_amount: string;
+        address: string;
         recurring_frequency: string;
         recurring_starts_on: string;
         recurring_ends_on: string;
@@ -504,6 +508,8 @@ export default function ExpenseForm({
         category: expense?.category || 'course',
         group_name: expense?.group_name ?? '',
         amount: expense?.amount ?? '',
+        tax_amount: expense?.tax_amount ?? '',
+        address: expense?.address ?? '',
         recurring_frequency: expense?.recurring_frequency ?? '',
         recurring_starts_on: expense?.recurring_starts_on ?? '',
         recurring_ends_on: expense?.recurring_ends_on ?? '',
@@ -561,10 +567,68 @@ export default function ExpenseForm({
         scannerRef.current?.getTracks().forEach((track) => track.stop());
     }, []);
 
+    const [scanNote, setScanNote] = useState<string | null>(null);
+
+    const readReceipt = async (file: File) => {
+        if (!file.type.startsWith('image/')) {
+            return;
+        }
+
+        setScanNote('Reading the receipt…');
+
+        try {
+            const token = decodeURIComponent(document.cookie.split('; ').find((row) => row.startsWith('XSRF-TOKEN='))?.split('=')[1] ?? '');
+            const body = new FormData();
+            body.append('receipt', file);
+            const response = await fetch(route('admin.expenses.scan'), {
+                method: 'POST',
+                headers: { Accept: 'application/json', 'X-XSRF-TOKEN': token },
+                credentials: 'same-origin',
+                body,
+            });
+            const json = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                setScanNote(json.message ?? 'Could not read the receipt. Fill the details by hand.');
+
+                return;
+            }
+
+            const found = (json.fields ?? {}) as Record<string, string>;
+
+            form.setData((data) => {
+                const next = { ...data };
+                const fill = (key: 'amount' | 'tax_amount' | 'address' | 'payee') => {
+                    if (found[key] && String(data[key]).trim() === '') {
+                        next[key] = found[key];
+                    }
+                };
+
+                if (found.spent_on && !expense && data.spent_on === today()) {
+                    next.spent_on = found.spent_on;
+                }
+
+                fill('amount');
+                fill('tax_amount');
+                fill('address');
+                fill('payee');
+
+                return next;
+            });
+
+            setScanNote(Object.keys(found).length === 0
+                ? 'Could not find details on this picture. Fill them by hand.'
+                : 'Receipt read. Please check the details before saving.');
+        } catch {
+            setScanNote('Could not read the receipt. Fill the details by hand.');
+        }
+    };
+
     const attachReceipt = (file: File) => {
         void shrinkReceiptPhoto(file).then((next) => {
             form.setData('receipt', next);
             form.setData('remove_receipt', false);
+            void readReceipt(next);
         });
     };
 
@@ -894,6 +958,31 @@ export default function ExpenseForm({
                                 </Button>
                             </div>
                         </div>
+                        <div className="grid gap-3 sm:grid-cols-3">
+                            <label className="grid gap-2 text-sm font-medium text-foreground">
+                                Tax (optional)
+                                <MaskedDecimalInput
+                                    id="expense-tax"
+                                    value={form.data.tax_amount}
+                                    prefix="$"
+                                    placeholder="0.00"
+                                    className="h-11 w-full text-base text-foreground md:text-sm"
+                                    onChange={(value) => form.setData('tax_amount', value)}
+                                />
+                                <InputError message={form.errors.tax_amount} />
+                            </label>
+                            <label className="grid gap-2 text-sm font-medium text-foreground sm:col-span-2">
+                                Store address (optional)
+                                <input
+                                    value={form.data.address}
+                                    onChange={(event) => form.setData('address', event.target.value)}
+                                    maxLength={255}
+                                    placeholder="Street, city, state, zip"
+                                    className={fieldClass}
+                                />
+                                <InputError message={form.errors.address} />
+                            </label>
+                        </div>
                         <div className="grid gap-3 rounded-lg border border-border bg-background p-3">
                             <label className="flex items-center gap-2 text-sm font-medium text-foreground">
                                 <input
@@ -1026,6 +1115,7 @@ export default function ExpenseForm({
                                     />
                                 ) : null}
                                 <InputError message={form.errors.receipt} />
+                                {scanNote ? <p className="text-sm text-muted-foreground" role="status">{scanNote}</p> : null}
                                 {expense?.receipt_name ? (
                                     <label className="inline-flex min-h-11 items-center gap-2 text-sm text-foreground">
                                         <input

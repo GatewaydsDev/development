@@ -7,8 +7,10 @@ use App\Models\Expense;
 use App\Models\User;
 use App\Models\UserLevel;
 use App\Services\MicrosoftGraphMailService;
+use App\Services\ReceiptScanService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -579,4 +581,29 @@ test('a recurring expense needs a start date and the end cannot be before it', f
     $this->actingAs($admin)->post(route('admin.expenses.store'), $base + [
         'recurring_starts_on' => '2026-10-16', 'recurring_ends_on' => '2026-09-01',
     ])->assertSessionHasErrors('recurring_ends_on');
+});
+
+test('a receipt picture is read into date, total, tax, address and store', function () {
+    config(['services.ai.base_url' => 'https://ai.test/v1', 'services.ai.model' => 'vision']);
+    Http::fake(['ai.test/*' => Http::response(['choices' => [['message' => ['content' => "```json\n{\"date\":\"2026-10-30\",\"total\":\"\$54.21\",\"tax\":4.01,\"address\":\"12 Main St, Austin, TX 78701\",\"store\":\"Home Depot\"}\n```"]]]])]);
+
+    $this->actingAs(expenseAdmin())
+        ->post(route('admin.expenses.scan'), ['receipt' => UploadedFile::fake()->image('r.jpg')], ['Accept' => 'application/json'])
+        ->assertOk()
+        ->assertJsonPath('fields', [
+            'spent_on' => '2026-10-30', 'amount' => '54.21', 'tax_amount' => '4.01',
+            'address' => '12 Main St, Austin, TX 78701', 'payee' => 'Home Depot',
+        ]);
+});
+
+test('an unreadable receipt returns no fields and tax and address are saved', function () {
+    expect((new ReceiptScanService)->parse('sorry, cannot read'))->toBe([])
+        ->and((new ReceiptScanService)->parse('{"date":"2026-13-40","total":null}'))->toBe([]);
+
+    $this->actingAs(expenseAdmin())->post(route('admin.expenses.store'), [
+        'spent_on' => '2026-10-30', 'payee' => 'Co', 'person_name' => 'Alex', 'description' => 'Parts',
+        'category' => 'software', 'amount' => '54.21', 'tax_amount' => '4.01', 'address' => '12 Main St',
+    ])->assertRedirect();
+
+    expect(Expense::firstOrFail())->tax_amount->toBe('4.01')->address->toBe('12 Main St');
 });

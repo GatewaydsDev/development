@@ -280,6 +280,7 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::get('/expenses/share', [ExpenseController::class, 'shareGroup'])->name('expenses.share');
         Route::post('/expenses/share', [ExpenseController::class, 'share'])->name('expenses.share.store');
         Route::get('/expenses/create', [ExpenseController::class, 'create'])->name('expenses.create');
+        Route::post('/expenses/scan', [ExpenseController::class, 'scan'])->name('expenses.scan');
         Route::post('/expenses', [ExpenseController::class, 'store'])->name('expenses.store');
         Route::get('/expenses/{expense}/edit', [ExpenseController::class, 'edit'])->name('expenses.edit');
         Route::post('/expenses/{expense}', [ExpenseController::class, 'update'])->name('expenses.update');

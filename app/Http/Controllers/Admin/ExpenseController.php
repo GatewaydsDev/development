@@ -8,6 +8,8 @@ use App\Models\Contact;
 use App\Models\Expense;
 use App\Models\ExpensePayment;
 use App\Models\User;
+use App\Exceptions\AiDraftException;
+use App\Services\ReceiptScanService;
 use App\Support\ExpenseReceiptFile;
 use App\Support\ExpenseShareMail;
 use Illuminate\Database\Eloquent\Builder;
@@ -89,6 +91,18 @@ class ExpenseController extends Controller
                 ->withQueryString()
                 ->through(fn (Expense $expense): array => $this->payload($expense)),
         ]);
+    }
+
+    public function scan(Request $request, ReceiptScanService $scanner): JsonResponse
+    {
+        $this->authorizeExpenses($request);
+        $request->validate(['receipt' => ['required', 'file', 'mimes:jpeg,jpg,png,webp,gif', 'max:5120']]);
+
+        try {
+            return response()->json(['fields' => $scanner->scan($request->file('receipt'))]);
+        } catch (AiDraftException $exception) {
+            return response()->json(['message' => $exception->getMessage()], $exception->status);
+        }
     }
 
     public function create(Request $request): Response
@@ -295,6 +309,8 @@ class ExpenseController extends Controller
             'category' => ['required', 'string', 'max:80'],
             'group_name' => ['nullable', 'string', 'max:160'],
             'amount' => ['required', 'numeric', 'min:0.01', 'max:99999999.99'],
+            'tax_amount' => ['nullable', 'numeric', 'min:0', 'max:99999999.99'],
+            'address' => ['nullable', 'string', 'max:255'],
             'recurring_frequency' => ['nullable', Rule::in(array_keys(Expense::FREQUENCIES))],
             'recurring_starts_on' => ['nullable', 'required_with:recurring_frequency', 'date'],
             'recurring_ends_on' => ['nullable', 'date', 'after_or_equal:recurring_starts_on'],
@@ -338,6 +354,8 @@ class ExpenseController extends Controller
                 'category' => $this->categoryValue(trim($validated['category'])),
                 'group_name' => $groupName === '' ? null : $groupName,
                 'amount' => number_format((float) $validated['amount'], 2, '.', ''),
+                'tax_amount' => filled($validated['tax_amount'] ?? null) ? number_format((float) $validated['tax_amount'], 2, '.', '') : null,
+                'address' => filled($validated['address'] ?? null) ? trim($validated['address']) : null,
                 'recurring_frequency' => $recurring ? $validated['recurring_frequency'] : null,
                 'recurring_starts_on' => $recurring ? $validated['recurring_starts_on'] : null,
                 'recurring_ends_on' => $recurring ? ($validated['recurring_ends_on'] ?? null) : null,
@@ -614,6 +632,8 @@ class ExpenseController extends Controller
             'category_label' => Expense::CATEGORIES[$expense->category] ?? $expense->category,
             'group_name' => $expense->group_name ?: '',
             'amount' => $expense->amount,
+            'tax_amount' => $expense->tax_amount ?? '',
+            'address' => $expense->address ?: '',
             'recurring_frequency' => $expense->recurring_frequency ?: '',
             'recurring_label' => $expense->recurring_frequency
                 ? (Expense::FREQUENCIES[$expense->recurring_frequency] ?? $expense->recurring_frequency)
