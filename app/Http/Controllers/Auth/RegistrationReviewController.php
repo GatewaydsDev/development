@@ -49,7 +49,7 @@ class RegistrationReviewController extends Controller
             return back()->withErrors(['role' => 'The email to the new user could not be sent. Try again.']);
         }
 
-        return redirect()->route('dashboard')
+        return $this->done($request)
             ->with('status', 'Approved. A sign-up link valid for '.RegistrationApproval::ACCESS_MINUTES.' minutes was sent to '.$registration->email.'.');
     }
 
@@ -61,6 +61,13 @@ class RegistrationReviewController extends Controller
             $approval->deny($registration);
         }
 
-        return redirect()->route('dashboard')->with('status', 'Request from '.$registration->email.' was denied.');
+        return $this->done($request)->with('status', 'Request from '.$registration->email.' was denied.');
+    }
+
+    private function done(Request $request): RedirectResponse
+    {
+        return $request->input('return') === 'users'
+            ? redirect()->route('admin.users.index')
+            : redirect()->route('dashboard');
     }
 }

@@ -226,3 +226,22 @@ test('built-in robot check blocks wrong, missing and reused answers', function (
     $fresh = \Illuminate\Support\Facades\Crypt::encryptString(json_encode(['answer' => 5, 'at' => time(), 'id' => uniqid()]));
     $this->post('/register', $payload($fresh, 5))->assertSessionHasErrors('captcha');
 });
+
+test('super admin sees pending sign-up requests on user management and can approve there', function () {
+    fakeMail();
+    $admin = ricardo();
+    $this->post('/register', ['name' => 'New Person', 'email' => 'new@example.com']);
+    $registration = RegistrationRequest::first();
+
+    $this->actingAs($admin)->get(route('admin.users.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('registrationRequests', 1)
+            ->where('registrationRequests.0.email', 'new@example.com'));
+
+    $this->actingAs($admin)
+        ->post(route('register.approve', $registration), ['role' => 'project_manager', 'return' => 'users'])
+        ->assertRedirect(route('admin.users.index'));
+
+    $this->actingAs($admin)->get(route('admin.users.index'))
+        ->assertInertia(fn (Assert $page) => $page->has('registrationRequests', 0));
+});

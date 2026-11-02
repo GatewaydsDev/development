@@ -8,7 +8,9 @@ use App\Models\Language;
 use App\Models\Profession;
 use App\Models\LoginBlockLog;
 use App\Models\User;
+use App\Models\RegistrationRequest;
 use App\Support\LoginLockout;
+use App\Support\RegistrationApproval;
 use App\Models\UserEmail;
 use App\Models\UserLevel;
 use App\Models\UserPhone;
@@ -62,7 +64,25 @@ class UserController extends Controller
             ? LoginBlockLog::query()->latest('blocked_at')->get()->groupBy('user_id')
             : collect();
 
+        $isSuperAdmin = (bool) $request->user()?->isSuperAdmin();
+
         return Inertia::render('Admin/Users/Index', [
+            'registrationRequests' => $isSuperAdmin
+                ? RegistrationRequest::query()
+                    ->where('status', RegistrationRequest::PENDING)
+                    ->oldest()
+                    ->get()
+                    ->map(fn (RegistrationRequest $registration): array => [
+                        'id' => $registration->id,
+                        'name' => $registration->name,
+                        'email' => $registration->email,
+                        'ip_address' => $registration->ip_address,
+                        'requested_at' => $registration->created_at?->format('M j, Y g:i A'),
+                        'approve_url' => route('register.approve', $registration),
+                        'deny_url' => route('register.deny', $registration),
+                    ])->all()
+                : [],
+            'registrationLevels' => $isSuperAdmin ? RegistrationApproval::levelOptions() : [],
             'blockLogs' => $canSeeHistory
                 ? LoginBlockLog::query()->latest('blocked_at')->limit(25)->get()
                     ->map(fn (LoginBlockLog $log): array => $this->blockLogPayload($log))->all()

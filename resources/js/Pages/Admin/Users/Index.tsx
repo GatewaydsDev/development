@@ -105,7 +105,113 @@ type IndexProps = {
     };
     users: UsersPaginator;
     blockLogs?: BlockLog[];
+    registrationRequests?: RegistrationRequestRow[];
+    registrationLevels?: { role: string; label: string }[];
 };
+
+type RegistrationRequestRow = {
+    id: number;
+    name: string;
+    email: string;
+    ip_address: string | null;
+    requested_at: string | null;
+    approve_url: string;
+    deny_url: string;
+};
+
+function RegistrationRequests({
+    requests,
+    levels,
+}: {
+    requests: RegistrationRequestRow[];
+    levels: { role: string; label: string }[];
+}) {
+    const [roles, setRoles] = useState<Record<number, string>>({});
+    const [busy, setBusy] = useState<number | null>(null);
+
+    const act = (request: RegistrationRequestRow, approve: boolean) => {
+        setBusy(request.id);
+        router.post(
+            approve ? request.approve_url : request.deny_url,
+            approve
+                ? { role: roles[request.id], return: 'users' }
+                : { return: 'users' },
+            { preserveScroll: true, onFinish: () => setBusy(null) },
+        );
+    };
+
+    return (
+        <Card className="border-amber-300 dark:border-amber-500/40">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <UserPlusIcon className="size-5 text-amber-500" />
+                    Sign-up requests
+                    <Badge variant="secondary">{requests.length}</Badge>
+                </CardTitle>
+                <CardDescription>
+                    Choose an access level to approve. The person gets a
+                    sign-up link by email.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+                {requests.map((request) => (
+                    <div
+                        key={request.id}
+                        className="flex flex-col gap-3 rounded-md border border-border p-3 lg:flex-row lg:items-center lg:justify-between"
+                    >
+                        <div className="min-w-0">
+                            <p className="font-medium">{request.name}</p>
+                            <p className="truncate text-sm text-muted-foreground">
+                                {request.email}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                                {request.requested_at}
+                                {request.ip_address
+                                    ? ` · ${request.ip_address}`
+                                    : ''}
+                            </p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <select
+                                aria-label={`Access level for ${request.name}`}
+                                className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                                value={roles[request.id] ?? ''}
+                                onChange={(event) =>
+                                    setRoles({
+                                        ...roles,
+                                        [request.id]: event.target.value,
+                                    })
+                                }
+                            >
+                                <option value="">Select level…</option>
+                                {levels.map((level) => (
+                                    <option key={level.role} value={level.role}>
+                                        {level.label}
+                                    </option>
+                                ))}
+                            </select>
+                            <Button
+                                size="sm"
+                                disabled={busy === request.id || !roles[request.id]}
+                                onClick={() => act(request, true)}
+                            >
+                                Approve
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={busy === request.id}
+                                onClick={() => act(request, false)}
+                            >
+                                Deny
+                            </Button>
+                        </div>
+                    </div>
+                ))}
+            </CardContent>
+        </Card>
+    );
+}
 
 function BlockLogTable({ logs }: { logs: BlockLog[] }) {
     return (
@@ -333,7 +439,13 @@ const AVATAR_TONES = [
 
 const avatarTone = (id: number) => AVATAR_TONES[id % AVATAR_TONES.length];
 
-export default function Index({ filters, users, blockLogs }: IndexProps) {
+export default function Index({
+    filters,
+    users,
+    blockLogs,
+    registrationRequests = [],
+    registrationLevels = [],
+}: IndexProps) {
     const { auth } = usePage<PageProps>().props;
     const canCreateUsers = Boolean(auth.can?.createUsers);
     const canUpdateUsers = Boolean(auth.can?.updateUsers);
@@ -388,6 +500,12 @@ export default function Index({ filters, users, blockLogs }: IndexProps) {
 
             <div className="py-6 sm:py-8">
                 <div className="mx-auto flex max-w-[96rem] flex-col gap-6 px-4 sm:px-6 lg:px-8">
+                    {registrationRequests.length > 0 && (
+                        <RegistrationRequests
+                            requests={registrationRequests}
+                            levels={registrationLevels}
+                        />
+                    )}
                     <div className="grid gap-4 sm:grid-cols-3">
                         <Card size="sm" className="border-l-4 border-l-emerald-500">
                             <CardHeader>
