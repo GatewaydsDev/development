@@ -176,14 +176,14 @@ export default function Home({
                 </div>
             </section>
 
-            <section className="border-b border-[#111827]/10 bg-[#F3F4F6]" aria-label={t('publicSite.strip.area')}>
+            <section className="border-b border-border bg-muted" aria-label={t('publicSite.strip.area')}>
                 <div className="mx-auto grid max-w-7xl gap-4 px-4 py-8 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:px-8">
                     {(['specialty', 'supply', 'area'] as const).map((item) => (
-                        <p key={item} className="text-sm font-semibold leading-6 text-[#111827]">
+                        <p key={item} className="text-sm font-semibold leading-6 text-foreground">
                             {t(`publicSite.strip.${item}`)}
                         </p>
                     ))}
-                    <p className="text-sm leading-6 text-[#111827]/80">
+                    <p className="text-sm leading-6 text-foreground/80">
                         <Link href={route('certifications')} className="underline decoration-[#3FCF8E] underline-offset-4">
                             {t('publicSite.strip.credential')}
                         </Link>
@@ -191,14 +191,14 @@ export default function Home({
                 </div>
             </section>
 
-            <section className="bg-white">
+            <section className="bg-background">
                 <a id="doors" name="doors" className="sr-only scroll-mt-24" />
                 <span id="services" className="sr-only" />
                 <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
-                    <h2 className="text-3xl font-semibold tracking-tight text-[#111827]">
+                    <h2 className="text-3xl font-semibold tracking-tight text-foreground">
                         {t('publicSite.categories.title')}
                     </h2>
-                    <p className="mt-3 max-w-2xl text-base leading-7 text-[#111827]/70">
+                    <p className="mt-3 max-w-2xl text-base leading-7 text-muted-foreground">
                         {t('publicSite.categories.description')}
                     </p>
                     <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -211,7 +211,7 @@ export default function Home({
                                 : title;
 
                             return (
-                            <article key={category.key} className="flex flex-col overflow-hidden border border-[#111827]/10 bg-white">
+                            <article key={category.key} className="flex flex-col overflow-hidden border border-border bg-card">
                                 <ServiceVisual
                                     src={src}
                                     alt={alt}
@@ -221,15 +221,15 @@ export default function Home({
                                     className="aspect-[16/10]"
                                 />
                                 <div className="flex flex-1 flex-col p-5">
-                                    <h3 className="text-lg font-semibold text-[#111827]">
+                                    <h3 className="text-lg font-semibold text-foreground">
                                         {title}
                                     </h3>
-                                    <p className="mt-2 flex-1 text-sm leading-6 text-[#111827]/70">
+                                    <p className="mt-2 flex-1 text-sm leading-6 text-muted-foreground">
                                         {t(`publicSite.categories.${category.key}.description`)}
                                     </p>
                                     <Link
                                         href={category.href}
-                                        className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-[#111827] underline decoration-[#3FCF8E] underline-offset-4"
+                                        className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-foreground underline decoration-[#3FCF8E] underline-offset-4"
                                     >
                                         {t('publicSite.categories.view')}
                                     </Link>
@@ -241,30 +241,30 @@ export default function Home({
                 </div>
             </section>
 
-            <section className="bg-[#F3F4F6]">
+            <section className="bg-muted">
                 <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-                    <h2 className="text-3xl font-semibold tracking-tight text-[#111827]">
+                    <h2 className="text-3xl font-semibold tracking-tight text-foreground">
                         {t('publicSite.manufacturers.title')}
                     </h2>
-                    <p className="mt-3 max-w-2xl text-base leading-7 text-[#111827]/70">
+                    <p className="mt-3 max-w-2xl text-base leading-7 text-muted-foreground">
                         {t('publicSite.manufacturers.description')}
                     </p>
                     <ul className="mt-8 grid gap-4 sm:grid-cols-3">
                         {['Allegion', 'Krieger', 'Lockmasters'].map((name) => (
-                            <li key={name} className="border border-[#111827]/10 bg-white px-5 py-6 text-xl font-semibold text-[#111827]">
+                            <li key={name} className="border border-border bg-card px-5 py-6 text-xl font-semibold text-foreground">
                                 {name}
                             </li>
                         ))}
                     </ul>
-                    <p className="mt-4 max-w-2xl text-sm leading-6 text-[#111827]/70">
+                    <p className="mt-4 max-w-2xl text-sm leading-6 text-muted-foreground">
                         {t('publicSite.manufacturers.note')}
                     </p>
 
-                    <div className="mt-14 border-t border-[#111827]/10 pt-14">
-                        <h2 className="text-3xl font-semibold tracking-tight text-[#111827]">
+                    <div className="mt-14 border-t border-border pt-14">
+                        <h2 className="text-3xl font-semibold tracking-tight text-foreground">
                             {tCertifications('preview.title')}
                         </h2>
-                        <p className="mt-3 max-w-2xl text-base leading-7 text-[#111827]/70">
+                        <p className="mt-3 max-w-2xl text-base leading-7 text-muted-foreground">
                             {tCertifications('preview.description')}
                         </p>
                         <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -278,7 +278,7 @@ export default function Home({
                         </div>
                         <Link
                             href={route('certifications')}
-                            className="mt-6 inline-flex min-h-11 items-center text-sm font-semibold text-[#111827] underline decoration-[#3FCF8E] underline-offset-4"
+                            className="mt-6 inline-flex min-h-11 items-center text-sm font-semibold text-foreground underline decoration-[#3FCF8E] underline-offset-4"
                         >
                             {tCertifications('preview.viewAll')}
                         </Link>
@@ -286,12 +286,12 @@ export default function Home({
                 </div>
             </section>
 
-            <section id="projects" className="scroll-mt-24 bg-white">
+            <section id="projects" className="scroll-mt-24 bg-background">
                 <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-                    <h2 className="text-3xl font-semibold tracking-tight text-[#111827]">
+                    <h2 className="text-3xl font-semibold tracking-tight text-foreground">
                         {t('publicSite.projects.title')}
                     </h2>
-                    <p className="mt-3 max-w-3xl text-base leading-7 text-[#111827]/70">
+                    <p className="mt-3 max-w-3xl text-base leading-7 text-muted-foreground">
                         {t('publicSite.projects.description')}
                     </p>
                 </div>
@@ -320,13 +320,13 @@ export default function Home({
                 </div>
             </section>
 
-            <section id="quote" className="scroll-mt-24 bg-[#F3F4F6]">
+            <section id="quote" className="scroll-mt-24 bg-muted">
                 <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-16 sm:px-6 lg:flex-row lg:items-end lg:justify-between lg:px-8 lg:py-20">
                     <div className="max-w-2xl">
-                        <h2 className="text-3xl font-semibold tracking-tight text-[#111827]">
+                        <h2 className="text-3xl font-semibold tracking-tight text-foreground">
                             {t('publicSite.quote.title')}
                         </h2>
-                        <p className="mt-3 text-base leading-7 text-[#111827]/70">
+                        <p className="mt-3 text-base leading-7 text-muted-foreground">
                             {t('publicSite.quote.description')}
                         </p>
                     </div>

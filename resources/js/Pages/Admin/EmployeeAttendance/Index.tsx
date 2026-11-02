@@ -23,11 +23,16 @@ import { formatCurrency } from '@/lib/money';
 import { PageProps } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
+    BriefcaseIcon,
     CalendarDaysIcon,
+    CheckCircle2Icon,
+    ClockIcon,
+    DollarSignIcon,
     PencilIcon,
     PlusIcon,
     SearchIcon,
     Trash2Icon,
+    UserRoundIcon,
     UsersIcon,
 } from 'lucide-react';
 import {
@@ -62,12 +67,14 @@ function DateChoice({
     defaultValue,
     inputRef,
     onChange,
+    tone,
 }: {
     id: string;
     name: string;
     defaultValue: string;
     inputRef: RefObject<HTMLInputElement | null>;
     onChange: (value: string) => void;
+    tone: string;
 }) {
     const openPicker = () => {
         const input = inputRef.current;
@@ -90,7 +97,7 @@ function DateChoice({
     };
 
     return (
-        <div className="flex h-11 overflow-hidden rounded-md border border-border bg-background">
+        <div className="relative">
             <input
                 ref={inputRef}
                 id={id}
@@ -98,17 +105,57 @@ function DateChoice({
                 type="date"
                 defaultValue={defaultValue}
                 onChange={(event) => onChange(event.target.value)}
-                className="h-11 min-w-0 flex-1 bg-transparent px-3 text-sm text-foreground focus:outline-none dark:[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:hidden"
+                className="h-11 w-full rounded-md border border-border bg-background px-3 pr-11 text-sm text-foreground shadow-sm transition focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring dark:[color-scheme:dark] [&::-webkit-calendar-picker-indicator]:hidden"
             />
             <button
                 type="button"
                 onClick={openPicker}
                 aria-label="Choose date"
-                className="flex w-11 shrink-0 items-center justify-center border-l border-border text-muted-foreground hover:bg-muted/60"
+                className={`absolute right-1.5 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-md transition ${tone}`}
             >
                 <CalendarDaysIcon className="size-4" />
             </button>
         </div>
+    );
+}
+
+function IconTile({
+    icon: Icon,
+    tone,
+    className = 'size-6',
+}: {
+    icon: typeof ClockIcon;
+    tone: string;
+    className?: string;
+}) {
+    return (
+        <span
+            className={`flex shrink-0 items-center justify-center rounded-md ${tone} ${className}`}
+        >
+            <Icon className="size-3.5" />
+        </span>
+    );
+}
+
+function FilterLabel({
+    htmlFor,
+    icon,
+    tone,
+    children,
+}: {
+    htmlFor: string;
+    icon: typeof ClockIcon;
+    tone: string;
+    children: string;
+}) {
+    return (
+        <label
+            htmlFor={htmlFor}
+            className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground"
+        >
+            <IconTile icon={icon} tone={tone} />
+            {children}
+        </label>
     );
 }
 
@@ -169,23 +216,49 @@ function ScheduleDay({
             <p
                 className={
                     day
-                        ? 'truncate font-medium text-foreground'
+                        ? 'flex items-center gap-1.5 truncate font-medium text-foreground'
                         : 'truncate text-muted-foreground'
                 }
             >
-                {day ? (day.skill?.name ?? day.profession?.name ?? 'Skill') : 'Off'}
+                {day ? (
+                    <BriefcaseIcon className="size-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                ) : null}
+                <span className="truncate">
+                    {day ? (day.skill?.name ?? day.profession?.name ?? 'Skill') : 'Off'}
+                </span>
             </p>
-            <p className="truncate text-xs text-muted-foreground">
-                {day?.rate_label ?? '\u00a0'}
+            <p className="flex items-center gap-1.5 truncate text-xs text-muted-foreground">
+                {day ? (
+                    <DollarSignIcon className="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                ) : null}
+                <span className="truncate">{day?.rate_label ?? '\u00a0'}</span>
             </p>
-            <p className="truncate text-xs text-muted-foreground">
-                {day?.rate_type === 'hourly' && hoursLabel(day.hours)
-                    ? hoursLabel(day.hours)
-                    : '\u00a0'}
+            <p className="flex items-center gap-1.5 truncate text-xs text-muted-foreground">
+                {day?.rate_type === 'hourly' && hoursLabel(day.hours) ? (
+                    <>
+                        <ClockIcon className="size-3.5 shrink-0 text-sky-600 dark:text-sky-400" />
+                        <span className="truncate">{hoursLabel(day.hours)}</span>
+                    </>
+                ) : (
+                    '\u00a0'
+                )}
             </p>
             <div className="flex min-h-6 flex-wrap items-center gap-1">
-                {day?.scheduled ? <Badge variant="outline">Schedule</Badge> : null}
-                {day?.worked ? <Badge>Worked</Badge> : null}
+                {day?.scheduled ? (
+                    <Badge
+                        variant="outline"
+                        className="gap-1 border-sky-300 text-sky-700 dark:border-sky-800 dark:text-sky-300"
+                    >
+                        <CalendarDaysIcon className="size-3" />
+                        Schedule
+                    </Badge>
+                ) : null}
+                {day?.worked ? (
+                    <Badge className="gap-1 bg-emerald-600 text-white hover:bg-emerald-600">
+                        <CheckCircle2Icon className="size-3" />
+                        Worked
+                    </Badge>
+                ) : null}
             </div>
             <p className="truncate text-xs text-muted-foreground">
                 {day?.notes ?? '\u00a0'}
@@ -312,7 +385,7 @@ export default function Index({ filters, weeks }: IndexProps) {
                         <div className="flex flex-wrap gap-2">
                             <Button variant="outline" asChild>
                                 <Link href={route('admin.employee-attendance.bulk')}>
-                                    <UsersIcon className="size-4" />
+                                    <UsersIcon className="size-4 text-indigo-600 dark:text-indigo-400" />
                                     Add several
                                 </Link>
                             </Button>
@@ -333,25 +406,34 @@ export default function Index({ filters, weeks }: IndexProps) {
                 <div className="mx-auto flex max-w-[96rem] flex-col gap-6 px-4 sm:px-6 lg:px-8">
                     <Card className="shadow-sm">
                         <CardHeader className="gap-4">
-                            <div>
-                                <CardTitle>Work weeks</CardTitle>
-                                <CardDescription>
-                                    Monday through Saturday. Schedule each day
-                                    with the employee&apos;s skill and rate,
-                                    then record the days actually worked.
-                                </CardDescription>
+                            <div className="flex items-start gap-3">
+                                <IconTile
+                                    icon={CalendarDaysIcon}
+                                    tone="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                                    className="size-10 rounded-lg"
+                                />
+                                <div>
+                                    <CardTitle>Work weeks</CardTitle>
+                                    <CardDescription>
+                                        Monday through Saturday. Schedule each
+                                        day with the employee&apos;s skill and
+                                        rate, then record the days actually
+                                        worked.
+                                    </CardDescription>
+                                </div>
                             </div>
                             <form
                                 onSubmit={submit}
                                 className="grid gap-3 border-t border-border pt-4 sm:grid-cols-2 lg:grid-cols-[minmax(16rem,1.4fr)_minmax(13rem,1fr)_minmax(13rem,1fr)_auto] lg:items-end"
                             >
                                 <div className="flex flex-col gap-1.5 sm:col-span-2 lg:col-span-1">
-                                    <label
+                                    <FilterLabel
                                         htmlFor="attendance-search"
-                                        className="text-xs font-medium text-muted-foreground"
+                                        icon={UserRoundIcon}
+                                        tone="bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
                                     >
                                         Employee
-                                    </label>
+                                    </FilterLabel>
                                     <div className="relative">
                                         <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                                         <input
@@ -366,33 +448,37 @@ export default function Index({ filters, weeks }: IndexProps) {
                                     </div>
                                 </div>
                                 <div className="flex flex-col gap-1.5">
-                                    <label
+                                    <FilterLabel
                                         htmlFor="attendance-from"
-                                        className="text-xs font-medium text-muted-foreground"
+                                        icon={CalendarDaysIcon}
+                                        tone="bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300"
                                     >
                                         Start date
-                                    </label>
+                                    </FilterLabel>
                                     <DateChoice
                                         id="attendance-from"
                                         name="from"
                                         defaultValue={filters.from ?? ''}
                                         inputRef={fromRef}
                                         onChange={setFrom}
+                                        tone="text-sky-600 hover:bg-sky-100 dark:text-sky-400 dark:hover:bg-sky-950"
                                     />
                                 </div>
                                 <div className="flex flex-col gap-1.5">
-                                    <label
+                                    <FilterLabel
                                         htmlFor="attendance-to"
-                                        className="text-xs font-medium text-muted-foreground"
+                                        icon={CalendarDaysIcon}
+                                        tone="bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300"
                                     >
                                         End date
-                                    </label>
+                                    </FilterLabel>
                                     <DateChoice
                                         id="attendance-to"
                                         name="to"
                                         defaultValue={filters.to ?? ''}
                                         inputRef={toRef}
                                         onChange={setTo}
+                                        tone="text-rose-600 hover:bg-rose-100 dark:text-rose-400 dark:hover:bg-rose-950"
                                     />
                                 </div>
                                 <div className="flex gap-2 sm:col-span-2 lg:col-span-1">
@@ -476,13 +562,29 @@ export default function Index({ filters, weeks }: IndexProps) {
                                             >
                                                 <div className="row-span-6 px-3 py-4">
                                                     <div className="flex items-start gap-2">
-                                                        <CalendarDaysIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                                                        <IconTile
+                                                            icon={UserRoundIcon}
+                                                            tone="bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
+                                                        />
                                                         <p className="break-words font-semibold text-foreground">
                                                             {attendanceWeek.employee
                                                                 ?.full_name ??
                                                                 'Employee removed'}
                                                         </p>
                                                     </div>
+                                                    {attendanceWeek.employee?.skills?.length ? (
+                                                        <div className="mt-2 flex flex-wrap gap-1">
+                                                            {attendanceWeek.employee.skills.map((skill) => (
+                                                                <span
+                                                                    key={skill}
+                                                                    className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[0.65rem] font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                                                                >
+                                                                    <BriefcaseIcon className="size-3" />
+                                                                    {skill}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    ) : null}
                                                     {attendanceWeek.notes ? (
                                                         <p className="mt-2 break-words text-xs text-muted-foreground">
                                                             {attendanceWeek.notes}
@@ -508,10 +610,15 @@ export default function Index({ filters, weeks }: IndexProps) {
                                                         {attendanceWeek.worked_count}{' '}
                                                         worked
                                                     </p>
-                                                    <p className="mt-3 text-xs">
+                                                    <p className="mt-3 flex items-center gap-1.5 text-xs">
+                                                        <IconTile
+                                                            icon={DollarSignIcon}
+                                                            tone="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                                                            className="size-5"
+                                                        />
                                                         Week total
                                                     </p>
-                                                    <p className="font-semibold text-foreground">
+                                                    <p className="font-semibold text-emerald-700 dark:text-emerald-300">
                                                         {formatCurrency(
                                                             attendanceWeek.pay_total,
                                                         )}
@@ -534,8 +641,9 @@ export default function Index({ filters, weeks }: IndexProps) {
                                                 <div className="row-span-6 flex justify-end gap-2 px-3 py-4">
                                                     {canUpdate && (
                                                         <Button
-                                                            variant="default"
+                                                            variant="outline"
                                                             size="icon-sm"
+                                                            className="border-amber-200 text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:border-amber-800/60 dark:text-amber-400 dark:hover:bg-amber-950/40"
                                                             asChild
                                                         >
                                                             <Link
@@ -552,8 +660,9 @@ export default function Index({ filters, weeks }: IndexProps) {
                                                     {canDelete && (
                                                         <Button
                                                             type="button"
-                                                            variant="destructive"
+                                                            variant="outline"
                                                             size="icon-sm"
+                                                            className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
                                                             aria-label="Remove attendance"
                                                             onClick={() =>
                                                                 setPendingDelete(

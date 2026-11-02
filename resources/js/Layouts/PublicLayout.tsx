@@ -417,9 +417,14 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                 <div
                     className={cn(
                         showingNavigationDropdown && !desktopNavFits ? 'flex' : 'hidden',
-                        'min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain border-t border-white/10 bg-[#111827] text-white',
+                        'min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain border-t border-border bg-background text-foreground',
                     )}
                 >
+                    <div className="flex items-center justify-between gap-3 px-4 pt-4">
+                        <LanguageSwitcher />
+                        <ThemeModeToggle />
+                    </div>
+
                     <div className="grid grid-cols-1 gap-1 px-4 pb-3 pt-4">
                         <button
                             type="button"
@@ -438,18 +443,15 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                                 onClick={() =>
                                     setShowingNavigationDropdown(false)
                                 }
-                                className="flex min-h-11 items-center rounded-md px-3 py-2 text-base font-medium text-white hover:bg-white/10"
+                                className="flex min-h-11 items-center rounded-md px-3 py-2 text-base font-medium text-foreground hover:bg-muted"
                             >
                                 {t(item.labelKey)}
                             </Link>
                         ))}
 
-                        <div className="mt-2 rounded-xl border border-white/15 bg-white p-2 text-[#111827]">
-                            <p className="flex items-center gap-2 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-[#111827]/70">
-                                <WrenchIcon className="size-3.5" />
-                                {t('navigation.services')}
-                            </p>
+                        <div className="mt-2 rounded-xl border border-border bg-card p-2 text-card-foreground">
                             <PublicMobileServiceLinks
+                                key={String(showingNavigationDropdown)}
                                 onNavigate={() =>
                                     setShowingNavigationDropdown(false)
                                 }
@@ -457,14 +459,7 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                         </div>
                     </div>
 
-                    <div className="border-t border-white/10 px-4 pb-28 pt-4">
-                        <div className="mb-4">
-                            <div className="flex flex-wrap gap-3">
-                                <LanguageSwitcher onDarkHeader />
-                                <ThemeModeToggle onDarkHeader />
-                            </div>
-                        </div>
-
+                    <div className="border-t border-border px-4 pb-28 pt-4">
                         <div className="flex flex-col gap-2">
                             {auth.user ? (
                                 <Link
@@ -472,7 +467,7 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                                     onClick={() =>
                                         setShowingNavigationDropdown(false)
                                     }
-                                    className="group flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-base font-medium text-white transition hover:bg-white/10"
+                                    className="group flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-base font-medium text-foreground transition hover:bg-muted"
                                 >
                                     <LayoutDashboardIcon className="size-4 shrink-0 transition group-hover:animate-bell-shake group-focus-visible:animate-bell-shake" />
                                     {t('auth.dashboard')}
@@ -483,7 +478,7 @@ export default function PublicLayout({ children }: PropsWithChildren) {
                                     onClick={() =>
                                         setShowingNavigationDropdown(false)
                                     }
-                                    className="group flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-base font-medium text-white transition hover:bg-white/10"
+                                    className="group flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-base font-medium text-foreground transition hover:bg-muted"
                                 >
                                     <LogInIcon className="size-4 shrink-0 transition group-hover:animate-bell-shake group-focus-visible:animate-bell-shake" />
                                     {t('auth.login')}

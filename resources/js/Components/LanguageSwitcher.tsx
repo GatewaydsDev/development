@@ -32,7 +32,7 @@ export default function LanguageSwitcher({
         languages[0];
 
     return (
-        <DropdownMenu>
+        <DropdownMenu modal={false}>
             <DropdownMenuTrigger
                 aria-label={t('language.change')}
                 className={cn(
@@ -54,7 +54,11 @@ export default function LanguageSwitcher({
             <DropdownMenuContent
                 align="end"
                 sideOffset={8}
-                className={cn('w-56', onDarkHeader && darkHeaderMenuClass)}
+                collisionPadding={12}
+                className={cn(
+                    'w-44 max-h-[50dvh] sm:w-56',
+                    onDarkHeader && darkHeaderMenuClass,
+                )}
             >
                 <DropdownMenuLabel
                     className={onDarkHeader ? 'text-[#111827]/60' : undefined}

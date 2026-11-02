@@ -1,4 +1,5 @@
 import DashboardSidebar from '@/Components/DashboardSidebar';
+import { Dialog as DialogPrimitive } from 'radix-ui';
 import ExpenseUpdates from '@/Components/ExpenseUpdates';
 import IncomingAlert from '@/Components/IncomingAlert';
 import FollowUpReminders from '@/Components/FollowUpReminders';
@@ -10,7 +11,6 @@ import {
     RevisionAssignmentListener,
     RevisionAssignmentsMenu,
 } from '@/Components/RevisionAssignments';
-import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
 import ThemeModeToggle from '@/Components/ThemeModeToggle';
 import UnreadMailButton from '@/Components/UnreadMailButton';
 import UserAvatar from '@/Components/UserAvatar';
@@ -57,6 +57,7 @@ import {
     UserPlusIcon,
     UsersIcon,
     WrenchIcon,
+    XIcon,
     ZapIcon,
     type LucideIcon,
 } from 'lucide-react';
@@ -69,112 +70,6 @@ import {
     useRef,
     useState,
 } from 'react';
-
-function MobileDisclosure({
-    label,
-    icon: Icon,
-    children,
-    defaultOpen = false,
-    variant = 'group',
-    className,
-}: {
-    label: string;
-    icon?: LucideIcon;
-    children: ReactNode;
-    defaultOpen?: boolean;
-    variant?: 'section' | 'group';
-    className?: string;
-}) {
-    const [open, setOpen] = useState(defaultOpen);
-
-    return (
-        <div>
-            <button
-                type="button"
-                onClick={() => setOpen((value) => !value)}
-                aria-expanded={open}
-                className={cn(
-                    'flex w-full items-center justify-between gap-2 rounded-md py-2 text-left transition hover:bg-muted/50',
-                    variant === 'section'
-                        ? 'text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300'
-                        : 'text-sm font-semibold text-foreground',
-                    className ?? 'px-4',
-                )}
-            >
-                <span className="inline-flex items-center gap-2">
-                    {Icon && <Icon className="size-4" />}
-                    {label}
-                </span>
-                <ChevronDownIcon
-                    className={cn(
-                        'size-4 shrink-0 transition-transform',
-                        open && 'rotate-180',
-                    )}
-                />
-            </button>
-            {open && <div className="flex flex-col">{children}</div>}
-        </div>
-    );
-}
-
-type AdminResourceLinks = {
-    label: string;
-    icon: LucideIcon;
-    canView?: boolean;
-    canCreate?: boolean;
-    viewHref?: string;
-    createHref?: string;
-    viewActive?: boolean;
-    createActive?: boolean;
-    viewIcon?: LucideIcon;
-    createIcon?: LucideIcon;
-};
-
-function MobileAdminResource({
-    label,
-    icon: Icon,
-    canView = false,
-    canCreate = false,
-    viewHref,
-    createHref,
-    viewActive = false,
-    createActive = false,
-    viewIcon: ViewIcon = ListIcon,
-    createIcon: CreateIcon = PlusCircleIcon,
-}: AdminResourceLinks) {
-    if (!canView && !canCreate) {
-        return null;
-    }
-
-    return (
-        <MobileDisclosure label={label} icon={Icon} className="ps-10 pe-4">
-            {canView && viewHref ? (
-                <ResponsiveNavLink
-                    href={viewHref}
-                    active={viewActive}
-                    className="ps-14"
-                >
-                    <span className="inline-flex items-center gap-2">
-                        <ViewIcon className="size-4" />
-                        See all
-                    </span>
-                </ResponsiveNavLink>
-            ) : null}
-            {canCreate && createHref ? (
-                <ResponsiveNavLink
-                    href={createHref}
-                    active={createActive}
-                    className="ps-14"
-                >
-                    <span className="inline-flex items-center gap-2">
-                        <CreateIcon className="size-4" />
-                        Add new
-                    </span>
-                </ResponsiveNavLink>
-            ) : null}
-        </MobileDisclosure>
-    );
-}
 
 const notificationPollInterval = 60_000;
 const idleActivityEvents = [
@@ -268,6 +163,19 @@ export default function Authenticated({
 
         return window.localStorage.getItem('sidebarCollapsed') === '1';
     });
+
+    useEffect(() => {
+        const query = window.matchMedia('(min-width: 1024px)');
+        const close = (event: MediaQueryListEvent) => {
+            if (event.matches) {
+                setShowingNavigationDropdown(false);
+            }
+        };
+
+        query.addEventListener('change', close);
+
+        return () => query.removeEventListener('change', close);
+    }, []);
 
     useLayoutEffect(() => {
         document.documentElement.dataset.dashboardTheme =
@@ -708,11 +616,10 @@ export default function Authenticated({
                             <UnreadMailButton />
                             <RevisionAssignmentsMenu />
                             <button
-                                onClick={() =>
-                                    setShowingNavigationDropdown(
-                                        (previousState) => !previousState,
-                                    )
-                                }
+                                type="button"
+                                aria-label="Open menu"
+                                aria-expanded={showingNavigationDropdown}
+                                onClick={() => setShowingNavigationDropdown(true)}
                                 className="inline-flex items-center justify-center rounded-md p-2 text-muted-foreground transition duration-150 ease-in-out hover:bg-muted hover:text-foreground focus:bg-muted focus:text-foreground focus:outline-none"
                             >
                                 <svg
@@ -749,500 +656,55 @@ export default function Authenticated({
                     </div>
                 </div>
 
-                <div
-                    className={
-                        (showingNavigationDropdown ? 'block' : 'hidden') +
-                        ' lg:hidden'
-                    }
+                <DialogPrimitive.Root
+                    open={showingNavigationDropdown}
+                    onOpenChange={setShowingNavigationDropdown}
                 >
-                    <div className="flex flex-col gap-1 pb-3 pt-2">
-                        <ResponsiveNavLink
-                            href={route('home')}
-                            active={route().current('home')}
+                    <DialogPrimitive.Portal>
+                        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 lg:hidden" />
+                        <DialogPrimitive.Content
+                            aria-describedby={undefined}
+                            className="fixed inset-y-0 left-0 z-50 flex w-[88vw] max-w-sm flex-col gap-3 overscroll-contain bg-background p-3 shadow-xl outline-none data-open:animate-in data-open:slide-in-from-left data-closed:animate-out data-closed:slide-out-to-left lg:hidden"
                         >
-                            Home
-                        </ResponsiveNavLink>
-
-                        <ResponsiveNavLink
-                            href={route('dashboard')}
-                            active={route().current('dashboard')}
-                        >
-                            Dashboard
-                        </ResponsiveNavLink>
-
-                        <ResponsiveNavLink
-                            href={route('mailbox.index')}
-                            active={route().current('mailbox.*')}
-                            className={
-                                hasUnreadMail
-                                    ? 'text-red-600 dark:text-red-400'
-                                    : ''
-                            }
-                        >
-                            <span className="inline-flex items-center gap-2">
-                                Email
-                                {hasUnreadMail ? (
-                                    <MailOpenIcon className="size-4 animate-mail-alert text-red-600 dark:text-red-400" />
-                                ) : null}
-                            </span>
-                        </ResponsiveNavLink>
-
-                        {canOpenAdministration && (
-                            <div className="mt-2 border-t border-border pt-3">
-                                <MobileDisclosure
-                                    label="Administration"
-                                    variant="section"
-                                    defaultOpen
+                            <DialogPrimitive.Title className="sr-only">
+                                Main menu
+                            </DialogPrimitive.Title>
+                            <div className="flex shrink-0 items-center gap-3 rounded-xl border border-border bg-card p-3">
+                                <UserAvatar
+                                    name={user.name}
+                                    avatarUrl={user.avatar_url}
+                                    initials={user.initials}
+                                    className="size-10"
+                                />
+                                <div className="min-w-0 flex-1">
+                                    <p className="truncate text-sm font-semibold text-foreground">
+                                        {user.name}
+                                    </p>
+                                    <Link
+                                        href={route('profile.edit')}
+                                        onClick={() => setShowingNavigationDropdown(false)}
+                                        className="text-xs font-medium text-primary hover:underline"
+                                    >
+                                        View profile
+                                    </Link>
+                                </div>
+                                <ThemeModeToggle />
+                                <DialogPrimitive.Close
+                                    aria-label="Close menu"
+                                    className="flex size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
                                 >
-                                    {canOpenWork && (
-                                        <MobileDisclosure
-                                            label="Operations"
-                                            icon={BriefcaseIcon}
-                                            className="ps-6 pe-4"
-                                        >
-                                            <MobileAdminResource
-                                                label="Projects"
-                                                icon={BriefcaseIcon}
-                                                canView={canViewProjects}
-                                                canCreate={canCreateProjects}
-                                                viewHref={route(
-                                                    'admin.projects.index',
-                                                )}
-                                                createHref={route(
-                                                    'admin.projects.create',
-                                                )}
-                                                viewActive={route().current(
-                                                    'admin.projects.index',
-                                                )}
-                                                createActive={route().current(
-                                                    'admin.projects.create',
-                                                )}
-                                            />
-                                            <MobileAdminResource
-                                                label="Bids"
-                                                icon={ClipboardListIcon}
-                                                canView={canViewBids}
-                                                canCreate={canCreateBids}
-                                                viewHref={route(
-                                                    'admin.bids.index',
-                                                )}
-                                                createHref={route(
-                                                    'admin.bids.create',
-                                                )}
-                                                viewActive={route().current(
-                                                    'admin.bids.index',
-                                                )}
-                                                createActive={route().current(
-                                                    'admin.bids.create',
-                                                )}
-                                            />
-                                            <MobileAdminResource
-                                                label="Quotations"
-                                                icon={FileSpreadsheetIcon}
-                                                canView={canViewQuotations}
-                                                canCreate={canCreateQuotations}
-                                                viewHref={route(
-                                                    'admin.quotations.index',
-                                                )}
-                                                createHref={route(
-                                                    'admin.quotations.create',
-                                                )}
-                                                viewActive={route().current(
-                                                    'admin.quotations.index',
-                                                )}
-                                                createActive={route().current(
-                                                    'admin.quotations.create',
-                                                )}
-                                            />
-                                            <MobileAdminResource
-                                                label="Takeoffs"
-                                                icon={RulerIcon}
-                                                canView={canViewTakeoffs}
-                                                canCreate={canCreateTakeoffs}
-                                                viewHref={route(
-                                                    'admin.takeoffs.index',
-                                                )}
-                                                createHref={route(
-                                                    'admin.takeoffs.create',
-                                                )}
-                                                viewActive={route().current(
-                                                    'admin.takeoffs.index',
-                                                )}
-                                                createActive={route().current(
-                                                    'admin.takeoffs.create',
-                                                )}
-                                            />
-                                            <MobileAdminResource
-                                                label="Products"
-                                                icon={PackageIcon}
-                                                canView={canViewProducts}
-                                                canCreate={canCreateProducts}
-                                                viewHref={route(
-                                                    'admin.products.index',
-                                                )}
-                                                createHref={route(
-                                                    'admin.products.create',
-                                                )}
-                                                viewActive={route().current(
-                                                    'admin.products.index',
-                                                )}
-                                                createActive={route().current(
-                                                    'admin.products.create',
-                                                )}
-                                            />
-                                            <MobileAdminResource
-                                                label="Services"
-                                                icon={WrenchIcon}
-                                                canView={canViewServices}
-                                                canCreate={canCreateServices}
-                                                viewHref={route(
-                                                    'admin.services.index',
-                                                )}
-                                                createHref={route(
-                                                    'admin.services.create',
-                                                )}
-                                                viewActive={route().current(
-                                                    'admin.services.index',
-                                                )}
-                                                createActive={route().current(
-                                                    'admin.services.create',
-                                                )}
-                                            />
-                                        </MobileDisclosure>
-                                    )}
-
-                                    {canOpenPeople && (
-                                        <MobileDisclosure
-                                            label="People"
-                                            icon={UsersIcon}
-                                            className="ps-6 pe-4"
-                                        >
-                                            <MobileAdminResource
-                                                label="Contractors"
-                                                icon={HardHatIcon}
-                                                canView={canViewContractors}
-                                                canCreate={canCreateContractors}
-                                                viewHref={route(
-                                                    'admin.contractors.index',
-                                                )}
-                                                createHref={route(
-                                                    'admin.contractors.create',
-                                                )}
-                                                viewActive={route().current(
-                                                    'admin.contractors.index',
-                                                )}
-                                                createActive={route().current(
-                                                    'admin.contractors.create',
-                                                )}
-                                            />
-                                            {canManageNotifications && (
-                                                <ResponsiveNavLink
-                                                    href={route(
-                                                        'admin.contacts.index',
-                                                    )}
-                                                    active={route().current(
-                                                        'admin.contacts.index',
-                                                    )}
-                                                    className="ps-10"
-                                                >
-                                                    <span className="inline-flex items-center gap-2">
-                                                        <MailOpenIcon className="size-4" />
-                                                        Contacts
-                                                    </span>
-                                                </ResponsiveNavLink>
-                                            )}
-                                            <MobileAdminResource
-                                                label="Employees"
-                                                icon={IdCardIcon}
-                                                canView={canViewEmployees}
-                                                canCreate={canCreateEmployees}
-                                                viewHref={route(
-                                                    'admin.employees.index',
-                                                )}
-                                                createHref={route(
-                                                    'admin.employees.create',
-                                                )}
-                                                viewActive={route().current(
-                                                    'admin.employees.index',
-                                                )}
-                                                createActive={route().current(
-                                                    'admin.employees.create',
-                                                )}
-                                                viewIcon={UsersIcon}
-                                                createIcon={UserPlusIcon}
-                                            />
-                                            {canViewEmployees && (
-                                                <ResponsiveNavLink
-                                                    href={route(
-                                                        'admin.employee-attendance.index',
-                                                    )}
-                                                    active={route().current(
-                                                        'admin.employee-attendance.*',
-                                                    )}
-                                                    className="ps-10"
-                                                >
-                                                    <span className="inline-flex items-center gap-2">
-                                                        <CalendarDaysIcon className="size-4" />
-                                                        Attendance
-                                                    </span>
-                                                </ResponsiveNavLink>
-                                            )}
-                                        </MobileDisclosure>
-                                    )}
-
-                                    {canOpenWorkspace && (
-                                        <MobileDisclosure
-                                            label="Company"
-                                            icon={Building2Icon}
-                                            className="ps-6 pe-4"
-                                        >
-                                            <ResponsiveNavLink
-                                                href={route(
-                                                    'admin.signature.edit',
-                                                )}
-                                                active={route().current(
-                                                    'admin.signature.edit',
-                                                )}
-                                                className="ps-10"
-                                            >
-                                                <span className="inline-flex items-center gap-2">
-                                                    <PenLineIcon className="size-4" />
-                                                    Signature
-                                                </span>
-                                            </ResponsiveNavLink>
-                                            {canManageOwnAccount && (
-                                                <ResponsiveNavLink
-                                                    href={route(
-                                                        'admin.account.edit',
-                                                    )}
-                                                    active={route().current(
-                                                        'admin.account.edit',
-                                                    )}
-                                                    className="ps-10"
-                                                >
-                                                    <span className="inline-flex items-center gap-2">
-                                                        <UserCogIcon className="size-4" />
-                                                        Account
-                                                    </span>
-                                                </ResponsiveNavLink>
-                                            )}
-                                            {canViewCompany && (
-                                                <ResponsiveNavLink
-                                                    href={route(
-                                                        'admin.company.show',
-                                                    )}
-                                                    active={route().current(
-                                                        'admin.company.show',
-                                                    )}
-                                                    className="ps-10"
-                                                >
-                                                    <span className="inline-flex items-center gap-2">
-                                                        <Building2Icon className="size-4" />
-                                                        Company
-                                                    </span>
-                                                </ResponsiveNavLink>
-                                            )}
-                                            {canManageDocumentColors && (
-                                                <ResponsiveNavLink
-                                                    href={route(
-                                                        'admin.document-settings.edit',
-                                                    )}
-                                                    active={route().current(
-                                                        'admin.document-settings.*',
-                                                    )}
-                                                    className="ps-10"
-                                                >
-                                                    <span className="inline-flex items-center gap-2">
-                                                        <PaletteIcon className="size-4" />
-                                                        Print layouts
-                                                    </span>
-                                                </ResponsiveNavLink>
-                                            )}
-                                        </MobileDisclosure>
-                                    )}
-
-                                    {canOpenSecurity && (
-                                        <MobileDisclosure
-                                            label="Security"
-                                            icon={ShieldIcon}
-                                            className="ps-6 pe-4"
-                                        >
-                                            {canViewUsers && (
-                                                <ResponsiveNavLink
-                                                    href={route(
-                                                        'admin.users.index',
-                                                    )}
-                                                    active={route().current(
-                                                        'admin.users.index',
-                                                    )}
-                                                    className="ps-10"
-                                                >
-                                                    <span className="inline-flex items-center gap-2">
-                                                        <UsersIcon className="size-4" />
-                                                        Users
-                                                    </span>
-                                                </ResponsiveNavLink>
-                                            )}
-                                            {canCreateUsers && (
-                                                <ResponsiveNavLink
-                                                    href={route(
-                                                        'admin.users.create',
-                                                    )}
-                                                    active={route().current(
-                                                        'admin.users.create',
-                                                    )}
-                                                    className="ps-10"
-                                                >
-                                                    <span className="inline-flex items-center gap-2">
-                                                        <UserPlusIcon className="size-4" />
-                                                        Add user
-                                                    </span>
-                                                </ResponsiveNavLink>
-                                            )}
-                                            {canManageAccess && (
-                                                <ResponsiveNavLink
-                                                    href={route(
-                                                        'admin.access-control.edit',
-                                                    )}
-                                                    active={route().current(
-                                                        'admin.access-control.edit',
-                                                    )}
-                                                    className="ps-10"
-                                                >
-                                                    <span className="inline-flex items-center gap-2">
-                                                        <SlidersHorizontalIcon className="size-4" />
-                                                        Access control
-                                                    </span>
-                                                </ResponsiveNavLink>
-                                            )}
-                                            {canViewUserActivity && (
-                                                <ResponsiveNavLink
-                                                    href={route(
-                                                        'admin.user-activities.index',
-                                                    )}
-                                                    active={route().current(
-                                                        'admin.user-activities.*',
-                                                    )}
-                                                    className="ps-10"
-                                                >
-                                                    <span className="inline-flex items-center gap-2">
-                                                        <ActivityIcon className="size-4" />
-                                                        User activity
-                                                    </span>
-                                                </ResponsiveNavLink>
-                                            )}
-                                            {canManageExpenses && (
-                                                <ResponsiveNavLink
-                                                    href={route(
-                                                        'admin.expenses.index',
-                                                    )}
-                                                    active={route().current(
-                                                        'admin.expenses.*',
-                                                    )}
-                                                    className="ps-10"
-                                                >
-                                                    <span className="inline-flex items-center gap-2">
-                                                        <ReceiptIcon className="size-4" />
-                                                        Expenses
-                                                    </span>
-                                                </ResponsiveNavLink>
-                                            )}
-                                        </MobileDisclosure>
-                                    )}
-                                </MobileDisclosure>
+                                    <XIcon className="size-5" />
+                                </DialogPrimitive.Close>
                             </div>
-                        )}
-                    </div>
-
-                    <div className="border-t border-border pb-1 pt-4">
-                        <div className="px-4 pb-4">
-                            <ThemeModeToggle />
-                        </div>
-
-                        {canManageNotifications && (
-                        <div className="border-b border-border px-4 pb-4">
-                            <div className="mb-2 flex items-center justify-between text-sm font-semibold text-foreground">
-                                <span>Notifications</span>
-                                {hasUnreadNotifications && (
-                                    <Badge variant="destructive">
-                                        {notifications.unreadCount} new
-                                    </Badge>
-                                )}
+                            <div className="min-h-0 flex-1">
+                                <DashboardSidebar
+                                    onNavigate={() => setShowingNavigationDropdown(false)}
+                                    className="rounded-xl shadow-none"
+                                />
                             </div>
-                            {notifications.latestUnread.length > 0 ? (
-                                <div className="flex flex-col gap-2">
-                                    {notifications.latestUnread.map(
-                                        (notification) => (
-                                            <Link
-                                                key={notification.id}
-                                                href={route(
-                                                    'notifications.show',
-                                                    notification.id,
-                                                )}
-                                                className="rounded-md border border-border bg-background px-3 py-2 text-left text-sm"
-                                            >
-                                                <span className="block font-medium text-foreground">
-                                                    {notification.title}
-                                                </span>
-                                                <span className="mt-1 line-clamp-2 block text-xs text-muted-foreground">
-                                                    {notification.message ||
-                                                        notification.email ||
-                                                        'New contact message'}
-                                                </span>
-                                            </Link>
-                                        ),
-                                    )}
-                                </div>
-                            ) : (
-                                <p className="text-sm text-muted-foreground">
-                                    No unread notifications.
-                                </p>
-                            )}
-                            <Link
-                                href={route('notifications.index')}
-                                className="mt-3 block rounded-md border border-border px-3 py-2 text-center text-sm font-medium text-foreground"
-                            >
-                                View all notifications
-                            </Link>
-                        </div>
-                        )}
-
-                        <div className="flex items-center gap-3 px-4">
-                            <UserAvatar
-                                name={user.name}
-                                avatarUrl={user.avatar_url}
-                                initials={user.initials}
-                                className="size-10"
-                            />
-                            <div>
-                                <div className="text-base font-medium text-foreground">
-                                    {user.name}
-                                </div>
-                                <div className="text-sm font-medium text-muted-foreground">
-                                    {user.email}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="mt-3 flex flex-col gap-1">
-                            <ResponsiveNavLink href={route('profile.edit')}>
-                                Profile
-                            </ResponsiveNavLink>
-                            <ResponsiveNavLink
-                                href={route('admin.signature.edit')}
-                            >
-                                Signature
-                            </ResponsiveNavLink>
-                            <ResponsiveNavLink
-                                method="post"
-                                href={route('logout')}
-                                as="button"
-                            >
-                                Log Out
-                            </ResponsiveNavLink>
-                        </div>
-                    </div>
-                </div>
+                        </DialogPrimitive.Content>
+                    </DialogPrimitive.Portal>
+                </DialogPrimitive.Root>
             </nav>
 
                 <IncomingAlert />

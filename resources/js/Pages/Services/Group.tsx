@@ -225,7 +225,7 @@ export default function Group({
                                         </p>
                                         <Link
                                             href={catalogItemHref(item)}
-                                            className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-[#111827] underline decoration-[#3FCF8E] underline-offset-4 dark:text-foreground"
+                                            className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-foreground underline decoration-[#3FCF8E] underline-offset-4 dark:text-foreground"
                                         >
                                             {tHome('publicSite.categories.view')}
                                         </Link>

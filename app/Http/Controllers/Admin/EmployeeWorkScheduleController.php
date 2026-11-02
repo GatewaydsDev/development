@@ -36,6 +36,8 @@ class EmployeeWorkScheduleController extends Controller
             ->covering($date)
             ->when($status, fn ($query) => $query->where('status', $status))
             ->tap(fn ($query) => $this->applyListingSearch($query, $search))
+            ->orderByRaw('foreman_name IS NULL')
+            ->orderBy('foreman_name')
             ->orderBy('starts_on')
             ->orderBy('id')
             ->paginate(15)
@@ -50,7 +52,53 @@ class EmployeeWorkScheduleController extends Controller
             ],
             'statuses' => $this->statusOptions(),
             'schedules' => $schedules,
+            'roleOptions' => EmployeeAccess::canUpdate($user) ? $this->roleOptions() : null,
             'can' => $this->abilities($user),
+        ]);
+    }
+
+    public function rates(Request $request, string $employee): \Illuminate\Http\JsonResponse
+    {
+        $user = $request->user();
+        abort_unless($user instanceof User && EmployeeAccess::canView($user), 403);
+
+        $record = Employee::query()
+            ->with(['skills:skills.id,skills.name', 'payRates.skill:id,name'])
+            ->where('uuid', $employee)
+            ->firstOrFail();
+
+        $groups = $record->skills
+            ->map(fn ($skill): array => ['id' => $skill->id, 'name' => $skill->name])
+            ->keyBy('id');
+
+        foreach ($record->payRates as $rate) {
+            if ($rate->skill_id && ! $groups->has($rate->skill_id)) {
+                $groups->put($rate->skill_id, ['id' => $rate->skill_id, 'name' => $rate->skill?->name ?? 'Skill removed']);
+            }
+        }
+
+        $labels = [
+            'half_day' => 'Half day',
+            'day_off' => 'Day off',
+        ];
+
+        return response()->json([
+            'name' => $record->fullName(),
+            'groups' => $groups->sortBy('name')->values()->map(fn (array $group): array => [
+                ...$group,
+                'rates' => $record->payRates
+                    ->where('skill_id', $group['id'])
+                    ->map(fn ($rate): array => [
+                        'id' => $rate->id,
+                        'label' => $rate->rate_type === 'custom'
+                            ? ($rate->custom_rate_type ?: 'Custom')
+                            : ($labels[$rate->rate_type] ?? ucfirst(str_replace('_', ' ', $rate->rate_type))),
+                        'amount' => (string) $rate->amount,
+                        'notes' => $rate->notes,
+                    ])
+                    ->values()
+                    ->all(),
+            ])->all(),
         ]);
     }
 
@@ -61,7 +109,8 @@ class EmployeeWorkScheduleController extends Controller
 
         return Inertia::render('Admin/EmployeeSchedules/Create', [
             ...$this->formOptions(),
-            'defaultDate' => now()->toDateString(),
+            'defaultDate' => $this->defaultWeekStart()->toDateString(),
+            'defaultEndDate' => $this->defaultWeekStart()->addDays(5)->toDateString(),
         ]);
     }
 
@@ -106,6 +155,121 @@ class EmployeeWorkScheduleController extends Controller
                 'date' => $schedule->starts_on?->toDateString(),
             ])
             ->with('success', 'Work schedule updated.');
+    }
+
+    public function changeRole(Request $request, EmployeeWorkSchedule $schedule): RedirectResponse
+    {
+        $user = $request->user();
+        abort_unless($user instanceof User && EmployeeAccess::canUpdate($user), 403);
+        EmployeeAccess::ensureCanViewSchedule($user, $schedule);
+
+        $validated = $request->validate([
+            'role' => ['required', Rule::in(['foreman', 'competent_person', 'quality_control'])],
+            'employee_uuid' => ['required', 'string'],
+        ]);
+
+        $employee = Employee::query()->where('uuid', $validated['employee_uuid'])->first();
+
+        if (! $employee) {
+            throw ValidationException::withMessages(['employee_uuid' => 'Choose a valid employee.']);
+        }
+
+        $previousId = match ($validated['role']) {
+            'foreman' => Employee::query()->where('user_id', $schedule->foreman_user_id)->value('id'),
+            'competent_person' => $schedule->competent_person_employee_id,
+            default => $schedule->quality_control_employee_id,
+        };
+        $crew = true;
+
+        switch ($validated['role']) {
+            case 'foreman':
+                $foreman = collect($this->foremanOptions())->firstWhere('employee_uuid', $employee->uuid);
+
+                if (! $foreman) {
+                    throw ValidationException::withMessages(['employee_uuid' => 'Choose an employee who is a foreman.']);
+                }
+
+                $schedule->update(['foreman_user_id' => $foreman['id']]);
+                $crew = false;
+                break;
+
+            case 'competent_person':
+                $qualified = EmployeeCertification::query()
+                    ->where('employee_id', $employee->id)
+                    ->whereHas('certification', fn ($query) => $query->where('is_competent_person', true))
+                    ->exists();
+
+                if (! $qualified) {
+                    throw ValidationException::withMessages(['employee_uuid' => 'Choose an employee who has a competent person certification.']);
+                }
+
+                $schedule->update([
+                    'requires_competent_person' => true,
+                    'competent_person_employee_id' => $employee->id,
+                ]);
+                break;
+
+            default:
+                if (! $employee->is_quality_control) {
+                    throw ValidationException::withMessages(['employee_uuid' => 'Choose an employee marked as a quality control person.']);
+                }
+
+                $schedule->update(['quality_control_employee_id' => $employee->id]);
+        }
+
+        if ($crew) {
+            $schedule->employees()->syncWithoutDetaching([$employee->id]);
+        } else {
+            $schedule->employees()->detach($employee->id);
+        }
+
+        // The replaced person leaves the crew unless they still hold another role on this job.
+        $schedule->refresh();
+        $previousId = $previousId !== null ? (int) $previousId : null;
+
+        if ($previousId !== null && $previousId !== $employee->id) {
+            $stillHasRole = in_array($previousId, array_filter([
+                (int) $schedule->competent_person_employee_id,
+                (int) $schedule->quality_control_employee_id,
+                (int) Employee::query()->where('user_id', $schedule->foreman_user_id)->value('id'),
+            ]), true);
+
+            if (! $stillHasRole) {
+                $schedule->employees()->detach($previousId);
+            }
+        }
+
+        return back()->with('success', 'Work schedule updated.');
+    }
+
+    /**
+     * @return array<string, list<array<string, mixed>>>
+     */
+    private function roleOptions(): array
+    {
+        $active = [Employee::STATUS_ACTIVE, Employee::STATUS_ON_LEAVE];
+
+        return [
+            'foreman' => collect($this->foremanOptions())
+                ->filter(fn (array $foreman): bool => $foreman['employee_uuid'] !== null)
+                ->map(fn (array $foreman): array => ['uuid' => $foreman['employee_uuid'], 'name' => $foreman['name']])
+                ->values()
+                ->all(),
+            'competent_person' => Employee::query()
+                ->whereIn('employment_status', $active)
+                ->whereHas('certifications.certification', fn ($query) => $query->where('is_competent_person', true))
+                ->orderBy('first_name')->orderBy('last_name')
+                ->get()
+                ->map(fn (Employee $employee): array => ['uuid' => $employee->uuid, 'name' => $employee->fullName()])
+                ->all(),
+            'quality_control' => Employee::query()
+                ->whereIn('employment_status', $active)
+                ->where('is_quality_control', true)
+                ->orderBy('first_name')->orderBy('last_name')
+                ->get()
+                ->map(fn (Employee $employee): array => ['uuid' => $employee->uuid, 'name' => $employee->fullName()])
+                ->all(),
+        ];
     }
 
     public function destroy(Request $request, EmployeeWorkSchedule $schedule): RedirectResponse
@@ -265,10 +429,31 @@ class EmployeeWorkScheduleController extends Controller
     {
         return [
             ...$this->listingPayload(WorkScheduleListing::query()->findOrFail($schedule->id)),
-            'quality_control' => ($qc = $schedule->qualityControl()->first(['id', 'uuid', 'first_name', 'last_name', 'email']))
-                ? ['id' => $qc->id, 'uuid' => $qc->uuid, 'full_name' => $qc->fullName(), 'email' => $qc->email]
-                : null,
             'daily_task_uuids' => $schedule->dailyTasks()->pluck('daily_tasks.uuid')->all(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function qualityControlPayload(int $scheduleId): ?array
+    {
+        $qc = EmployeeWorkSchedule::query()->find($scheduleId)?->qualityControl()
+            ->with(['jobTitle:id,name', 'skills:skills.id,skills.name', 'certifications.certification:id,name,is_competent_person'])
+            ->first();
+
+        if (! $qc) {
+            return null;
+        }
+
+        return [
+            'id' => $qc->id,
+            'uuid' => $qc->uuid,
+            'full_name' => $qc->fullName(),
+            'email' => $qc->email,
+            'job_title' => $qc->jobTitle?->name ?? $qc->job_title,
+            'skills' => $qc->skills->sortBy('name')->map(fn ($skill): array => ['id' => $skill->id, 'name' => $skill->name])->values()->all(),
+            'certifications' => $this->certificationPayload($qc),
         ];
     }
 
@@ -293,6 +478,7 @@ class EmployeeWorkScheduleController extends Controller
             'status_label' => EmployeeWorkSchedule::STATUSES[$status] ?? 'Active',
             'notes' => $listing->notes,
             'requires_competent_person' => (bool) $listing->requires_competent_person,
+            'quality_control' => $this->qualityControlPayload($listing->id),
             'competent_person' => $competent
                 ? [
                     'id' => (int) $competent['id'],
@@ -679,7 +865,7 @@ class EmployeeWorkScheduleController extends Controller
     private function foremanPayload(WorkScheduleListing $listing): array
     {
         $employee = Employee::query()
-            ->with('jobTitle:id,name')
+            ->with(['jobTitle:id,name', 'skills:skills.id,skills.name'])
             ->where('user_id', $listing->foreman_user_id)
             ->first();
 
@@ -689,6 +875,19 @@ class EmployeeWorkScheduleController extends Controller
             'email' => $employee?->email ?: $listing->foreman_email,
             'job_title' => $employee?->jobTitle?->name ?? $employee?->job_title,
             'employee_uuid' => $employee?->uuid,
+            'skills' => $employee
+                ? $employee->skills->sortBy('name')->map(fn ($skill): array => ['id' => $skill->id, 'name' => $skill->name])->values()->all()
+                : [],
         ];
+    }
+
+    /** Monday of the current week (the coming Monday when today is Sunday). */
+    private function defaultWeekStart(): \Illuminate\Support\Carbon
+    {
+        $today = now();
+
+        return $today->isSunday()
+            ? $today->copy()->addDay()->startOfDay()
+            : $today->copy()->startOfWeek(\Illuminate\Support\Carbon::MONDAY)->startOfDay();
     }
 }

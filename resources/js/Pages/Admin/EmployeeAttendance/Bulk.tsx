@@ -28,15 +28,26 @@ type BulkEmployee = {
 
 type BulkFormData = {
     work_date: string;
+    schedule_uuid: string;
     scheduled: boolean;
     worked: boolean;
     notes: string;
     employees: BulkEmployee[];
 };
 
+type ScheduleOption = {
+    uuid: string;
+    project: string;
+    project_number: string | null;
+    starts_on: string;
+    ends_on: string;
+    employee_ids: number[];
+};
+
 type BulkProps = {
     employees: AttendanceEmployeeOption[];
     defaultWorkDate: string;
+    schedules: ScheduleOption[];
 };
 
 function canSchedule(employee: AttendanceEmployeeOption): boolean {
@@ -51,13 +62,14 @@ function defaultRow(employee: AttendanceEmployeeOption): BulkEmployee {
         employee_id: String(employee.id),
         skill_id: skill ? String(skill.id) : '',
         pay_rate_id: rate ? String(rate.id) : '',
-        hours: '',
+        hours: rate?.rate_type === 'hourly' ? '8' : '',
     };
 }
 
-export default function Bulk({ employees, defaultWorkDate }: BulkProps) {
+export default function Bulk({ employees, defaultWorkDate, schedules }: BulkProps) {
     const form = useForm<BulkFormData>({
         work_date: defaultWorkDate,
+        schedule_uuid: '',
         scheduled: true,
         worked: true,
         notes: '',
@@ -67,17 +79,21 @@ export default function Bulk({ employees, defaultWorkDate }: BulkProps) {
     const errorBag = errors as Record<string, string | undefined>;
     const [query, setQuery] = useState('');
     const selectedIds = new Set(data.employees.map((row) => row.employee_id));
+    const schedule = schedules.find((item) => item.uuid === data.schedule_uuid);
     const visibleEmployees = useMemo(() => {
         const term = query.trim().toLowerCase();
+        const pool = schedule
+            ? employees.filter((employee) => schedule.employee_ids.includes(employee.id))
+            : employees;
 
         if (term === '') {
-            return employees;
+            return pool;
         }
 
-        return employees.filter((employee) =>
+        return pool.filter((employee) =>
             `${employee.full_name} ${employee.email}`.toLowerCase().includes(term),
         );
-    }, [employees, query]);
+    }, [employees, query, schedule]);
     const dayName = weekdayName(data.work_date);
 
     const rowsFor = (ids: Set<string>): BulkEmployee[] =>
@@ -90,6 +106,33 @@ export default function Bulk({ employees, defaultWorkDate }: BulkProps) {
 
                 return current ?? defaultRow(employee);
             });
+
+    const chooseSchedule = (uuid: string) => {
+        const next = schedules.find((item) => item.uuid === uuid);
+
+        if (!next) {
+            setData((current) => ({ ...current, schedule_uuid: '', employees: [] }));
+
+            return;
+        }
+
+        let date = data.work_date;
+
+        if (date < next.starts_on || date > next.ends_on) {
+            date = defaultWorkDate >= next.starts_on && defaultWorkDate <= next.ends_on
+                ? defaultWorkDate
+                : next.starts_on;
+        }
+
+        setData((current) => ({
+            ...current,
+            schedule_uuid: uuid,
+            work_date: date,
+            employees: employees
+                .filter((employee) => next.employee_ids.includes(employee.id) && canSchedule(employee))
+                .map(defaultRow),
+        }));
+    };
 
     const toggleEmployee = (employee: AttendanceEmployeeOption, checked: boolean) => {
         const ids = new Set(selectedIds);
@@ -167,6 +210,34 @@ export default function Bulk({ employees, defaultWorkDate }: BulkProps) {
                         disabled={processing}
                     />
                     <section className="grid gap-5 rounded-xl bg-card p-4 ring-1 ring-foreground/10 md:grid-cols-2">
+                        <div className="flex flex-col gap-2 md:col-span-2">
+                            <InputLabel
+                                htmlFor="bulk-schedule"
+                                value="Work schedule"
+                                className={labelClassName}
+                            />
+                            <select
+                                id="bulk-schedule"
+                                value={data.schedule_uuid}
+                                onChange={(event) => chooseSchedule(event.target.value)}
+                                className={selectClassName}
+                            >
+                                <option value="">No work schedule (choose employees manually)</option>
+                                {schedules.map((item) => (
+                                    <option key={item.uuid} value={item.uuid}>
+                                        {item.project}
+                                        {item.project_number ? ` (${item.project_number})` : ''} ·{' '}
+                                        {item.starts_on} to {item.ends_on}
+                                    </option>
+                                ))}
+                            </select>
+                            <p className="text-sm text-muted-foreground">
+                                {schedule
+                                    ? 'Only the foreman and crew on this schedule are listed. Enter each person\'s hours or mark the day worked.'
+                                    : 'Pick a schedule to load its foreman and crew.'}
+                            </p>
+                            <InputError message={errorBag.schedule_uuid} />
+                        </div>
                         <div className="flex flex-col gap-2">
                             <InputLabel
                                 htmlFor="bulk-work-date"
@@ -176,6 +247,8 @@ export default function Bulk({ employees, defaultWorkDate }: BulkProps) {
                             <TextInput
                                 id="bulk-work-date"
                                 type="date"
+                                min={schedule?.starts_on}
+                                max={schedule?.ends_on}
                                 value={data.work_date}
                                 className={inputClassName}
                                 onChange={(event) =>

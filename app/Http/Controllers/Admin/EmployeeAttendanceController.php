@@ -8,9 +8,11 @@ use App\Models\EmployeeAttendanceDay;
 use App\Models\EmployeeAttendanceListing;
 use App\Models\EmployeeAttendanceWeek;
 use App\Models\EmployeePayRate;
+use App\Models\EmployeeWorkSchedule;
 use App\Models\Profession;
 use App\Models\Skill;
 use App\Support\EmployeeAccess;
+use App\Support\ScheduleAttendance;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -58,7 +60,49 @@ class EmployeeAttendanceController extends Controller
         return Inertia::render('Admin/EmployeeAttendance/Create', [
             'employees' => $this->employeeOptions(),
             'defaultWeekStart' => now()->startOfWeek(Carbon::MONDAY)->toDateString(),
+            'schedules' => $this->scheduleOptions($request),
         ]);
+    }
+
+    private function requestedSchedule(Request $request): ?EmployeeWorkSchedule
+    {
+        $uuid = $request->input('schedule_uuid');
+
+        if (blank($uuid)) {
+            return null;
+        }
+
+        $schedule = EmployeeAccess::scopeVisibleSchedules(EmployeeWorkSchedule::query(), $request->user())
+            ->where('uuid', $uuid)
+            ->first();
+
+        if (! $schedule) {
+            throw ValidationException::withMessages(['schedule_uuid' => 'Choose a work schedule you can access.']);
+        }
+
+        return $schedule;
+    }
+
+    /**
+     * Adds the employee to the schedule crew when needed and links the week's days inside the schedule dates.
+     */
+    private function linkToSchedule(?EmployeeWorkSchedule $schedule, EmployeeAttendanceWeek $week): void
+    {
+        if (! $schedule) {
+            return;
+        }
+
+        $employee = Employee::query()->findOrFail($week->employee_id);
+
+        if (! ScheduleAttendance::members($schedule)->contains('id', $employee->id)) {
+            $schedule->employees()->syncWithoutDetaching([$employee->id]);
+        }
+
+        $week->days()
+            ->whereNull('employee_work_schedule_id')
+            ->whereDate('work_date', '>=', $schedule->starts_on->toDateString())
+            ->whereDate('work_date', '<=', $schedule->ends_on->toDateString())
+            ->update(['employee_work_schedule_id' => $schedule->id]);
     }
 
     public function existing(Request $request): JsonResponse
@@ -88,7 +132,9 @@ class EmployeeAttendanceController extends Controller
     {
         abort_unless(EmployeeAccess::canCreate($request->user()), 403);
 
-        $this->saveWeek($request);
+        $schedule = $this->requestedSchedule($request);
+        $week = $this->saveWeek($request);
+        $this->linkToSchedule($schedule, $week);
 
         return redirect()
             ->route('admin.employee-attendance.index')
@@ -111,7 +157,9 @@ class EmployeeAttendanceController extends Controller
         abort_unless(EmployeeAccess::canUpdate($request->user()), 403);
         EmployeeAccess::ensureCanViewWeek($request->user(), $attendanceWeek);
 
-        $this->saveWeek($request, $attendanceWeek);
+        $schedule = $this->requestedSchedule($request);
+        $week = $this->saveWeek($request, $attendanceWeek);
+        $this->linkToSchedule($schedule, $week);
 
         return redirect()
             ->route('admin.employee-attendance.index')
@@ -137,7 +185,30 @@ class EmployeeAttendanceController extends Controller
         return Inertia::render('Admin/EmployeeAttendance/Bulk', [
             'employees' => $this->employeeOptions(),
             'defaultWorkDate' => $this->defaultWorkDate(),
+            'schedules' => $this->scheduleOptions($request),
         ]);
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function scheduleOptions(Request $request): array
+    {
+        return EmployeeAccess::scopeVisibleSchedules(EmployeeWorkSchedule::query(), $request->user())
+            ->with(['project:id,name,project_number', 'employees', 'competentPerson', 'qualityControl'])
+            ->where('status', EmployeeWorkSchedule::STATUS_ACTIVE)
+            ->orderByDesc('starts_on')
+            ->limit(60)
+            ->get()
+            ->map(fn (EmployeeWorkSchedule $schedule): array => [
+                'uuid' => $schedule->uuid,
+                'project' => $schedule->project?->name ?? 'Job',
+                'project_number' => $schedule->project?->project_number,
+                'starts_on' => $schedule->starts_on->toDateString(),
+                'ends_on' => $schedule->ends_on->toDateString(),
+                'employee_ids' => ScheduleAttendance::members($schedule)->pluck('id')->all(),
+            ])
+            ->all();
     }
 
     public function bulkStore(Request $request): RedirectResponse
@@ -164,6 +235,7 @@ class EmployeeAttendanceController extends Controller
             $workDate = $validated['work_date'];
             $monday = EmployeeAttendanceWeek::mondayOf($workDate)->toDateString();
             $weeks = [];
+            $schedule = $validated['schedule'] ?? null;
 
             foreach ($validated['employees'] as $row) {
                 $employee = Employee::query()->findOrFail($row['employee_id']);
@@ -197,6 +269,12 @@ class EmployeeAttendanceController extends Controller
                     'notes' => $validated['notes'] ?? null,
                 ];
                 $day = $week->days()->whereDate('work_date', $workDate)->first();
+
+                if ($schedule) {
+                    $attributes['employee_work_schedule_id'] = $schedule->id;
+                } elseif ($day) {
+                    $attributes['employee_work_schedule_id'] = $day->employee_work_schedule_id;
+                }
 
                 if ($day) {
                     $day->update($attributes);
@@ -311,6 +389,7 @@ class EmployeeAttendanceController extends Controller
                 'id' => (int) ($employee['id'] ?? $listing->employee_id),
                 'full_name' => (string) ($employee['full_name'] ?? $listing->employee_full_name),
                 'email' => (string) ($employee['email'] ?? $listing->employee_email),
+                'skills' => $this->employeeSkillNames((int) $listing->employee_id),
             ],
             'week_start' => $start?->toDateString(),
             'week_end' => $end?->toDateString(),
@@ -325,6 +404,21 @@ class EmployeeAttendanceController extends Controller
             'created_at' => $listing->created_at?->toISOString(),
             'updated_at' => $listing->updated_at?->toISOString(),
         ];
+    }
+
+    /** @var array<int, list<string>> */
+    private array $skillNameCache = [];
+
+    /**
+     * @return list<string>
+     */
+    private function employeeSkillNames(int $employeeId): array
+    {
+        return $this->skillNameCache[$employeeId] ??= Skill::query()
+            ->whereHas('employees', fn ($query) => $query->whereKey($employeeId))
+            ->orderBy('name')
+            ->pluck('name')
+            ->all();
     }
 
     /**
@@ -762,6 +856,7 @@ class EmployeeAttendanceController extends Controller
 
         $request->merge([
             'work_date' => $workDate,
+            'schedule_uuid' => ($request->input('schedule_uuid') ?? '') === '' ? null : $request->input('schedule_uuid'),
             'scheduled' => filter_var($request->input('scheduled', false), FILTER_VALIDATE_BOOLEAN),
             'worked' => filter_var($request->input('worked', false), FILTER_VALIDATE_BOOLEAN),
             'notes' => ($request->input('notes') ?? '') === '' ? null : $request->input('notes'),
@@ -770,6 +865,7 @@ class EmployeeAttendanceController extends Controller
 
         $validated = $request->validate([
             'work_date' => ['required', 'date'],
+            'schedule_uuid' => ['nullable', 'string'],
             'scheduled' => ['required', 'boolean'],
             'worked' => ['required', 'boolean'],
             'notes' => ['nullable', 'string', 'max:1000'],
@@ -799,10 +895,54 @@ class EmployeeAttendanceController extends Controller
             ]);
         }
 
+        $schedule = null;
+        $memberIds = [];
+
+        if (filled($validated['schedule_uuid'] ?? null)) {
+            $schedule = EmployeeAccess::scopeVisibleSchedules(EmployeeWorkSchedule::query(), $request->user())
+                ->where('uuid', $validated['schedule_uuid'])
+                ->first();
+
+            if (! $schedule) {
+                throw ValidationException::withMessages(['schedule_uuid' => 'Choose a work schedule you can access.']);
+            }
+
+            if ($date->lt($schedule->starts_on->copy()->startOfDay()) || $date->gt($schedule->ends_on->copy()->startOfDay())) {
+                throw ValidationException::withMessages([
+                    'work_date' => 'This date is outside the work schedule ('
+                        .$schedule->starts_on->format('M j').' to '.$schedule->ends_on->format('M j').').',
+                ]);
+            }
+
+            $memberIds = ScheduleAttendance::members($schedule)->pluck('id')->map(fn ($id): int => (int) $id)->all();
+        }
+
+        $validated['schedule'] = $schedule;
         $seenEmployeeIds = [];
 
         foreach ($validated['employees'] as $index => $row) {
             $employeeId = (int) $row['employee_id'];
+
+            if ($schedule && ! in_array($employeeId, $memberIds, true)) {
+                throw ValidationException::withMessages([
+                    "employees.{$index}.employee_id" => 'This employee is not on the selected work schedule.',
+                ]);
+            }
+
+            if ($schedule) {
+                $linkedElsewhere = EmployeeAttendanceDay::query()
+                    ->whereDate('work_date', $date->toDateString())
+                    ->whereNotNull('employee_work_schedule_id')
+                    ->where('employee_work_schedule_id', '!=', $schedule->id)
+                    ->whereHas('week', fn ($query) => $query->where('employee_id', $employeeId))
+                    ->exists();
+
+                if ($linkedElsewhere) {
+                    throw ValidationException::withMessages([
+                        "employees.{$index}.employee_id" => 'Already recorded on another job this day.',
+                    ]);
+                }
+            }
 
             if (isset($seenEmployeeIds[$employeeId])) {
                 throw ValidationException::withMessages([

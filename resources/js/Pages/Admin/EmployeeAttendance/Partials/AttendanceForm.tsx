@@ -18,6 +18,7 @@ import {
     type AttendanceDayPayload,
     type AttendanceEmployeeOption,
     type AttendanceFormData,
+    type AttendanceScheduleOption,
     type AttendanceWeekPayload,
 } from '../types';
 
@@ -55,6 +56,7 @@ type AttendanceFormProps = {
     employees: AttendanceEmployeeOption[];
     attendance?: AttendanceWeekPayload;
     defaultWeekStart: string;
+    schedules?: AttendanceScheduleOption[];
 };
 
 export default function AttendanceForm({
@@ -64,6 +66,7 @@ export default function AttendanceForm({
     employees,
     attendance,
     defaultWeekStart,
+    schedules = [],
 }: AttendanceFormProps) {
     const form = useForm<AttendanceFormData>(
         attendanceToFormData(attendance, employees, defaultWeekStart),
@@ -73,6 +76,13 @@ export default function AttendanceForm({
     const selectedEmployee = employees.find(
         (employee) => String(employee.id) === data.employee_id,
     );
+    const schedule = schedules.find((item) => item.uuid === data.schedule_uuid);
+    const isCrew = (employee: AttendanceEmployeeOption) =>
+        schedule?.employee_ids.includes(employee.id) ?? false;
+    const crew = employees.filter(isCrew);
+    const others = schedule ? employees.filter((employee) => !isCrew(employee)) : employees;
+    const addsToSchedule =
+        schedule !== undefined && selectedEmployee !== undefined && !isCrew(selectedEmployee);
     const rangeLabel = data.week_start ? weekRangeLabel(data.week_start) : '';
     const [existingWeek, setExistingWeek] = useState<AttendanceWeekPayload | null>(
         null,
@@ -205,6 +215,49 @@ export default function AttendanceForm({
                 disabled={processing || loadingExisting || (!attendance && openDayCount === 0)}
             />
             <section className="grid gap-5 rounded-xl bg-card p-4 ring-1 ring-foreground/10 md:grid-cols-2">
+                {!attendance && schedules.length > 0 ? (
+                    <div className="flex flex-col gap-2 md:col-span-2">
+                        <InputLabel
+                            htmlFor="attendance-schedule"
+                            value="Work schedule"
+                            className={labelClassName}
+                        />
+                        <select
+                            id="attendance-schedule"
+                            value={data.schedule_uuid}
+                            onChange={(event) => {
+                                const next = schedules.find(
+                                    (item) => item.uuid === event.target.value,
+                                );
+                                const weekStart =
+                                    next &&
+                                    (data.week_start < mondayOf(next.starts_on) ||
+                                        data.week_start > next.ends_on)
+                                        ? mondayOf(next.starts_on)
+                                        : data.week_start;
+
+                                setData({
+                                    ...data,
+                                    schedule_uuid: event.target.value,
+                                    employee_id: '',
+                                    week_start: weekStart,
+                                    days: blankDays(),
+                                });
+                            }}
+                            className={selectClassName}
+                        >
+                            <option value="">No work schedule</option>
+                            {schedules.map((item) => (
+                                <option key={item.uuid} value={item.uuid}>
+                                    {item.project}
+                                    {item.project_number ? ` (${item.project_number})` : ''} ·{' '}
+                                    {item.starts_on} to {item.ends_on}
+                                </option>
+                            ))}
+                        </select>
+                        <InputError message={errorBag.schedule_uuid} />
+                    </div>
+                ) : null}
                 <div className="flex flex-col gap-2">
                     <InputLabel
                         htmlFor="attendance-employee"
@@ -224,12 +277,28 @@ export default function AttendanceForm({
                         className={selectClassName}
                     >
                         <option value="">Select an employee</option>
-                        {employees.map((employee) => (
-                            <option key={employee.id} value={employee.id}>
-                                {employee.full_name} ({employee.email})
-                            </option>
-                        ))}
+                        {schedule && crew.length > 0 ? (
+                            <optgroup label="On this work schedule">
+                                {crew.map((employee) => (
+                                    <option key={employee.id} value={employee.id}>
+                                        {employee.full_name} ({employee.email})
+                                    </option>
+                                ))}
+                            </optgroup>
+                        ) : null}
+                        <optgroup label={schedule ? 'Add another employee to this schedule' : 'Employees'}>
+                            {others.map((employee) => (
+                                <option key={employee.id} value={employee.id}>
+                                    {employee.full_name} ({employee.email})
+                                </option>
+                            ))}
+                        </optgroup>
                     </select>
+                    {addsToSchedule ? (
+                        <p className="text-sm text-amber-600">
+                            {selectedEmployee?.full_name} is not on this schedule and will be added to it when you save.
+                        </p>
+                    ) : null}
                     <InputError message={errorBag.employee_id} />
                 </div>
 

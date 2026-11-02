@@ -20,6 +20,7 @@ class EmployeeAttendanceDay extends Model
         'scheduled',
         'worked',
         'notes',
+        'employee_work_schedule_id',
     ];
 
     protected function casts(): array

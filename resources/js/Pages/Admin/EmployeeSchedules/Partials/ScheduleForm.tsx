@@ -165,8 +165,23 @@ type ScheduleFormProps = {
     dailyTasks?: ScheduleDailyTask[];
     statuses: ScheduleStatusOption[];
     defaultDate?: string;
+    defaultEndDate?: string;
     schedule?: SchedulePayload;
 };
+
+function saturdayOfWeek(date: string): string {
+    const parsed = new Date(`${date}T00:00:00`);
+
+    if (Number.isNaN(parsed.getTime()) || parsed.getDay() === 0) {
+        return date;
+    }
+
+    parsed.setDate(parsed.getDate() + (6 - parsed.getDay()));
+
+    const pad = (value: number) => String(value).padStart(2, "0");
+
+    return `${parsed.getFullYear()}-${pad(parsed.getMonth() + 1)}-${pad(parsed.getDate())}`;
+}
 
 export default function ScheduleForm({
     action,
@@ -178,13 +193,14 @@ export default function ScheduleForm({
     dailyTasks = [],
     statuses,
     defaultDate = "",
+    defaultEndDate,
     schedule,
 }: ScheduleFormProps) {
     const [employeeSearch, setEmployeeSearch] = useState("");
     const { data, setData, post, processing, errors, transform } = useForm({
         project_uuid: schedule?.project?.uuid ?? "",
         starts_on: schedule?.starts_on ?? schedule?.work_date ?? defaultDate,
-        ends_on: schedule?.ends_on ?? schedule?.work_date ?? defaultDate,
+        ends_on: schedule?.ends_on ?? schedule?.work_date ?? defaultEndDate ?? defaultDate,
         status: schedule?.status ?? "active",
         foreman_user_id: schedule?.foreman ? String(schedule.foreman.id) : "",
         employee_uuids:
@@ -431,10 +447,12 @@ export default function ScheduleForm({
                                 setData({
                                     ...data,
                                     starts_on: startsOn,
-                                    ends_on:
-                                        !data.ends_on || data.ends_on < startsOn
-                                            ? startsOn
-                                            : data.ends_on,
+                                    ends_on: !schedule
+                                        ? saturdayOfWeek(startsOn)
+                                        : !data.ends_on ||
+                                            data.ends_on < startsOn
+                                          ? startsOn
+                                          : data.ends_on,
                                 });
                             }}
                             className="h-9 w-40 rounded-md border border-border bg-background px-2 text-sm text-foreground shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring dark:[color-scheme:dark]"

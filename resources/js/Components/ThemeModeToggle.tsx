@@ -42,7 +42,7 @@ export default function ThemeModeToggle({
     const ActiveIcon = activeTheme?.icon ?? MonitorIcon;
 
     return (
-        <DropdownMenu>
+        <DropdownMenu modal={false}>
             <DropdownMenuTrigger
                 aria-label={t('theme.change')}
                 className={cn(
@@ -63,7 +63,11 @@ export default function ThemeModeToggle({
             <DropdownMenuContent
                 align="end"
                 sideOffset={8}
-                className={cn('w-44', onDarkHeader && darkHeaderMenuClass)}
+                collisionPadding={12}
+                className={cn(
+                    'w-40 max-h-[50dvh] sm:w-44',
+                    onDarkHeader && darkHeaderMenuClass,
+                )}
             >
                 <DropdownMenuLabel
                     className={onDarkHeader ? 'text-[#111827]/60' : undefined}

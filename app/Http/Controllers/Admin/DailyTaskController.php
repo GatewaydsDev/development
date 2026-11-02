@@ -12,6 +12,7 @@ use App\Models\UserLevel;
 use App\Models\DailyTaskPhoto;
 use App\Models\EmployeeWorkSchedule;
 use App\Support\DailyTaskAccess;
+use App\Support\ScheduleAttendance;
 use App\Support\DailyTaskChecklist;
 use App\Support\DailyTaskProgressRules;
 use Illuminate\Support\Facades\Storage;
@@ -57,6 +58,10 @@ class DailyTaskController extends Controller
                 ->all();
         }
 
+        if (DailyTaskAccess::mustComplete($user)) {
+            $props['attendance'] = ScheduleAttendance::forForeman($user, $today);
+        }
+
         return Inertia::render('Admin/DailyTasks/Index', $props);
     }
 
@@ -100,6 +105,41 @@ class DailyTaskController extends Controller
         $dailyTask->delete();
 
         return back()->with('success', 'Daily task deleted.');
+    }
+
+    public function attendance(Request $request, EmployeeWorkSchedule $schedule): RedirectResponse
+    {
+        $user = $this->actor($request);
+        abort_unless(
+            DailyTaskAccess::mustComplete($user) && (int) $schedule->foreman_user_id === (int) $user->id,
+            403,
+        );
+
+        $today = now();
+        abort_unless(
+            ! $today->isSunday()
+                && $schedule->status === EmployeeWorkSchedule::STATUS_ACTIVE
+                && $schedule->starts_on->lte($today)
+                && $schedule->ends_on->gte($today->copy()->startOfDay()),
+            422,
+        );
+
+        $data = $request->validate([
+            'entries' => ['required', 'array'],
+            'entries.*.employee_uuid' => ['required', 'string'],
+            'entries.*.present' => ['required', 'boolean'],
+            'entries.*.hours' => ['nullable', 'numeric'],
+        ]);
+
+        $errors = ScheduleAttendance::record($schedule, $today->toDateString(), $data['entries']);
+
+        if ($errors !== []) {
+            return back()->withErrors(
+                collect($errors)->mapWithKeys(fn (string $message, string $uuid): array => ["attendance.{$uuid}" => $message])->all(),
+            );
+        }
+
+        return back()->with('success', 'Attendance saved.');
     }
 
     public function complete(Request $request, DailyTask $dailyTask): RedirectResponse

@@ -10,6 +10,7 @@ type CreateProps = {
     dailyTasks?: ScheduleDailyTask[];
     statuses: ScheduleStatusOption[];
     defaultDate: string;
+    defaultEndDate?: string;
 };
 
 export default function Create({
@@ -19,6 +20,7 @@ export default function Create({
     dailyTasks = [],
     statuses,
     defaultDate,
+    defaultEndDate,
 }: CreateProps) {
     return (
         <AuthenticatedLayout
@@ -57,6 +59,7 @@ export default function Create({
                         dailyTasks={dailyTasks}
                         statuses={statuses}
                         defaultDate={defaultDate}
+                        defaultEndDate={defaultEndDate}
                     />
                 </div>
             </div>

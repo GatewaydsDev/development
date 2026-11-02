@@ -1,18 +1,36 @@
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import {
     AlertTriangleIcon,
     CameraIcon,
     ImageIcon,
     CheckCircle2Icon,
     CircleIcon,
+    HardHatIcon,
+    UsersRoundIcon,
     LoaderIcon,
     MapPinIcon,
     Trash2Icon,
     XIcon,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+
+export type AttendanceSchedule = {
+    schedule_uuid: string;
+    date: string;
+    project: { name: string; project_number: string | null } | null;
+    members: {
+        uuid: string;
+        name: string;
+        is_foreman: boolean;
+        present: boolean;
+        hours: string | null;
+        hourly: boolean;
+        has_rate: boolean;
+        locked: boolean;
+    }[];
+};
 
 export type FieldStatus = 'pending' | 'in_progress' | 'completed' | 'blocked';
 
@@ -466,7 +484,140 @@ function TaskCard({ task }: { task: FieldTask }) {
     );
 }
 
-export default function FieldChecklist({ tasks }: { tasks: FieldTask[] }) {
+function AttendancePanel({ schedule }: { schedule: AttendanceSchedule }) {
+    const { errors } = usePage().props as { errors: Record<string, string> };
+    const [rows, setRows] = useState(() =>
+        schedule.members.map((member) => ({
+            uuid: member.uuid,
+            present: member.present,
+            hours: member.hours ?? '8',
+        })),
+    );
+    const [saving, setSaving] = useState(false);
+    const present = rows.filter((row) => row.present).length;
+
+    const update = (uuid: string, changes: Partial<(typeof rows)[number]>) =>
+        setRows((current) =>
+            current.map((row) => (row.uuid === uuid ? { ...row, ...changes } : row)),
+        );
+
+    const save = () => {
+        setSaving(true);
+        router.post(
+            route('admin.daily-tasks.attendance', schedule.schedule_uuid),
+            {
+                entries: schedule.members
+                    .filter((member) => !member.locked)
+                    .map((member) => {
+                        const row = rows.find((item) => item.uuid === member.uuid)!;
+
+                        return {
+                            employee_uuid: member.uuid,
+                            present: row.present,
+                            hours: member.hourly ? row.hours : null,
+                        };
+                    }),
+            },
+            { preserveScroll: true, onFinish: () => setSaving(false) },
+        );
+    };
+
+    return (
+        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+            <div className="mb-3 flex items-center justify-between gap-2">
+                <h5 className="flex items-center gap-2 text-sm font-semibold">
+                    <UsersRoundIcon className="size-4 text-indigo-600" />
+                    Who is on site today
+                </h5>
+                <Badge variant="secondary">
+                    {present} / {schedule.members.length} present
+                </Badge>
+            </div>
+            <div className="flex flex-col gap-2">
+                {schedule.members.map((member) => {
+                    const row = rows.find((item) => item.uuid === member.uuid)!;
+                    const error = errors[`attendance.${member.uuid}`];
+
+                    return (
+                        <div key={member.uuid} className="flex flex-col gap-1">
+                            <div
+                                className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 ${
+                                    row.present
+                                        ? 'border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/30'
+                                        : 'border-border'
+                                }`}
+                            >
+                                <input
+                                    type="checkbox"
+                                    className="size-6 rounded accent-emerald-600"
+                                    checked={row.present}
+                                    disabled={member.locked || !member.has_rate}
+                                    onChange={(event) =>
+                                        update(member.uuid, { present: event.target.checked })
+                                    }
+                                    aria-label={`${member.name} present`}
+                                />
+                                <span className="min-w-0 flex-1 text-sm font-medium">
+                                    {member.name}
+                                </span>
+                                {member.is_foreman && (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-1.5 text-[0.65rem] font-semibold text-orange-700 dark:bg-orange-950 dark:text-orange-300">
+                                        <HardHatIcon className="size-3" />
+                                        Foreman
+                                    </span>
+                                )}
+                                {member.hourly && row.present && (
+                                    <label className="flex items-center gap-1 text-xs text-muted-foreground">
+                                        <input
+                                            type="number"
+                                            inputMode="decimal"
+                                            min="0.25"
+                                            max="24"
+                                            step="0.25"
+                                            value={row.hours}
+                                            onChange={(event) =>
+                                                update(member.uuid, { hours: event.target.value })
+                                            }
+                                            className="h-9 w-16 rounded-md border border-border bg-background px-2 text-sm text-foreground"
+                                        />
+                                        h
+                                    </label>
+                                )}
+                            </div>
+                            {member.locked && (
+                                <p className="px-1 text-xs text-amber-600">
+                                    Already recorded on another job today.
+                                </p>
+                            )}
+                            {!member.has_rate && !member.locked && (
+                                <p className="px-1 text-xs text-amber-600">
+                                    No pay rate on file. Ask the office to add one.
+                                </p>
+                            )}
+                            {error && <p className="px-1 text-xs text-destructive">{error}</p>}
+                        </div>
+                    );
+                })}
+            </div>
+            <Button
+                type="button"
+                className="mt-3 h-12 w-full text-base"
+                disabled={saving}
+                onClick={save}
+            >
+                {saving ? 'Saving…' : 'Save attendance'}
+            </Button>
+        </div>
+    );
+}
+
+export default function FieldChecklist({
+    tasks,
+    attendance = [],
+}: {
+    tasks: FieldTask[];
+    attendance?: AttendanceSchedule[];
+}) {
     const done = tasks.filter((task) => task.completed).length;
     const allDone = tasks.length > 0 && done === tasks.length;
 
@@ -507,6 +658,16 @@ export default function FieldChecklist({ tasks }: { tasks: FieldTask[] }) {
                     No daily tasks for you today.
                 </p>
             )}
+
+            {attendance.map((schedule) => (
+                <section key={`attendance-${schedule.schedule_uuid}`} className="flex flex-col gap-3">
+                    <h4 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                        <MapPinIcon className="size-4" />
+                        {schedule.project?.name ?? 'Job'} · Attendance
+                    </h4>
+                    <AttendancePanel schedule={schedule} />
+                </section>
+            ))}
 
             {groups.map(([key, group]) => (
                 <section key={key} className="flex flex-col gap-3">

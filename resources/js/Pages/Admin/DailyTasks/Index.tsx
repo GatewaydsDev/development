@@ -18,7 +18,7 @@ import {
     CardTitle,
 } from '@/Components/ui/card';
 import CreatableSelect from '@/Components/CreatableSelect';
-import FieldChecklist, { type FieldTask } from './Partials/FieldChecklist';
+import FieldChecklist, { type AttendanceSchedule, type FieldTask } from './Partials/FieldChecklist';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router, useForm } from '@inertiajs/react';
 import {
@@ -50,6 +50,7 @@ type Props = {
     tasks?: Task[];
     taskTitles?: { id: number; name: string }[];
     checklist?: FieldTask[];
+    attendance?: AttendanceSchedule[];
 };
 
 const inputClass =
@@ -375,6 +376,7 @@ export default function Index({
     tasks,
     taskTitles = [],
     checklist,
+    attendance,
 }: Props) {
     return (
         <AuthenticatedLayout
@@ -393,7 +395,7 @@ export default function Index({
             <div className="py-6 sm:py-8">
                 <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 sm:px-6 lg:px-8">
                     {can.complete && checklist && (
-                        <FieldChecklist tasks={checklist} />
+                        <FieldChecklist tasks={checklist} attendance={attendance} />
                     )}
                     {can.manage && tasks && (
                         <TaskManager

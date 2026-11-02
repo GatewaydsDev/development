@@ -14,6 +14,8 @@ export type SchedulePerson = {
     email: string;
     job_title?: string | null;
     certifications?: ScheduleCertification[];
+    skills?: { id: number; name: string }[];
+    employee_uuid?: string | null;
 };
 
 export type ScheduleStatusOption = {

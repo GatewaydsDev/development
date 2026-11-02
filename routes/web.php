@@ -248,6 +248,7 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::post('/daily-tasks', [DailyTaskController::class, 'store'])->name('daily-tasks.store');
         Route::patch('/daily-tasks/{dailyTask}', [DailyTaskController::class, 'update'])->name('daily-tasks.update');
         Route::delete('/daily-tasks/{dailyTask}', [DailyTaskController::class, 'destroy'])->name('daily-tasks.destroy');
+        Route::post('/daily-tasks/attendance/{schedule}', [DailyTaskController::class, 'attendance'])->name('daily-tasks.attendance');
         Route::post('/daily-tasks/{dailyTask}/complete', [DailyTaskController::class, 'complete'])->name('daily-tasks.complete');
         Route::post('/daily-tasks/{dailyTask}/progress', [DailyTaskController::class, 'progress'])->name('daily-tasks.progress');
         Route::get('/daily-task-photos/{photo}', [DailyTaskController::class, 'photo'])->name('daily-task-photos.show');
@@ -344,6 +345,9 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::get('/employees/schedules', [EmployeeWorkScheduleController::class, 'index'])
             ->middleware('can:view-employees')
             ->name('employee-schedules.index');
+        Route::get('/employees/schedules/rates/{employee}', [EmployeeWorkScheduleController::class, 'rates'])
+            ->middleware('can:view-employees')
+            ->name('employee-schedules.rates');
         Route::get('/employees/schedules/create', [EmployeeWorkScheduleController::class, 'create'])
             ->middleware('can:create-employees')
             ->name('employee-schedules.create');
@@ -356,6 +360,9 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::patch('/employees/schedules/{schedule}', [EmployeeWorkScheduleController::class, 'update'])
             ->middleware('can:update-employees')
             ->name('employee-schedules.update');
+        Route::patch('/employees/schedules/{schedule}/role', [EmployeeWorkScheduleController::class, 'changeRole'])
+            ->middleware('can:update-employees')
+            ->name('employee-schedules.role');
         Route::delete('/employees/schedules/{schedule}', [EmployeeWorkScheduleController::class, 'destroy'])
             ->middleware('can:delete-employees')
             ->name('employee-schedules.destroy');

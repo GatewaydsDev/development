@@ -1,14 +1,15 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link } from '@inertiajs/react';
 import AttendanceForm from './Partials/AttendanceForm';
-import type { AttendanceEmployeeOption } from './types';
+import type { AttendanceEmployeeOption, AttendanceScheduleOption } from './types';
 
 type CreateProps = {
     employees: AttendanceEmployeeOption[];
     defaultWeekStart: string;
+    schedules: AttendanceScheduleOption[];
 };
 
-export default function Create({ employees, defaultWeekStart }: CreateProps) {
+export default function Create({ employees, defaultWeekStart, schedules }: CreateProps) {
     return (
         <AuthenticatedLayout
             header={
@@ -44,6 +45,7 @@ export default function Create({ employees, defaultWeekStart }: CreateProps) {
                         submitLabel="Save week"
                         employees={employees}
                         defaultWeekStart={defaultWeekStart}
+                        schedules={schedules}
                     />
                 </div>
             </div>
