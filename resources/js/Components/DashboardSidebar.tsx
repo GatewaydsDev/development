@@ -6,7 +6,8 @@ import { useUnreadMail } from '@/lib/unreadMail';
 import { cn } from '@/lib/utils';
 import { PageProps } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { useEffect, useRef } from 'react';
+import LogoutConfirmDialog from '@/Components/LogoutConfirmDialog';
+import { useEffect, useRef, useState } from 'react';
 import {
     ActivityIcon,
     BriefcaseIcon,
@@ -112,6 +113,7 @@ export default function DashboardSidebar({
     const unreadMail = useUnreadMail();
     const systemUpdatesUnread = usePage<PageProps>().props.auth.systemUpdatesUnread ?? 0;
     const navRef = useRef<HTMLElement>(null);
+    const [confirmLogout, setConfirmLogout] = useState(false);
     const user = auth.user;
     const can = auth.can ?? {};
 
@@ -641,26 +643,18 @@ export default function DashboardSidebar({
 
             {/* Bottom Actions & User Account */}
             <div className="mt-4 flex shrink-0 flex-col gap-2 border-t border-[#cfe0d6] pt-4 dark:border-white/10">
-                {/* Log out */}
+                {/* Log out (desktop uses the top navbar) */}
                 <Button
-                    asChild
+                    type="button"
                     variant="ghost"
                     size="sm"
-                    className="w-full justify-start px-2.5 text-xs text-rose-600 lg:hidden hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/40"
+                    onClick={() => setConfirmLogout(true)}
+                    className="w-full justify-start px-2.5 text-xs text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/40 lg:hidden"
                 >
-                    <Link
-                        href={route('logout')}
-                        method="post"
-                        as="button"
-                        onClick={onNavigate}
-                        title={collapsed ? 'Log out' : undefined}
-                    >
-                        <LogOutIcon className="size-3.5 shrink-0" />
-                        <SidebarLabel collapsed={collapsed} className={collapsed ? '' : 'ml-2'}>
-                            Log out
-                        </SidebarLabel>
-                    </Link>
+                    <LogOutIcon className="size-3.5 shrink-0" />
+                    <span className="ml-2">Log out</span>
                 </Button>
+                <LogoutConfirmDialog open={confirmLogout} onOpenChange={setConfirmLogout} />
 
                 {/* Show/Hide sidebar toggle (desktop) */}
                 {onToggleCollapse && (

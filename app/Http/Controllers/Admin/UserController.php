@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Employee;
 use App\Models\Language;
 use App\Models\Profession;
+use App\Models\LoginBlockLog;
 use App\Models\User;
 use App\Support\LoginLockout;
 use App\Models\UserEmail;
@@ -23,16 +24,49 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class UserController extends Controller
 {
+    /** @return array<string, mixed> */
+    private function blockLogPayload(LoginBlockLog $log): array
+    {
+        return [
+            'id' => $log->id,
+            'user_id' => $log->user_id,
+            'name' => $log->name,
+            'email' => $log->email,
+            'kind' => $log->kind,
+            'source' => $log->source,
+            'blocked_by' => $log->blocked_by,
+            'reason' => $log->reason,
+            'release_reason' => $log->release_reason,
+            'attempts' => $log->attempts,
+            'ip_address' => $log->ip_address,
+            'user_agent' => $log->user_agent,
+            'emails_sent' => $log->emails_sent,
+            'blocked_at' => $log->blocked_at?->toIso8601String(),
+            'released_at' => $log->released_at?->toIso8601String(),
+            'released_by' => $log->released_by,
+            'release_method' => $log->release_method,
+        ];
+    }
+
     public function index(Request $request): Response
     {
         $search = (string) $request->query('search', '');
+        $canSeeHistory = (bool) $request->user()?->can('update-users');
+        $blockHistory = $canSeeHistory
+            ? LoginBlockLog::query()->latest('blocked_at')->get()->groupBy('user_id')
+            : collect();
 
         return Inertia::render('Admin/Users/Index', [
+            'blockLogs' => $canSeeHistory
+                ? LoginBlockLog::query()->latest('blocked_at')->limit(25)->get()
+                    ->map(fn (LoginBlockLog $log): array => $this->blockLogPayload($log))->all()
+                : [],
             'filters' => [
                 'search' => $search,
             ],
@@ -92,6 +126,9 @@ class UserController extends Controller
                         : null,
                     'status' => $user->account_status,
                     'can_change_status' => $this->canChangeStatus($request->user(), $user),
+                    'block_history' => $canSeeHistory
+                        ? ($blockHistory->get($user->id) ?? collect())->map(fn (LoginBlockLog $log): array => $this->blockLogPayload($log))->values()->all()
+                        : [],
                     'created_at' => $user->created_at?->toFormattedDateString(),
                     'last_login_at' => $user->last_login_at?->format('M j, Y g:i A'),
                 ]),
@@ -292,6 +329,7 @@ class UserController extends Controller
             'language_id' => ['nullable', 'integer', Rule::exists(Language::class, 'id')],
             'level_id' => ['required', 'integer', Rule::exists(UserLevel::class, 'id')],
             'status' => ['sometimes', Rule::in(LoginLockout::STATUSES)],
+            'status_reason' => ['nullable', 'string', 'max:500'],
             'password' => ['nullable', 'confirmed', Rules\Password::defaults()],
             ...UserContacts::rules(),
             ...$this->mailboxRules($request, $user),
@@ -319,11 +357,11 @@ class UserController extends Controller
         ]);
 
         if (isset($validated['status']) && ! $level->isSuperAdminLevel() && $this->canChangeStatus($request->user(), $user)) {
-            $user->forceFill([
-                'account_status' => $validated['status'],
-                'failed_login_attempts' => 0,
-                'login_locked_at' => $validated['status'] === LoginLockout::ACTIVE ? null : ($user->login_locked_at ?? now()),
-            ]);
+            if ($validated['status'] !== $user->account_status && blank($validated['status_reason'] ?? null)) {
+                throw ValidationException::withMessages(['status_reason' => 'Enter the reason for changing the status.']);
+            }
+
+            app(LoginLockout::class)->setStatus($user, $validated['status'], 'user_management', $request->user(), $validated['status_reason'] ?? null);
         }
 
         if ($request->hasFile('avatar')) {
@@ -359,9 +397,10 @@ class UserController extends Controller
 
         $validated = $request->validate([
             'status' => ['required', Rule::in(LoginLockout::STATUSES)],
+            'reason' => ['required', 'string', 'min:3', 'max:500'],
         ]);
 
-        $lockout->setStatus($user, $validated['status']);
+        $lockout->setStatus($user, $validated['status'], 'user_management', $request->user(), trim($validated['reason']));
 
         return back()->with('success', $user->name.' is now '.$validated['status'].'.');
     }

@@ -27,6 +27,7 @@ type DashboardProps = {
         quotations: BarChartItem[] | null;
         bids: BarChartItem[] | null;
         takeoffs: BarChartItem[] | null;
+        projectControl?: BarChartItem[] | null;
     } | null;
     listVersion?: string | null;
     bidListVersion?: string | null;
@@ -130,7 +131,11 @@ export default function Dashboard({
     const canViewQuotations = Boolean(can.viewQuotations);
     const canViewTakeoffs = Boolean(can.viewTakeoffs);
     const showGraphics = Boolean(
-        canViewProjects || charts?.quotations || charts?.bids || charts?.takeoffs,
+        canViewProjects ||
+            charts?.quotations ||
+            charts?.bids ||
+            charts?.takeoffs ||
+            charts?.projectControl,
     );
 
     useProjectListRefresh(
@@ -228,6 +233,18 @@ export default function Dashboard({
                                 chartKey="takeoffs"
                                 emptyLabel="No takeoffs yet."
                                 accent="border-t-rose-600"
+                            />
+                        )}
+                        {charts.projectControl && (
+                            <ChartCard
+                                title="Project control pipeline"
+                                description="Dollar value of jobs by pipeline status."
+                                items={charts.projectControl}
+                                chartKey="project-control"
+                                emptyLabel="No project control jobs yet."
+                                money
+                                hideZeros={false}
+                                accent="border-t-emerald-600"
                             />
                         )}
                     </div>

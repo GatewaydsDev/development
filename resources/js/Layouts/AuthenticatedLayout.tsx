@@ -11,6 +11,7 @@ import {
     RevisionAssignmentListener,
     RevisionAssignmentsMenu,
 } from '@/Components/RevisionAssignments';
+import LogoutConfirmDialog from '@/Components/LogoutConfirmDialog';
 import ThemeModeToggle from '@/Components/ThemeModeToggle';
 import UnreadMailButton from '@/Components/UnreadMailButton';
 import UserAvatar from '@/Components/UserAvatar';
@@ -155,6 +156,7 @@ export default function Authenticated({
     const hasIdleLoggedOut = useRef(false);
     const [shouldShakeBell, setShouldShakeBell] = useState(false);
 
+    const [confirmLogout, setConfirmLogout] = useState(false);
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
         useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
@@ -600,16 +602,15 @@ export default function Authenticated({
                                 </DropdownMenuContent>
                             </DropdownMenu>
                             )}
-                            <Link
-                                href={route('logout')}
-                                method="post"
-                                as="button"
+                            <button
+                                type="button"
+                                onClick={() => setConfirmLogout(true)}
                                 className="inline-flex size-9 items-center justify-center rounded-md border border-red-500/50 bg-background text-red-600 transition hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background dark:text-red-400 dark:hover:bg-red-950/30"
                                 aria-label="Log out"
                                 title="Log out"
                             >
                                 <LogOutIcon className="size-4" />
-                            </Link>
+                            </button>
                             </div>
                         </div>
 
@@ -718,6 +719,7 @@ export default function Authenticated({
                 </DialogPrimitive.Root>
             </nav>
 
+                <LogoutConfirmDialog open={confirmLogout} onOpenChange={setConfirmLogout} />
                 <IncomingAlert />
                 {Boolean(auth.can?.manageProjectControl) ? <FollowUpReminders /> : null}
 

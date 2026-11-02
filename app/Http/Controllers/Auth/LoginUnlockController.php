@@ -32,8 +32,24 @@ class LoginUnlockController extends Controller
     {
         abort_unless($request->user()?->isSuperAdmin(), 403);
 
-        $lockout->reset($user);
+        $lockout->reset($user, 'dashboard', $request->user());
 
         return redirect()->route('dashboard')->with('status', $user->email.' can try to sign in again.');
+    }
+
+    public function quick(Request $request, User $user, LoginLockout $lockout): Response
+    {
+        $stillBlocked = $user->login_locked_at !== null
+            && $user->login_locked_at->timestamp === (int) $request->query('lock');
+
+        if ($stillBlocked) {
+            $lockout->reset($user, 'email_link');
+        }
+
+        return Inertia::render('Auth/UnlockResult', [
+            'unlocked' => $stillBlocked,
+            'name' => $user->name,
+            'email' => $user->email,
+        ]);
     }
 }

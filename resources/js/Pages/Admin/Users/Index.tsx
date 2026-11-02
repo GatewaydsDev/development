@@ -1,6 +1,15 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ActionHint from '@/Components/ActionHint';
 import DirectoryFieldLabel from '@/Components/DirectoryFieldLabel';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/Components/ui/dialog';
+import { BlockHistoryButton, fmt, RELEASE_METHODS, type BlockLog } from './Partials/BlockHistory';
 import PaginationNav from '@/Components/PaginationNav';
 import {
     AlertDialog,
@@ -34,11 +43,14 @@ import {
     ChevronDownIcon,
     EditIcon,
     LogInIcon,
+    MailIcon,
+    PhoneIcon,
     SearchIcon,
     ShieldIcon,
     SlidersHorizontalIcon,
     UserPlusIcon,
     UsersIcon,
+    ShieldAlertIcon,
 } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 
@@ -67,6 +79,7 @@ type UserRow = {
     last_login_at: string | null;
     status?: string;
     can_change_status?: boolean;
+    block_history?: BlockLog[];
 };
 
 type PaginationLink = {
@@ -91,7 +104,89 @@ type IndexProps = {
         search?: string;
     };
     users: UsersPaginator;
+    blockLogs?: BlockLog[];
 };
+
+function BlockLogTable({ logs }: { logs: BlockLog[] }) {
+    return (
+        <Card className="mt-6">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <ShieldAlertIcon className="size-5 text-red-500" />
+                    Login block log
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                    Every time an account was blocked (failed sign-ins or by an administrator). Latest 25.
+                </p>
+            </CardHeader>
+            <CardContent>
+                {logs.length === 0 ? (
+                    <p className="py-6 text-center text-sm text-muted-foreground">
+                        No blocked logins yet.
+                    </p>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full min-w-[820px] text-left text-sm">
+                            <thead className="text-xs uppercase text-muted-foreground">
+                                <tr className="border-b border-border">
+                                    <th className="py-2 pr-3 font-medium">Blocked at</th>
+                                    <th className="py-2 pr-3 font-medium">User</th>
+                                    <th className="py-2 pr-3 font-medium">Attempts</th>
+                                    <th className="py-2 pr-3 font-medium">IP / device</th>
+                                    <th className="py-2 pr-3 font-medium">Admin email</th>
+                                    <th className="py-2 font-medium">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {logs.map((log) => (
+                                    <tr key={log.id} className="border-b border-border/60 align-top last:border-0">
+                                        <td className="py-3 pr-3 whitespace-nowrap">{fmt(log.blocked_at)}</td>
+                                        <td className="py-3 pr-3">
+                                            <p className="font-medium">{log.name}</p>
+                                            <p className="text-xs text-muted-foreground">{log.email}</p>
+                                            {log.reason && <p className="mt-1 max-w-[220px] text-xs italic text-muted-foreground">“{log.reason}”</p>}
+                                        </td>
+                                        <td className="py-3 pr-3">{log.source === 'manual' ? `Manual${log.blocked_by ? ` · ${log.blocked_by}` : ''}` : log.attempts}</td>
+                                        <td className="py-3 pr-3">
+                                            <p>{log.ip_address ?? '—'}</p>
+                                            <p className="max-w-[220px] truncate text-xs text-muted-foreground" title={log.user_agent ?? ''}>
+                                                {log.user_agent ?? ''}
+                                            </p>
+                                        </td>
+                                        <td className="py-3 pr-3">
+                                            <Badge variant="outline" className={log.emails_sent > 0 ? 'border-emerald-300 text-emerald-700 dark:text-emerald-300' : 'border-amber-300 text-amber-700 dark:text-amber-300'}>
+                                                {log.emails_sent > 0 ? 'Sent' : 'Not sent'}
+                                            </Badge>
+                                        </td>
+                                        <td className="py-3">
+                                            {log.released_at ? (
+                                                <>
+                                                    <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
+                                                        Released
+                                                    </Badge>
+                                                    <p className="mt-1 text-xs text-muted-foreground">
+                                                        {fmt(log.released_at)}
+                                                        <br />
+                                                        {RELEASE_METHODS[log.release_method ?? ''] ?? log.release_method}
+                                                        {log.released_by ? ` · ${log.released_by}` : ''}
+                                                    </p>
+                                                </>
+                                            ) : (
+                                                <Badge className="border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
+                                                    Still blocked
+                                                </Badge>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
 
 const STATUS_STYLES: Record<string, { label: string; dot: string; badge: string }> = {
     active: {
@@ -116,6 +211,10 @@ function UserStatusControl({
 }: {
     user: { id: number; name: string; status?: string; can_change_status?: boolean };
 }) {
+    const [pending, setPending] = useState<string | null>(null);
+    const [reason, setReason] = useState('');
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState('');
     const current = user.status ?? 'active';
     const style = STATUS_STYLES[current] ?? STATUS_STYLES.active;
     const badge = (
@@ -131,39 +230,110 @@ function UserStatusControl({
     }
 
     return (
-        <DropdownMenu>
-            <DropdownMenuTrigger
-                aria-label={`Change status for ${user.name}`}
-                className="rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-                {badge}
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-44">
-                <DropdownMenuRadioGroup
-                    value={current}
-                    onValueChange={(status) => {
-                        if (status !== current) {
-                            router.patch(
-                                route('admin.users.status', user.id),
-                                { status },
-                                { preserveScroll: true },
-                            );
-                        }
-                    }}
+        <>
+            <DropdownMenu>
+                <DropdownMenuTrigger
+                    aria-label={`Change status for ${user.name}`}
+                    className="rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                    {Object.entries(STATUS_STYLES).map(([value, option]) => (
-                        <DropdownMenuRadioItem key={value} value={value}>
-                            <span className={`size-2 rounded-full ${option.dot}`} />
-                            {option.label}
-                        </DropdownMenuRadioItem>
-                    ))}
-                </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-        </DropdownMenu>
+                    {badge}
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-44">
+                    <DropdownMenuRadioGroup
+                        value={current}
+                        onValueChange={(status) => {
+                            if (status !== current) {
+                                setReason('');
+                                setPending(status);
+                            }
+                        }}
+                    >
+                        {Object.entries(STATUS_STYLES).map(([value, option]) => (
+                            <DropdownMenuRadioItem key={value} value={value}>
+                                <span className={`size-2 rounded-full ${option.dot}`} />
+                                {option.label}
+                            </DropdownMenuRadioItem>
+                        ))}
+                    </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Dialog open={pending !== null} onOpenChange={(open) => !open && setPending(null)}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>
+                            Change status to {STATUS_STYLES[pending ?? 'active']?.label}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {user.name} is now {style.label.toLowerCase()}. Tell us why you are changing it. Your name and
+                            the time are saved with the reason.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex flex-col gap-2">
+                        <label htmlFor={`reason-${user.id}`} className="text-sm font-medium">
+                            Reason
+                        </label>
+                        <textarea
+                            id={`reason-${user.id}`}
+                            value={reason}
+                            onChange={(event) => setReason(event.target.value)}
+                            rows={3}
+                            maxLength={500}
+                            autoFocus
+                            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                            placeholder="Example: suspicious sign-in attempts, left the company…"
+                        />
+                        {error && <p className="text-xs text-destructive">{error}</p>}
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setPending(null)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            disabled={saving || reason.trim().length < 3}
+                            variant={pending === 'active' ? 'default' : 'destructive'}
+                            onClick={() => {
+                                setSaving(true);
+                                router.patch(
+                                    route('admin.users.status', user.id),
+                                    { status: pending, reason },
+                                    {
+                                        preserveScroll: true,
+                                        onSuccess: () => setPending(null),
+                                        onError: (errors) => setError(errors.reason ?? errors.status ?? 'Could not change the status.'),
+                                        onFinish: () => setSaving(false),
+                                    },
+                                );
+                            }}
+                        >
+                            Confirm change
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
     );
 }
 
-export default function Index({ filters, users }: IndexProps) {
+const initials = (name: string) =>
+    name
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase())
+        .join('');
+
+const AVATAR_TONES = [
+    'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
+    'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300',
+    'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300',
+    'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300',
+    'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300',
+];
+
+const avatarTone = (id: number) => AVATAR_TONES[id % AVATAR_TONES.length];
+
+export default function Index({ filters, users, blockLogs }: IndexProps) {
     const { auth } = usePage<PageProps>().props;
     const canCreateUsers = Boolean(auth.can?.createUsers);
     const canUpdateUsers = Boolean(auth.can?.updateUsers);
@@ -218,8 +388,8 @@ export default function Index({ filters, users }: IndexProps) {
 
             <div className="py-6 sm:py-8">
                 <div className="mx-auto flex max-w-[96rem] flex-col gap-6 px-4 sm:px-6 lg:px-8">
-                    <div className="grid grid-cols-3 gap-4">
-                        <Card size="sm">
+                    <div className="grid gap-4 sm:grid-cols-3">
+                        <Card size="sm" className="border-l-4 border-l-emerald-500">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
                                     <UsersIcon className="size-4 text-muted-foreground" />
@@ -236,7 +406,7 @@ export default function Index({ filters, users }: IndexProps) {
                             </CardContent>
                         </Card>
 
-                        <Card size="sm">
+                        <Card size="sm" className="border-l-4 border-l-sky-500">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
                                     <ShieldIcon className="size-4 text-muted-foreground" />
@@ -254,7 +424,7 @@ export default function Index({ filters, users }: IndexProps) {
                             </CardContent>
                         </Card>
 
-                        <Card size="sm">
+                        <Card size="sm" className="border-l-4 border-l-amber-500">
                             <CardHeader>
                                 <CardTitle>Directory range</CardTitle>
                                 <CardDescription>
@@ -302,10 +472,9 @@ export default function Index({ filters, users }: IndexProps) {
 
                         <CardContent>
                             <div className="overflow-x-auto rounded-lg border border-border">
-                                <div className="hidden grid-cols-[1.1fr_1.2fr_1fr_0.9fr_0.8fr_1fr_minmax(220px,auto)] gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground xl:grid">
-                                    <div>Name</div>
-                                    <div>Email</div>
-                                    <div>Profile</div>
+                                <div className="hidden grid-cols-[1.6fr_1.5fr_0.8fr_1fr_0.9fr_minmax(200px,auto)] gap-4 border-b border-border bg-muted/60 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground xl:grid">
+                                    <div>User</div>
+                                    <div>Contact</div>
                                     <div>Level</div>
                                     <div>Status</div>
                                     <div>Last login</div>
@@ -316,101 +485,57 @@ export default function Index({ filters, users }: IndexProps) {
                                     users.data.map((user) => (
                                         <div
                                             key={user.id}
-                                            className="grid gap-3 border-b border-border px-4 py-4 last:border-b-0 xl:grid-cols-[1.1fr_1.2fr_1fr_0.9fr_0.8fr_1fr_minmax(220px,auto)] xl:items-center xl:gap-4"
+                                            className="grid gap-3 border-b border-border px-4 py-4 transition-colors last:border-b-0 hover:bg-muted/40 xl:grid-cols-[1.6fr_1.5fr_0.8fr_1fr_0.9fr_minmax(200px,auto)] xl:items-center xl:gap-4"
                                         >
-                                            <div>
-                                                <DirectoryFieldLabel hideFrom="xl">
-                                                    Name
-                                                </DirectoryFieldLabel>
-                                                <p className="font-medium text-foreground">
-                                                    {user.name}
-                                                </p>
-                                                <p className="text-sm text-muted-foreground md:hidden">
-                                                    {user.email}
-                                                    {user.microsoft_mailbox
-                                                        ? ` · ${user.microsoft_mailbox}`
-                                                        : ''}
-                                                    {user.primary_phone
-                                                        ? ` · ${user.primary_phone}`
-                                                        : ''}
-                                                </p>
-                                                <p className="text-sm text-muted-foreground md:hidden">
-                                                    Last login:{' '}
-                                                    {user.last_login_at ??
-                                                        'Never'}
-                                                </p>
+                                            <div className="flex items-center gap-3">
+                                                <span
+                                                    className={`flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${avatarTone(user.id)}`}
+                                                    aria-hidden="true"
+                                                >
+                                                    {initials(user.name)}
+                                                </span>
+                                                <div className="min-w-0">
+                                                    <p className="truncate font-semibold text-foreground">
+                                                        {user.name}
+                                                    </p>
+                                                    <p className="truncate text-xs text-muted-foreground">
+                                                        {user.job_title ?? 'No job title'}
+                                                    </p>
+                                                    {user.preferred_language && (
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {user.preferred_language.name} ({user.preferred_language.abbreviation.toUpperCase()})
+                                                        </p>
+                                                    )}
+                                                </div>
                                             </div>
-                                            <div className="hidden text-sm text-muted-foreground md:block">
-                                                <DirectoryFieldLabel hideFrom="xl">
-                                                    Email
-                                                </DirectoryFieldLabel>
-                                                {user.email}
-                                                {user.microsoft_mailbox ? (
-                                                    <span className="block">
-                                                        Mailbox:{' '}
-                                                        {user.microsoft_mailbox}
-                                                    </span>
-                                                ) : null}
-                                                {user.microsoft_app_ready ? (
-                                                    <span className="block">
-                                                        Microsoft app
-                                                        credentials saved
-                                                    </span>
-                                                ) : null}
-                                                {user.primary_email &&
-                                                user.primary_email !==
-                                                    user.email ? (
-                                                    <span className="block">
-                                                        Primary:{' '}
-                                                        {user.primary_email}
-                                                    </span>
-                                                ) : null}
-                                                {user.primary_phone ? (
-                                                    <span className="block">
+                                            <div className="min-w-0 space-y-1 text-sm text-muted-foreground">
+                                                <p className="flex items-center gap-1.5 truncate">
+                                                    <MailIcon className="size-3.5 shrink-0" />
+                                                    <span className="truncate">{user.primary_email ?? user.email}</span>
+                                                </p>
+                                                {user.primary_phone && (
+                                                    <p className="flex items-center gap-1.5">
+                                                        <PhoneIcon className="size-3.5 shrink-0" />
                                                         {user.primary_phone}
-                                                    </span>
-                                                ) : null}
-                                                {user.job_title ? (
-                                                    <span className="block">
-                                                        {user.job_title}
-                                                    </span>
-                                                ) : null}
+                                                    </p>
+                                                )}
+                                                {user.microsoft_mailbox && (
+                                                    <p className="truncate text-xs">Mailbox: {user.microsoft_mailbox}</p>
+                                                )}
+                                            </div>
+                                            <div>
+                                                <DirectoryFieldLabel hideFrom="xl">Level</DirectoryFieldLabel>
+                                                <Badge variant="outline">{user.level?.name ?? 'No level'}</Badge>
+                                            </div>
+                                            <div className="flex flex-col items-start gap-1">
+                                                <DirectoryFieldLabel hideFrom="xl">Status</DirectoryFieldLabel>
+                                                <UserStatusControl user={user} />
+                                                {canUpdateUsers && (
+                                                    <BlockHistoryButton name={user.name} logs={user.block_history ?? []} />
+                                                )}
                                             </div>
                                             <div className="text-sm text-muted-foreground">
-                                                <DirectoryFieldLabel hideFrom="xl">
-                                                    Profile
-                                                </DirectoryFieldLabel>
-                                                <span className="block">
-                                                    DOB:{' '}
-                                                    {user.date_of_birth ??
-                                                        'Not added'}
-                                                </span>
-                                                <span className="block">
-                                                    Language:{' '}
-                                                    {user.preferred_language
-                                                        ? `${user.preferred_language.name} (${user.preferred_language.abbreviation.toUpperCase()})`
-                                                        : 'Not added'}
-                                                </span>
-                                            </div>
-                                            <div>
-                                                <DirectoryFieldLabel hideFrom="xl">
-                                                    Level
-                                                </DirectoryFieldLabel>
-                                                <Badge variant="outline">
-                                                    {user.level?.name ??
-                                                        'No level'}
-                                                </Badge>
-                                            </div>
-                                            <div>
-                                                <DirectoryFieldLabel hideFrom="xl">
-                                                    Status
-                                                </DirectoryFieldLabel>
-                                                <UserStatusControl user={user} />
-                                            </div>
-                                            <div className="hidden text-sm text-muted-foreground md:block">
-                                                <DirectoryFieldLabel hideFrom="xl">
-                                                    Last login
-                                                </DirectoryFieldLabel>
+                                                <DirectoryFieldLabel hideFrom="xl">Last login</DirectoryFieldLabel>
                                                 {user.last_login_at ?? 'Never'}
                                             </div>
                                             <div className="flex min-w-0 flex-col gap-1 md:items-end">
@@ -511,6 +636,8 @@ export default function Index({ filters, users }: IndexProps) {
                             />
                         </CardContent>
                     </Card>
+
+                    {canUpdateUsers && blockLogs && <BlockLogTable logs={blockLogs} />}
                 </div>
             </div>
 

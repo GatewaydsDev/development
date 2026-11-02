@@ -43,6 +43,10 @@ Route::middleware(['guest', 'prevent-back-history'])->group(function () {
         ->name('password.store');
 });
 
+Route::get('login-unlock/{user}/allow', [LoginUnlockController::class, 'quick'])
+    ->middleware(['signed', 'throttle:20,1'])
+    ->name('login.unlock.quick');
+
 Route::middleware(['auth', 'prevent-back-history'])->group(function () {
     Route::get('login-unlock/{user}', [LoginUnlockController::class, 'show'])
         ->middleware('signed')

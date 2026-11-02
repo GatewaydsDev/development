@@ -51,6 +51,7 @@ type UserFormData = {
     language_id: string;
     level_id: string;
     status: string;
+    status_reason: string;
     password: string;
     password_confirmation: string;
     job_title: string;
@@ -239,6 +240,7 @@ export default function UserForm({
             language_id: initialValues.language_id ?? '',
             level_id: initialValues.level_id ?? '',
             status: initialValues.status ?? 'active',
+            status_reason: '',
             password: '',
             password_confirmation: '',
             job_title: initialValues.job_title ?? '',
@@ -745,6 +747,22 @@ export default function UserForm({
                             <p className="text-xs text-muted-foreground">
                                 Only active users can sign in.
                             </p>
+                            {data.status !== (initialValues.status ?? 'active') && (
+                                <>
+                                    <label htmlFor="status_reason" className="text-sm font-medium">
+                                        Reason for the change
+                                    </label>
+                                    <textarea
+                                        id="status_reason"
+                                        rows={3}
+                                        maxLength={500}
+                                        value={data.status_reason}
+                                        onChange={(e) => setData('status_reason', e.target.value)}
+                                        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                                    />
+                                    <InputError message={errors.status_reason} />
+                                </>
+                            )}
                         </div>
                     ) : null}
 

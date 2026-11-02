@@ -193,7 +193,7 @@ test('super administrators change a user status from the users list', function (
     $level = \App\Models\UserLevel::query()->firstOrCreate(['name' => 'Employee']);
     $user = User::factory()->create(['level_id' => $level->id, 'role' => 'employee']);
 
-    $this->actingAs($admin)->patch(route('admin.users.status', $user), ['status' => 'deactivated']);
+    $this->actingAs($admin)->patch(route('admin.users.status', $user), ['status' => 'deactivated', 'reason' => 'Test reason']);
     expect($user->fresh()->account_status)->toBe('deactivated');
 
     auth()->logout();
@@ -201,10 +201,81 @@ test('super administrators change a user status from the users list', function (
     expect(session('errors')->first('email'))->toContain('deactivated');
     $this->assertGuest();
 
-    $this->actingAs($admin)->patch(route('admin.users.status', $user), ['status' => 'active']);
+    $this->actingAs($admin)->patch(route('admin.users.status', $user), ['status' => 'active', 'reason' => 'Test reason']);
     expect($user->fresh()->account_status)->toBe('active');
 
     $this->actingAs($admin)->patch(route('admin.users.status', $user), ['status' => 'nonsense'])
         ->assertSessionHasErrors('status');
-    $this->actingAs($admin)->patch(route('admin.users.status', $admin), ['status' => 'blocked'])->assertForbidden();
+    $this->actingAs($admin)->patch(route('admin.users.status', $admin), ['status' => 'blocked', 'reason' => 'Test reason'])->assertForbidden();
+});
+
+test('the one-click email link unlocks once without signing in', function () {
+    $user = User::factory()->create(['role' => 'user']);
+    $lockout = app(\App\Support\LoginLockout::class);
+    $user->forceFill(['login_locked_at' => now(), 'account_status' => 'blocked', 'failed_login_attempts' => 3])->save();
+    $url = $lockout->quickUnlockUrl($user->fresh());
+
+    $this->get($url)->assertInertia(fn ($page) => $page->where('unlocked', true));
+    expect($user->fresh()->account_status)->toBe('active');
+
+    $this->get($url)->assertInertia(fn ($page) => $page->where('unlocked', false));
+    $this->get(route('login.unlock.quick', ['user' => $user->id, 'lock' => 1]))->assertForbidden();
+});
+
+test('each block is logged with its details and release', function () {
+    $user = User::factory()->create(['role' => 'user', 'email' => 'blk@example.com']);
+    $mock = Mockery::mock(\App\Services\MicrosoftGraphMailService::class);
+    $mock->shouldReceive('send')->andReturnNull();
+    app()->instance(\App\Services\MicrosoftGraphMailService::class, $mock);
+    User::factory()->create(['role' => 'super_admin', 'microsoft_mailbox' => 'sa@example.com']);
+
+    for ($i = 0; $i < 3; $i++) {
+        $this->post('/login', ['email' => 'blk@example.com', 'password' => 'wrong']);
+    }
+
+    $this->assertDatabaseHas('login_block_logs', ['email' => 'blk@example.com', 'attempts' => 3, 'emails_sent' => 1, 'released_at' => null]);
+
+    $admin = User::where('role', 'super_admin')->first();
+    $this->actingAs($admin)->patch(route('admin.users.status', $user), ['status' => 'active', 'reason' => 'Test reason']);
+
+    $log = \App\Models\LoginBlockLog::first();
+    expect($log->released_at)->not->toBeNull()
+        ->and($log->release_method)->toBe('user_management')
+        ->and($log->released_by)->toBe($admin->name)
+        ->and($log->release_reason)->toBe('Test reason');
+
+    $this->actingAs($admin)->get(route('admin.users.index'))
+        ->assertInertia(fn ($page) => $page->has('blockLogs', 1));
+});
+
+test('manual blocks are logged and shown in each user history', function () {
+    $admin = User::factory()->create(['role' => 'super_admin']);
+    $user = User::factory()->create(['role' => 'user']);
+
+    $this->actingAs($admin)->patch(route('admin.users.status', $user), ['status' => 'blocked', 'reason' => 'Test reason']);
+    $this->assertDatabaseHas('login_block_logs', [
+        'user_id' => $user->id, 'kind' => 'blocked', 'source' => 'manual', 'blocked_by' => $admin->name, 'released_at' => null,
+    ]);
+
+    $this->actingAs($admin)->get(route('admin.users.index'))->assertInertia(fn ($page) => $page
+        ->where('users.data', fn ($rows) => collect($rows)->firstWhere('id', $user->id)['block_history'][0]['source'] === 'manual'));
+
+    $this->actingAs($admin)->patch(route('admin.users.status', $user), ['status' => 'active', 'reason' => 'Test reason']);
+    expect(\App\Models\LoginBlockLog::where('user_id', $user->id)->first()->released_at)->not->toBeNull();
+});
+
+test('changing status requires a reason that is stored with who and when', function () {
+    $admin = User::factory()->create(['role' => 'super_admin']);
+    $user = User::factory()->create(['role' => 'user']);
+
+    $this->actingAs($admin)->patch(route('admin.users.status', $user), ['status' => 'blocked'])
+        ->assertSessionHasErrors('reason');
+    expect($user->fresh()->account_status)->toBe('active');
+
+    $this->actingAs($admin)->patch(route('admin.users.status', $user), ['status' => 'blocked', 'reason' => 'Suspicious activity']);
+
+    $log = \App\Models\LoginBlockLog::where('user_id', $user->id)->first();
+    expect($log->reason)->toBe('Suspicious activity')
+        ->and($log->blocked_by)->toBe($admin->name)
+        ->and($log->blocked_at)->not->toBeNull();
 });
