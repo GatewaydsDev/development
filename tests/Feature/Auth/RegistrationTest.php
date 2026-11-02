@@ -314,6 +314,13 @@ test('block log email can be sent to the affected user', function () {
 
     expect(collect($sent)->last()['to'])->toBe($user->email);
 
+    $this->actingAs($admin)->post(route('admin.users.block-logs.notify', $log), ['email' => 'Other@Example.com'])
+        ->assertSessionHas('success');
+    expect(collect($sent)->last()['to'])->toBe('other@example.com');
+
+    $this->actingAs($admin)->post(route('admin.users.block-logs.notify', $log), ['email' => 'nope'])
+        ->assertSessionHasErrors('email');
+
     $this->actingAs(User::factory()->create())->post(route('admin.users.block-logs.notify', $log))
         ->assertForbidden();
 });

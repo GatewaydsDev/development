@@ -256,6 +256,9 @@ function RegistrationStatusControl({
 function NotifyUserButton({ log }: { log: BlockLogRow }) {
     const [open, setOpen] = useState(false);
     const [sending, setSending] = useState(false);
+    const [email, setEmail] = useState(log.email);
+    const [error, setError] = useState<string | null>(null);
+    const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim());
     const sent = log.emails_sent > 0;
     const badge = (
         <Badge
@@ -277,7 +280,11 @@ function NotifyUserButton({ log }: { log: BlockLogRow }) {
                 type="button"
                 aria-label={`Send email to ${log.name}`}
                 className="rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                onClick={() => setOpen(true)}
+                onClick={() => {
+                    setEmail(log.email);
+                    setError(null);
+                    setOpen(true);
+                }}
             >
                 {badge}
             </button>
@@ -286,25 +293,50 @@ function NotifyUserButton({ log }: { log: BlockLogRow }) {
                     <DialogHeader>
                         <DialogTitle>Email {log.name}</DialogTitle>
                         <DialogDescription>
-                            Send an email to {log.email} about their current account status
+                            Send an email about their current account status
                             {log.user_status ? ` (${log.user_status})` : ''}. If the account is active, the email
                             tells them they can sign in.
                         </DialogDescription>
                     </DialogHeader>
+                    <div className="grid gap-2">
+                        <label htmlFor={`notify-email-${log.id}`} className="text-sm font-medium">Send to</label>
+                        <input
+                            className="h-10 w-full rounded-md border border-border bg-background px-3 text-base md:text-sm"
+                            id={`notify-email-${log.id}`}
+                            type="email"
+                            value={email}
+                            onChange={(event) => {
+                                setEmail(event.target.value);
+                                setError(null);
+                            }}
+                            aria-invalid={email.trim() !== '' && !emailValid}
+                            placeholder={log.email}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            Defaults to {log.email}. Enter a different address to send it there instead.
+                        </p>
+                        {email.trim() !== '' && !emailValid ? (
+                            <p className="text-sm text-red-600">Enter a valid email address, like name@example.com.</p>
+                        ) : error ? (
+                            <p className="text-sm text-red-600">{error}</p>
+                        ) : null}
+                    </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setOpen(false)}>
                             Cancel
                         </Button>
                         <Button
-                            disabled={sending}
+                            disabled={sending || !emailValid}
                             onClick={() => {
                                 setSending(true);
+                                setError(null);
                                 router.post(
                                     route('admin.users.block-logs.notify', log.id),
-                                    {},
+                                    { email: email.trim() },
                                     {
                                         preserveScroll: true,
                                         onSuccess: () => setOpen(false),
+                                        onError: (errors) => setError(errors.email ?? 'Could not send the email.'),
                                         onFinish: () => setSending(false),
                                     },
                                 );

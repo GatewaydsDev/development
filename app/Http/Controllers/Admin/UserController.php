@@ -453,11 +453,14 @@ class UserController extends Controller
         abort_unless($user !== null && $request->user()?->canViewUserAccount($user), 404);
         abort_unless($this->canChangeStatus($request->user(), $user), 403);
 
-        if (! $lockout->notifyUser($user, $user->account_status)) {
-            return back()->with('error', 'The email to '.$user->email.' could not be sent. Try again.');
+        $to = $request->validate(['email' => ['nullable', 'email:rfc', 'max:255']])['email'] ?? null;
+        $to = filled($to) ? strtolower(trim($to)) : $user->email;
+
+        if (! $lockout->notifyUser($user, $user->account_status, $to)) {
+            return back()->with('error', 'The email to '.$to.' could not be sent. Try again.');
         }
 
-        return back()->with('success', 'Email sent to '.$user->email.'. Microsoft 365 accepted it for delivery.');
+        return back()->with('success', 'Email sent to '.$to.'. Microsoft 365 accepted it for delivery.');
     }
 
     private function canChangeStatus(?User $actor, User $target): bool

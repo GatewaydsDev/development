@@ -127,7 +127,7 @@ class LoginLockout
     }
 
     /** Tells the user their sign-in access changed. Returns whether the email was sent. */
-    public function notifyUser(User $user, string $status): bool
+    public function notifyUser(User $user, string $status, ?string $to = null): bool
     {
         $active = $status === self::ACTIVE;
         $title = $active ? 'Your account is active again' : 'Your account access was changed';
@@ -145,7 +145,7 @@ class LoginLockout
         try {
             app(MicrosoftGraphMailService::class)->sendFromMailbox(
                 RegistrationApproval::SENDER_MAILBOX,
-                $user->email,
+                $to ?: $user->email,
                 $title,
                 $html,
                 'Ricardo Scarpim',
