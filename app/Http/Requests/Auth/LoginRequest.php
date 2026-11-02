@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Models\User;
+use App\Support\LoginLockout;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -42,8 +44,51 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
+        $lockout = app(LoginLockout::class);
+        $user = User::query()->where('email', $this->string('email')->toString())->first();
+
+        if ($lockout->isLocked($user) && $user->account_status === LoginLockout::DEACTIVATED) {
+            $this->flashAlert('deactivated');
+
+            throw ValidationException::withMessages([
+                'email' => 'This account is deactivated. Please contact the administrator.',
+            ]);
+        }
+
+        if ($lockout->isLocked($user)) {
+            $this->flashAlert('blocked', emailed: true);
+
+            throw ValidationException::withMessages([
+                'email' => 'This account is blocked after 3 failed attempts. An email was sent to the administrator, who can allow you to try again.',
+            ]);
+        }
+
         if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
             RateLimiter::hit($this->throttleKey());
+
+            if ($user instanceof User && $lockout->applies($user)) {
+                $emailed = $lockout->recordFailure($user, $this);
+
+                if ($emailed !== null) {
+                    $this->flashAlert('blocked', emailed: $emailed > 0);
+
+                    throw ValidationException::withMessages([
+                        'email' => $emailed > 0
+                            ? 'Attempt 3 of 3 failed. This account is now blocked and an email was sent to the administrator.'
+                            : 'Attempt 3 of 3 failed. This account is now blocked. Please contact the administrator.',
+                    ]);
+                }
+
+                $left = $lockout->attemptsLeft($user->fresh());
+
+                $this->flashAlert('attempt', $user->fresh()->failed_login_attempts, $left);
+
+                throw ValidationException::withMessages([
+                    'email' => trans('auth.failed').' Attempt '.($user->fresh()->failed_login_attempts)
+                        .' of '.LoginLockout::MAX_ATTEMPTS.'. '
+                        .$left.($left === 1 ? ' attempt' : ' attempts').' left before the account is blocked and the administrator is emailed.',
+                ]);
+            }
 
             throw ValidationException::withMessages([
                 'email' => trans('auth.failed'),
@@ -51,6 +96,21 @@ class LoginRequest extends FormRequest
         }
 
         RateLimiter::clear($this->throttleKey());
+
+        if ($user instanceof User) {
+            $lockout->reset($user);
+        }
+    }
+
+    private function flashAlert(string $type, int $attempt = LoginLockout::MAX_ATTEMPTS, int $left = 0, bool $emailed = false): void
+    {
+        session()->flash('login_alert', [
+            'type' => $type,
+            'attempt' => $attempt,
+            'max' => LoginLockout::MAX_ATTEMPTS,
+            'left' => $left,
+            'emailed' => $emailed,
+        ]);
     }
 
     /**

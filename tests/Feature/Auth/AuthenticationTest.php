@@ -107,3 +107,104 @@ test('visitors cannot access prohibited protected areas by typing the url', func
         ->get('/dashboard')
         ->assertForbidden();
 });
+
+function lockoutSuperAdmin(): User
+{
+    return User::factory()->create([
+        'role' => 'super_admin',
+        'email' => 'boss@example.com',
+        'microsoft_mailbox' => 'boss@gateway-ds.com',
+    ]);
+}
+
+function fakeGraphMail(): \Mockery\MockInterface
+{
+    $mock = Mockery::mock(\App\Services\MicrosoftGraphMailService::class);
+    app()->instance(\App\Services\MicrosoftGraphMailService::class, $mock);
+
+    return $mock;
+}
+
+test('a third failed password blocks the account and emails the super administrator', function () {
+    lockoutSuperAdmin();
+    $user = User::factory()->create(['role' => 'employee']);
+    fakeGraphMail()->shouldReceive('send')->once()->withArgs(
+        fn ($to, $subject, $html) => $to === 'boss@gateway-ds.com'
+            && str_contains($subject, $user->email)
+            && str_contains($html, 'login-unlock/'.$user->id),
+    );
+
+    $this->post('/login', ['email' => $user->email, 'password' => 'wrong']);
+    expect(session('errors')->first('email'))->toContain('Attempt 1 of 3')->toContain('2 attempts left');
+
+    $this->post('/login', ['email' => $user->email, 'password' => 'wrong']);
+    expect(session('errors')->first('email'))->toContain('1 attempt left');
+
+    $this->post('/login', ['email' => $user->email, 'password' => 'wrong']);
+    expect(session('errors')->first('email'))->toContain('email was sent to the administrator');
+
+    expect($user->fresh()->account_status)->toBe('blocked');
+    $this->assertGuest();
+
+    $this->post('/login', ['email' => $user->email, 'password' => 'password'])
+        ->assertSessionHasErrors('email');
+    $this->assertGuest();
+});
+
+test('a successful login resets the failed attempts', function () {
+    $user = User::factory()->create(['role' => 'employee']);
+
+    $this->post('/login', ['email' => $user->email, 'password' => 'wrong']);
+    $this->post('/login', ['email' => $user->email, 'password' => 'password']);
+
+    expect($user->fresh()->failed_login_attempts)->toBe(0);
+});
+
+test('super administrators are never blocked', function () {
+    $admin = lockoutSuperAdmin();
+
+    foreach (range(1, 3) as $_) {
+        $this->post('/login', ['email' => $admin->email, 'password' => 'wrong']);
+    }
+
+    expect($admin->fresh()->login_locked_at)->toBeNull();
+});
+
+test('only a super administrator can allow a blocked user to try again', function () {
+    $admin = lockoutSuperAdmin();
+    $user = User::factory()->create(['role' => 'employee', 'login_locked_at' => now(), 'account_status' => 'blocked', 'failed_login_attempts' => 3]);
+    $other = User::factory()->create(['role' => 'employee']);
+    $url = app(\App\Support\LoginLockout::class)->unlockUrl($user);
+
+    $this->actingAs($other)->get($url)->assertForbidden();
+    $this->actingAs($other)->post(route('login.unlock.store', $user))->assertForbidden();
+
+    $this->actingAs($admin)->get($url)->assertOk();
+    $this->get(route('login.unlock.show', $user))->assertForbidden();
+
+    $this->actingAs($admin)->post(route('login.unlock.store', $user))->assertRedirect();
+
+    expect($user->fresh()->account_status)->toBe('active')
+        ->and($user->fresh()->failed_login_attempts)->toBe(0);
+});
+
+test('super administrators change a user status from the users list', function () {
+    $admin = lockoutSuperAdmin();
+    $level = \App\Models\UserLevel::query()->firstOrCreate(['name' => 'Employee']);
+    $user = User::factory()->create(['level_id' => $level->id, 'role' => 'employee']);
+
+    $this->actingAs($admin)->patch(route('admin.users.status', $user), ['status' => 'deactivated']);
+    expect($user->fresh()->account_status)->toBe('deactivated');
+
+    auth()->logout();
+    $this->post('/login', ['email' => $user->email, 'password' => 'password']);
+    expect(session('errors')->first('email'))->toContain('deactivated');
+    $this->assertGuest();
+
+    $this->actingAs($admin)->patch(route('admin.users.status', $user), ['status' => 'active']);
+    expect($user->fresh()->account_status)->toBe('active');
+
+    $this->actingAs($admin)->patch(route('admin.users.status', $user), ['status' => 'nonsense'])
+        ->assertSessionHasErrors('status');
+    $this->actingAs($admin)->patch(route('admin.users.status', $admin), ['status' => 'blocked'])->assertForbidden();
+});

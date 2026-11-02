@@ -239,6 +239,9 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::patch('/users/{user}', [UserController::class, 'update'])
             ->middleware('can:update-users')
             ->name('users.update');
+        Route::patch('/users/{user}/status', [UserController::class, 'updateStatus'])
+            ->middleware('can:update-users')
+            ->name('users.status');
         Route::post('/users/{user}/impersonate', [ImpersonationController::class, 'store'])
             ->name('users.impersonate');
         Route::get('/user-activities', [UserActivityController::class, 'index'])

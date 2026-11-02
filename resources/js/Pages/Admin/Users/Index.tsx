@@ -21,9 +21,17 @@ import {
     CardHeader,
     CardTitle,
 } from '@/Components/ui/card';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuRadioGroup,
+    DropdownMenuRadioItem,
+    DropdownMenuTrigger,
+} from '@/Components/ui/dropdown-menu';
 import { PageProps } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
+    ChevronDownIcon,
     EditIcon,
     LogInIcon,
     SearchIcon,
@@ -57,6 +65,8 @@ type UserRow = {
     } | null;
     created_at: string | null;
     last_login_at: string | null;
+    status?: string;
+    can_change_status?: boolean;
 };
 
 type PaginationLink = {
@@ -82,6 +92,76 @@ type IndexProps = {
     };
     users: UsersPaginator;
 };
+
+const STATUS_STYLES: Record<string, { label: string; dot: string; badge: string }> = {
+    active: {
+        label: 'Active',
+        dot: 'bg-emerald-500',
+        badge: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300',
+    },
+    deactivated: {
+        label: 'Deactivated',
+        dot: 'bg-slate-400',
+        badge: 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-500/30 dark:bg-slate-500/10 dark:text-slate-300',
+    },
+    blocked: {
+        label: 'Blocked',
+        dot: 'bg-red-500',
+        badge: 'border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300',
+    },
+};
+
+function UserStatusControl({
+    user,
+}: {
+    user: { id: number; name: string; status?: string; can_change_status?: boolean };
+}) {
+    const current = user.status ?? 'active';
+    const style = STATUS_STYLES[current] ?? STATUS_STYLES.active;
+    const badge = (
+        <Badge className={`gap-1.5 ${style.badge}`}>
+            <span className={`size-1.5 rounded-full ${style.dot}`} />
+            {style.label}
+            {user.can_change_status ? <ChevronDownIcon className="size-3" /> : null}
+        </Badge>
+    );
+
+    if (!user.can_change_status) {
+        return badge;
+    }
+
+    return (
+        <DropdownMenu>
+            <DropdownMenuTrigger
+                aria-label={`Change status for ${user.name}`}
+                className="rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+                {badge}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-44">
+                <DropdownMenuRadioGroup
+                    value={current}
+                    onValueChange={(status) => {
+                        if (status !== current) {
+                            router.patch(
+                                route('admin.users.status', user.id),
+                                { status },
+                                { preserveScroll: true },
+                            );
+                        }
+                    }}
+                >
+                    {Object.entries(STATUS_STYLES).map(([value, option]) => (
+                        <DropdownMenuRadioItem key={value} value={value}>
+                            <span className={`size-2 rounded-full ${option.dot}`} />
+                            {option.label}
+                        </DropdownMenuRadioItem>
+                    ))}
+                </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+        </DropdownMenu>
+    );
+}
 
 export default function Index({ filters, users }: IndexProps) {
     const { auth } = usePage<PageProps>().props;
@@ -222,11 +302,12 @@ export default function Index({ filters, users }: IndexProps) {
 
                         <CardContent>
                             <div className="overflow-x-auto rounded-lg border border-border">
-                                <div className="hidden grid-cols-[1.1fr_1.2fr_1fr_0.9fr_1fr_minmax(220px,auto)] gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground xl:grid">
+                                <div className="hidden grid-cols-[1.1fr_1.2fr_1fr_0.9fr_0.8fr_1fr_minmax(220px,auto)] gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground xl:grid">
                                     <div>Name</div>
                                     <div>Email</div>
                                     <div>Profile</div>
                                     <div>Level</div>
+                                    <div>Status</div>
                                     <div>Last login</div>
                                     <div className="text-right">Actions</div>
                                 </div>
@@ -235,7 +316,7 @@ export default function Index({ filters, users }: IndexProps) {
                                     users.data.map((user) => (
                                         <div
                                             key={user.id}
-                                            className="grid gap-3 border-b border-border px-4 py-4 last:border-b-0 xl:grid-cols-[1.1fr_1.2fr_1fr_0.9fr_1fr_minmax(220px,auto)] xl:items-center xl:gap-4"
+                                            className="grid gap-3 border-b border-border px-4 py-4 last:border-b-0 xl:grid-cols-[1.1fr_1.2fr_1fr_0.9fr_0.8fr_1fr_minmax(220px,auto)] xl:items-center xl:gap-4"
                                         >
                                             <div>
                                                 <DirectoryFieldLabel hideFrom="xl">
@@ -319,6 +400,12 @@ export default function Index({ filters, users }: IndexProps) {
                                                     {user.level?.name ??
                                                         'No level'}
                                                 </Badge>
+                                            </div>
+                                            <div>
+                                                <DirectoryFieldLabel hideFrom="xl">
+                                                    Status
+                                                </DirectoryFieldLabel>
+                                                <UserStatusControl user={user} />
                                             </div>
                                             <div className="hidden text-sm text-muted-foreground md:block">
                                                 <DirectoryFieldLabel hideFrom="xl">

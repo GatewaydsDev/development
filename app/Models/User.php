@@ -90,6 +90,7 @@ class User extends Authenticatable
             'date_of_birth' => 'date',
             'email_verified_at' => 'datetime',
             'last_login_at' => 'datetime',
+            'login_locked_at' => 'datetime',
             'password' => 'hashed',
             'is_master' => 'boolean',
             'microsoft_client_secret' => 'encrypted',

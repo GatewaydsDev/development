@@ -7,6 +7,7 @@ use App\Models\Employee;
 use App\Models\Language;
 use App\Models\Profession;
 use App\Models\User;
+use App\Support\LoginLockout;
 use App\Models\UserEmail;
 use App\Models\UserLevel;
 use App\Models\UserPhone;
@@ -89,6 +90,8 @@ class UserController extends Controller
                             'name' => $user->level->name,
                         ]
                         : null,
+                    'status' => $user->account_status,
+                    'can_change_status' => $this->canChangeStatus($request->user(), $user),
                     'created_at' => $user->created_at?->toFormattedDateString(),
                     'last_login_at' => $user->last_login_at?->format('M j, Y g:i A'),
                 ]),
@@ -240,6 +243,8 @@ class UserController extends Controller
                         'abbreviation' => $user->preferredLanguage->abbreviation,
                     ]
                     : null,
+                'status' => $user->account_status,
+                'can_change_status' => $this->canChangeStatus(request()->user(), $user),
                 'level_id' => $user->level_id,
                 'level' => $user->level
                     ? [
@@ -286,6 +291,7 @@ class UserController extends Controller
             'date_of_birth' => ['nullable', 'date_format:m/d/Y'],
             'language_id' => ['nullable', 'integer', Rule::exists(Language::class, 'id')],
             'level_id' => ['required', 'integer', Rule::exists(UserLevel::class, 'id')],
+            'status' => ['sometimes', Rule::in(LoginLockout::STATUSES)],
             'password' => ['nullable', 'confirmed', Rules\Password::defaults()],
             ...UserContacts::rules(),
             ...$this->mailboxRules($request, $user),
@@ -312,6 +318,14 @@ class UserController extends Controller
             'role' => str($level->name)->lower()->replace(' ', '_')->toString(),
         ]);
 
+        if (isset($validated['status']) && ! $level->isSuperAdminLevel() && $this->canChangeStatus($request->user(), $user)) {
+            $user->forceFill([
+                'account_status' => $validated['status'],
+                'failed_login_attempts' => 0,
+                'login_locked_at' => $validated['status'] === LoginLockout::ACTIVE ? null : ($user->login_locked_at ?? now()),
+            ]);
+        }
+
         if ($request->hasFile('avatar')) {
             if ($user->avatar) {
                 Storage::disk('public')->delete($user->avatar);
@@ -336,6 +350,28 @@ class UserController extends Controller
         return redirect()
             ->route('admin.users.index')
             ->with('success', 'User updated successfully.');
+    }
+
+    public function updateStatus(Request $request, User $user, LoginLockout $lockout): RedirectResponse
+    {
+        abort_unless($request->user()?->canViewUserAccount($user), 404);
+        abort_unless($this->canChangeStatus($request->user(), $user), 403);
+
+        $validated = $request->validate([
+            'status' => ['required', Rule::in(LoginLockout::STATUSES)],
+        ]);
+
+        $lockout->setStatus($user, $validated['status']);
+
+        return back()->with('success', $user->name.' is now '.$validated['status'].'.');
+    }
+
+    private function canChangeStatus(?User $actor, User $target): bool
+    {
+        return $actor instanceof User
+            && $actor->can('update-users')
+            && $actor->isNot($target)
+            && ! $this->userIsSuperAdmin($target);
     }
 
     private function prepareMailbox(Request $request): void

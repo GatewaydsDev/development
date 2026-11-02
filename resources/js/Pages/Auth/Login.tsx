@@ -5,16 +5,87 @@ import TextInput from '@/Components/TextInput';
 import { Button } from '@/Components/ui/button';
 import PublicLayout from '@/Layouts/PublicLayout';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { Eye, EyeOff } from 'lucide-react';
+import { BanIcon, Eye, EyeOff, MailCheckIcon, ShieldAlertIcon } from 'lucide-react';
 import { FormEventHandler } from 'react';
 import { useState } from 'react';
+
+type LoginAlert = {
+    type: 'attempt' | 'blocked' | 'deactivated';
+    attempt: number;
+    max: number;
+    left: number;
+    emailed: boolean;
+};
+
+function LoginAlertCard({ alert }: { alert: LoginAlert }) {
+    if (alert.type === 'attempt') {
+        return (
+            <div role="alert" className="rounded-lg border border-amber-300/60 bg-amber-50 p-4 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
+                <div className="flex items-center gap-3">
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-300">
+                        <ShieldAlertIcon className="size-5" />
+                    </span>
+                    <div>
+                        <p className="text-sm font-semibold">Incorrect email or password</p>
+                        <p className="text-xs opacity-80">
+                            Attempt {alert.attempt} of {alert.max}
+                        </p>
+                    </div>
+                </div>
+                <div className="mt-3 flex gap-1.5" aria-hidden="true">
+                    {Array.from({ length: alert.max }, (_, index) => (
+                        <span
+                            key={index}
+                            className={`h-1.5 flex-1 rounded-full ${index < alert.attempt ? 'bg-amber-500' : 'bg-amber-200 dark:bg-amber-500/20'}`}
+                        />
+                    ))}
+                </div>
+                <p className="mt-3 text-xs">
+                    <strong>{alert.left}</strong> {alert.left === 1 ? 'attempt' : 'attempts'} left before the account is blocked and the administrator is emailed.
+                </p>
+            </div>
+        );
+    }
+
+    const deactivated = alert.type === 'deactivated';
+
+    return (
+        <div role="alert" className="rounded-lg border border-red-300/60 bg-red-50 p-4 text-red-900 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-100">
+            <div className="flex items-center gap-3">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-300">
+                    <BanIcon className="size-5" />
+                </span>
+                <div>
+                    <p className="text-sm font-semibold">
+                        {deactivated ? 'Account deactivated' : 'Account blocked'}
+                    </p>
+                    <p className="text-xs opacity-80">
+                        {deactivated
+                            ? 'This account cannot sign in right now.'
+                            : `${alert.max} failed attempts`}
+                    </p>
+                </div>
+            </div>
+            {alert.type === 'blocked' && alert.emailed ? (
+                <p className="mt-3 flex items-start gap-2 text-xs">
+                    <MailCheckIcon className="mt-0.5 size-4 shrink-0" />
+                    An email was sent to the administrator, who can allow you to try again.
+                </p>
+            ) : (
+                <p className="mt-3 text-xs">Please contact the administrator.</p>
+            )}
+        </div>
+    );
+}
 
 export default function Login({
     status,
     canResetPassword,
+    loginAlert,
 }: {
     status?: string;
     canResetPassword: boolean;
+    loginAlert?: LoginAlert | null;
 }) {
     const [showPassword, setShowPassword] = useState(false);
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -81,10 +152,12 @@ export default function Login({
                                         }
                                     />
 
-                                    <InputError
-                                        message={errors.email}
-                                        className="text-destructive"
-                                    />
+                                    {!(loginAlert && errors.email) && (
+                                        <InputError
+                                            message={errors.email}
+                                            className="text-destructive"
+                                        />
+                                    )}
                                 </div>
 
                                 <div className="flex flex-col gap-2">
@@ -150,6 +223,10 @@ export default function Login({
                                         message={errors.password}
                                         className="text-destructive"
                                     />
+
+                                    {loginAlert && errors.email && (
+                                        <LoginAlertCard alert={loginAlert} />
+                                    )}
                                 </div>
 
                                 <label className="flex items-center gap-2 text-sm text-muted-foreground">

@@ -32,6 +32,8 @@ type ManagedUser = {
     language_id: number | null;
     preferred_language: Language | null;
     level_id: number | null;
+    status?: string;
+    can_change_status?: boolean;
     level: Level | null;
     emails?: Array<{ email: string; is_primary: boolean }>;
     phones?: Array<{
@@ -106,6 +108,7 @@ export default function Edit({
                         canCreateUserLevel={canCreateUserLevel}
                         canAssignMailbox={canAssignMailbox}
                         superAdminLevelNames={superAdminLevelNames}
+                        canChangeStatus={managedUser.can_change_status ?? false}
                         positions={positions}
                         microsoftSecretSaved={
                             managedUser.microsoft_client_secret_saved ?? false
@@ -133,6 +136,7 @@ export default function Edit({
                             language_id: managedUser.language_id
                                 ? String(managedUser.language_id)
                                 : '',
+                            status: managedUser.status ?? 'active',
                             level_id: managedUser.level_id
                                 ? String(managedUser.level_id)
                                 : '',

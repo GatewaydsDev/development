@@ -50,6 +50,7 @@ type UserFormData = {
     date_of_birth: string;
     language_id: string;
     level_id: string;
+    status: string;
     password: string;
     password_confirmation: string;
     job_title: string;
@@ -71,6 +72,7 @@ type UserFormProps = {
     canCreateUserLevel?: boolean;
     canAssignMailbox?: boolean;
     superAdminLevelNames?: string[];
+    canChangeStatus?: boolean;
     positions?: CreatableOption[];
     microsoftSecretSaved?: boolean;
     submitLabel: string;
@@ -206,6 +208,7 @@ export default function UserForm({
     canCreateUserLevel = false,
     canAssignMailbox = false,
     superAdminLevelNames = ['Super Admin', 'Super Administrator'],
+    canChangeStatus = false,
     positions = [],
     microsoftSecretSaved = false,
     submitLabel,
@@ -235,6 +238,7 @@ export default function UserForm({
             date_of_birth: initialValues.date_of_birth ?? '',
             language_id: initialValues.language_id ?? '',
             level_id: initialValues.level_id ?? '',
+            status: initialValues.status ?? 'active',
             password: '',
             password_confirmation: '',
             job_title: initialValues.job_title ?? '',
@@ -717,6 +721,32 @@ export default function UserForm({
                         error={errors.level_id}
                         onChange={(levelId) => setData('level_id', levelId)}
                     />
+
+                    {userId && !editingSuperAdmin && canChangeStatus ? (
+                        <div className="flex w-full flex-col gap-2 md:w-1/4 md:min-w-48">
+                            <label
+                                htmlFor="status"
+                                className="text-sm font-medium"
+                            >
+                                Account status
+                            </label>
+                            <select
+                                id="status"
+                                value={data.status}
+                                onChange={(e) =>
+                                    setData('status', e.target.value)
+                                }
+                                className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground focus:border-ring focus:ring-ring"
+                            >
+                                <option value="active">Active</option>
+                                <option value="deactivated">Deactivated</option>
+                                <option value="blocked">Blocked</option>
+                            </select>
+                            <p className="text-xs text-muted-foreground">
+                                Only active users can sign in.
+                            </p>
+                        </div>
+                    ) : null}
 
                     {showMicrosoftCredentials ? (
                         <div className="grid gap-5 md:grid-cols-2">
