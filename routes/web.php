@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\EmployeeController;
 use App\Http\Controllers\Admin\DailyTaskController;
 use App\Http\Controllers\Admin\EmployeeWorkScheduleController;
 use App\Http\Controllers\Admin\MyScheduleController;
+use App\Http\Controllers\Admin\SystemUpdateController;
 use App\Http\Controllers\Admin\ExpenseController;
 use App\Http\Controllers\Admin\ImpersonationController;
 use App\Http\Controllers\Admin\LanguageController;
@@ -154,6 +155,15 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
     Route::post('/internal-chat', [InternalChatController::class, 'store'])
         ->middleware('throttle:30,1,internal-chat-send')
         ->name('internal-chat.store');
+    Route::post('/internal-chat/groups', [InternalChatController::class, 'storeGroup'])
+        ->middleware('throttle:30,1,internal-chat-groups')
+        ->name('internal-chat.groups.store');
+    Route::post('/internal-chat/groups/{group}/members', [InternalChatController::class, 'addGroupMembers'])
+        ->middleware('throttle:30,1,internal-chat-groups')
+        ->name('internal-chat.groups.members');
+    Route::delete('/internal-chat/groups/{group}/members', [InternalChatController::class, 'leaveGroup'])
+        ->middleware('throttle:30,1,internal-chat-groups')
+        ->name('internal-chat.groups.leave');
     Route::post('/internal-chat/read', [InternalChatController::class, 'markRead'])
         ->middleware('throttle:60,1,internal-chat-read-state')
         ->name('internal-chat.read');
@@ -321,6 +331,11 @@ Route::middleware(['auth', 'prevent-back-history'])
             ->name('contractors.destroy');
         Route::get('/contractor-contacts/availability', [ContractorController::class, 'contactAvailability'])
             ->name('contractor-contacts.availability');
+
+        Route::get('/system-updates', [SystemUpdateController::class, 'index'])->name('system-updates.index');
+        Route::post('/system-updates', [SystemUpdateController::class, 'store'])->name('system-updates.store');
+        Route::post('/system-updates/share', [SystemUpdateController::class, 'share'])->name('system-updates.share');
+        Route::delete('/system-updates/{systemUpdate}', [SystemUpdateController::class, 'destroy'])->name('system-updates.destroy');
 
         Route::get('/my-schedule', [MyScheduleController::class, 'index'])
             ->middleware('can:view-my-schedule')

@@ -11,12 +11,18 @@ class InternalMessage extends Model
     protected $fillable = [
         'user_id',
         'recipient_id',
+        'group_id',
         'body',
     ];
 
     public function recipient(): BelongsTo
     {
         return $this->belongsTo(User::class, 'recipient_id');
+    }
+
+    public function group(): BelongsTo
+    {
+        return $this->belongsTo(InternalChatGroup::class, 'group_id');
     }
 
     public function user(): BelongsTo

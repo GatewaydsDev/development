@@ -215,6 +215,9 @@ class HandleInertiaRequests extends Middleware
                     'deleteContractors' => $request->user()
                         ? ContractorAccess::canDelete($request->user())
                         : false,
+                    'viewSystemUpdates' => $request->user()
+                        ? \App\Support\SystemUpdateAccess::canView($request->user())
+                        : false,
                     'viewMySchedule' => $request->user()
                         ? Gate::forUser($request->user())->allows('view-my-schedule')
                         : false,
@@ -252,6 +255,9 @@ class HandleInertiaRequests extends Middleware
                         ? TakeoffAccess::canConvert($request->user())
                         : false,
                 ],
+                'systemUpdatesUnread' => fn (): int => $request->user()
+                    ? \App\Models\SystemUpdate::unreadCountFor($request->user())
+                    : 0,
                 'notifications' => $request->user() && Gate::forUser($request->user())->allows('manage-notifications')
                     ? [
                         'unreadCount' => $request->user()->unreadNotifications()->count(),

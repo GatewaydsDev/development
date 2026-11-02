@@ -1,0 +1,592 @@
+{
+ "email": [
+  {
+   "hash": "03075f6",
+   "date": "2026-10-15",
+   "subject": "Email with microsoft 365"
+  },
+  {
+   "hash": "c4967d3",
+   "date": "2026-10-15",
+   "subject": "Email larry configurations"
+  },
+  {
+   "hash": "aab9182",
+   "date": "2026-10-15",
+   "subject": "Email larry configurations final"
+  },
+  {
+   "hash": "6e9c633",
+   "date": "2026-10-15",
+   "subject": "Email larry fix"
+  },
+  {
+   "hash": "89cde0b",
+   "date": "2026-10-15",
+   "subject": "Email icon"
+  },
+  {
+   "hash": "018e9ce",
+   "date": "2026-10-15",
+   "subject": "Email and notifications"
+  },
+  {
+   "hash": "0f3c050",
+   "date": "2026-10-16",
+   "subject": "Email and signature, header, images"
+  },
+  {
+   "hash": "f1bc2e7",
+   "date": "2026-10-16",
+   "subject": "Email error fix"
+  },
+  {
+   "hash": "7f5a085",
+   "date": "2026-10-16",
+   "subject": "Email image, header, etc"
+  },
+  {
+   "hash": "b637e26",
+   "date": "2026-10-16",
+   "subject": "Email prevent trash"
+  },
+  {
+   "hash": "a4ba009",
+   "date": "2026-10-16",
+   "subject": "Email outlook UI"
+  },
+  {
+   "hash": "2ce8494",
+   "date": "2026-10-16",
+   "subject": "Email and more"
+  },
+  {
+   "hash": "44ed006",
+   "date": "2026-10-16",
+   "subject": "Email and more"
+  },
+  {
+   "hash": "03cc6bf",
+   "date": "2026-10-19",
+   "subject": "Email errors and more"
+  },
+  {
+   "hash": "c7d2075",
+   "date": "2026-10-20",
+   "subject": "Email repply and line"
+  },
+  {
+   "hash": "4b9b6c2",
+   "date": "2026-10-21",
+   "subject": "Email attachements"
+  },
+  {
+   "hash": "4a0a796",
+   "date": "2026-10-26",
+   "subject": "Email 500 error"
+  },
+  {
+   "hash": "8487842",
+   "date": "2026-10-26",
+   "subject": "Email 500 error"
+  },
+  {
+   "hash": "365deb0",
+   "date": "2026-10-26",
+   "subject": "Email updates"
+  },
+  {
+   "hash": "02a41e2",
+   "date": "2026-10-26",
+   "subject": "Email updates"
+  },
+  {
+   "hash": "796e2a0",
+   "date": "2026-10-26",
+   "subject": "Email updates no span folder"
+  },
+  {
+   "hash": "476c246",
+   "date": "2026-10-26",
+   "subject": "Email updates"
+  },
+  {
+   "hash": "554ce39",
+   "date": "2026-10-28",
+   "subject": "Sales quote email"
+  },
+  {
+   "hash": "4aab8e2",
+   "date": "2026-10-28",
+   "subject": "Sales quote email"
+  },
+  {
+   "hash": "7c846fc",
+   "date": "2026-10-28",
+   "subject": "Sales quote email"
+  },
+  {
+   "hash": "3f61a3f",
+   "date": "2026-10-30",
+   "subject": "Expenses Share email"
+  },
+  {
+   "hash": "7a4e1d3",
+   "date": "2026-10-30",
+   "subject": "Expenses Share email"
+  },
+  {
+   "hash": "96e70b8",
+   "date": "2026-10-30",
+   "subject": "Expenses Share email"
+  }
+ ],
+ "chat": [
+  {
+   "hash": "c821dec",
+   "date": "2026-10-21",
+   "subject": "Chat Implementation"
+  },
+  {
+   "hash": "a64ff23",
+   "date": "2026-10-21",
+   "subject": "Chat Implementation chimey"
+  }
+ ],
+ "ai": [
+  {
+   "hash": "f6e90e6",
+   "date": "2026-10-22",
+   "subject": "AI Implementation"
+  },
+  {
+   "hash": "1c95e18",
+   "date": "2026-10-22",
+   "subject": "AI Implementation fab organization"
+  },
+  {
+   "hash": "6013ce1",
+   "date": "2026-10-22",
+   "subject": "AI Implementation fab organization"
+  }
+ ],
+ "takeoff": [
+  {
+   "hash": "3784ce1",
+   "date": "2026-10-15",
+   "subject": "Take off implementations"
+  },
+  {
+   "hash": "289c6bc",
+   "date": "2026-10-15",
+   "subject": "Take off implementations and more"
+  },
+  {
+   "hash": "2e6d82b",
+   "date": "2026-10-15",
+   "subject": "Take off implementations and more continuation"
+  },
+  {
+   "hash": "d61e5f5",
+   "date": "2026-10-21",
+   "subject": "Object Inspector Takeoff"
+  },
+  {
+   "hash": "72ea667",
+   "date": "2026-10-22",
+   "subject": "Object Inspector fixes"
+  },
+  {
+   "hash": "1e19727",
+   "date": "2026-10-22",
+   "subject": "Object Inspector fixes"
+  },
+  {
+   "hash": "93b4f6b",
+   "date": "2026-10-23",
+   "subject": "Object Inspector toolbar, buttons and more"
+  },
+  {
+   "hash": "12e8154",
+   "date": "2026-10-27",
+   "subject": "Takeoff fixes"
+  },
+  {
+   "hash": "62ebcb5",
+   "date": "2026-10-27",
+   "subject": "Takeoff fixes save/cancel"
+  },
+  {
+   "hash": "7bb273b",
+   "date": "2026-10-27",
+   "subject": "Takeoff fixes"
+  }
+ ],
+ "expenses": [
+  {
+   "hash": "eabcf87",
+   "date": "2026-10-16",
+   "subject": "Expensives"
+  },
+  {
+   "hash": "4ea6404",
+   "date": "2026-10-25",
+   "subject": "Expenses UI"
+  },
+  {
+   "hash": "67b6067",
+   "date": "2026-10-25",
+   "subject": "Expenses UI Add/Update"
+  },
+  {
+   "hash": "7e918fa",
+   "date": "2026-10-25",
+   "subject": "Expenses UI Add/Update"
+  },
+  {
+   "hash": "1d45cfb",
+   "date": "2026-10-27",
+   "subject": "Expense Mobile photo"
+  },
+  {
+   "hash": "e9f7b62",
+   "date": "2026-10-27",
+   "subject": "Expense Mobile"
+  },
+  {
+   "hash": "2dfed20",
+   "date": "2026-10-27",
+   "subject": "Expense Fix"
+  },
+  {
+   "hash": "640405d",
+   "date": "2026-10-27",
+   "subject": "Expense changes"
+  }
+ ],
+ "projects": [
+  {
+   "hash": "6dbaf69",
+   "date": "2026-10-27",
+   "subject": "Home Certifications"
+  },
+  {
+   "hash": "6facd8e",
+   "date": "2026-10-29",
+   "subject": "Projects organizations"
+  },
+  {
+   "hash": "85ea62b",
+   "date": "2026-10-29",
+   "subject": "Projects organizations List"
+  },
+  {
+   "hash": "781a1f8",
+   "date": "2026-10-30",
+   "subject": "Administrative tool"
+  },
+  {
+   "hash": "21dba7d",
+   "date": "2026-10-30",
+   "subject": "Message red flag"
+  },
+  {
+   "hash": "3d98363",
+   "date": "2026-10-30",
+   "subject": "Project Control"
+  },
+  {
+   "hash": "edf1299",
+   "date": "2026-10-30",
+   "subject": "Project Control"
+  },
+  {
+   "hash": "4bf0113",
+   "date": "2026-10-30",
+   "subject": "Project Control"
+  },
+  {
+   "hash": "d4bf8c6",
+   "date": "2026-10-30",
+   "subject": "Project Control"
+  },
+  {
+   "hash": "6437e55",
+   "date": "2026-10-30",
+   "subject": "Project Control"
+  },
+  {
+   "hash": "817e1b2",
+   "date": "2026-10-30",
+   "subject": "Project Control"
+  },
+  {
+   "hash": "2f9e430",
+   "date": "2026-10-31",
+   "subject": "Project Control Buttons"
+  }
+ ],
+ "quotes": [
+  {
+   "hash": "d148607",
+   "date": "2026-10-07",
+   "subject": "Add project amount to quotations"
+  },
+  {
+   "hash": "47543b6",
+   "date": "2026-10-07",
+   "subject": "Add project amount to quotations and alignments"
+  },
+  {
+   "hash": "eeb0540",
+   "date": "2026-10-07",
+   "subject": "Table for text improvemnts"
+  },
+  {
+   "hash": "d2722a2",
+   "date": "2026-10-07",
+   "subject": "Quotation Print columns fix"
+  },
+  {
+   "hash": "49a638d",
+   "date": "2026-10-07",
+   "subject": "Quotation Print"
+  },
+  {
+   "hash": "416c331",
+   "date": "2026-10-07",
+   "subject": "Quotation list and buttons changes"
+  },
+  {
+   "hash": "e4e0c5c",
+   "date": "2026-10-08",
+   "subject": "Print Layouts implementations"
+  },
+  {
+   "hash": "9f03484",
+   "date": "2026-10-09",
+   "subject": "Print Layouts/bid layouts and more"
+  },
+  {
+   "hash": "34d85c7",
+   "date": "2026-10-09",
+   "subject": "Print Layouts/bid layouts and more"
+  },
+  {
+   "hash": "9d8c01e",
+   "date": "2026-10-09",
+   "subject": "Print Layouts bug fix"
+  },
+  {
+   "hash": "5249528",
+   "date": "2026-10-10",
+   "subject": "Quotation and Bid Changes"
+  },
+  {
+   "hash": "75555f1",
+   "date": "2026-10-11",
+   "subject": "Print Layouts table adjustments"
+  },
+  {
+   "hash": "90b30a5",
+   "date": "2026-10-11",
+   "subject": "Print Layouts table import fix"
+  },
+  {
+   "hash": "56bd0f5",
+   "date": "2026-10-11",
+   "subject": "Print Layouts updates"
+  },
+  {
+   "hash": "20895df",
+   "date": "2026-10-11",
+   "subject": "Print Layouts updates"
+  },
+  {
+   "hash": "6a1a65b",
+   "date": "2026-10-11",
+   "subject": "Text Bullets addes"
+  },
+  {
+   "hash": "8a72141",
+   "date": "2026-10-11",
+   "subject": "Print Size"
+  },
+  {
+   "hash": "822aa85",
+   "date": "2026-10-12",
+   "subject": "Head and footer"
+  },
+  {
+   "hash": "efc1622",
+   "date": "2026-10-12",
+   "subject": "Head and footer"
+  },
+  {
+   "hash": "018d053",
+   "date": "2026-10-13",
+   "subject": "Table clean up"
+  },
+  {
+   "hash": "57a73e2",
+   "date": "2026-10-14",
+   "subject": "Pallet added to mimic a delphi component"
+  },
+  {
+   "hash": "9e51c86",
+   "date": "2026-10-14",
+   "subject": "Pallet added to mimic a delphi component"
+  },
+  {
+   "hash": "19cb25a",
+   "date": "2026-10-16",
+   "subject": "Quote validation date"
+  },
+  {
+   "hash": "579af84",
+   "date": "2026-10-20",
+   "subject": "layout for bids and quotations"
+  },
+  {
+   "hash": "2423072",
+   "date": "2026-10-21",
+   "subject": "Server side quotations clean up"
+  }
+ ],
+ "employees": [
+  {
+   "hash": "a58d5c3",
+   "date": "2026-10-05",
+   "subject": "Employee changes"
+  },
+  {
+   "hash": "5c9e393",
+   "date": "2026-10-07",
+   "subject": "Employee changes"
+  },
+  {
+   "hash": "9e832c3",
+   "date": "2026-10-07",
+   "subject": "Show employee age on employee form"
+  },
+  {
+   "hash": "db202b8",
+   "date": "2026-11-02",
+   "subject": "Several changes including employees"
+  }
+ ],
+ "ui": [
+  {
+   "hash": "9a22840",
+   "date": "2026-10-07",
+   "subject": "UUID implementation and More"
+  },
+  {
+   "hash": "94a153e",
+   "date": "2026-10-07",
+   "subject": "Align summary cards across admin lists"
+  },
+  {
+   "hash": "42b18ff",
+   "date": "2026-10-12",
+   "subject": "Please wait loading"
+  },
+  {
+   "hash": "3e1645c",
+   "date": "2026-10-12",
+   "subject": "Users layout UI fix"
+  },
+  {
+   "hash": "3a6cbd0",
+   "date": "2026-10-12",
+   "subject": "Sidebar changes"
+  },
+  {
+   "hash": "211b27e",
+   "date": "2026-10-12",
+   "subject": "Skelleton"
+  },
+  {
+   "hash": "fffaec0",
+   "date": "2026-10-12",
+   "subject": "Skelleton"
+  },
+  {
+   "hash": "d4da738",
+   "date": "2026-10-12",
+   "subject": "Skelleton"
+  },
+  {
+   "hash": "89b0b0b",
+   "date": "2026-10-12",
+   "subject": "Show a better row and column"
+  },
+  {
+   "hash": "dcd028e",
+   "date": "2026-10-12",
+   "subject": "Show a better row and column 2"
+  },
+  {
+   "hash": "4891486",
+   "date": "2026-10-12",
+   "subject": "Actions button fix scroll down also fixed"
+  },
+  {
+   "hash": "c84db4b",
+   "date": "2026-10-12",
+   "subject": "Actions button save button"
+  },
+  {
+   "hash": "27010c1",
+   "date": "2026-10-16",
+   "subject": "Dark mode"
+  },
+  {
+   "hash": "bde5b30",
+   "date": "2026-10-21",
+   "subject": "Fast menu and more"
+  },
+  {
+   "hash": "d0ebc18",
+   "date": "2026-10-26",
+   "subject": "Screen scroll fix"
+  },
+  {
+   "hash": "ad49c57",
+   "date": "2026-10-29",
+   "subject": "Dashboard Graphics"
+  }
+ ],
+ "other": [
+  {
+   "hash": "e63c6e2",
+   "date": "2026-10-15",
+   "subject": "Attachement working"
+  },
+  {
+   "hash": "5f9bc1c",
+   "date": "2026-10-19",
+   "subject": "Stop tracking the environment example file."
+  },
+  {
+   "hash": "17a4bdc",
+   "date": "2026-10-26",
+   "subject": "Updates"
+  },
+  {
+   "hash": "cc339dc",
+   "date": "2026-10-29",
+   "subject": "Several changes"
+  },
+  {
+   "hash": "cec0e14",
+   "date": "2026-10-29",
+   "subject": "Several changes"
+  },
+  {
+   "hash": "f190f7f",
+   "date": "2026-10-30",
+   "subject": "PHP patch"
+  }
+ ]
+}

@@ -107,6 +107,7 @@ export type PageProps<
             updateContractors: boolean;
             deleteContractors: boolean;
             viewMySchedule?: boolean;
+            viewSystemUpdates?: boolean;
             viewEmployees: boolean;
             createEmployees: boolean;
             updateEmployees: boolean;
@@ -119,6 +120,7 @@ export type PageProps<
             exportTakeoffs: boolean;
             convertTakeoffs: boolean;
         };
+        systemUpdatesUnread?: number;
         notifications: {
             unreadCount: number;
             latestUnread: AppNotification[];

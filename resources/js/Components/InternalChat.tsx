@@ -3,7 +3,7 @@ import UserAvatar from '@/Components/UserAvatar';
 import { PageProps } from '@/types';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { usePage } from '@inertiajs/react';
-import { ArrowLeftIcon, DownloadIcon, FileTextIcon, MessageCircleIcon, PaperclipIcon, SendIcon, XIcon } from 'lucide-react';
+import { ArrowLeftIcon, CheckIcon, DownloadIcon, FileTextIcon, MessageCircleIcon, PaperclipIcon, SendIcon, UserPlusIcon, UsersIcon, XIcon } from 'lucide-react';
 import { setUnreadChat } from '@/lib/unreadChat';
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -34,6 +34,13 @@ type ChatMessage = {
 type ChatPerson = {
     id: number;
     name: string;
+    unread: number;
+};
+
+type ChatGroup = {
+    id: number;
+    name: string;
+    members: { id: number; name: string }[];
     unread: number;
 };
 
@@ -155,6 +162,11 @@ export default function InternalChat() {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [participants, setParticipants] = useState<ChatPerson[]>([]);
     const [person, setPerson] = useState<ChatPerson | null>(null);
+    const [groups, setGroups] = useState<ChatGroup[]>([]);
+    const [group, setGroup] = useState<ChatGroup | null>(null);
+    const [picker, setPicker] = useState<'new' | 'add' | null>(null);
+    const [picked, setPicked] = useState<number[]>([]);
+    const [groupName, setGroupName] = useState('');
     const [body, setBody] = useState('');
     const [files, setFiles] = useState<File[]>([]);
     const [sending, setSending] = useState(false);
@@ -166,8 +178,10 @@ export default function InternalChat() {
     const knownLatest = useRef<number | null>(null);
     const openRef = useRef(open);
     const personRef = useRef(person);
+    const groupRef = useRef(group);
     openRef.current = open;
     personRef.current = person;
+    groupRef.current = group;
 
     useEffect(() => {
         const sync = () => setBesideFormActions(Number(document.body.dataset.formActionFab || 0) > 0);
@@ -221,7 +235,7 @@ export default function InternalChat() {
         }
     };
 
-    const markRead = async (messageId: number, withUserId: number) => {
+    const markRead = async (messageId: number, targetId: number, isGroup = false) => {
         const response = await fetch(route('internal-chat.read'), {
             method: 'POST',
             credentials: 'same-origin',
@@ -231,7 +245,7 @@ export default function InternalChat() {
                 'X-Requested-With': 'XMLHttpRequest',
                 'X-XSRF-TOKEN': csrfToken(),
             },
-            body: JSON.stringify({ message_id: messageId, with_user_id: withUserId }),
+            body: JSON.stringify(isGroup ? { message_id: messageId, group_id: targetId } : { message_id: messageId, with_user_id: targetId }),
         });
         const payload = await readJson(response);
 
@@ -240,18 +254,23 @@ export default function InternalChat() {
             setUnreadChat(payload.unread);
         }
 
-        setParticipants((current) => current.map((item) => item.id === withUserId ? { ...item, unread: 0 } : item));
+        if (isGroup) {
+            setGroups((current) => current.map((item) => item.id === targetId ? { ...item, unread: 0 } : item));
+        } else {
+            setParticipants((current) => current.map((item) => item.id === targetId ? { ...item, unread: 0 } : item));
+        }
     };
 
     const loadMessages = async (after = 0) => {
         const peer = personRef.current;
+        const room = groupRef.current;
 
-        if (!peer) {
+        if (!peer && !room) {
             return;
         }
 
         const response = await fetch(route('internal-chat.index', {
-            with: peer.id,
+            ...(room ? { group: room.id } : { with: peer!.id }),
             ...(after > 0 ? { after } : {}),
         }), {
             credentials: 'same-origin',
@@ -267,6 +286,7 @@ export default function InternalChat() {
         const people = Array.isArray(payload.participants) ? payload.participants as ChatPerson[] : [];
 
         setParticipants(people);
+        setGroups(Array.isArray(payload.groups) ? payload.groups as ChatGroup[] : []);
         setMessages((current) => {
             if (after === 0) {
                 return incoming;
@@ -293,7 +313,7 @@ export default function InternalChat() {
             const latest = incoming[incoming.length - 1]?.id ?? 0;
 
             if (latest > 0) {
-                void markRead(latest, peer.id);
+                void markRead(latest, room ? room.id : peer!.id, Boolean(room));
             }
         }
     };
@@ -310,6 +330,7 @@ export default function InternalChat() {
 
         const payload = await readJson(response);
         setParticipants(Array.isArray(payload.participants) ? payload.participants as ChatPerson[] : []);
+        setGroups(Array.isArray(payload.groups) ? payload.groups as ChatGroup[] : []);
 
         if (typeof payload.unread === 'number') {
             setUnread(payload.unread);
@@ -363,7 +384,7 @@ export default function InternalChat() {
             setUnreadChat(count);
 
             if (openRef.current) {
-                if (personRef.current) {
+                if (personRef.current || groupRef.current) {
                     const lastId = messagesRef.current.at(-1)?.id ?? 0;
                     void loadMessages(lastId);
                 } else {
@@ -389,7 +410,7 @@ export default function InternalChat() {
             return;
         }
 
-        if (!person) {
+        if (!person && !group) {
             setMessages([]);
             void loadPeople();
 
@@ -397,7 +418,7 @@ export default function InternalChat() {
         }
 
         void loadMessages(0).then(() => window.setTimeout(scrollToEnd, 40));
-    }, [open, person]);
+    }, [open, person, group]);
 
     useEffect(() => {
         if (open) {
@@ -409,18 +430,92 @@ export default function InternalChat() {
         return null;
     }
 
+    const chatTitle = group?.name ?? person?.name ?? '';
+    const inChat = person !== null || group !== null;
+
+    const leaveChat = () => {
+        setPerson(null);
+        setGroup(null);
+        setPicker(null);
+        setPicked([]);
+    };
+
+    const togglePicked = (id: number) =>
+        setPicked((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+
+    const jsonRequest = async (url: string, method: string, data: unknown) => {
+        const response = await fetch(url, {
+            method,
+            credentials: 'same-origin',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-XSRF-TOKEN': csrfToken(),
+            },
+            body: JSON.stringify(data),
+        });
+
+        return { ok: response.ok, payload: await readJson(response) };
+    };
+
+    const submitPicker = async () => {
+        setError(null);
+
+        if (picker === 'new') {
+            const { ok, payload } = await jsonRequest(route('internal-chat.groups.store'), 'POST', {
+                name: groupName.trim() || null,
+                member_ids: picked,
+            });
+
+            if (!ok) {
+                setError(typeof payload.message === 'string' ? payload.message : 'The group could not be created.');
+
+                return;
+            }
+
+            setGroups((current) => [...current, payload.group as ChatGroup]);
+            setPerson(null);
+            setGroup(payload.group as ChatGroup);
+        } else if (group) {
+            const { ok, payload } = await jsonRequest(route('internal-chat.groups.members', group.id), 'POST', { member_ids: picked });
+
+            if (!ok) {
+                setError(typeof payload.message === 'string' ? payload.message : 'People could not be added.');
+
+                return;
+            }
+
+            setGroup(payload.group as ChatGroup);
+        }
+
+        setPicker(null);
+        setPicked([]);
+        setGroupName('');
+    };
+
+    const leaveGroup = async () => {
+        if (!group || !confirm(`Leave “${group.name}”?`)) {
+            return;
+        }
+
+        await jsonRequest(route('internal-chat.groups.leave', group.id), 'DELETE', {});
+        setGroups((current) => current.filter((item) => item.id !== group.id));
+        leaveChat();
+    };
+
     const send = async (event: FormEvent) => {
         event.preventDefault();
         const text = body.trim();
 
-        if (!person || (text === '' && files.length === 0) || sending) {
+        if ((!person && !group) || (text === '' && files.length === 0) || sending) {
             return;
         }
 
         setSending(true);
         setError(null);
         const form = new FormData();
-        form.append('recipient_id', String(person.id));
+        form.append(group ? 'group_id' : 'recipient_id', String(group ? group.id : person!.id));
         form.append('body', text);
         files.forEach((file) => form.append('files[]', file));
 
@@ -468,28 +563,135 @@ export default function InternalChat() {
                 >
                     <header className="flex items-start justify-between gap-3 border-b border-border px-4 py-3">
                         <div className="flex min-w-0 items-start gap-2">
-                            {person ? (
-                                <Button type="button" variant="ghost" size="icon" aria-label="Choose another person" onClick={() => setPerson(null)}>
+                            {inChat || picker ? (
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    aria-label="Back"
+                                    onClick={() => (picker && inChat ? setPicker(null) : leaveChat())}
+                                >
                                     <ArrowLeftIcon />
                                 </Button>
                             ) : null}
                             <div className="min-w-0">
                                 <h2 className="truncate text-sm font-semibold text-foreground">
-                                    {person ? person.name : 'Choose who receives this chat'}
+                                    {picker === 'new'
+                                        ? 'New group chat'
+                                        : picker === 'add'
+                                          ? 'Add people'
+                                          : inChat
+                                            ? chatTitle
+                                            : 'Choose who receives this chat'}
                                 </h2>
-                                <p className="mt-1 text-xs text-muted-foreground">
-                                    {person
-                                        ? 'Only this person sees these messages.'
-                                        : 'Select a super administrator.'}
+                                <p className="mt-1 truncate text-xs text-muted-foreground">
+                                    {picker
+                                        ? 'Select two or more people.'
+                                        : group
+                                          ? group.members.map((member) => member.name).join(', ')
+                                          : person
+                                            ? 'Only this person sees these messages.'
+                                            : 'Select a super administrator or start a group.'}
                                 </p>
                             </div>
                         </div>
-                        <Button type="button" variant="ghost" size="icon" aria-label="Close chat" onClick={() => setOpen(false)}>
-                            <XIcon />
-                        </Button>
+                        <div className="flex shrink-0 items-center">
+                            {person && !picker ? (
+                                <Button type="button" variant="ghost" size="icon" aria-label="Add someone to this chat" onClick={() => { setError(null); setPicked([person.id]); setGroupName(''); setPicker('new'); }}>
+                                    <UserPlusIcon />
+                                </Button>
+                            ) : null}
+                            {group && !picker ? (
+                                <>
+                                    <Button type="button" variant="ghost" size="icon" aria-label="Add people" onClick={() => { setPicked([]); setPicker('add'); }}>
+                                        <UserPlusIcon />
+                                    </Button>
+                                    <Button type="button" variant="ghost" size="sm" onClick={() => void leaveGroup()}>
+                                        Leave
+                                    </Button>
+                                </>
+                            ) : null}
+                            <Button type="button" variant="ghost" size="icon" aria-label="Close chat" onClick={() => setOpen(false)}>
+                                <XIcon />
+                            </Button>
+                        </div>
                     </header>
-                    {!person ? (
+                    {picker ? (
                         <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3 py-3">
+                            {picker === 'new' ? (
+                                <input
+                                    value={groupName}
+                                    onChange={(event) => setGroupName(event.target.value)}
+                                    maxLength={120}
+                                    placeholder="Group name (optional)"
+                                    className="min-h-11 rounded-md border border-border bg-background px-3 text-sm"
+                                />
+                            ) : null}
+                            {participants
+                                .filter((item) => !(picker === 'add' && group?.members.some((member) => member.id === item.id)))
+                                .map((item) => (
+                                    <button
+                                        key={item.id}
+                                        type="button"
+                                        onClick={() => togglePicked(item.id)}
+                                        aria-pressed={picked.includes(item.id)}
+                                        className={`flex min-h-11 items-center justify-between gap-3 rounded-lg border-2 px-3 py-2 text-left ${picked.includes(item.id) ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40' : 'border-border hover:bg-muted'}`}
+                                    >
+                                        <span className="font-medium text-foreground">{item.name}</span>
+                                        {picked.includes(item.id) ? <CheckIcon className="size-4 text-emerald-700" /> : null}
+                                    </button>
+                                ))}
+                            {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
+                            <Button
+                                type="button"
+                                className="mt-auto min-h-11 bg-emerald-700 text-white hover:bg-emerald-800"
+                                disabled={picker === 'new' ? picked.length < 2 : picked.length < 1}
+                                onClick={() => void submitPicker()}
+                            >
+                                {picker === 'new' ? `Start group (${picked.length + 1} people)` : 'Add to group'}
+                            </Button>
+                        </div>
+                    ) : null}
+                    {picker ? null : !inChat ? (
+                        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3 py-3">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="min-h-11 gap-2"
+                                disabled={participants.length < 2}
+                                onClick={() => { setError(null); setPicked([]); setGroupName(''); setPicker('new'); }}
+                            >
+                                <UsersIcon className="size-4" />
+                                New group chat
+                            </Button>
+                            {groups.map((item) => (
+                                <button
+                                    key={`group-${item.id}`}
+                                    type="button"
+                                    onClick={() => {
+                                        setError(null);
+                                        setBody('');
+                                        setFiles([]);
+                                        setGroup(item);
+                                    }}
+                                    className="flex min-h-11 items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 text-left hover:bg-muted"
+                                >
+                                    <span className="min-w-0">
+                                        <span className="flex items-center gap-2 font-medium text-foreground">
+                                            <UsersIcon className="size-4 shrink-0" />
+                                            <span className="truncate">{item.name}</span>
+                                        </span>
+                                        <span className="block truncate text-xs text-muted-foreground">
+                                            {item.members.length} people
+                                        </span>
+                                    </span>
+                                    {item.unread > 0 ? (
+                                        <span className="rounded-full bg-red-600 px-2 py-0.5 text-xs font-semibold text-white">
+                                            {item.unread}
+                                        </span>
+                                    ) : null}
+                                </button>
+                            ))}
                             {participants.length === 0 ? (
                                 <p className="px-2 py-6 text-center text-sm text-muted-foreground">
                                     No other super administrators are available.
@@ -519,7 +721,7 @@ export default function InternalChat() {
                     <div ref={listRef} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 py-3">
                         {messages.length === 0 ? (
                             <p className="px-2 py-6 text-center text-sm text-muted-foreground">
-                                No messages yet. Write to {person.name}.
+                                No messages yet. Write to {chatTitle}.
                             </p>
                         ) : messages.map((message) => (
                             <article key={message.id} className={message.mine ? 'ms-8' : 'me-8'}>
@@ -569,7 +771,7 @@ export default function InternalChat() {
                         ))}
                     </div>
                     )}
-                    {person ? (
+                    {inChat && !picker ? (
                     <form onSubmit={(event) => void send(event)} className="grid gap-2 border-t border-border p-3">
                         {files.length > 0 ? (
                             <ul className="flex flex-wrap gap-2">
@@ -608,7 +810,7 @@ export default function InternalChat() {
                                 onChange={(event) => setBody(event.target.value)}
                                 rows={2}
                                 maxLength={4000}
-                                placeholder={`Message ${person.name}`}
+                                placeholder={`Message ${chatTitle}`}
                                 className="min-h-11 flex-1 resize-none rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
                             />
                             <Button type="submit" className="min-h-11 bg-emerald-700 text-white hover:bg-emerald-800" disabled={sending} aria-label="Send message">

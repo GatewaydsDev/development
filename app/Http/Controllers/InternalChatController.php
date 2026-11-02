@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\InternalChatGroup;
 use App\Models\InternalMessage;
 use App\Models\InternalMessageAttachment;
 use App\Models\InternalMessageRead;
@@ -10,6 +11,7 @@ use App\Models\UserLevel;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -22,9 +24,15 @@ class InternalChatController extends Controller
         $user = $this->superAdmin($request);
         $after = max(0, (int) $request->query('after', 0));
         $with = (int) $request->query('with', 0);
+        $groupId = (int) $request->query('group', 0);
         $messages = collect();
 
-        if ($with > 0) {
+        if ($groupId > 0) {
+            $query = $this->group($user, $groupId)->messages()->with(['user:id,name,avatar', 'attachments']);
+            $messages = $after > 0
+                ? $query->where('id', '>', $after)->orderBy('id')->limit(50)->get()
+                : $query->orderByDesc('id')->limit(40)->get()->reverse()->values();
+        } elseif ($with > 0) {
             $peer = $this->peer($user, $with);
             $query = $this->conversation($user, $peer)->with(['user:id,name,avatar', 'attachments']);
             $messages = $after > 0
@@ -36,6 +44,7 @@ class InternalChatController extends Controller
             'messages' => $messages->map(fn (InternalMessage $message): array => $this->payload($message, $user))->values(),
             'unread' => $this->unreadCount($user),
             'participants' => $this->participants($user),
+            'groups' => $this->groups($user),
         ]);
     }
 
@@ -49,12 +58,18 @@ class InternalChatController extends Controller
             ->get()
             ->first(fn (InternalMessage $message): bool => $message->id > $this->readCursor($user, (int) $message->user_id));
 
+        $groupLatest = $this->unreadGroupMessages($user)->sortByDesc('id')->first();
+
+        if ($groupLatest instanceof InternalMessage && (! $latest instanceof InternalMessage || $groupLatest->id > $latest->id)) {
+            $latest = $groupLatest;
+        }
+
         return response()->json([
             'unread' => $this->unreadCount($user),
             'latest' => $latest instanceof InternalMessage ? [
                 'id' => $latest->id,
                 'user_id' => $latest->user_id,
-                'name' => $latest->user?->name ?: 'Super administrator',
+                'name' => ($latest->user?->name ?: 'Super administrator').($latest->group_id ? ' in '.($latest->group?->name ?? 'group chat') : ''),
                 'preview' => $this->preview($latest),
             ] : null,
         ]);
@@ -64,12 +79,14 @@ class InternalChatController extends Controller
     {
         $user = $this->superAdmin($request);
         $validated = $request->validate([
-            'recipient_id' => ['required', 'integer'],
+            'recipient_id' => ['required_without:group_id', 'nullable', 'integer'],
+            'group_id' => ['required_without:recipient_id', 'nullable', 'integer'],
             'body' => ['nullable', 'string', 'max:4000'],
             'files' => ['nullable', 'array', 'max:5'],
             'files.*' => ['file', 'max:10240', 'mimes:jpg,jpeg,png,gif,webp,pdf,txt,csv,doc,docx,xls,xlsx'],
         ]);
-        $recipient = $this->peer($user, (int) $validated['recipient_id']);
+        $group = ! empty($validated['group_id']) ? $this->group($user, (int) $validated['group_id']) : null;
+        $recipient = $group ? null : $this->peer($user, (int) $validated['recipient_id']);
 
         $body = trim((string) ($validated['body'] ?? ''));
         $files = $request->file('files', []);
@@ -81,10 +98,11 @@ class InternalChatController extends Controller
             ], 422);
         }
 
-        $message = DB::transaction(function () use ($user, $recipient, $body, $files): InternalMessage {
+        $message = DB::transaction(function () use ($user, $recipient, $group, $body, $files): InternalMessage {
             $message = InternalMessage::query()->create([
                 'user_id' => $user->id,
-                'recipient_id' => $recipient->id,
+                'recipient_id' => $recipient?->id,
+                'group_id' => $group?->id,
                 'body' => $body !== '' ? $body : null,
             ]);
 
@@ -109,20 +127,83 @@ class InternalChatController extends Controller
         });
 
         $message->load(['user:id,name,avatar', 'attachments']);
-        $this->advanceReadCursor($user, $recipient->id, $message->id);
+
+        if ($group) {
+            $this->advanceGroupCursor($user, $group, $message->id);
+        } else {
+            $this->advanceReadCursor($user, $recipient->id, $message->id);
+        }
 
         return response()->json([
             'message' => $this->payload($message, $user),
         ]);
     }
 
+    public function storeGroup(Request $request): JsonResponse
+    {
+        $user = $this->superAdmin($request);
+        $validated = $request->validate([
+            'name' => ['nullable', 'string', 'max:120'],
+            'member_ids' => ['required', 'array', 'min:2', 'max:30'],
+            'member_ids.*' => ['integer', 'distinct'],
+        ]);
+        $members = collect($validated['member_ids'])->map(fn (int $id): User => $this->peer($user, $id));
+
+        $group = DB::transaction(function () use ($user, $validated, $members): InternalChatGroup {
+            $group = InternalChatGroup::query()->create([
+                'name' => trim((string) ($validated['name'] ?? '')) ?: $members->pluck('name')->prepend($user->name)->take(3)->implode(', '),
+                'created_by' => $user->id,
+            ]);
+            $group->members()->attach($members->pluck('id')->prepend($user->id)->all());
+
+            return $group;
+        });
+
+        return response()->json(['group' => $this->groupPayload($group, $user)], 201);
+    }
+
+    public function addGroupMembers(Request $request, InternalChatGroup $group): JsonResponse
+    {
+        $user = $this->superAdmin($request);
+        $this->group($user, $group->id);
+        $validated = $request->validate([
+            'member_ids' => ['required', 'array', 'min:1', 'max:30'],
+            'member_ids.*' => ['integer', 'distinct'],
+        ]);
+
+        foreach ($validated['member_ids'] as $id) {
+            $this->peer($user, (int) $id);
+        }
+
+        $group->members()->syncWithoutDetaching($validated['member_ids']);
+
+        return response()->json(['group' => $this->groupPayload($group->fresh(), $user)]);
+    }
+
+    public function leaveGroup(Request $request, InternalChatGroup $group): JsonResponse
+    {
+        $user = $this->superAdmin($request);
+        $this->group($user, $group->id);
+        $group->members()->detach($user->id);
+
+        return response()->json(['unread' => $this->unreadCount($user)]);
+    }
+
     public function markRead(Request $request): JsonResponse
     {
         $user = $this->superAdmin($request);
         $validated = $request->validate([
-            'with_user_id' => ['required', 'integer'],
+            'with_user_id' => ['required_without:group_id', 'nullable', 'integer'],
+            'group_id' => ['required_without:with_user_id', 'nullable', 'integer'],
             'message_id' => ['required', 'integer', 'min:0'],
         ]);
+
+        if (! empty($validated['group_id'])) {
+            $this->advanceGroupCursor($user, $this->group($user, (int) $validated['group_id']), (int) $validated['message_id']);
+
+            return response()->json(['unread' => $this->unreadCount($user)]);
+        }
+
         $peer = $this->peer($user, (int) $validated['with_user_id']);
 
         $this->advanceReadCursor($user, $peer->id, (int) $validated['message_id']);
@@ -136,7 +217,9 @@ class InternalChatController extends Controller
         $message = $attachment->message;
         abort_unless(
             $message instanceof InternalMessage
-            && ($message->user_id === $user->id || $message->recipient_id === $user->id),
+            && ($message->user_id === $user->id
+                || $message->recipient_id === $user->id
+                || ($message->group_id !== null && $this->isMember($user, (int) $message->group_id))),
             403,
         );
         abort_unless($this->safePath($attachment->path) && Storage::disk('local')->exists($attachment->path), 404);
@@ -189,7 +272,85 @@ class InternalChatController extends Controller
 
         return $query->get()
             ->filter(fn (InternalMessage $message): bool => $message->id > $this->readCursor($user, (int) $message->user_id))
-            ->count();
+            ->count() + $this->unreadGroupMessages($user)->count();
+    }
+
+    private function isMember(User $user, int $groupId): bool
+    {
+        return DB::table('internal_chat_group_members')
+            ->where('internal_chat_group_id', $groupId)
+            ->where('user_id', $user->id)
+            ->exists();
+    }
+
+    private function group(User $user, int $id): InternalChatGroup
+    {
+        abort_unless($this->isMember($user, $id), 404);
+
+        return InternalChatGroup::query()->findOrFail($id);
+    }
+
+    private function advanceGroupCursor(User $user, InternalChatGroup $group, int $messageId): void
+    {
+        $latest = (int) $group->messages()->max('id');
+        $current = (int) DB::table('internal_chat_group_members')
+            ->where('internal_chat_group_id', $group->id)->where('user_id', $user->id)->value('last_read_message_id');
+
+        DB::table('internal_chat_group_members')
+            ->where('internal_chat_group_id', $group->id)->where('user_id', $user->id)
+            ->update(['last_read_message_id' => min(max($current, $messageId), $latest)]);
+    }
+
+    /**
+     * @return Collection<int, InternalMessage>
+     */
+    private function unreadGroupMessages(User $user, ?int $groupId = null): Collection
+    {
+        $cursors = DB::table('internal_chat_group_members')
+            ->where('user_id', $user->id)
+            ->when($groupId, fn ($query) => $query->where('internal_chat_group_id', $groupId))
+            ->pluck('last_read_message_id', 'internal_chat_group_id');
+
+        if ($cursors->isEmpty()) {
+            return collect();
+        }
+
+        return InternalMessage::query()
+            ->with(['user:id,name', 'group:id,name'])
+            ->whereIn('group_id', $cursors->keys())
+            ->where('user_id', '!=', $user->id)
+            ->get()
+            ->filter(fn (InternalMessage $message): bool => $message->id > (int) $cursors[$message->group_id])
+            ->values();
+    }
+
+    /**
+     * @return list<array{id: int, name: string, members: list<array{id: int, name: string}>, unread: int}>
+     */
+    private function groups(User $user): array
+    {
+        return InternalChatGroup::query()
+            ->whereHas('members', fn ($query) => $query->whereKey($user->id))
+            ->with('members:id,name')
+            ->orderBy('name')
+            ->get()
+            ->map(fn (InternalChatGroup $group): array => $this->groupPayload($group, $user))
+            ->all();
+    }
+
+    /**
+     * @return array{id: int, name: string, members: list<array{id: int, name: string}>, unread: int}
+     */
+    private function groupPayload(InternalChatGroup $group, User $user): array
+    {
+        $group->loadMissing('members:id,name');
+
+        return [
+            'id' => $group->id,
+            'name' => $group->name,
+            'members' => $group->members->map(fn (User $member): array => ['id' => $member->id, 'name' => $member->name])->values()->all(),
+            'unread' => $this->unreadGroupMessages($user, $group->id)->count(),
+        ];
     }
 
     private function peer(User $user, int $id): User

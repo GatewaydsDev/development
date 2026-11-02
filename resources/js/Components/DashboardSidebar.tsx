@@ -12,6 +12,7 @@ import {
     BriefcaseIcon,
     Building2Icon,
     CalendarClockIcon,
+    SparklesIcon,
     CalendarDaysIcon,
     ClipboardListIcon,
     ClockIcon,
@@ -109,6 +110,7 @@ export default function DashboardSidebar({
     const page = usePage<PageProps>();
     const { auth } = page.props;
     const unreadMail = useUnreadMail();
+    const systemUpdatesUnread = usePage<PageProps>().props.auth.systemUpdatesUnread ?? 0;
     const navRef = useRef<HTMLElement>(null);
     const user = auth.user;
     const can = auth.can ?? {};
@@ -290,6 +292,21 @@ export default function DashboardSidebar({
                     icon: IdCardIcon,
                     active: isRouteActive('admin.contacts.*'),
                 },
+                ...(can.viewSystemUpdates
+                    ? [
+                          {
+                              title: 'System updates',
+                              href: route('admin.system-updates.index'),
+                              icon: SparklesIcon,
+                              active: isRouteActive('admin.system-updates.*'),
+                              alert: systemUpdatesUnread > 0,
+                              badge:
+                                  systemUpdatesUnread > 0
+                                      ? systemUpdatesUnread
+                                      : undefined,
+                          },
+                      ]
+                    : []),
                 ...(canViewMySchedule && !canViewEmployees
                     ? [
                           {

@@ -35,6 +35,7 @@ import {
     ActivityIcon,
     Building2Icon,
     BellIcon,
+    SparklesIcon,
     CalendarDaysIcon,
     BriefcaseIcon,
     ChevronDownIcon,
@@ -249,6 +250,7 @@ export default function Authenticated({
     const canOpenAdministration =
         canOpenWork || canOpenPeople || canOpenWorkspace || canOpenSecurity;
     const notifications = auth.notifications;
+    const systemUpdatesUnread = auth.systemUpdatesUnread ?? 0;
     const unreadMail = useUnreadMail();
     const hasUnreadMail = unreadMail > 0;
     const hasUnreadNotifications = notifications.unreadCount > 0;
@@ -571,10 +573,24 @@ export default function Authenticated({
                                 <ZapIcon data-icon="inline-start" />
                                 <span className="hidden xl:inline">Fast</span>
                             </Button>
-                            <UnreadMailButton />
                             <ThemeModeToggle />
-
-                            <RevisionAssignmentsMenu />
+                            <div className="flex items-center gap-1.5">
+                            {systemUpdatesUnread > 0 && (
+                                <Link
+                                    href={route('admin.system-updates.index')}
+                                    className="relative inline-flex size-9 items-center justify-center rounded-md border border-red-500/50 bg-background text-red-600 shadow-sm shadow-red-500/20 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+                                    aria-label={`${systemUpdatesUnread} new system updates`}
+                                    title={`${systemUpdatesUnread} new system update${systemUpdatesUnread === 1 ? '' : 's'}`}
+                                >
+                                    <SparklesIcon className="size-4" />
+                                    <span className="absolute -right-1 -top-1 flex size-3">
+                                        <span className="absolute inline-flex size-full animate-ping rounded-full bg-red-500 opacity-75" />
+                                        <span className="relative inline-flex size-3 rounded-full bg-red-500 ring-2 ring-background" />
+                                    </span>
+                                </Link>
+                            )}
+                            <UnreadMailButton />
+                                                        <RevisionAssignmentsMenu />
 
                             {canManageNotifications && (
                             <DropdownMenu>
@@ -675,6 +691,7 @@ export default function Authenticated({
                                 </DropdownMenuContent>
                             </DropdownMenu>
                             )}
+                            </div>
                         </div>
 
                         <div className="-me-2 flex items-center gap-2 lg:hidden">
