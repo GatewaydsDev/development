@@ -37,7 +37,7 @@ class StoreContactCompanyRequest extends FormRequest
 
         // Rows left completely blank are dropped instead of saved as empty addresses.
         $this->merge(['addresses' => collect($this->input('addresses'))
-            ->filter(fn ($row): bool => is_array($row) && collect(CompanyAddress::FIELDS)->contains(fn (string $field): bool => trim((string) ($row[$field] ?? '')) !== ''))
+            ->filter(fn ($row): bool => is_array($row) && (trim((string) ($row['name'] ?? '')) !== '' || collect(CompanyAddress::FIELDS)->contains(fn (string $field): bool => trim((string) ($row[$field] ?? '')) !== '')))
             ->values()
             ->all()]);
     }
@@ -49,7 +49,8 @@ class StoreContactCompanyRequest extends FormRequest
             'website' => ['nullable', 'string', 'max:255', 'url:http,https'],
             'addresses' => ['nullable', 'array', 'max:20'],
             'addresses.*.id' => ['prohibited'],
-            'addresses.*.label' => ['nullable', 'string', Rule::in(CompanyAddress::LABELS)],
+            'addresses.*.name' => ['nullable', 'string', 'max:255'],
+            'addresses.*.address_type_id' => ['nullable', 'integer', Rule::exists('contact_address_types', 'id')],
             'addresses.*.is_headquarters' => ['nullable', 'boolean'],
             ...collect(CompanyAddress::FIELDS)->mapWithKeys(fn (string $field): array => ["addresses.*.{$field}" => ['nullable', 'string', 'max:255']])->all(),
             'addresses.*.postal_code' => ['nullable', 'string', 'max:20', 'regex:/^[0-9-]*$/'],

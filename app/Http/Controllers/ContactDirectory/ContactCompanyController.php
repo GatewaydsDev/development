@@ -45,21 +45,27 @@ class ContactCompanyController extends Controller
         ]);
     }
 
+    private function addressTypes()
+    {
+        return \App\Models\ContactDirectory\AddressType::orderBy('name')->get(['id', 'name']);
+    }
+
     public function create(): Response
     {
-        return Inertia::render('ContactDirectory/Companies/Form', ['company' => null]);
+        return Inertia::render('ContactDirectory/Companies/Form', ['company' => null, 'addressTypes' => $this->addressTypes()]);
     }
 
     public function edit(ContactCompany $company): Response
     {
         return Inertia::render('ContactDirectory/Companies/Form', [
             'company' => $company->load(['phoneNumbers', 'emailAddresses', 'addresses']),
+            'addressTypes' => $this->addressTypes(),
         ]);
     }
 
     public function show(Request $request, ContactCompany $company): Response
     {
-        $company->load(['phoneNumbers', 'emailAddresses', 'addresses'])->loadCount('contacts');
+        $company->load(['phoneNumbers', 'emailAddresses', 'addresses.type'])->loadCount('contacts');
 
         $contacts = $company->contacts()
             ->withPrimaryDetails()

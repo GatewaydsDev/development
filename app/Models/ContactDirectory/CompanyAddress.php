@@ -10,17 +10,20 @@ class CompanyAddress extends Model
 {
     use HasUuidRouteKey;
 
-    public const LABELS = ['office', 'branch', 'warehouse', 'billing', 'shipping', 'other'];
-
     public const FIELDS = ['address_line_1', 'address_line_2', 'city', 'state', 'postal_code', 'country'];
 
     protected $table = 'contact_company_addresses';
 
-    protected $fillable = ['uuid', 'company_id', 'label', 'is_headquarters', ...self::FIELDS];
+    protected $fillable = ['uuid', 'company_id', 'name', 'address_type_id', 'is_headquarters', ...self::FIELDS];
 
     protected function casts(): array
     {
         return ['is_headquarters' => 'boolean'];
+    }
+
+    public function type(): BelongsTo
+    {
+        return $this->belongsTo(AddressType::class, 'address_type_id');
     }
 
     public function company(): BelongsTo

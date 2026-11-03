@@ -13,8 +13,8 @@ beforeEach(function () {
     $this->payload = [
         'name' => 'Gateway supplier', 'website' => 'https://example.com',
         'addresses' => [
-            ['label' => 'branch', 'is_headquarters' => false, 'address_line_1' => '9 Dock Road', 'city' => 'Allentown', 'state' => 'PA'],
-            ['label' => 'office', 'is_headquarters' => true, 'address_line_1' => '123 Main Street', 'city' => 'Stroudsburg', 'state' => 'PA', 'postal_code' => '18360', 'country' => 'United States'],
+            ['address_type_id' => null, 'is_headquarters' => false, 'address_line_1' => '9 Dock Road', 'city' => 'Allentown', 'state' => 'PA'],
+            ['address_type_id' => null, 'is_headquarters' => true, 'address_line_1' => '123 Main Street', 'city' => 'Stroudsburg', 'state' => 'PA', 'postal_code' => '18360', 'country' => 'United States'],
         ],
         'notes' => 'Keep these company notes', 'is_active' => true,
         'phone_numbers' => [
@@ -245,7 +245,7 @@ it('keeps several addresses and sanitises notes', function () {
         ...$this->payload,
         'phone_numbers' => [], 'email_addresses' => [],
         'addresses' => [
-            ['id' => $branch->id, 'label' => 'warehouse', 'is_headquarters' => true, 'address_line_1' => '9 Dock Road', 'city' => 'Allentown'],
+            ['id' => $branch->id, 'address_type_id' => \App\Models\ContactDirectory\AddressType::where('name', 'Warehouse')->value('id'), 'is_headquarters' => true, 'address_line_1' => '9 Dock Road', 'city' => 'Allentown'],
             ['address_line_1' => '', 'city' => ''],
         ],
     ])->assertSessionHasNoErrors();
@@ -255,7 +255,7 @@ it('keeps several addresses and sanitises notes', function () {
     expect($company->addresses)->toHaveCount(1)
         ->and($company->addresses->first()->id)->toBe($branch->id)
         ->and($company->addresses->first()->is_headquarters)->toBeTrue()
-        ->and($company->addresses->first()->label)->toBe('warehouse')
+        ->and($company->addresses->first()->type->name)->toBe('Warehouse')
         ->and($company->city)->toBe('Allentown');
 });
 
@@ -263,7 +263,7 @@ it('rejects another company\'s address id', function () {
     actingAs($this->admin)->post(route('contact-directory.companies.store'), $this->payload);
     $company = ContactCompany::sole();
     $other = ContactCompany::create(['name' => 'Other']);
-    $foreign = $other->addresses()->create(['label' => 'branch', 'city' => 'X']);
+    $foreign = $other->addresses()->create(['address_type_id' => null, 'city' => 'X']);
 
     actingAs($this->admin)->patch(route('contact-directory.companies.update', $company), [
         ...$this->payload, 'addresses' => [['id' => $foreign->id, 'city' => 'Y']],

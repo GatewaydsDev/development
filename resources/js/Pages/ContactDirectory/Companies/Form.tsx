@@ -2,6 +2,7 @@ import ContactMethodFields, { contactMethodsPayload, emailRows, phoneRow, withPr
 import FormActionFab from '@/Components/FormActionFab';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
+import CreatableSelect from '@/Components/CreatableSelect';
 import TextInput from '@/Components/TextInput';
 import FormSection from '@/Components/ContactDirectory/FormSection';
 import RichTextEditor from '@/Components/RichTextEditor';
@@ -14,17 +15,15 @@ import { Head, Link, useForm } from '@inertiajs/react';
 import { FormEvent } from 'react';
 
 export type AddressRecord = {
-    id: number; label: string; is_headquarters: boolean;
+    id: number; name: string | null; address_type_id: number | null; type?: { id: number; name: string } | null; is_headquarters: boolean;
     address_line_1: string | null; address_line_2: string | null;
     city: string | null; state: string | null; postal_code: string | null; country: string | null;
 };
 
 type AddressRow = {
-    id?: number; label: string; is_headquarters: boolean;
+    id?: number; name: string; address_type_id: string; is_headquarters: boolean;
     address_line_1: string; address_line_2: string; city: string; state: string; postal_code: string; country: string;
 };
-
-const ADDRESS_LABELS = [['office', 'Office'], ['branch', 'Branch office'], ['warehouse', 'Warehouse'], ['billing', 'Billing'], ['shipping', 'Shipping'], ['other', 'Other']] as const;
 
 const ADDRESS_FIELDS = [
     ['address_line_1', 'Address line 1', 'street-address'],
@@ -35,8 +34,8 @@ const ADDRESS_FIELDS = [
     ['country', 'Country', 'country-name'],
 ] as const;
 
-const blankAddress = (isHeadquarters: boolean): AddressRow => ({
-    label: isHeadquarters ? 'office' : 'branch', is_headquarters: isHeadquarters,
+const blankAddress = (isHeadquarters: boolean, typeId: string): AddressRow => ({
+    name: '', address_type_id: typeId, is_headquarters: isHeadquarters,
     address_line_1: '', address_line_2: '', city: '', state: '', postal_code: '', country: '',
 });
 
@@ -46,13 +45,13 @@ type Company = {
     notes: string | null; is_active: boolean; phone_numbers: PhoneRecord[]; email_addresses: EmailRecord[];
 };
 
-export default function CompanyForm({ company }: PageProps<{ company: Company | null }>) {
+export default function CompanyForm({ company, addressTypes }: PageProps<{ company: Company | null; addressTypes: { id: number; name: string }[] }>) {
     const editing = company !== null;
     const cancelHref = company ? route('contact-directory.companies.show', company.uuid) : route('contact-directory.companies.index');
     const form = useForm({
         name: company?.name ?? '', website: company?.website ?? '',
         addresses: (company?.addresses ?? []).map((address): AddressRow => ({
-            id: address.id, label: ADDRESS_LABELS.some(([value]) => value === address.label) ? address.label : 'office', is_headquarters: address.is_headquarters,
+            id: address.id, name: address.name ?? '', address_type_id: address.address_type_id ? String(address.address_type_id) : '', is_headquarters: address.is_headquarters,
             address_line_1: address.address_line_1 ?? '', address_line_2: address.address_line_2 ?? '',
             city: address.city ?? '', state: address.state ?? '', postal_code: address.postal_code ?? '', country: address.country ?? '',
         })),
@@ -64,7 +63,7 @@ export default function CompanyForm({ company }: PageProps<{ company: Company | 
     const inputClass = 'h-11 w-full min-w-0 border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring';
     const labelClass = 'text-foreground';
     const updateAddress = (index: number, changes: Partial<AddressRow>) => form.setData('addresses', form.data.addresses.map((row, i) => (i === index ? { ...row, ...changes } : row)));
-    const addAddress = () => form.setData('addresses', [...form.data.addresses, blankAddress(form.data.addresses.length === 0)]);
+    const addAddress = () => form.setData('addresses', [...form.data.addresses, blankAddress(form.data.addresses.length === 0, String(addressTypes.find((type) => type.name === (form.data.addresses.length === 0 ? 'Office' : 'Branch office'))?.id ?? ''))]);
     const removeAddress = (index: number) => form.setData('addresses', form.data.addresses.filter((_, i) => i !== index));
     const submit = (event: FormEvent) => {
         event.preventDefault();
@@ -86,6 +85,7 @@ export default function CompanyForm({ company }: PageProps<{ company: Company | 
                             <FormActionFab form="directory-company-form" cancelHref={cancelHref} saveLabel={editing ? 'Save changes' : 'Create company'} disabled={form.processing} />
                             {Object.keys(errors).length > 0 && <div role="alert" className="rounded-lg border border-destructive/50 bg-destructive/5 p-4 text-sm text-destructive">Please correct the highlighted fields before saving.</div>}
                             <FormSection title="Company information" description="Save the company’s details, then add its phone numbers and email addresses below." icon={Building2Icon}>
+                            <div className="-mt-2 mb-3 flex flex-col items-end"><label className="flex items-center gap-2 text-sm font-medium text-foreground"><input type="checkbox" className="accent-emerald-600" checked={form.data.is_active} onChange={(event) => form.setData('is_active', event.target.checked)} />Active company</label><InputError message={errors.is_active} /></div>
                             <div className="grid min-w-0 gap-5 md:grid-cols-2">
                                 <div className="space-y-2"><InputLabel htmlFor="company-name" value="Company name" className={labelClass} />
                                     <TextInput id="company-name" required maxLength={255} isFocused value={form.data.name} className={inputClass} onChange={(event) => form.setData('name', event.target.value)} /><InputError message={errors.name} />
@@ -102,30 +102,27 @@ export default function CompanyForm({ company }: PageProps<{ company: Company | 
                                 {form.data.addresses.map((address, index) => <div key={index} className="min-w-0 rounded-md border border-violet-200 bg-background p-4 dark:border-violet-900">
                                     <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                                         <div className="flex flex-wrap items-center gap-3">
-                                            <select aria-label="Address type" value={address.label} onChange={(event) => updateAddress(index, { label: event.target.value })} className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground">
-                                                {ADDRESS_LABELS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                                            </select>
+                                            <div className="w-56"><CreatableSelect id={`company-address-${index}-type`} label="Office type" value={address.address_type_id} options={addressTypes} optionsProp="addressTypes" createRoute={route('contact-directory.address-types.store')} entityLabel="office type" placeholder="Select or add a type" compact error={errors[`addresses.${index}.address_type_id`]} onChange={(typeId) => updateAddress(index, { address_type_id: typeId })} /></div>
                                             <label className="flex items-center gap-2 text-sm font-medium text-foreground"><input type="checkbox" className="accent-violet-600" checked={address.is_headquarters} onChange={(event) => updateAddress(index, { is_headquarters: event.target.checked })} />Headquarters / main office</label>
                                         </div>
                                         <Button type="button" variant="outline" size="sm" className="text-destructive" onClick={() => removeAddress(index)}><Trash2Icon className="size-4" aria-hidden="true" />Remove</Button>
                                     </div>
+                                    <div className="mb-4 space-y-2"><InputLabel htmlFor={`company-address-${index}-name`} value="Office name" className={labelClass} /><TextInput id={`company-address-${index}-name`} maxLength={255} placeholder="e.g. East Coast Headquarters" value={address.name} className={inputClass} onChange={(event) => updateAddress(index, { name: event.target.value })} /><InputError message={errors[`addresses.${index}.name`]} /></div>
                                     <div className="grid min-w-0 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                                        {ADDRESS_FIELDS.map(([field, label, autoComplete]) => <div key={field} className={field === 'postal_code' ? 'space-y-2 md:col-span-2' : 'space-y-2'}>
+                                        {ADDRESS_FIELDS.map(([field, label, autoComplete]) => <div key={field} className={field === 'postal_code' ? 'space-y-2 md:col-span-1 md:max-w-40' : 'space-y-2'}>
                                             <InputLabel htmlFor={`company-address-${index}-${field}`} value={label} className={labelClass} />
-                                            <TextInput id={`company-address-${index}-${field}`} maxLength={255} autoComplete={autoComplete} value={address[field]} className={inputClass} inputMode={field === 'postal_code' ? 'numeric' : undefined} onChange={(event) => updateAddress(index, { [field]: field === 'postal_code' ? event.target.value.replace(/[^0-9-]/g, '') : event.target.value })} />
+                                            <TextInput id={`company-address-${index}-${field}`} maxLength={255} autoComplete={autoComplete} value={address[field]} className={field === 'postal_code' ? `${inputClass} max-w-32` : inputClass} inputMode={field === 'postal_code' ? 'numeric' : undefined} onChange={(event) => updateAddress(index, { [field]: field === 'postal_code' ? event.target.value.replace(/[^0-9-]/g, '') : event.target.value })} />
                                             <InputError message={errors[`addresses.${index}.${field}`]} />
                                         </div>)}
                                     </div>
                                 </div>)}
-                                <Button type="button" variant="outline" onClick={addAddress}><PlusIcon className="size-4" aria-hidden="true" />Add address</Button>
+                                <div className="flex justify-end"><Button type="button" variant="outline" onClick={addAddress}><PlusIcon className="size-4" aria-hidden="true" />Add address</Button></div>
                             </div>
                             </FormSection>
-                            <FormSection title="Notes and status" icon={NotebookPenIcon}>
+                            <FormSection title="Notes" icon={NotebookPenIcon}>
                             <div className="space-y-2"><InputLabel htmlFor="company-notes" value="Notes (optional)" className={labelClass} />
                                 <RichTextEditor id="company-notes" compact showPlaceholders={false} value={notesToHtml(form.data.notes)} onChange={(html) => form.setData('notes', html)} error={errors.notes} /><InputError message={errors.notes} />
                             </div>
-                            <label className="mt-4 flex items-center gap-2 text-sm text-foreground"><input type="checkbox" className="accent-emerald-600" checked={form.data.is_active} onChange={(event) => form.setData('is_active', event.target.checked)} />Active company</label>
-                            <InputError message={errors.is_active} />
                             </FormSection>
                         </form>
             </div>

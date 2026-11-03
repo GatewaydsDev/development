@@ -217,6 +217,9 @@ Route::middleware(['auth', 'prevent-back-history', 'can:view-contacts-directory'
                 ->middleware('can:log-communications');
         });
 
+        Route::post('/address-types', [\App\Http\Controllers\ContactDirectory\AddressTypeController::class, 'store'])->name('address-types.store')
+            ->middleware('can:manage-contacts-directory');
+
         Route::prefix('companies')->name('companies.')->group(function () {
             Route::get('/', [ContactCompanyController::class, 'index'])->name('index');
             Route::get('/create', [ContactCompanyController::class, 'create'])->name('create')

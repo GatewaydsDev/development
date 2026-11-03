@@ -99,8 +99,9 @@ export default function CompaniesShow({ company, contacts, auth }: Props) {
                     <CardContent className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-3">
                         {company.addresses.length === 0 && <p className="text-sm text-muted-foreground">No addresses added yet.</p>}
                         {company.addresses.map((address) => <div key={address.id} className="min-w-0 rounded-md border border-border bg-background/60 p-3 text-sm [overflow-wrap:anywhere]">
+                            {address.name && <p className="mb-1 font-semibold text-foreground">{address.name}</p>}
                             <div className="mb-2 flex flex-wrap items-center gap-2">
-                                <Badge variant="secondary" className="capitalize">{address.label}</Badge>
+                                <Badge variant="secondary">{address.type?.name ?? 'Address'}</Badge>
                                 {address.is_headquarters && <Badge>Headquarters</Badge>}
                             </div>
                             {address.address_line_1 && <p>{address.address_line_1}</p>}

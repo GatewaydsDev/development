@@ -21,7 +21,8 @@ class CompanyAddresses
 
         foreach ($rows as $row) {
             $attributes = [
-                'label' => in_array($row['label'] ?? null, CompanyAddress::LABELS, true) ? $row['label'] : 'office',
+                'name' => filled($row['name'] ?? null) ? trim($row['name']) : null,
+                'address_type_id' => $row['address_type_id'] ?? null,
                 'is_headquarters' => (bool) ($row['is_headquarters'] ?? false),
                 ...collect(CompanyAddress::FIELDS)->mapWithKeys(fn (string $field): array => [$field => $row[$field] ?? null])->all(),
             ];
