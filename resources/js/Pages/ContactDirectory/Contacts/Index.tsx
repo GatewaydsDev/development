@@ -72,7 +72,7 @@ const CONTACT_TYPE_LABELS: Record<string, string> = {
     other: 'Other',
 };
 
-export default function ContactsIndex({ filters, contacts, users }: IndexProps) {
+export default function ContactsIndex({ filters, contacts, users, auth }: IndexProps) {
     const [search, setSearch] = useState(filters.search ?? '');
 
     const submitSearch = (event: FormEvent) => {
@@ -287,6 +287,7 @@ export default function ContactsIndex({ filters, contacts, users }: IndexProps) 
                                         )}
                                     </TableCell>
                                     <TableCell className="text-right">
+                                        {auth.can.manageContactsDirectory && <Button asChild variant="ghost" size="sm"><Link href={route('contact-directory.contacts.edit', contact.uuid)}>Edit</Link></Button>}
                                         <Button asChild variant="ghost" size="sm">
                                             <Link
                                                 href={route(

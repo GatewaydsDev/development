@@ -7,30 +7,21 @@ use App\Http\Controllers\Admin\BidCatalogController;
 use App\Http\Controllers\Admin\BidController;
 use App\Http\Controllers\Admin\CertificationController;
 use App\Http\Controllers\Admin\CompanyController;
-use App\Http\Controllers\ContactDirectory\ContactCompanyController;
-use App\Http\Controllers\ContactDirectory\ContactDirectoryController;
-use App\Http\Controllers\ContactDirectory\ContactDirectoryInquiryController;
-use App\Http\Controllers\ContactDirectory\ContactEmailController;
-use App\Http\Controllers\ContactDirectory\EmailTemplateController;
-use App\Http\Controllers\ContactDirectory\FollowUpController;
-use App\Http\Controllers\ContactDirectory\MyDayController;
-use App\Http\Controllers\ContactDirectory\PriceRequestController;
-use App\Http\Controllers\ContactDirectory\SupplierQuoteController;
 use App\Http\Controllers\Admin\ContactController;
 use App\Http\Controllers\Admin\ContractorController;
+use App\Http\Controllers\Admin\DailyTaskController;
+use App\Http\Controllers\Admin\DailyTaskTitleController;
 use App\Http\Controllers\Admin\DocumentSettingController;
 use App\Http\Controllers\Admin\EditorImageController;
 use App\Http\Controllers\Admin\EmployeeAttendanceController;
 use App\Http\Controllers\Admin\EmployeeController;
-use App\Http\Controllers\Admin\DailyTaskController;
 use App\Http\Controllers\Admin\EmployeeWorkScheduleController;
-use App\Http\Controllers\Admin\MyScheduleController;
-use App\Http\Controllers\Admin\SystemUpdateController;
 use App\Http\Controllers\Admin\ExpenseController;
 use App\Http\Controllers\Admin\ImpersonationController;
-use App\Http\Controllers\Admin\LanguageController;
-use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\JobTitleController;
+use App\Http\Controllers\Admin\LanguageController;
+use App\Http\Controllers\Admin\MyScheduleController;
+use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ProfessionController;
 use App\Http\Controllers\Admin\ProjectControlController;
 use App\Http\Controllers\Admin\ProjectController;
@@ -40,10 +31,20 @@ use App\Http\Controllers\Admin\RecordCorrectionController;
 use App\Http\Controllers\Admin\ServiceController;
 use App\Http\Controllers\Admin\SignatureController;
 use App\Http\Controllers\Admin\SkillController;
+use App\Http\Controllers\Admin\SystemUpdateController;
 use App\Http\Controllers\Admin\TakeoffController;
 use App\Http\Controllers\Admin\TakeoffWorkspaceController;
 use App\Http\Controllers\Admin\UserActivityController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\ContactDirectory\ContactCompanyController;
+use App\Http\Controllers\ContactDirectory\ContactDirectoryController;
+use App\Http\Controllers\ContactDirectory\ContactDirectoryInquiryController;
+use App\Http\Controllers\ContactDirectory\ContactEmailController;
+use App\Http\Controllers\ContactDirectory\EmailTemplateController;
+use App\Http\Controllers\ContactDirectory\FollowUpController;
+use App\Http\Controllers\ContactDirectory\MyDayController;
+use App\Http\Controllers\ContactDirectory\PriceRequestController;
+use App\Http\Controllers\ContactDirectory\SupplierQuoteController;
 use App\Http\Controllers\ContactSubmissionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DashboardThemeController;
@@ -195,6 +196,10 @@ Route::middleware(['auth', 'prevent-back-history', 'can:view-contacts-directory'
 
         Route::prefix('contacts')->name('contacts.')->group(function () {
             Route::get('/', [ContactDirectoryController::class, 'index'])->name('index');
+            Route::get('/create', [ContactDirectoryController::class, 'create'])->name('create')
+                ->middleware('can:manage-contacts-directory');
+            Route::get('/{contact}/edit', [ContactDirectoryController::class, 'edit'])->name('edit')
+                ->middleware('can:manage-contacts-directory');
             Route::get('/{contact}', [ContactDirectoryController::class, 'show'])->name('show');
             Route::post('/', [ContactDirectoryController::class, 'store'])->name('store')
                 ->middleware('can:manage-contacts-directory');
@@ -354,7 +359,7 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::get('/user-activities', [UserActivityController::class, 'index'])
             ->name('user-activities.index');
         Route::get('/daily-tasks', [DailyTaskController::class, 'index'])->name('daily-tasks.index');
-        Route::post('/daily-task-titles', [\App\Http\Controllers\Admin\DailyTaskTitleController::class, 'store'])->name('daily-task-titles.store');
+        Route::post('/daily-task-titles', [DailyTaskTitleController::class, 'store'])->name('daily-task-titles.store');
         Route::post('/daily-tasks', [DailyTaskController::class, 'store'])->name('daily-tasks.store');
         Route::patch('/daily-tasks/{dailyTask}', [DailyTaskController::class, 'update'])->name('daily-tasks.update');
         Route::delete('/daily-tasks/{dailyTask}', [DailyTaskController::class, 'destroy'])->name('daily-tasks.destroy');

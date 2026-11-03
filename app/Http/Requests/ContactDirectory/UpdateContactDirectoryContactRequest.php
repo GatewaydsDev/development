@@ -2,10 +2,6 @@
 
 namespace App\Http\Requests\ContactDirectory;
 
-use App\Models\ContactDirectory\ContactDirectoryContact;
-use App\Models\ContactDirectory\ContactEmailAddress;
-use App\Models\ContactDirectory\ContactPhoneNumber;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class UpdateContactDirectoryContactRequest extends StoreContactDirectoryContactRequest
@@ -17,12 +13,14 @@ class UpdateContactDirectoryContactRequest extends StoreContactDirectoryContactR
         $rules['phone_numbers.*.id'] = [
             'nullable',
             'integer',
+            'distinct',
             Rule::exists('contact_directory_contact_phone_numbers', 'id'),
         ];
 
         $rules['email_addresses.*.id'] = [
             'nullable',
             'integer',
+            'distinct',
             Rule::exists('contact_directory_contact_email_addresses', 'id'),
         ];
 
@@ -43,6 +41,7 @@ class UpdateContactDirectoryContactRequest extends StoreContactDirectoryContactR
             $this->validatePrimaryUniqueness('email_addresses', 'email_address', 'email address', $validator);
             $this->validateDuplicates('phone_numbers', 'phone_number', 'phone number', $validator);
             $this->validateDuplicates('email_addresses', 'email_address', 'email address', $validator);
+            $this->validatePhoneCountries($validator);
         });
     }
 

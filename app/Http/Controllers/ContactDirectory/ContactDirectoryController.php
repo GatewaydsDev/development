@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\ContactDirectory\LogCommunicationRequest;
 use App\Http\Requests\ContactDirectory\StoreContactDirectoryContactRequest;
 use App\Http\Requests\ContactDirectory\UpdateContactDirectoryContactRequest;
+use App\Models\ContactDirectory\ContactCompany;
 use App\Models\ContactDirectory\ContactDirectoryContact;
 use App\Models\User;
 use Illuminate\Contracts\Database\Eloquent\Builder;
@@ -16,6 +17,30 @@ use Inertia\Response;
 
 class ContactDirectoryController extends Controller
 {
+    public function create(Request $request): Response
+    {
+        return Inertia::render('ContactDirectory/Contacts/Form', [
+            'contact' => null,
+            ...$this->formOptions(),
+        ]);
+    }
+
+    public function edit(ContactDirectoryContact $contact): Response
+    {
+        return Inertia::render('ContactDirectory/Contacts/Form', [
+            'contact' => $contact->load(['phoneNumbers', 'emailAddresses']),
+            ...$this->formOptions(),
+        ]);
+    }
+
+    private function formOptions(): array
+    {
+        return [
+            'companies' => ContactCompany::query()->orderBy('name')->get(['id', 'name']),
+            'users' => User::query()->orderBy('name')->get(['id', 'name']),
+        ];
+    }
+
     public function index(Request $request): Response
     {
         $filters = $request->only(['search', 'contact_type', 'owner_id', 'is_active', 'overdue_follow_ups', 'assigned_to_me']);
@@ -122,20 +147,21 @@ class ContactDirectoryController extends Controller
                 'is_active' => $validated['is_active'] ?? true,
             ]);
 
-            foreach ($validated['phone_numbers'] ?? [] as $index => $phone) {
+            foreach ($this->withPrimary($validated['phone_numbers'] ?? []) as $phone) {
                 $contact->phoneNumbers()->create([
                     'phone_number' => $phone['phone_number'],
+                    'country' => $phone['country'] ?? null,
                     'label' => $phone['label'] ?? 'office',
                     'extension' => $phone['extension'] ?? null,
-                    'is_primary' => $index === 0 || (bool) ($phone['is_primary'] ?? false),
+                    'is_primary' => $phone['is_primary'],
                 ]);
             }
 
-            foreach ($validated['email_addresses'] ?? [] as $index => $email) {
+            foreach ($this->withPrimary($validated['email_addresses'] ?? []) as $email) {
                 $contact->emailAddresses()->create([
                     'email_address' => $email['email_address'],
                     'label' => $email['label'] ?? 'main',
-                    'is_primary' => $index === 0 || (bool) ($email['is_primary'] ?? false),
+                    'is_primary' => $email['is_primary'],
                 ]);
             }
 
@@ -165,23 +191,47 @@ class ContactDirectoryController extends Controller
             $this->syncEmailAddresses($contact, $validated['email_addresses'] ?? []);
         });
 
-        return back()->with('success', 'Contact updated successfully.');
+        return redirect()->route('contact-directory.contacts.show', $contact)->with('success', 'Contact updated successfully.');
+    }
+
+    private function withPrimary(array $rows): array
+    {
+        $primary = collect($rows)->search(fn ($row): bool => (bool) ($row['is_primary'] ?? false));
+        foreach ($rows as $index => &$row) {
+            $row['is_primary'] = $index === ($primary === false ? 0 : $primary);
+        }
+        unset($row);
+
+        return $rows;
     }
 
     private function syncPhoneNumbers(ContactDirectoryContact $contact, array $phones): void
     {
+        $existingRows = $contact->phoneNumbers()->get();
+        $keepIds = collect($phones)->map(fn ($phone) => $phone['id'] ?? $existingRows->firstWhere('phone_number', $phone['phone_number'])?->id)->filter()->all();
+        $contact->phoneNumbers()->whereNotIn('id', $keepIds)->delete();
+
+        // Free unique values before applying edits, so swapping two rows or
+        // reusing a removed row's number does not fail mid-update.
+        foreach ($phones as $phone) {
+            $existing = ! empty($phone['id']) ? $existingRows->find($phone['id']) : $existingRows->firstWhere('phone_number', $phone['phone_number']);
+            if ($existing && $existing->phone_number !== $phone['phone_number']) {
+                $contact->phoneNumbers()->whereKey($existing->id)->update(['phone_number' => 'pending-'.bin2hex(random_bytes(12))]);
+            }
+        }
         $keepIds = [];
 
-        foreach ($phones as $phone) {
+        foreach ($this->withPrimary($phones) as $phone) {
             if (! empty($phone['id'])) {
-                $existing = $contact->phoneNumbers()->whereKey($phone['id'])->first();
+                $existing = $existingRows->find($phone['id']);
             } else {
-                $existing = $contact->phoneNumbers()->where('phone_number', $phone['phone_number'])->first();
+                $existing = $existingRows->firstWhere('phone_number', $phone['phone_number']);
             }
 
             if ($existing) {
                 $existing->update([
                     'phone_number' => $phone['phone_number'],
+                    'country' => $phone['country'] ?? null,
                     'label' => $phone['label'] ?? 'office',
                     'extension' => $phone['extension'] ?? null,
                     'is_primary' => (bool) ($phone['is_primary'] ?? false),
@@ -190,6 +240,7 @@ class ContactDirectoryController extends Controller
             } else {
                 $created = $contact->phoneNumbers()->create([
                     'phone_number' => $phone['phone_number'],
+                    'country' => $phone['country'] ?? null,
                     'label' => $phone['label'] ?? 'office',
                     'extension' => $phone['extension'] ?? null,
                     'is_primary' => (bool) ($phone['is_primary'] ?? false),
@@ -203,13 +254,22 @@ class ContactDirectoryController extends Controller
 
     private function syncEmailAddresses(ContactDirectoryContact $contact, array $emails): void
     {
+        $existingRows = $contact->emailAddresses()->get();
+        $keepIds = collect($emails)->map(fn ($email) => $email['id'] ?? $existingRows->firstWhere('email_address', $email['email_address'])?->id)->filter()->all();
+        $contact->emailAddresses()->whereNotIn('id', $keepIds)->delete();
+        foreach ($emails as $email) {
+            $existing = ! empty($email['id']) ? $existingRows->find($email['id']) : $existingRows->firstWhere('email_address', $email['email_address']);
+            if ($existing && $existing->email_address !== $email['email_address']) {
+                $contact->emailAddresses()->whereKey($existing->id)->update(['email_address' => 'pending-'.bin2hex(random_bytes(12)).'@invalid.example']);
+            }
+        }
         $keepIds = [];
 
-        foreach ($emails as $email) {
+        foreach ($this->withPrimary($emails) as $email) {
             if (! empty($email['id'])) {
-                $existing = $contact->emailAddresses()->whereKey($email['id'])->first();
+                $existing = $existingRows->find($email['id']);
             } else {
-                $existing = $contact->emailAddresses()->where('email_address', $email['email_address'])->first();
+                $existing = $existingRows->firstWhere('email_address', $email['email_address']);
             }
 
             if ($existing) {

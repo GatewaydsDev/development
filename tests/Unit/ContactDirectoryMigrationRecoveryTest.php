@@ -111,6 +111,19 @@ it('refuses an unexpected incomplete schema without removing existing data', fun
     expect(DB::table('contact_directory_supplier_quotes')->value('uuid'))->toBe('do-not-delete');
 });
 
+it('adds country to existing phone rows without changing their values and safely retries', function () {
+    Schema::create('contact_directory_contact_phone_numbers', function (Blueprint $table): void {
+        $table->id();
+        $table->string('phone_number', 40);
+    });
+    DB::table('contact_directory_contact_phone_numbers')->insert(['phone_number' => '+971 50 123 4567']);
+    $migration = require database_path('migrations/2026_11_03_000000_add_country_to_contact_directory_phone_numbers.php');
+    $migration->up();
+    $migration->up();
+    $row = DB::table('contact_directory_contact_phone_numbers')->sole();
+    expect($row->phone_number)->toBe('+971 50 123 4567')->and($row->country)->toBeNull();
+});
+
 it('compiles all contact directory migrations with short and database-unique MySQL identifiers', function () {
     $schema = Schema::getFacadeRoot();
     $statements = [];

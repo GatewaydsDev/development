@@ -55,12 +55,12 @@ class ContactDirectoryContact extends Model
 
     public function phoneNumbers(): HasMany
     {
-        return $this->hasMany(ContactPhoneNumber::class, 'contact_id');
+        return $this->hasMany(ContactPhoneNumber::class, 'contact_id')->orderBy('id');
     }
 
     public function emailAddresses(): HasMany
     {
-        return $this->hasMany(ContactEmailAddress::class, 'contact_id');
+        return $this->hasMany(ContactEmailAddress::class, 'contact_id')->orderBy('id');
     }
 
     public function primaryPhone(): HasOne

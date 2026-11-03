@@ -16,6 +16,7 @@ class ContactPhoneNumber extends Model
         'uuid',
         'contact_id',
         'phone_number',
+        'country',
         'label',
         'extension',
         'is_primary',

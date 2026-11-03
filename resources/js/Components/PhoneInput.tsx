@@ -60,6 +60,7 @@ type PhoneInputProps = Omit<
     country?: string;
     onCountryChange?: (country: string) => void;
     isFocused?: boolean;
+    countryAriaLabel?: string;
 };
 
 export default function PhoneInput({
@@ -68,6 +69,7 @@ export default function PhoneInput({
     country,
     onCountryChange,
     className = '',
+    countryAriaLabel = 'Country',
     ...props
 }: PhoneInputProps) {
     const selected = phoneCountry(country);
@@ -81,7 +83,7 @@ export default function PhoneInput({
             maxLength={nanpCountries.has(selected.code) ? 14 : selected.nationalDigits}
             className={
                 (onCountryChange
-                    ? 'h-9 w-36 rounded-l-none border-l-0 '
+                    ? 'h-9 min-w-0 w-36 rounded-l-none border-l-0 '
                     : '') + className
             }
             onChange={(event) =>
@@ -99,7 +101,7 @@ export default function PhoneInput({
     return (
         <div className="flex w-auto max-w-full items-stretch">
             <select
-                aria-label="Country"
+                aria-label={countryAriaLabel}
                 value={selected.code}
                 onChange={(event) => onCountryChange(event.target.value)}
                 className="h-9 max-w-[9.5rem] shrink-0 rounded-l-md border border-border bg-muted px-2 text-sm text-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"

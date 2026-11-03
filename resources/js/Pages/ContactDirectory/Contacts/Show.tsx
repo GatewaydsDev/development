@@ -193,7 +193,10 @@ export default function ContactsShow({
             <div className="space-y-6 px-4 py-6 lg:px-8">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <p className="text-sm text-muted-foreground">Schedule a task for this contact to track it in My Day.</p>
-                    <CreateFollowUpButton contacts={[contact]} users={users} contactId={contact.id} />
+                    <div className="flex flex-wrap gap-2">
+                        {can.manageContactsDirectory && <Button variant="outline" asChild><Link href={route('contact-directory.contacts.edit', contact.uuid)}>Edit contact</Link></Button>}
+                        <CreateFollowUpButton contacts={[contact]} users={users} contactId={contact.id} />
+                    </div>
                 </div>
                 {flash?.success && (
                     <div className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200">
