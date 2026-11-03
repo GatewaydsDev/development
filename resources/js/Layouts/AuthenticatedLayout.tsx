@@ -2,6 +2,7 @@ import DashboardSidebar from '@/Components/DashboardSidebar';
 import { Dialog as DialogPrimitive } from 'radix-ui';
 import ExpenseUpdates from '@/Components/ExpenseUpdates';
 import IncomingAlert from '@/Components/IncomingAlert';
+import PushNotificationButton from '@/Components/PushNotificationButton';
 import FollowUpReminders from '@/Components/FollowUpReminders';
 import ContactFollowUpReminders from '@/Components/ContactFollowUpReminders';
 import TabUnreadBadge from '@/Components/TabUnreadBadge';
@@ -431,6 +432,7 @@ export default function Authenticated({
                                 </Link>
                             )}
                             <UnreadMailButton />
+                            <PushNotificationButton />
                                                         <RevisionAssignmentsMenu />
 
                             {canManageNotifications && (

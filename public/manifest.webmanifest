@@ -1,0 +1,12 @@
+{
+    "name": "Gateway Door Systems",
+    "short_name": "Gateway",
+    "start_url": "/",
+    "scope": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#047857",
+    "icons": [
+        { "src": "/images/App-Logo.png", "sizes": "256x256", "type": "image/png", "purpose": "any" }
+    ]
+}

@@ -19,6 +19,10 @@ class FollowUpReminderNotification extends Notification
     {
         $channels = ['database'];
 
+        if (app(\App\Services\WebPushSender::class)->configured()) {
+            $channels[] = \App\Notifications\Channels\WebPushChannel::class;
+        }
+
         if (config('contact_directory.email_reminders', false)) {
             $channels[] = 'mail';
         }
@@ -37,6 +41,18 @@ class FollowUpReminderNotification extends Notification
             'inquiry_title' => optional($this->followUp->inquiry)->title,
             'follow_up_id' => $this->followUp->uuid,
             'reminder_kind' => 'follow_up',
+        ];
+    }
+
+    /** @return array{title: string, body: string, url: string} */
+    public function toWebPush(object $notifiable): array
+    {
+        $contact = optional($this->followUp->contact)->fullName();
+
+        return [
+            'title' => "Reminder: {$this->followUp->title}",
+            'body' => trim(($contact ? "{$contact} · " : '').'Due '.$this->followUp->due_at->format('M j, g:i A')),
+            'url' => route('contact-directory.follow-ups.show', $this->followUp, false),
         ];
     }
 

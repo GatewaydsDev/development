@@ -7,6 +7,11 @@
         <title inertia>{{ config('app.name', 'Laravel') }}</title>
         <link rel="icon" type="image/png" href="/images/Gateway_Door_Systems_Logo.png">
 
+        <link rel="manifest" href="/manifest.webmanifest">
+        <link rel="apple-touch-icon" href="/images/App-Logo.png">
+        <meta name="theme-color" content="#047857">
+        <meta name="vapid-public-key" content="{{ config('webpush.public_key') }}">
+
         <!-- Scripts -->
         @routes
         @viteReactRefresh

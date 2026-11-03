@@ -33,6 +33,15 @@ class ProjectControlReminderDelivery
         foreach ($reminders as $reminder) {
             if ($reminder->notify_popup && $reminder->popup_sent_at === null && $reminder->dismissed_at === null) {
                 $reminder->forceFill(['popup_sent_at' => now()])->save();
+
+                if ($reminder->user instanceof User) {
+                    app(\App\Services\WebPushSender::class)->sendToUser(
+                        $reminder->user,
+                        $this->subject($reminder),
+                        trim((string) $reminder->note) !== '' ? trim((string) $reminder->note) : 'Follow-up reminder is due.',
+                        $reminder->control ? route('admin.project-control.edit', $reminder->control, false) : route('admin.project-control.index', [], false),
+                    );
+                }
             }
 
             if ($reminder->notify_email && $reminder->email_sent_at === null && $reminder->email_attempts < 3) {

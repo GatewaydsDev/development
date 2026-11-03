@@ -305,6 +305,11 @@ Route::middleware(['auth', 'prevent-back-history', 'can:view-contacts-directory'
         });
     });
 
+Route::middleware(['auth'])->group(function () {
+    Route::post('/push-subscriptions', [\App\Http\Controllers\PushSubscriptionController::class, 'store'])->name('push-subscriptions.store');
+    Route::delete('/push-subscriptions', [\App\Http\Controllers\PushSubscriptionController::class, 'destroy'])->name('push-subscriptions.destroy');
+});
+
 Route::middleware(['auth', 'prevent-back-history', 'can:manage-notifications'])
     ->prefix('notifications')
     ->name('notifications.')
