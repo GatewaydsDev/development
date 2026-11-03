@@ -1,4 +1,6 @@
 import InputError from '@/Components/InputError';
+import InspectorSelect from '@/Components/InspectorSelect';
+import { cn } from '@/lib/utils';
 import EmailStationery from '@/Pages/Email/EmailStationery';
 import { emptyStationery, type MailStationeryData } from '@/Pages/Email/mailLayouts';
 import { router, useForm } from '@inertiajs/react';
@@ -154,7 +156,7 @@ export default function MailSettings({
     };
 
     const actionClass =
-        'h-7 border border-[#b0b0b0] bg-[#f4f4f4] px-2 text-[12px] text-neutral-900 hover:bg-[#e7f0fb] disabled:opacity-50';
+        'h-7 shrink-0 whitespace-nowrap border border-[#b0b0b0] bg-[#f4f4f4] px-2 text-[12px] text-neutral-900 hover:bg-[#e7f0fb] disabled:opacity-50';
 
     return (
         <aside aria-label={t('objectInspector')} className="object-inspector min-w-0">
@@ -172,17 +174,17 @@ export default function MailSettings({
                     <label className="sr-only" htmlFor="mail-inspector-component">
                         {t('component')}
                     </label>
-                    <select
+                    <InspectorSelect
                         id="mail-inspector-component"
                         aria-label={t('component')}
-                        className="h-8 w-full border border-[#b0b0b0] bg-white px-1 text-sm font-semibold text-neutral-900"
+                        className="h-auto min-h-12 w-full border border-[#b0b0b0] bg-white px-2 py-1 text-sm font-semibold leading-6 text-neutral-900"
                         value={part}
                         onChange={(event) => setPart(event.target.value as MailPart)}
                     >
                         <option value="header">{t('header')}</option>
                         <option value="signature">{t('signature')}</option>
                         <option value="footer">{t('footerColors')}</option>
-                    </select>
+                    </InspectorSelect>
                 </div>
                 <div className="flex items-end border-b border-[#b0b0b0] bg-[#f0f0f0] px-1">
                     <span className="-mb-px border border-b-white border-[#b0b0b0] bg-white px-3 py-1 text-sm">
@@ -249,7 +251,7 @@ export default function MailSettings({
                                 </div>
                             </PropertyRow>
                             <PropertyRow name={t('headerSize')} query={needle}>
-                                <form onSubmit={saveWidth} className="flex items-center gap-1 px-1 py-1">
+                                <form onSubmit={saveWidth} className="flex flex-wrap items-center gap-1 px-1 py-1">
                                     <input
                                         id="mail-header-size"
                                         type="number"
@@ -259,7 +261,7 @@ export default function MailSettings({
                                         aria-label={t('headerSize')}
                                         value={width}
                                         onChange={(event) => setWidth(Number(event.target.value))}
-                                        className={`${inspectorInput} w-16 border border-[#d6d6d6]`}
+                                        className={cn(inspectorInput, 'w-16 shrink-0 border border-[#d6d6d6]')}
                                     />
                                     <span className="text-[12px] text-neutral-500">%</span>
                                     <button type="submit" className={actionClass} disabled={savingWidth}>
