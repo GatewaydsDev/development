@@ -8,13 +8,6 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // The first deployment attempt of this migration failed partway through
-        // on MySQL (index identifier length limit). Drop any partially created
-        // tables so the corrected definitions below apply cleanly.
-        Schema::dropIfExists('contact_directory_contact_email_addresses');
-        Schema::dropIfExists('contact_directory_contact_phone_numbers');
-        Schema::dropIfExists('contact_directory_contacts');
-
         Schema::create('contact_directory_contacts', function (Blueprint $table): void {
             $table->id();
             $table->uuid('uuid')->unique();
