@@ -38,7 +38,7 @@ export default function SimpleSelect({
             {label && (
                 <label
                     htmlFor={selectId}
-                    className="mb-2 block text-sm font-medium text-emerald-700 dark:text-emerald-300"
+                    className="mb-1 block text-sm font-medium text-foreground"
                 >
                     {label}
                 </label>

@@ -30,6 +30,8 @@ type UserContactFieldsProps = {
     renderDetails?: (row: UserContactRow, index: number) => ReactNode;
     preserveLegacyPhone?: boolean;
     stackPhonesOnMobile?: boolean;
+    sectionClassName?: string;
+    headingIcon?: ReactNode;
 };
 
 const inputClassName =
@@ -55,6 +57,8 @@ export default function UserContactFields({
     renderDetails,
     preserveLegacyPhone = false,
     stackPhonesOnMobile = false,
+    sectionClassName,
+    headingIcon,
 }: UserContactFieldsProps) {
     const updateValue = (index: number, value: string) => {
         onChange(
@@ -94,11 +98,12 @@ export default function UserContactFields({
     };
 
     return (
-        <fieldset className="flex min-w-0 flex-col gap-3 rounded-xl border border-border p-4">
+        <fieldset className={`flex min-w-0 flex-col gap-3 border p-4 ${sectionClassName ? `rounded-lg sm:p-6 ${sectionClassName}` : 'rounded-xl border-border'}`}>
             <legend className="sr-only">{legend}</legend>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <h3 className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                    <h3 className={sectionClassName ? 'flex items-center gap-2 text-lg font-semibold text-foreground' : 'text-sm font-medium text-emerald-700 dark:text-emerald-300'}>
+                        {headingIcon}
                         {legend}
                     </h3>
                     <p className="mt-1 text-sm text-muted-foreground">
@@ -107,8 +112,8 @@ export default function UserContactFields({
                 </div>
                 <Button
                     type="button"
-                    variant="outline"
-                    className="h-11 shrink-0"
+                    variant={sectionClassName ? 'default' : 'outline'}
+                    className={`h-11 shrink-0 ${sectionClassName ? 'bg-emerald-600 text-white hover:bg-emerald-700' : ''}`}
                     onClick={addRow}
                     disabled={rows.length >= maxRows}
                 >
@@ -177,6 +182,7 @@ export default function UserContactFields({
                             >
                                 <input
                                     type="radio"
+                                    className={sectionClassName ? 'accent-emerald-600' : undefined}
                                     name={`${field}-primary`}
                                     aria-label={`Primary ${legend} ${index + 1}`}
                                     checked={row.is_primary}
@@ -189,7 +195,7 @@ export default function UserContactFields({
                             <Button
                                 type="button"
                                 variant="outline"
-                                className={field === 'phones' ? 'h-9 px-3' : 'h-11'}
+                                className={(field === 'phones' ? 'h-9 px-3' : 'h-11') + (sectionClassName ? ' border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800 dark:border-rose-800/60 dark:text-rose-300 dark:hover:bg-rose-950/40' : '')}
                                 aria-label={`Remove ${legend} ${index + 1}`}
                                 onClick={() => removeRow(index)}
                             >

@@ -16,9 +16,9 @@ export default function CreateFollowUpButton({ contactId }: {
     if (!auth.can.manageFollowUps) return null;
 
     return (
-        <Button asChild>
+        <Button variant="create" asChild>
             <Link href={route('contact-directory.follow-ups.create', contactId ? { contact_id: contactId } : {})}>
-                <Plus className="mr-2 size-4" />New follow-up
+                <Plus className="size-4" aria-hidden="true" />New follow-up
             </Link>
         </Button>
     );

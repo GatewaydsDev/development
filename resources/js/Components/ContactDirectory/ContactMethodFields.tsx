@@ -3,6 +3,8 @@ import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
 import { phoneCountries, formatPhoneNumber } from '@/Components/PhoneInput';
 import UserContactFields, { type UserContactRow } from '@/Pages/Admin/Users/Partials/UserContactFields';
+import { formSectionColors } from '@/Components/ContactDirectory/FormSection';
+import { MailIcon, PhoneIcon } from 'lucide-react';
 
 export type PhoneRecord = { id: number; country: string | null; phone_number: string; label: string; extension: string | null; is_primary: boolean };
 export type EmailRecord = { id: number; email_address: string; label: string; is_primary: boolean };
@@ -81,7 +83,7 @@ export default function ContactMethodFields({ phones, emails, setRows, errors }:
         </div>;
     };
     return <section className="grid min-w-0 gap-5 xl:grid-cols-2">
-        <UserContactFields legend="Phone numbers" description="Select the country code first, enter the national number, then choose a primary phone." addLabel="Add phone" placeholder="Phone number" inputType="tel" field="phones" rows={phones} onChange={(rows) => setRows('phones', normalizePhoneRows(rows))} errors={contactErrors} maxRows={10} preserveLegacyPhone stackPhonesOnMobile renderDetails={(row, index) => rowDetails('phones', row, index)} />
-        <UserContactFields legend="Email addresses" description="Add addresses and select the primary address used by default for email." addLabel="Add email" placeholder="name@example.com" inputType="email" field="emails" rows={emails} onChange={(rows) => setRows('emails', rows)} errors={contactErrors} maxRows={10} renderDetails={(row, index) => rowDetails('emails', row, index)} />
+        <UserContactFields legend="Phone numbers" description="Select the country code first, enter the national number, then choose a primary phone." addLabel="Add phone" placeholder="Phone number" inputType="tel" field="phones" rows={phones} onChange={(rows) => setRows('phones', normalizePhoneRows(rows))} errors={contactErrors} maxRows={10} preserveLegacyPhone stackPhonesOnMobile sectionClassName={formSectionColors.sky} headingIcon={<PhoneIcon className="size-5 shrink-0" aria-hidden="true" />} renderDetails={(row, index) => rowDetails('phones', row, index)} />
+        <UserContactFields legend="Email addresses" description="Add addresses and select the primary address used by default for email." addLabel="Add email" placeholder="name@example.com" inputType="email" field="emails" rows={emails} onChange={(rows) => setRows('emails', rows)} errors={contactErrors} maxRows={10} sectionClassName={formSectionColors.amber} headingIcon={<MailIcon className="size-5 shrink-0" aria-hidden="true" />} renderDetails={(row, index) => rowDetails('emails', row, index)} />
     </section>;
 }

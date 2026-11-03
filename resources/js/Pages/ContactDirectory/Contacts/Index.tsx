@@ -1,5 +1,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import CreateContactButton from '@/Components/ContactDirectory/CreateContactButton';
+import RecordActionLink from '@/Components/ContactDirectory/RecordActionLink';
+import { SearchIcon } from 'lucide-react';
 import { Link, router } from '@inertiajs/react';
 import type { FormEvent } from 'react';
 import { useState } from 'react';
@@ -98,14 +100,15 @@ export default function ContactsIndex({ filters, contacts, users, auth }: IndexP
 
     return (
         <AuthenticatedLayout
+            fullWidth
             stickyTitle="Contacts"
+            header={<div className="flex flex-wrap items-start justify-between gap-3"><div>
+                <h2 className="text-xl font-semibold leading-tight text-emerald-700 dark:text-emerald-300">Contacts</h2>
+                <p className="mt-1 text-sm text-muted-foreground">Add a contact, then schedule their next follow-up.</p>
+            </div><CreateContactButton /></div>}
         >
-            <div className="space-y-6 px-4 py-6 lg:px-8">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <p className="text-sm text-muted-foreground">Add a contact, then schedule their next follow-up.</p>
-                    <CreateContactButton />
-                </div>
-                <form onSubmit={submitSearch} className="flex flex-wrap items-end gap-3">
+            <div className="space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+                <form onSubmit={submitSearch} className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-card p-4">
                     <div className="min-w-0 flex-1">
                         <label className="mb-1 block text-sm font-medium text-foreground">
                             Search
@@ -115,6 +118,7 @@ export default function ContactsIndex({ filters, contacts, users, auth }: IndexP
                             onChange={(event: React.ChangeEvent<HTMLInputElement>) => setSearch(event.target.value)}
                             placeholder="Search by name, company, email or phone"
                             aria-label="Search contacts"
+                            className="h-11 w-full"
                         />
                     </div>
                     <SimpleSelect
@@ -150,7 +154,7 @@ export default function ContactsIndex({ filters, contacts, users, auth }: IndexP
                         onChange={(value) => applyFilter('is_active', value)}
                         className="w-[150px]"
                     />
-                    <Button type="submit">Search</Button>
+                    <Button type="submit" className="min-h-11 bg-emerald-600 text-white hover:bg-emerald-700"><SearchIcon className="size-4" aria-hidden="true" />Search</Button>
                     <Button
                         type="button"
                         variant="outline"
@@ -287,17 +291,10 @@ export default function ContactsIndex({ filters, contacts, users, auth }: IndexP
                                         )}
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        {auth.can.manageContactsDirectory && <Button asChild variant="ghost" size="sm"><Link href={route('contact-directory.contacts.edit', contact.uuid)}>Edit</Link></Button>}
-                                        <Button asChild variant="ghost" size="sm">
-                                            <Link
-                                                href={route(
-                                                    'contact-directory.contacts.show',
-                                                    contact.uuid,
-                                                )}
-                                            >
-                                                Open
-                                            </Link>
-                                        </Button>
+                                        <div className="flex justify-end gap-1">
+                                            <RecordActionLink href={route('contact-directory.contacts.show', contact.uuid)} label={`View ${contact.first_name} ${contact.last_name ?? ''}`.trim()} action="view" />
+                                            {auth.can.manageContactsDirectory && <RecordActionLink href={route('contact-directory.contacts.edit', contact.uuid)} label={`Edit ${contact.first_name} ${contact.last_name ?? ''}`.trim()} action="edit" />}
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             ))}

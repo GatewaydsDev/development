@@ -7,7 +7,8 @@ import { Card, CardContent } from '@/Components/ui/card';
 import SimpleSelect from '@/Components/ContactDirectory/SimpleSelect';
 import TextInput from '@/Components/TextInput';
 import type { PageProps } from '@/types';
-import { Plus, Pencil } from 'lucide-react';
+import { PlusIcon, SearchIcon } from 'lucide-react';
+import RecordActionLink from '@/Components/ContactDirectory/RecordActionLink';
 
 type Company = {
     id: number;
@@ -47,10 +48,12 @@ export default function CompaniesIndex({ filters, companies, auth }: Props) {
     };
 
     return (
-        <AuthenticatedLayout stickyTitle="Companies">
-            <div className="space-y-6 px-4 py-6 lg:px-8">
-                {auth.can.manageContactsDirectory && <div className="flex justify-end"><Button asChild><Link href={route('contact-directory.companies.create')}><Plus className="mr-2 size-4" />New company</Link></Button></div>}
-                <form onSubmit={submitSearch} className="flex flex-wrap items-end gap-3">
+        <AuthenticatedLayout fullWidth stickyTitle="Companies" header={<div className="flex flex-wrap items-start justify-between gap-3">
+            <div><h2 className="text-xl font-semibold leading-tight text-emerald-700 dark:text-emerald-300">Companies</h2><p className="mt-1 text-sm text-muted-foreground">Manage companies, their contact details and linked people.</p></div>
+            {auth.can.manageContactsDirectory && <Button asChild variant="create"><Link href={route('contact-directory.companies.create')}><PlusIcon className="size-4" aria-hidden="true" />New company</Link></Button>}
+        </div>}>
+            <div className="space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+                <form onSubmit={submitSearch} className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-card p-4">
                     <div className="min-w-0 flex-1">
                         <label className="mb-1 block text-sm font-medium text-foreground">
                             Search
@@ -58,8 +61,9 @@ export default function CompaniesIndex({ filters, companies, auth }: Props) {
                         <TextInput
                             value={search}
                             onChange={(event) => setSearch(event.target.value)}
-                            placeholder="Search companies by name, website or city"
+                            placeholder="Search companies, phone numbers or emails"
                             aria-label="Search companies"
+                            className="h-11 w-full"
                         />
                     </div>
                     <SimpleSelect
@@ -73,7 +77,7 @@ export default function CompaniesIndex({ filters, companies, auth }: Props) {
                         onChange={(value) => applyFilters({ is_active: value })}
                         className="w-[150px]"
                     />
-                    <Button type="submit">Search</Button>
+                    <Button type="submit" className="min-h-11 bg-emerald-600 text-white hover:bg-emerald-700"><SearchIcon className="size-4" aria-hidden="true" />Search</Button>
                 </form>
 
                 <div className="space-y-4">
@@ -95,7 +99,8 @@ export default function CompaniesIndex({ filters, companies, auth }: Props) {
                                         {company.name}
                                     </Link>
                                     <div className="flex gap-2">
-                                        {auth.can.manageContactsDirectory && <Button asChild size="sm" variant="outline"><Link href={route('contact-directory.companies.edit', company.uuid)} aria-label={`Edit ${company.name}`}><Pencil className="mr-2 size-3.5" />Edit</Link></Button>}
+                                        <RecordActionLink href={route('contact-directory.companies.show', company.uuid)} label={`View ${company.name}`} action="view" />
+                                        {auth.can.manageContactsDirectory && <RecordActionLink href={route('contact-directory.companies.edit', company.uuid)} label={`Edit ${company.name}`} action="edit" />}
                                         <Badge variant={company.is_active ? 'default' : 'outline'}>
                                             {company.is_active ? 'Active' : 'Inactive'}
                                         </Badge>

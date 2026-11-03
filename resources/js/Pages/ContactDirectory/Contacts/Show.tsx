@@ -1,5 +1,8 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import FormActionFab from '@/Components/FormActionFab';
+import RecordActionLink from '@/Components/ContactDirectory/RecordActionLink';
+import { MailIcon, MessageSquareIcon, PhoneIcon, PlusIcon, UserRoundIcon } from 'lucide-react';
+import { formSectionColors } from '@/Components/ContactDirectory/FormSection';
 import CreateFollowUpButton from '@/Components/ContactDirectory/CreateFollowUpButton';
 import { Link, router, usePage } from '@inertiajs/react';
 import { useState, type FormEvent } from 'react';
@@ -194,12 +197,15 @@ export default function ContactsShow({
     };
 
     return (
-        <AuthenticatedLayout stickyTitle={`${contact.first_name} ${contact.last_name ?? ''}`}>
+        <AuthenticatedLayout fullWidth stickyTitle={`${contact.first_name} ${contact.last_name ?? ''}`} header={<div>
+            <nav aria-label="Breadcrumb" className="mb-2 flex flex-wrap items-center gap-2 text-sm font-medium text-muted-foreground"><Link href={route('contact-directory.contacts.index')} className="transition hover:text-foreground">Contacts</Link><span>/</span><span className="text-foreground">Details</span></nav>
+            <h2 className="break-words text-xl font-semibold leading-tight text-emerald-700 dark:text-emerald-300">{contact.first_name} {contact.last_name ?? ''}</h2>
+        </div>}>
             <div className="space-y-6 px-4 py-6 lg:px-8">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <p className="text-sm text-muted-foreground">Schedule a task for this contact to track it in My Day.</p>
                     <div className="flex flex-wrap gap-2">
-                        {can.manageContactsDirectory && <Button variant="outline" asChild><Link href={route('contact-directory.contacts.edit', contact.uuid)}>Edit contact</Link></Button>}
+                        {can.manageContactsDirectory && <RecordActionLink href={route('contact-directory.contacts.edit', contact.uuid)} label="Edit contact" action="edit" compact={false} />}
                         <CreateFollowUpButton contacts={[contact]} users={users} contactId={contact.id} />
                     </div>
                 </div>
@@ -210,9 +216,10 @@ export default function ContactsShow({
                 )}
 
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-                    <Card>
+                    <Card className={`min-w-0 ${formSectionColors.emerald}`}>
                         <CardHeader>
-                            <CardTitle className="text-lg">
+                            <CardTitle className="flex items-center gap-2 text-lg">
+                                <UserRoundIcon className="size-5 shrink-0" aria-hidden="true" />
                                 {contact.first_name} {contact.last_name ?? ''}
                             </CardTitle>
                             <CardDescription>
@@ -235,11 +242,11 @@ export default function ContactsShow({
 
                             {contact.phone_numbers.length > 0 && (
                                 <div className="space-y-2">
-                                    <h3 className="text-sm font-semibold">Phone numbers</h3>
+                                    <h3 className="flex items-center gap-2 text-sm font-semibold"><PhoneIcon className="size-4" aria-hidden="true" />Phone numbers</h3>
                                     {contact.phone_numbers.map((phone) => (
                                         <div
                                             key={phone.id}
-                                            className="flex items-center justify-between rounded-md border border-border px-3 py-2"
+                                            className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-card px-3 py-2 [overflow-wrap:anywhere]"
                                         >
                                             <span className="text-sm">
                                                 <a
@@ -269,11 +276,11 @@ export default function ContactsShow({
 
                             {contact.email_addresses.length > 0 && (
                                 <div className="space-y-2">
-                                    <h3 className="text-sm font-semibold">Email addresses</h3>
+                                    <h3 className="flex items-center gap-2 text-sm font-semibold"><MailIcon className="size-4" aria-hidden="true" />Email addresses</h3>
                                     {contact.email_addresses.map((email) => (
                                         <div
                                             key={email.id}
-                                            className="flex items-center justify-between rounded-md border border-border px-3 py-2"
+                                            className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-card px-3 py-2 [overflow-wrap:anywhere]"
                                         >
                                             <span className="text-sm">
                                                 <a
@@ -310,7 +317,7 @@ export default function ContactsShow({
                     </Card>
 
                     <div className="space-y-4">
-                        <Card>
+                        <Card className={formSectionColors.sky}>
                             <CardHeader>
                                 <CardTitle className="text-base">Next follow-up</CardTitle>
                             </CardHeader>
@@ -353,7 +360,7 @@ export default function ContactsShow({
                         </Card>
 
                         {canLogCommunications && (
-                            <Card>
+                            <Card className={formSectionColors.amber}>
                                 <CardHeader>
                                     <CardTitle className="text-base">Quick actions</CardTitle>
                                 </CardHeader>
@@ -363,6 +370,7 @@ export default function ContactsShow({
                                         className="w-full justify-start"
                                         onClick={() => setLogOpen((open) => !open)}
                                     >
+                                        <MessageSquareIcon className="size-4" aria-hidden="true" />
                                         Log a communication
                                     </Button>
                                     <Button asChild variant="outline" className="w-full justify-start">
@@ -372,6 +380,7 @@ export default function ContactsShow({
                                                 contact.uuid,
                                             )}
                                         >
+                                            <MailIcon className="size-4" aria-hidden="true" />
                                             Record an email
                                         </Link>
                                     </Button>
@@ -381,6 +390,7 @@ export default function ContactsShow({
                                                 contact_id: contact.id,
                                             })}
                                         >
+                                            <PlusIcon className="size-4" aria-hidden="true" />
                                             Create an inquiry
                                         </Link>
                                     </Button>

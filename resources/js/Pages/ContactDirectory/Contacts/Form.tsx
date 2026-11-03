@@ -3,7 +3,8 @@ import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import ContactMethodFields, { contactMethodsPayload, emailRows, phoneRow, withPrimary } from '@/Components/ContactDirectory/ContactMethodFields';
 import TextInput from '@/Components/TextInput';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
+import FormSection from '@/Components/ContactDirectory/FormSection';
+import { NotebookPenIcon, UserRoundIcon } from 'lucide-react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
@@ -51,27 +52,22 @@ export default function ContactForm({ contact, companies, users, auth }: PagePro
         else form.post(route('contact-directory.contacts.store'), options);
     };
     const inputClass = 'h-11 w-full border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring';
-    const labelClass = 'text-emerald-700 dark:text-emerald-300';
+    const labelClass = 'text-foreground';
 
     return (
-        <AuthenticatedLayout header={<div>
+        <AuthenticatedLayout fullWidth header={<div>
             <nav aria-label="Breadcrumb" className="mb-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                 <span>People</span><span>/</span><Link href={route('contact-directory.contacts.index')} className="hover:text-foreground">Contacts</Link><span>/</span><span className="text-foreground">{editing ? 'Edit' : 'Add new'}</span>
             </nav>
-            <h2 className={`text-xl font-semibold leading-tight ${labelClass}`}>{editing ? 'Edit contact' : 'Add new contact'}</h2>
+            <h2 className="text-xl font-semibold leading-tight text-emerald-700 dark:text-emerald-300">{editing ? 'Edit contact' : 'Add new contact'}</h2>
         </div>}>
             <Head title={title} />
             <div className="w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-                <Card className="shadow-sm">
-                    <CardHeader>
-                        <CardTitle>{editing ? `${contact.first_name} ${contact.last_name ?? ''}`.trim() : 'Contact information'}</CardTitle>
-                        <CardDescription>Save the person’s details and all their phone numbers and email addresses. Choose one primary entry in each list.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
                         <form id="directory-contact-form" onSubmit={submit} className="flex w-full min-w-0 max-w-full flex-col gap-6 pr-4 pb-28 sm:pr-20 lg:pb-6">
                             <FormActionFab form="directory-contact-form" cancelHref={cancelHref} saveLabel={editing ? 'Save changes' : 'Create contact'} disabled={form.processing} />
                             {Object.keys(errors).length > 0 && <div role="alert" className="rounded-lg border border-destructive/50 bg-destructive/5 p-4 text-sm text-destructive">Please correct the highlighted fields before saving.</div>}
-                            <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                            <FormSection title="Contact information" description="Save the person’s details, then add their phone numbers and email addresses below." icon={UserRoundIcon}>
+                            <div className="grid min-w-0 gap-5 md:grid-cols-2 xl:grid-cols-3">
                                 {([
                                     ['first_name', 'First name'], ['last_name', 'Last name (optional)'], ['job_title', 'Job title (optional)'],
                                 ] as const).map(([field, label]) => <div key={field} className="space-y-2">
@@ -100,20 +96,21 @@ export default function ContactForm({ contact, companies, users, auth }: PagePro
                                     </select>
                                     <InputError message={errors.owner_id} />
                                 </div>
-                            </section>
+                            </div>
+                            </FormSection>
                             <ContactMethodFields phones={form.data.phones} emails={form.data.emails} setRows={(field, rows) => form.setData(field, rows)} errors={errors} />
+                            <FormSection title="Notes and status" icon={NotebookPenIcon} tone="violet">
                             <div className="space-y-2">
                                 <InputLabel htmlFor="contact-notes" value="Notes (optional)" className={labelClass} />
                                 <textarea id="contact-notes" className={`${inputClass} min-h-24 py-3`} value={form.data.notes} onChange={(event) => form.setData('notes', event.target.value)} />
                                 <InputError message={errors.notes} />
                             </div>
-                            <label className="flex items-center gap-2 text-sm text-foreground">
-                                <input type="checkbox" checked={form.data.is_active} onChange={(event) => form.setData('is_active', event.target.checked)} />Active contact
+                            <label className="mt-4 flex items-center gap-2 text-sm text-foreground">
+                                <input type="checkbox" className="accent-emerald-600" checked={form.data.is_active} onChange={(event) => form.setData('is_active', event.target.checked)} />Active contact
                             </label>
                             <InputError message={errors.is_active} />
+                            </FormSection>
                         </form>
-                    </CardContent>
-                </Card>
             </div>
         </AuthenticatedLayout>
     );

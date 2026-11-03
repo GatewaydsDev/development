@@ -3,9 +3,10 @@ import { Head, Link } from '@inertiajs/react';
 import { Badge } from '@/Components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import type { PageProps } from '@/types';
-import { Button } from '@/Components/ui/button';
 import type { PhoneRecord, EmailRecord } from '@/Components/ContactDirectory/ContactMethodFields';
-import { Pencil } from 'lucide-react';
+import { Building2Icon, MailIcon, PhoneIcon } from 'lucide-react';
+import RecordActionLink from '@/Components/ContactDirectory/RecordActionLink';
+import { formSectionColors } from '@/Components/ContactDirectory/FormSection';
 
 type Contact = {
     id: number;
@@ -45,11 +46,14 @@ type Props = PageProps<{
 
 export default function CompaniesShow({ company, contacts, auth }: Props) {
     return (
-        <AuthenticatedLayout stickyTitle={company.name}>
+        <AuthenticatedLayout fullWidth stickyTitle={company.name} header={<div>
+            <nav aria-label="Breadcrumb" className="mb-2 flex flex-wrap items-center gap-2 text-sm font-medium text-muted-foreground"><Link href={route('contact-directory.companies.index')} className="transition hover:text-foreground">Companies</Link><span>/</span><span className="text-foreground">Details</span></nav>
+            <h2 className="break-words text-xl font-semibold leading-tight text-emerald-700 dark:text-emerald-300">{company.name}</h2>
+        </div>}>
             <Head title={company.name} />
             <div className="space-y-6 px-4 py-6 lg:px-8">
                 <div className="flex flex-wrap gap-2">
-                    {auth.can.manageContactsDirectory && <Button asChild variant="outline" size="sm"><Link href={route('contact-directory.companies.edit', company.uuid)}><Pencil className="mr-2 size-4" />Edit company</Link></Button>}
+                    {auth.can.manageContactsDirectory && <RecordActionLink href={route('contact-directory.companies.edit', company.uuid)} label="Edit company" action="edit" compact={false} />}
                     <Badge variant={company.is_active ? 'default' : 'outline'}>
                         {company.is_active ? 'Active' : 'Inactive'}
                     </Badge>
@@ -59,9 +63,9 @@ export default function CompaniesShow({ company, contacts, auth }: Props) {
                     </Badge>
                 </div>
 
-                <Card>
+                <Card className={formSectionColors.emerald}>
                     <CardHeader>
-                        <CardTitle className="text-base">Company details</CardTitle>
+                        <CardTitle className="flex items-center gap-2 text-lg"><Building2Icon className="size-5" aria-hidden="true" />Company details</CardTitle>
                     </CardHeader>
                     <CardContent className="grid min-w-0 gap-3 text-sm [overflow-wrap:anywhere] sm:grid-cols-2">
                         <div>
@@ -110,8 +114,8 @@ export default function CompaniesShow({ company, contacts, auth }: Props) {
                 </Card>
 
                 <section className="grid min-w-0 gap-5 xl:grid-cols-2" aria-label="Company contact details">
-                    <Card className="min-w-0">
-                        <CardHeader><CardTitle className="text-base">Company phone numbers</CardTitle></CardHeader>
+                    <Card className={`min-w-0 ${formSectionColors.sky}`}>
+                        <CardHeader><CardTitle className="flex items-center gap-2 text-lg"><PhoneIcon className="size-5" aria-hidden="true" />Company phone numbers</CardTitle></CardHeader>
                         <CardContent className="space-y-3">
                             {company.phone_numbers.length === 0 && <p className="text-sm text-muted-foreground">No company phone numbers added yet.</p>}
                             {company.phone_numbers.map((phone) => <div key={phone.id} className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-md border border-border p-3 text-sm">
@@ -120,8 +124,8 @@ export default function CompaniesShow({ company, contacts, auth }: Props) {
                             </div>)}
                         </CardContent>
                     </Card>
-                    <Card className="min-w-0">
-                        <CardHeader><CardTitle className="text-base">Company email addresses</CardTitle></CardHeader>
+                    <Card className={`min-w-0 ${formSectionColors.amber}`}>
+                        <CardHeader><CardTitle className="flex items-center gap-2 text-lg"><MailIcon className="size-5" aria-hidden="true" />Company email addresses</CardTitle></CardHeader>
                         <CardContent className="space-y-3">
                             {company.email_addresses.length === 0 && <p className="text-sm text-muted-foreground">No company email addresses added yet.</p>}
                             {company.email_addresses.map((email) => <div key={email.id} className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-md border border-border p-3 text-sm">
