@@ -23,3 +23,10 @@ it('lists passkeys on the profile page', function () {
     $this->actingAs($user)->get(route('profile.edit'))
         ->assertInertia(fn ($page) => $page->has('passkeys'));
 });
+
+it('rejects an invalid passkey login with a message instead of crashing', function () {
+    $this->postJson(route('webauthn.login'), [
+        'id' => 'x', 'rawId' => 'x', 'type' => 'public-key',
+        'response' => ['authenticatorData' => 'x', 'clientDataJSON' => 'x', 'signature' => 'x'],
+    ])->assertStatus(422);
+});

@@ -22,19 +22,15 @@ class WebAuthnLoginController
     {
         $lockout = app(LoginLockout::class);
 
-        $loggedIn = $request->login(
-            fn (WebAuthnAuthenticatable $user): bool => ! ($user instanceof User && $lockout->isLocked($user)),
+        $user = $request->login(
+            callbacks: fn (WebAuthnAuthenticatable $user): bool => ! ($user instanceof User && $lockout->isLocked($user)),
         );
 
-        if (! $loggedIn) {
+        if (! $user) {
             return response()->json([
                 'message' => 'This device could not sign you in. The account may be blocked or deactivated, or the passkey was removed.',
             ], 422);
         }
-
-        $request->session()->regenerate();
-
-        $user = $request->user();
 
         if ($user instanceof User) {
             $lockout->reset($user);
