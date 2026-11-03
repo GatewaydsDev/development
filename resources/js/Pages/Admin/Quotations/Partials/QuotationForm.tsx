@@ -269,13 +269,13 @@ const inputClassName =
 const sectionClassName = 'scroll-mt-48';
 
 const QUOTATION_SECTIONS = [
-    { id: 'quotation-details', label: 'Details', icon: FileTextIcon, solid: 'border-emerald-700 bg-emerald-600 hover:bg-emerald-700', soft: 'border-emerald-300 bg-emerald-50 text-emerald-950 hover:bg-emerald-100' },
-    { id: 'quotation-customer', label: 'Customer', icon: UsersIcon, solid: 'border-blue-700 bg-blue-600 hover:bg-blue-700', soft: 'border-blue-300 bg-blue-50 text-blue-950 hover:bg-blue-100' },
-    { id: 'quotation-pricing', label: 'Pricing', icon: CircleDollarSignIcon, solid: 'border-amber-700 bg-amber-600 hover:bg-amber-700', soft: 'border-amber-300 bg-amber-50 text-amber-950 hover:bg-amber-100' },
-    { id: 'quotation-openings', label: 'Openings', icon: ListIcon, solid: 'border-indigo-700 bg-indigo-600 hover:bg-indigo-700', soft: 'border-indigo-300 bg-indigo-50 text-indigo-950 hover:bg-indigo-100' },
-    { id: 'quotation-layout', label: 'Layout', icon: DraftingCompassIcon, solid: 'border-sky-800 bg-sky-700 hover:bg-sky-800', soft: 'border-sky-300 bg-sky-50 text-sky-950 hover:bg-sky-100' },
-    { id: 'quotation-revisions', label: 'Revisions', icon: GitBranchIcon, solid: 'border-violet-700 bg-violet-600 hover:bg-violet-700', soft: 'border-violet-300 bg-violet-50 text-violet-950 hover:bg-violet-100' },
-    { id: 'quotation-authorization', label: 'Authorization', icon: BadgeCheckIcon, solid: 'border-teal-700 bg-teal-600 hover:bg-teal-700', soft: 'border-teal-300 bg-teal-50 text-teal-950 hover:bg-teal-100' },
+    { id: 'quotation-details', label: 'Details', icon: FileTextIcon, solid: 'border-emerald-700 bg-emerald-600 hover:bg-emerald-700', soft: 'border-emerald-300 bg-emerald-50 text-emerald-950 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200 dark:hover:bg-emerald-900/60' },
+    { id: 'quotation-customer', label: 'Customer', icon: UsersIcon, solid: 'border-blue-700 bg-blue-600 hover:bg-blue-700', soft: 'border-blue-300 bg-blue-50 text-blue-950 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-200 dark:hover:bg-blue-900/60' },
+    { id: 'quotation-pricing', label: 'Pricing', icon: CircleDollarSignIcon, solid: 'border-amber-700 bg-amber-600 hover:bg-amber-700', soft: 'border-amber-300 bg-amber-50 text-amber-950 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-200 dark:hover:bg-amber-900/60' },
+    { id: 'quotation-openings', label: 'Openings', icon: ListIcon, solid: 'border-indigo-700 bg-indigo-600 hover:bg-indigo-700', soft: 'border-indigo-300 bg-indigo-50 text-indigo-950 hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-200 dark:hover:bg-indigo-900/60' },
+    { id: 'quotation-layout', label: 'Layout', icon: DraftingCompassIcon, solid: 'border-sky-800 bg-sky-700 hover:bg-sky-800', soft: 'border-sky-300 bg-sky-50 text-sky-950 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-950/60 dark:text-sky-200 dark:hover:bg-sky-900/60' },
+    { id: 'quotation-revisions', label: 'Revisions', icon: GitBranchIcon, solid: 'border-violet-700 bg-violet-600 hover:bg-violet-700', soft: 'border-violet-300 bg-violet-50 text-violet-950 hover:bg-violet-100 dark:border-violet-800 dark:bg-violet-950/60 dark:text-violet-200 dark:hover:bg-violet-900/60' },
+    { id: 'quotation-authorization', label: 'Authorization', icon: BadgeCheckIcon, solid: 'border-teal-700 bg-teal-600 hover:bg-teal-700', soft: 'border-teal-300 bg-teal-50 text-teal-950 hover:bg-teal-100 dark:border-teal-800 dark:bg-teal-950/60 dark:text-teal-200 dark:hover:bg-teal-900/60' },
 ] as const;
 
 function QuotationSectionNav({
@@ -289,7 +289,7 @@ function QuotationSectionNav({
         <div data-section-stack className="z-30 -mx-4 bg-background px-4 pb-2 sm:-mx-6 sm:px-6 md:sticky md:top-[4.75rem] lg:top-[7.25rem] lg:-mx-8 lg:px-8">
             <nav
                 aria-label="Quotation sections"
-                className="rounded-xl border border-[#c5d0dc] bg-[#eef3f8] p-1.5 text-[#0a2540] shadow-sm"
+                className="rounded-xl border border-[#c5d0dc] bg-[#eef3f8] p-1.5 text-[#0a2540] shadow-sm dark:border-[#353a42] dark:bg-[#212429] dark:text-[#e6e8eb]"
             >
                 <div
                     ref={(node) => {

@@ -62,10 +62,10 @@ import {
 } from '../types';
 
 const BID_SECTIONS = [
-    { id: 'bid-details', label: 'Project', icon: FolderKanbanIcon, solid: 'border-emerald-700 bg-emerald-600 hover:bg-emerald-700', soft: 'border-emerald-300 bg-emerald-50 text-emerald-950 hover:bg-emerald-100' },
-    { id: 'bid-revisions', label: 'Revisions', icon: GitBranchIcon, solid: 'border-violet-700 bg-violet-600 hover:bg-violet-700', soft: 'border-violet-300 bg-violet-50 text-violet-950 hover:bg-violet-100' },
-    { id: 'bid-stages', label: 'Stages', icon: ListOrderedIcon, solid: 'border-blue-700 bg-blue-600 hover:bg-blue-700', soft: 'border-blue-300 bg-blue-50 text-blue-950 hover:bg-blue-100' },
-    { id: 'bid-document', label: 'Bid page', icon: DraftingCompassIcon, solid: 'border-sky-800 bg-sky-700 hover:bg-sky-800', soft: 'border-sky-300 bg-sky-50 text-sky-950 hover:bg-sky-100' },
+    { id: 'bid-details', label: 'Project', icon: FolderKanbanIcon, solid: 'border-emerald-700 bg-emerald-600 hover:bg-emerald-700', soft: 'border-emerald-300 bg-emerald-50 text-emerald-950 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200 dark:hover:bg-emerald-900/60' },
+    { id: 'bid-revisions', label: 'Revisions', icon: GitBranchIcon, solid: 'border-violet-700 bg-violet-600 hover:bg-violet-700', soft: 'border-violet-300 bg-violet-50 text-violet-950 hover:bg-violet-100 dark:border-violet-800 dark:bg-violet-950/60 dark:text-violet-200 dark:hover:bg-violet-900/60' },
+    { id: 'bid-stages', label: 'Stages', icon: ListOrderedIcon, solid: 'border-blue-700 bg-blue-600 hover:bg-blue-700', soft: 'border-blue-300 bg-blue-50 text-blue-950 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950/60 dark:text-blue-200 dark:hover:bg-blue-900/60' },
+    { id: 'bid-document', label: 'Bid page', icon: DraftingCompassIcon, solid: 'border-sky-800 bg-sky-700 hover:bg-sky-800', soft: 'border-sky-300 bg-sky-50 text-sky-950 hover:bg-sky-100 dark:border-sky-800 dark:bg-sky-950/60 dark:text-sky-200 dark:hover:bg-sky-900/60' },
 ] as const;
 
 type BidFormProps = {
@@ -694,7 +694,7 @@ export default function BidForm({
             <div data-section-stack className="z-30 bg-background pb-2 md:sticky md:top-[4.75rem] lg:top-[7.25rem]">
             <nav
                 aria-label="Bid sections"
-                className="flex gap-1 overflow-x-auto rounded-xl border border-[#c5d0dc] bg-[#eef3f8] p-1.5 text-[#0a2540] shadow-sm"
+                className="flex gap-1 overflow-x-auto rounded-xl border border-[#c5d0dc] bg-[#eef3f8] p-1.5 text-[#0a2540] shadow-sm dark:border-[#353a42] dark:bg-[#212429] dark:text-[#e6e8eb]"
             >
                 {BID_SECTIONS.map((section) => {
                     const active = activeSection === section.id;
