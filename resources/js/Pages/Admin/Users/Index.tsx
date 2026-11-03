@@ -40,6 +40,7 @@ import {
 import { PageProps } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
+    ArchiveIcon,
     ChevronDownIcon,
     EditIcon,
     LogInIcon,
@@ -79,6 +80,7 @@ type UserRow = {
     last_login_at: string | null;
     status?: string;
     can_change_status?: boolean;
+    can_archive?: boolean;
     block_history?: BlockLog[];
 };
 
@@ -625,6 +627,7 @@ export default function Index({
     const canManageAccess = Boolean(auth.can?.manageAccess);
     const canImpersonate = Boolean(auth.can?.impersonateUsers);
     const [search, setSearch] = useState(filters.search ?? '');
+    const [archiveTarget, setArchiveTarget] = useState<UserRow | null>(null);
     const [impersonationTarget, setImpersonationTarget] =
         useState<UserRow | null>(null);
 
@@ -887,6 +890,20 @@ export default function Index({
                                                     </ActionHint>
                                                 )}
 
+                                                {user.can_archive && (
+                                                    <ActionHint hint="Archive this user">
+                                                        <Button
+                                                            variant="outline"
+                                                            size="icon-sm"
+                                                            className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-800/60 dark:text-red-400 dark:hover:bg-red-950/40"
+                                                            aria-label={`Archive ${user.name}`}
+                                                            onClick={() => setArchiveTarget(user)}
+                                                        >
+                                                            <ArchiveIcon className="size-4" />
+                                                        </Button>
+                                                    </ActionHint>
+                                                )}
+
                                                 {!canManageAccess &&
                                                     !canUpdateUsers &&
                                                     !(
@@ -931,6 +948,42 @@ export default function Index({
                     )}
                 </div>
             </div>
+
+            <AlertDialog
+                open={archiveTarget !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setArchiveTarget(null);
+                    }
+                }}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Archive {archiveTarget?.name}?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This user can no longer sign in and disappears from the lists. Their
+                            emails and phone numbers are archived with them, and any employee record is set to inactive.
+                            Nothing is permanently deleted.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            type="button"
+                            className="bg-red-600 text-white hover:bg-red-700"
+                            onClick={() => {
+                                if (archiveTarget) {
+                                    router.delete(route('admin.users.destroy', archiveTarget.uuid), {
+                                        preserveScroll: true,
+                                    });
+                                }
+                            }}
+                        >
+                            Archive user
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             <AlertDialog
                 open={impersonationTarget !== null}

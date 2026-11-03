@@ -136,3 +136,51 @@ test('custom user permissions cannot grant user crud access without super admin 
         ->assertForbidden();
 });
 
+
+test('a super admin can save a user through the spoofed form post', function () {
+    $superAdmin = userWithLevel(UserLevel::SUPER_ADMIN);
+    $target = userWithLevel(UserLevel::ADMIN);
+
+    $this->actingAs($superAdmin)->post(route('admin.users.update', $target), [
+        '_method' => 'PATCH',
+        'name' => 'New Name',
+        'email' => $target->email,
+        'level_id' => $target->level_id,
+    ])->assertRedirect(route('admin.users.index', absolute: false));
+
+    expect($target->fresh()->name)->toBe('New Name');
+});
+
+test('a super admin archives a user and the archive cascades', function () {
+    $superAdmin = userWithLevel(UserLevel::SUPER_ADMIN);
+    $target = userWithLevel(UserLevel::ADMIN);
+    $target->emails()->create(['email' => 'extra@example.com', 'is_primary' => true]);
+    $target->phones()->create(['phone' => '555-010-2000', 'country' => 'US', 'is_primary' => true]);
+
+    $this->actingAs($superAdmin)
+        ->delete(route('admin.users.destroy', $target))
+        ->assertRedirect(route('admin.users.index', absolute: false));
+
+    expect(User::find($target->id))->toBeNull()
+        ->and(User::withTrashed()->find($target->id))->not->toBeNull()
+        ->and(\App\Models\UserEmail::where('user_id', $target->id)->count())->toBe(0)
+        ->and(\App\Models\UserEmail::withTrashed()->where('user_id', $target->id)->count())->toBe(1)
+        ->and(\App\Models\UserPhone::where('user_id', $target->id)->count())->toBe(0);
+
+    User::withTrashed()->find($target->id)->restore();
+
+    expect(\App\Models\UserEmail::where('user_id', $target->id)->count())->toBe(1);
+});
+
+test('only super admins can archive and never themselves or other super admins', function () {
+    $superAdmin = userWithLevel(UserLevel::SUPER_ADMIN);
+    $otherSuper = userWithLevel(UserLevel::SUPER_ADMIN);
+    $admin = userWithLevel(UserLevel::ADMIN);
+    $target = userWithLevel(UserLevel::ADMIN);
+
+    $this->actingAs($superAdmin)->delete(route('admin.users.destroy', $superAdmin))->assertForbidden();
+    $this->actingAs($superAdmin)->delete(route('admin.users.destroy', $otherSuper))->assertForbidden();
+    $this->actingAs($admin)->delete(route('admin.users.destroy', $target))->assertStatus(403);
+
+    expect(User::find($target->id))->not->toBeNull();
+});

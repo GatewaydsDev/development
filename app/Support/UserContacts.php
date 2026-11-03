@@ -51,8 +51,8 @@ class UserContacts
     {
         [$emailRows, $phoneRows] = self::prepare($emails, $phones, $user);
 
-        $user->emails()->delete();
-        $user->phones()->delete();
+        $user->emails()->forceDelete();
+        $user->phones()->forceDelete();
 
         foreach ($emailRows as $row) {
             $user->emails()->create($row);

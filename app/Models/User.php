@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
@@ -21,7 +22,26 @@ use Laravel\Sanctum\HasApiTokens;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, HasUuidRouteKey, Notifiable;
+    use HasApiTokens, HasFactory, HasUuidRouteKey, Notifiable, SoftDeletes;
+
+    protected static function booted(): void
+    {
+        static::deleting(function (User $user): void {
+            if ($user->isForceDeleting()) {
+                return;
+            }
+
+            $user->emails()->delete();
+            $user->phones()->delete();
+            $user->employee()->update(['employment_status' => Employee::STATUS_INACTIVE]);
+            $user->tokens()->delete();
+        });
+
+        static::restoring(function (User $user): void {
+            $user->emails()->withTrashed()->restore();
+            $user->phones()->withTrashed()->restore();
+        });
+    }
 
     public const PRIVATE_ACCOUNT_EMAIL = 'ricardo@gateway-ds.com';
 

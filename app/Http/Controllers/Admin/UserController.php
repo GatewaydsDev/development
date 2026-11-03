@@ -158,6 +158,7 @@ class UserController extends Controller
                         : null,
                     'status' => $user->account_status,
                     'can_change_status' => $this->canChangeStatus($request->user(), $user),
+                    'can_archive' => $this->canArchive($request->user(), $user),
                     'block_history' => $canSeeHistory
                         ? ($blockHistory->get($user->id) ?? collect())->map(fn (LoginBlockLog $log): array => $this->blockLogPayload($log))->values()->all()
                         : [],
@@ -461,6 +462,27 @@ class UserController extends Controller
         }
 
         return back()->with('success', 'Email sent to '.$to.'. Microsoft 365 accepted it for delivery.');
+    }
+
+    public function destroy(Request $request, User $user): RedirectResponse
+    {
+        abort_unless($request->user()?->canViewUserAccount($user), 404);
+        abort_unless($this->canArchive($request->user(), $user), 403);
+
+        $name = $user->name;
+        $user->delete();
+
+        return redirect()
+            ->route('admin.users.index')
+            ->with('success', $name.' was archived. Their emails and phones were archived and any employee record was set to inactive.');
+    }
+
+    private function canArchive(?User $actor, User $target): bool
+    {
+        return $actor instanceof User
+            && $actor->isSuperAdmin()
+            && $actor->isNot($target)
+            && ! $target->isSuperAdmin();
     }
 
     private function canChangeStatus(?User $actor, User $target): bool
