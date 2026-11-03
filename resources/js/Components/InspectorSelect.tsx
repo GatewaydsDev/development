@@ -177,7 +177,8 @@ export default function InspectorSelect({
                 aria-expanded={open}
                 aria-controls={listId}
                 style={{ ...style, color: 'var(--inspector-ink, #0a2540)', WebkitTextFillColor: 'var(--inspector-ink, #0a2540)' }}
-                className={cn('flex min-h-12 w-full items-center justify-between gap-1 text-left disabled:text-neutral-500', className)}
+                // `flex` goes last so a caller's `block` (shared field classes) can't push the arrow onto its own line.
+                className={cn('min-h-12 w-full items-center justify-between gap-1 text-left disabled:text-neutral-500', className, 'flex')}
                 onClick={() => {
                     if (!disabled) {
                         setOpen((currentOpen) => !currentOpen);
