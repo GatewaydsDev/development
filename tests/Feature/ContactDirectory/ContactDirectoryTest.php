@@ -3,15 +3,15 @@
 use App\Models\ContactDirectory\ContactCompany;
 use App\Models\ContactDirectory\ContactDirectoryContact;
 use App\Models\ContactDirectory\ContactFollowUp;
+use App\Models\ContactDirectory\EmailTemplate;
 use App\Models\ContactDirectory\PriceRequest;
 use App\Models\ContactDirectory\PriceRequestItem;
-use App\Models\ContactDirectory\PriceRequestPreferredQuote;
-use App\Models\ContactDirectory\SupplierQuote;
 use App\Models\User;
 use App\Models\UserLevel;
+use App\Services\ContactDirectory\EmailTemplateRenderer;
 use App\Services\ContactDirectory\FollowUpReminderService;
-use App\Services\ContactDirectory\SupplierQuoteCalculator;
 use App\Services\ContactDirectory\NeedsAttentionService;
+use App\Services\ContactDirectory\SupplierQuoteCalculator;
 
 use function Pest\Laravel\actingAs;
 
@@ -31,6 +31,81 @@ beforeEach(function () {
         'city' => 'Scranton',
         'state' => 'PA',
     ]);
+});
+
+it('shows new contacts before they have a follow-up', function () {
+    $contact = ContactDirectoryContact::create([
+        'first_name' => 'New supplier',
+        'contact_type' => 'supplier',
+        'owner_id' => $this->admin->id,
+    ]);
+    actingAs($this->admin)->get(route('contact-directory.contacts.index'))
+        ->assertOk()->assertInertia(fn ($page) => $page
+        ->has('contacts.data', 1)->where('contacts.data.0.id', $contact->id));
+});
+
+it('creates a standalone follow-up and exposes it in my day', function () {
+    $contact = ContactDirectoryContact::create([
+        'first_name' => 'New supplier', 'contact_type' => 'supplier', 'owner_id' => $this->admin->id,
+    ]);
+    actingAs($this->admin)->post(route('contact-directory.follow-ups.store'), [
+        'contact_id' => $contact->id,
+        'title' => 'Call for pricing',
+        'assigned_user_id' => $this->admin->id,
+        'due_at' => now()->startOfDay()->addHours(15)->toDateTimeString(),
+        'priority' => 'normal',
+    ])->assertSessionHasNoErrors()->assertRedirect();
+    $followUp = ContactFollowUp::where('title', 'Call for pricing')->sole();
+    expect($followUp->contact_id)->toBe($contact->id)->and($followUp->created_by)->toBe($this->admin->id);
+    actingAs($this->admin)->get(route('contact-directory.my-day.index'))
+        ->assertOk()->assertInertia(fn ($page) => $page
+        ->where('contacts.0.id', $contact->id)
+        ->has('users')->has('timezone')
+        ->has('todayFollowUps', 1)->has('upcomingFollowUps', 0)
+        ->where('todayFollowUps.0.id', $followUp->id));
+    actingAs($this->admin)->post(route('contact-directory.follow-ups.complete', $followUp))->assertSessionHasNoErrors();
+    actingAs($this->admin)->get(route('contact-directory.my-day.index'))
+        ->assertInertia(fn ($page) => $page->has('todayFollowUps', 0)->where('completedTodayCount', 1));
+});
+
+it('validates the contact when creating a standalone follow-up', function ($contactId) {
+    actingAs($this->admin)->postJson(route('contact-directory.follow-ups.store'), [
+        'contact_id' => $contactId, 'title' => 'Call',
+        'assigned_user_id' => $this->admin->id, 'due_at' => now()->toDateTimeString(), 'priority' => 'normal',
+    ])->assertUnprocessable()->assertJsonValidationErrors('contact_id');
+    expect(ContactFollowUp::count())->toBe(0);
+})->with([null, 999999]);
+
+it('rejects a standalone follow-up linked to another contacts inquiry', function () {
+    $contact = ContactDirectoryContact::create([
+        'first_name' => 'A', 'contact_type' => 'supplier', 'owner_id' => $this->admin->id,
+    ]);
+    $other = ContactDirectoryContact::create([
+        'first_name' => 'B', 'contact_type' => 'supplier', 'owner_id' => $this->admin->id,
+    ]);
+    $inquiry = $other->inquiries()->create([
+        'title' => 'Other inquiry', 'status' => 'open', 'created_by' => $this->admin->id,
+    ]);
+    actingAs($this->admin)->postJson(route('contact-directory.follow-ups.store'), [
+        'contact_id' => $contact->id, 'inquiry_id' => $inquiry->id, 'title' => 'Call',
+        'assigned_user_id' => $this->admin->id, 'due_at' => now()->toDateTimeString(), 'priority' => 'normal',
+    ])->assertUnprocessable()->assertJsonValidationErrors('inquiry_id');
+});
+
+it('denies creation and completion to read-only directory users', function () {
+    $level = UserLevel::create(['name' => 'Directory reader', 'permissions' => ['view-contacts-directory' => true]]);
+    $reader = User::factory()->create(['level_id' => $level->id]);
+    $contact = ContactDirectoryContact::create([
+        'first_name' => 'A', 'contact_type' => 'supplier', 'owner_id' => $this->admin->id,
+    ]);
+    $followUp = $contact->followUps()->create([
+        'title' => 'Call', 'assigned_user_id' => $reader->id, 'created_by' => $this->admin->id, 'due_at' => now(),
+    ]);
+    actingAs($reader)->get(route('contact-directory.my-day.index'))->assertOk()
+        ->assertInertia(fn ($page) => $page->where('auth.can.manageFollowUps', false));
+    actingAs($reader)->postJson(route('contact-directory.follow-ups.store'), [])->assertForbidden();
+    actingAs($reader)->postJson(route('contact-directory.follow-ups.complete', $followUp), [])->assertForbidden();
+    expect($followUp->fresh()->status)->toBe('pending');
 });
 
 it('stores a contact with multiple phones and emails and one primary each', function () {
@@ -350,7 +425,7 @@ it('stores quote revisions and marks only the newest as current', function () {
 });
 
 it('calculates quote totals server side and distinguishes missing prices', function () {
-    $calculator = new SupplierQuoteCalculator();
+    $calculator = new SupplierQuoteCalculator;
 
     expect($calculator->calculateItemLineTotal(10, '12.345'))->toBe('123.45');
     expect($calculator->calculateItemLineTotal(10, null))->toBe('0.00');
@@ -545,7 +620,7 @@ it('renders only allowlisted placeholders and reports unresolved ones', function
         'owner_id' => $this->admin->id,
     ]);
 
-    $template = \App\Models\ContactDirectory\EmailTemplate::create([
+    $template = EmailTemplate::create([
         'name' => 'Initial pricing request',
         'category' => 'initial_pricing_request',
         'subject' => 'Pricing request: {{price_request_title}}',
@@ -555,7 +630,7 @@ it('renders only allowlisted placeholders and reports unresolved ones', function
         'is_active' => true,
     ]);
 
-    $renderer = app(\App\Services\ContactDirectory\EmailTemplateRenderer::class);
+    $renderer = app(EmailTemplateRenderer::class);
 
     $rendered = $renderer->render($template, [
         'price_request_title' => 'Door hardware',
@@ -577,7 +652,7 @@ it('renders only allowlisted placeholders and reports unresolved ones', function
     expect($missing['unresolved'])->toContain('current_user_name');
 
     // Code-like syntax is never evaluated.
-    $unsafe = \App\Models\ContactDirectory\EmailTemplate::create([
+    $unsafe = EmailTemplate::create([
         'name' => 'Unsafe template',
         'category' => 'general',
         'subject' => '{{ 1 + 1 }}',
@@ -608,7 +683,7 @@ it('preserves the original sent email content when a template later changes', fu
 
     $contact->refresh();
 
-    $template = \App\Models\ContactDirectory\EmailTemplate::create([
+    $template = EmailTemplate::create([
         'name' => 'Follow-up',
         'category' => 'follow_up_no_response',
         'subject' => 'Following up',
@@ -618,7 +693,7 @@ it('preserves the original sent email content when a template later changes', fu
         'is_active' => true,
     ]);
 
-    $renderer = app(\App\Services\ContactDirectory\EmailTemplateRenderer::class);
+    $renderer = app(EmailTemplateRenderer::class);
     $rendered = $renderer->render($template, []);
 
     $activity = $contact->activities()->create([

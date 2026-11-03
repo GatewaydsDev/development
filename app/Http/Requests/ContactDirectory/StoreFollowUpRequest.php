@@ -16,6 +16,19 @@ class StoreFollowUpRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'contact_id' => [
+                Rule::requiredIf(fn (): bool => $this->route('inquiry') === null),
+                'nullable',
+                'integer',
+                Rule::exists('contact_directory_contacts', 'id')->whereNull('deleted_at'),
+            ],
+            'inquiry_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('contact_directory_inquiries', 'id')
+                    ->where('contact_id', $this->input('contact_id'))
+                    ->whereNull('deleted_at'),
+            ],
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'assigned_user_id' => ['required', 'integer', Rule::exists('users', 'id')],

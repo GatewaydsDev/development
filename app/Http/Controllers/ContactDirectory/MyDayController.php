@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\ContactDirectory;
 
 use App\Http\Controllers\Controller;
+use App\Models\ContactDirectory\ContactDirectoryContact;
 use App\Models\ContactDirectory\ContactDirectoryInquiry;
 use App\Models\ContactDirectory\ContactFollowUp;
 use App\Models\ContactDirectory\SupplierQuote;
@@ -61,7 +62,7 @@ class MyDayController extends Controller
 
         $upcomingFollowUps = ContactFollowUp::query()
             ->where('status', 'pending')
-            ->where('due_at', '>', $today)
+            ->where('due_at', '>=', $tomorrow)
             ->when($assignedToMe, fn ($query): mixed => $query->where('assigned_user_id', $user->id))
             ->with([
                 'contact:id,uuid,first_name,last_name',
@@ -113,6 +114,9 @@ class MyDayController extends Controller
         $needsAttentionSuggestions = $needsAttention->suggestionsForUser($user);
 
         return Inertia::render('ContactDirectory/MyDay/Index', [
+            'contacts' => ContactDirectoryContact::query()->where('is_active', true)->orderBy('first_name')->get(['id', 'uuid', 'first_name', 'last_name']),
+            'users' => User::query()->orderBy('name')->get(['id', 'name']),
+            'timezone' => config('app.timezone'),
             'filters' => ['assigned_to_me' => $assignedToMe],
             'today' => $today->toDateString(),
             'overdueFollowUps' => $overdueFollowUps,
@@ -124,7 +128,6 @@ class MyDayController extends Controller
             'quotesExpiringSoon' => $quotesExpiringSoon,
             'completedTodayCount' => $completedTodayCount,
             'needsAttentionSuggestions' => $needsAttentionSuggestions,
-            'users' => User::query()->orderBy('name')->get(['id', 'name']),
         ]);
     }
 }

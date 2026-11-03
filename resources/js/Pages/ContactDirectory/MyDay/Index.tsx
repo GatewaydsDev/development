@@ -1,5 +1,8 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Link, router } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
+import CreateContactButton from '@/Components/ContactDirectory/CreateContactButton';
+import CreateFollowUpButton, { type FollowUpContact, type FollowUpUser } from '@/Components/ContactDirectory/CreateFollowUpButton';
+import InputError from '@/Components/InputError';
 import { useState } from 'react';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
@@ -64,6 +67,9 @@ type Suggestion = {
 };
 
 type MyDayProps = PageProps<{
+    contacts: FollowUpContact[];
+    users: FollowUpUser[];
+    timezone: string;
     filters: { assigned_to_me: boolean };
     today: string;
     overdueFollowUps: FollowUp[];
@@ -92,6 +98,17 @@ const PRIORITY_STYLES: Record<string, string> = {
 };
 
 function FollowUpRow({ followUp }: { followUp: FollowUp }) {
+    const { auth } = usePage<PageProps>().props;
+    const [processing, setProcessing] = useState(false);
+    const [error, setError] = useState('');
+    const complete = () => {
+        setProcessing(true);
+        router.post(route('contact-directory.follow-ups.complete', followUp.uuid), {}, {
+            preserveScroll: true,
+            onError: (errors) => setError(Object.values(errors)[0] || 'Unable to complete this follow-up.'),
+            onFinish: () => setProcessing(false),
+        });
+    };
     return (
         <li className="rounded-md border border-border px-3 py-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -139,6 +156,15 @@ function FollowUpRow({ followUp }: { followUp: FollowUp }) {
                     : ''}
                 {followUp.inquiry ? ` · ${followUp.inquiry.title}` : ''}
             </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+                <Button size="sm" variant="outline" asChild>
+                    <Link href={route('contact-directory.follow-ups.show', followUp.uuid)}>View / reschedule</Link>
+                </Button>
+                {auth.can.manageFollowUps && (
+                    <Button size="sm" disabled={processing} onClick={complete}>{processing ? 'Completing…' : 'Complete'}</Button>
+                )}
+            </div>
+            <InputError message={error} />
         </li>
     );
 }
@@ -179,6 +205,10 @@ function InquiryRow({ inquiry }: { inquiry: Inquiry }) {
 }
 
 export default function MyDay({
+    contacts,
+    users,
+    timezone,
+    auth,
     filters,
     overdueFollowUps,
     todayFollowUps,
@@ -221,6 +251,35 @@ export default function MyDay({
     return (
         <AuthenticatedLayout stickyTitle="My Day">
             <div className="space-y-6 px-4 py-6 lg:px-8">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                        <h1 className="text-2xl font-semibold text-foreground">My Day</h1>
+                        <p className="mt-1 text-sm text-muted-foreground">Your contact follow-ups, deadlines and next actions.</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        <CreateContactButton />
+                        <CreateFollowUpButton contacts={contacts} users={users} timezone={timezone} />
+                        <Button variant="outline" asChild><Link href={route('contact-directory.follow-ups.index')}>All follow-ups</Link></Button>
+                    </div>
+                </div>
+                <Card>
+                    <CardHeader className="pb-2"><CardTitle className="text-base">How My Day works</CardTitle></CardHeader>
+                    <CardContent className="space-y-2 text-sm text-muted-foreground">
+                        <p>My Day shows contact follow-ups assigned to you. Start with a contact, create a follow-up with a due date, then return here to complete or reschedule it.</p>
+                        {auth.can.manageFollowUps ? (
+                            <ol className="list-inside list-decimal space-y-1">
+                                <li>{contacts.length === 0
+                                    ? (auth.can.manageContactsDirectory ? 'Click New contact to add the person you need to follow up with.' : 'Ask an administrator to add a contact before scheduling a follow-up.')
+                                    : (auth.can.manageContactsDirectory ? 'Choose an existing contact, or click New contact to add someone.' : 'Choose an existing contact to follow up with.')}</li>
+                                <li>Click New follow-up, enter the task and due date, and leave Assigned to set to yourself.</li>
+                                <li>Use Complete or View / reschedule on your tasks below.</li>
+                            </ol>
+                        ) : (
+                            <p>Your account has read-only access to follow-ups. Ask an administrator to enable Manage follow-ups to create and complete tasks.</p>
+                        )}
+                        <p className="text-xs">Dates and times use the application timezone: {timezone}. Future tasks appear in Upcoming.</p>
+                    </CardContent>
+                </Card>
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex flex-wrap gap-3">
                         {summaryCards.map((card) => (

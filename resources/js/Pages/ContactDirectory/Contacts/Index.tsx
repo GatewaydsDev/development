@@ -1,4 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import CreateContactButton from '@/Components/ContactDirectory/CreateContactButton';
 import { Link, router } from '@inertiajs/react';
 import type { FormEvent } from 'react';
 import { useState } from 'react';
@@ -100,6 +101,10 @@ export default function ContactsIndex({ filters, contacts, users }: IndexProps) 
             stickyTitle="Contacts"
         >
             <div className="space-y-6 px-4 py-6 lg:px-8">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-sm text-muted-foreground">Add a contact, then schedule their next follow-up.</p>
+                    <CreateContactButton />
+                </div>
                 <form onSubmit={submitSearch} className="flex flex-wrap items-end gap-3">
                     <div className="min-w-0 flex-1">
                         <label className="mb-1 block text-sm font-medium text-foreground">

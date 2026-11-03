@@ -1,4 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import CreateFollowUpButton from '@/Components/ContactDirectory/CreateFollowUpButton';
 import { Link, router } from '@inertiajs/react';
 import { useState, type FormEvent } from 'react';
 import { Badge } from '@/Components/ui/badge';
@@ -134,6 +135,10 @@ export default function FollowUpsIndex({
     return (
         <AuthenticatedLayout stickyTitle="Follow-ups">
             <div className="space-y-6 px-4 py-6 lg:px-8">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-sm text-muted-foreground">Schedule contact-related tasks and keep track of their next steps.</p>
+                    <CreateFollowUpButton contacts={contacts} users={users} />
+                </div>
                 <div className="flex flex-wrap gap-2">
                     {VIEWS.map((item) => (
                         <Link

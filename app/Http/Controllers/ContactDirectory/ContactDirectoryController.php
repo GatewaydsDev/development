@@ -28,7 +28,6 @@ class ContactDirectoryController extends Controller
             ])
             ->withMax('activities as last_activity_at', 'occurred_at')
             ->withMax('followUps as next_follow_up_at', 'due_at')
-            ->whereHas('followUps', fn (Builder $query): Builder => $query->where('status', 'pending'))
             ->when((bool) ($filters['overdue_follow_ups'] ?? false), function ($query): void {
                 $query->whereHas('followUps', function ($query): void {
                     $query->where('status', 'pending')
