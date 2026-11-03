@@ -184,3 +184,24 @@ test('only super admins can archive and never themselves or other super admins',
 
     expect(User::find($target->id))->not->toBeNull();
 });
+
+test('a super admin can list and restore archived users', function () {
+    $superAdmin = userWithLevel(UserLevel::SUPER_ADMIN);
+    $target = userWithLevel(UserLevel::ADMIN);
+    $target->delete();
+
+    $this->actingAs($superAdmin)->get(route('admin.users.index', ['archived' => 1]))
+        ->assertInertia(fn ($page) => $page->where('users.data.0.id', $target->id)->where('users.data.0.archived', true));
+
+    $this->actingAs($superAdmin)->patch(route('admin.users.restore', $target->uuid))->assertRedirect();
+
+    expect(User::find($target->id))->not->toBeNull();
+});
+
+test('a user sharing the owner name is editable by the owner account', function () {
+    $owner = User::factory()->create(['email' => User::PRIVATE_ACCOUNT_EMAIL, 'name' => 'Ricardo Scarpim']);
+    $owner->update(['level_id' => userWithLevel(UserLevel::SUPER_ADMIN)->level_id]);
+    $other = User::factory()->create(['email' => 'rscarpim1973@gmail.com', 'name' => 'Ricardo Scarpim', 'level_id' => $owner->level_id]);
+
+    $this->actingAs($owner)->get(route('admin.users.edit', $other))->assertOk();
+});

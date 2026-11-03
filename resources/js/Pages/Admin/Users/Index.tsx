@@ -41,6 +41,7 @@ import { PageProps } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     ArchiveIcon,
+    ArchiveRestoreIcon,
     ChevronDownIcon,
     EditIcon,
     LogInIcon,
@@ -81,6 +82,7 @@ type UserRow = {
     status?: string;
     can_change_status?: boolean;
     can_archive?: boolean;
+    archived?: boolean;
     block_history?: BlockLog[];
 };
 
@@ -104,8 +106,10 @@ type UsersPaginator = {
 type BlockLogRow = BlockLog & { user_status?: string | null; can_change_status?: boolean };
 
 type IndexProps = {
+    canArchiveUsers?: boolean;
     filters: {
         search?: string;
+        archived?: boolean;
     };
     users: UsersPaginator;
     blockLogs?: BlockLogRow[];
@@ -616,6 +620,7 @@ const avatarTone = (id: number) => AVATAR_TONES[id % AVATAR_TONES.length];
 
 export default function Index({
     filters,
+    canArchiveUsers,
     users,
     blockLogs,
     registrationRequests = [],
@@ -626,6 +631,7 @@ export default function Index({
     const canUpdateUsers = Boolean(auth.can?.updateUsers);
     const canManageAccess = Boolean(auth.can?.manageAccess);
     const canImpersonate = Boolean(auth.can?.impersonateUsers);
+    const isSuperAdminUser = Boolean(canArchiveUsers);
     const [search, setSearch] = useState(filters.search ?? '');
     const [archiveTarget, setArchiveTarget] = useState<UserRow | null>(null);
     const [impersonationTarget, setImpersonationTarget] =
@@ -636,7 +642,7 @@ export default function Index({
 
         router.get(
             route('admin.users.index'),
-            { search },
+            { search, ...(filters.archived ? { archived: 1 } : {}) },
             {
                 preserveState: true,
                 replace: true,
@@ -755,6 +761,23 @@ export default function Index({
                                     <SearchIcon data-icon="inline-start" />
                                     Search
                                 </Button>
+                                {isSuperAdminUser && (
+                                    <Button
+                                        type="button"
+                                        variant={filters.archived ? 'default' : 'outline'}
+                                        size="sm"
+                                        className="self-center"
+                                        onClick={() =>
+                                            router.get(
+                                                route('admin.users.index'),
+                                                filters.archived ? {} : { archived: 1 },
+                                            )
+                                        }
+                                    >
+                                        <ArchiveIcon data-icon="inline-start" />
+                                        {filters.archived ? 'Show active users' : 'Archived users'}
+                                    </Button>
+                                )}
                             </form>
                         </CardHeader>
 
@@ -831,7 +854,18 @@ export default function Index({
                                                     Actions
                                                 </DirectoryFieldLabel>
                                                 <div className="flex flex-wrap gap-1.5 md:justify-end">
-                                                {canManageAccess &&
+                                                {user.archived && (
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => router.patch(route('admin.users.restore', user.uuid), {}, { preserveScroll: true })}
+                                                    >
+                                                        <ArchiveRestoreIcon data-icon="inline-start" />
+                                                        Restore
+                                                    </Button>
+                                                )}
+
+                                                {!user.archived && canManageAccess &&
                                                     user.level && (
                                                         <ActionHint hint="Edit permissions">
                                                             <Button
@@ -850,7 +884,7 @@ export default function Index({
                                                         </ActionHint>
                                                     )}
 
-                                                {canImpersonate &&
+                                                {!user.archived && canImpersonate &&
                                                     user.id !== auth.user.id && (
                                                         <ActionHint hint="Sign in as this user">
                                                             <Button
@@ -869,7 +903,7 @@ export default function Index({
                                                         </ActionHint>
                                                     )}
 
-                                                {canUpdateUsers && (
+                                                {!user.archived && canUpdateUsers && (
                                                     <ActionHint hint="Edit this user">
                                                         <Button
                                                             variant="outline"
@@ -904,7 +938,7 @@ export default function Index({
                                                     </ActionHint>
                                                 )}
 
-                                                {!canManageAccess &&
+                                                {!user.archived && !canManageAccess &&
                                                     !canUpdateUsers &&
                                                     !(
                                                         canImpersonate &&

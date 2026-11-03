@@ -99,12 +99,15 @@ class UserController extends Controller
                     'can_change_status' => $target !== null && $this->canChangeStatus($request->user(), $target),
                 ];
             })->all(),
+            'canArchiveUsers' => $isSuperAdmin,
             'filters' => [
                 'search' => $search,
+                'archived' => $isSuperAdmin && $request->boolean('archived'),
             ],
             'canManageMicrosoft' => (bool) $request->user()?->managesMicrosoft365(),
             'users' => User::query()
                 ->visibleTo($request->user())
+                ->when($isSuperAdmin && $request->boolean('archived'), fn ($query) => $query->onlyTrashed())
                 ->with([
                     'level:id,uuid,name',
                     'preferredLanguage:id,name,abbreviation',
@@ -158,7 +161,8 @@ class UserController extends Controller
                         : null,
                     'status' => $user->account_status,
                     'can_change_status' => $this->canChangeStatus($request->user(), $user),
-                    'can_archive' => $this->canArchive($request->user(), $user),
+                    'can_archive' => ! $user->trashed() && $this->canArchive($request->user(), $user),
+                    'archived' => $user->trashed(),
                     'block_history' => $canSeeHistory
                         ? ($blockHistory->get($user->id) ?? collect())->map(fn (LoginBlockLog $log): array => $this->blockLogPayload($log))->values()->all()
                         : [],
@@ -475,6 +479,18 @@ class UserController extends Controller
         return redirect()
             ->route('admin.users.index')
             ->with('success', $name.' was archived. Their emails and phones were archived and any employee record was set to inactive.');
+    }
+
+    public function restore(Request $request, User $user): RedirectResponse
+    {
+        abort_unless($request->user()?->isSuperAdmin(), 403);
+        abort_unless($user->trashed(), 404);
+
+        $user->restore();
+
+        return redirect()
+            ->route('admin.users.index', ['archived' => 1])
+            ->with('success', $user->name.' was restored. Their emails and phones are back; check their employee status.');
     }
 
     private function canArchive(?User $actor, User $target): bool

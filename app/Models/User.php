@@ -311,14 +311,11 @@ class User extends Authenticatable
     public function isPrivateAccountOwner(): bool
     {
         $email = strtolower(trim((string) $this->email));
-        $name = strtolower(trim((string) preg_replace('/\s+/', ' ', (string) $this->name)));
-
         if ($email === self::PRIVATE_ACCOUNT_EMAIL) {
             return true;
         }
 
-        // An employee's login is a regular account, even when the employee shares the owner's name.
-        return $name === self::PRIVATE_ACCOUNT_NAME && ! $this->employee()->exists();
+        return false;
     }
 
     public function managesMicrosoft365(): bool
@@ -345,12 +342,7 @@ class User extends Authenticatable
             return $query;
         }
 
-        // Logins created for an employee stay listed even when the employee shares the private account's name.
-        return $query
-            ->whereRaw('LOWER(COALESCE(email, "")) != ?', [self::PRIVATE_ACCOUNT_EMAIL])
-            ->where(fn (Builder $query) => $query
-                ->whereRaw('LOWER(TRIM(name)) != ?', [self::PRIVATE_ACCOUNT_NAME])
-                ->orWhereHas('employee'));
+        return $query->whereRaw('LOWER(COALESCE(email, "")) != ?', [self::PRIVATE_ACCOUNT_EMAIL]);
     }
 
     public function isSuperAdmin(): bool

@@ -242,6 +242,10 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::delete('/users/{user}', [UserController::class, 'destroy'])
             ->middleware('can:update-users')
             ->name('users.destroy');
+        Route::patch('/users/{user}/restore', [UserController::class, 'restore'])
+            ->withTrashed()
+            ->middleware('can:update-users')
+            ->name('users.restore');
         Route::post('/users/block-logs/{log}/notify', [UserController::class, 'notifyBlockLog'])
             ->middleware('can:update-users')
             ->name('users.block-logs.notify');
