@@ -3,6 +3,7 @@ import FormActionFab from '@/Components/FormActionFab';
 import RecordActionLink from '@/Components/ContactDirectory/RecordActionLink';
 import { MailIcon, MessageSquareIcon, PhoneIcon, PlusIcon, UserRoundIcon } from 'lucide-react';
 import { formSectionColors } from '@/Components/ContactDirectory/FormSection';
+import { formatPhoneDisplay } from '@/lib/phoneFormatting';
 import CreateFollowUpButton from '@/Components/ContactDirectory/CreateFollowUpButton';
 import { Link, router, usePage } from '@inertiajs/react';
 import { useState, type FormEvent } from 'react';
@@ -36,6 +37,7 @@ type Contact = {
     owner?: { id: number; name: string } | null;
     phone_numbers: Array<{
         id: number;
+        country?: string | null;
         phone_number: string;
         label: string;
         extension: string | null;
@@ -253,7 +255,7 @@ export default function ContactsShow({
                                                     href={`tel:${phone.phone_number}`}
                                                     className="text-foreground underline-offset-4 hover:underline"
                                                 >
-                                                    {phone.phone_number}
+                                                    {formatPhoneDisplay(phone.phone_number, phone.country)}
                                                     {phone.extension
                                                         ? ` x${phone.extension}`
                                                         : ''}

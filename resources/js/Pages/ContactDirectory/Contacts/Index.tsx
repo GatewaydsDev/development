@@ -1,6 +1,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import CreateContactButton from '@/Components/ContactDirectory/CreateContactButton';
 import RecordActionLink from '@/Components/ContactDirectory/RecordActionLink';
+import { formatPhoneDisplay } from '@/lib/phoneFormatting';
 import { SearchIcon } from 'lucide-react';
 import { Link, router } from '@inertiajs/react';
 import type { FormEvent } from 'react';
@@ -36,6 +37,7 @@ type ContactDirectoryContact = {
     company?: { id: number; name: string } | null;
     owner?: { id: number; name: string } | null;
     primary_phone?: {
+        country?: string | null;
         phone_number: string;
         extension: string | null;
         label: string;
@@ -241,7 +243,7 @@ export default function ContactsIndex({ filters, contacts, users, auth }: IndexP
                                                 href={`tel:${contact.primary_phone.phone_number}`}
                                                 className="text-foreground underline-offset-4 hover:underline"
                                             >
-                                                {contact.primary_phone.phone_number}
+                                                {formatPhoneDisplay(contact.primary_phone.phone_number, contact.primary_phone.country)}
                                                 {contact.primary_phone.extension
                                                     ? ` x${contact.primary_phone.extension}`
                                                     : ''}

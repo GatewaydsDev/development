@@ -11,14 +11,14 @@ export type EmailRecord = { id: number; email_address: string; label: string; is
 type MethodField = 'phones' | 'emails';
 
 export function phoneRow(phone: PhoneRecord): UserContactRow {
-    if (!phone.country) return { id: phone.id, value: phone.phone_number, country: '', label: phone.label, extension: phone.extension ?? '', is_primary: phone.is_primary };
     const country = phoneCountries.find((item) => item.code === phone.country);
+    if (!country) return { id: phone.id, value: phone.phone_number, country: '', label: phone.label, extension: phone.extension ?? '', is_primary: phone.is_primary };
     let value = phone.phone_number.replace(/\D/g, '');
     if (country && phone.phone_number.startsWith('+') && value.startsWith(country.dial)) {
         value = value.slice(country.dial.length);
         if (['GB', 'DE'].includes(country.code)) value = `0${value}`;
     }
-    return { id: phone.id, value: formatPhoneNumber(value, phone.country), country: phone.country, label: phone.label, extension: phone.extension ?? '', is_primary: phone.is_primary };
+    return { id: phone.id, value: formatPhoneNumber(value, country.code), country: country.code, label: phone.label, extension: phone.extension ?? '', is_primary: phone.is_primary };
 }
 
 export function withPrimary(rows: UserContactRow[]): UserContactRow[] {

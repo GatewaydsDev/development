@@ -9,6 +9,7 @@ import TextInput from '@/Components/TextInput';
 import type { PageProps } from '@/types';
 import { PlusIcon, SearchIcon } from 'lucide-react';
 import RecordActionLink from '@/Components/ContactDirectory/RecordActionLink';
+import { formatPhoneDisplay } from '@/lib/phoneFormatting';
 
 type Company = {
     id: number;
@@ -20,7 +21,7 @@ type Company = {
     country: string | null;
     is_active: boolean;
     contacts_count: number;
-    primary_phone?: { phone_number: string; extension: string | null } | null;
+    primary_phone?: { phone_number: string; extension: string | null; country?: string | null } | null;
     primary_email?: { email_address: string } | null;
 };
 
@@ -117,7 +118,7 @@ export default function CompaniesIndex({ filters, companies, auth }: Props) {
                                     {company.country ? `, ${company.country}` : ''}
                                 </p>
                                 {(company.primary_phone || company.primary_email) && <div className="flex min-w-0 flex-wrap gap-x-4 gap-y-2 text-sm">
-                                    {company.primary_phone && <a className="break-all text-muted-foreground hover:underline" href={`tel:${company.primary_phone.phone_number}${company.primary_phone.extension ? `;ext=${company.primary_phone.extension}` : ''}`}>{company.primary_phone.phone_number}{company.primary_phone.extension ? ` ext. ${company.primary_phone.extension}` : ''}</a>}
+                                    {company.primary_phone && <a className="break-all text-muted-foreground hover:underline" href={`tel:${company.primary_phone.phone_number}${company.primary_phone.extension ? `;ext=${company.primary_phone.extension}` : ''}`}>{formatPhoneDisplay(company.primary_phone.phone_number, company.primary_phone.country)}{company.primary_phone.extension ? ` ext. ${company.primary_phone.extension}` : ''}</a>}
                                     {company.primary_email && <a className="break-all text-muted-foreground hover:underline" href={`mailto:${company.primary_email.email_address}`}>{company.primary_email.email_address}</a>}
                                 </div>}
                             </CardContent>

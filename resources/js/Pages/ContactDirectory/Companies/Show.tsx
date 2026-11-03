@@ -7,6 +7,7 @@ import type { PhoneRecord, EmailRecord } from '@/Components/ContactDirectory/Con
 import { Building2Icon, MailIcon, PhoneIcon } from 'lucide-react';
 import RecordActionLink from '@/Components/ContactDirectory/RecordActionLink';
 import { formSectionColors } from '@/Components/ContactDirectory/FormSection';
+import { formatPhoneDisplay } from '@/lib/phoneFormatting';
 
 type Contact = {
     id: number;
@@ -16,7 +17,7 @@ type Contact = {
     job_title: string | null;
     contact_type: string;
     is_active: boolean;
-    primary_phone?: { phone_number: string; extension: string | null } | null;
+    primary_phone?: { phone_number: string; extension: string | null; country?: string | null } | null;
     primary_email?: { email_address: string } | null;
 };
 
@@ -119,7 +120,7 @@ export default function CompaniesShow({ company, contacts, auth }: Props) {
                         <CardContent className="space-y-3">
                             {company.phone_numbers.length === 0 && <p className="text-sm text-muted-foreground">No company phone numbers added yet.</p>}
                             {company.phone_numbers.map((phone) => <div key={phone.id} className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-md border border-border p-3 text-sm">
-                                <div className="min-w-0"><a href={`tel:${phone.phone_number}${phone.extension ? `;ext=${phone.extension}` : ''}`} className="break-all text-foreground hover:underline">{phone.phone_number}{phone.extension ? ` ext. ${phone.extension}` : ''}</a><p className="text-xs text-muted-foreground">{phone.label}</p></div>
+                                <div className="min-w-0"><a href={`tel:${phone.phone_number}${phone.extension ? `;ext=${phone.extension}` : ''}`} className="break-all text-foreground hover:underline">{formatPhoneDisplay(phone.phone_number, phone.country)}{phone.extension ? ` ext. ${phone.extension}` : ''}</a><p className="text-xs text-muted-foreground">{phone.label}</p></div>
                                 {phone.is_primary && <Badge variant="secondary">Primary</Badge>}
                             </div>)}
                         </CardContent>
@@ -171,7 +172,7 @@ export default function CompaniesShow({ company, contacts, auth }: Props) {
                                             href={`tel:${contact.primary_phone.phone_number}`}
                                             className="text-xs text-muted-foreground underline-offset-4 hover:underline"
                                         >
-                                            {contact.primary_phone.phone_number}
+                                            {formatPhoneDisplay(contact.primary_phone.phone_number, contact.primary_phone.country)}
                                         </a>
                                     )}
                                     <Badge variant="secondary">{contact.contact_type}</Badge>
