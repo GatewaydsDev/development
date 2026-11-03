@@ -547,7 +547,7 @@ export default function DashboardSidebar({
                         <div className="overflow-hidden">
                             <div className="dash-soft dash-border flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs text-foreground">
                                 <ClockIcon className="dash-icon size-3.5 shrink-0" />
-                                <div className="min-w-0 flex-1 truncate">
+                                <div className="min-w-0 flex-1 leading-snug">
                                     <span className="font-medium text-foreground">
                                         Last login:
                                     </span>{' '}
