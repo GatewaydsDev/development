@@ -670,6 +670,13 @@ export default function ComposeMail({
         setSelectedLayout(layout);
     };
 
+    const chooseTemplate = (template: MailTemplateOption) => {
+        editor?.commands.setContent(template.body);
+        layoutSnapshot.current = editor?.getHTML() ?? template.body;
+        form.setData((data) => ({ ...data, subject: template.subject, body: layoutSnapshot.current }));
+        setSelectedLayout('blank');
+    };
+
     const layouts: Array<{ id: MailLayoutId; title: string; detail: string; bars: string[] }> = [
         { id: 'blank', title: t('layoutBlank'), detail: t('layoutBlankDetail'), bars: ['h-2 w-2/3 bg-slate-200', 'mt-auto h-2 w-1/2 bg-emerald-700'] },
         { id: 'letter', title: t('layoutLetter'), detail: t('layoutLetterDetail'), bars: ['h-3 w-full bg-emerald-700', 'mt-2 h-1.5 w-5/6 bg-slate-200', 'mt-1 h-1.5 w-2/3 bg-slate-200', 'mt-auto h-2 w-1/2 bg-slate-400', 'mt-1 h-1 w-full bg-emerald-200'] },
@@ -1054,6 +1061,29 @@ export default function ComposeMail({
                             );
                         })}
                     </div>
+                    {emailTemplates.length > 0 ? (
+                        <div className="mt-4 border-t border-border pt-3">
+                            <p className="mb-2 text-sm text-muted-foreground">Or start from a saved template</p>
+                            <div className="flex flex-wrap gap-3">
+                                {emailTemplates.map((template) => (
+                                    <button
+                                        key={template.uuid}
+                                        type="button"
+                                        title={template.subject}
+                                        className="flex w-24 flex-col items-center gap-1 text-center"
+                                        onClick={() => chooseTemplate(template)}
+                                    >
+                                        <span className="flex h-16 w-24 flex-col rounded-md border border-violet-300 bg-violet-50 p-1.5 hover:border-violet-600 dark:border-violet-800 dark:bg-violet-950/40">
+                                            <span className="block h-2 w-2/3 rounded-sm bg-violet-500" />
+                                            <span className="mt-1.5 block h-1.5 w-full rounded-sm bg-violet-200" />
+                                            <span className="mt-1 block h-1.5 w-4/5 rounded-sm bg-violet-200" />
+                                        </span>
+                                        <span className="line-clamp-2 text-[11px] font-medium leading-4 text-foreground">{template.name}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    ) : null}
                 </div>
             )}
             {draft || selectedLayout ? <EditorContent editor={editor} /> : null}

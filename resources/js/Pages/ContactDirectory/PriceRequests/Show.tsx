@@ -164,6 +164,14 @@ export default function PriceRequestsShow({
                     </div>
                 )}
 
+                {canManagePriceRequests && (
+                    <div className="flex justify-end">
+                        <Button asChild variant="outline">
+                            <Link href={route('contact-directory.price-requests.edit', priceRequest.uuid)}>Edit price request</Link>
+                        </Button>
+                    </div>
+                )}
+
                 <div className="flex flex-wrap gap-2">
                     <Badge variant="secondary">
                         {STATUS_LABELS[priceRequest.status] ?? priceRequest.status}

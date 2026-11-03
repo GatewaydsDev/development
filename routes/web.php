@@ -238,6 +238,10 @@ Route::middleware(['auth', 'prevent-back-history', 'can:view-contacts-directory'
 
         Route::prefix('inquiries')->name('inquiries.')->group(function () {
             Route::get('/', [ContactDirectoryInquiryController::class, 'index'])->name('index');
+            Route::get('/create', [ContactDirectoryInquiryController::class, 'create'])->name('create')
+                ->middleware('can:manage-contacts-directory');
+            Route::get('/{inquiry}/edit', [ContactDirectoryInquiryController::class, 'edit'])->name('edit')
+                ->middleware('can:manage-contacts-directory');
             Route::get('/{inquiry}', [ContactDirectoryInquiryController::class, 'show'])->name('show');
             Route::post('/', [ContactDirectoryInquiryController::class, 'store'])->name('store')
                 ->middleware('can:manage-contacts-directory');
@@ -280,6 +284,10 @@ Route::middleware(['auth', 'prevent-back-history', 'can:view-contacts-directory'
 
         Route::prefix('price-requests')->name('price-requests.')->group(function () {
             Route::get('/', [PriceRequestController::class, 'index'])->name('index');
+            Route::get('/create', [PriceRequestController::class, 'create'])->name('create')
+                ->middleware('can:manage-price-requests');
+            Route::get('/{priceRequest}/edit', [PriceRequestController::class, 'edit'])->name('edit')
+                ->middleware('can:manage-price-requests');
             Route::get('/{priceRequest}', [PriceRequestController::class, 'show'])->name('show');
             Route::get('/{priceRequest}/compare-quotes', [SupplierQuoteController::class, 'compare'])->name('compare-quotes');
             Route::post('/', [PriceRequestController::class, 'store'])->name('store')

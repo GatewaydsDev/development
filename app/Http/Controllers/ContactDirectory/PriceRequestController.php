@@ -53,6 +53,28 @@ class PriceRequestController extends Controller
         ]);
     }
 
+    public function create(): Response
+    {
+        return Inertia::render('ContactDirectory/PriceRequests/Form', [
+            'priceRequest' => null,
+            'users' => User::query()->orderBy('name')->get(['id', 'name']),
+            'projects' => Project::query()->orderBy('name')->get(['id', 'uuid', 'name', 'project_number']),
+            'statuses' => PriceRequest::STATUSES,
+        ]);
+    }
+
+    public function edit(PriceRequest $priceRequest): Response
+    {
+        $priceRequest->load('items');
+
+        return Inertia::render('ContactDirectory/PriceRequests/Form', [
+            'priceRequest' => $priceRequest,
+            'users' => User::query()->orderBy('name')->get(['id', 'name']),
+            'projects' => Project::query()->orderBy('name')->get(['id', 'uuid', 'name', 'project_number']),
+            'statuses' => PriceRequest::STATUSES,
+        ]);
+    }
+
     public function show(Request $request, PriceRequest $priceRequest): Response
     {
         $priceRequest->load([
@@ -114,7 +136,7 @@ class PriceRequestController extends Controller
 
         $this->syncItems($priceRequest, $validated['items'] ?? []);
 
-        return back()->with('success', 'Price request updated.');
+        return redirect()->route('contact-directory.price-requests.show', $priceRequest)->with('success', 'Price request updated.');
     }
 
     public function storeInquiry(StoreContactDirectoryInquiryRequest $request, PriceRequest $priceRequest): mixed

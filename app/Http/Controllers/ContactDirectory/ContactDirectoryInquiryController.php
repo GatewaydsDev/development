@@ -9,7 +9,9 @@ use App\Http\Requests\ContactDirectory\UpdateContactDirectoryWaitingOnRequest;
 use App\Http\Requests\ContactDirectory\LogCommunicationRequest;
 use App\Http\Requests\ContactDirectory\StoreSupplierQuoteRequest;
 use App\Http\Requests\ContactDirectory\StoreFollowUpRequest;
+use App\Models\ContactDirectory\ContactDirectoryContact;
 use App\Models\ContactDirectory\ContactDirectoryInquiry;
+use App\Models\ContactDirectory\PriceRequest;
 use App\Models\Project;
 use App\Models\User;
 use App\Services\ContactDirectory\NeedsAttentionService;
@@ -90,6 +92,36 @@ class ContactDirectoryInquiryController extends Controller
         ]);
     }
 
+    public function create(Request $request): Response
+    {
+        return Inertia::render('ContactDirectory/Inquiries/Form', [
+            'inquiry' => null,
+            'defaults' => $request->only(['contact_id', 'price_request_id']),
+            ...$this->formOptions(),
+        ]);
+    }
+
+    public function edit(ContactDirectoryInquiry $inquiry): Response
+    {
+        return Inertia::render('ContactDirectory/Inquiries/Form', [
+            'inquiry' => $inquiry,
+            'defaults' => [],
+            ...$this->formOptions(),
+        ]);
+    }
+
+    private function formOptions(): array
+    {
+        return [
+            'contacts' => ContactDirectoryContact::query()->with('company:id,name')->orderBy('last_name')->orderBy('first_name')->get(['id', 'uuid', 'first_name', 'last_name', 'company_id']),
+            'users' => User::query()->orderBy('name')->get(['id', 'name']),
+            'projects' => Project::query()->orderBy('name')->get(['id', 'uuid', 'name', 'project_number']),
+            'priceRequests' => PriceRequest::query()->orderByDesc('updated_at')->get(['id', 'uuid', 'title', 'project_id']),
+            'statuses' => ContactDirectoryInquiry::STATUSES,
+            'priorities' => ContactDirectoryInquiry::PRIORITIES,
+        ];
+    }
+
     public function show(Request $request, ContactDirectoryInquiry $inquiry, NeedsAttentionService $needsAttention): Response
     {
         $inquiry->load([
@@ -155,6 +187,10 @@ class ContactDirectoryInquiryController extends Controller
                 ? now()
                 : ($status === 'closed' ? $inquiry->closed_at : null),
         ]);
+
+        if ($request->boolean('return_to_show')) {
+            return redirect()->route('contact-directory.inquiries.show', $inquiry)->with('success', 'Inquiry updated successfully.');
+        }
 
         return back()->with('success', 'Inquiry updated successfully.');
     }

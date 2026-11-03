@@ -1,5 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Link, router } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import { useState, type FormEvent } from 'react';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
@@ -113,6 +113,9 @@ export default function InquiriesIndex({
     needsAttention,
 }: Props) {
     const [search, setSearch] = useState(filters.search ?? '');
+    const page = usePage<Props>();
+    const canManage = Boolean(page.props.auth.can.manageContactsDirectory);
+    const flash = page.props.flash;
     const [contactFilter, setContactFilter] = useState(filters.contact_id ?? '');
 
     const applyFilters = (updates: Record<string, string | boolean | undefined>) => {
@@ -134,6 +137,20 @@ export default function InquiriesIndex({
     return (
         <AuthenticatedLayout stickyTitle="Inquiries">
             <div className="space-y-6 px-4 py-6 lg:px-8">
+                {flash?.success && (
+                    <div className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200">
+                        {flash.success}
+                    </div>
+                )}
+
+                {canManage && (
+                    <div className="flex justify-end">
+                        <Button asChild>
+                            <Link href={route('contact-directory.inquiries.create')}>New inquiry</Link>
+                        </Button>
+                    </div>
+                )}
+
                 <form onSubmit={submitSearch} className="flex flex-wrap items-end gap-3">
                     <div className="min-w-0 flex-1">
                         <label className="mb-1 block text-sm font-medium text-foreground">

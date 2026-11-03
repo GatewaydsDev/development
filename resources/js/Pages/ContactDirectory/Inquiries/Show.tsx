@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/Components/ui/tabs';
 import SimpleSelect from '@/Components/ContactDirectory/SimpleSelect';
 import TextInput from '@/Components/TextInput';
 import { cn } from '@/lib/utils';
+import { notesToHtml } from '@/lib/notesHtml';
 import type { PageProps } from '@/types';
 
 type User = { id: number; name: string };
@@ -226,6 +227,14 @@ export default function InquiriesShow({
                     </div>
                 )}
 
+                {canManage && (
+                    <div className="flex justify-end">
+                        <Button asChild variant="outline">
+                            <Link href={route('contact-directory.inquiries.edit', inquiry.uuid)}>Edit inquiry</Link>
+                        </Button>
+                    </div>
+                )}
+
                 <div className="flex flex-wrap gap-2">
                     <Badge variant="secondary">
                         {STATUS_LABELS[inquiry.status] ?? inquiry.status}
@@ -317,9 +326,7 @@ export default function InquiriesShow({
                                     <span className="block text-xs uppercase text-muted-foreground">
                                         Description
                                     </span>
-                                    <p className="whitespace-pre-wrap text-muted-foreground">
-                                        {inquiry.description}
-                                    </p>
+                                    <div className="rich-text-content text-foreground" dangerouslySetInnerHTML={{ __html: notesToHtml(inquiry.description) }} />
                                 </div>
                             )}
                         </CardContent>

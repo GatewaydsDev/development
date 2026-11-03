@@ -15,6 +15,13 @@ class UpdateContactDirectoryInquiryRequest extends FormRequest
         return $this->user()->hasPermission('manage-contacts-directory');
     }
 
+    protected function prepareForValidation(): void
+    {
+        if (is_string($this->input('description'))) {
+            $this->merge(['description' => app(\App\Services\ContactDirectory\EmailTemplateRenderer::class)->sanitize($this->input('description'))]);
+        }
+    }
+
     public function rules(): array
     {
         return [
