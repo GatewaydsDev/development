@@ -10,8 +10,12 @@ import LogoutConfirmDialog from '@/Components/LogoutConfirmDialog';
 import { useEffect, useRef, useState } from 'react';
 import {
     ActivityIcon,
+    BellIcon,
     BriefcaseIcon,
     Building2Icon,
+    BuildingIcon,
+    FileCodeIcon,
+    FileTextIcon,
     CalendarClockIcon,
     SparklesIcon,
     CalendarDaysIcon,
@@ -25,6 +29,7 @@ import {
     LockKeyholeIcon,
     LogOutIcon,
     MailIcon,
+    MessageSquareIcon,
     PackageIcon,
     PaletteIcon,
     PanelLeftCloseIcon,
@@ -33,6 +38,7 @@ import {
     ReceiptIcon,
     PanelLeftOpenIcon,
     ShieldCheckIcon,
+    SunIcon,
     UserCogIcon,
     UsersIcon,
     WrenchIcon,
@@ -121,6 +127,7 @@ export default function DashboardSidebar({
     const canViewProjects = Boolean(can.viewProjects);
     const canViewBids = Boolean(can.viewBids);
     const canViewQuotations = Boolean(can.viewQuotations);
+    const canViewContactsDirectory = Boolean(can.viewContactsDirectory);
     const canViewTakeoffs = Boolean(can.viewTakeoffs);
     const canViewProducts = Boolean(can.viewProducts);
     const canViewServices = Boolean(can.viewServices);
@@ -288,12 +295,68 @@ export default function DashboardSidebar({
                           },
                       ]
                     : []),
-                {
-                    title: 'Contacts',
-                    href: route('admin.contacts.index'),
-                    icon: IdCardIcon,
-                    active: isRouteActive('admin.contacts.*'),
-                },
+                ...(canViewContactsDirectory
+                    ? [
+                          {
+                              title: 'My Day',
+                              href: route('contact-directory.my-day.index'),
+                              icon: SunIcon,
+                              active: isRouteActive('contact-directory.my-day.*'),
+                          },
+                          {
+                              title: 'Directory contacts',
+                              href: route('contact-directory.contacts.index'),
+                              icon: IdCardIcon,
+                              active: isRouteActive(
+                                  'contact-directory.contacts.*',
+                              ),
+                          },
+                          {
+                              title: 'Companies',
+                              href: route('contact-directory.companies.index'),
+                              icon: Building2Icon,
+                              active: isRouteActive(
+                                  'contact-directory.companies.*',
+                              ),
+                          },
+                          {
+                              title: 'Inquiries',
+                              href: route('contact-directory.inquiries.index'),
+                              icon: MessageSquareIcon,
+                              active: isRouteActive(
+                                  'contact-directory.inquiries.*',
+                              ),
+                          },
+                          {
+                              title: 'Follow-ups',
+                              href: route('contact-directory.follow-ups.index'),
+                              icon: CalendarClockIcon,
+                              active: isRouteActive(
+                                  'contact-directory.follow-ups.*',
+                              ),
+                          },
+                          {
+                              title: 'Price requests',
+                              href: route(
+                                  'contact-directory.price-requests.index',
+                              ),
+                              icon: FileSpreadsheetIcon,
+                              active: isRouteActive(
+                                  'contact-directory.price-requests.*',
+                              ),
+                          },
+                          {
+                              title: 'Email templates',
+                              href: route(
+                                  'contact-directory.email-templates.index',
+                              ),
+                              icon: FileCodeIcon,
+                              active: isRouteActive(
+                                  'contact-directory.email-templates.*',
+                              ),
+                          },
+                      ]
+                    : []),
                 ...(can.viewSystemUpdates
                     ? [
                           {

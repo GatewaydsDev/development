@@ -31,6 +31,10 @@
 }
 
 @layer base {
+  html {
+    overflow-x: hidden;
+  }
+
   :root {
     --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
     --font-heading: var(--font-sans);

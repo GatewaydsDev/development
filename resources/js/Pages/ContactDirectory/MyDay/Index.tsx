@@ -1,0 +1,447 @@
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { Link, router } from '@inertiajs/react';
+import { useState } from 'react';
+import { Badge } from '@/Components/ui/badge';
+import { Button } from '@/Components/ui/button';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/Components/ui/card';
+import { cn } from '@/lib/utils';
+import type { PageProps } from '@/types';
+
+type FollowUp = {
+    id: number;
+    uuid: string;
+    title: string;
+    description: string | null;
+    due_at: string;
+    reminder_at: string | null;
+    priority: string;
+    status: string;
+    snoozed_until: string | null;
+    contact?: { id: number; uuid: string; first_name: string; last_name: string | null } | null;
+    inquiry?: { id: number; uuid: string; title: string } | null;
+    assigned_user?: { id: number; name: string } | null;
+};
+
+type Inquiry = {
+    id: number;
+    uuid: string;
+    title: string;
+    status: string;
+    waiting_on: string | null;
+    waiting_since: string | null;
+    expected_response_date: string | null;
+    contact?: { id: number; uuid: string; first_name: string; last_name: string | null } | null;
+    current_quote?: {
+        id: number;
+        revision_number: number;
+        currency: string;
+        grand_total: string;
+    } | null;
+    assigned_user?: { id: number; name: string } | null;
+};
+
+type ExpiringQuote = {
+    id: number;
+    uuid: string;
+    revision_number: number;
+    currency: string;
+    grand_total: string;
+    expires_at: string;
+    inquiry?: { id: number; uuid: string; title: string; contact?: { first_name: string; last_name: string | null } | null } | null;
+};
+
+type Suggestion = {
+    inquiry_id: number;
+    reason: string;
+    action: string;
+    severity: 'warning' | 'error';
+};
+
+type MyDayProps = PageProps<{
+    filters: { assigned_to_me: boolean };
+    today: string;
+    overdueFollowUps: FollowUp[];
+    todayFollowUps: FollowUp[];
+    upcomingFollowUps: FollowUp[];
+    waitingInquiries: Inquiry[];
+    waitingOnSupplier: Inquiry[];
+    waitingOnInternalTeam: Inquiry[];
+    quotesExpiringSoon: ExpiringQuote[];
+    completedTodayCount: number;
+    needsAttentionSuggestions: Suggestion[];
+}>;
+
+const WAITING_ON_LABELS: Record<string, string> = {
+    supplier: 'Supplier',
+    internal_team: 'Internal team',
+    me: 'Me',
+    none: 'None',
+};
+
+const PRIORITY_STYLES: Record<string, string> = {
+    low: 'bg-muted text-muted-foreground',
+    normal: 'bg-secondary text-secondary-foreground',
+    high: 'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200',
+    urgent: 'bg-destructive text-white',
+};
+
+function FollowUpRow({ followUp }: { followUp: FollowUp }) {
+    return (
+        <li className="rounded-md border border-border px-3 py-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <Link
+                    href={route('contact-directory.follow-ups.show', followUp.uuid)}
+                    className="text-sm font-medium text-foreground underline-offset-4 hover:underline"
+                >
+                    {followUp.title}
+                </Link>
+                <div className="flex flex-wrap items-center gap-2">
+                    <span
+                        className={cn(
+                            'rounded-full px-2 py-0.5 text-xs font-medium',
+                            PRIORITY_STYLES[followUp.priority],
+                        )}
+                    >
+                        {followUp.priority}
+                    </span>
+                    {followUp.contact && (
+                        <Link
+                            href={route('contact-directory.contacts.show', followUp.contact.uuid)}
+                            className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+                        >
+                            {followUp.contact.first_name}{' '}
+                            {followUp.contact.last_name ?? ''}
+                        </Link>
+                    )}
+                </div>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+                Due{' '}
+                {new Date(followUp.due_at).toLocaleString([], {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                })}
+                {followUp.snoozed_until
+                    ? ` · snoozed until ${new Date(followUp.snoozed_until).toLocaleString([], {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit',
+                      })}`
+                    : ''}
+                {followUp.inquiry ? ` · ${followUp.inquiry.title}` : ''}
+            </p>
+        </li>
+    );
+}
+
+function InquiryRow({ inquiry }: { inquiry: Inquiry }) {
+    return (
+        <li className="rounded-md border border-border px-3 py-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <Link
+                    href={route('contact-directory.inquiries.show', inquiry.uuid)}
+                    className="text-sm font-medium text-foreground underline-offset-4 hover:underline"
+                >
+                    {inquiry.title}
+                </Link>
+                {inquiry.waiting_on && (
+                    <Badge variant="secondary">
+                        Waiting on {WAITING_ON_LABELS[inquiry.waiting_on]}
+                    </Badge>
+                )}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+                {inquiry.contact
+                    ? `${inquiry.contact.first_name} ${inquiry.contact.last_name ?? ''} · `
+                    : ''}
+                {inquiry.expected_response_date
+                    ? `Expected by ${inquiry.expected_response_date}`
+                    : 'No expected response date'}
+                {inquiry.current_quote
+                    ? ` · Current quote: ${inquiry.current_quote.currency} ${Number(
+                          inquiry.current_quote.grand_total,
+                      ).toLocaleString(undefined, { minimumFractionDigits: 2 })} (rev ${
+                          inquiry.current_quote.revision_number
+                      })`
+                    : ''}
+            </p>
+        </li>
+    );
+}
+
+export default function MyDay({
+    filters,
+    overdueFollowUps,
+    todayFollowUps,
+    upcomingFollowUps,
+    waitingOnSupplier,
+    waitingOnInternalTeam,
+    quotesExpiringSoon,
+    completedTodayCount,
+    needsAttentionSuggestions,
+}: MyDayProps) {
+    const [assignedToMe, setAssignedToMe] = useState(filters.assigned_to_me ?? true);
+
+    const summaryCards = [
+        {
+            label: 'Overdue',
+            count: overdueFollowUps.length,
+            href: route('contact-directory.follow-ups.index', { view: 'overdue' }),
+            tone: overdueFollowUps.length > 0 ? 'destructive' : 'default',
+        },
+        {
+            label: 'Due today',
+            count: todayFollowUps.length,
+            href: route('contact-directory.follow-ups.index', { view: 'today' }),
+            tone: 'default',
+        },
+        {
+            label: 'Waiting for response',
+            count: waitingOnSupplier.length + waitingOnInternalTeam.length,
+            href: route('contact-directory.inquiries.index', { waiting_for_response: '1' }),
+            tone: 'default',
+        },
+        {
+            label: 'Completed today',
+            count: completedTodayCount,
+            href: route('contact-directory.follow-ups.index', { view: 'completed' }),
+            tone: 'default',
+        },
+    ];
+
+    return (
+        <AuthenticatedLayout stickyTitle="My Day">
+            <div className="space-y-6 px-4 py-6 lg:px-8">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex flex-wrap gap-3">
+                        {summaryCards.map((card) => (
+                            <Link
+                                key={card.label}
+                                href={card.href as string}
+                                className="min-w-[150px] rounded-lg border border-border bg-background p-4 transition hover:border-ring"
+                            >
+                                <p className="text-xs uppercase text-muted-foreground">
+                                    {card.label}
+                                </p>
+                                <p
+                                    className={cn(
+                                        'text-2xl font-semibold',
+                                        card.tone === 'destructive' && card.count > 0
+                                            ? 'text-destructive'
+                                            : 'text-foreground',
+                                    )}
+                                >
+                                    {card.count}
+                                </p>
+                            </Link>
+                        ))}
+                    </div>
+                    <label className="flex items-center gap-2 text-sm text-foreground">
+                        <input
+                            type="checkbox"
+                            checked={assignedToMe}
+                            onChange={(event) => {
+                                setAssignedToMe(event.target.checked);
+                                router.get(
+                                    route('contact-directory.my-day.index'),
+                                    { assigned_to_me: event.target.checked ? '1' : '0' },
+                                    { preserveState: true, replace: true },
+                                );
+                            }}
+                        />
+                        Assigned to me
+                    </label>
+                </div>
+
+                {needsAttentionSuggestions.length > 0 && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-base">Needs attention</CardTitle>
+                            <CardDescription>
+                                Rule-based suggestions for open inquiries. Nothing is sent
+                                automatically.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                            {needsAttentionSuggestions.map((suggestion, index) => (
+                                <div
+                                    key={`${suggestion.inquiry_id}-${index}`}
+                                    className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2"
+                                >
+                                    <p
+                                        className={cn(
+                                            'text-sm',
+                                            suggestion.severity === 'error'
+                                                ? 'font-medium text-destructive'
+                                                : 'text-foreground',
+                                        )}
+                                    >
+                                        {suggestion.reason}
+                                    </p>
+                                    <Link
+                                        href={route('contact-directory.inquiries.show', {
+                                            inquiry: String(suggestion.inquiry_id),
+                                        })}
+                                        className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+                                    >
+                                        Open inquiry
+                                    </Link>
+                                </div>
+                            ))}
+                        </CardContent>
+                    </Card>
+                )}
+
+                <div className="grid gap-4 lg:grid-cols-2">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-base">Overdue follow-ups</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {overdueFollowUps.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">
+                                    Nothing is overdue. Nice work.
+                                </p>
+                            ) : (
+                                <ul className="space-y-2">
+                                    {overdueFollowUps.map((followUp) => (
+                                        <FollowUpRow key={followUp.id} followUp={followUp} />
+                                    ))}
+                                </ul>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-base">Due today</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {todayFollowUps.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">
+                                    No follow-ups are due today.
+                                </p>
+                            ) : (
+                                <ul className="space-y-2">
+                                    {todayFollowUps.map((followUp) => (
+                                        <FollowUpRow key={followUp.id} followUp={followUp} />
+                                    ))}
+                                </ul>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-base">Upcoming follow-ups</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {upcomingFollowUps.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">
+                                    No upcoming follow-ups are scheduled.
+                                </p>
+                            ) : (
+                                <ul className="space-y-2">
+                                    {upcomingFollowUps.map((followUp) => (
+                                        <FollowUpRow key={followUp.id} followUp={followUp} />
+                                    ))}
+                                </ul>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-base">Waiting on suppliers</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {waitingOnSupplier.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">
+                                    No inquiries are waiting on suppliers.
+                                </p>
+                            ) : (
+                                <ul className="space-y-2">
+                                    {waitingOnSupplier.map((inquiry) => (
+                                        <InquiryRow key={inquiry.id} inquiry={inquiry} />
+                                    ))}
+                                </ul>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-base">
+                                Waiting on the internal team
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {waitingOnInternalTeam.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">
+                                    No inquiries are waiting on the internal team.
+                                </p>
+                            ) : (
+                                <ul className="space-y-2">
+                                    {waitingOnInternalTeam.map((inquiry) => (
+                                        <InquiryRow key={inquiry.id} inquiry={inquiry} />
+                                    ))}
+                                </ul>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-base">Quotes expiring soon</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {quotesExpiringSoon.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">
+                                    No quotes are nearing expiration.
+                                </p>
+                            ) : (
+                                <ul className="space-y-2">
+                                    {quotesExpiringSoon.map((quote) => (
+                                        <li
+                                            key={quote.id}
+                                            className="rounded-md border border-border px-3 py-2"
+                                        >
+                                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                                <Link
+                                                    href={route('contact-directory.inquiries.show', quote.inquiry?.uuid ?? String(quote.id))}
+                                                    className="text-sm font-medium text-foreground underline-offset-4 hover:underline"
+                                                >
+                                                    {quote.inquiry?.title ?? 'Quote'}
+                                                </Link>
+                                                <Badge variant="outline">
+                                                    Revision {quote.revision_number}
+                                                </Badge>
+                                            </div>
+                                            <p className="mt-1 text-xs text-muted-foreground">
+                                                Expires {quote.expires_at} ·{' '}
+                                                {quote.currency}{' '}
+                                                {Number(quote.grand_total).toLocaleString(
+                                                    undefined,
+                                                    { minimumFractionDigits: 2 },
+                                                )}
+                                            </p>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
+        </AuthenticatedLayout>
+    );
+}

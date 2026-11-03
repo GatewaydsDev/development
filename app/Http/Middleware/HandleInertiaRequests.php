@@ -137,6 +137,24 @@ class HandleInertiaRequests extends Middleware
                     'manageAccess' => $request->user()
                         ? Gate::forUser($request->user())->allows('manage-access')
                         : false,
+                    'viewContactsDirectory' => $request->user()
+                        ? Gate::forUser($request->user())->allows('view-contacts-directory')
+                        : false,
+                    'manageContactsDirectory' => $request->user()
+                        ? Gate::forUser($request->user())->allows('manage-contacts-directory')
+                        : false,
+                    'manageFollowUps' => $request->user()
+                        ? Gate::forUser($request->user())->allows('manage-follow-ups')
+                        : false,
+                    'managePriceRequests' => $request->user()
+                        ? Gate::forUser($request->user())->allows('manage-price-requests')
+                        : false,
+                    'manageEmailTemplates' => $request->user()
+                        ? Gate::forUser($request->user())->allows('manage-email-templates')
+                        : false,
+                    'logCommunications' => $request->user()
+                        ? Gate::forUser($request->user())->allows('log-communications')
+                        : false,
                     'manageNotifications' => $request->user()
                         ? Gate::forUser($request->user())->allows('manage-notifications')
                         : false,

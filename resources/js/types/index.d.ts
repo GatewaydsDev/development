@@ -81,6 +81,12 @@ export type PageProps<
             viewCompany: boolean;
             manageAccess: boolean;
             manageNotifications: boolean;
+            viewContactsDirectory: boolean;
+            manageContactsDirectory: boolean;
+            manageFollowUps: boolean;
+            managePriceRequests: boolean;
+            manageEmailTemplates: boolean;
+            logCommunications: boolean;
             viewProjects: boolean;
             createProjects: boolean;
             updateProjects: boolean;

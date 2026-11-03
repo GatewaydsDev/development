@@ -39,6 +39,36 @@ return [
             'group' => 'Access Control',
             'description' => 'Grant or deny user level permissions.',
         ],
+        'view-contacts-directory' => [
+            'name' => 'See contacts and companies',
+            'group' => 'Contacts Directory',
+            'description' => 'Open the contacts, companies, inquiries, follow-ups, price requests and My Day pages.',
+        ],
+        'manage-contacts-directory' => [
+            'name' => 'Manage contacts, companies and inquiries',
+            'group' => 'Contacts Directory',
+            'description' => 'Create, update and archive contacts, companies and supplier inquiries.',
+        ],
+        'manage-follow-ups' => [
+            'name' => 'Manage follow-ups',
+            'group' => 'Contacts Directory',
+            'description' => 'Create, complete, reschedule, snooze and cancel follow-up tasks.',
+        ],
+        'manage-price-requests' => [
+            'name' => 'Manage price requests and supplier quotes',
+            'group' => 'Contacts Directory',
+            'description' => 'Create price requests, record supplier quotes, compare quotes and select a preferred quote.',
+        ],
+        'manage-email-templates' => [
+            'name' => 'Manage email templates',
+            'group' => 'Contacts Directory',
+            'description' => 'Create, update and archive reusable email templates.',
+        ],
+        'log-communications' => [
+            'name' => 'Log communications',
+            'group' => 'Contacts Directory',
+            'description' => 'Record emails, calls, meetings and notes on contacts and inquiries.',
+        ],
         'manage-notifications' => [
             'name' => 'Manage notifications',
             'group' => 'Notifications',
@@ -318,6 +348,12 @@ return [
             'view-takeoff-pricing',
             'export-takeoffs',
             'convert-takeoffs',
+            'view-contacts-directory',
+            'manage-contacts-directory',
+            'manage-follow-ups',
+            'manage-price-requests',
+            'manage-email-templates',
+            'log-communications',
         ],
         UserLevel::ADMIN => [
             'view-dashboard',

@@ -7,6 +7,15 @@ use App\Http\Controllers\Admin\BidCatalogController;
 use App\Http\Controllers\Admin\BidController;
 use App\Http\Controllers\Admin\CertificationController;
 use App\Http\Controllers\Admin\CompanyController;
+use App\Http\Controllers\ContactDirectory\ContactCompanyController;
+use App\Http\Controllers\ContactDirectory\ContactDirectoryController;
+use App\Http\Controllers\ContactDirectory\ContactDirectoryInquiryController;
+use App\Http\Controllers\ContactDirectory\ContactEmailController;
+use App\Http\Controllers\ContactDirectory\EmailTemplateController;
+use App\Http\Controllers\ContactDirectory\FollowUpController;
+use App\Http\Controllers\ContactDirectory\MyDayController;
+use App\Http\Controllers\ContactDirectory\PriceRequestController;
+use App\Http\Controllers\ContactDirectory\SupplierQuoteController;
 use App\Http\Controllers\Admin\ContactController;
 use App\Http\Controllers\Admin\ContractorController;
 use App\Http\Controllers\Admin\DocumentSettingController;
@@ -177,6 +186,94 @@ Route::middleware(['auth', 'prevent-back-history', 'can:manage-profile'])->group
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
+
+Route::middleware(['auth', 'prevent-back-history', 'can:view-contacts-directory'])
+    ->prefix('contact-directory')
+    ->name('contact-directory.')
+    ->group(function () {
+        Route::get('/my-day', [MyDayController::class, 'index'])->name('my-day.index');
+
+        Route::prefix('contacts')->name('contacts.')->group(function () {
+            Route::get('/', [ContactDirectoryController::class, 'index'])->name('index');
+            Route::get('/{contact}', [ContactDirectoryController::class, 'show'])->name('show');
+            Route::post('/', [ContactDirectoryController::class, 'store'])->name('store')
+                ->middleware('can:manage-contacts-directory');
+            Route::patch('/{contact}', [ContactDirectoryController::class, 'update'])->name('update')
+                ->middleware('can:manage-contacts-directory');
+            Route::get('/{contact}/email', [ContactEmailController::class, 'compose'])->name('email.compose');
+            Route::post('/{contact}/email', [ContactEmailController::class, 'send'])->name('email.send')
+                ->middleware('can:log-communications');
+            Route::post('/{contact}/email/log', [ContactEmailController::class, 'logManual'])->name('email.log')
+                ->middleware('can:log-communications');
+            Route::post('/{contact}/activities', [ContactDirectoryController::class, 'logCommunication'])->name('activities.store')
+                ->middleware('can:log-communications');
+        });
+
+        Route::prefix('companies')->name('companies.')->group(function () {
+            Route::get('/', [ContactCompanyController::class, 'index'])->name('index');
+            Route::get('/{company}', [ContactCompanyController::class, 'show'])->name('show');
+            Route::post('/', [ContactCompanyController::class, 'store'])->name('store')
+                ->middleware('can:manage-contacts-directory');
+            Route::patch('/{company}', [ContactCompanyController::class, 'update'])->name('update')
+                ->middleware('can:manage-contacts-directory');
+        });
+
+        Route::prefix('inquiries')->name('inquiries.')->group(function () {
+            Route::get('/', [ContactDirectoryInquiryController::class, 'index'])->name('index');
+            Route::get('/{inquiry}', [ContactDirectoryInquiryController::class, 'show'])->name('show');
+            Route::post('/', [ContactDirectoryInquiryController::class, 'store'])->name('store')
+                ->middleware('can:manage-contacts-directory');
+            Route::patch('/{inquiry}', [ContactDirectoryInquiryController::class, 'update'])->name('update')
+                ->middleware('can:manage-contacts-directory');
+            Route::patch('/{inquiry}/waiting-on', [ContactDirectoryInquiryController::class, 'updateWaitingOn'])->name('waiting-on.update')
+                ->middleware('can:manage-contacts-directory');
+            Route::post('/{inquiry}/activities', [ContactDirectoryInquiryController::class, 'logCommunication'])->name('activities.store')
+                ->middleware('can:log-communications');
+            Route::post('/{inquiry}/quotes', [ContactDirectoryInquiryController::class, 'storeQuote'])->name('quotes.store')
+                ->middleware('can:manage-price-requests');
+            Route::post('/{inquiry}/follow-ups', [ContactDirectoryInquiryController::class, 'storeFollowUp'])->name('follow-ups.store')
+                ->middleware('can:manage-follow-ups');
+        });
+
+        Route::prefix('follow-ups')->name('follow-ups.')->group(function () {
+            Route::get('/', [FollowUpController::class, 'index'])->name('index');
+            Route::get('/{followUp}', [FollowUpController::class, 'show'])->name('show');
+            Route::post('/', [FollowUpController::class, 'store'])->name('store')
+                ->middleware('can:manage-follow-ups');
+            Route::post('/{followUp}/complete', [FollowUpController::class, 'complete'])->name('complete')
+                ->middleware('can:manage-follow-ups');
+            Route::post('/{followUp}/reschedule', [FollowUpController::class, 'reschedule'])->name('reschedule')
+                ->middleware('can:manage-follow-ups');
+            Route::post('/{followUp}/snooze', [FollowUpController::class, 'snooze'])->name('snooze')
+                ->middleware('can:manage-follow-ups');
+            Route::post('/{followUp}/cancel', [FollowUpController::class, 'cancel'])->name('cancel')
+                ->middleware('can:manage-follow-ups');
+        });
+
+        Route::prefix('price-requests')->name('price-requests.')->group(function () {
+            Route::get('/', [PriceRequestController::class, 'index'])->name('index');
+            Route::get('/{priceRequest}', [PriceRequestController::class, 'show'])->name('show');
+            Route::get('/{priceRequest}/compare-quotes', [SupplierQuoteController::class, 'compare'])->name('compare-quotes');
+            Route::post('/', [PriceRequestController::class, 'store'])->name('store')
+                ->middleware('can:manage-price-requests');
+            Route::patch('/{priceRequest}', [PriceRequestController::class, 'update'])->name('update')
+                ->middleware('can:manage-price-requests');
+            Route::post('/{priceRequest}/inquiries', [PriceRequestController::class, 'storeInquiry'])->name('inquiries.store')
+                ->middleware('can:manage-contacts-directory');
+            Route::post('/{priceRequest}/preferred-quote', [PriceRequestController::class, 'selectPreferredQuote'])->name('preferred-quote.store')
+                ->middleware('can:manage-price-requests');
+        });
+
+        Route::prefix('email-templates')->name('email-templates.')->group(function () {
+            Route::get('/', [EmailTemplateController::class, 'index'])->name('index');
+            Route::post('/', [EmailTemplateController::class, 'store'])->name('store')
+                ->middleware('can:manage-email-templates');
+            Route::patch('/{emailTemplate}', [EmailTemplateController::class, 'update'])->name('update')
+                ->middleware('can:manage-email-templates');
+            Route::post('/{emailTemplate}/preview', [EmailTemplateController::class, 'preview'])->name('preview')
+                ->middleware('can:manage-email-templates');
+        });
+    });
 
 Route::middleware(['auth', 'prevent-back-history', 'can:manage-notifications'])
     ->prefix('notifications')
