@@ -7,6 +7,17 @@ import { Button } from '@/Components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import SimpleSelect from '@/Components/ContactDirectory/SimpleSelect';
 import TextInput from '@/Components/TextInput';
+import RichTextEditor from '@/Components/RichTextEditor';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/Components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import type { PageProps } from '@/types';
 
@@ -66,18 +77,50 @@ export default function EmailTemplatesIndex({
     const [draftSubject, setDraftSubject] = useState('');
     const [draftBody, setDraftBody] = useState('');
     const [draftVisibility, setDraftVisibility] = useState('organization');
-    const [previewDraft, setPreviewDraft] = useState('');
-    const [createOpen, setCreateOpen] = useState(false);
+        const [createOpen, setCreateOpen] = useState(false);
+    const [editingId, setEditingId] = useState<number | null>(null);
+    const [editorKey, setEditorKey] = useState(0);
+    const [toDelete, setToDelete] = useState<Template | null>(null);
+    const [openPreview, setOpenPreview] = useState<number | null>(null);
     const [saving, setSaving] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const closeEditor = () => {
         setCreateOpen(false);
+        setEditingId(null);
         setErrors({});
         setDraftName('');
         setDraftSubject('');
         setDraftBody('');
         setDraftCategory('initial_pricing_request');
         setDraftVisibility('organization');
+    };
+
+    const loadIntoForm = (template: { name: string; category: string; subject: string; body: string; visibility?: string }, id: number | null = null) => {
+        setEditingId(id);
+        setDraftName(template.name);
+        setDraftCategory(template.category);
+        setDraftSubject(template.subject);
+        setDraftBody(template.body);
+        setDraftVisibility(template.visibility ?? 'organization');
+        setEditorKey((key) => key + 1);
+        setCreateOpen(true);
+        setErrors({});
+        window.setTimeout(() => document.getElementById('directory-template-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+    };
+
+    const toggleActive = (template: Template) => {
+        router.patch(
+            route('contact-directory.email-templates.update', template.uuid),
+            {
+                name: template.name,
+                category: template.category,
+                subject: template.subject,
+                body: template.body,
+                visibility: template.visibility,
+                is_active: !template.is_active,
+            },
+            { preserveScroll: true },
+        );
     };
 
     const applyFilters = (updates: Record<string, string | undefined>) => {
@@ -95,22 +138,35 @@ export default function EmailTemplatesIndex({
 
     const createTemplate = (event: FormEvent) => {
         event.preventDefault();
-        router.post(
-            route('contact-directory.email-templates.store'),
-            {
-                name: draftName,
-                category: draftCategory,
-                subject: draftSubject,
-                body: draftBody,
-                visibility: draftVisibility,
-                is_active: true,
-            },
-            { preserveScroll: true, onStart: () => { setSaving(true); setErrors({}); }, onError: setErrors, onFinish: () => setSaving(false), onSuccess: closeEditor },
-        );
+        const payload = {
+            name: draftName,
+            category: draftCategory,
+            subject: draftSubject,
+            body: draftBody,
+            visibility: draftVisibility,
+            is_active: true,
+        };
+        const options = {
+            preserveScroll: true, onStart: () => { setSaving(true); setErrors({}); }, onError: setErrors, onFinish: () => setSaving(false), onSuccess: closeEditor };
+
+        if (editingId !== null) {
+            const current = templates.data.find((item) => item.id === editingId);
+
+            router.patch(route('contact-directory.email-templates.update', current?.uuid), { ...payload, is_active: current?.is_active ?? true }, options);
+
+            return;
+        }
+
+        router.post(route('contact-directory.email-templates.store'), payload, options);
     };
 
     const insertPlaceholder = (placeholder: string) => {
-        setDraftBody((body) => `${body}{{${placeholder}}}`);
+        setDraftBody((body) => {
+            const token = `{{${placeholder}}}`;
+
+            return body.endsWith('</p>') ? `${body.slice(0, -4)}${token}</p>` : `${body}${token}`;
+        });
+        setEditorKey((key) => key + 1);
     };
 
     return (
@@ -190,9 +246,12 @@ export default function EmailTemplatesIndex({
                                 </CardHeader>
                                 <CardContent className="space-y-2">
                                     <p className="text-sm font-medium">{template.subject}</p>
-                                    <p className="whitespace-pre-wrap text-sm text-muted-foreground">
-                                        {template.body}
-                                    </p>
+                                    {openPreview === template.id && (
+                                        <div
+                                            className="rich-text-content rounded-md border border-border bg-background p-3 text-sm"
+                                            dangerouslySetInnerHTML={{ __html: template.body }}
+                                        />
+                                    )}
                                     {unresolved.length > 0 && (
                                         <p className="text-xs text-amber-700 dark:text-amber-400">
                                             Unresolved placeholders:{' '}
@@ -203,12 +262,24 @@ export default function EmailTemplatesIndex({
                                     <p className="text-xs text-muted-foreground">
                                         Owner: {template.owner?.name ?? '—'}
                                     </p>
-                                    {previewDraft === String(template.id) && (
-                                        <p className="whitespace-pre-wrap rounded-md border border-border bg-background p-3 text-sm">
-                                            Template preview. Selecting a template never sends an
-                                            email.
-                                        </p>
-                                    )}
+                                    <div className="flex flex-wrap gap-2 pt-1">
+                                        <Button type="button" variant="outline" size="sm" onClick={() => setOpenPreview(openPreview === template.id ? null : template.id)}>
+                                            {openPreview === template.id ? 'Hide preview' : 'Preview'}
+                                        </Button>
+                                        {canManage && (
+                                            <>
+                                                <Button type="button" variant="outline" size="sm" onClick={() => loadIntoForm(template, template.id)}>
+                                                    Edit
+                                                </Button>
+                                                <Button type="button" variant="outline" size="sm" onClick={() => toggleActive(template)}>
+                                                    {template.is_active ? 'Deactivate' : 'Activate'}
+                                                </Button>
+                                                <Button type="button" variant="outline" size="sm" className="text-destructive" onClick={() => setToDelete(template)}>
+                                                    Delete
+                                                </Button>
+                                            </>
+                                        )}
+                                    </div>
                                 </CardContent>
                             </Card>
                         );
@@ -218,7 +289,7 @@ export default function EmailTemplatesIndex({
                 {canManage && (
                     <Card className="border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30">
                         <CardHeader>
-                            <CardTitle className="text-base">Create a template</CardTitle>
+                            <CardTitle className="text-base">{editingId !== null ? 'Edit template' : 'Create a template'}</CardTitle>
                             {!createOpen && <div><Button type="button" onClick={() => setCreateOpen(true)}>New template</Button></div>}
                         </CardHeader>
                         {createOpen && <CardContent>
@@ -262,13 +333,14 @@ export default function EmailTemplatesIndex({
                                     <label htmlFor="template-body" className="mb-2 block text-sm font-medium text-emerald-700 dark:text-emerald-300">
                                         Body
                                     </label>
-                                    <textarea
+                                    <RichTextEditor
+                                        key={editorKey}
                                         id="template-body"
+                                        compact
+                                        showPlaceholders={false}
                                         value={draftBody}
-                                        onChange={(event) => setDraftBody(event.target.value)}
-                                        rows={8}
-                                        required
-                                        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-ring focus:ring-2 focus:ring-ring/40 focus:outline-none"
+                                        onChange={setDraftBody}
+                                        error={errors.body}
                                     />
                                 </div>
                                 <SimpleSelect
@@ -280,6 +352,10 @@ export default function EmailTemplatesIndex({
                                         { value: 'private', label: 'Private to me' },
                                     ]}
                                 />
+                                <div className="sm:col-span-2">
+                                    <p className="mb-2 text-xs text-muted-foreground">
+                                        Click a field to add it at the end of the message. It is replaced with real details when the template is used.
+                                    </p>
                                 <div className="flex flex-wrap gap-2">
                                     {Object.entries(placeholders).map(([token, label]) => (
                                         <Button
@@ -292,6 +368,7 @@ export default function EmailTemplatesIndex({
                                             {label}
                                         </Button>
                                     ))}
+                                </div>
                                 </div>
                             </form>
                         </CardContent>}
@@ -315,12 +392,7 @@ export default function EmailTemplatesIndex({
                                         variant="outline"
                                         size="sm"
                                         disabled={!canManage}
-                                        onClick={() => {
-                                            setDraftName(template.name);
-                                            setDraftCategory(template.category);
-                                            setDraftSubject(template.subject);
-                                            setDraftBody(template.body);
-                                        }}
+                                        onClick={() => loadIntoForm(template)}
                                     >
                                         Load into the form
                                     </Button>
@@ -333,6 +405,30 @@ export default function EmailTemplatesIndex({
                     </CardContent>
                 </Card>
             </div>
+
+            <AlertDialog open={toDelete !== null} onOpenChange={(open) => !open && setToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete this template?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            "{toDelete?.name}" will no longer be offered when writing emails. Emails already sent are not affected.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => {
+                                if (toDelete) {
+                                    router.delete(route('contact-directory.email-templates.destroy', toDelete.uuid), { preserveScroll: true });
+                                }
+                                setToDelete(null);
+                            }}
+                        >
+                            Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </AuthenticatedLayout>
     );
 }

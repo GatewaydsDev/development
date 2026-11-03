@@ -12,6 +12,7 @@ import {
 } from '@/Components/ui/card';
 import SimpleSelect from '@/Components/ContactDirectory/SimpleSelect';
 import TextInput from '@/Components/TextInput';
+import RichTextEditor from '@/Components/RichTextEditor';
 import type { PageProps } from '@/types';
 
 type Contact = {
@@ -29,14 +30,31 @@ type Inquiry = {
     title: string;
 } | null;
 
+type MailTemplate = {
+    uuid: string;
+    name: string;
+    category: string;
+    subject: string;
+    body: string;
+    unresolved: string[];
+};
+
+const htmlToText = (html: string) => {
+    const element = document.createElement('div');
+    element.innerHTML = html.replace(/<\/(p|div|h[1-6]|li)>|<br\s*\/?>/gi, '$&\n');
+
+    return (element.textContent ?? '').replace(/\n{3,}/g, '\n\n').trim();
+};
+
 type Props = PageProps<{
     contact: Contact;
     inquiry: Inquiry;
     canSend: boolean;
     mailbox: string;
+    templates: MailTemplate[];
 }>;
 
-export default function EmailCompose({ contact, inquiry, canSend, mailbox }: Props) {
+export default function EmailCompose({ contact, inquiry, canSend, mailbox, templates }: Props) {
     const page = usePage<Props>();
     const errors = page.props.errors as Record<string, string> | undefined;
 
@@ -47,7 +65,19 @@ export default function EmailCompose({ contact, inquiry, canSend, mailbox }: Pro
         inquiry ? `Inquiry: ${inquiry.title}` : '',
     );
     const [body, setBody] = useState('');
-    const [manual, setManual] = useState(false);
+    const [templateId, setTemplateId] = useState('');
+    const selectedTemplate = templates.find((template) => template.uuid === templateId);
+    const leftover = [...(body + subject).matchAll(/\{\{(\w+)\}\}/g)].map((match) => match[1]);
+
+    const applyTemplate = (uuid: string) => {
+        setTemplateId(uuid);
+        const template = templates.find((item) => item.uuid === uuid);
+
+        if (template) {
+            setSubject(template.subject);
+            setBody(template.body);
+        }
+    };
 
     const toggleRecipient = (email: string) => {
         setRecipients((current) =>
@@ -60,7 +90,7 @@ export default function EmailCompose({ contact, inquiry, canSend, mailbox }: Pro
     const mailtoHref = () => {
         const params = new URLSearchParams({
             subject,
-            body,
+            body: htmlToText(body),
         });
 
         return `mailto:${recipients.join(',')}?${params.toString()}`;
@@ -90,7 +120,7 @@ export default function EmailCompose({ contact, inquiry, canSend, mailbox }: Pro
                 inquiry_id: inquiry?.id ?? null,
                 recipients,
                 subject,
-                body,
+                body: htmlToText(body),
                 direction: 'outgoing',
             },
             { preserveScroll: true },
@@ -134,6 +164,32 @@ export default function EmailCompose({ contact, inquiry, canSend, mailbox }: Pro
                             )}
                         </div>
 
+                        {templates.length > 0 && (
+                            <div>
+                                <label className="mb-1 block text-sm font-medium text-foreground">
+                                    Start from a template
+                                </label>
+                                <select
+                                    value={templateId}
+                                    onChange={(event) => applyTemplate(event.target.value)}
+                                    className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground"
+                                >
+                                    <option value="">No template</option>
+                                    {templates.map((template) => (
+                                        <option key={template.uuid} value={template.uuid}>
+                                            {template.name}
+                                        </option>
+                                    ))}
+                                </select>
+                                {selectedTemplate && selectedTemplate.unresolved.length > 0 && (
+                                    <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                                        Missing details for this contact:{' '}
+                                        {selectedTemplate.unresolved.join(', ')}. Fill them in before sending.
+                                    </p>
+                                )}
+                            </div>
+                        )}
+
                         <div>
                             <label className="mb-1 block text-sm font-medium text-foreground">
                                 Subject
@@ -152,15 +208,23 @@ export default function EmailCompose({ contact, inquiry, canSend, mailbox }: Pro
                             <label className="mb-1 block text-sm font-medium text-foreground">
                                 Message
                             </label>
-                            <textarea
+                            <RichTextEditor
+                                key={templateId}
+                                id="contact-email-body"
+                                compact
+                                showPlaceholders={false}
                                 value={body}
-                                onChange={(event) => setBody(event.target.value)}
-                                rows={10}
-                                required
-                                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-ring focus:ring-2 focus:ring-ring/40 focus:outline-none"
+                                onChange={setBody}
+                                error={errors?.body}
                             />
                             {errors?.body && (
                                 <p className="mt-1 text-xs text-destructive">{errors.body}</p>
+                            )}
+                            {leftover.length > 0 && (
+                                <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                                    Replace these placeholders before sending:{' '}
+                                    {[...new Set(leftover)].map((key) => `{{${key}}}`).join(', ')}
+                                </p>
                             )}
                         </div>
 
@@ -171,8 +235,8 @@ export default function EmailCompose({ contact, inquiry, canSend, mailbox }: Pro
                                 </Button>
                             ) : (
                                 <Badge variant="outline">
-                                    Email sending is not configured on this deployment. Use mailto
-                                    or log the email manually.
+                                    Your account has no Microsoft 365 mailbox assigned. Ask an admin
+                                    to set it, or use mailto / log the email manually.
                                 </Badge>
                             )}
                             <Button asChild variant="outline">
@@ -184,6 +248,7 @@ export default function EmailCompose({ contact, inquiry, canSend, mailbox }: Pro
                         </div>
 
                         <p className="text-xs text-muted-foreground">
+                            Messages are sent from your own Microsoft 365 mailbox with your signature.
                             Opening in your email client starts a draft in your own mail app. It
                             cannot confirm whether the message was sent or delivered. Logging
                             manually records the content you typed, without sending it.

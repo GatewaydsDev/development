@@ -163,18 +163,6 @@ export default function DashboardSidebar({
                     icon: LayoutDashboardIcon,
                     active: isRouteActive('dashboard'),
                 },
-                ...(canCorrectRecords
-                    ? [
-                          {
-                              title: 'Record corrections',
-                              href: route('admin.record-corrections.index'),
-                              icon: ShieldCheckIcon,
-                              active: isRouteActive(
-                                  'admin.record-corrections.*',
-                              ),
-                          },
-                      ]
-                    : []),
                 {
                     title: 'Email',
                     href: route('mailbox.index'),
@@ -258,43 +246,8 @@ export default function DashboardSidebar({
             ],
         },
         {
-            label: 'Catalog',
+            label: 'Contacts & follow-ups',
             items: [
-                ...(canViewProducts
-                    ? [
-                          {
-                              title: 'Products',
-                              href: route('admin.products.index'),
-                              icon: PackageIcon,
-                              active: isRouteActive('admin.products.*'),
-                          },
-                      ]
-                    : []),
-                ...(canViewServices
-                    ? [
-                          {
-                              title: 'Services',
-                              href: route('admin.services.index'),
-                              icon: WrenchIcon,
-                              active: isRouteActive('admin.services.*'),
-                          },
-                      ]
-                    : []),
-            ],
-        },
-        {
-            label: 'People',
-            items: [
-                ...(canViewContractors
-                    ? [
-                          {
-                              title: 'Contractors',
-                              href: route('admin.contractors.index'),
-                              icon: HardHatIcon,
-                              active: isRouteActive('admin.contractors.*'),
-                          },
-                      ]
-                    : []),
                 ...(canViewContactsDirectory
                     ? [
                           {
@@ -302,22 +255,6 @@ export default function DashboardSidebar({
                               href: route('contact-directory.my-day.index'),
                               icon: SunIcon,
                               active: isRouteActive('contact-directory.my-day.*'),
-                          },
-                          {
-                              title: 'Directory contacts',
-                              href: route('contact-directory.contacts.index'),
-                              icon: IdCardIcon,
-                              active: isRouteActive(
-                                  'contact-directory.contacts.*',
-                              ),
-                          },
-                          {
-                              title: 'Companies',
-                              href: route('contact-directory.companies.index'),
-                              icon: Building2Icon,
-                              active: isRouteActive(
-                                  'contact-directory.companies.*',
-                              ),
                           },
                           {
                               title: 'Inquiries',
@@ -346,6 +283,22 @@ export default function DashboardSidebar({
                               ),
                           },
                           {
+                              title: 'Directory contacts',
+                              href: route('contact-directory.contacts.index'),
+                              icon: IdCardIcon,
+                              active: isRouteActive(
+                                  'contact-directory.contacts.*',
+                              ),
+                          },
+                          {
+                              title: 'Companies',
+                              href: route('contact-directory.companies.index'),
+                              icon: Building2Icon,
+                              active: isRouteActive(
+                                  'contact-directory.companies.*',
+                              ),
+                          },
+                          {
                               title: 'Email templates',
                               href: route(
                                   'contact-directory.email-templates.index',
@@ -357,18 +310,43 @@ export default function DashboardSidebar({
                           },
                       ]
                     : []),
-                ...(can.viewSystemUpdates
+            ],
+        },
+        {
+            label: 'Catalog',
+            items: [
+                ...(canViewProducts
                     ? [
                           {
-                              title: 'System updates',
-                              href: route('admin.system-updates.index'),
-                              icon: SparklesIcon,
-                              active: isRouteActive('admin.system-updates.*'),
-                              alert: systemUpdatesUnread > 0,
-                              badge:
-                                  systemUpdatesUnread > 0
-                                      ? systemUpdatesUnread
-                                      : undefined,
+                              title: 'Products',
+                              href: route('admin.products.index'),
+                              icon: PackageIcon,
+                              active: isRouteActive('admin.products.*'),
+                          },
+                      ]
+                    : []),
+                ...(canViewServices
+                    ? [
+                          {
+                              title: 'Services',
+                              href: route('admin.services.index'),
+                              icon: WrenchIcon,
+                              active: isRouteActive('admin.services.*'),
+                          },
+                      ]
+                    : []),
+            ],
+        },
+        {
+            label: 'People & team',
+            items: [
+                ...(canViewContractors
+                    ? [
+                          {
+                              title: 'Contractors',
+                              href: route('admin.contractors.index'),
+                              icon: HardHatIcon,
+                              active: isRouteActive('admin.contractors.*'),
                           },
                       ]
                     : []),
@@ -472,6 +450,33 @@ export default function DashboardSidebar({
                               active: isRouteActive(
                                   'admin.document-settings.*',
                               ),
+                          },
+                      ]
+                    : []),
+                ...(canCorrectRecords
+                    ? [
+                          {
+                              title: 'Record corrections',
+                              href: route('admin.record-corrections.index'),
+                              icon: ShieldCheckIcon,
+                              active: isRouteActive(
+                                  'admin.record-corrections.*',
+                              ),
+                          },
+                      ]
+                    : []),
+                ...(can.viewSystemUpdates
+                    ? [
+                          {
+                              title: 'System updates',
+                              href: route('admin.system-updates.index'),
+                              icon: SparklesIcon,
+                              active: isRouteActive('admin.system-updates.*'),
+                              alert: systemUpdatesUnread > 0,
+                              badge:
+                                  systemUpdatesUnread > 0
+                                      ? systemUpdatesUnread
+                                      : undefined,
                           },
                       ]
                     : []),

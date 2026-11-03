@@ -68,7 +68,17 @@ export type ComposeDraft = {
     body: string;
 };
 
+export type MailTemplateOption = {
+    uuid: string;
+    name: string;
+    category: string;
+    subject: string;
+    body: string;
+    unresolved: string[];
+};
+
 type ComposeMailProps = {
+    emailTemplates?: MailTemplateOption[];
     mailbox: string;
     recipients: SavedRecipient[];
     draft?: ComposeDraft;
@@ -518,6 +528,7 @@ export default function ComposeMail({
     recipients,
     draft,
     stationery = emptyStationery,
+    emailTemplates = [],
     onDiscard,
 }: ComposeMailProps) {
     const { t } = useTranslation('mail');
@@ -783,6 +794,30 @@ export default function ComposeMail({
                             </button>
                         ) : null}
                     </div>
+                ) : null}
+                {emailTemplates.length > 0 ? (
+                    <label className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-2 border-b border-border py-2 text-sm">
+                        <span className="text-muted-foreground">Template</span>
+                        <select
+                            value=""
+                            onChange={(event) => {
+                                const template = emailTemplates.find((item) => item.uuid === event.target.value);
+
+                                if (template) {
+                                    form.setData('subject', template.subject);
+                                    editor?.commands.setContent(template.body);
+                                }
+                            }}
+                            className="h-11 min-w-0 bg-transparent text-base text-foreground outline-none md:text-sm"
+                        >
+                            <option value="">Insert a template…</option>
+                            {emailTemplates.map((template) => (
+                                <option key={template.uuid} value={template.uuid}>
+                                    {template.name}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
                 ) : null}
                 <label className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-2 border-b border-border py-2 text-sm">
                     <span className="text-muted-foreground">{t('subject')}</span>

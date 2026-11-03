@@ -5,6 +5,7 @@ import ComposeMail, {
     mailboxAddress,
     quotePlainText,
     type ComposeDraft,
+    type MailTemplateOption,
     type SavedRecipient,
 } from '@/Pages/Email/ComposeMail';
 import { Button } from '@/Components/ui/button';
@@ -84,6 +85,7 @@ type Props = {
     headerWidth?: number;
     footerColors?: string[];
     stationery?: MailStationeryData;
+    emailTemplates?: MailTemplateOption[];
     unreadCount?: number;
     blockedCount?: number;
     deliveryProblems?: string[];
@@ -297,6 +299,7 @@ export default function Index({
     headerWidth = 100,
     footerColors = [],
     stationery = emptyStationery,
+    emailTemplates = [],
     unreadCount = 0,
     blockedCount = 0,
     deliveryProblems = [],
@@ -478,6 +481,7 @@ export default function Index({
                                     recipients={savedRecipients}
                                     draft={draft}
                                     stationery={stationery}
+                                    emailTemplates={emailTemplates}
                                     onDiscard={() => setShowCompose(false)}
                                 />
                             ) : null}

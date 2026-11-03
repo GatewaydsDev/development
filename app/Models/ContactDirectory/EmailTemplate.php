@@ -4,6 +4,7 @@ namespace App\Models\ContactDirectory;
 
 use App\Models\Concerns\HasUuidRouteKey;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -54,6 +55,22 @@ class EmailTemplate extends Model
             'is_active' => 'boolean',
             'is_system' => 'boolean',
         ];
+    }
+
+    /** Active templates the user may use: shared ones plus their own private ones. */
+    public function scopeAvailableTo(Builder $query, User $user): Builder
+    {
+        return $query->where('is_active', true)->where(function (Builder $query) use ($user): void {
+            $query->where('visibility', 'organization')->orWhere('owner_id', $user->id);
+        });
+    }
+
+    /** Shared templates plus the user's own private ones, active or not. */
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        return $query->where(function (Builder $query) use ($user): void {
+            $query->where('visibility', 'organization')->orWhere('owner_id', $user->id);
+        });
     }
 
     public function owner(): BelongsTo

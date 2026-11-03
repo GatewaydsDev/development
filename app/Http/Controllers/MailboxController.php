@@ -355,6 +355,15 @@ class MailboxController extends Controller
             'attachments.*' => ['file', 'max:2048'],
         ]);
 
+        $leftover = app(\App\Services\ContactDirectory\EmailTemplateRenderer::class)
+            ->leftoverPlaceholders($validated['subject'].' '.$validated['body']);
+
+        if ($leftover !== []) {
+            throw ValidationException::withMessages([
+                'body' => 'Fill in or remove these placeholders before sending: {{'.implode('}}, {{', $leftover).'}}',
+            ]);
+        }
+
         $senderMailbox = strtolower(trim((string) $sender->microsoft_mailbox));
         $to = $this->withoutMailbox($this->addresses($validated['to'], 'to'), $senderMailbox);
         $cc = $this->withoutMailbox($this->addresses($validated['cc'] ?? '', 'cc'), $senderMailbox, $to);
@@ -497,6 +506,9 @@ class MailboxController extends Controller
             'headerWidth' => $user?->mailHeaderWidth() ?? 100,
             'footerColors' => $user?->mailFooterColors() ?? [],
             'stationery' => app(MailStationery::class)->payload($user),
+            'emailTemplates' => $user
+                ? app(\App\Services\ContactDirectory\EmailTemplateRenderer::class)->availableFor($user)
+                : [],
             'unreadCount' => $unreadCount,
             'blockedCount' => $blockedCount,
             'deliveryProblems' => app(MailAuthentication::class)->problemsForMailbox($mailbox),

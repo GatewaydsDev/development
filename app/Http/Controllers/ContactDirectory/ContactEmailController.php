@@ -9,6 +9,7 @@ use App\Http\Requests\ContactDirectory\LogContactEmailRequest;
 use App\Models\ContactDirectory\ContactDirectoryContact;
 use App\Models\ContactDirectory\ContactDirectoryInquiry;
 use App\Services\ContactDirectory\ContactEmailService;
+use App\Services\ContactDirectory\EmailTemplateRenderer;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -16,7 +17,7 @@ use RuntimeException;
 
 class ContactEmailController extends Controller
 {
-    public function compose(Request $request, ContactDirectoryContact $contact, ContactEmailService $emailService): Response
+    public function compose(Request $request, ContactDirectoryContact $contact, ContactEmailService $emailService, EmailTemplateRenderer $renderer): Response
     {
         $inquiry = null;
 
@@ -29,8 +30,14 @@ class ContactEmailController extends Controller
         return Inertia::render('ContactDirectory/Email/Compose', [
             'contact' => $contact,
             'inquiry' => $inquiry,
-            'canSend' => $emailService->canSend(),
-            'mailbox' => trim((string) config('services.microsoft.mail_from')),
+            'canSend' => $emailService->canSend($request->user()),
+            'mailbox' => trim((string) $request->user()->microsoft_mailbox),
+            'templates' => $renderer->availableFor($request->user(), [
+                'contact_first_name' => $contact->first_name,
+                'company_name' => $contact->company?->name,
+                'inquiry_title' => $inquiry?->title,
+                'project_name' => $inquiry?->project?->name,
+            ]),
         ]);
     }
 

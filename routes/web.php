@@ -284,6 +284,8 @@ Route::middleware(['auth', 'prevent-back-history', 'can:view-contacts-directory'
                 ->middleware('can:manage-email-templates');
             Route::patch('/{emailTemplate}', [EmailTemplateController::class, 'update'])->name('update')
                 ->middleware('can:manage-email-templates');
+            Route::delete('/{emailTemplate}', [EmailTemplateController::class, 'destroy'])->name('destroy')
+                ->middleware('can:manage-email-templates');
             Route::post('/{emailTemplate}/preview', [EmailTemplateController::class, 'preview'])->name('preview')
                 ->middleware('can:manage-email-templates');
         });

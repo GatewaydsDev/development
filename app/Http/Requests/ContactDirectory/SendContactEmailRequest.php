@@ -25,9 +25,23 @@ class SendContactEmailRequest extends FormRequest
         ];
     }
 
+    protected function prepareForValidation(): void
+    {
+        if (is_string($this->input('body'))) {
+            $this->merge(['body' => app(\App\Services\ContactDirectory\EmailTemplateRenderer::class)->sanitize($this->input('body'))]);
+        }
+    }
+
     public function withValidator($validator): void
     {
         $validator->after(function ($validator): void {
+            $left = app(\App\Services\ContactDirectory\EmailTemplateRenderer::class)
+                ->leftoverPlaceholders($this->input('subject', '').' '.$this->input('body', ''));
+
+            if ($left !== []) {
+                $validator->errors()->add('body', 'Fill in or remove these placeholders before sending: {{'.implode('}}, {{', $left).'}}');
+            }
+
             $contact = $this->route('contact');
 
             $contactEmails = $contact

@@ -7,6 +7,7 @@ use App\Models\ContactDirectory\ContactDirectoryContact;
 use App\Models\ContactDirectory\ContactDirectoryInquiry;
 use App\Models\User;
 use App\Services\MicrosoftGraphMailService;
+use App\Support\MailboxComposition;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -42,14 +43,25 @@ class ContactEmailService
         $failureReason = null;
 
         try {
-            $mailbox = trim((string) config('services.microsoft.mail_from'));
-
-            if ($mailbox === '') {
-                throw new RuntimeException('Email sending is not configured. Log the email manually instead.');
+            if (! $this->canSend($actor)) {
+                throw new RuntimeException('Your account has no Microsoft 365 mailbox assigned. Log the email manually instead.');
             }
 
+            // Sent from the user's own mailbox, with their header, signature and footer.
+            $composed = app(MailboxComposition::class)->apply($actor, $html, 'HTML', []);
+
             $providerMessageId = (string) Str::uuid();
-            $this->mailService->sendFromMailbox($mailbox, implode(',', $recipients), $subject, $html);
+            $this->mailService->actingAs($actor)->sendComposed(
+                '',
+                $recipients,
+                $subject,
+                $composed['content'],
+                $composed['type'],
+                [],
+                [],
+                'normal',
+                $composed['attachments'],
+            );
             $sent = true;
         } catch (\Throwable $exception) {
             $failureReason = $exception->getMessage();
@@ -101,9 +113,11 @@ class ContactEmailService
         ]);
     }
 
-    public function canSend(): bool
+    public function canSend(User $user): bool
     {
-        return trim((string) config('services.microsoft.mail_from')) !== '';
+        $mailbox = trim((string) $user->microsoft_mailbox);
+
+        return $mailbox !== '' && filter_var($mailbox, FILTER_VALIDATE_EMAIL) !== false;
     }
 
     public function mailtoLink(array $recipientEmails, string $subject, string $body): string
