@@ -30,7 +30,7 @@ import {
 import { openSnapDrawer } from '@/lib/shortcuts';
 import { useUnreadMail } from '@/lib/unreadMail';
 import { PageProps } from '@/types';
-import { Link, router, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { toast } from 'sonner';
 import {
     BellIcon,
@@ -300,6 +300,7 @@ export default function Authenticated({
     if (embedded) {
         return (
             <div className="min-h-screen bg-muted/30 text-foreground">
+                {stickyTitle?.trim() && <Head title={stickyTitle.trim()} />}
                 {header ? (
                     <header className="border-b border-border bg-card">
                         <div className={cn('mx-auto w-full px-4 py-4 sm:px-6')}>
@@ -314,6 +315,7 @@ export default function Authenticated({
 
     return (
         <div className="min-h-screen bg-muted/30 text-foreground">
+            {stickyTitle?.trim() && <Head title={stickyTitle.trim()} />}
             <RevisionAssignmentListener userId={user.id} />
             <TabUnreadBadge />
             {canManageExpenses ? <ExpenseUpdates /> : null}

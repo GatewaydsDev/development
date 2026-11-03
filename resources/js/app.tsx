@@ -14,7 +14,10 @@ import { createInertiaApp, router } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot } from 'react-dom/client';
 
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+const configuredAppName = import.meta.env.VITE_APP_NAME?.trim();
+const appName = configuredAppName && configuredAppName !== 'Laravel'
+    ? configuredAppName
+    : 'Gateway Door Systems';
 
 document.addEventListener(
     'submit',
@@ -42,7 +45,7 @@ router.on('before', (event) => {
 });
 
 createInertiaApp({
-    title: (title) => `${title} - ${appName}`,
+    title: (title) => title.trim() ? `${title.trim()} - ${appName}` : appName,
     resolve: (name) =>
         resolvePageComponent(
             `./Pages/${name}.tsx`,
