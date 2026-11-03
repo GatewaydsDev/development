@@ -18,7 +18,6 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/Components/ui/alert-dialog';
-import { cn } from '@/lib/utils';
 import type { PageProps } from '@/types';
 
 type Template = {
@@ -224,7 +223,7 @@ export default function EmailTemplatesIndex({
                         </Card>
                     )}
                     {templates.data.map((template) => {
-                        const unresolved = [...template.subject.matchAll(/\{\{(\w+)\}\}/g)]
+                        const unresolved = [...template.subject.matchAll(/\{\{(\w+)}}/g)]
                             .map((match) => match[1])
                             .filter((token) => placeholders[token] !== undefined);
 

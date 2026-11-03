@@ -10,12 +10,9 @@ import LogoutConfirmDialog from '@/Components/LogoutConfirmDialog';
 import { useEffect, useRef, useState } from 'react';
 import {
     ActivityIcon,
-    BellIcon,
     BriefcaseIcon,
     Building2Icon,
-    BuildingIcon,
     FileCodeIcon,
-    FileTextIcon,
     CalendarClockIcon,
     SparklesIcon,
     CalendarDaysIcon,

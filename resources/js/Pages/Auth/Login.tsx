@@ -5,10 +5,10 @@ import TextInput from '@/Components/TextInput';
 import { Button } from '@/Components/ui/button';
 import PublicLayout from '@/Layouts/PublicLayout';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { loginWithPasskey, passkeysSupported } from '@/lib/passkeys';
+import { conditionalPasskeysAvailable, loginWithPasskey, passkeysSupported } from '@/lib/passkeys';
 import { BanIcon, Eye, EyeOff, ScanFaceIcon, MailCheckIcon, ShieldAlertIcon } from 'lucide-react';
 import { FormEventHandler } from 'react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 type LoginAlert = {
     type: 'attempt' | 'blocked' | 'deactivated';
@@ -98,7 +98,33 @@ export default function Login({
     const [passkeyBusy, setPasskeyBusy] = useState(false);
     const [passkeyError, setPasskeyError] = useState<string | null>(null);
 
+    const autofillAbort = useRef<AbortController | null>(null);
+
+    // Offers the saved passkey in the email field's suggestions, so one tap plus Face ID signs in.
+    useEffect(() => {
+        const controller = new AbortController();
+        autofillAbort.current = controller;
+
+        conditionalPasskeysAvailable().then((available) => {
+            if (!available || controller.signal.aborted) {
+                return;
+            }
+
+            loginWithPasskey(route('webauthn.login.options'), route('webauthn.login'), {
+                conditional: true,
+                signal: controller.signal,
+            })
+                .then((redirect) => {
+                    window.location.href = redirect;
+                })
+                .catch(() => undefined);
+        });
+
+        return () => controller.abort();
+    }, []);
+
     const signInWithPasskey = async () => {
+        autofillAbort.current?.abort();
         setPasskeyBusy(true);
         setPasskeyError(null);
 
@@ -169,7 +195,7 @@ export default function Login({
                                         name="email"
                                         value={data.email}
                                         className="block h-10 w-full border-border bg-background px-3 text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring"
-                                        autoComplete="username"
+                                        autoComplete="username webauthn"
                                         isFocused={true}
                                         onChange={(e) =>
                                             setData('email', e.target.value)

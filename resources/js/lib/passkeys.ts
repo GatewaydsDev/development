@@ -107,7 +107,19 @@ export async function registerPasskey(optionsUrl: string, saveUrl: string, alias
     }
 }
 
-export async function loginWithPasskey(optionsUrl: string, loginUrl: string): Promise<string> {
+export async function conditionalPasskeysAvailable(): Promise<boolean> {
+    return (
+        passkeysSupported() &&
+        typeof PublicKeyCredential.isConditionalMediationAvailable === 'function' &&
+        (await PublicKeyCredential.isConditionalMediationAvailable())
+    );
+}
+
+export async function loginWithPasskey(
+    optionsUrl: string,
+    loginUrl: string,
+    mode: { conditional?: boolean; signal?: AbortSignal } = {},
+): Promise<string> {
     const optionsResponse = await post(optionsUrl);
 
     if (!optionsResponse.ok) {
@@ -116,6 +128,8 @@ export async function loginWithPasskey(optionsUrl: string, loginUrl: string): Pr
 
     const credential = (await navigator.credentials.get({
         publicKey: decodeOptions(await optionsResponse.json()) as PublicKeyCredentialRequestOptions,
+        ...(mode.conditional ? { mediation: 'conditional' as CredentialMediationRequirement } : {}),
+        signal: mode.signal,
     })) as PublicKeyCredential | null;
 
     if (!credential) {

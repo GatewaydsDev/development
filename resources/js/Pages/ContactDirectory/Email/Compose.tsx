@@ -1,5 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Link, router, usePage } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import { useState, type FormEvent } from 'react';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
@@ -10,7 +10,6 @@ import {
     CardHeader,
     CardTitle,
 } from '@/Components/ui/card';
-import SimpleSelect from '@/Components/ContactDirectory/SimpleSelect';
 import TextInput from '@/Components/TextInput';
 import RichTextEditor from '@/Components/RichTextEditor';
 import type { PageProps } from '@/types';
@@ -54,7 +53,7 @@ type Props = PageProps<{
     templates: MailTemplate[];
 }>;
 
-export default function EmailCompose({ contact, inquiry, canSend, mailbox, templates }: Props) {
+export default function EmailCompose({ contact, inquiry, canSend, templates }: Props) {
     const page = usePage<Props>();
     const errors = page.props.errors as Record<string, string> | undefined;
 
@@ -67,7 +66,7 @@ export default function EmailCompose({ contact, inquiry, canSend, mailbox, templ
     const [body, setBody] = useState('');
     const [templateId, setTemplateId] = useState('');
     const selectedTemplate = templates.find((template) => template.uuid === templateId);
-    const leftover = [...(body + subject).matchAll(/\{\{(\w+)\}\}/g)].map((match) => match[1]);
+    const leftover = [...(body + subject).matchAll(/\{\{(\w+)}}/g)].map((match) => match[1]);
 
     const applyTemplate = (uuid: string) => {
         setTemplateId(uuid);
