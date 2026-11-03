@@ -149,3 +149,11 @@ test('record corrections reject tables outside the allowed list', function () {
 
     expect($ricardo->fresh()->name)->toBe('Ricardo Scarpim');
 });
+
+test('every correctable table can be listed', function () {
+    foreach (array_keys(\App\Support\RecordCorrections::tables()) as $key) {
+        \App\Support\RecordCorrections::paginate(\App\Support\RecordCorrections::find($key), 'a');
+    }
+
+    expect(array_keys(\App\Support\RecordCorrections::tables()))->toContain('job_titles', 'project_priorities', 'bid_text_templates');
+});

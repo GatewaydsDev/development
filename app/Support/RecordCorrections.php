@@ -2,16 +2,21 @@
 
 namespace App\Support;
 
+use App\Models\BidPricingStatus;
 use App\Models\BidScopeTitle;
+use App\Models\BidStageType;
+use App\Models\BidTextTemplate;
 use App\Models\Certification;
 use App\Models\Company;
 use App\Models\Contact;
 use App\Models\Contractor;
 use App\Models\ContractorContact;
+use App\Models\DailyTaskTitle;
 use App\Models\DoorConfiguration;
 use App\Models\DoorConstruction;
 use App\Models\DoorHanding;
 use App\Models\Employee;
+use App\Models\JobTitle;
 use App\Models\Language;
 use App\Models\Manufacturer;
 use App\Models\OpeningCategory;
@@ -19,7 +24,13 @@ use App\Models\Product;
 use App\Models\ProductModel;
 use App\Models\ProductType;
 use App\Models\Profession;
+use App\Models\ProjectControlTerm;
+use App\Models\ProjectPriority;
+use App\Models\ProjectScopeType;
 use App\Models\ProjectStatus;
+use App\Models\QuotationRevisionStatus;
+use App\Models\QuotationRevisionTitle;
+use App\Models\QuotationTitle;
 use App\Models\Service;
 use App\Models\Skill;
 use App\Models\WindowGlassType;
@@ -143,6 +154,20 @@ class RecordCorrections
             'window_glazing_types' => self::named(WindowGlazingType::class, 'Window glazing types'),
             'window_seals' => self::named(WindowSeal::class, 'Window seals'),
             'bid_scope_titles' => self::named(BidScopeTitle::class, 'Bid scope titles'),
+            'project_priorities' => self::named(ProjectPriority::class, 'Project priorities'),
+            'project_scope_types' => self::named(ProjectScopeType::class, 'Project scope types'),
+            'job_titles' => self::named(JobTitle::class, 'Job titles'),
+            'project_control_terms' => self::named(ProjectControlTerm::class, 'Project control terms'),
+            'daily_task_titles' => self::named(DailyTaskTitle::class, 'Daily task titles'),
+            'bid_pricing_statuses' => self::named(BidPricingStatus::class, 'Bid pricing statuses'),
+            'bid_stage_types' => self::named(BidStageType::class, 'Bid stage types'),
+            'quotation_revision_statuses' => self::named(QuotationRevisionStatus::class, 'Quotation revision statuses'),
+            'quotation_titles' => self::named(QuotationTitle::class, 'Quotation titles'),
+            'quotation_revision_titles' => self::named(QuotationRevisionTitle::class, 'Quotation revision titles'),
+            'bid_text_templates' => self::define(BidTextTemplate::class, 'Bid text templates', [
+                self::field('name', 'Name', required: true),
+                self::field('body', 'Text', 'textarea'),
+            ], ['name']),
         ];
     }
 
