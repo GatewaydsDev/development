@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\PushSubscription;
+use App\Services\WebPushSender;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -30,6 +31,17 @@ class PushSubscriptionController extends Controller
         );
 
         return response()->json(['subscribed' => true]);
+    }
+
+    public function test(Request $request, WebPushSender $sender): JsonResponse
+    {
+        if (! $sender->configured()) {
+            return response()->json(['sent' => 0, 'reason' => 'Push keys are not set on the server.']);
+        }
+
+        $sent = $sender->sendToUser($request->user(), 'Test notification', 'Phone notifications are working.', '/');
+
+        return response()->json(['sent' => $sent, 'reason' => $sent === 0 ? 'The push service rejected the message. Check storage/logs for details.' : null]);
     }
 
     public function destroy(Request $request): JsonResponse

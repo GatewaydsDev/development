@@ -34,3 +34,9 @@ it('sends nothing when push is not configured or the user has no devices', funct
     config(['webpush.public_key' => $keys['publicKey'], 'webpush.private_key' => $keys['privateKey']]);
     expect(app(WebPushSender::class)->sendToUser($this->user, 'Hi', 'There', '/'))->toBe(0);
 });
+
+it('reports when push keys are missing for the test notification', function () {
+    config(['webpush.public_key' => null, 'webpush.private_key' => null]);
+
+    $this->actingAs($this->user)->postJson(route('push-subscriptions.test'))->assertOk()->assertJsonPath('sent', 0);
+});

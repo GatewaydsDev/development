@@ -85,7 +85,14 @@ export default function PushNotificationButton() {
         const subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: toKey(publicKey()) });
         await send('POST', { ...subscription.toJSON(), contentEncoding: (PushManager as unknown as { supportedContentEncodings?: string[] }).supportedContentEncodings?.includes('aes128gcm') ? 'aes128gcm' : 'aesgcm' });
         setSubscribed(true);
-        setMessage('Notifications are on for this device.');
+
+        const result = await fetch(route('push-subscriptions.test'), {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-XSRF-TOKEN': xsrf() },
+        }).then((response) => response.json()).catch(() => ({ sent: 0, reason: 'Could not reach the server.' }));
+
+        setMessage(result.sent > 0 ? 'Notifications are on for this device. A test notification was just sent.' : `Notifications are on, but the test failed: ${result.reason}`);
     };
 
     const disable = async () => {

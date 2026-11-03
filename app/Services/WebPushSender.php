@@ -6,6 +6,7 @@ use App\Models\PushSubscription;
 use App\Models\User;
 use Minishlink\WebPush\Subscription;
 use Minishlink\WebPush\WebPush;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class WebPushSender
@@ -49,6 +50,8 @@ class WebPushSender
 
                     continue;
                 }
+
+                Log::warning('Web push was not delivered.', ['status' => $report->getResponse()?->getStatusCode(), 'reason' => $report->getReason()]);
 
                 // Gone/not-found subscriptions will never work again.
                 if ($report->isSubscriptionExpired()) {
