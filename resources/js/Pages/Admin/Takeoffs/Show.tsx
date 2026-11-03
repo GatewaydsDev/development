@@ -447,7 +447,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                     </div>
                 </form>
                 <div data-section-stack className="z-30 flex flex-col gap-2 bg-background pb-2 md:sticky md:top-[4.75rem] lg:top-[7.25rem]">
-                <nav aria-label="Takeoff sections" data-document-toolbar data-pinned="true" className="rounded-xl border border-[#c5d0dc] bg-[#eef3f8] p-1.5 text-[#0a2540] shadow-sm">
+                <nav aria-label="Takeoff sections" data-document-toolbar data-pinned="true" className="rounded-xl border border-[#c5d0dc] bg-[#eef3f8] p-1.5 text-[#0a2540] shadow-sm dark:border-[#353a42] dark:bg-[#212429] dark:text-[#e6e8eb]">
                     <div className="flex gap-1 overflow-x-auto">
                         {sections.map((item, index) => {
                             const active = section === item.id;
@@ -459,7 +459,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                     aria-current={active ? 'location' : undefined}
                                     className={cn(
                                         'inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition',
-                                        active ? 'bg-emerald-600 text-white' : 'bg-white text-[#0a2540] hover:bg-[#d6e6f8]',
+                                        active ? 'bg-emerald-600 text-white' : 'bg-white text-[#0a2540] hover:bg-[#d6e6f8] dark:bg-[#2b2f36] dark:text-[#e6e8eb] dark:hover:bg-[#353a42]',
                                     )}
                                     onClick={() => setSection(item.id)}
                                 >
@@ -477,7 +477,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                     </div>
                 </nav>
                 {section === 'workspace' ? (
-                    <div className="flex flex-wrap gap-2 rounded-xl border border-[#c5d0dc] bg-[#eef3f8] p-1.5 shadow-sm">
+                    <div className="flex flex-wrap gap-2 rounded-xl border border-[#c5d0dc] bg-[#eef3f8] p-1.5 shadow-sm dark:border-[#353a42] dark:bg-[#212429]">
                         <a href="#takeoff-openings" className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700">
                             <ListIcon className="size-4" />
                             Openings

@@ -379,18 +379,17 @@ export default function PdfWorkspace({
     const choosePdf = () => fileRef.current?.click();
 
     const controlClass = 'h-10 min-w-0 shrink gap-1.5 whitespace-normal px-2 text-center sm:h-7';
-    const labelClass = 'text-[11px] font-semibold uppercase tracking-wide text-[#0a2540]';
+    const labelClass = 'text-[11px] font-semibold uppercase tracking-wide text-[#0a2540] dark:text-[#aeb6c2]';
 
     return (
         <div className="flex h-full min-h-[28rem] min-w-0 flex-col gap-3">
-            <div className="z-20 flex min-w-0 flex-col gap-3 rounded-xl border border-[#c5d0dc] bg-[#eef3f8] p-2 text-[#111827] shadow-sm sm:p-3 md:sticky md:top-[4.75rem] lg:top-[14.75rem]">
+            <div className="z-20 flex min-w-0 flex-col gap-3 rounded-xl border border-[#c5d0dc] bg-[#eef3f8] p-2 text-[#111827] shadow-sm dark:border-[#353a42] dark:bg-[#212429] dark:text-[#e6e8eb] sm:p-3 md:sticky md:top-[4.75rem] lg:top-[14.75rem]">
                 <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end">
                     <label className="flex min-w-0 flex-1 flex-col gap-1">
                         <span className={labelClass}>Drawing</span>
                         <select
                             aria-label="Drawing"
-                            className="h-12 w-full min-w-0 rounded-md border border-[#c5ced8] bg-white px-2 py-2 text-sm leading-6 text-[#111827] shadow-sm"
-                            style={{ color: '#111827', WebkitTextFillColor: '#111827', backgroundColor: '#ffffff' }}
+                            className="h-12 w-full min-w-0 rounded-md border border-[#c5ced8] bg-white px-2 py-2 text-sm leading-6 text-[#111827] shadow-sm [-webkit-text-fill-color:#111827] dark:border-[#3d434c] dark:bg-[#2b2f36] dark:text-[#e6e8eb] dark:[color-scheme:dark] dark:[-webkit-text-fill-color:#e6e8eb]"
                             value={document?.id ?? ''}
                             onChange={(event) => onSelectDocument(Number(event.target.value))}
                         >
@@ -439,7 +438,7 @@ export default function PdfWorkspace({
                                 <ChevronLeftIcon data-icon="inline-start" />
                                 Previous
                             </Button>
-                            <span className="shrink-0 px-1 text-center text-sm font-medium tabular-nums text-[#111827]">Page {page} / {pageCount}</span>
+                            <span className="shrink-0 px-1 text-center text-sm font-medium tabular-nums text-[#111827] dark:text-[#e6e8eb]">Page {page} / {pageCount}</span>
                             <Button type="button" variant="outline" size="sm" className={`${controlClass} flex-1 border-blue-700 bg-blue-600 text-white hover:bg-blue-700 hover:text-white`} onClick={() => setPage((current) => Math.min(pageCount, current + 1))} disabled={page >= pageCount}>
                                 Next
                                 <ChevronRightIcon data-icon="inline-end" />
@@ -452,7 +451,7 @@ export default function PdfWorkspace({
                             <Button type="button" variant="outline" size="sm" className={`${controlClass} w-10 shrink-0 border-teal-700 bg-teal-600 px-0 text-white hover:bg-teal-700 hover:text-white sm:w-8`} aria-label="Zoom out" onClick={() => setZoom((current) => Math.max(0.5, Number((current - 0.25).toFixed(2))))}>
                                 <ZoomOutIcon />
                             </Button>
-                            <span className="min-w-0 flex-1 text-center text-sm font-medium tabular-nums text-[#111827]">{Math.round(zoom * 100)}%</span>
+                            <span className="min-w-0 flex-1 text-center text-sm font-medium tabular-nums text-[#111827] dark:text-[#e6e8eb]">{Math.round(zoom * 100)}%</span>
                             <Button type="button" variant="outline" size="sm" className={`${controlClass} w-10 shrink-0 border-teal-700 bg-teal-600 px-0 text-white hover:bg-teal-700 hover:text-white sm:w-8`} aria-label="Zoom in" onClick={() => setZoom((current) => Math.min(3, Number((current + 0.25).toFixed(2))))}>
                                 <ZoomInIcon />
                             </Button>
