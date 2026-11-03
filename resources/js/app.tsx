@@ -1,5 +1,6 @@
 import '../css/app.css';
 import '../css/dashboard-theme-overrides.css';
+import '../css/object-inspector.css';
 import './i18n';
 
 import PageSkeleton from '@/Components/PageSkeleton';

@@ -1,0 +1,172 @@
+/*
+ * Object Inspector dark mode.
+ *
+ * Every Object Inspector (email settings, document layouts, takeoff openings)
+ * is drawn with fixed "classic property grid" colors: white cells, gray
+ * borders, navy values. Light mode keeps those colors exactly. In dark mode
+ * the rules below remap them for anything inside `.object-inspector`, plus
+ * InspectorSelect menus (`.object-inspector-menu`), which render in a portal.
+ *
+ * New inspectors only need the `object-inspector` class on their wrapper.
+ */
+
+html.dark {
+  --inspector-surface: #1b1d21;
+  --inspector-frame: #24272c;
+  --inspector-header: #2a2e34;
+  --inspector-name: #212429;
+  --inspector-border: #474d56;
+  --inspector-grid: #353a42;
+  --inspector-text: #e6e8eb;
+  --inspector-muted: #a1a7b0;
+  --inspector-disabled: #6f7680;
+  --inspector-value: #8db8ff;
+  --inspector-ink: #d7e4f5;
+  --inspector-hover: #26354a;
+  --inspector-hover-strong: #2d4363;
+  --inspector-selected: #2d4363;
+  --inspector-edit: #3b3522;
+}
+
+html.dark :is(.object-inspector, .object-inspector-menu) {
+  color: var(--inspector-text);
+}
+
+/* Surfaces */
+html.dark :is(.object-inspector, .object-inspector-menu) :is(.bg-white, .bg-slate-50, .bg-slate-50\/40) {
+  background-color: var(--inspector-surface);
+}
+
+html.dark :is(.object-inspector, .object-inspector-menu) .bg-white\/80 {
+  background-color: rgb(27 29 33 / 0.8);
+}
+
+html.dark :is(.object-inspector, .object-inspector-menu) :is(.bg-\[\#f0f0f0\], .bg-slate-100) {
+  background-color: var(--inspector-frame);
+}
+
+html.dark :is(.object-inspector, .object-inspector-menu) .bg-\[\#f4f4f4\] {
+  background-color: var(--inspector-header);
+}
+
+html.dark :is(.object-inspector, .object-inspector-menu) :is(.bg-\[\#f7f7f7\], .bg-\[\#f3f3f3\], .bg-\[\#eef3f8\]) {
+  background-color: var(--inspector-name);
+}
+
+/* Borders */
+html.dark :is(.object-inspector, .object-inspector-menu) :is(.border-\[\#b0b0b0\], .border-\[\#9a9a9a\], .border-slate-400, .border-slate-400\/70, .border-slate-300) {
+  border-color: var(--inspector-border);
+}
+
+html.dark :is(.object-inspector, .object-inspector-menu) :is(.border-\[\#d6d6d6\], .border-\[\#c5d0dc\], .border-\[\#c5ced8\], .border-slate-200) {
+  border-color: var(--inspector-grid);
+}
+
+/* Active tab: its bottom edge blends into the panel below. */
+html.dark :is(.object-inspector, .object-inspector-menu) .border-b-white {
+  border-bottom-color: var(--inspector-surface);
+}
+
+/* Text */
+html.dark :is(.object-inspector, .object-inspector-menu) :is(.text-neutral-900, .text-neutral-800, .text-slate-900, .text-slate-800, .text-\[\#111827\]) {
+  color: var(--inspector-text);
+}
+
+html.dark :is(.object-inspector, .object-inspector-menu) :is(.text-neutral-600, .text-neutral-500, .text-slate-700, .text-slate-500) {
+  color: var(--inspector-muted);
+}
+
+html.dark :is(.object-inspector, .object-inspector-menu) :is(.text-neutral-400, .text-slate-400) {
+  color: var(--inspector-disabled);
+}
+
+html.dark :is(.object-inspector, .object-inspector-menu) .text-\[\#1a3d8f\] {
+  color: var(--inspector-value);
+}
+
+html.dark :is(.object-inspector, .object-inspector-menu) .text-\[\#0a2540\] {
+  color: var(--inspector-ink);
+}
+
+html.dark :is(.object-inspector, .object-inspector-menu) .accent-\[\#1a3d8f\] {
+  accent-color: var(--inspector-value);
+}
+
+html.dark :is(.object-inspector, .object-inspector-menu) :is(input, textarea)::placeholder {
+  color: var(--inspector-disabled);
+}
+
+/* Native file picker button */
+html.dark :is(.object-inspector, .object-inspector-menu) .file\:bg-\[\#f4f4f4\]::file-selector-button {
+  background-color: var(--inspector-header);
+  color: var(--inspector-text);
+}
+
+html.dark :is(.object-inspector, .object-inspector-menu) .file\:border-\[\#b0b0b0\]::file-selector-button {
+  border-color: var(--inspector-border);
+}
+
+/* Status tints (tool buttons, warnings) */
+html.dark .object-inspector .bg-emerald-50 { background-color: rgb(16 185 129 / 0.14); }
+html.dark .object-inspector .border-emerald-300 { border-color: rgb(16 185 129 / 0.45); }
+html.dark .object-inspector :is(.text-emerald-900, .text-emerald-800) { color: #a7f3d0; }
+
+html.dark .object-inspector .bg-sky-50 { background-color: rgb(14 165 233 / 0.14); }
+html.dark .object-inspector .border-sky-300 { border-color: rgb(14 165 233 / 0.45); }
+html.dark .object-inspector .text-sky-900 { color: #bae6fd; }
+
+html.dark .object-inspector .bg-amber-50 { background-color: rgb(245 158 11 / 0.14); }
+html.dark .object-inspector .border-amber-300 { border-color: rgb(245 158 11 / 0.45); }
+html.dark .object-inspector .text-amber-950 { color: #fde68a; }
+
+html.dark .object-inspector .bg-rose-50 { background-color: rgb(244 63 94 / 0.14); }
+html.dark .object-inspector .border-rose-300 { border-color: rgb(244 63 94 / 0.45); }
+html.dark .object-inspector .text-rose-900 { color: #fecdd3; }
+
+html.dark .object-inspector .bg-red-50 { background-color: rgb(239 68 68 / 0.14); }
+html.dark .object-inspector .border-red-300 { border-color: rgb(239 68 68 / 0.45); }
+html.dark .object-inspector :is(.text-red-800, .text-red-700) { color: #fecaca; }
+html.dark .object-inspector .text-red-600 { color: #f87171; }
+
+/* Interaction states: listed last and one level more specific so they still win. */
+html.dark :is(.object-inspector, .object-inspector-menu) .hover\:bg-\[\#e7f0fb\]:hover {
+  background-color: var(--inspector-hover);
+}
+
+html.dark :is(.object-inspector, .object-inspector-menu) :is(.hover\:bg-\[\#d7e6f8\], .hover\:bg-\[\#d6e6f8\]):hover {
+  background-color: var(--inspector-hover-strong);
+}
+
+html.dark :is(.object-inspector, .object-inspector-menu) .hover\:text-\[\#0a2540\]:hover {
+  color: var(--inspector-ink);
+}
+
+html.dark :is(.object-inspector, .object-inspector-menu) .focus\:bg-\[\#fff8dc\]:focus {
+  background-color: var(--inspector-edit);
+}
+
+html.dark .object-inspector .hover\:bg-emerald-100:hover { background-color: rgb(16 185 129 / 0.24); }
+html.dark .object-inspector .hover\:text-emerald-950:hover { color: #d1fae5; }
+html.dark .object-inspector .hover\:bg-sky-100:hover { background-color: rgb(14 165 233 / 0.24); }
+html.dark .object-inspector .hover\:text-sky-950:hover { color: #e0f2fe; }
+html.dark .object-inspector .hover\:bg-amber-100:hover { background-color: rgb(245 158 11 / 0.24); }
+html.dark .object-inspector .hover\:text-amber-950:hover { color: #fef3c7; }
+html.dark .object-inspector .hover\:bg-rose-100:hover { background-color: rgb(244 63 94 / 0.24); }
+html.dark .object-inspector .hover\:text-rose-950:hover { color: #ffe4e6; }
+
+/* Solid (selected) tool buttons keep white text on hover. */
+html.dark .object-inspector .hover\:text-white:hover { color: #ffffff; }
+
+html.dark :is(.object-inspector, .object-inspector-menu) .disabled\:text-neutral-500:disabled {
+  color: var(--inspector-disabled);
+}
+
+html.dark :is(.object-inspector, .object-inspector-menu) .disabled\:text-neutral-400:disabled {
+  color: var(--inspector-disabled);
+}
+
+/* InspectorSelect menu panel itself (rendered in a portal on <body>). */
+html.dark .object-inspector-menu {
+  background-color: var(--inspector-surface);
+  border-color: var(--inspector-border);
+}
