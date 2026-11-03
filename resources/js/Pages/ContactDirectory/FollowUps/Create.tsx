@@ -1,6 +1,7 @@
 import FormActionFab from '@/Components/FormActionFab';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
+import SplitDateTimeInput from '@/Components/SplitDateTimeInput';
 import TextInput from '@/Components/TextInput';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
@@ -72,10 +73,10 @@ export default function Create({ contacts, users, contactId, timezone, auth }: P
                                     </select><InputError message={form.errors.assigned_user_id} />
                                 </div>
                                 <div className="space-y-2"><InputLabel htmlFor="follow-up-due" value="Due date and time" className={labelClass} />
-                                    <TextInput id="follow-up-due" type="datetime-local" required className={inputClass} value={form.data.due_at} onChange={(e) => form.setData('due_at', e.target.value)} /><InputError message={form.errors.due_at} />
+                                    <SplitDateTimeInput id="follow-up-due" required className={inputClass} value={form.data.due_at} onChange={(value) => form.setData('due_at', value)} /><InputError message={form.errors.due_at} />
                                 </div>
                                 <div className="space-y-2"><InputLabel htmlFor="follow-up-reminder" value="Reminder (optional)" className={labelClass} />
-                                    <TextInput id="follow-up-reminder" type="datetime-local" className={inputClass} value={form.data.reminder_at} max={form.data.due_at || undefined} onChange={(e) => form.setData('reminder_at', e.target.value)} /><InputError message={form.errors.reminder_at} />
+                                    <SplitDateTimeInput id="follow-up-reminder" className={inputClass} value={form.data.reminder_at} max={form.data.due_at || undefined} onChange={(value) => form.setData('reminder_at', value)} /><InputError message={form.errors.reminder_at} />
                                 </div>
                                 <div className="space-y-2"><InputLabel htmlFor="follow-up-priority" value="Priority" className={labelClass} />
                                     <select id="follow-up-priority" className={inputClass} value={form.data.priority} onChange={(e) => form.setData('priority', e.target.value)}>{['low', 'normal', 'high', 'urgent'].map((priority) => <option key={priority} value={priority}>{priority.charAt(0).toUpperCase() + priority.slice(1)}</option>)}</select><InputError message={form.errors.priority} />
