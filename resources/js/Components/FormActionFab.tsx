@@ -1,7 +1,7 @@
 import { Button } from '@/Components/ui/button';
 import { cn } from '@/lib/utils';
 import { useFabTools } from '@/lib/fabStack';
-import { Link } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import { CheckIcon, CircleHelpIcon, MenuIcon, PrinterIcon, SparklesIcon, XIcon } from 'lucide-react';
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -61,6 +61,37 @@ export default function FormActionFab({
         setOwnerFormId(owner.id);
     }, [form, generatedFormId]);
 
+    const [dirty, setDirty] = useState(false);
+
+    // Any edit inside the owner form marks it unsaved until it is submitted.
+    useEffect(() => {
+        const owner = ownerFormRef.current;
+        if (!owner) {
+            return;
+        }
+
+        const markDirty = (event: Event) => {
+            if ((event.target as HTMLElement | null)?.closest('[data-fab-ignore]')) {
+                return;
+            }
+            setDirty(true);
+        };
+        const markClean = () => setDirty(false);
+        const removeError = router.on('error', () => setDirty(true));
+
+        owner.addEventListener('input', markDirty);
+        owner.addEventListener('change', markDirty);
+        owner.addEventListener('submit', markClean);
+
+        return () => {
+            owner.removeEventListener('input', markDirty);
+            owner.removeEventListener('change', markDirty);
+            owner.removeEventListener('submit', markClean);
+            removeError();
+        };
+    }, [ownerFormId]);
+
+    const unsaved = attention || dirty;
     const hasPrint = showPrint || Boolean(printHref) || Boolean(onPrint);
     const tools = useFabTools();
 
@@ -273,13 +304,13 @@ export default function FormActionFab({
                 type="button"
                 className={cn(
                     'relative size-14 sm:size-16 landscape:size-12 rounded-full bg-primary text-primary-foreground shadow-xl shadow-primary/20 transition hover:scale-105 hover:bg-primary/90',
-                    attention && 'ring-2 ring-red-600 ring-offset-2',
+                    unsaved && 'ring-2 ring-red-600 ring-offset-2',
                 )}
                 aria-expanded={isOpen}
-                aria-label={attention ? 'Toggle form actions. Changes are not saved.' : 'Toggle form actions'}
+                aria-label={unsaved ? 'Toggle form actions. Changes are not saved.' : 'Toggle form actions'}
                 onClick={() => setIsOpen((current) => !current)}
             >
-                {attention ? <span className="absolute top-1 right-1 size-3 rounded-full bg-red-600 ring-2 ring-white" /> : null}
+                {unsaved ? <span className="absolute top-1 right-1 size-3 rounded-full bg-red-600 ring-2 ring-white" /> : null}
                 <MenuIcon
                     className={cn(
                         'size-6 sm:size-7 landscape:size-5 transition duration-200',
@@ -288,10 +319,10 @@ export default function FormActionFab({
                 />
             </Button>
             <span className={cn(
-                'rounded-full bg-background/90 px-2.5 py-0.5 text-[11px] sm:text-xs font-semibold uppercase tracking-wide shadow-sm ring-1 backdrop-blur',
-                attention ? 'text-red-700 ring-red-300' : 'text-muted-foreground ring-border',
+                'w-max whitespace-nowrap rounded-full bg-background/90 px-2.5 py-0.5 text-[11px] sm:text-xs font-semibold uppercase tracking-wide shadow-sm ring-1 backdrop-blur',
+                unsaved ? 'text-red-700 ring-red-300 dark:text-red-300 dark:ring-red-500/60' : 'text-muted-foreground ring-border',
             )}>
-                {attention ? 'Not saved' : 'Actions'}
+                {unsaved ? 'Not saved' : 'Actions'}
             </span>
         </div>
     );

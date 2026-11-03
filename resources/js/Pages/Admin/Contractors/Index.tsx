@@ -116,10 +116,10 @@ export default function Index({ filters, contractors }: IndexProps) {
             <div className="py-6 sm:py-8">
                 <div className="flex w-full flex-col gap-6 px-4 sm:px-6 lg:px-8">
                     <div className="grid gap-4 md:ml-auto md:w-full md:max-w-sm">
-                        <Card>
+                        <Card className="border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
-                                    <HardHatIcon className="size-4 text-muted-foreground" />
+                                    <HardHatIcon className="size-4 text-emerald-600 dark:text-emerald-300" />
                                     Total contractors
                                 </CardTitle>
                                 <CardDescription>
@@ -134,10 +134,10 @@ export default function Index({ filters, contractors }: IndexProps) {
                         </Card>
                     </div>
 
-                    <Card className="shadow-sm">
+                    <Card className="border-sky-200 shadow-sm dark:border-sky-900">
                         <CardHeader className="gap-4 md:grid-cols-[1fr_auto] md:items-center">
                             <div>
-                                <CardTitle>Contractor directory</CardTitle>
+                                <CardTitle className="flex items-center gap-2"><BriefcaseIcon className="size-4 text-sky-600 dark:text-sky-300" />Contractor directory</CardTitle>
                                 <CardDescription>
                                     Search, review, add, and update general
                                     contractor companies and contacts.
@@ -158,7 +158,7 @@ export default function Index({ filters, contractors }: IndexProps) {
                                         className="h-11 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm text-foreground sm:w-64"
                                     />
                                 </div>
-                                <Button type="submit" variant="outline" size="sm" className="self-center">
+                                <Button type="submit" size="sm" className="self-center bg-emerald-600 text-white hover:bg-emerald-700">
                                     <SearchIcon data-icon="inline-start" />
                                     Search
                                 </Button>
@@ -167,7 +167,7 @@ export default function Index({ filters, contractors }: IndexProps) {
 
                         <CardContent>
                             <div className="overflow-x-auto rounded-lg border border-border">
-                                <div className="hidden grid-cols-[1.3fr_1fr_1fr_1fr_auto] gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:grid">
+                                <div className="hidden grid-cols-[1.3fr_1fr_1fr_1fr_auto] gap-4 border-b border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold uppercase text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200 tracking-wide lg:grid">
                                     <div>Contractor</div>
                                     <div>Primary contact</div>
                                     <div>Phone</div>
@@ -195,7 +195,8 @@ export default function Index({ filters, contractors }: IndexProps) {
                                             >
                                                 <div>
                                                     <DirectoryFieldLabel>Contractor</DirectoryFieldLabel>
-                                                    <p className="font-medium text-foreground">
+                                                    <p className="flex items-center gap-1.5 font-medium text-foreground">
+                                                        <HardHatIcon className="size-4 text-emerald-600 dark:text-emerald-300" aria-hidden="true" />
                                                         {contractor.name}
                                                     </p>
                                                     {contractor.role ===
@@ -244,7 +245,7 @@ export default function Index({ filters, contractors }: IndexProps) {
                                                     <DirectoryFieldLabel>Projects</DirectoryFieldLabel>
                                                     {contractor.projects_count >
                                                     0 ? (
-                                                        <Badge variant="outline">
+                                                        <Badge variant="outline" className="border-sky-200 bg-sky-100 text-sky-800 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-200">
                                                             <BriefcaseIcon className="size-3" />
                                                             {
                                                                 contractor.projects_count

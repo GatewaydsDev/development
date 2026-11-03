@@ -15,6 +15,18 @@ import {
 } from '@/Components/ui/card';
 import { cn } from '@/lib/utils';
 import type { PageProps } from '@/types';
+import {
+    AlarmClockIcon,
+    CalendarCheckIcon,
+    CalendarClockIcon,
+    CheckCircle2Icon,
+    HourglassIcon,
+    InfoIcon,
+    MessageSquareMoreIcon,
+    ShieldAlertIcon,
+    TruckIcon,
+    UsersIcon,
+} from 'lucide-react';
 
 type FollowUp = {
     id: number;
@@ -204,6 +216,13 @@ function InquiryRow({ inquiry }: { inquiry: Inquiry }) {
     );
 }
 
+const SUMMARY_TONES: Record<string, string> = {
+    red: 'border-red-200 bg-red-50/70 text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300',
+    emerald: 'border-emerald-200 bg-emerald-50/70 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300',
+    amber: 'border-amber-200 bg-amber-50/70 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300',
+    sky: 'border-sky-200 bg-sky-50/70 text-sky-700 dark:border-sky-900 dark:bg-sky-950/30 dark:text-sky-300',
+};
+
 export default function MyDay({
     contacts,
     users,
@@ -226,25 +245,29 @@ export default function MyDay({
             label: 'Overdue',
             count: overdueFollowUps.length,
             href: route('contact-directory.follow-ups.index', { view: 'overdue' }),
-            tone: overdueFollowUps.length > 0 ? 'destructive' : 'default',
+            tone: 'red',
+            icon: AlarmClockIcon,
         },
         {
             label: 'Due today',
             count: todayFollowUps.length,
+            icon: CalendarCheckIcon,
             href: route('contact-directory.follow-ups.index', { view: 'today' }),
-            tone: 'default',
+            tone: 'emerald',
         },
         {
             label: 'Waiting for response',
             count: waitingOnSupplier.length + waitingOnInternalTeam.length,
             href: route('contact-directory.inquiries.index', { waiting_for_response: '1' }),
-            tone: 'default',
+            tone: 'amber',
+            icon: MessageSquareMoreIcon,
         },
         {
             label: 'Completed today',
             count: completedTodayCount,
             href: route('contact-directory.follow-ups.index', { view: 'completed' }),
-            tone: 'default',
+            tone: 'sky',
+            icon: CheckCircle2Icon,
         },
     ];
 
@@ -253,7 +276,7 @@ export default function MyDay({
             <div className="space-y-6 px-4 py-6 lg:px-8">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
-                        <h1 className="text-2xl font-semibold text-foreground">My Day</h1>
+                        <h2 className="text-xl font-semibold leading-tight text-emerald-700 dark:text-emerald-300">My Day</h2>
                         <p className="mt-1 text-sm text-muted-foreground">Your contact follow-ups, deadlines and next actions.</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -262,8 +285,9 @@ export default function MyDay({
                         <Button variant="outline" asChild><Link href={route('contact-directory.follow-ups.index')}>All follow-ups</Link></Button>
                     </div>
                 </div>
-                <Card>
-                    <CardHeader className="pb-2"><CardTitle className="text-base">How My Day works</CardTitle></CardHeader>
+                <Card className="border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="flex items-center gap-2 text-base"><InfoIcon className="size-4 text-sky-600 dark:text-sky-300" aria-hidden="true" />How My Day works</CardTitle></CardHeader>
                     <CardContent className="space-y-2 text-sm text-muted-foreground">
                         <p>My Day shows contact follow-ups assigned to you. Start with a contact, create a follow-up with a due date, then return here to complete or reschedule it.</p>
                         {auth.can.manageFollowUps ? (
@@ -286,19 +310,16 @@ export default function MyDay({
                             <Link
                                 key={card.label}
                                 href={card.href as string}
-                                className="min-w-[150px] rounded-lg border border-border bg-background p-4 transition hover:border-ring"
+                                className={cn(
+                                    'min-w-[150px] rounded-lg border p-4 shadow-sm transition hover:shadow-md',
+                                    SUMMARY_TONES[card.tone],
+                                )}
                             >
-                                <p className="text-xs uppercase text-muted-foreground">
+                                <p className="flex items-center gap-1.5 text-xs font-medium uppercase text-muted-foreground">
+                                    <card.icon className="size-4" aria-hidden="true" />
                                     {card.label}
                                 </p>
-                                <p
-                                    className={cn(
-                                        'text-2xl font-semibold',
-                                        card.tone === 'destructive' && card.count > 0
-                                            ? 'text-destructive'
-                                            : 'text-foreground',
-                                    )}
-                                >
+                                <p className="text-2xl font-semibold text-foreground">
                                     {card.count}
                                 </p>
                             </Link>
@@ -322,9 +343,9 @@ export default function MyDay({
                 </div>
 
                 {needsAttentionSuggestions.length > 0 && (
-                    <Card>
+                    <Card className="border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30">
                         <CardHeader>
-                            <CardTitle className="text-base">Needs attention</CardTitle>
+                            <CardTitle className="flex items-center gap-2 text-base"><ShieldAlertIcon className="size-4 text-amber-600 dark:text-amber-300" aria-hidden="true" />Needs attention</CardTitle>
                             <CardDescription>
                                 Rule-based suggestions for open inquiries. Nothing is sent
                                 automatically.
@@ -361,9 +382,9 @@ export default function MyDay({
                 )}
 
                 <div className="grid gap-4 lg:grid-cols-2">
-                    <Card>
+                    <Card className="border-red-200 bg-red-50/70 dark:border-red-900 dark:bg-red-950/30">
                         <CardHeader>
-                            <CardTitle className="text-base">Overdue follow-ups</CardTitle>
+                            <CardTitle className="flex items-center gap-2 text-base"><AlarmClockIcon className="size-4 text-red-600 dark:text-red-300" aria-hidden="true" />Overdue follow-ups</CardTitle>
                         </CardHeader>
                         <CardContent>
                             {overdueFollowUps.length === 0 ? (
@@ -380,9 +401,9 @@ export default function MyDay({
                         </CardContent>
                     </Card>
 
-                    <Card>
+                    <Card className="border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30">
                         <CardHeader>
-                            <CardTitle className="text-base">Due today</CardTitle>
+                            <CardTitle className="flex items-center gap-2 text-base"><CalendarCheckIcon className="size-4 text-emerald-600 dark:text-emerald-300" aria-hidden="true" />Due today</CardTitle>
                         </CardHeader>
                         <CardContent>
                             {todayFollowUps.length === 0 ? (
@@ -399,9 +420,9 @@ export default function MyDay({
                         </CardContent>
                     </Card>
 
-                    <Card>
+                    <Card className="border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30">
                         <CardHeader>
-                            <CardTitle className="text-base">Upcoming follow-ups</CardTitle>
+                            <CardTitle className="flex items-center gap-2 text-base"><CalendarClockIcon className="size-4 text-sky-600 dark:text-sky-300" aria-hidden="true" />Upcoming follow-ups</CardTitle>
                         </CardHeader>
                         <CardContent>
                             {upcomingFollowUps.length === 0 ? (
@@ -418,9 +439,9 @@ export default function MyDay({
                         </CardContent>
                     </Card>
 
-                    <Card>
+                    <Card className="border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30">
                         <CardHeader>
-                            <CardTitle className="text-base">Waiting on suppliers</CardTitle>
+                            <CardTitle className="flex items-center gap-2 text-base"><TruckIcon className="size-4 text-amber-600 dark:text-amber-300" aria-hidden="true" />Waiting on suppliers</CardTitle>
                         </CardHeader>
                         <CardContent>
                             {waitingOnSupplier.length === 0 ? (
@@ -437,11 +458,9 @@ export default function MyDay({
                         </CardContent>
                     </Card>
 
-                    <Card>
+                    <Card className="border-violet-200 bg-violet-50/70 dark:border-violet-900 dark:bg-violet-950/30">
                         <CardHeader>
-                            <CardTitle className="text-base">
-                                Waiting on the internal team
-                            </CardTitle>
+                            <CardTitle className="flex items-center gap-2 text-base"><UsersIcon className="size-4 text-violet-600 dark:text-violet-300" aria-hidden="true" />Waiting on the internal team</CardTitle>
                         </CardHeader>
                         <CardContent>
                             {waitingOnInternalTeam.length === 0 ? (
@@ -458,9 +477,9 @@ export default function MyDay({
                         </CardContent>
                     </Card>
 
-                    <Card>
+                    <Card className="border-red-200 bg-red-50/70 dark:border-red-900 dark:bg-red-950/30">
                         <CardHeader>
-                            <CardTitle className="text-base">Quotes expiring soon</CardTitle>
+                            <CardTitle className="flex items-center gap-2 text-base"><HourglassIcon className="size-4 text-red-600 dark:text-red-300" aria-hidden="true" />Quotes expiring soon</CardTitle>
                         </CardHeader>
                         <CardContent>
                             {quotesExpiringSoon.length === 0 ? (

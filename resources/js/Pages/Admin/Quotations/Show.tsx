@@ -241,7 +241,7 @@ export default function Show({
                 <div className="flex w-full flex-col gap-6 px-4 sm:px-6 lg:px-8">
                     <RevisionReviewPanel assignments={assignedRevisions} />
 
-                    <Card>
+                    <Card className="border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2 text-base font-semibold text-foreground">
                                 <FileSpreadsheetIcon className="size-4 text-muted-foreground" />
@@ -372,7 +372,7 @@ export default function Show({
                         </CardContent>
                     </Card>
 
-                    <Card>
+                    <Card className="border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30">
                         <CardHeader>
                             <CardTitle className="text-base font-semibold text-foreground">
                                 Project information
@@ -402,7 +402,7 @@ export default function Show({
                         </CardContent>
                     </Card>
 
-                    <Card>
+                    <Card className="border-violet-200 bg-violet-50/70 dark:border-violet-900 dark:bg-violet-950/30">
                         <CardHeader>
                             <CardTitle className="text-base font-semibold text-foreground">
                                 {quotation.contractor?.role_label ||
@@ -481,7 +481,7 @@ export default function Show({
                         </CardContent>
                     </Card>
 
-                    <Card>
+                    <Card className="border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30">
                         <CardHeader>
                             <CardTitle className="text-base font-semibold text-foreground">
                                 Base Bid
@@ -536,7 +536,7 @@ export default function Show({
                     </Card>
 
                     {pricingBasisHtml ? (
-                        <Card>
+                        <Card className="border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30">
                             <CardHeader>
                                 <CardTitle className="text-base font-semibold text-foreground">
                                     Pricing Basis
@@ -601,7 +601,7 @@ export default function Show({
                     ))}
 
                     {quotation.include_authorization !== false ? (
-                    <Card>
+                    <Card className="border-violet-200 bg-violet-50/70 dark:border-violet-900 dark:bg-violet-950/30">
                         <CardHeader>
                             <CardTitle className="text-base font-semibold text-foreground">
                                 Authorization

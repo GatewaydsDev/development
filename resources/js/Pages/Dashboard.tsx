@@ -165,8 +165,8 @@ export default function Dashboard({
             <Head title="Dashboard" />
 
             <div className="flex min-w-0 flex-1 flex-col gap-3 p-3 sm:p-4">
-                <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 shadow-sm">
-                    <h1 className="text-base font-semibold tracking-tight text-foreground">
+                <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50/70 px-3 py-2 shadow-sm dark:border-emerald-900 dark:bg-emerald-950/30">
+                    <h1 className="text-base font-semibold tracking-tight text-emerald-700 dark:text-emerald-300">
                         Dashboard
                     </h1>
                     {canViewProjects && stats && (
@@ -196,7 +196,7 @@ export default function Dashboard({
                                         items={charts.byStatus}
                                         chartKey={listVersion ?? 'status'}
                                         emptyLabel="No projects yet."
-                                        accent="border-t-teal-600"
+                                        accent="border-t-teal-600 border-teal-200 bg-teal-50/60 dark:border-teal-900 dark:bg-teal-950/20"
                                         layout="rows"
                                     />
                                     <ChartCard
@@ -205,7 +205,7 @@ export default function Dashboard({
                                         items={charts.byPriority}
                                         chartKey={`${listVersion ?? 'priority'}-priority`}
                                         emptyLabel="No projects yet."
-                                        accent="border-t-amber-500"
+                                        accent="border-t-amber-500 border-amber-200 bg-amber-50/60 dark:border-amber-900 dark:bg-amber-950/20"
                                     />
                                 </>
                             )}
@@ -218,7 +218,7 @@ export default function Dashboard({
                                     emptyLabel="No quotations yet."
                                     money
                                     hideZeros={false}
-                                    accent="border-t-blue-600"
+                                    accent="border-t-blue-600 border-blue-200 bg-blue-50/60 dark:border-blue-900 dark:bg-blue-950/20"
                                 />
                             )}
                             {charts.bids && (
@@ -230,7 +230,7 @@ export default function Dashboard({
                                     emptyLabel="No bids yet."
                                     money
                                     hideZeros={false}
-                                    accent="border-t-violet-600"
+                                    accent="border-t-violet-600 border-violet-200 bg-violet-50/60 dark:border-violet-900 dark:bg-violet-950/20"
                                 />
                             )}
                             {canViewTakeoffs && charts.takeoffs && (
@@ -240,7 +240,7 @@ export default function Dashboard({
                                     items={charts.takeoffs}
                                     chartKey="takeoffs"
                                     emptyLabel="No takeoffs yet."
-                                    accent="border-t-rose-600"
+                                    accent="border-t-rose-600 border-rose-200 bg-rose-50/60 dark:border-rose-900 dark:bg-rose-950/20"
                                 />
                             )}
                             {charts.projectControl && (
@@ -252,7 +252,7 @@ export default function Dashboard({
                                     emptyLabel="No project control jobs yet."
                                     money
                                     hideZeros={false}
-                                    accent="border-t-emerald-600"
+                                    accent="border-t-emerald-600 border-emerald-200 bg-emerald-50/60 dark:border-emerald-900 dark:bg-emerald-950/20"
                                 />
                             )}
                         </>
@@ -267,7 +267,7 @@ export default function Dashboard({
                 </div>
 
                 {!showGraphics && (
-                    <Card className="h-full shadow-sm">
+                    <Card className="h-full border-sky-200 bg-sky-50/70 shadow-sm dark:border-sky-900 dark:bg-sky-950/30">
                         <CardHeader>
                             <CardTitle>Personal Workspace</CardTitle>
                             <CardDescription>
@@ -277,7 +277,7 @@ export default function Dashboard({
                         </CardHeader>
                         <CardContent>
                             <div className="rounded-xl border border-dashed border-border p-6 text-center">
-                                <ShieldCheckIcon className="mx-auto size-10 text-muted-foreground" />
+                                <ShieldCheckIcon className="mx-auto size-10 text-sky-600 dark:text-sky-300" />
                                 <h3 className="mt-3 font-semibold text-foreground">
                                     Workspace Ready
                                 </h3>

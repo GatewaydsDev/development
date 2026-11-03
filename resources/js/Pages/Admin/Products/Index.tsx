@@ -138,10 +138,10 @@ export default function Index({ filters, options, products }: IndexProps) {
             <div className="py-6 sm:py-8">
                 <div className="flex w-full flex-col gap-6 px-4 sm:px-6 lg:px-8">
                     <div className="grid gap-4 md:ml-auto md:w-full md:max-w-sm">
-                        <Card>
+                        <Card className="border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
-                                    <PackageIcon className="size-4 text-muted-foreground" />
+                                    <PackageIcon className="size-4 text-emerald-600 dark:text-emerald-300" />
                                     Total products
                                 </CardTitle>
                                 <CardDescription>
@@ -157,10 +157,10 @@ export default function Index({ filters, options, products }: IndexProps) {
                         </Card>
                     </div>
 
-                    <Card className="shadow-sm">
+                    <Card className="border-sky-200 shadow-sm dark:border-sky-900">
                         <CardHeader className="gap-4 md:grid-cols-[1fr_auto] md:items-center">
                             <div>
-                                <CardTitle>Product directory</CardTitle>
+                                <CardTitle className="flex items-center gap-2"><PackageIcon className="size-4 text-sky-600 dark:text-sky-300" />Product directory</CardTitle>
                                 <CardDescription>
                                     Search doors, windows, parts, and services.
                                 </CardDescription>
@@ -198,7 +198,7 @@ export default function Index({ filters, options, products }: IndexProps) {
                                             </option>
                                         ))}
                                     </select>
-                                    <Button type="submit" variant="outline" size="sm" className="self-center">
+                                    <Button type="submit" size="sm" className="self-center bg-emerald-600 text-white hover:bg-emerald-700">
                                         <SearchIcon data-icon="inline-start" />
                                         Search
                                     </Button>
@@ -245,7 +245,7 @@ export default function Index({ filters, options, products }: IndexProps) {
 
                         <CardContent>
                             <div className="overflow-x-auto rounded-lg border border-border">
-                                <div className={cn('hidden items-center gap-3 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground xl:grid', productRowGridClassName)}>
+                                <div className={cn('hidden items-center gap-3 border-b border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200 xl:grid', productRowGridClassName)}>
                                     <div>Model</div>
                                     <div>Manufacturer</div>
                                     <div>Type</div>

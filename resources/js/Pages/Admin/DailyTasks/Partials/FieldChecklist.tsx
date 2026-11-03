@@ -193,7 +193,7 @@ function TaskCard({ task }: { task: FieldTask }) {
             className={`rounded-xl border bg-card shadow-sm ${
                 task.completed
                     ? 'border-emerald-300 dark:border-emerald-800'
-                    : 'border-border'
+                    : 'border-sky-200 dark:border-sky-900'
             }`}
         >
             <button
@@ -523,7 +523,7 @@ function AttendancePanel({ schedule }: { schedule: AttendanceSchedule }) {
     };
 
     return (
-        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+        <div className="rounded-xl border border-violet-200 bg-violet-50/70 p-4 shadow-sm dark:border-violet-900 dark:bg-violet-950/30">
             <div className="mb-3 flex items-center justify-between gap-2">
                 <h5 className="flex items-center gap-2 text-sm font-semibold">
                     <UsersRoundIcon className="size-4 text-indigo-600" />
@@ -640,9 +640,9 @@ export default function FieldChecklist({
 
     return (
         <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-4 shadow-sm">
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 shadow-sm dark:border-emerald-900 dark:bg-emerald-950/30">
                 <div>
-                    <h3 className="text-lg font-semibold">Start your work day</h3>
+                    <h3 className="text-lg font-semibold text-emerald-800 dark:text-emerald-200">Start your work day</h3>
                     <p className="text-sm text-muted-foreground">
                         Update each task, add notes and take photos from the
                         field.
@@ -661,7 +661,7 @@ export default function FieldChecklist({
 
             {attendance.map((schedule) => (
                 <section key={`attendance-${schedule.schedule_uuid}`} className="flex flex-col gap-3">
-                    <h4 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                    <h4 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-sky-700 dark:text-sky-300">
                         <MapPinIcon className="size-4" />
                         {schedule.project?.name ?? 'Job'} · Attendance
                     </h4>
@@ -671,7 +671,7 @@ export default function FieldChecklist({
 
             {groups.map(([key, group]) => (
                 <section key={key} className="flex flex-col gap-3">
-                    <h4 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                    <h4 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-sky-700 dark:text-sky-300">
                         <MapPinIcon className="size-4" />
                         {group.title}
                         {group.subtitle && (

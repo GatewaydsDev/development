@@ -849,7 +849,7 @@ export default function QuotationForm({
             />
 
             <div className="grid items-start gap-6 lg:grid-cols-2">
-            <Card id="quotation-details" className={`${sectionClassName} shadow-sm`}>
+            <Card id="quotation-details" className={`${sectionClassName} shadow-sm border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30`}>
                 <CardHeader>
                     <CardTitle className="text-base font-semibold text-foreground">
                         Details
@@ -1073,7 +1073,7 @@ export default function QuotationForm({
                 </CardContent>
             </Card>
 
-            <Card id="quotation-customer" className={`${sectionClassName} shadow-sm`}>
+            <Card id="quotation-customer" className={`${sectionClassName} shadow-sm border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30`}>
                 <CardHeader>
                     <CardTitle className="text-base font-semibold text-foreground">
                         Customer
@@ -1402,7 +1402,7 @@ export default function QuotationForm({
             </Card>
             </div>
 
-            <section id="quotation-pricing" className={`${sectionClassName} flex min-w-0 flex-col gap-4 rounded-xl border border-border bg-card p-5`}>
+            <section id="quotation-pricing" className={`${sectionClassName} flex min-w-0 flex-col gap-4 rounded-xl border p-5 border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30`}>
                 <div>
                     <h3 className="text-base font-semibold text-foreground">
                         Project price
@@ -1487,7 +1487,7 @@ export default function QuotationForm({
             <section
                 id="quotation-layout"
                 aria-labelledby="quotation-layout-header-title"
-                className={`${sectionClassName} flex min-w-0 flex-col gap-4 rounded-xl border border-border bg-card p-5`}
+                className={`${sectionClassName} flex min-w-0 flex-col gap-4 rounded-xl border p-5 border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30`}
             >
                 <div>
                     <h3
@@ -1564,7 +1564,7 @@ export default function QuotationForm({
 
             <section
                 id="quotation-revisions"
-                className={`${sectionClassName} flex min-w-0 flex-col gap-4 rounded-xl border border-border bg-card p-5`}
+                className={`${sectionClassName} flex min-w-0 flex-col gap-4 rounded-xl border p-5 border-violet-200 bg-violet-50/70 dark:border-violet-900 dark:bg-violet-950/30`}
             >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
@@ -1842,7 +1842,7 @@ export default function QuotationForm({
 
             <section
                 id="quotation-authorization"
-                className={`${sectionClassName} flex min-w-0 flex-col gap-4 rounded-xl border border-border bg-card p-5`}
+                className={`${sectionClassName} flex min-w-0 flex-col gap-4 rounded-xl border p-5 border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30`}
             >
                 <div className="flex flex-col gap-1">
                     <h2 className="text-base font-semibold text-foreground">

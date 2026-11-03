@@ -23,7 +23,7 @@ import {
 } from '@/lib/stateInitials';
 import { cn } from '@/lib/utils';
 import { router } from '@inertiajs/react';
-import { PlusIcon, Trash2Icon } from 'lucide-react';
+import { BuildingIcon, MapPinIcon, PlusIcon, StickyNoteIcon, Trash2Icon, UsersIcon } from 'lucide-react';
 import { FormEventHandler, useEffect, useState } from 'react';
 import {
     FieldErrors,
@@ -439,7 +439,11 @@ export default function ContractorForm({
                         disabled={processing}
                     />
 
-                    <section className="grid gap-5 md:grid-cols-2">
+                    <section className="grid gap-5 rounded-xl border border-sky-200 bg-sky-50/70 p-5 dark:border-sky-900/60 dark:bg-sky-950/30 md:grid-cols-2">
+                        <h3 className="flex items-center gap-2 text-base font-semibold text-foreground md:col-span-2">
+                            <BuildingIcon className="size-5 text-sky-600 dark:text-sky-300" aria-hidden="true" />
+                            Company information
+                        </h3>
                         <div className="flex flex-col gap-2 md:col-span-2">
                             <InputLabel
                                 htmlFor="contractor-role"
@@ -513,7 +517,8 @@ export default function ContractorForm({
                     <section className="flex flex-col gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
-                                <h3 className="text-base font-semibold text-foreground">
+                                <h3 className="flex items-center gap-2 text-base font-semibold text-foreground">
+                                    <UsersIcon className="size-5 text-emerald-600 dark:text-emerald-300" aria-hidden="true" />
                                     Contact information
                                 </h3>
                                 <p className="text-sm text-muted-foreground">
@@ -744,9 +749,10 @@ export default function ContractorForm({
                         ))}
                     </section>
 
-                    <section className="grid gap-5 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30 md:grid-cols-2">
+                    <section className="grid gap-5 rounded-xl border border-amber-200 bg-amber-50/70 p-5 dark:border-amber-900/60 dark:bg-amber-950/30 md:grid-cols-2">
                         <div className="flex flex-col gap-2 md:col-span-2">
-                            <h3 className="text-base font-semibold text-foreground">
+                            <h3 className="flex items-center gap-2 text-base font-semibold text-foreground">
+                                <MapPinIcon className="size-5 text-amber-600 dark:text-amber-300" aria-hidden="true" />
                                 Address
                             </h3>
                             <p className="text-sm text-muted-foreground">
@@ -881,7 +887,11 @@ export default function ContractorForm({
                         </div>
                     </section>
 
-                    <section className="flex flex-col gap-2">
+                    <section className="flex flex-col gap-2 rounded-xl border border-violet-200 bg-violet-50/70 p-5 dark:border-violet-900/60 dark:bg-violet-950/30">
+                        <h3 className="flex items-center gap-2 text-base font-semibold text-foreground">
+                            <StickyNoteIcon className="size-5 text-violet-600 dark:text-violet-300" aria-hidden="true" />
+                            Notes
+                        </h3>
                         <InputLabel
                             htmlFor="contractor-notes"
                             value="Notes"

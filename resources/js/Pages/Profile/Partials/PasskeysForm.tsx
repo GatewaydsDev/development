@@ -52,7 +52,8 @@ export default function PasskeysForm({
     return (
         <section className={className}>
             <header>
-                <h2 className="text-lg font-medium text-foreground">
+                <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+                    <ScanFaceIcon className="size-5 text-violet-600 dark:text-violet-300" />
                     Face ID / fingerprint sign in
                 </h2>
                 <p className="mt-1 text-sm text-muted-foreground">

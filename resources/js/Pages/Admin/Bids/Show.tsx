@@ -159,10 +159,10 @@ export default function Show({ bid, options }: ShowProps) {
 
             <div className="py-6 sm:py-8">
                 <div className="flex w-full flex-col gap-6 px-4 sm:px-6 lg:px-8">
-                    <Card>
+                    <Card className="border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
-                                <ClipboardListIcon className="size-4 text-muted-foreground" />
+                                <ClipboardListIcon className="size-4 text-sky-600 dark:text-sky-300" />
                                 Project
                             </CardTitle>
                             <CardDescription>
@@ -295,7 +295,7 @@ export default function Show({ bid, options }: ShowProps) {
                         </CardContent>
                     </Card>
 
-                    <Card>
+                    <Card className="border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <HammerIcon className="size-4 text-muted-foreground" />
@@ -339,7 +339,7 @@ export default function Show({ bid, options }: ShowProps) {
                         </CardContent>
                     </Card>
 
-                    <Card>
+                    <Card className="border-violet-200 bg-violet-50/70 dark:border-violet-900 dark:bg-violet-950/30">
                         <CardHeader>
                             <CardTitle>Stages</CardTitle>
                             <CardDescription>

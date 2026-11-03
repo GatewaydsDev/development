@@ -20,7 +20,7 @@ export default function UnlockAccount({ target, unlockUrl }: Props) {
 
     return (
         <AuthenticatedLayout
-            header={<h1 className="text-xl font-semibold">Blocked login</h1>}
+            header={<h2 className="text-xl font-semibold leading-tight text-emerald-700 dark:text-emerald-300">Blocked login</h2>}
         >
             <Head title="Blocked login" />
 

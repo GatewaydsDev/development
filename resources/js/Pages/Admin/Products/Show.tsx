@@ -132,10 +132,10 @@ export default function Show({ product, options }: ShowProps) {
 
             <div className="py-6 sm:py-8">
                 <div className="flex w-full flex-col gap-6 px-4 sm:px-6 lg:px-8">
-                    <Card>
+                    <Card className="border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
-                                <PackageIcon className="size-4 text-muted-foreground" />
+                                <PackageIcon className="size-4 text-emerald-600 dark:text-emerald-300" />
                                 {product.name}
                             </CardTitle>
                             <CardDescription>
@@ -398,7 +398,7 @@ export default function Show({ product, options }: ShowProps) {
                     </Card>
 
                     {isWindowProduct(product) ? (
-                        <Card>
+                        <Card className="border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30">
                             <CardHeader>
                                 <CardTitle>Window information</CardTitle>
                                 <CardDescription>
@@ -477,7 +477,7 @@ export default function Show({ product, options }: ShowProps) {
                             </CardContent>
                         </Card>
                     ) : isAssemblyProduct(product) ? (
-                        <Card>
+                        <Card className="border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30">
                             <CardHeader>
                                 <CardTitle>
                                     {product.type?.name ||
@@ -608,7 +608,7 @@ export default function Show({ product, options }: ShowProps) {
 
                     {isAssemblyProduct(product) &&
                     !isWindowProduct(product) ? (
-                        <Card>
+                        <Card className="border-violet-200 bg-violet-50/70 dark:border-violet-900 dark:bg-violet-950/30">
                             <CardHeader>
                                 <CardTitle>Parts</CardTitle>
                                 <CardDescription>
@@ -635,7 +635,7 @@ export default function Show({ product, options }: ShowProps) {
                             </CardContent>
                         </Card>
                     ) : !isAssemblyProduct(product) ? (
-                        <Card>
+                        <Card className="border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30">
                             <CardHeader>
                                 <CardTitle>
                                     {(product.type?.name ||
@@ -673,7 +673,7 @@ export default function Show({ product, options }: ShowProps) {
                         </Card>
                     ) : null}
 
-                    <Card>
+                    <Card className="border-violet-200 bg-violet-50/70 dark:border-violet-900 dark:bg-violet-950/30">
                         <CardHeader>
                             <CardTitle>Additional information</CardTitle>
                         </CardHeader>

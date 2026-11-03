@@ -102,7 +102,7 @@ export default function EmailCompose({ contact, inquiry, canSend, mailbox }: Pro
             stickyTitle={`Email ${contact.first_name} ${contact.last_name ?? ''}`}
         >
             <div className="space-y-6 px-4 py-6 lg:px-8">
-                <Card>
+                <Card className="border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30">
                     <CardHeader>
                         <CardTitle className="text-base">Compose email</CardTitle>
                         <CardDescription>

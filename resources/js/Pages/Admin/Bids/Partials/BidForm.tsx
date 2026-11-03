@@ -725,7 +725,7 @@ export default function BidForm({
             </nav>
             </div>
 
-            <Card id="bid-details" className="scroll-mt-48 overflow-visible shadow-sm">
+            <Card id="bid-details" className="scroll-mt-48 overflow-visible shadow-sm border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30">
                 <CardHeader>
                     <CardTitle>{title}</CardTitle>
                     <CardDescription>{description}</CardDescription>
@@ -942,7 +942,7 @@ export default function BidForm({
                 </CardContent>
             </Card>
 
-            <section id="bid-revisions" className="scroll-mt-48 flex flex-col gap-4 rounded-xl border border-border bg-card p-5">
+            <section id="bid-revisions" className="scroll-mt-48 flex flex-col gap-4 rounded-xl border p-5 border-violet-200 bg-violet-50/70 dark:border-violet-900 dark:bg-violet-950/30">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h3 className="text-base font-semibold text-foreground">
@@ -1086,7 +1086,7 @@ export default function BidForm({
                 )}
             </section>
 
-            <section id="bid-stages" className="scroll-mt-48 flex flex-col gap-4 rounded-xl border border-border bg-card p-5">
+            <section id="bid-stages" className="scroll-mt-48 flex flex-col gap-4 rounded-xl border p-5 border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h3 className="text-base font-semibold text-foreground">

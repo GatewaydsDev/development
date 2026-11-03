@@ -150,7 +150,7 @@ const statusLabel = (status: string) => {
 };
 
 const headCell =
-    'sticky top-0 z-20 border-b border-border bg-muted px-2 py-2 text-left text-[11px] font-semibold tracking-wide whitespace-nowrap text-muted-foreground uppercase';
+    'sticky top-0 z-20 border-b border-emerald-200 bg-emerald-100 px-2 py-2 text-left text-[11px] font-semibold tracking-wide whitespace-nowrap text-emerald-800 uppercase dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200';
 const cell = 'border-b border-border px-2 py-2 align-top';
 
 export default function Index({
@@ -271,7 +271,7 @@ export default function Index({
             <Head title="Project control" />
 
             <div className="space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-                <form onSubmit={applySearch} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 sm:flex-row sm:flex-wrap sm:items-end">
+                <form onSubmit={applySearch} className="flex flex-col gap-3 rounded-lg border border-sky-200 bg-sky-50/70 p-4 dark:border-sky-900 dark:bg-sky-950/30 sm:flex-row sm:flex-wrap sm:items-end">
                     <label className="block w-full min-w-0 flex-1 text-sm font-medium text-foreground sm:min-w-48">
                         Search
                         <input
@@ -381,10 +381,18 @@ export default function Index({
     );
 }
 
+const SUMMARY_TONES: Record<string, string> = {
+    'Pipeline value': 'border-emerald-200 bg-emerald-50/70 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200',
+    'Known margin': 'border-sky-200 bg-sky-50/70 text-sky-800 dark:border-sky-900 dark:bg-sky-950/30 dark:text-sky-200',
+    'Deposits due': 'border-amber-200 bg-amber-50/70 text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200',
+    'Openings still unordered': 'border-violet-200 bg-violet-50/70 text-violet-800 dark:border-violet-900 dark:bg-violet-950/30 dark:text-violet-200',
+    'Who to call this week': 'border-rose-200 bg-rose-50/70 text-rose-800 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-200',
+};
+
 function SummaryCard({ label, value, detail }: { label: string; value: string; detail: string }) {
     return (
-        <section className="rounded-lg border border-border bg-card p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+        <section className={`rounded-lg border p-4 ${SUMMARY_TONES[label] ?? 'border-border bg-card'}`}>
+            <p className="text-xs font-semibold uppercase tracking-wide">{label}</p>
             <p className="mt-2 text-2xl font-semibold text-foreground">{value}</p>
             <p className="mt-1 text-sm text-muted-foreground">{detail}</p>
         </section>
@@ -394,7 +402,7 @@ function SummaryCard({ label, value, detail }: { label: string; value: string; d
 function CallList({ calls }: { calls: JobRow[] }) {
     return (
         <section className="space-y-3">
-            <h3 className="text-base font-semibold text-foreground">Who to call this week</h3>
+            <h3 className="text-base font-semibold text-rose-700 dark:text-rose-300">Who to call this week</h3>
             {calls.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No follow-ups are due through Sunday.</p>
             ) : (
@@ -440,8 +448,8 @@ function JobTable({
     const forJob = (uuid: string) => reminders.filter((reminder) => reminder.job_uuid === uuid);
 
     return (
-        <section className="overflow-hidden rounded-lg border border-border">
-            <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <section className="overflow-hidden rounded-lg border border-emerald-200 dark:border-emerald-900">
+            <div className="flex items-center justify-between border-b border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-900 dark:bg-emerald-950/40">
                 <h3 className="font-semibold text-foreground">{title}</h3>
                 <p className="text-sm text-muted-foreground">{jobs.length}</p>
             </div>
@@ -739,8 +747,8 @@ function JobActions({ jobUuid, projectUrl }: { jobUuid: string; projectUrl: stri
 
 function UnorderedTable({ rows }: { rows: LineRow[] }) {
     return (
-        <section className="overflow-hidden rounded-lg border border-border">
-            <div className="border-b border-border px-4 py-3">
+        <section className="overflow-hidden rounded-lg border border-emerald-200 dark:border-emerald-900">
+            <div className="border-b border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-900 dark:bg-emerald-950/40">
                 <h3 className="font-semibold text-foreground">Openings still unordered</h3>
             </div>
             <div className="space-y-3 p-3 md:hidden">
@@ -797,8 +805,8 @@ function UnorderedTable({ rows }: { rows: LineRow[] }) {
 
 function DepositTable({ rows }: { rows: DepositRow[] }) {
     return (
-        <section className="overflow-hidden rounded-lg border border-border">
-            <div className="border-b border-border px-4 py-3">
+        <section className="overflow-hidden rounded-lg border border-emerald-200 dark:border-emerald-900">
+            <div className="border-b border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-900 dark:bg-emerald-950/40">
                 <h3 className="font-semibold text-foreground">Deposits due</h3>
             </div>
             <div className="space-y-3 p-3 md:hidden">
@@ -854,8 +862,8 @@ function DepositTable({ rows }: { rows: DepositRow[] }) {
 
 function PaymentTable({ rows }: { rows: PaymentRow[] }) {
     return (
-        <section className="overflow-hidden rounded-lg border border-border">
-            <div className="border-b border-border px-4 py-3">
+        <section className="overflow-hidden rounded-lg border border-emerald-200 dark:border-emerald-900">
+            <div className="border-b border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-900 dark:bg-emerald-950/40">
                 <h3 className="font-semibold text-foreground">Expected payments</h3>
             </div>
             <div className="space-y-3 p-3 md:hidden">

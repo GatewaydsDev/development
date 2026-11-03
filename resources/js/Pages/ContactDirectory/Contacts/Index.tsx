@@ -2,7 +2,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import CreateContactButton from '@/Components/ContactDirectory/CreateContactButton';
 import RecordActionLink from '@/Components/ContactDirectory/RecordActionLink';
 import { formatPhoneDisplay } from '@/lib/phoneFormatting';
-import { SearchIcon } from 'lucide-react';
+import { BuildingIcon, MailIcon, PhoneIcon, SearchIcon, UserRoundIcon } from 'lucide-react';
 import { Link, router } from '@inertiajs/react';
 import type { FormEvent } from 'react';
 import { useState } from 'react';
@@ -76,6 +76,13 @@ const CONTACT_TYPE_LABELS: Record<string, string> = {
     other: 'Other',
 };
 
+const CONTACT_TYPE_STYLES: Record<string, string> = {
+    supplier: 'border-sky-200 bg-sky-100 text-sky-800 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-200',
+    customer: 'border-emerald-200 bg-emerald-100 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200',
+    subcontractor: 'border-amber-200 bg-amber-100 text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200',
+    other: 'border-violet-200 bg-violet-100 text-violet-800 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-200',
+};
+
 export default function ContactsIndex({ filters, contacts, users, auth }: IndexProps) {
     const [search, setSearch] = useState(filters.search ?? '');
 
@@ -110,7 +117,7 @@ export default function ContactsIndex({ filters, contacts, users, auth }: IndexP
             </div><CreateContactButton /></div>}
         >
             <div className="space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-                <form onSubmit={submitSearch} className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-card p-4">
+                <form onSubmit={submitSearch} className="flex flex-wrap items-end gap-3 rounded-lg border border-sky-200 bg-sky-50/70 p-4 dark:border-sky-900 dark:bg-sky-950/30">
                     <div className="min-w-0 flex-1">
                         <label className="mb-1 block text-sm font-medium text-foreground">
                             Search
@@ -173,10 +180,10 @@ export default function ContactsIndex({ filters, contacts, users, auth }: IndexP
                     </Button>
                 </form>
 
-                <div className="w-full overflow-x-auto rounded-lg border border-border bg-background">
+                <div className="w-full overflow-x-auto rounded-lg border border-emerald-200 bg-background shadow-sm dark:border-emerald-900">
                     <Table>
                         <TableHeader>
-                            <TableRow>
+                            <TableRow className="bg-emerald-50 hover:bg-emerald-50 dark:bg-emerald-950/40 dark:hover:bg-emerald-950/40 [&>th]:font-semibold [&>th]:text-emerald-800 dark:[&>th]:text-emerald-200">
                                 <TableHead>Name</TableHead>
                                 <TableHead>Type</TableHead>
                                 <TableHead>Company</TableHead>
@@ -205,8 +212,9 @@ export default function ContactsIndex({ filters, contacts, users, auth }: IndexP
                                     <TableCell className="font-medium">
                                         <Link
                                             href={route('contact-directory.contacts.show', contact.uuid)}
-                                            className="text-foreground underline-offset-4 hover:underline"
+                                            className="inline-flex items-center gap-2 text-foreground underline-offset-4 hover:underline"
                                         >
+                                            <UserRoundIcon className="size-4 text-emerald-600 dark:text-emerald-300" aria-hidden="true" />
                                             {contact.first_name}{' '}
                                             {contact.last_name ?? ''}
                                         </Link>
@@ -217,20 +225,26 @@ export default function ContactsIndex({ filters, contacts, users, auth }: IndexP
                                         )}
                                     </TableCell>
                                     <TableCell>
-                                        <Badge variant="secondary">
+                                        <Badge variant="outline" className={CONTACT_TYPE_STYLES[contact.contact_type] ?? CONTACT_TYPE_STYLES.other}>
                                             {CONTACT_TYPE_LABELS[contact.contact_type] ??
                                                 contact.contact_type}
                                         </Badge>
                                     </TableCell>
                                     <TableCell className="text-sm text-muted-foreground">
-                                        {contact.company?.name ?? '—'}
+                                        {contact.company?.name ? (
+                                            <span className="inline-flex items-center gap-1.5">
+                                                <BuildingIcon className="size-4 text-amber-600 dark:text-amber-300" aria-hidden="true" />
+                                                {contact.company.name}
+                                            </span>
+                                        ) : '—'}
                                     </TableCell>
                                     <TableCell className="text-sm">
                                         {contact.primary_email ? (
                                             <a
                                                 href={`mailto:${contact.primary_email.email_address}`}
-                                                className="text-foreground underline-offset-4 hover:underline"
+                                                className="inline-flex items-center gap-1.5 text-foreground underline-offset-4 hover:underline"
                                             >
+                                                <MailIcon className="size-4 text-sky-600 dark:text-sky-300" aria-hidden="true" />
                                                 {contact.primary_email.email_address}
                                             </a>
                                         ) : (
@@ -241,8 +255,9 @@ export default function ContactsIndex({ filters, contacts, users, auth }: IndexP
                                         {contact.primary_phone ? (
                                             <a
                                                 href={`tel:${contact.primary_phone.phone_number}`}
-                                                className="text-foreground underline-offset-4 hover:underline"
+                                                className="inline-flex items-center gap-1.5 text-foreground underline-offset-4 hover:underline"
                                             >
+                                                <PhoneIcon className="size-4 text-violet-600 dark:text-violet-300" aria-hidden="true" />
                                                 {formatPhoneDisplay(contact.primary_phone.phone_number, contact.primary_phone.country)}
                                                 {contact.primary_phone.extension
                                                     ? ` x${contact.primary_phone.extension}`

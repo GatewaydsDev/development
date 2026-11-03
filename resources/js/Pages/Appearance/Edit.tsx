@@ -54,7 +54,7 @@ export default function Edit({
         <AuthenticatedLayout
             header={
                 <div>
-                    <h2 className="text-xl font-semibold leading-tight text-foreground">
+                    <h2 className="text-xl font-semibold leading-tight text-emerald-700 dark:text-emerald-300">
                         Dashboard theme
                     </h2>
                     <p className="mt-1 text-sm text-muted-foreground">

@@ -24,7 +24,7 @@ export default function ReviewRegistration({ registration, levels, approveUrl, d
     const pending = registration.status === 'pending';
 
     return (
-        <AuthenticatedLayout header={<h1 className="text-xl font-semibold">Sign-up request</h1>}>
+        <AuthenticatedLayout header={<h2 className="text-xl font-semibold leading-tight text-emerald-700 dark:text-emerald-300">Sign-up request</h2>}>
             <Head title="Sign-up request" />
 
             <div className="mx-auto max-w-xl px-4 py-8">

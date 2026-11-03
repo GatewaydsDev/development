@@ -682,7 +682,7 @@ export default function ComposeMail({
 
     return (
         <form onSubmit={submit} className="min-w-0 pb-28">
-            <div className="min-w-0 overflow-hidden rounded-lg border border-border bg-background">
+            <div className="min-w-0 overflow-hidden rounded-lg border border-emerald-200 bg-background dark:border-emerald-900">
             <input
                 ref={fileRef}
                 type="file"
@@ -798,7 +798,7 @@ export default function ComposeMail({
                 <InputError message={form.errors.subject} />
             </div>
 
-            <div className="flex items-center gap-0.5 overflow-x-auto border-b border-border bg-muted/30 px-2 py-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex items-center gap-0.5 overflow-x-auto border-b border-sky-200 bg-sky-50 px-2 py-1 dark:border-sky-900 dark:bg-sky-950/30 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 <ToolButton label={t('undo')} onClick={() => editor?.chain().focus().undo().run()}>
                     <Undo2Icon className="size-4" />
                 </ToolButton>

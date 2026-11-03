@@ -24,6 +24,7 @@ import { Head, router, useForm } from '@inertiajs/react';
 import {
     CheckCircle2Icon,
     CircleIcon,
+    ClipboardListIcon,
     PencilIcon,
     PlusIcon,
     Trash2Icon,
@@ -146,15 +147,15 @@ function TaskManager({
         );
 
     return (
-        <Card className="shadow-sm">
+        <Card className="border-sky-200 shadow-sm dark:border-sky-900">
             <CardHeader>
-                <CardTitle>Manage daily tasks</CardTitle>
+                <CardTitle className="flex items-center gap-2"><ClipboardListIcon className="size-4 text-sky-600 dark:text-sky-300" />Manage daily tasks</CardTitle>
                 <CardDescription>
                     Create the types of tasks and set whether they need photos or quality control. Assign them to a foreman from the work schedule.
                 </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
-                <form onSubmit={submit} className="grid gap-3 md:grid-cols-2">
+                <form onSubmit={submit} className="grid gap-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-900 dark:bg-emerald-950/30 md:grid-cols-2">
                     <CreatableSelect
                         id="daily-task-title"
                         label="Task"
@@ -277,7 +278,7 @@ function TaskManager({
                     {tasks.map((task) => (
                         <div
                             key={task.uuid}
-                            className="flex items-center gap-3 rounded-md border border-border p-3"
+                            className="flex items-center gap-3 rounded-md border border-sky-200 bg-sky-50/50 p-3 dark:border-sky-900 dark:bg-sky-950/20"
                         >
                             <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2 font-medium">
@@ -295,10 +296,10 @@ function TaskManager({
                                         </Badge>
                                     )}
                                     {task.requires_photo && (
-                                        <Badge variant="outline">Photos</Badge>
+                                        <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">Photos</Badge>
                                     )}
                                     {task.requires_quality_control && (
-                                        <Badge variant="outline">
+                                        <Badge variant="outline" className="border-violet-300 bg-violet-50 text-violet-800 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-200">
                                             Quality control
                                         </Badge>
                                     )}

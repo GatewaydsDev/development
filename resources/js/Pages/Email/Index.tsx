@@ -408,7 +408,7 @@ export default function Index({
             <div className="py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:py-8">
                 <div className="flex w-full min-w-0 flex-col gap-4 px-3 sm:gap-6 sm:px-6 lg:px-8">
                     {mailbox === null ? (
-                        <Card>
+                        <Card className="border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30">
                             <CardHeader>
                                 <CardTitle>{t('title')}</CardTitle>
                                 <CardDescription>{t('unassigned')}</CardDescription>
@@ -484,7 +484,7 @@ export default function Index({
 
                             {showCompose ? null : (
                             <div className="grid min-w-0 gap-4 md:grid-cols-[minmax(14rem,20rem)_minmax(0,1fr)]">
-                                <Card className={message ? 'max-md:hidden' : undefined}>
+                                <Card className={message ? 'max-md:hidden border-sky-200 dark:border-sky-900' : 'border-sky-200 dark:border-sky-900'}>
                                     <CardHeader>
                                         <CardTitle>{folderTitle}</CardTitle>
                                     </CardHeader>
@@ -559,7 +559,7 @@ export default function Index({
                                     </CardContent>
                                 </Card>
 
-                                <Card className={message ? undefined : 'max-md:hidden'}>
+                                <Card className={message ? 'border-emerald-200 dark:border-emerald-900' : 'max-md:hidden border-emerald-200 dark:border-emerald-900'}>
                                     <CardHeader>
                                         {message ? (
                                             <Button variant="outline" className="mb-2 min-h-11 w-fit touch-manipulation md:hidden" asChild>

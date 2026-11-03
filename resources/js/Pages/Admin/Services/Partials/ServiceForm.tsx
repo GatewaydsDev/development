@@ -11,6 +11,7 @@ import {
 } from '@/Components/ui/card';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { router } from '@inertiajs/react';
+import { FileTextIcon, WrenchIcon } from 'lucide-react';
 import { FormEventHandler, useMemo } from 'react';
 import {
     FieldErrors,
@@ -107,13 +108,17 @@ export default function ServiceForm({
 
     return (
         <form onSubmit={submit} className="flex w-full min-w-0 max-w-full flex-col gap-6 pr-4 pb-28 sm:pr-20 lg:pb-6">
-            <Card className="shadow-sm">
-                <CardHeader>
+            <Card className="border-0 bg-transparent p-0 shadow-none ring-0">
+                <CardHeader className="px-0">
                     <CardTitle>{title}</CardTitle>
                     <CardDescription>{description}</CardDescription>
                 </CardHeader>
-                <CardContent className="flex flex-col gap-5">
-                    <div className="flex flex-col gap-2">
+                <CardContent className="flex flex-col gap-5 px-0">
+                    <section className="flex flex-col gap-2 rounded-xl border border-sky-200 bg-sky-50/70 p-5 dark:border-sky-900/60 dark:bg-sky-950/30">
+                        <h3 className="flex items-center gap-2 text-base font-semibold text-foreground">
+                            <WrenchIcon className="size-5 text-sky-600 dark:text-sky-300" aria-hidden="true" />
+                            Service
+                        </h3>
                         <InputLabel
                             htmlFor="service-name"
                             value="Service"
@@ -135,8 +140,12 @@ export default function ServiceForm({
                         <InputError
                             message={errorMessage(validationErrors, 'name')}
                         />
-                    </div>
-                    <div className="flex flex-col gap-2">
+                    </section>
+                    <section className="flex flex-col gap-2 rounded-xl border border-violet-200 bg-violet-50/70 p-5 dark:border-violet-900/60 dark:bg-violet-950/30">
+                        <h3 className="flex items-center gap-2 text-base font-semibold text-foreground">
+                            <FileTextIcon className="size-5 text-violet-600 dark:text-violet-300" aria-hidden="true" />
+                            Details
+                        </h3>
                         <InputLabel
                             htmlFor="service-description"
                             value="Description"
@@ -158,7 +167,7 @@ export default function ServiceForm({
                                 'description',
                             )}
                         />
-                    </div>
+                    </section>
                 </CardContent>
             </Card>
 

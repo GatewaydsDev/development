@@ -1,3 +1,4 @@
+import { KeyRoundIcon } from 'lucide-react';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
@@ -51,7 +52,8 @@ export default function UpdatePasswordForm({
     return (
         <section className={className}>
             <header>
-                <h2 className="text-lg font-medium text-foreground">
+                <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+                    <KeyRoundIcon className="size-5 text-sky-600 dark:text-sky-300" />
                     Update Password
                 </h2>
 

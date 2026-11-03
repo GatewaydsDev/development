@@ -336,7 +336,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
     }).join('\n');
 
     return (
-        <AuthenticatedLayout header={<h2 className="text-xl font-semibold leading-tight text-gray-800 dark:text-gray-100">{takeoff.title}</h2>}>
+        <AuthenticatedLayout header={<h2 className="text-xl font-semibold leading-tight text-emerald-700 dark:text-emerald-300">{takeoff.title}</h2>}>
             <Head title={takeoff.title} />
             <div className="space-y-4 px-4 py-6 pb-28 sm:px-6 lg:px-8">
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -367,7 +367,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                         <Estimate label="Estimated gross margin" value={marginLabel(takeoff.estimate.margin)} />
                     </div>
                 ) : null}
-                <form id="takeoff-details" onSubmit={saveDetails} className="grid gap-3 rounded-lg border p-3 md:grid-cols-4">
+                <form id="takeoff-details" onSubmit={saveDetails} className="grid gap-3 rounded-lg border p-3 md:grid-cols-4 border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30">
                     <FormActionFab
                         form="takeoff-details"
                         cancelHref={route('admin.takeoffs.index')}
@@ -792,7 +792,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                         ) : null}
                         <div className="space-y-3">
                             {takeoff.groups.map((group) => (
-                                <div key={group.id} className="rounded-md border p-3">
+                                <div key={group.id} className="rounded-md border p-3 border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30">
                                     <div className="flex flex-wrap items-center justify-between gap-2">
                                         <h3 className="font-medium">{group.name}</h3>
                                         {group.mismatch ? <Badge variant="outline">Configurations differ</Badge> : null}
@@ -805,8 +805,8 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                 </div>
                             ))}
                         </div>
-                        <div className="rounded-md border p-3">
-                            <h3 className="font-medium">Openings</h3>
+                        <div className="rounded-md border p-3 border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30">
+                            <h3 className="font-medium text-emerald-800 dark:text-emerald-200">Openings</h3>
                             {takeoff.openings.map((opening) => (
                                 <label key={opening.id} className="flex items-center gap-2 text-sm">
                                     <input type="checkbox" checked={checked.includes(opening.id)} onChange={(event) => setChecked((current) => event.target.checked ? [...current, opening.id] : current.filter((id) => id !== opening.id))} />
@@ -815,8 +815,8 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                             ))}
                         </div>
                         {can.pricing && selected ? <CostForm takeoffUuid={takeoff.uuid} openingId={selected.id} /> : <p className="text-sm text-muted-foreground">Select an opening on the schedule to add its unit costs.</p>}
-                        <div className="rounded-md border p-3">
-                            <h3 className="font-medium">Assembly templates</h3>
+                        <div className="rounded-md border p-3 border-violet-200 bg-violet-50/70 dark:border-violet-900 dark:bg-violet-950/30">
+                            <h3 className="font-medium text-violet-800 dark:text-violet-200">Assembly templates</h3>
                             <p className="text-sm text-muted-foreground">Applying a template copies it onto the opening. Later template edits do not change this estimate.</p>
                             <ul className="mt-2 space-y-1 text-sm">
                                 {templates.map((template) => (
@@ -895,8 +895,8 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                             </button>
                         ))}
                         {takeoff.previous ? (
-                            <div className="rounded-md border p-3 text-sm">
-                                <h3 className="font-medium">Compared with revision {takeoff.previous.revision_number}</h3>
+                            <div className="rounded-md border p-3 text-sm border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30">
+                                <h3 className="font-medium text-sky-800 dark:text-sky-200">Compared with revision {takeoff.previous.revision_number}</h3>
                                 <p>Added: {takeoff.previous.diff.added.map((item) => item.label).join(', ') || 'None'}</p>
                                 <p>Removed: {takeoff.previous.diff.removed.map((item) => item.label).join(', ') || 'None'}</p>
                                 <p>Changed: {takeoff.previous.diff.changed.map((item) => item.label).join(', ') || 'None'}</p>

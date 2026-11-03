@@ -12,6 +12,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/Components/ui/alert-dialog';
+import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import {
     Card,
@@ -114,10 +115,10 @@ export default function Index({ filters, services }: IndexProps) {
             <div className="py-6 sm:py-8">
                 <div className="flex w-full flex-col gap-6 px-4 sm:px-6 lg:px-8">
                     <div className="grid gap-4 md:ml-auto md:w-full md:max-w-sm">
-                        <Card>
+                        <Card className="border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
-                                    <WrenchIcon className="size-4 text-muted-foreground" />
+                                    <WrenchIcon className="size-4 text-emerald-600 dark:text-emerald-300" />
                                     Total services
                                 </CardTitle>
                                 <CardDescription>
@@ -132,10 +133,10 @@ export default function Index({ filters, services }: IndexProps) {
                         </Card>
                     </div>
 
-                    <Card className="shadow-sm">
+                    <Card className="border-sky-200 shadow-sm dark:border-sky-900">
                         <CardHeader className="gap-4 md:grid-cols-[1fr_auto] md:items-center">
                             <div>
-                                <CardTitle>Service directory</CardTitle>
+                                <CardTitle className="flex items-center gap-2"><WrenchIcon className="size-4 text-sky-600 dark:text-sky-300" />Service directory</CardTitle>
                                 <CardDescription>
                                     Add and update services such as Assembly w/
                                     vision glazing, then pair them with a
@@ -157,7 +158,7 @@ export default function Index({ filters, services }: IndexProps) {
                                         className="h-11 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm text-foreground sm:w-64"
                                     />
                                 </div>
-                                <Button type="submit" variant="outline" size="sm" className="self-center">
+                                <Button type="submit" size="sm" className="self-center bg-emerald-600 text-white hover:bg-emerald-700">
                                     <SearchIcon data-icon="inline-start" />
                                     Search
                                 </Button>
@@ -166,7 +167,7 @@ export default function Index({ filters, services }: IndexProps) {
 
                         <CardContent>
                             <div className="overflow-x-auto rounded-lg border border-border">
-                                <div className="hidden grid-cols-[1.4fr_1fr_auto] gap-4 border-b border-border bg-muted/50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid">
+                                <div className="hidden grid-cols-[1.4fr_1fr_auto] gap-4 border-b border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200 md:grid">
                                     <div>Service</div>
                                     <div>Used on bids</div>
                                     <div className="text-right">Actions</div>
@@ -188,7 +189,8 @@ export default function Index({ filters, services }: IndexProps) {
                                                 <DirectoryFieldLabel hideFrom="md">
                                                     Service
                                                 </DirectoryFieldLabel>
-                                                <p className="font-medium text-foreground wrap-break-word">
+                                                <p className="flex items-center gap-1.5 font-medium text-foreground wrap-break-word">
+                                                    <WrenchIcon className="size-4 shrink-0 text-emerald-600 dark:text-emerald-300" aria-hidden="true" />
                                                     {item.name}
                                                 </p>
                                                 {item.description ? (
@@ -201,7 +203,9 @@ export default function Index({ filters, services }: IndexProps) {
                                                 <DirectoryFieldLabel hideFrom="md">
                                                     Used on bids
                                                 </DirectoryFieldLabel>
-                                                {item.bid_count ?? 0}
+                                                <Badge variant="outline" className="border-sky-200 bg-sky-100 text-sky-800 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-200">
+                                                    {item.bid_count ?? 0}
+                                                </Badge>
                                             </div>
                                             <div className="flex min-w-0 flex-col gap-1 md:items-end">
                                                 <DirectoryFieldLabel hideFrom="md">

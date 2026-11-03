@@ -41,7 +41,7 @@ export default function Create({ projects, projectId }: { projects: ProjectOptio
     };
 
     return (
-        <AuthenticatedLayout header={<h2 className="text-xl font-semibold leading-tight text-gray-800 dark:text-gray-100">New takeoff</h2>}>
+        <AuthenticatedLayout header={<h2 className="text-xl font-semibold leading-tight text-emerald-700 dark:text-emerald-300">New takeoff</h2>}>
             <Head title="New takeoff" />
             <form onSubmit={submit} className="mx-auto max-w-2xl space-y-4 px-4 py-6 pb-28">
                 <FormActionFab
@@ -75,6 +75,7 @@ export default function Create({ projects, projectId }: { projects: ProjectOptio
                         form.setData('notes', notes === '' ? plain : `${notes}\n\n${plain}`);
                     }}
                 />
+                <section className="space-y-4 rounded-xl border p-5 border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30">
                 <div>
                     <div className="flex items-center justify-between gap-2">
                         <InputLabel htmlFor="project_id" value="Project" />
@@ -101,7 +102,8 @@ export default function Create({ projects, projectId }: { projects: ProjectOptio
                     </p>
                     <InputError message={form.errors.title} className="mt-1" />
                 </div>
-                <div>
+                </section>
+                <section className="rounded-xl border p-5 border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30">
                     <InputLabel htmlFor="drawing" value="Drawing or door schedule" />
                     <input
                         id="drawing"
@@ -114,11 +116,11 @@ export default function Create({ projects, projectId }: { projects: ProjectOptio
                         Upload a PDF up to 64 MB. The drawing is scanned for every door and window, and each one is added once with its specs. You can remove any opening you will not use.
                     </p>
                     <InputError message={form.errors.file} className="mt-1" />
-                </div>
-                <div>
+                </section>
+                <section className="rounded-xl border p-5 border-violet-200 bg-violet-50/70 dark:border-violet-900 dark:bg-violet-950/30">
                     <InputLabel htmlFor="notes" value="Notes" />
                     <textarea id="notes" className="mt-1 w-full rounded-md border-gray-300 shadow-sm" rows={4} value={form.data.notes} onChange={(event) => form.setData('notes', event.target.value)} />
-                </div>
+                </section>
                 <QuickProjectDialog
                     show={projectOpen}
                     onClose={() => setProjectOpen(false)}

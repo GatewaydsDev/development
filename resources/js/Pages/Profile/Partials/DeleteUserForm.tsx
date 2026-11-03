@@ -1,3 +1,4 @@
+import { Trash2Icon } from 'lucide-react';
 import DangerButton from '@/Components/DangerButton';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
@@ -52,7 +53,8 @@ export default function DeleteUserForm({
     return (
         <section className={`space-y-6 ${className}`}>
             <header>
-                <h2 className="text-lg font-medium text-foreground">
+                <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+                    <Trash2Icon className="size-5 text-red-600 dark:text-red-300" />
                     Delete Account
                 </h2>
 

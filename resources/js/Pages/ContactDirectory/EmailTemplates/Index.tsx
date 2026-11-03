@@ -173,7 +173,7 @@ export default function EmailTemplatesIndex({
                             .filter((token) => placeholders[token] !== undefined);
 
                         return (
-                            <Card key={template.id}>
+                            <Card key={template.id} className="border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30">
                                 <CardHeader>
                                     <div className="flex flex-wrap items-center justify-between gap-2">
                                         <CardTitle className="text-base">{template.name}</CardTitle>
@@ -216,7 +216,7 @@ export default function EmailTemplatesIndex({
                 </div>
 
                 {canManage && (
-                    <Card>
+                    <Card className="border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30">
                         <CardHeader>
                             <CardTitle className="text-base">Create a template</CardTitle>
                             {!createOpen && <div><Button type="button" onClick={() => setCreateOpen(true)}>New template</Button></div>}
@@ -298,7 +298,7 @@ export default function EmailTemplatesIndex({
                     </Card>
                 )}
 
-                <Card>
+                <Card className="border-violet-200 bg-violet-50/70 dark:border-violet-900 dark:bg-violet-950/30">
                     <CardHeader>
                         <CardTitle className="text-base">Starter templates</CardTitle>
                     </CardHeader>

@@ -93,7 +93,7 @@ export default function Index({
         <AuthenticatedLayout
             fullWidth
             header={
-                <h2 className="text-xl font-semibold leading-tight text-foreground">
+                <h2 className="text-xl font-semibold leading-tight text-emerald-700 dark:text-emerald-300">
                     Record corrections
                 </h2>
             }
@@ -101,7 +101,7 @@ export default function Index({
             <Head title="Record corrections" />
 
             <div className="w-full px-4 py-6 sm:px-6 lg:px-8">
-                <Card>
+                <Card className="border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30">
                     <CardHeader>
                         <CardTitle>Correct a saved value</CardTitle>
                         <CardDescription>
@@ -112,7 +112,7 @@ export default function Index({
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="grid gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]">
-                        <div className="grid gap-4">
+                        <div className="grid content-start gap-4 rounded-xl border border-sky-200 bg-sky-50/70 p-4 dark:border-sky-900 dark:bg-sky-950/30">
                             <div className="grid gap-2">
                                 <InputLabel htmlFor="correction-table" value="Table" />
                                 <select
@@ -138,12 +138,12 @@ export default function Index({
                                         searchForm.setData('search', event.target.value)
                                     }
                                 />
-                                <Button className="h-11 shrink-0" type="submit" variant="outline">
+                                <Button className="h-11 shrink-0 bg-emerald-600 text-white hover:bg-emerald-700" type="submit">
                                     Search
                                 </Button>
                             </form>
 
-                            <div className="overflow-hidden rounded-md border border-border">
+                            <div className="overflow-hidden rounded-md border border-sky-200 bg-background dark:border-sky-900">
                                 <ul className="max-h-[32rem] divide-y divide-border overflow-y-auto">
                                     {records.data.length === 0 ? (
                                         <li className="px-3 py-6 text-sm text-muted-foreground">
@@ -213,9 +213,9 @@ function CorrectionForm({
     };
 
     return (
-        <form className="grid content-start gap-4" onSubmit={save}>
+        <form className="grid content-start gap-4 rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-900 dark:bg-emerald-950/30" onSubmit={save}>
             <div>
-                <h3 className="text-base font-semibold text-foreground">
+                <h3 className="text-base font-semibold text-emerald-800 dark:text-emerald-200">
                     Editing existing record
                 </h3>
                 <p className="text-sm text-muted-foreground">
