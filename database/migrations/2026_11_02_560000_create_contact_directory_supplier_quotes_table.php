@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('contact_directory_supplier_quotes', function (Blueprint $table): void {
+        $this->createOrResume('contact_directory_supplier_quotes', function (Blueprint $table): void {
             $table->id();
             $table->uuid('uuid')->unique();
             $table->foreignId('inquiry_id')->constrained('contact_directory_inquiries')->cascadeOnUpdate()->cascadeOnDelete();
@@ -43,10 +43,10 @@ return new class extends Migration
             $table->index(['inquiry_id', 'is_current_revision'], 'cd_supplier_quote_current_idx');
         });
 
-        Schema::create('contact_directory_supplier_quote_items', function (Blueprint $table): void {
+        $this->createOrResume('contact_directory_supplier_quote_items', function (Blueprint $table): void {
             $table->id();
             $table->uuid('uuid')->unique();
-            $table->foreignId('supplier_quote_id')->constrained('contact_directory_supplier_quotes', 'id', 'cd_preferred_quote_quote_fk')->cascadeOnUpdate()->cascadeOnDelete();
+            $table->foreignId('supplier_quote_id')->constrained('contact_directory_supplier_quotes', 'id', 'cd_quote_item_quote_fk')->cascadeOnUpdate()->cascadeOnDelete();
             $table->foreignId('price_request_item_id')->nullable()->constrained('contact_directory_price_request_items', 'id', 'cd_quote_item_request_item_fk')->cascadeOnUpdate()->restrictOnDelete();
             $table->unsignedInteger('position')->default(0);
             $table->text('description');
@@ -62,11 +62,11 @@ return new class extends Migration
             $table->index('price_request_item_id', 'cd_quote_item_request_item_idx');
         });
 
-        Schema::create('contact_directory_price_request_preferred_quotes', function (Blueprint $table): void {
+        $this->createOrResume('contact_directory_price_request_preferred_quotes', function (Blueprint $table): void {
             $table->id();
             $table->uuid('uuid')->unique();
             $table->foreignId('price_request_id')->constrained('contact_directory_price_requests', 'id', 'cd_preferred_quote_request_fk')->cascadeOnUpdate()->cascadeOnDelete();
-            $table->foreignId('supplier_quote_id')->constrained('contact_directory_supplier_quotes', 'id', 'cd_preferred_quote_quote_fk')->cascadeOnUpdate()->cascadeOnDelete();
+            $table->foreignId('supplier_quote_id')->constrained('contact_directory_supplier_quotes', 'id', 'cd_preferred_quote_supplier_fk')->cascadeOnUpdate()->cascadeOnDelete();
             $table->string('selection_reason');
             $table->foreignId('selected_by')->constrained('users', 'id', 'cd_preferred_quote_user_fk')->cascadeOnUpdate()->restrictOnDelete();
             $table->timestamp('selected_at');
@@ -74,6 +74,73 @@ return new class extends Migration
 
             $table->unique('price_request_id', 'cd_preferred_quote_request_unique');
         });
+    }
+
+    /**
+     * MySQL commits each DDL statement separately. A failed attempt can leave
+     * tables behind without recording this migration, or without all indexes
+     * and foreign keys. Resume those definitions without deleting any rows.
+     */
+    private function createOrResume(string $name, Closure $definition): void
+    {
+        if (! Schema::hasTable($name)) {
+            Schema::create($name, $definition);
+
+            return;
+        }
+
+        $blueprint = new Blueprint($name);
+        $definition($blueprint);
+
+        $existingColumns = Schema::getColumnListing($name);
+        foreach ($blueprint->getColumns() as $column) {
+            if (! in_array($column->name, $existingColumns, true)) {
+                throw new RuntimeException(
+                    "Cannot safely resume {$name}: column {$column->name} is missing. No existing data has been removed.",
+                );
+            }
+
+            // Laravel normally materializes fluent column indexes at compile
+            // time. Include them here too (notably the UUID unique index).
+            if ($column->unique) {
+                $blueprint->unique($column->name);
+            }
+        }
+
+        foreach ($blueprint->getCommands() as $command) {
+            if (in_array($command->name, ['index', 'unique'], true)) {
+                $exists = collect(Schema::getIndexes($name))->contains(
+                    fn (array $index): bool => $index['columns'] === $command->columns
+                        && $index['unique'] === ($command->name === 'unique'),
+                );
+
+                if (! $exists) {
+                    Schema::table($name, function (Blueprint $table) use ($command): void {
+                        $table->{$command->name}($command->columns, $command->index);
+                    });
+                }
+            } elseif ($command->name === 'foreign') {
+                // Match by definition, not name: earlier deployments may have
+                // created equivalent constraints under the original names.
+                $exists = collect(Schema::getForeignKeys($name))->contains(
+                    fn (array $foreign): bool => $foreign['columns'] === $command->columns
+                        && $foreign['foreign_table'] === $command->on
+                        && $foreign['foreign_columns'] === (array) $command->references
+                        && strtolower($foreign['on_update']) === strtolower($command->onUpdate)
+                        && strtolower($foreign['on_delete']) === strtolower($command->onDelete),
+                );
+
+                if (! $exists) {
+                    Schema::table($name, function (Blueprint $table) use ($command): void {
+                        $table->foreign($command->columns, $command->index)
+                            ->references($command->references)
+                            ->on($command->on)
+                            ->onUpdate($command->onUpdate)
+                            ->onDelete($command->onDelete);
+                    });
+                }
+            }
+        }
     }
 
     public function down(): void
