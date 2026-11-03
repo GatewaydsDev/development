@@ -11,6 +11,7 @@ use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\RegistrationReviewController;
 use App\Http\Controllers\Auth\VerifyEmailController;
+use App\Http\Controllers\WebAuthn\WebAuthnLoginController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['guest', 'prevent-back-history'])->group(function () {
@@ -25,6 +26,13 @@ Route::middleware(['guest', 'prevent-back-history'])->group(function () {
 
     Route::post('register/complete/{token}', [RegisteredUserController::class, 'finish'])
         ->name('register.complete.store');
+
+    Route::post('webauthn/login/options', [WebAuthnLoginController::class, 'options'])
+        ->middleware('throttle:20,1')
+        ->name('webauthn.login.options');
+    Route::post('webauthn/login', [WebAuthnLoginController::class, 'login'])
+        ->middleware('throttle:10,1')
+        ->name('webauthn.login');
 
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
         ->name('login');

@@ -5,7 +5,8 @@ import TextInput from '@/Components/TextInput';
 import { Button } from '@/Components/ui/button';
 import PublicLayout from '@/Layouts/PublicLayout';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { BanIcon, Eye, EyeOff, MailCheckIcon, ShieldAlertIcon } from 'lucide-react';
+import { loginWithPasskey, passkeysSupported } from '@/lib/passkeys';
+import { BanIcon, Eye, EyeOff, ScanFaceIcon, MailCheckIcon, ShieldAlertIcon } from 'lucide-react';
 import { FormEventHandler } from 'react';
 import { useState } from 'react';
 
@@ -93,6 +94,29 @@ export default function Login({
         password: '',
         remember: false as boolean,
     });
+
+    const [passkeyBusy, setPasskeyBusy] = useState(false);
+    const [passkeyError, setPasskeyError] = useState<string | null>(null);
+
+    const signInWithPasskey = async () => {
+        setPasskeyBusy(true);
+        setPasskeyError(null);
+
+        try {
+            window.location.href = await loginWithPasskey(
+                route('webauthn.login.options'),
+                route('webauthn.login'),
+            );
+        } catch (error) {
+            const name = (error as Error).name;
+            setPasskeyError(
+                name === 'NotAllowedError'
+                    ? 'Sign in was cancelled or no saved passkey was found on this device.'
+                    : (error as Error).message,
+            );
+            setPasskeyBusy(false);
+        }
+    };
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
@@ -253,6 +277,27 @@ export default function Login({
                                     Sign in
                                 </Button>
                             </form>
+
+                            {passkeysSupported() && (
+                                <div className="mt-4 flex flex-col gap-2">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="lg"
+                                        className="w-full"
+                                        disabled={passkeyBusy}
+                                        onClick={signInWithPasskey}
+                                    >
+                                        <ScanFaceIcon className="size-4" />
+                                        Sign in with Face ID / fingerprint
+                                    </Button>
+                                    {passkeyError && (
+                                        <p role="alert" className="text-sm text-destructive">
+                                            {passkeyError}
+                                        </p>
+                                    )}
+                                </div>
+                            )}
 
                             <div className="mt-8 flex flex-col gap-4 text-sm text-muted-foreground">
                                 <p>

@@ -183,6 +183,9 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
 });
 
 Route::middleware(['auth', 'prevent-back-history', 'can:manage-profile'])->group(function () {
+    Route::post('/webauthn/register/options', [\App\Http\Controllers\WebAuthn\WebAuthnRegisterController::class, 'options'])->name('webauthn.register.options');
+    Route::post('/webauthn/register', [\App\Http\Controllers\WebAuthn\WebAuthnRegisterController::class, 'register'])->name('webauthn.register');
+    Route::delete('/webauthn/credentials/{credential}', [\App\Http\Controllers\WebAuthn\WebAuthnRegisterController::class, 'destroy'])->name('webauthn.destroy');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');

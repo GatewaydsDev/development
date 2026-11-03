@@ -1,6 +1,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps } from '@/types';
 import { Head } from '@inertiajs/react';
+import PasskeysForm, { Passkey } from './Partials/PasskeysForm';
 import DeleteUserForm from './Partials/DeleteUserForm';
 import UpdatePasswordForm from './Partials/UpdatePasswordForm';
 import UpdateProfileInformationForm from './Partials/UpdateProfileInformationForm';
@@ -8,7 +9,12 @@ import UpdateProfileInformationForm from './Partials/UpdateProfileInformationFor
 export default function Edit({
     mustVerifyEmail,
     status,
-}: PageProps<{ mustVerifyEmail: boolean; status?: string }>) {
+    passkeys,
+}: PageProps<{
+    mustVerifyEmail: boolean;
+    status?: string;
+    passkeys: Passkey[];
+}>) {
     return (
         <AuthenticatedLayout
             header={
@@ -31,6 +37,10 @@ export default function Edit({
 
                     <div className="rounded-lg border border-border bg-card p-4 text-card-foreground shadow sm:p-8">
                         <UpdatePasswordForm className="max-w-xl" />
+                    </div>
+
+                    <div className="rounded-lg border border-border bg-card p-4 text-card-foreground shadow sm:p-8">
+                        <PasskeysForm passkeys={passkeys} className="max-w-xl" />
                     </div>
 
                     <div className="rounded-lg border border-border bg-card p-4 text-card-foreground shadow sm:p-8">
