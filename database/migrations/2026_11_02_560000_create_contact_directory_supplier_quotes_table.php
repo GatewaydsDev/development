@@ -39,15 +39,15 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            $table->unique(['inquiry_id', 'revision_number']);
-            $table->index(['inquiry_id', 'is_current_revision']);
+            $table->unique(['inquiry_id', 'revision_number'], 'cd_supplier_quote_revision_unique');
+            $table->index(['inquiry_id', 'is_current_revision'], 'cd_supplier_quote_current_idx');
         });
 
         Schema::create('contact_directory_supplier_quote_items', function (Blueprint $table): void {
             $table->id();
             $table->uuid('uuid')->unique();
-            $table->foreignId('supplier_quote_id')->constrained('contact_directory_supplier_quotes')->cascadeOnUpdate()->cascadeOnDelete();
-            $table->foreignId('price_request_item_id')->nullable()->constrained('contact_directory_price_request_items')->cascadeOnUpdate()->restrictOnDelete();
+            $table->foreignId('supplier_quote_id')->constrained('contact_directory_supplier_quotes', 'id', 'cd_preferred_quote_quote_fk')->cascadeOnUpdate()->cascadeOnDelete();
+            $table->foreignId('price_request_item_id')->nullable()->constrained('contact_directory_price_request_items', 'id', 'cd_quote_item_request_item_fk')->cascadeOnUpdate()->restrictOnDelete();
             $table->unsignedInteger('position')->default(0);
             $table->text('description');
             $table->decimal('quantity', 14, 4)->default(1);
@@ -58,21 +58,21 @@ return new class extends Migration
             $table->text('specification_notes')->nullable();
             $table->timestamps();
 
-            $table->index(['supplier_quote_id', 'position']);
-            $table->index('price_request_item_id');
+            $table->index(['supplier_quote_id', 'position'], 'cd_quote_item_position_idx');
+            $table->index('price_request_item_id', 'cd_quote_item_request_item_idx');
         });
 
         Schema::create('contact_directory_price_request_preferred_quotes', function (Blueprint $table): void {
             $table->id();
             $table->uuid('uuid')->unique();
-            $table->foreignId('price_request_id')->constrained('contact_directory_price_requests')->cascadeOnUpdate()->cascadeOnDelete();
-            $table->foreignId('supplier_quote_id')->constrained('contact_directory_supplier_quotes')->cascadeOnUpdate()->cascadeOnDelete();
+            $table->foreignId('price_request_id')->constrained('contact_directory_price_requests', 'id', 'cd_preferred_quote_request_fk')->cascadeOnUpdate()->cascadeOnDelete();
+            $table->foreignId('supplier_quote_id')->constrained('contact_directory_supplier_quotes', 'id', 'cd_preferred_quote_quote_fk')->cascadeOnUpdate()->cascadeOnDelete();
             $table->string('selection_reason');
-            $table->foreignId('selected_by')->constrained('users')->cascadeOnUpdate()->restrictOnDelete();
+            $table->foreignId('selected_by')->constrained('users', 'id', 'cd_preferred_quote_user_fk')->cascadeOnUpdate()->restrictOnDelete();
             $table->timestamp('selected_at');
             $table->timestamps();
 
-            $table->unique('price_request_id');
+            $table->unique('price_request_id', 'cd_preferred_quote_request_unique');
         });
     }
 

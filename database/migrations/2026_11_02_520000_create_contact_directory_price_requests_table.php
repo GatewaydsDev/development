@@ -37,7 +37,7 @@ return new class extends Migration
             $table->text('notes')->nullable();
             $table->timestamps();
 
-            $table->index(['price_request_id', 'position']);
+            $table->index(['price_request_id', 'position'], 'cd_price_request_item_position_idx');
         });
     }
 

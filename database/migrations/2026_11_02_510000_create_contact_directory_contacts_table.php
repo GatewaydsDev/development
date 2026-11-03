@@ -8,6 +8,13 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // The first deployment attempt of this migration failed partway through
+        // on MySQL (index identifier length limit). Drop any partially created
+        // tables so the corrected definitions below apply cleanly.
+        Schema::dropIfExists('contact_directory_contact_email_addresses');
+        Schema::dropIfExists('contact_directory_contact_phone_numbers');
+        Schema::dropIfExists('contact_directory_contacts');
+
         Schema::create('contact_directory_contacts', function (Blueprint $table): void {
             $table->id();
             $table->uuid('uuid')->unique();
@@ -38,8 +45,8 @@ return new class extends Migration
             $table->boolean('is_primary')->default(false);
             $table->timestamps();
 
-            $table->unique(['contact_id', 'phone_number']);
-            $table->index(['contact_id', 'is_primary']);
+            $table->unique(['contact_id', 'phone_number'], 'cd_contact_phone_unique');
+            $table->index(['contact_id', 'is_primary'], 'cd_contact_phone_primary_idx');
         });
 
         Schema::create('contact_directory_contact_email_addresses', function (Blueprint $table): void {
@@ -51,8 +58,8 @@ return new class extends Migration
             $table->boolean('is_primary')->default(false);
             $table->timestamps();
 
-            $table->unique(['contact_id', 'email_address']);
-            $table->index(['contact_id', 'is_primary']);
+            $table->unique(['contact_id', 'email_address'], 'cd_contact_email_unique');
+            $table->index(['contact_id', 'is_primary'], 'cd_contact_email_primary_idx');
         });
     }
 

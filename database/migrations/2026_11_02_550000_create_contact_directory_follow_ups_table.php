@@ -29,7 +29,7 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            $table->index(['assigned_user_id', 'status', 'due_at']);
+            $table->index(['assigned_user_id', 'status', 'due_at'], 'cd_follow_ups_user_status_due_idx');
             $table->index(['inquiry_id', 'status']);
             $table->index('reminder_at');
         });
