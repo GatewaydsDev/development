@@ -7,6 +7,8 @@ use App\Models\User;
 use App\Support\EmailPlainText;
 use App\Support\MailBounceFilter;
 use App\Support\OutboundMailHtml;
+use Carbon\CarbonImmutable;
+use DateTimeInterface;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
@@ -213,6 +215,69 @@ class MicrosoftGraphMailService
             'unread' => $count(['mailbox' => $mailbox, 'params' => [$select => 'subject,from', '$filter' => 'isRead eq false', '$top' => 100]]),
             'total' => $count(['mailbox' => $mailbox, 'params' => [$select => 'subject,from', '$orderby' => 'receivedDateTime desc', '$top' => 100]]),
         ];
+    }
+
+    /**
+     * Timestamps of every message received (inbox) or sent (sent items) since
+     * the given moment. Bounce notices are skipped so the counts match the
+     * inbox the user actually sees. Paging stops at $limit messages.
+     *
+     * @param  'inbox'|'sent'  $folder
+     * @return array{timestamps: list<string>, truncated: bool}
+     */
+    public function messageTimestamps(string $mailbox, string $folder, DateTimeInterface $since, int $limit = 2000): array
+    {
+        $isSent = $folder === 'sent';
+        $field = $isSent ? 'sentDateTime' : 'receivedDateTime';
+        $graphFolder = $isSent ? 'sentitems' : 'inbox';
+        $sinceUtc = CarbonImmutable::instance($since)->utc()->format('Y-m-d\TH:i:s\Z');
+
+        $url = $this->userUrl($mailbox)."/mailFolders/{$graphFolder}/messages?".http_build_query([
+            '$select' => $isSent ? $field : $field.',from,subject',
+            '$filter' => "{$field} ge {$sinceUtc}",
+            '$orderby' => "{$field} desc",
+            '$top' => 250,
+        ]);
+
+        $timestamps = [];
+        $seen = 0;
+
+        while (is_string($url) && $url !== '') {
+            $response = $this->graph('GET', $url, null, false);
+
+            if ($response->failed()) {
+                throw new MicrosoftGraphException($this->failureMessage($response, false));
+            }
+
+            foreach ($response->json('value') ?? [] as $item) {
+                if (! is_array($item)) {
+                    continue;
+                }
+
+                $seen++;
+                $stamp = $item[$field] ?? null;
+
+                if (! is_string($stamp) || $stamp === '') {
+                    continue;
+                }
+
+                if (! $isSent && MailBounceFilter::isBounce($this->address($item['from'] ?? null), (string) ($item['subject'] ?? ''))) {
+                    continue;
+                }
+
+                $timestamps[] = $stamp;
+            }
+
+            $next = $response->json('@odata.nextLink');
+
+            if ($seen >= $limit) {
+                return ['timestamps' => $timestamps, 'truncated' => is_string($next) && $next !== ''];
+            }
+
+            $url = is_string($next) && str_starts_with($next, 'https://graph.microsoft.com/') ? $next : null;
+        }
+
+        return ['timestamps' => $timestamps, 'truncated' => false];
     }
 
     /**

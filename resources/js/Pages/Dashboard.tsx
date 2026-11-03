@@ -1,4 +1,9 @@
 import { AnimatedBarChart, type BarChartItem } from '@/Components/AnimatedBarChart';
+import {
+    EmailActivityChart,
+    EmailActivitySkeleton,
+    type EmailActivity,
+} from '@/Components/EmailActivityChart';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import {
@@ -13,7 +18,7 @@ import { useProjectListRefresh } from '@/hooks/useProjectListRefresh';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { cn } from '@/lib/utils';
 import { PageProps } from '@/types';
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Deferred, Head, Link, usePage } from '@inertiajs/react';
 import {
     ArrowRightIcon,
     BriefcaseIcon,
@@ -36,6 +41,7 @@ type DashboardProps = {
         totalProjects: number;
         activeProjects: number;
     } | null;
+    emailActivity?: EmailActivity;
 };
 
 function formatChartTotal(items: BarChartItem[], money: boolean): string {
@@ -123,6 +129,7 @@ export default function Dashboard({
     bidListVersion = null,
     quotationListVersion = null,
     stats,
+    emailActivity,
 }: DashboardProps) {
     const { auth } = usePage<PageProps>().props;
     const can = auth.can ?? {};
@@ -178,77 +185,88 @@ export default function Dashboard({
                     )}
                 </div>
 
-                {showGraphics && charts ? (
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                        {canViewProjects && (
-                            <>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    {showGraphics && charts && (
+                        <>
+                            {canViewProjects && (
+                                <>
+                                    <ChartCard
+                                        title="Projects by status"
+                                        description="How many projects are in each status."
+                                        items={charts.byStatus}
+                                        chartKey={listVersion ?? 'status'}
+                                        emptyLabel="No projects yet."
+                                        accent="border-t-teal-600"
+                                        layout="rows"
+                                    />
+                                    <ChartCard
+                                        title="Projects by priority"
+                                        description="How many projects are in each priority."
+                                        items={charts.byPriority}
+                                        chartKey={`${listVersion ?? 'priority'}-priority`}
+                                        emptyLabel="No projects yet."
+                                        accent="border-t-amber-500"
+                                    />
+                                </>
+                            )}
+                            {charts.quotations && (
                                 <ChartCard
-                                    title="Projects by status"
-                                    description="How many projects are in each status."
-                                    items={charts.byStatus}
-                                    chartKey={listVersion ?? 'status'}
-                                    emptyLabel="No projects yet."
-                                    accent="border-t-teal-600"
-                                    layout="rows"
+                                    title="Quotations by status"
+                                    description="Dollar total for each quotation status."
+                                    items={charts.quotations}
+                                    chartKey={`${quotationListVersion ?? 'quotations'}-quotations`}
+                                    emptyLabel="No quotations yet."
+                                    money
+                                    hideZeros={false}
+                                    accent="border-t-blue-600"
                                 />
+                            )}
+                            {charts.bids && (
                                 <ChartCard
-                                    title="Projects by priority"
-                                    description="How many projects are in each priority."
-                                    items={charts.byPriority}
-                                    chartKey={`${listVersion ?? 'priority'}-priority`}
-                                    emptyLabel="No projects yet."
-                                    accent="border-t-amber-500"
+                                    title="Bids by stage"
+                                    description="Dollar total for each bid stage."
+                                    items={charts.bids}
+                                    chartKey={`${bidListVersion ?? 'bids'}-bids`}
+                                    emptyLabel="No bids yet."
+                                    money
+                                    hideZeros={false}
+                                    accent="border-t-violet-600"
                                 />
-                            </>
-                        )}
-                        {charts.quotations && (
-                            <ChartCard
-                                title="Quotations by status"
-                                description="Dollar total for each quotation status."
-                                items={charts.quotations}
-                                chartKey={`${quotationListVersion ?? 'quotations'}-quotations`}
-                                emptyLabel="No quotations yet."
-                                money
-                                hideZeros={false}
-                                accent="border-t-blue-600"
-                            />
-                        )}
-                        {charts.bids && (
-                            <ChartCard
-                                title="Bids by stage"
-                                description="Dollar total for each bid stage."
-                                items={charts.bids}
-                                chartKey={`${bidListVersion ?? 'bids'}-bids`}
-                                emptyLabel="No bids yet."
-                                money
-                                hideZeros={false}
-                                accent="border-t-violet-600"
-                            />
-                        )}
-                        {canViewTakeoffs && charts.takeoffs && (
-                            <ChartCard
-                                title="Takeoffs by status"
-                                description="How many takeoffs are in each status."
-                                items={charts.takeoffs}
-                                chartKey="takeoffs"
-                                emptyLabel="No takeoffs yet."
-                                accent="border-t-rose-600"
-                            />
-                        )}
-                        {charts.projectControl && (
-                            <ChartCard
-                                title="Project control pipeline"
-                                description="Dollar value of jobs by pipeline status."
-                                items={charts.projectControl}
-                                chartKey="project-control"
-                                emptyLabel="No project control jobs yet."
-                                money
-                                hideZeros={false}
-                                accent="border-t-emerald-600"
-                            />
-                        )}
-                    </div>
-                ) : (
+                            )}
+                            {canViewTakeoffs && charts.takeoffs && (
+                                <ChartCard
+                                    title="Takeoffs by status"
+                                    description="How many takeoffs are in each status."
+                                    items={charts.takeoffs}
+                                    chartKey="takeoffs"
+                                    emptyLabel="No takeoffs yet."
+                                    accent="border-t-rose-600"
+                                />
+                            )}
+                            {charts.projectControl && (
+                                <ChartCard
+                                    title="Project control pipeline"
+                                    description="Dollar value of jobs by pipeline status."
+                                    items={charts.projectControl}
+                                    chartKey="project-control"
+                                    emptyLabel="No project control jobs yet."
+                                    money
+                                    hideZeros={false}
+                                    accent="border-t-emerald-600"
+                                />
+                            )}
+                        </>
+                    )}
+                    <Deferred data="emailActivity" fallback={<EmailActivitySkeleton />}>
+                        <>
+                            {emailActivity && (
+                                <EmailActivityChart activity={emailActivity} />
+                            )}
+                        </>
+                    </Deferred>
+                </div>
+
+                {!showGraphics && (
                     <Card className="h-full shadow-sm">
                         <CardHeader>
                             <CardTitle>Personal Workspace</CardTitle>

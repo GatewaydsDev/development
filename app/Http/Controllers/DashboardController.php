@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Support\DashboardEmailActivity;
 use App\Support\DashboardSnapshot;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -23,6 +24,10 @@ class DashboardController extends Controller
             'bidListVersion' => $snapshot['bidListVersion'],
             'quotationListVersion' => $snapshot['quotationListVersion'],
             'stats' => $snapshot['stats'],
+            // Loaded after the page paints so Microsoft 365 never slows the dashboard down.
+            'emailActivity' => Inertia::defer(
+                fn (): array => DashboardEmailActivity::for($user, $request->query('emailRange')),
+            ),
         ]);
     }
 }
