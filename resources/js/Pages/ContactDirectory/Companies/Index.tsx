@@ -18,6 +18,7 @@ type Company = {
     city: string | null;
     state: string | null;
     country: string | null;
+    headquarters?: { city: string | null; state: string | null; country: string | null } | null;
     is_active: boolean;
     contacts_count: number;
     primary_phone?: { phone_number: string; extension: string | null; country?: string | null } | null;
@@ -97,14 +98,15 @@ export default function CompaniesIndex({ filters, companies, auth }: Props) {
                         <ul className="divide-y divide-border">
                             <li className="hidden grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_minmax(0,1.5fr)_minmax(0,1.6fr)_6rem_7rem] gap-4 bg-muted/40 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:grid">
                                 <span>Company</span>
-                                <span>Location</span>
+                                <span>Headquarters</span>
                                 <span>Phone</span>
                                 <span>Email</span>
                                 <span>Contacts</span>
                                 <span className="text-right">Actions</span>
                             </li>
                             {companies.data.map((company) => {
-                                const location = [company.city, company.state, company.country].filter(Boolean).join(', ');
+                                const place = company.headquarters ?? company;
+                                const location = [place.city, place.state, place.country].filter(Boolean).join(', ');
                                 const phone = company.primary_phone;
 
                                 return (

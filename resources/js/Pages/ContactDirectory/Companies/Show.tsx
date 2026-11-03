@@ -3,10 +3,12 @@ import { Head, Link } from '@inertiajs/react';
 import { Badge } from '@/Components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import type { PageProps } from '@/types';
+import type { AddressRecord } from '@/Pages/ContactDirectory/Companies/Form';
 import type { PhoneRecord, EmailRecord } from '@/Components/ContactDirectory/ContactMethodFields';
-import { Building2Icon, MailIcon, PhoneIcon } from 'lucide-react';
+import { Building2Icon, MailIcon, MapPinIcon, PhoneIcon } from 'lucide-react';
 import RecordActionLink from '@/Components/ContactDirectory/RecordActionLink';
 import { formSectionColors } from '@/Components/ContactDirectory/FormSection';
+import { notesToHtml } from '@/lib/notesHtml';
 import { formatPhoneDisplay } from '@/lib/phoneFormatting';
 
 type Contact = {
@@ -26,12 +28,7 @@ type Company = {
     uuid: string;
     name: string;
     website: string | null;
-    address_line_1: string | null;
-    address_line_2: string | null;
-    city: string | null;
-    state: string | null;
-    postal_code: string | null;
-    country: string | null;
+    addresses: AddressRecord[];
     notes: string | null;
     is_active: boolean;
     phone_numbers: PhoneRecord[];
@@ -86,31 +83,31 @@ export default function CompaniesShow({ company, contacts, auth }: Props) {
                                 '—'
                             )}
                         </div>
-                        <div>
-                            <span className="block text-xs uppercase text-muted-foreground">
-                                Address
-                            </span>
-                            {[
-                                company.address_line_1,
-                                company.address_line_2,
-                                company.city,
-                                company.state,
-                                company.postal_code,
-                                company.country,
-                            ]
-                                .filter(Boolean)
-                                .join(', ') || '—'}
-                        </div>
                         {company.notes && (
                             <div className="sm:col-span-2">
                                 <span className="block text-xs uppercase text-muted-foreground">
                                     Notes
                                 </span>
-                                <p className="whitespace-pre-wrap text-muted-foreground">
-                                    {company.notes}
-                                </p>
+                                <div className="rich-text-content text-muted-foreground" dangerouslySetInnerHTML={{ __html: notesToHtml(company.notes) }} />
                             </div>
                         )}
+                    </CardContent>
+                </Card>
+
+                <Card className={formSectionColors.violet}>
+                    <CardHeader><CardTitle className="flex items-center gap-2 text-lg"><MapPinIcon className="size-5" aria-hidden="true" />Addresses</CardTitle></CardHeader>
+                    <CardContent className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        {company.addresses.length === 0 && <p className="text-sm text-muted-foreground">No addresses added yet.</p>}
+                        {company.addresses.map((address) => <div key={address.id} className="min-w-0 rounded-md border border-border bg-background/60 p-3 text-sm [overflow-wrap:anywhere]">
+                            <div className="mb-2 flex flex-wrap items-center gap-2">
+                                <Badge variant="secondary" className="capitalize">{address.label}</Badge>
+                                {address.is_headquarters && <Badge>Headquarters</Badge>}
+                            </div>
+                            {address.address_line_1 && <p>{address.address_line_1}</p>}
+                            {address.address_line_2 && <p>{address.address_line_2}</p>}
+                            <p className="text-muted-foreground">{[address.city, [address.state, address.postal_code].filter(Boolean).join(' ')].filter(Boolean).join(', ')}</p>
+                            {address.country && <p className="text-muted-foreground">{address.country}</p>}
+                        </div>)}
                     </CardContent>
                 </Card>
 

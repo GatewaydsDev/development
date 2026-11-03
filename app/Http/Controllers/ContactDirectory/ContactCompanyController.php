@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\ContactDirectory\StoreContactCompanyRequest;
 use App\Http\Requests\ContactDirectory\UpdateContactCompanyRequest;
 use App\Models\ContactDirectory\ContactCompany;
+use App\Services\ContactDirectory\CompanyAddresses;
 use App\Services\ContactDirectory\CompanyContactMethods;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -20,7 +21,7 @@ class ContactCompanyController extends Controller
         $filters = $request->only(['search', 'is_active']);
 
         $companies = ContactCompany::query()
-            ->with(['primaryPhone', 'primaryEmail'])
+            ->with(['primaryPhone', 'primaryEmail', 'headquarters'])
             ->withCount('contacts')
             ->when((string) ($filters['search'] ?? '') !== '', function ($query) use ($filters): void {
                 $search = (string) $filters['search'];
@@ -28,6 +29,7 @@ class ContactCompanyController extends Controller
                     $query->where('name', 'like', "%{$search}%")
                         ->orWhere('website', 'like', "%{$search}%")
                         ->orWhere('city', 'like', "%{$search}%")
+                        ->orWhereHas('addresses', fn ($query) => $query->where('city', 'like', "%{$search}%")->orWhere('state', 'like', "%{$search}%"))
                         ->orWhereHas('phoneNumbers', fn ($query) => $query->where('phone_number', 'like', "%{$search}%"))
                         ->orWhereHas('emailAddresses', fn ($query) => $query->where('email_address', 'like', "%{$search}%"));
                 });
@@ -51,13 +53,13 @@ class ContactCompanyController extends Controller
     public function edit(ContactCompany $company): Response
     {
         return Inertia::render('ContactDirectory/Companies/Form', [
-            'company' => $company->load(['phoneNumbers', 'emailAddresses']),
+            'company' => $company->load(['phoneNumbers', 'emailAddresses', 'addresses']),
         ]);
     }
 
     public function show(Request $request, ContactCompany $company): Response
     {
-        $company->load(['phoneNumbers', 'emailAddresses'])->loadCount('contacts');
+        $company->load(['phoneNumbers', 'emailAddresses', 'addresses'])->loadCount('contacts');
 
         $contacts = $company->contacts()
             ->withPrimaryDetails()
@@ -71,12 +73,13 @@ class ContactCompanyController extends Controller
         ]);
     }
 
-    public function store(StoreContactCompanyRequest $request, CompanyContactMethods $methods): mixed
+    public function store(StoreContactCompanyRequest $request, CompanyContactMethods $methods, CompanyAddresses $addresses): mixed
     {
         $data = $request->validated();
-        $company = DB::transaction(function () use ($data, $methods) {
-            $company = ContactCompany::create(collect($data)->except(['phone_numbers', 'email_addresses'])->all());
+        $company = DB::transaction(function () use ($data, $methods, $addresses) {
+            $company = ContactCompany::create(collect($data)->except(['phone_numbers', 'email_addresses', 'addresses'])->all());
             $methods->sync($company, $data);
+            $addresses->sync($company, $data);
 
             return $company;
         });
@@ -84,13 +87,14 @@ class ContactCompanyController extends Controller
         return redirect()->route('contact-directory.companies.show', $company)->with('success', 'Company created successfully.');
     }
 
-    public function update(UpdateContactCompanyRequest $request, ContactCompany $company, CompanyContactMethods $methods): mixed
+    public function update(UpdateContactCompanyRequest $request, ContactCompany $company, CompanyContactMethods $methods, CompanyAddresses $addresses): mixed
     {
         $data = $request->validated();
-        DB::transaction(function () use ($company, $data, $methods): void {
+        DB::transaction(function () use ($company, $data, $methods, $addresses): void {
             $company = ContactCompany::query()->whereKey($company->id)->lockForUpdate()->firstOrFail();
-            $company->update(collect($data)->except(['phone_numbers', 'email_addresses'])->all());
+            $company->update(collect($data)->except(['phone_numbers', 'email_addresses', 'addresses'])->all());
             $methods->sync($company, $data);
+            $addresses->sync($company, $data);
         });
 
         return redirect()->route('contact-directory.companies.show', $company)->with('success', 'Company updated successfully.');

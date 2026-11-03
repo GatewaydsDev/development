@@ -10,6 +10,7 @@ class UpdateContactCompanyRequest extends StoreContactCompanyRequest
     {
         return [
             ...parent::rules(),
+            'addresses.*.id' => ['nullable', 'integer', 'distinct', Rule::exists('contact_company_addresses', 'id')->where('company_id', $this->route('company')?->id)],
             'phone_numbers.*.id' => ['nullable', 'integer', 'distinct', Rule::exists('contact_company_phone_numbers', 'id')->where('company_id', $this->route('company')?->id)],
             'email_addresses.*.id' => ['nullable', 'integer', 'distinct', Rule::exists('contact_company_email_addresses', 'id')->where('company_id', $this->route('company')?->id)],
         ];

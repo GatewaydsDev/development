@@ -12,8 +12,10 @@ beforeEach(function () {
     $this->admin = User::factory()->create(['level_id' => $level->id]);
     $this->payload = [
         'name' => 'Gateway supplier', 'website' => 'https://example.com',
-        'address_line_1' => '123 Main Street', 'city' => 'Stroudsburg',
-        'state' => 'PA', 'postal_code' => '18360', 'country' => 'United States',
+        'addresses' => [
+            ['label' => 'branch', 'is_headquarters' => false, 'address_line_1' => '9 Dock Road', 'city' => 'Allentown', 'state' => 'PA'],
+            ['label' => 'office', 'is_headquarters' => true, 'address_line_1' => '123 Main Street', 'city' => 'Stroudsburg', 'state' => 'PA', 'postal_code' => '18360', 'country' => 'United States'],
+        ],
         'notes' => 'Keep these company notes', 'is_active' => true,
         'phone_numbers' => [
             ['phone_number' => '(570) 555-0100', 'country' => 'US', 'label' => 'Office', 'extension' => '12', 'is_primary' => false],
@@ -227,4 +229,62 @@ it('denies company create and edit endpoints to read-only users', function () {
     actingAs($reader)->patch(route('contact-directory.companies.update', $company), ['name' => 'Not allowed'])->assertForbidden();
     actingAs($reader)->get(route('contact-directory.companies.show', $company))->assertOk()
         ->assertInertia(fn ($page) => $page->has('company.phone_numbers')->has('company.email_addresses'));
+});
+
+it('keeps several addresses and sanitises notes', function () {
+    actingAs($this->admin)->post(route('contact-directory.companies.store'), [...$this->payload, 'notes' => '<p onclick="x()">Hi</p><script>1</script>'])->assertSessionHasNoErrors();
+    $company = ContactCompany::sole();
+
+    expect($company->addresses)->toHaveCount(2)
+        ->and($company->addresses->where('is_headquarters', true))->toHaveCount(1)
+        ->and($company->notes)->toBe('<p>Hi</p>');
+
+    $branch = $company->addresses->last();
+
+    actingAs($this->admin)->patch(route('contact-directory.companies.update', $company), [
+        ...$this->payload,
+        'phone_numbers' => [], 'email_addresses' => [],
+        'addresses' => [
+            ['id' => $branch->id, 'label' => 'warehouse', 'is_headquarters' => true, 'address_line_1' => '9 Dock Road', 'city' => 'Allentown'],
+            ['address_line_1' => '', 'city' => ''],
+        ],
+    ])->assertSessionHasNoErrors();
+
+    $company->refresh();
+
+    expect($company->addresses)->toHaveCount(1)
+        ->and($company->addresses->first()->id)->toBe($branch->id)
+        ->and($company->addresses->first()->is_headquarters)->toBeTrue()
+        ->and($company->addresses->first()->label)->toBe('warehouse')
+        ->and($company->city)->toBe('Allentown');
+});
+
+it('rejects another company\'s address id', function () {
+    actingAs($this->admin)->post(route('contact-directory.companies.store'), $this->payload);
+    $company = ContactCompany::sole();
+    $other = ContactCompany::create(['name' => 'Other']);
+    $foreign = $other->addresses()->create(['label' => 'branch', 'city' => 'X']);
+
+    actingAs($this->admin)->patch(route('contact-directory.companies.update', $company), [
+        ...$this->payload, 'addresses' => [['id' => $foreign->id, 'city' => 'Y']],
+    ])->assertSessionHasErrors('addresses.0.id');
+});
+
+it('only accepts digits and dashes in an address postal code', function () {
+    actingAs($this->admin)->post(route('contact-directory.companies.store'), [
+        ...$this->payload, 'addresses' => [['city' => 'X', 'postal_code' => 'M5V 3L9']],
+    ])->assertSessionHasErrors('addresses.0.postal_code');
+
+    actingAs($this->admin)->post(route('contact-directory.companies.store'), [
+        ...$this->payload, 'addresses' => [['city' => 'X', 'postal_code' => '18360-1234']],
+    ])->assertSessionHasNoErrors();
+});
+
+it('allows more than one headquarters', function () {
+    actingAs($this->admin)->post(route('contact-directory.companies.store'), [
+        ...$this->payload,
+        'addresses' => [['city' => 'A', 'is_headquarters' => true], ['city' => 'B', 'is_headquarters' => true]],
+    ])->assertSessionHasNoErrors();
+
+    expect(ContactCompany::sole()->addresses->where('is_headquarters', true))->toHaveCount(2);
 });

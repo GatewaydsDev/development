@@ -42,6 +42,16 @@ class ContactCompany extends Model
         return $this->hasMany(ContactDirectoryContact::class, 'company_id');
     }
 
+    public function addresses(): HasMany
+    {
+        return $this->hasMany(CompanyAddress::class, 'company_id')->orderByDesc('is_headquarters')->orderBy('id');
+    }
+
+    public function headquarters(): HasOne
+    {
+        return $this->hasOne(CompanyAddress::class, 'company_id')->where('is_headquarters', true);
+    }
+
     public function phoneNumbers(): HasMany
     {
         return $this->hasMany(CompanyPhoneNumber::class, 'company_id')->orderBy('id');
