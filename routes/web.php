@@ -281,6 +281,8 @@ Route::middleware(['auth', 'prevent-back-history'])
             ->name('project-control.openings.takeoff');
         Route::get('/project-control/{projectControl}/edit', [ProjectControlController::class, 'edit'])->name('project-control.edit');
         Route::patch('/project-control/{projectControl}', [ProjectControlController::class, 'update'])->name('project-control.update');
+        Route::post('/project-control/{projectControl}/create-project', [ProjectControlController::class, 'createProject'])->name('project-control.create-project');
+        Route::post('/project-control/{projectControl}/create-takeoff', [ProjectControlController::class, 'createTakeoff'])->name('project-control.create-takeoff');
         Route::delete('/project-control/{projectControl}', [ProjectControlController::class, 'destroy'])->name('project-control.destroy');
 
         Route::get('/expenses', [ExpenseController::class, 'index'])->name('expenses.index');

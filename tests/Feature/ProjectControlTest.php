@@ -732,3 +732,38 @@ it('shows a bid, quotation, and takeoff when the project has them', function () 
 
     @unlink($saved);
 });
+
+test('a job can be turned into a project once', function () {
+    $user = User::factory()->create(['level_id' => UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN])->id]);
+    \App\Models\ProjectStatus::firstOrCreate(['name' => 'Planned']);
+    $job = \App\Models\ProjectControl::create([
+        'job_code' => 'J-777', 'name' => 'Test Hospital', 'customer' => 'Acme Builders',
+        'location' => '1 Main St, Austin TX', 'current_value' => 5000, 'pipeline_status' => 'active',
+    ]);
+
+    $this->actingAs($user)->post(route('admin.project-control.create-project', $job))->assertRedirect();
+
+    $project = $job->fresh()->project;
+    expect($project)->not->toBeNull()
+        ->and($project->name)->toBe('Test Hospital')
+        ->and($project->site_address_line_1)->toBe('1 Main St, Austin TX')
+        ->and($project->contractors()->pluck('name')->all())->toBe(['Acme Builders']);
+
+    $this->actingAs($user)->post(route('admin.project-control.create-project', $job));
+    expect(\App\Models\Project::count())->toBe(1);
+});
+
+test('a job can be converted to a takeoff and creates its project', function () {
+    $user = User::factory()->create(['level_id' => UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN])->id]);
+    \App\Models\ProjectStatus::firstOrCreate(['name' => 'Planned']);
+    $job = ProjectControl::create(['job_code' => 'J-778', 'name' => 'Takeoff Job', 'pipeline_status' => 'active']);
+
+    $this->actingAs($user)->post(route('admin.project-control.create-takeoff', $job))->assertRedirect();
+
+    $project = $job->fresh()->project;
+    expect($project)->not->toBeNull()
+        ->and(Takeoff::where('project_id', $project->id)->count())->toBe(1);
+
+    $this->actingAs($user)->post(route('admin.project-control.create-takeoff', $job));
+    expect(Takeoff::where('project_id', $project->id)->count())->toBe(1);
+});

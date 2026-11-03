@@ -9,9 +9,10 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/Components/ui/dialog';
+import ConvertJobDialog from './Partials/ConvertJobDialog';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { BellIcon, DownloadIcon, EditIcon, ExpandIcon, EyeIcon, PlusIcon, SearchIcon, UploadIcon } from 'lucide-react';
+import { BellIcon, DownloadIcon, FolderPlusIcon, EditIcon, ExpandIcon, EyeIcon, PlusIcon, SearchIcon, UploadIcon } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 import { displayReminderWhen, reminderHow, reminderLabel, ReminderStatus, type ScheduledReminder } from './Partials/ReminderCards';
 import ReminderDialog, { type ReminderJob, type ReminderPerson } from './Partials/ReminderDialog';
@@ -456,7 +457,7 @@ function JobTable({
                                         {job.job_code}
                                     </Link>
                                     <ReminderBadges reminders={forJob(job.uuid)} onOpen={setOpenReminder} />
-                                    <JobActions jobUuid={job.uuid} />
+                                    <JobActions jobUuid={job.uuid} projectUrl={job.project} />
                                 </div>
                                 <p className="text-sm font-medium text-foreground">{money(job.current_value)}</p>
                             </div>
@@ -556,7 +557,7 @@ function JobTable({
                             jobs.map((job) => (
                                 <tr key={job.uuid} className="hover:bg-muted/40">
                                     <td className={`${cell} sticky left-0 z-10 whitespace-nowrap bg-card`}>
-                                        <JobActions jobUuid={job.uuid} />
+                                        <JobActions jobUuid={job.uuid} projectUrl={job.project} />
                                     </td>
                                     <td className={`${cell} whitespace-nowrap font-medium`}>
                                         <Link href={route('admin.project-control.edit', job.uuid)} className="text-emerald-700 hover:underline dark:text-emerald-300">
@@ -675,7 +676,8 @@ function ReminderBadges({ reminders, onOpen }: { reminders: ScheduledReminder[];
     );
 }
 
-function JobActions({ jobUuid }: { jobUuid: string }) {
+function JobActions({ jobUuid, projectUrl }: { jobUuid: string; projectUrl: string | null }) {
+    const [convert, setConvert] = useState(false);
     const jobHref = route('admin.project-control.edit', jobUuid);
 
     return (
@@ -692,6 +694,33 @@ function JobActions({ jobUuid }: { jobUuid: string }) {
                     </Link>
                 </Button>
             </ActionHint>
+            {projectUrl ? (
+                <ActionHint hint="View project">
+                    <Button
+                        asChild
+                        variant="outline"
+                        size="icon-sm"
+                        className="border-emerald-200 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:border-emerald-800/60 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
+                    >
+                        <Link href={projectUrl} aria-label="View project">
+                            <FolderPlusIcon className="size-4" />
+                        </Link>
+                    </Button>
+                </ActionHint>
+            ) : (
+                <ActionHint hint="Create a project from this job">
+                    <Button
+                        variant="outline"
+                        size="icon-sm"
+                        className="border-emerald-200 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:border-emerald-800/60 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
+                        aria-label="Create project from this job"
+                        onClick={() => setConvert(true)}
+                    >
+                        <FolderPlusIcon className="size-4" />
+                    </Button>
+                </ActionHint>
+            )}
+            <ConvertJobDialog kind={convert ? 'project' : null} jobUuid={jobUuid} onClose={() => setConvert(false)} />
             <ActionHint hint="Edit job">
                 <Button
                     asChild

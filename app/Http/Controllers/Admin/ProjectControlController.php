@@ -3,22 +3,30 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Contractor;
+use App\Models\Project;
 use App\Models\ProjectControl;
 use App\Models\ProjectControlBid;
 use App\Models\ProjectControlOpening;
 use App\Models\ProjectControlReminder;
 use App\Models\ProjectControlTerm;
+use App\Models\ProjectStatus;
+use App\Models\Takeoff;
 use App\Models\User;
+use App\Support\ProjectAccess;
 use App\Support\ProjectControlImporter;
 use App\Support\ProjectControlReminderDelivery;
 use App\Support\ProjectControlReport;
 use App\Support\ProjectControlTakeoff;
 use App\Support\SimpleXlsx;
+use App\Support\TakeoffAccess;
+use App\Support\TakeoffNamer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -91,6 +99,9 @@ class ProjectControlController extends Controller
 
         return Inertia::render('Admin/ProjectControl/Edit', [
             'control' => $this->formState($projectControl),
+            'projectUrl' => $projectControl->project ? route('admin.projects.show', $projectControl->project) : null,
+            'canCreateProject' => ProjectAccess::canCreate($request->user()),
+            'canCreateTakeoff' => TakeoffAccess::canCreate($request->user()),
             'people' => $this->people(),
             'terms' => $this->terms(),
             'reminders' => $this->jobReminders($projectControl),
@@ -123,6 +134,116 @@ class ProjectControlController extends Controller
         return redirect()
             ->route('admin.project-control.index')
             ->with('success', 'Job removed from project control.');
+    }
+
+    public function createProject(Request $request, ProjectControl $projectControl): RedirectResponse
+    {
+        $this->authorizeControl($request);
+        abort_unless(ProjectAccess::canCreate($request->user()), 403);
+
+        if ($projectControl->project !== null) {
+            return redirect()
+                ->route('admin.projects.show', $projectControl->project)
+                ->with('success', 'This job already has a project.');
+        }
+
+        $project = $this->makeProject($request, $projectControl);
+
+        if ($project === null) {
+            return back()->with('error', 'Add a project status before creating a project.');
+        }
+
+        return redirect()
+            ->route('admin.projects.show', $project)
+            ->with('success', 'Project '.$project->project_number.' created from job '.$projectControl->job_code.'.');
+    }
+
+    public function createTakeoff(Request $request, ProjectControl $projectControl): RedirectResponse
+    {
+        $user = $this->authorizeControl($request);
+        abort_unless(TakeoffAccess::canCreate($user), 403);
+
+        $project = $projectControl->project;
+
+        if ($project === null) {
+            abort_unless(ProjectAccess::canCreate($user), 403);
+            $project = $this->makeProject($request, $projectControl);
+
+            if ($project === null) {
+                return back()->with('error', 'Add a project status before creating a project.');
+            }
+        }
+
+        $builder = app(ProjectControlTakeoff::class);
+        $takeoff = $builder->linkedTakeoff($projectControl);
+
+        if ($takeoff === null) {
+            $openings = $projectControl->openings()->orderBy('sort_order')->get();
+
+            if ($openings->isEmpty()) {
+                $takeoff = Takeoff::query()->create([
+                    'project_id' => $project->id,
+                    'title' => TakeoffNamer::title($project),
+                    'status' => 'draft',
+                    'pricing_method' => 'markup',
+                    'markup_rate' => '0.000000',
+                    'created_by' => $user->id,
+                    'updated_by' => $user->id,
+                ]);
+            } else {
+                foreach ($openings as $opening) {
+                    $takeoff = $builder->ensure($projectControl, $opening, $user);
+                }
+            }
+        }
+
+        return redirect()
+            ->route('admin.takeoffs.show', $takeoff)
+            ->with('success', 'Takeoff ready for job '.$projectControl->job_code.'.');
+    }
+
+    private function makeProject(Request $request, ProjectControl $projectControl): ?Project
+    {
+        $statusId = ProjectStatus::defaultId();
+
+        if ($statusId === null) {
+            return null;
+        }
+
+        return DB::transaction(function () use ($request, $projectControl, $statusId): Project {
+            $name = trim($projectControl->name);
+
+            if (Project::query()->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])->exists()) {
+                $name .= ' ('.$projectControl->job_code.')';
+            }
+
+            $project = Project::create([
+                'name' => $name,
+                'project_status_id' => $statusId,
+                'priority' => 'normal',
+                'site_address_line_1' => $projectControl->location,
+                'budget_amount' => $projectControl->current_value,
+                'internal_notes' => collect([
+                    'Created from project control job '.$projectControl->job_code.'.',
+                    $projectControl->scope_summary,
+                    $projectControl->next_step ? 'Next step: '.$projectControl->next_step : null,
+                ])->filter()->implode("\n\n"),
+                'created_by' => $request->user()->id,
+            ]);
+
+            $customer = trim((string) $projectControl->customer);
+
+            if ($customer !== '') {
+                $contractor = Contractor::query()->whereRaw('LOWER(name) = ?', [mb_strtolower($customer)])->first()
+                    ?? Contractor::create(['name' => $customer, 'role' => Contractor::ROLE_CONTRACTOR]);
+
+                $project->contractors()->sync([$contractor->id]);
+            }
+
+            $projectControl->update(['project_id' => $project->id]);
+
+            return $project;
+        });
     }
 
     public function import(Request $request): RedirectResponse
