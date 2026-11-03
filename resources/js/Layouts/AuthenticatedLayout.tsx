@@ -63,7 +63,8 @@ const idleActivityEvents = [
 export default function Authenticated({
     header,
     stickyTitle,
-    fullWidth = false,
+    // Kept for API compatibility; all app pages now use the full width after the sidebar.
+    fullWidth: _fullWidth = false,
     children,
 }: PropsWithChildren<{ header?: ReactNode; stickyTitle?: string; fullWidth?: boolean }>) {
     const page = usePage<PageProps>();
@@ -301,7 +302,7 @@ export default function Authenticated({
             <div className="min-h-screen bg-muted/30 text-foreground">
                 {header ? (
                     <header className="border-b border-border bg-card">
-                        <div className={cn('mx-auto w-full px-4 py-4 sm:px-6', !fullWidth && 'max-w-[96rem]')}>
+                        <div className={cn('mx-auto w-full px-4 py-4 sm:px-6')}>
                             {header}
                         </div>
                     </header>
@@ -324,14 +325,14 @@ export default function Authenticated({
                 }
                 className={cn(
                     'hidden shrink-0 rounded-none border-y-0 border-l-0 border-r border-[#cfe0d6] shadow-none transition-[width] duration-500 ease-in-out motion-reduce:transition-none lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:flex lg:overflow-hidden dark:border-white/10',
-                    sidebarCollapsed ? 'lg:w-16' : 'lg:w-72 xl:w-80',
+                    sidebarCollapsed ? 'lg:w-16' : 'lg:w-64 xl:w-72 2xl:w-80',
                 )}
             />
 
             <div
                 className={cn(
                     'flex min-h-screen flex-col transition-[padding] duration-500 ease-in-out motion-reduce:transition-none',
-                    sidebarCollapsed ? 'lg:pl-16' : 'lg:pl-72 xl:pl-80',
+                    sidebarCollapsed ? 'lg:pl-16' : 'lg:pl-64 xl:pl-72 2xl:pl-80',
                 )}
             >
                 {impersonation ? (
@@ -352,7 +353,7 @@ export default function Authenticated({
                     ref={navRef}
                     className="sticky top-0 z-30 border-b border-border bg-background"
                 >
-                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <div className="w-full px-4 sm:px-6 lg:px-8">
                     <div className="flex min-w-0 items-center justify-between gap-3 overflow-visible py-2 sm:py-2.5 md:py-3 lg:gap-8">
                         <div className="flex min-w-0 items-center gap-2">
                             {/* Mobile: brand (sidebar is off-canvas here) */}
@@ -656,7 +657,7 @@ export default function Authenticated({
                             ref={headerRef}
                             className="border-b border-border bg-card shadow-sm"
                         >
-                            <div className={cn('mx-auto w-full px-4 py-4 sm:px-6 sm:py-6 lg:px-8', !fullWidth && 'max-w-[96rem]')}>
+                            <div className={cn('mx-auto w-full px-4 py-4 sm:px-6 sm:py-6 lg:px-8')}>
                                 {header}
                             </div>
                         </header>
@@ -669,12 +670,12 @@ export default function Authenticated({
                                 'fixed left-0 right-0 z-30 border-b border-border bg-card/95 shadow-sm backdrop-blur transition-[left] duration-500 ease-in-out motion-reduce:transition-none',
                                 sidebarCollapsed
                                     ? 'lg:left-16'
-                                    : 'lg:left-72 xl:left-80',
+                                    : 'lg:left-64 xl:left-72 2xl:left-80',
                             )}
                             style={{ top: navHeight }}
                             aria-hidden="true"
                         >
-                            <div className={cn('mx-auto w-full px-4 py-3 sm:px-6 lg:px-8', !fullWidth && 'max-w-[96rem]')}>
+                            <div className={cn('mx-auto w-full px-4 py-3 sm:px-6 lg:px-8')}>
                                 <p className="truncate text-lg font-semibold leading-tight text-emerald-700 dark:text-emerald-300">
                                     {compactTitle}
                                 </p>

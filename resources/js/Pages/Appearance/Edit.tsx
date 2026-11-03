@@ -68,7 +68,7 @@ export default function Edit({
             <Head title="Dashboard theme" />
 
             <div className="py-6 sm:py-8">
-                <div className="mx-auto grid max-w-5xl gap-4 px-4 sm:grid-cols-2 sm:px-6 lg:grid-cols-3 lg:px-8">
+                <div className="grid w-full gap-4 px-4 sm:grid-cols-2 sm:px-6 lg:grid-cols-3 lg:px-8 2xl:grid-cols-4">
                     {themes.map((theme) => {
                         const selected = theme.key === current;
 

@@ -165,7 +165,7 @@ export default function Index({
             <Head title="Expenses" />
 
             <div className="py-6 sm:py-8">
-                <div className="mx-auto flex max-w-[96rem] flex-col gap-6 px-4 sm:px-6 lg:px-8">
+                <div className="flex w-full flex-col gap-6 px-4 sm:px-6 lg:px-8">
                     <div className="grid gap-4 sm:grid-cols-3">
                         <Card>
                             <CardHeader>

@@ -99,7 +99,7 @@ export default function Edit({
             <Head title={`Edit ${employee.full_name}`} />
 
             <div className="py-6 sm:py-8">
-                <div className="mx-auto max-w-[96rem] px-4 sm:px-6 lg:px-8">
+                <div className="w-full px-4 sm:px-6 lg:px-8">
                     {changes.length > 0 && (
                         <div className="mb-4 rounded-xl border border-border bg-card p-4 shadow-sm">
                             <p className="text-sm font-medium text-foreground">

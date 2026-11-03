@@ -1,6 +1,7 @@
 import AiDraftButton from '@/Components/AiDraftButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import FormActionFab from '@/Components/FormActionFab';
+import ResizableWorkspace from '@/Components/ResizableWorkspace';
 import StickyDocumentToolbar from '@/Components/StickyDocumentToolbar';
 import TextInput from '@/Components/TextInput';
 import { Badge } from '@/Components/ui/badge';
@@ -491,7 +492,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
 
                 {section === 'workspace' ? (
                     <div ref={workspaceRef} className="flex flex-col gap-3">
-                        <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_28rem]">
+                        <ResizableWorkspace id="takeoff" sideDefault={448} sideFirstWhenStacked className="items-start">
                             <div className="flex min-w-0 flex-col gap-4">
                             <div id="takeoff-drawing" className="min-w-0">
                                 <PdfWorkspace
@@ -716,7 +717,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                 ) : null}
                             </div>
                             </div>
-                            <div className="order-first min-w-0 xl:order-none">
+                            <div className="min-w-0">
                                 <StickyDocumentToolbar scopeRef={workspaceRef} propertiesPanel>
                                     <div className="flex flex-col gap-3">
                                         <OpeningEditor
@@ -775,7 +776,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                     </div>
                                 </StickyDocumentToolbar>
                             </div>
-                        </div>
+                        </ResizableWorkspace>
                     </div>
                 ) : null}
 

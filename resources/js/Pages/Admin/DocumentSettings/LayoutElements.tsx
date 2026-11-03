@@ -3,6 +3,7 @@ import InspectorSelect from "@/Components/InspectorSelect";
 import { parseLayoutCommand } from "@/lib/layoutCommands";
 import DateMaskInput from "@/Components/DateMaskInput";
 import { Button } from "@/Components/ui/button";
+import ResizableWorkspace from "@/Components/ResizableWorkspace";
 import StickyDocumentToolbar from "@/Components/StickyDocumentToolbar";
 import InsertBidTextFieldMenu from "@/Components/InsertBidTextFieldMenu";
 import { BID_TEXT_PLACEHOLDERS, BID_TEXT_FIELD_GROUP_ORDER, placeholderToken } from "@/Pages/Admin/Bids/bidText";
@@ -2665,7 +2666,7 @@ export default function LayoutElementsEditor({
                 </p>
             ) : null}
 
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_28rem]">
+            <ResizableWorkspace id="print-layout" sideDefault={448}>
                 <div className="min-w-0">{children}</div>
 
                 <div className="min-w-0">
@@ -2712,7 +2713,7 @@ export default function LayoutElementsEditor({
                 </aside>
                 </StickyDocumentToolbar>
                 </div>
-            </div>
+            </ResizableWorkspace>
         </div>
         <LayoutPreviewDialog open={previewOpen} onClose={() => setPreviewOpen(false)} controller={controller} />
         </openLayoutPreview.Provider>

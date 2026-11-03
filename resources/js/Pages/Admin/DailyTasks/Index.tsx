@@ -393,7 +393,7 @@ export default function Index({
         >
             <Head title="Daily Tasks" />
             <div className="py-6 sm:py-8">
-                <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 sm:px-6 lg:px-8">
+                <div className="flex w-full flex-col gap-4 px-4 sm:px-6 lg:px-8">
                     {can.complete && checklist && (
                         <FieldChecklist tasks={checklist} attendance={attendance} />
                     )}

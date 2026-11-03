@@ -99,7 +99,7 @@ export default function Edit({
             <Head title={`Edit ${managedUser.name}`} />
 
             <div className="py-6 sm:py-8">
-                <div className="mx-auto max-w-[96rem] px-4 sm:px-6 lg:px-8">
+                <div className="w-full px-4 sm:px-6 lg:px-8">
                     <UserForm
                         userId={managedUser.id}
                         levels={levels}

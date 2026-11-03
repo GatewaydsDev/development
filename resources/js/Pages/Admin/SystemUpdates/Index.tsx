@@ -312,7 +312,7 @@ export default function Index({
         >
             <Head title="System Updates" />
             <div className="py-6 sm:py-8">
-                <div className="mx-auto flex max-w-4xl flex-col gap-5 px-4 sm:px-6 lg:px-8">
+                <div className="flex w-full flex-col gap-5 px-4 sm:px-6 lg:px-8">
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                         <div className="rounded-xl border border-border bg-card p-4">
                             <p className="text-2xl font-semibold">

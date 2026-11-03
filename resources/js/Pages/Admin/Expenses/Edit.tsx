@@ -42,7 +42,7 @@ export default function Edit({ expense, ...props }: EditProps) {
             <Head title={`Edit ${expense.description}`} />
 
             <div className="py-6 sm:py-8">
-                <div className="mx-auto max-w-[96rem] px-4 sm:px-6 lg:px-8">
+                <div className="w-full px-4 sm:px-6 lg:px-8">
                     <ExpenseForm
                         action={route('admin.expenses.update', expense.id)}
                         title="Expense information"

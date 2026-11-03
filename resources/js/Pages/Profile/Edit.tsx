@@ -20,7 +20,7 @@ export default function Edit({
             <Head title="Profile" />
 
             <div className="py-12">
-                <div className="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
+                <div className="w-full space-y-6 px-4 sm:px-6 lg:px-8">
                     <div className="rounded-lg border border-border bg-card p-4 text-card-foreground shadow sm:p-8">
                         <UpdateProfileInformationForm
                             mustVerifyEmail={mustVerifyEmail}

@@ -70,7 +70,7 @@ export default function Index({ employee, schedules, windowDays }: Props) {
             }
         >
             <Head title="My schedule" />
-            <div className="mx-auto flex max-w-5xl flex-col gap-5 px-4 py-6 sm:px-6 sm:py-8">
+            <div className="flex w-full flex-col gap-5 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
                 {!employee ? (
                     <Card>
                         <CardContent className="p-6 text-sm text-muted-foreground">

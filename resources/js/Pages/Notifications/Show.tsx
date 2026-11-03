@@ -198,7 +198,7 @@ export default function Show({
             <Head title={notification.title} />
 
             <div className="py-6 sm:py-8">
-                <div className="mx-auto grid max-w-[96rem] gap-6 px-4 sm:px-6 lg:grid-cols-[1fr_0.35fr] lg:px-8">
+                <div className="grid w-full gap-6 px-4 sm:px-6 lg:grid-cols-[1fr_0.35fr] lg:px-8">
                     <div className="flex flex-col gap-6">
                         <Card className="shadow-sm">
                             <CardHeader>

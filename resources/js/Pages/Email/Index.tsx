@@ -1,3 +1,4 @@
+import ResizableWorkspace from '@/Components/ResizableWorkspace';
 import StickyDocumentToolbar from '@/Components/StickyDocumentToolbar';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ComposeMail, {
@@ -405,7 +406,7 @@ export default function Index({
             <Head title={t('title')} />
 
             <div className="py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:py-8">
-                <div className="mx-auto flex max-w-[96rem] min-w-0 flex-col gap-4 px-3 sm:gap-6 sm:px-6 lg:px-8">
+                <div className="flex w-full min-w-0 flex-col gap-4 px-3 sm:gap-6 sm:px-6 lg:px-8">
                     {mailbox === null ? (
                         <Card>
                             <CardHeader>
@@ -414,7 +415,8 @@ export default function Index({
                             </CardHeader>
                         </Card>
                     ) : (
-                        <div ref={mailRef} className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
+                        <div ref={mailRef}>
+                        <ResizableWorkspace id="email" sideDefault={384} className="items-start">
                         <div className="flex min-w-0 flex-col gap-4">
                             <p className="text-sm text-muted-foreground">{t('received')}</p>
                             {flash?.success ? (
@@ -772,6 +774,7 @@ export default function Index({
                             </div>
                             )}
                         </div>
+                        <div className="min-w-0">
                         <StickyDocumentToolbar scopeRef={mailRef} propertiesPanel>
                             <MailSettings
                                 signature={signature}
@@ -781,6 +784,8 @@ export default function Index({
                                 stationery={stationery}
                             />
                         </StickyDocumentToolbar>
+                        </div>
+                        </ResizableWorkspace>
                         </div>
                     )}
                 </div>

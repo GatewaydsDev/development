@@ -69,7 +69,7 @@ export default function Edit({ bid, options }: EditProps) {
             <Head title={`Edit bid for ${bid.project?.name ?? 'project'}`} />
 
             <div className="py-6 sm:py-8">
-                <div className="mx-auto max-w-[96rem] px-4 sm:px-6 lg:px-8">
+                <div className="w-full px-4 sm:px-6 lg:px-8">
                     <BidForm
                         action={route('admin.bids.update', bid.uuid)}
                         method="patch"

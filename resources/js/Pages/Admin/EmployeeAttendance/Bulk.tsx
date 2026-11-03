@@ -202,7 +202,7 @@ export default function Bulk({ employees, defaultWorkDate, schedules }: BulkProp
             <div className="py-6 sm:py-8">
                 <form
                     onSubmit={submit}
-                    className="mx-auto flex max-w-[96rem] flex-col gap-6 px-4 pb-28 sm:px-6 lg:px-8"
+                    className="flex w-full flex-col gap-6 px-4 pb-28 sm:px-6 lg:px-8"
                 >
                     <FormActionFab
                         cancelHref={route('admin.employee-attendance.index')}
