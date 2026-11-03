@@ -184,7 +184,7 @@ export default function Index({
                         />
                     </div>
 
-                    <Card className="shadow-sm">
+                    <Card className="shadow-sm border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30">
                         <CardHeader className="gap-4 md:grid-cols-[1fr_auto] md:items-center">
                             <div>
                                 <CardTitle>Project directory</CardTitle>
@@ -271,11 +271,11 @@ export default function Index({
                         </CardHeader>
 
                         <CardContent>
-                            <div className="overflow-x-auto rounded-lg border border-border">
+                            <div className="overflow-x-auto rounded-lg border border-emerald-200 bg-card dark:border-emerald-900">
                                 <div className="xl:min-w-[92rem]">
                                 <div
                                     className={cn(
-                                        'hidden items-center gap-6 border-b border-border bg-muted/50 px-5 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground xl:grid',
+                                        'hidden items-center gap-6 border-b border-emerald-200 bg-emerald-50 px-5 py-4 text-xs font-semibold uppercase tracking-wide text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200 xl:grid',
                                         projectRowGridClassName,
                                     )}
                                 >

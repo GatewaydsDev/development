@@ -731,7 +731,7 @@ export default function ProjectForm({
 
 
                         {canEditCoreFields && (
-                            <div className="grid items-start gap-5 rounded-lg border border-emerald-200 bg-background p-4 dark:border-emerald-900/70 md:grid-cols-2 xl:grid-cols-4">
+                            <div className="grid items-start gap-5 rounded-lg border border-violet-200 bg-violet-50/70 dark:border-violet-900 dark:bg-violet-950/30 p-4 md:grid-cols-2 xl:grid-cols-4">
                                 <div className="flex flex-col gap-2 md:col-span-2 xl:col-span-4">
                                     <h3 className="text-base font-semibold text-foreground">
                                         Address
@@ -923,7 +923,7 @@ export default function ProjectForm({
                     </section>
 
                         {canEditCoreFields && (
-                            <section className="flex flex-col gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-900/60 dark:bg-emerald-950/30">
+                            <section className="flex flex-col gap-4 rounded-xl border p-5 border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30">
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                     <div>
                                         <h3 className="text-base font-semibold text-foreground">
@@ -1199,7 +1199,7 @@ export default function ProjectForm({
                         )}
 
                         {canViewSensitive && (
-                            <div className="flex flex-col gap-4 rounded-lg border border-emerald-200 bg-background p-4 dark:border-emerald-900/70">
+                            <div className="flex flex-col gap-4 rounded-lg border border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30 p-4">
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                     <div>
                                         <h3 className="text-base font-semibold text-foreground">
@@ -1298,7 +1298,7 @@ export default function ProjectForm({
                         )}
 
                         {canEditCoreFields && (
-                            <div className="flex flex-col gap-4 rounded-lg border border-emerald-200 bg-background p-4 dark:border-emerald-900/70">
+                            <div className="flex flex-col gap-4 rounded-lg border border-violet-200 bg-violet-50/70 dark:border-violet-900 dark:bg-violet-950/30 p-4">
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                     <div>
                                         <h3 className="text-base font-semibold text-foreground">
@@ -1418,7 +1418,7 @@ export default function ProjectForm({
                         )}
 
                         {canEditCoreFields && (
-                            <div className="flex flex-col gap-4 rounded-lg border border-emerald-200 bg-background p-4 dark:border-emerald-900/70">
+                            <div className="flex flex-col gap-4 rounded-lg border border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30 p-4">
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                     <div>
                                         <h3 className="text-base font-semibold text-foreground">
@@ -1603,7 +1603,7 @@ export default function ProjectForm({
                             </div>
                         )}
 
-                    <section className="flex flex-col gap-5">
+                    <section className="flex flex-col gap-5 rounded-xl border p-5 border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30">
                         <div className="flex flex-col gap-2">
                             <InputLabel
                                 htmlFor="public-notes"
