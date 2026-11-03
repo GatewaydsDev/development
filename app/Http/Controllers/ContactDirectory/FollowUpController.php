@@ -10,14 +10,28 @@ use App\Http\Requests\ContactDirectory\StoreFollowUpRequest;
 use App\Models\ContactDirectory\ContactDirectoryContact;
 use App\Models\ContactDirectory\ContactFollowUp;
 use App\Models\User;
-use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class FollowUpController extends Controller
 {
+    public function create(Request $request): Response
+    {
+        $validated = $request->validate([
+            'contact_id' => ['nullable', 'integer', Rule::exists('contact_directory_contacts', 'id')->whereNull('deleted_at')],
+        ]);
+
+        return Inertia::render('ContactDirectory/FollowUps/Create', [
+            'contacts' => ContactDirectoryContact::query()->orderBy('last_name')->get(['id', 'first_name', 'last_name']),
+            'users' => User::query()->orderBy('name')->get(['id', 'name']),
+            'contactId' => isset($validated['contact_id']) ? (int) $validated['contact_id'] : null,
+            'timezone' => config('app.timezone'),
+        ]);
+    }
+
     public function index(Request $request): Response
     {
         $filters = $request->only([
@@ -165,7 +179,7 @@ class FollowUpController extends Controller
             'reminder_last_notified_at' => null,
         ]);
 
-        return back()->with('success', 'Follow-up snoozed until ' . $followUp->snoozed_until->format('M j, Y g:i A') . '.');
+        return back()->with('success', 'Follow-up snoozed until '.$followUp->snoozed_until->format('M j, Y g:i A').'.');
     }
 
     public function cancel(Request $request, ContactFollowUp $followUp): mixed

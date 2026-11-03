@@ -2,10 +2,13 @@
 
 use App\Models\ContactDirectory\ContactCompany;
 use App\Models\ContactDirectory\ContactDirectoryContact;
+use App\Models\ContactDirectory\ContactDirectoryInquiry;
 use App\Models\ContactDirectory\ContactFollowUp;
 use App\Models\ContactDirectory\EmailTemplate;
 use App\Models\ContactDirectory\PriceRequest;
 use App\Models\ContactDirectory\PriceRequestItem;
+use App\Models\Project;
+use App\Models\ProjectStatus;
 use App\Models\User;
 use App\Models\UserLevel;
 use App\Services\ContactDirectory\EmailTemplateRenderer;
@@ -44,6 +47,36 @@ it('shows new contacts before they have a follow-up', function () {
         ->has('contacts.data', 1)->where('contacts.data.0.id', $contact->id));
 });
 
+it('serves the standard follow-up create page and preselects a contact', function () {
+    $contact = ContactDirectoryContact::create([
+        'first_name' => 'Follow-up editor', 'contact_type' => 'supplier', 'owner_id' => $this->admin->id,
+    ]);
+    actingAs($this->admin)->get(route('contact-directory.follow-ups.create', ['contact_id' => $contact->id]))
+        ->assertOk()->assertInertia(fn ($page) => $page
+        ->component('ContactDirectory/FollowUps/Create')
+        ->where('contactId', $contact->id)
+        ->has('contacts', 1)->has('users')->where('timezone', config('app.timezone')));
+    actingAs($this->admin)->get(route('contact-directory.follow-ups.create'))
+        ->assertOk()->assertInertia(fn ($page) => $page->where('contactId', null));
+});
+
+it('does not preselect deleted or invalid contacts for follow-up creation', function () {
+    $contact = ContactDirectoryContact::create([
+        'first_name' => 'Deleted supplier', 'contact_type' => 'supplier', 'owner_id' => $this->admin->id,
+    ]);
+    $contact->delete();
+    actingAs($this->admin)->getJson(route('contact-directory.follow-ups.create', ['contact_id' => $contact->id]))
+        ->assertUnprocessable()->assertJsonValidationErrors('contact_id');
+    actingAs($this->admin)->getJson(route('contact-directory.follow-ups.create', ['contact_id' => 'not-an-id']))
+        ->assertUnprocessable()->assertJsonValidationErrors('contact_id');
+});
+
+it('denies the follow-up create page to read-only users', function () {
+    $level = UserLevel::create(['name' => 'Follow-up form reader', 'permissions' => ['view-contacts-directory' => true]]);
+    $reader = User::factory()->create(['level_id' => $level->id]);
+    actingAs($reader)->get(route('contact-directory.follow-ups.create'))->assertForbidden();
+});
+
 it('creates a standalone follow-up and exposes it in my day', function () {
     $contact = ContactDirectoryContact::create([
         'first_name' => 'New supplier', 'contact_type' => 'supplier', 'owner_id' => $this->admin->id,
@@ -66,6 +99,54 @@ it('creates a standalone follow-up and exposes it in my day', function () {
     actingAs($this->admin)->post(route('contact-directory.follow-ups.complete', $followUp))->assertSessionHasNoErrors();
     actingAs($this->admin)->get(route('contact-directory.my-day.index'))
         ->assertInertia(fn ($page) => $page->has('todayFollowUps', 0)->where('completedTodayCount', 1));
+});
+
+it('updates an inquiry status without requiring or overwriting unrelated fields', function () {
+    $contact = ContactDirectoryContact::create([
+        'first_name' => 'Status supplier', 'contact_type' => 'supplier', 'owner_id' => $this->admin->id,
+    ]);
+    $inquiry = ContactDirectoryInquiry::create([
+        'contact_id' => $contact->id, 'title' => 'Keep this title', 'priority' => 'high',
+        'status' => 'open', 'description' => 'Keep these notes',
+        'assigned_user_id' => $this->admin->id, 'created_by' => $this->admin->id,
+    ]);
+    actingAs($this->admin)->patch(route('contact-directory.inquiries.update', $inquiry->uuid), [
+        'status' => 'waiting_for_response',
+    ])->assertRedirect()->assertSessionHasNoErrors();
+    expect($inquiry->fresh())
+        ->status->toBe('waiting_for_response')
+        ->title->toBe('Keep this title')
+        ->description->toBe('Keep these notes')
+        ->priority->toBe('high')
+        ->contact_id->toBe($contact->id)
+        ->assigned_user_id->toBe($this->admin->id);
+
+    actingAs($this->admin)->patchJson(route('contact-directory.inquiries.update', $inquiry->uuid), [
+        'status' => 'not-a-status', 'title' => '', 'contact_id' => null, 'priority' => null,
+    ])->assertUnprocessable()->assertJsonValidationErrors(['status', 'title', 'contact_id', 'priority']);
+    expect($inquiry->fresh()->status)->toBe('waiting_for_response');
+});
+
+it('validates partial inquiry project changes against the existing price request', function () {
+    $contact = ContactDirectoryContact::create([
+        'first_name' => 'Project supplier', 'contact_type' => 'supplier', 'owner_id' => $this->admin->id,
+    ]);
+    $projects = collect(['Original project', 'Different project'])->map(fn ($name) => Project::create([
+        'name' => $name, 'project_status_id' => ProjectStatus::idFor('quoted'),
+        'priority' => 'normal', 'created_by' => $this->admin->id,
+    ]));
+    $priceRequest = PriceRequest::create([
+        'title' => 'Linked package', 'project_id' => $projects[0]->id, 'owner_id' => $this->admin->id,
+    ]);
+    $inquiry = ContactDirectoryInquiry::create([
+        'contact_id' => $contact->id, 'price_request_id' => $priceRequest->id,
+        'project_id' => $projects[0]->id, 'title' => 'Linked inquiry', 'priority' => 'normal',
+        'status' => 'open', 'created_by' => $this->admin->id,
+    ]);
+    actingAs($this->admin)->patchJson(route('contact-directory.inquiries.update', $inquiry->uuid), [
+        'project_id' => $projects[1]->id,
+    ])->assertUnprocessable()->assertJsonValidationErrors('project_id');
+    expect($inquiry->fresh()->project_id)->toBe($projects[0]->id);
 });
 
 it('validates the contact when creating a standalone follow-up', function ($contactId) {

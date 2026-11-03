@@ -1,4 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import FormActionFab from '@/Components/FormActionFab';
 import { Link, router, usePage } from '@inertiajs/react';
 import { useState, type FormEvent } from 'react';
 import { Badge } from '@/Components/ui/badge';
@@ -112,6 +113,15 @@ export default function CompareQuotes({
     const [selectionReason, setSelectionReason] = useState(
         selection?.selection_reason ?? '',
     );
+    const [selectionOpen, setSelectionOpen] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [errors, setErrors] = useState<Record<string, string>>({});
+    const closeEditor = () => {
+        setSelectionOpen(false);
+        setErrors({});
+        setSelectionChoice(selection?.supplier_quote ? String(selection.supplier_quote.id) : '');
+        setSelectionReason(selection?.selection_reason ?? '');
+    };
 
     const submitSelection = (event: FormEvent) => {
         event.preventDefault();
@@ -126,7 +136,7 @@ export default function CompareQuotes({
                 supplier_quote_id: selectionChoice,
                 selection_reason: selectionReason,
             },
-            { preserveScroll: true },
+            { preserveScroll: true, onStart: () => { setSaving(true); setErrors({}); }, onError: setErrors, onFinish: () => setSaving(false), onSuccess: () => setSelectionOpen(false) },
         );
     };
 
@@ -453,9 +463,12 @@ export default function CompareQuotes({
                                 revision chosen. It does not send a purchase order, email
                                 suppliers, or close other inquiries.
                             </CardDescription>
+                            {!selectionOpen && <div><Button type="button" onClick={() => setSelectionOpen(true)}>Choose preferred quote</Button></div>}
                         </CardHeader>
-                        <CardContent>
-                            <form onSubmit={submitSelection} className="space-y-3">
+                        {selectionOpen && <CardContent>
+                            <form id="directory-preferred-quote-form" onSubmit={submitSelection} className="min-w-0 space-y-5 pr-4 pb-28 sm:pr-20 lg:pb-6">
+                                <FormActionFab form="directory-preferred-quote-form" cancelHref={route('contact-directory.price-requests.show', priceRequest.uuid)} saveLabel="Save preferred quote" onCancel={closeEditor} disabled={saving || !selectionChoice} />
+                                {Object.keys(errors).length > 0 && <p role="alert" className="text-sm text-destructive">{Object.values(errors).join(' ')}</p>}
                                 <fieldset className="space-y-2">
                                     <legend className="text-sm font-medium text-foreground">
                                         Preferred quote
@@ -507,10 +520,12 @@ export default function CompareQuotes({
                                 </fieldset>
 
                                 <div>
-                                    <label className="mb-1 block text-sm font-medium text-foreground">
+                                    <label htmlFor="quote-selection-reason" className="mb-2 block text-sm font-medium text-emerald-700 dark:text-emerald-300">
                                         Selection reason
                                     </label>
                                     <TextInput
+                                        id="quote-selection-reason"
+                                        className="h-11 w-full min-w-0 border-border"
                                         value={selectionReason}
                                         onChange={(event) =>
                                             setSelectionReason(event.target.value)
@@ -520,9 +535,8 @@ export default function CompareQuotes({
                                     />
                                 </div>
 
-                                <Button type="submit">Save preferred quote</Button>
                             </form>
-                        </CardContent>
+                        </CardContent>}
                     </Card>
                 )}
             </div>

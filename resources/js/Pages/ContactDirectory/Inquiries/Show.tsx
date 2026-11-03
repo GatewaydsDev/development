@@ -1,4 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import FormActionFab from '@/Components/FormActionFab';
 import { Link, router, usePage } from '@inertiajs/react';
 import { useState, type FormEvent } from 'react';
 import { Badge } from '@/Components/ui/badge';
@@ -166,7 +167,7 @@ export default function InquiriesShow({
 }: ShowProps) {
     const page = usePage<ShowProps>();
     const flash = page.props.flash;
-    const errors = page.props.errors as Record<string, string> | undefined;
+    const [errors, setErrors] = useState<Record<string, string>>({});
 
     const [statusDraft, setStatusDraft] = useState(inquiry.status);
     const [waitingOnDraft, setWaitingOnDraft] = useState(inquiry.waiting_on ?? 'none');
@@ -174,19 +175,31 @@ export default function InquiriesShow({
         inquiry.waiting_on_user_id ? String(inquiry.waiting_on_user_id) : '',
     );
     const [expectedResponseDraft, setExpectedResponseDraft] = useState(
-        inquiry.expected_response_date ?? '',
+        inquiry.expected_response_date?.slice(0, 10) ?? '',
     );
     const [waitingExplanationDraft, setWaitingExplanationDraft] = useState(
         inquiry.waiting_explanation ?? '',
     );
     const [snoozeDraft, setSnoozeDraft] = useState('');
+    const [activeEditor, setActiveEditor] = useState<'status' | 'waiting' | null>(null);
+    const [saving, setSaving] = useState(false);
+    const canManage = Boolean(page.props.auth.can.manageContactsDirectory);
+    const closeEditor = () => {
+        setActiveEditor(null);
+        setErrors({});
+        setStatusDraft(inquiry.status);
+        setWaitingOnDraft(inquiry.waiting_on ?? 'none');
+        setWaitingOnUserDraft(inquiry.waiting_on_user_id ? String(inquiry.waiting_on_user_id) : '');
+        setExpectedResponseDraft(inquiry.expected_response_date?.slice(0, 10) ?? '');
+        setWaitingExplanationDraft(inquiry.waiting_explanation ?? '');
+    };
 
     const updateStatus = (event: FormEvent) => {
         event.preventDefault();
         router.patch(
             route('contact-directory.inquiries.update', inquiry.uuid),
             { status: statusDraft },
-            { preserveScroll: true },
+            { preserveScroll: true, onStart: () => { setSaving(true); setErrors({}); }, onError: setErrors, onFinish: () => setSaving(false), onSuccess: () => setActiveEditor(null) },
         );
     };
 
@@ -200,7 +213,7 @@ export default function InquiriesShow({
                 expected_response_date: expectedResponseDraft || null,
                 waiting_explanation: waitingExplanationDraft || null,
             },
-            { preserveScroll: true },
+            { preserveScroll: true, onStart: () => { setSaving(true); setErrors({}); }, onError: setErrors, onFinish: () => setSaving(false), onSuccess: () => setActiveEditor(null) },
         );
     };
 
@@ -406,9 +419,12 @@ export default function InquiriesShow({
                         <Card>
                             <CardHeader>
                                 <CardTitle className="text-base">Update status</CardTitle>
+                                {canManage && activeEditor !== 'status' && <div><Button type="button" disabled={saving} onClick={() => { closeEditor(); setActiveEditor('status'); }}>Edit status</Button></div>}
                             </CardHeader>
                             <CardContent>
-                                <form onSubmit={updateStatus} className="flex flex-wrap items-end gap-3">
+                                {canManage && activeEditor === 'status' ? <form id="directory-inquiry-status-form" onSubmit={updateStatus} className="flex min-w-0 flex-wrap items-end gap-5 pr-4 pb-28 sm:pr-20 lg:pb-6">
+                                    <FormActionFab form="directory-inquiry-status-form" cancelHref={route('contact-directory.inquiries.show', inquiry.uuid)} saveLabel="Save status" onCancel={closeEditor} disabled={saving} />
+                                    {errors && Object.keys(errors).length > 0 && <p role="alert" className="basis-full text-sm text-destructive">{Object.values(errors).join(' ')}</p>}
                                     <SimpleSelect
                                         label="Status"
                                         value={statusDraft}
@@ -417,8 +433,7 @@ export default function InquiriesShow({
                                             ([value, label]) => ({ value, label }),
                                         )}
                                     />
-                                    <Button type="submit">Save status</Button>
-                                </form>
+                                </form> : <p className="text-sm text-muted-foreground">{STATUS_LABELS[inquiry.status] ?? inquiry.status}</p>}
                             </CardContent>
                         </Card>
 
@@ -430,12 +445,16 @@ export default function InquiriesShow({
                                     always means the inquiry's assigned user, not whoever is
                                     viewing this page.
                                 </CardDescription>
+                                {canManage && activeEditor !== 'waiting' && <div><Button type="button" disabled={saving} onClick={() => { closeEditor(); setActiveEditor('waiting'); }}>Edit waiting responsibility</Button></div>}
                             </CardHeader>
                             <CardContent>
-                                <form
+                                {canManage && activeEditor === 'waiting' ? <form
+                                    id="directory-inquiry-waiting-form"
                                     onSubmit={updateWaitingOn}
-                                    className="grid gap-3 sm:grid-cols-2"
+                                    className="grid min-w-0 gap-5 pr-4 pb-28 sm:grid-cols-2 sm:pr-20 lg:pb-6"
                                 >
+                                    <FormActionFab form="directory-inquiry-waiting-form" cancelHref={route('contact-directory.inquiries.show', inquiry.uuid)} saveLabel="Save waiting responsibility" onCancel={closeEditor} disabled={saving} />
+                                    {errors && Object.keys(errors).length > 0 && <p role="alert" className="text-sm text-destructive sm:col-span-2">{Object.values(errors).join(' ')}</p>}
                                     <SimpleSelect
                                         label="Waiting on"
                                         value={waitingOnDraft}
@@ -457,10 +476,12 @@ export default function InquiriesShow({
                                         />
                                     )}
                                     <div>
-                                        <label className="mb-1 block text-sm font-medium text-foreground">
+                                        <label htmlFor="inquiry-expected-response" className="mb-2 block text-sm font-medium text-emerald-700 dark:text-emerald-300">
                                             Expected response date
                                         </label>
                                         <TextInput
+                                            id="inquiry-expected-response"
+                                            className="h-11 w-full min-w-0 border-border"
                                             type="date"
                                             value={expectedResponseDraft}
                                             onChange={(event) =>
@@ -469,10 +490,12 @@ export default function InquiriesShow({
                                         />
                                     </div>
                                     <div>
-                                        <label className="mb-1 block text-sm font-medium text-foreground">
+                                        <label htmlFor="inquiry-waiting-explanation" className="mb-2 block text-sm font-medium text-emerald-700 dark:text-emerald-300">
                                             What is needed
                                         </label>
                                         <TextInput
+                                            id="inquiry-waiting-explanation"
+                                            className="h-11 w-full min-w-0 border-border"
                                             value={waitingExplanationDraft}
                                             onChange={(event) =>
                                                 setWaitingExplanationDraft(event.target.value)
@@ -480,10 +503,7 @@ export default function InquiriesShow({
                                             placeholder="Brief explanation of what is needed"
                                         />
                                     </div>
-                                    <Button type="submit" className="sm:col-span-2">
-                                        Save waiting responsibility
-                                    </Button>
-                                </form>
+                                </form> : <p className="text-sm text-muted-foreground">{WAITING_ON_LABELS[inquiry.waiting_on ?? 'none'] ?? inquiry.waiting_on}{inquiry.waiting_explanation ? `: ${inquiry.waiting_explanation}` : ''}</p>}
                             </CardContent>
                         </Card>
                     </TabsContent>

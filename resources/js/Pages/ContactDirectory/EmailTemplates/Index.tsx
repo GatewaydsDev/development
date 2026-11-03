@@ -1,4 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import FormActionFab from '@/Components/FormActionFab';
 import { router, usePage } from '@inertiajs/react';
 import { useState, type FormEvent } from 'react';
 import { Badge } from '@/Components/ui/badge';
@@ -66,6 +67,18 @@ export default function EmailTemplatesIndex({
     const [draftBody, setDraftBody] = useState('');
     const [draftVisibility, setDraftVisibility] = useState('organization');
     const [previewDraft, setPreviewDraft] = useState('');
+    const [createOpen, setCreateOpen] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [errors, setErrors] = useState<Record<string, string>>({});
+    const closeEditor = () => {
+        setCreateOpen(false);
+        setErrors({});
+        setDraftName('');
+        setDraftSubject('');
+        setDraftBody('');
+        setDraftCategory('initial_pricing_request');
+        setDraftVisibility('organization');
+    };
 
     const applyFilters = (updates: Record<string, string | undefined>) => {
         router.get(
@@ -92,7 +105,7 @@ export default function EmailTemplatesIndex({
                 visibility: draftVisibility,
                 is_active: true,
             },
-            { preserveScroll: true },
+            { preserveScroll: true, onStart: () => { setSaving(true); setErrors({}); }, onError: setErrors, onFinish: () => setSaving(false), onSuccess: closeEditor },
         );
     };
 
@@ -206,14 +219,19 @@ export default function EmailTemplatesIndex({
                     <Card>
                         <CardHeader>
                             <CardTitle className="text-base">Create a template</CardTitle>
+                            {!createOpen && <div><Button type="button" onClick={() => setCreateOpen(true)}>New template</Button></div>}
                         </CardHeader>
-                        <CardContent>
-                            <form onSubmit={createTemplate} className="grid gap-3 sm:grid-cols-2">
+                        {createOpen && <CardContent>
+                            <form id="directory-template-form" onSubmit={createTemplate} className="grid min-w-0 gap-5 pr-4 pb-28 sm:grid-cols-2 sm:pr-20 lg:pb-6">
+                                <FormActionFab form="directory-template-form" cancelHref={route('contact-directory.email-templates.index')} saveLabel="Save template" onCancel={closeEditor} disabled={saving} />
+                                {Object.keys(errors).length > 0 && <div role="alert" className="text-sm text-destructive sm:col-span-2">{Object.values(errors).join(' ')}</div>}
                                 <div>
-                                    <label className="mb-1 block text-sm font-medium text-foreground">
+                                    <label htmlFor="template-name" className="mb-2 block text-sm font-medium text-emerald-700 dark:text-emerald-300">
                                         Name
                                     </label>
                                     <TextInput
+                                        id="template-name"
+                                        className="h-11 w-full min-w-0 border-border"
                                         value={draftName}
                                         onChange={(event) => setDraftName(event.target.value)}
                                         required
@@ -229,20 +247,23 @@ export default function EmailTemplatesIndex({
                                     }))}
                                 />
                                 <div className="sm:col-span-2">
-                                    <label className="mb-1 block text-sm font-medium text-foreground">
+                                    <label htmlFor="template-subject" className="mb-2 block text-sm font-medium text-emerald-700 dark:text-emerald-300">
                                         Subject
                                     </label>
                                     <TextInput
+                                        id="template-subject"
+                                        className="h-11 w-full min-w-0 border-border"
                                         value={draftSubject}
                                         onChange={(event) => setDraftSubject(event.target.value)}
                                         required
                                     />
                                 </div>
                                 <div className="sm:col-span-2">
-                                    <label className="mb-1 block text-sm font-medium text-foreground">
+                                    <label htmlFor="template-body" className="mb-2 block text-sm font-medium text-emerald-700 dark:text-emerald-300">
                                         Body
                                     </label>
                                     <textarea
+                                        id="template-body"
                                         value={draftBody}
                                         onChange={(event) => setDraftBody(event.target.value)}
                                         rows={8}
@@ -272,11 +293,8 @@ export default function EmailTemplatesIndex({
                                         </Button>
                                     ))}
                                 </div>
-                                <Button type="submit" className="sm:col-span-2">
-                                    Save template
-                                </Button>
                             </form>
-                        </CardContent>
+                        </CardContent>}
                     </Card>
                 )}
 

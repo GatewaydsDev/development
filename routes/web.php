@@ -242,6 +242,8 @@ Route::middleware(['auth', 'prevent-back-history', 'can:view-contacts-directory'
 
         Route::prefix('follow-ups')->name('follow-ups.')->group(function () {
             Route::get('/', [FollowUpController::class, 'index'])->name('index');
+            Route::get('/create', [FollowUpController::class, 'create'])->name('create')
+                ->middleware('can:manage-follow-ups');
             Route::get('/{followUp}', [FollowUpController::class, 'show'])->name('show');
             Route::post('/', [FollowUpController::class, 'store'])->name('store')
                 ->middleware('can:manage-follow-ups');

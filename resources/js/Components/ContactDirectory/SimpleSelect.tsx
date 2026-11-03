@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { useId } from 'react';
 
 export type SimpleSelectOption = {
     value: string;
@@ -30,24 +31,26 @@ export default function SimpleSelect({
     required,
     error,
 }: SimpleSelectProps) {
+    const generatedId = useId();
+    const selectId = id ?? generatedId;
     return (
         <div className={cn('min-w-0', className)}>
             {label && (
                 <label
-                    htmlFor={id}
-                    className="mb-1 block text-sm font-medium text-foreground"
+                    htmlFor={selectId}
+                    className="mb-2 block text-sm font-medium text-emerald-700 dark:text-emerald-300"
                 >
                     {label}
                 </label>
             )}
             <select
-                id={id}
+                id={selectId}
                 value={value}
                 required={required}
                 aria-label={ariaLabel ?? label}
                 onChange={(event) => onChange(event.target.value)}
                 className={cn(
-                    'h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground',
+                    'h-11 w-full min-w-0 rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground',
                     'focus:border-ring focus:ring-2 focus:ring-ring/40 focus:outline-none',
                     error && 'border-destructive',
                 )}

@@ -1,4 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import FormActionFab from '@/Components/FormActionFab';
 import CreateFollowUpButton from '@/Components/ContactDirectory/CreateFollowUpButton';
 import { Link, router, usePage } from '@inertiajs/react';
 import { useState, type FormEvent } from 'react';
@@ -156,10 +157,11 @@ export default function ContactsShow({
     const pageProps = usePage<ShowProps>();
     const can = (pageProps.props.auth.can ?? {}) as Record<string, boolean>;
     const flash = pageProps.props.flash;
-    const errors = pageProps.props.errors as Record<string, string> | undefined;
+    const [errors, setErrors] = useState<Record<string, string>>({});
     const canLogCommunications = Boolean(can.logCommunications);
 
     const [logOpen, setLogOpen] = useState(false);
+    const [savingLog, setSavingLog] = useState(false);
     const [logType, setLogType] = useState('phone_call');
     const [logDirection, setLogDirection] = useState('outgoing');
     const [logSubject, setLogSubject] = useState('');
@@ -179,6 +181,9 @@ export default function ContactsShow({
             },
             {
                 preserveScroll: true,
+                onStart: () => { setSavingLog(true); setErrors({}); },
+                onError: setErrors,
+                onFinish: () => setSavingLog(false),
                 onSuccess: () => {
                     setLogOpen(false);
                     setLogSubject('');
@@ -391,7 +396,9 @@ export default function ContactsShow({
                             <CardTitle className="text-base">Log a communication</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <form onSubmit={submitLog} className="grid gap-3 md:grid-cols-2">
+                            <form id="directory-communication-form" onSubmit={submitLog} className="grid min-w-0 gap-5 pr-4 pb-28 sm:pr-20 md:grid-cols-2 lg:pb-6">
+                                <FormActionFab form="directory-communication-form" cancelHref={route('contact-directory.contacts.show', contact.uuid)} saveLabel="Save communication" disabled={savingLog} onCancel={() => { setLogOpen(false); setErrors({}); setLogType('phone_call'); setLogDirection('outgoing'); setLogSubject(''); setLogContent(''); }} />
+                                {Object.keys(errors).length > 0 && <div role="alert" className="text-sm text-destructive md:col-span-2">{Object.values(errors).join(' ')}</div>}
                                 <SimpleSelect
                                     label="Type"
                                     value={logType}
@@ -411,10 +418,12 @@ export default function ContactsShow({
                                     ]}
                                 />
                                 <div>
-                                    <label className="mb-1 block text-sm font-medium text-foreground">
+                                    <label htmlFor="communication-subject" className="mb-2 block text-sm font-medium text-emerald-700 dark:text-emerald-300">
                                         Subject
                                     </label>
                                     <TextInput
+                                        id="communication-subject"
+                                        className="h-11 w-full min-w-0 border-border"
                                         value={logSubject}
                                         onChange={(event) => setLogSubject(event.target.value)}
                                         required
@@ -426,25 +435,16 @@ export default function ContactsShow({
                                     )}
                                 </div>
                                 <div className="md:col-span-2">
-                                    <label className="mb-1 block text-sm font-medium text-foreground">
+                                    <label htmlFor="communication-content" className="mb-2 block text-sm font-medium text-emerald-700 dark:text-emerald-300">
                                         Notes or communication content
                                     </label>
                                     <textarea
+                                        id="communication-content"
                                         value={logContent}
                                         onChange={(event) => setLogContent(event.target.value)}
                                         rows={5}
                                         className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-ring focus:ring-2 focus:ring-ring/40 focus:outline-none"
                                     />
-                                </div>
-                                <div className="flex gap-2 md:col-span-2">
-                                    <Button type="submit">Save communication</Button>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() => setLogOpen(false)}
-                                    >
-                                        Cancel
-                                    </Button>
                                 </div>
                             </form>
                         </CardContent>

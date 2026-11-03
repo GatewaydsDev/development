@@ -3,7 +3,6 @@ import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import { phoneCountries, formatPhoneNumber } from '@/Components/PhoneInput';
 import TextInput from '@/Components/TextInput';
-import { Button } from '@/Components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import UserContactFields, { type UserContactRow } from '@/Pages/Admin/Users/Partials/UserContactFields';
@@ -118,7 +117,7 @@ export default function ContactForm({ contact, companies, users, auth }: PagePro
             <nav aria-label="Breadcrumb" className="mb-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                 <span>People</span><span>/</span><Link href={route('contact-directory.contacts.index')} className="hover:text-foreground">Contacts</Link><span>/</span><span className="text-foreground">{editing ? 'Edit' : 'Add new'}</span>
             </nav>
-            <h2 className={`text-xl font-semibold ${labelClass}`}>{editing ? 'Edit contact' : 'Add new contact'}</h2>
+            <h2 className={`text-xl font-semibold leading-tight ${labelClass}`}>{editing ? 'Edit contact' : 'Add new contact'}</h2>
         </div>}>
             <Head title={title} />
             <div className="w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
@@ -128,7 +127,7 @@ export default function ContactForm({ contact, companies, users, auth }: PagePro
                         <CardDescription>Save the person’s details and all their phone numbers and email addresses. Choose one primary entry in each list.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <form id="directory-contact-form" onSubmit={submit} className="flex min-w-0 flex-col gap-6 pb-28 sm:pr-20 lg:pb-6">
+                        <form id="directory-contact-form" onSubmit={submit} className="flex w-full min-w-0 max-w-full flex-col gap-6 pr-4 pb-28 sm:pr-20 lg:pb-6">
                             <FormActionFab form="directory-contact-form" cancelHref={cancelHref} saveLabel={editing ? 'Save changes' : 'Create contact'} disabled={form.processing} />
                             {Object.keys(errors).length > 0 && <div role="alert" className="rounded-lg border border-destructive/50 bg-destructive/5 p-4 text-sm text-destructive">Please correct the highlighted fields before saving.</div>}
                             <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
@@ -174,10 +173,6 @@ export default function ContactForm({ contact, companies, users, auth }: PagePro
                                 <input type="checkbox" checked={form.data.is_active} onChange={(event) => form.setData('is_active', event.target.checked)} />Active contact
                             </label>
                             <InputError message={errors.is_active} />
-                            <div className="flex flex-wrap justify-end gap-3 border-t border-border pt-5">
-                                <Button type="button" variant="outline" asChild><Link href={cancelHref}>Cancel</Link></Button>
-                                <Button type="submit" disabled={form.processing}>{form.processing ? 'Saving…' : editing ? 'Save changes' : 'Create contact'}</Button>
-                            </div>
                         </form>
                     </CardContent>
                 </Card>

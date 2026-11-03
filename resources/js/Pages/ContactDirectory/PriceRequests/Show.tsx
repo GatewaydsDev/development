@@ -1,4 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import FormActionFab from '@/Components/FormActionFab';
 import { Link, router, usePage } from '@inertiajs/react';
 import { useState, type FormEvent } from 'react';
 import { Badge } from '@/Components/ui/badge';
@@ -121,6 +122,17 @@ export default function PriceRequestsShow({
     const [inquiryTitle, setInquiryTitle] = useState('');
     const [inquiryAssignedUser, setInquiryAssignedUser] = useState('');
     const [inquiryResponseDue, setInquiryResponseDue] = useState('');
+    const [inquiryOpen, setInquiryOpen] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [errors, setErrors] = useState<Record<string, string>>({});
+    const closeEditor = () => {
+        setInquiryOpen(false);
+        setErrors({});
+        setInquiryContact('');
+        setInquiryTitle('');
+        setInquiryAssignedUser('');
+        setInquiryResponseDue('');
+    };
 
     const submitInquiry = (event: FormEvent) => {
         event.preventDefault();
@@ -139,7 +151,7 @@ export default function PriceRequestsShow({
                 priority: 'normal',
                 status: 'open',
             },
-            { preserveScroll: true },
+            { preserveScroll: true, onStart: () => { setSaving(true); setErrors({}); }, onError: setErrors, onFinish: () => setSaving(false), onSuccess: closeEditor },
         );
     };
 
@@ -338,12 +350,16 @@ export default function PriceRequestsShow({
                                     <CardTitle className="text-base">
                                         Add a supplier inquiry
                                     </CardTitle>
+                                    {!inquiryOpen && <div><Button type="button" onClick={() => setInquiryOpen(true)}>New supplier inquiry</Button></div>}
                                 </CardHeader>
-                                <CardContent>
+                                {inquiryOpen && <CardContent>
                                     <form
+                                        id="directory-supplier-inquiry-form"
                                         onSubmit={submitInquiry}
-                                        className="grid gap-3 sm:grid-cols-2"
+                                        className="grid min-w-0 gap-5 pr-4 pb-28 sm:grid-cols-2 sm:pr-20 lg:pb-6"
                                     >
+                                        <FormActionFab form="directory-supplier-inquiry-form" cancelHref={route('contact-directory.price-requests.show', priceRequest.uuid)} saveLabel="Add supplier inquiry" onCancel={closeEditor} disabled={saving} />
+                                        {Object.keys(errors).length > 0 && <div role="alert" className="text-sm text-destructive sm:col-span-2">{Object.values(errors).join(' ')}</div>}
                                         <SimpleSelect
                                             label="Contact"
                                             value={inquiryContact}
@@ -356,10 +372,12 @@ export default function PriceRequestsShow({
                                             required
                                         />
                                         <div>
-                                            <label className="mb-1 block text-sm font-medium text-foreground">
+                                            <label htmlFor="supplier-inquiry-title" className="mb-2 block text-sm font-medium text-emerald-700 dark:text-emerald-300">
                                                 Title
                                             </label>
                                             <TextInput
+                                                id="supplier-inquiry-title"
+                                                className="h-11 w-full min-w-0 border-border"
                                                 value={inquiryTitle}
                                                 onChange={(event) =>
                                                     setInquiryTitle(event.target.value)
@@ -378,10 +396,12 @@ export default function PriceRequestsShow({
                                             placeholder="Select a user"
                                         />
                                         <div>
-                                            <label className="mb-1 block text-sm font-medium text-foreground">
+                                            <label htmlFor="supplier-inquiry-response-due" className="mb-2 block text-sm font-medium text-emerald-700 dark:text-emerald-300">
                                                 Response due
                                             </label>
                                             <TextInput
+                                                id="supplier-inquiry-response-due"
+                                                className="h-11 w-full min-w-0 border-border"
                                                 type="date"
                                                 value={inquiryResponseDue}
                                                 onChange={(event) =>
@@ -389,11 +409,8 @@ export default function PriceRequestsShow({
                                                 }
                                             />
                                         </div>
-                                        <Button type="submit" className="sm:col-span-2">
-                                            Add supplier inquiry
-                                        </Button>
                                     </form>
-                                </CardContent>
+                                </CardContent>}
                             </Card>
                         )}
                     </TabsContent>
