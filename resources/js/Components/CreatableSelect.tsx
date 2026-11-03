@@ -2,6 +2,7 @@ import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import MaskedDecimalInput from '@/Components/MaskedDecimalInput';
 import TextInput from '@/Components/TextInput';
+import { Button } from '@/Components/ui/button';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -65,6 +66,7 @@ type CreatableSelectProps = {
     menuMinWidth?: number;
     stateInitials?: boolean;
     showCreateFooter?: boolean;
+    onUseWithoutSaving?: (name: string) => void;
 };
 
 const nameSchema = z
@@ -114,6 +116,7 @@ export default function CreatableSelect({
     menuMinWidth,
     stateInitials = false,
     showCreateFooter = false,
+    onUseWithoutSaving,
 }: CreatableSelectProps) {
     const listboxId = useId();
     const containerRef = useRef<HTMLDivElement>(null);
@@ -869,6 +872,22 @@ export default function CreatableSelect({
                         <AlertDialogCancel disabled={isSaving}>
                             No, go back
                         </AlertDialogCancel>
+                        {onUseWithoutSaving ? (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                disabled={isSaving || pendingName === ''}
+                                onClick={() => {
+                                    onUseWithoutSaving(pendingName);
+                                    setQuery(pendingName);
+                                    setHasTyped(false);
+                                    setIsDialogOpen(false);
+                                    setPendingName('');
+                                }}
+                            >
+                                Use without saving
+                            </Button>
+                        ) : null}
                         <AlertDialogAction
                             disabled={
                                 isSaving ||

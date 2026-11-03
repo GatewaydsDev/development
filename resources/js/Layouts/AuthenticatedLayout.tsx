@@ -3,6 +3,7 @@ import { Dialog as DialogPrimitive } from 'radix-ui';
 import ExpenseUpdates from '@/Components/ExpenseUpdates';
 import IncomingAlert from '@/Components/IncomingAlert';
 import FollowUpReminders from '@/Components/FollowUpReminders';
+import ContactFollowUpReminders from '@/Components/ContactFollowUpReminders';
 import TabUnreadBadge from '@/Components/TabUnreadBadge';
 import InternalChat from '@/Components/InternalChat';
 import DashboardSnapDrawer from '@/Components/DashboardSnapDrawer';
@@ -651,6 +652,7 @@ export default function Authenticated({
                 <LogoutConfirmDialog open={confirmLogout} onOpenChange={setConfirmLogout} />
                 <IncomingAlert />
                 {Boolean(auth.can?.manageProjectControl) ? <FollowUpReminders /> : null}
+                {Boolean(auth.can?.manageFollowUps) ? <ContactFollowUpReminders /> : null}
 
                 {/* Main Content Area */}
                 <div className="flex min-w-0 flex-1 flex-col">

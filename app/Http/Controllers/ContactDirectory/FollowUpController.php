@@ -7,6 +7,8 @@ use App\Http\Requests\ContactDirectory\CompleteFollowUpRequest;
 use App\Http\Requests\ContactDirectory\RescheduleFollowUpRequest;
 use App\Http\Requests\ContactDirectory\SnoozeFollowUpRequest;
 use App\Http\Requests\ContactDirectory\StoreFollowUpRequest;
+use App\Http\Requests\ContactDirectory\UpdateFollowUpRequest;
+use App\Models\ContactDirectory\FollowUpTaskOption;
 use App\Models\ContactDirectory\ContactDirectoryContact;
 use App\Models\ContactDirectory\ContactFollowUp;
 use App\Models\User;
@@ -25,10 +27,11 @@ class FollowUpController extends Controller
         ]);
 
         return Inertia::render('ContactDirectory/FollowUps/Create', [
-            'contacts' => ContactDirectoryContact::query()->orderBy('last_name')->get(['id', 'first_name', 'last_name']),
+            'contacts' => ContactDirectoryContact::query()->with(['phoneNumbers:id,contact_id,phone_number,extension,label,is_primary', 'emailAddresses:id,contact_id,email_address,label,is_primary'])->orderBy('last_name')->get(['id', 'uuid', 'first_name', 'last_name']),
             'users' => User::query()->orderBy('name')->get(['id', 'name']),
             'contactId' => isset($validated['contact_id']) ? (int) $validated['contact_id'] : null,
             'timezone' => config('app.timezone'),
+            'taskOptions' => FollowUpTaskOption::query()->orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -55,6 +58,7 @@ class FollowUpController extends Controller
                 'inquiry:id,uuid,title,status',
                 'assignedUser:id,name',
                 'completedByUser:id,name',
+                'tasks:id,follow_up_id,title,position',
             ])
             ->when((string) ($filters['search'] ?? '') !== '', function ($query) use ($filters): void {
                 $search = (string) $filters['search'];
@@ -102,6 +106,76 @@ class FollowUpController extends Controller
         ]);
     }
 
+    public function edit(ContactFollowUp $followUp): Response
+    {
+        abort_unless($followUp->status === 'pending', 404);
+
+        return Inertia::render('ContactDirectory/FollowUps/Create', [
+            'contacts' => ContactDirectoryContact::query()->with(['phoneNumbers:id,contact_id,phone_number,extension,label,is_primary', 'emailAddresses:id,contact_id,email_address,label,is_primary'])->orderBy('last_name')->get(['id', 'uuid', 'first_name', 'last_name']),
+            'users' => User::query()->orderBy('name')->get(['id', 'name']),
+            'contactId' => $followUp->contact_id,
+            'timezone' => config('app.timezone'),
+            'taskOptions' => FollowUpTaskOption::query()->orderBy('name')->get(['id', 'name']),
+            'followUp' => [...$followUp->only(['id', 'uuid', 'contact_id', 'title', 'description', 'assigned_user_id', 'due_at', 'reminder_at', 'priority']), 'tasks' => $followUp->tasks()->get(['id', 'title'])],
+        ]);
+    }
+
+    public function update(UpdateFollowUpRequest $request, ContactFollowUp $followUp): mixed
+    {
+        if ($followUp->status !== 'pending') {
+            return back()->withErrors(['status' => 'Only pending follow-ups can be edited.']);
+        }
+
+        $validated = $request->validated();
+        $tasks = $validated['tasks'] ?? [];
+        unset($validated['tasks']);
+        $timesChanged = Carbon::parse($validated['due_at'])->ne($followUp->due_at)
+            || ($validated['reminder_at'] ?? null) !== $followUp->reminder_at?->format('Y-m-d H:i:s');
+
+        $followUp->update([
+            ...$validated,
+            'reminder_at' => $validated['reminder_at'] ?? null,
+            ...($timesChanged ? ['snoozed_until' => null, 'snoozed_reason' => null, 'reminder_last_notified_at' => null, 'reminder_dismissed_at' => null] : []),
+        ]);
+
+        $this->syncTasks($followUp, $tasks);
+
+        return redirect()->route('contact-directory.follow-ups.index')->with('success', 'Follow-up updated.');
+    }
+
+    public function dueReminders(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $reminders = ContactFollowUp::query()
+            ->with('contact:id,first_name,last_name')
+            ->where('status', 'pending')
+            ->where('assigned_user_id', $request->user()->id)
+            ->whereNotNull('reminder_at')
+            ->where('reminder_at', '<=', now())
+            ->where(fn ($query) => $query->whereNull('snoozed_until')->orWhere('snoozed_until', '<=', now()))
+            ->where(fn ($query) => $query->whereNull('reminder_dismissed_at')->orWhereColumn('reminder_dismissed_at', '<', 'reminder_at'))
+            ->orderBy('reminder_at')
+            ->limit(5)
+            ->get()
+            ->map(fn (ContactFollowUp $followUp): array => [
+                'uuid' => $followUp->uuid,
+                'title' => $followUp->title,
+                'contact' => trim(($followUp->contact?->first_name ?? '').' '.($followUp->contact?->last_name ?? '')),
+                'priority' => $followUp->priority,
+                'due_at' => $followUp->due_at?->toISOString(),
+                'remind_at' => $followUp->reminder_at?->toISOString(),
+            ])
+            ->all();
+
+        return response()->json(['reminders' => $reminders]);
+    }
+
+    public function dismissReminder(ContactFollowUp $followUp): \Illuminate\Http\JsonResponse
+    {
+        $followUp->forceFill(['reminder_dismissed_at' => now()])->saveQuietly();
+
+        return response()->json(['dismissed' => true]);
+    }
+
     public function show(Request $request, ContactFollowUp $followUp): Response
     {
         $followUp->load([
@@ -111,6 +185,7 @@ class FollowUpController extends Controller
             'assignedUser:id,name',
             'completedByUser:id,name',
             'creator:id,name',
+            'tasks:id,follow_up_id,title',
         ]);
 
         return Inertia::render('ContactDirectory/FollowUps/Show', [
@@ -128,13 +203,18 @@ class FollowUpController extends Controller
             return back()->withErrors(['contact_id' => 'A contact is required.']);
         }
 
+        $tasks = $validated['tasks'] ?? [];
+        unset($validated['tasks']);
+
         $followUp = ContactFollowUp::create([
             ...$validated,
             'contact_id' => $contactId,
             'created_by' => $request->user()->id,
         ]);
 
-        return redirect()->route('contact-directory.follow-ups.show', $followUp)->with('success', 'Follow-up scheduled.');
+        $this->syncTasks($followUp, $tasks);
+
+        return redirect()->route('contact-directory.follow-ups.index')->with('success', 'Follow-up scheduled.');
     }
 
     public function complete(CompleteFollowUpRequest $request, ContactFollowUp $followUp): mixed
@@ -193,5 +273,15 @@ class FollowUpController extends Controller
         ]);
 
         return back()->with('success', 'Follow-up cancelled.');
+    }
+
+    /** @param array<int, array{title: string}> $tasks */
+    private function syncTasks(ContactFollowUp $followUp, array $tasks): void
+    {
+        $followUp->tasks()->delete();
+
+        foreach (array_values($tasks) as $position => $task) {
+            $followUp->tasks()->create(['title' => trim($task['title']), 'position' => $position]);
+        }
     }
 }

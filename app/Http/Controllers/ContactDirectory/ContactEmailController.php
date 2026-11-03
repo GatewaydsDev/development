@@ -8,6 +8,9 @@ use App\Http\Requests\ContactDirectory\SendContactEmailRequest;
 use App\Http\Requests\ContactDirectory\LogContactEmailRequest;
 use App\Models\ContactDirectory\ContactDirectoryContact;
 use App\Models\ContactDirectory\ContactDirectoryInquiry;
+use App\Models\ContactDirectory\ContactFollowUp;
+use App\Models\ContactDirectory\EmailTemplate;
+use Illuminate\Support\Str;
 use App\Services\ContactDirectory\ContactEmailService;
 use App\Services\ContactDirectory\EmailTemplateRenderer;
 use Illuminate\Support\Facades\DB;
@@ -27,8 +30,28 @@ class ContactEmailController extends Controller
 
         $contact->load(['emailAddresses', 'phoneNumbers']);
 
+        $tasks = ContactFollowUp::query()
+            ->where('contact_id', $contact->id)
+            ->where('status', 'pending')
+            ->orderBy('due_at')
+            ->limit(10)
+            ->get();
+
+        if ($request->filled('follow_up')) {
+            $tasks = $tasks->sortByDesc(fn (ContactFollowUp $task): bool => $task->uuid === (string) $request->string('follow_up'))->values();
+        }
+
+        $recipient = (string) $request->string('recipient');
+
         return Inertia::render('ContactDirectory/Email/Compose', [
             'contact' => $contact,
+            'recipient' => $contact->emailAddresses->contains(fn ($email): bool => strcasecmp($email->email_address, $recipient) === 0) ? $recipient : null,
+            'tasks' => $tasks->map(fn (ContactFollowUp $task): array => [
+                'uuid' => $task->uuid,
+                'title' => $task->title,
+                'description' => $task->description,
+                'due_label' => $task->due_at?->format('M j, Y g:i A'),
+            ])->all(),
             'inquiry' => $inquiry,
             'canSend' => $emailService->canSend($request->user()),
             'mailbox' => trim((string) $request->user()->microsoft_mailbox),
@@ -70,6 +93,21 @@ class ContactEmailController extends Controller
             return back()->withErrors([
                 'body' => 'The email provider did not accept the message. Nothing was recorded as sent.',
             ])->withInput();
+        }
+
+        // A reusable template is only created when the sender explicitly asked for it.
+        if (! empty($validated['save_as_template'])) {
+            EmailTemplate::create([
+                'uuid' => (string) Str::uuid(),
+                'name' => $validated['template_name'],
+                'category' => 'general',
+                'subject' => $validated['subject'],
+                'body' => $validated['body'],
+                'is_active' => true,
+                'owner_id' => $request->user()->id,
+                'visibility' => 'private',
+                'is_system' => false,
+            ]);
         }
 
         return redirect()

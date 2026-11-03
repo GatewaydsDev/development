@@ -1,3 +1,5 @@
+import FollowUpTaskList from '@/Components/ContactDirectory/FollowUpTaskList';
+import { notesToHtml } from '@/lib/notesHtml';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import CreateFollowUpButton from '@/Components/ContactDirectory/CreateFollowUpButton';
 import { Link, router } from '@inertiajs/react';
@@ -5,10 +7,11 @@ import { useState, type FormEvent } from 'react';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent } from '@/Components/ui/card';
-import { BanIcon, BellIcon, CalendarIcon, CheckIcon, ClockIcon, FileTextIcon, UserIcon } from 'lucide-react';
+import { BanIcon, BellIcon, CalendarIcon, CheckIcon, ClockIcon, FileTextIcon, PencilIcon, UserIcon } from 'lucide-react';
 import SimpleSelect from '@/Components/ContactDirectory/SimpleSelect';
 import SplitDateTimeInput from '@/Components/SplitDateTimeInput';
 import TextInput from '@/Components/TextInput';
+import { toIsoInstant } from '@/lib/followUpTime';
 import { cn } from '@/lib/utils';
 import type { PageProps } from '@/types';
 
@@ -19,6 +22,7 @@ type FollowUp = {
     uuid: string;
     title: string;
     description: string | null;
+    tasks?: { id: number; title: string }[];
     due_at: string;
     reminder_at: string | null;
     priority: string;
@@ -126,7 +130,7 @@ export default function FollowUpsIndex({
         let until: string;
 
         if (choice === 'custom') {
-            until = snoozeCustom[followUp.id] ?? '';
+            until = toIsoInstant(snoozeCustom[followUp.id] ?? '');
         } else {
             const date = new Date();
             date.setDate(date.getDate() + Number(choice));
@@ -319,7 +323,7 @@ export default function FollowUpsIndex({
                                                           ? 'outline'
                                                           : 'default'
                                                 }
-                                                className="capitalize"
+                                                className="rounded-full capitalize"
                                             >
                                                 {followUp.status}
                                             </Badge>
@@ -329,13 +333,15 @@ export default function FollowUpsIndex({
                                         </div>
                                     </div>
 
+                                    <FollowUpTaskList tasks={followUp.tasks ?? []} limit={4} />
+
                                     {followUp.description && (
-                                        <p className="whitespace-pre-wrap text-sm text-muted-foreground">{followUp.description}</p>
+                                        <div className="rich-text-content line-clamp-3 text-sm text-muted-foreground" dangerouslySetInnerHTML={{ __html: notesToHtml(followUp.description) }} />
                                     )}
 
                                     {followUp.status === 'pending' && (
                                         <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
-                                            <Button size="sm" className="bg-emerald-600 text-white hover:bg-emerald-700" onClick={() => complete(followUp)}>
+                                            <Button size="sm" className="rounded-full bg-emerald-600 text-white hover:bg-emerald-700" onClick={() => complete(followUp)}>
                                                 <CheckIcon className="size-4" aria-hidden="true" />
                                                 Complete
                                             </Button>
@@ -360,11 +366,17 @@ export default function FollowUpsIndex({
                                                     />
                                                 </div>
                                             )}
-                                            <Button size="sm" variant="outline" onClick={() => snooze(followUp)}>
+                                            <Button size="sm" variant="outline" className="rounded-full" onClick={() => snooze(followUp)}>
                                                 <ClockIcon className="size-4" aria-hidden="true" />
                                                 Snooze
                                             </Button>
-                                            <Button size="sm" variant="outline" className="ml-auto text-destructive" onClick={() => cancel(followUp)}>
+                                            <Button size="sm" variant="outline" className="rounded-full" asChild>
+                                                <Link href={route('contact-directory.follow-ups.edit', followUp.uuid)}>
+                                                    <PencilIcon className="size-4" aria-hidden="true" />
+                                                    Edit
+                                                </Link>
+                                            </Button>
+                                            <Button size="sm" variant="outline" className="ml-auto rounded-full text-destructive" onClick={() => cancel(followUp)}>
                                                 <BanIcon className="size-4" aria-hidden="true" />
                                                 Cancel
                                             </Button>

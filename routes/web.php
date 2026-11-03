@@ -220,6 +220,9 @@ Route::middleware(['auth', 'prevent-back-history', 'can:view-contacts-directory'
         Route::post('/address-types', [\App\Http\Controllers\ContactDirectory\AddressTypeController::class, 'store'])->name('address-types.store')
             ->middleware('can:manage-contacts-directory');
 
+        Route::post('/follow-up-task-options', [\App\Http\Controllers\ContactDirectory\FollowUpTaskOptionController::class, 'store'])->name('task-options.store')
+            ->middleware('can:manage-follow-ups');
+
         Route::prefix('companies')->name('companies.')->group(function () {
             Route::get('/', [ContactCompanyController::class, 'index'])->name('index');
             Route::get('/create', [ContactCompanyController::class, 'create'])->name('create')
@@ -252,9 +255,17 @@ Route::middleware(['auth', 'prevent-back-history', 'can:view-contacts-directory'
 
         Route::prefix('follow-ups')->name('follow-ups.')->group(function () {
             Route::get('/', [FollowUpController::class, 'index'])->name('index');
+            Route::get('/reminders/due', [FollowUpController::class, 'dueReminders'])->name('reminders.due')
+                ->middleware('can:manage-follow-ups');
+            Route::post('/{followUp}/reminder/dismiss', [FollowUpController::class, 'dismissReminder'])->name('reminders.dismiss')
+                ->middleware('can:manage-follow-ups');
             Route::get('/create', [FollowUpController::class, 'create'])->name('create')
                 ->middleware('can:manage-follow-ups');
+            Route::get('/{followUp}/edit', [FollowUpController::class, 'edit'])->name('edit')
+                ->middleware('can:manage-follow-ups');
             Route::get('/{followUp}', [FollowUpController::class, 'show'])->name('show');
+            Route::patch('/{followUp}', [FollowUpController::class, 'update'])->name('update')
+                ->middleware('can:manage-follow-ups');
             Route::post('/', [FollowUpController::class, 'store'])->name('store')
                 ->middleware('can:manage-follow-ups');
             Route::post('/{followUp}/complete', [FollowUpController::class, 'complete'])->name('complete')

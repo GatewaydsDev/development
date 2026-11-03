@@ -148,3 +148,41 @@ it('sends a contact email from the user\'s own mailbox and refuses leftover plac
         ->and($sentPaths[0])->toContain('ricardo@gateway-ds.com')
         ->and($sentPaths[0])->not->toContain('shared@gateway-ds.com');
 });
+
+it('prefills the composer from the contact and saves a template only when asked', function () {
+    Cache::flush();
+    config([
+        'services.microsoft.tenant_id' => 't', 'services.microsoft.client_id' => 'c',
+        'services.microsoft.client_secret' => 's', 'services.microsoft.mail_from' => 'shared@gateway-ds.com',
+    ]);
+    Http::fake(function ($request) {
+        if (str_contains($request->url(), 'login.microsoftonline.com')) {
+            return Http::response(['access_token' => 'tok', 'expires_in' => 3600]);
+        }
+
+        return Http::response('', 202);
+    });
+
+    $contact = ContactDirectoryContact::create(['first_name' => 'Pat', 'last_name' => 'Lee', 'owner_id' => $this->admin->id]);
+    ContactEmailAddress::create(['contact_id' => $contact->id, 'email_address' => 'pat@example.com', 'label' => 'work', 'is_primary' => false]);
+    \App\Models\ContactDirectory\ContactFollowUp::create([
+        'contact_id' => $contact->id, 'title' => 'Revised pricing', 'assigned_user_id' => $this->admin->id,
+        'created_by' => $this->admin->id, 'due_at' => now()->addDay(), 'priority' => 'normal', 'status' => 'pending',
+    ]);
+
+    $this->actingAs($this->admin)
+        ->get(route('contact-directory.contacts.email.compose', [$contact, 'recipient' => 'pat@example.com']))
+        ->assertInertia(fn ($page) => $page->where('recipient', 'pat@example.com')->has('tasks', 1)->where('tasks.0.title', 'Revised pricing'));
+
+    $before = EmailTemplate::count();
+    $this->actingAs($this->admin)->post(route('contact-directory.contacts.email.send', $contact), [
+        'recipients' => ['pat@example.com'], 'subject' => 'One', 'body' => '<p>One</p>',
+    ])->assertSessionHasNoErrors();
+    expect(EmailTemplate::count())->toBe($before);
+
+    $this->actingAs($this->admin)->post(route('contact-directory.contacts.email.send', $contact), [
+        'recipients' => ['pat@example.com'], 'subject' => 'Two', 'body' => '<p>Two</p>',
+        'save_as_template' => true, 'template_name' => 'My follow-up',
+    ])->assertSessionHasNoErrors();
+    expect(EmailTemplate::where('name', 'My follow-up')->where('visibility', 'private')->where('owner_id', $this->admin->id)->exists())->toBeTrue();
+});

@@ -6,6 +6,7 @@ use App\Models\Concerns\HasUuidRouteKey;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ContactFollowUp extends Model
@@ -34,6 +35,7 @@ class ContactFollowUp extends Model
         'snoozed_reason',
         'snoozed_until',
         'reminder_last_notified_at',
+        'reminder_dismissed_at',
     ];
 
     protected function casts(): array
@@ -44,7 +46,13 @@ class ContactFollowUp extends Model
             'completed_at' => 'datetime',
             'snoozed_until' => 'datetime',
             'reminder_last_notified_at' => 'datetime',
+            'reminder_dismissed_at' => 'datetime',
         ];
+    }
+
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(FollowUpTask::class, 'follow_up_id')->orderBy('position')->orderBy('id');
     }
 
     public function contact(): BelongsTo

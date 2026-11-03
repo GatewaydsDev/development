@@ -1,9 +1,12 @@
+import FollowUpTaskList from '@/Components/ContactDirectory/FollowUpTaskList';
+import { notesToHtml } from '@/lib/notesHtml';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Link, router } from '@inertiajs/react';
-import { BanIcon, CalendarClockIcon, CheckIcon, LinkIcon, UserCheckIcon } from 'lucide-react';
+import { BanIcon, PencilIcon, CalendarClockIcon, CheckIcon, LinkIcon, UserCheckIcon } from 'lucide-react';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
+import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import type { PageProps } from '@/types';
 
@@ -12,6 +15,7 @@ type FollowUp = {
     uuid: string;
     title: string;
     description: string | null;
+    tasks?: { id: number; title: string }[];
     due_at: string;
     reminder_at: string | null;
     priority: string;
@@ -53,7 +57,7 @@ const TONES = {
 } as const;
 const tone = (c: keyof typeof TONES) => TONES[c];
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
     return (
         <div>
             <span className="block text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</span>
@@ -92,6 +96,12 @@ export default function FollowUpsShow({ followUp }: Props) {
                         </Button>
                         {followUp.status === 'pending' && (
                             <>
+                                <Button variant="outline" asChild>
+                                    <Link href={route('contact-directory.follow-ups.edit', followUp.uuid)}>
+                                        <PencilIcon className="size-4" aria-hidden="true" />
+                                        Edit
+                                    </Link>
+                                </Button>
                                 <Button variant="outline" className="text-destructive" onClick={() => act('cancel')}>
                                     <BanIcon className="size-4" aria-hidden="true" />
                                     Cancel
@@ -173,13 +183,22 @@ export default function FollowUpsShow({ followUp }: Props) {
                         </CardContent>
                     </Card>
 
+                    {(followUp.tasks?.length ?? 0) > 0 && (
+                        <Card className={tone('violet')}>
+                            <CardHeader><CardTitle className="text-base">Tasks</CardTitle></CardHeader>
+                            <CardContent>
+                                <FollowUpTaskList tasks={followUp.tasks ?? []} />
+                            </CardContent>
+                        </Card>
+                    )}
+
                     <Card className={tone('emerald')}>
                         <CardHeader>
                             <CardTitle className="text-base">Notes</CardTitle>
                         </CardHeader>
                         <CardContent>
                             {followUp.description ? (
-                                <p className="whitespace-pre-wrap text-sm text-foreground">{followUp.description}</p>
+                                <div className="rich-text-content text-sm text-foreground" dangerouslySetInnerHTML={{ __html: notesToHtml(followUp.description) }} />
                             ) : (
                                 <p className="text-sm text-muted-foreground">No notes added.</p>
                             )}

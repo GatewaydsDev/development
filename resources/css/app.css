@@ -1720,3 +1720,37 @@ html[data-page-skeleton] main .page-skeleton-media * {
 .page-skeleton-media {
   object-fit: fill !important;
 }
+@keyframes reminder-text-shimmer {
+  0% {
+    background-position: 130% 0;
+  }
+  100% {
+    background-position: -130% 0;
+  }
+}
+
+/* Soft highlight sweeping across the text, like a skeleton loader, to draw the eye to a new reminder. */
+.reminder-shimmer {
+  background-image: linear-gradient(
+    100deg,
+    var(--foreground) 0%,
+    var(--foreground) 38%,
+    color-mix(in oklch, var(--foreground) 25%, transparent) 50%,
+    var(--foreground) 62%,
+    var(--foreground) 100%
+  );
+  background-size: 250% 100%;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: reminder-text-shimmer 4s ease-in-out 4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reminder-shimmer {
+    animation: none;
+    background-image: none;
+    -webkit-text-fill-color: currentColor;
+  }
+}

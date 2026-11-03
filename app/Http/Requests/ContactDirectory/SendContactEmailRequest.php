@@ -22,6 +22,8 @@ class SendContactEmailRequest extends FormRequest
             'recipients.*' => ['required', 'string', 'email:filter'],
             'subject' => ['required', 'string', 'max:255'],
             'body' => ['required', 'string'],
+            'save_as_template' => ['nullable', 'boolean'],
+            'template_name' => ['required_if_accepted:save_as_template', 'nullable', 'string', 'max:255'],
         ];
     }
 
