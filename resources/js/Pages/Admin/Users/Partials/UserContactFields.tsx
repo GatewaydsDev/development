@@ -29,6 +29,7 @@ type UserContactFieldsProps = {
     maxRows?: number;
     renderDetails?: (row: UserContactRow, index: number) => ReactNode;
     preserveLegacyPhone?: boolean;
+    stackPhonesOnMobile?: boolean;
 };
 
 const inputClassName =
@@ -53,6 +54,7 @@ export default function UserContactFields({
     maxRows = 20,
     renderDetails,
     preserveLegacyPhone = false,
+    stackPhonesOnMobile = false,
 }: UserContactFieldsProps) {
     const updateValue = (index: number, value: string) => {
         onChange(
@@ -142,18 +144,19 @@ export default function UserContactFields({
                                     }
                                 />
                             ) : preserveLegacyPhone && row.country === '' ? (
-                                <div className="flex min-w-0 max-w-full items-stretch">
-                                    <select aria-label={`Country for ${legend} ${index + 1}`} value="" onChange={(event) => updateCountry(index, event.target.value)} className="h-9 max-w-36 rounded-l-md border-border bg-muted text-sm text-foreground">
+                                <div className={stackPhonesOnMobile ? 'flex min-w-0 w-full max-w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:gap-0' : 'flex min-w-0 max-w-full items-stretch'}>
+                                    <select aria-label={`Country for ${legend} ${index + 1}`} value="" onChange={(event) => updateCountry(index, event.target.value)} className={(stackPhonesOnMobile ? 'h-11 w-full min-w-0 rounded-md sm:h-9 sm:w-auto sm:max-w-36 sm:rounded-r-none ' : 'h-9 max-w-36 rounded-l-md ') + 'border-border bg-muted text-sm text-foreground'}>
                                         <option value="">Keep existing code</option>
                                         {phoneCountries.map((country) => <option key={country.code} value={country.code}>{country.name} +{country.dial}</option>)}
                                     </select>
-                                    <TextInput id={`${field}-${index}`} type="tel" aria-label={`${legend} ${index + 1}`} value={row.value} className="h-9 min-w-0 w-36 rounded-l-none border-border bg-background text-foreground" onChange={(event) => updateValue(index, event.target.value)} />
+                                    <TextInput id={`${field}-${index}`} type="tel" aria-label={`${legend} ${index + 1}`} value={row.value} className={(stackPhonesOnMobile ? 'h-11 min-w-0 w-full sm:h-9 sm:w-36 sm:rounded-l-none ' : 'h-9 min-w-0 w-36 rounded-l-none ') + 'border-border bg-background text-foreground'} onChange={(event) => updateValue(index, event.target.value)} />
                                 </div>
                             ) : (
                                 <PhoneInput
                                     id={`${field}-${index}`}
                                     value={row.value}
                                     country={row.country ?? 'US'}
+                                    stackOnMobile={stackPhonesOnMobile}
                                     placeholder={placeholder}
                                     className="border-border bg-background text-sm text-foreground focus:border-ring focus:ring-ring"
                                     aria-label={`${legend} ${index + 1}`}

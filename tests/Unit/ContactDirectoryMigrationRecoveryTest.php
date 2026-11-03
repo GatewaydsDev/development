@@ -139,7 +139,7 @@ it('compiles all contact directory migrations with short and database-unique MyS
             array_push($statements, ...$blueprint->toSql($connection, $grammar));
         });
 
-        foreach (glob(database_path('migrations/2026_11_02_5*.php')) as $path) {
+        foreach ([...glob(database_path('migrations/2026_11_02_5*.php')), database_path('migrations/2026_11_03_010000_create_contact_company_contact_methods.php')] as $path) {
             (require $path)->up();
         }
     } finally {

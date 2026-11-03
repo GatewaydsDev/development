@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/Components/ui/card';
 import SimpleSelect from '@/Components/ContactDirectory/SimpleSelect';
 import TextInput from '@/Components/TextInput';
 import type { PageProps } from '@/types';
+import { Plus, Pencil } from 'lucide-react';
 
 type Company = {
     id: number;
@@ -18,6 +19,8 @@ type Company = {
     country: string | null;
     is_active: boolean;
     contacts_count: number;
+    primary_phone?: { phone_number: string; extension: string | null } | null;
+    primary_email?: { email_address: string } | null;
 };
 
 type Paginated<T> = { data: T[]; current_page: number; last_page: number; total: number };
@@ -27,7 +30,7 @@ type Props = PageProps<{
     companies: Paginated<Company>;
 }>;
 
-export default function CompaniesIndex({ filters, companies }: Props) {
+export default function CompaniesIndex({ filters, companies, auth }: Props) {
     const [search, setSearch] = useState(filters.search ?? '');
 
     const applyFilters = (updates: Record<string, string | undefined>) => {
@@ -46,6 +49,7 @@ export default function CompaniesIndex({ filters, companies }: Props) {
     return (
         <AuthenticatedLayout stickyTitle="Companies">
             <div className="space-y-6 px-4 py-6 lg:px-8">
+                {auth.can.manageContactsDirectory && <div className="flex justify-end"><Button asChild><Link href={route('contact-directory.companies.create')}><Plus className="mr-2 size-4" />New company</Link></Button></div>}
                 <form onSubmit={submitSearch} className="flex flex-wrap items-end gap-3">
                     <div className="min-w-0 flex-1">
                         <label className="mb-1 block text-sm font-medium text-foreground">
@@ -82,7 +86,7 @@ export default function CompaniesIndex({ filters, companies }: Props) {
                     )}
                     {companies.data.map((company) => (
                         <Card key={company.id}>
-                            <CardContent className="space-y-2 py-4">
+                            <CardContent className="min-w-0 space-y-2 py-4 [overflow-wrap:anywhere]">
                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                     <Link
                                         href={route('contact-directory.companies.show', company.uuid)}
@@ -91,6 +95,7 @@ export default function CompaniesIndex({ filters, companies }: Props) {
                                         {company.name}
                                     </Link>
                                     <div className="flex gap-2">
+                                        {auth.can.manageContactsDirectory && <Button asChild size="sm" variant="outline"><Link href={route('contact-directory.companies.edit', company.uuid)} aria-label={`Edit ${company.name}`}><Pencil className="mr-2 size-3.5" />Edit</Link></Button>}
                                         <Badge variant={company.is_active ? 'default' : 'outline'}>
                                             {company.is_active ? 'Active' : 'Inactive'}
                                         </Badge>
@@ -106,6 +111,10 @@ export default function CompaniesIndex({ filters, companies }: Props) {
                                     {company.state ? `, ${company.state}` : ''}
                                     {company.country ? `, ${company.country}` : ''}
                                 </p>
+                                {(company.primary_phone || company.primary_email) && <div className="flex min-w-0 flex-wrap gap-x-4 gap-y-2 text-sm">
+                                    {company.primary_phone && <a className="break-all text-muted-foreground hover:underline" href={`tel:${company.primary_phone.phone_number}${company.primary_phone.extension ? `;ext=${company.primary_phone.extension}` : ''}`}>{company.primary_phone.phone_number}{company.primary_phone.extension ? ` ext. ${company.primary_phone.extension}` : ''}</a>}
+                                    {company.primary_email && <a className="break-all text-muted-foreground hover:underline" href={`mailto:${company.primary_email.email_address}`}>{company.primary_email.email_address}</a>}
+                                </div>}
                             </CardContent>
                         </Card>
                     ))}

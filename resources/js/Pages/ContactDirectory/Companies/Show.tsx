@@ -1,8 +1,11 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Link } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { Badge } from '@/Components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import type { PageProps } from '@/types';
+import { Button } from '@/Components/ui/button';
+import type { PhoneRecord, EmailRecord } from '@/Components/ContactDirectory/ContactMethodFields';
+import { Pencil } from 'lucide-react';
 
 type Contact = {
     id: number;
@@ -29,6 +32,8 @@ type Company = {
     country: string | null;
     notes: string | null;
     is_active: boolean;
+    phone_numbers: PhoneRecord[];
+    email_addresses: EmailRecord[];
 };
 
 type Paginated<T> = { data: T[]; current_page: number; last_page: number; total: number };
@@ -38,11 +43,13 @@ type Props = PageProps<{
     contacts: Paginated<Contact>;
 }>;
 
-export default function CompaniesShow({ company, contacts }: Props) {
+export default function CompaniesShow({ company, contacts, auth }: Props) {
     return (
         <AuthenticatedLayout stickyTitle={company.name}>
+            <Head title={company.name} />
             <div className="space-y-6 px-4 py-6 lg:px-8">
                 <div className="flex flex-wrap gap-2">
+                    {auth.can.manageContactsDirectory && <Button asChild variant="outline" size="sm"><Link href={route('contact-directory.companies.edit', company.uuid)}><Pencil className="mr-2 size-4" />Edit company</Link></Button>}
                     <Badge variant={company.is_active ? 'default' : 'outline'}>
                         {company.is_active ? 'Active' : 'Inactive'}
                     </Badge>
@@ -56,7 +63,7 @@ export default function CompaniesShow({ company, contacts }: Props) {
                     <CardHeader>
                         <CardTitle className="text-base">Company details</CardTitle>
                     </CardHeader>
-                    <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
+                    <CardContent className="grid min-w-0 gap-3 text-sm [overflow-wrap:anywhere] sm:grid-cols-2">
                         <div>
                             <span className="block text-xs uppercase text-muted-foreground">
                                 Website
@@ -101,6 +108,29 @@ export default function CompaniesShow({ company, contacts }: Props) {
                         )}
                     </CardContent>
                 </Card>
+
+                <section className="grid min-w-0 gap-5 xl:grid-cols-2" aria-label="Company contact details">
+                    <Card className="min-w-0">
+                        <CardHeader><CardTitle className="text-base">Company phone numbers</CardTitle></CardHeader>
+                        <CardContent className="space-y-3">
+                            {company.phone_numbers.length === 0 && <p className="text-sm text-muted-foreground">No company phone numbers added yet.</p>}
+                            {company.phone_numbers.map((phone) => <div key={phone.id} className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-md border border-border p-3 text-sm">
+                                <div className="min-w-0"><a href={`tel:${phone.phone_number}${phone.extension ? `;ext=${phone.extension}` : ''}`} className="break-all text-foreground hover:underline">{phone.phone_number}{phone.extension ? ` ext. ${phone.extension}` : ''}</a><p className="text-xs text-muted-foreground">{phone.label}</p></div>
+                                {phone.is_primary && <Badge variant="secondary">Primary</Badge>}
+                            </div>)}
+                        </CardContent>
+                    </Card>
+                    <Card className="min-w-0">
+                        <CardHeader><CardTitle className="text-base">Company email addresses</CardTitle></CardHeader>
+                        <CardContent className="space-y-3">
+                            {company.email_addresses.length === 0 && <p className="text-sm text-muted-foreground">No company email addresses added yet.</p>}
+                            {company.email_addresses.map((email) => <div key={email.id} className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-md border border-border p-3 text-sm">
+                                <div className="min-w-0"><a href={`mailto:${email.email_address}`} className="break-all text-foreground hover:underline">{email.email_address}</a><p className="text-xs text-muted-foreground">{email.label}</p></div>
+                                {email.is_primary && <Badge variant="secondary">Primary</Badge>}
+                            </div>)}
+                        </CardContent>
+                    </Card>
+                </section>
 
                 <Card>
                     <CardHeader>

@@ -61,6 +61,7 @@ type PhoneInputProps = Omit<
     onCountryChange?: (country: string) => void;
     isFocused?: boolean;
     countryAriaLabel?: string;
+    stackOnMobile?: boolean;
 };
 
 export default function PhoneInput({
@@ -70,6 +71,7 @@ export default function PhoneInput({
     onCountryChange,
     className = '',
     countryAriaLabel = 'Country',
+    stackOnMobile = false,
     ...props
 }: PhoneInputProps) {
     const selected = phoneCountry(country);
@@ -83,7 +85,9 @@ export default function PhoneInput({
             maxLength={nanpCountries.has(selected.code) ? 14 : selected.nationalDigits}
             className={
                 (onCountryChange
-                    ? 'h-9 min-w-0 w-36 rounded-l-none border-l-0 '
+                    ? stackOnMobile
+                        ? 'h-11 min-w-0 w-full sm:h-9 sm:w-36 sm:rounded-l-none sm:border-l-0 '
+                        : 'h-9 min-w-0 w-36 rounded-l-none border-l-0 '
                     : '') + className
             }
             onChange={(event) =>
@@ -99,12 +103,12 @@ export default function PhoneInput({
     }
 
     return (
-        <div className="flex w-auto max-w-full items-stretch">
+        <div className={stackOnMobile ? 'flex w-full max-w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:gap-0' : 'flex w-auto max-w-full items-stretch'}>
             <select
                 aria-label={countryAriaLabel}
                 value={selected.code}
                 onChange={(event) => onCountryChange(event.target.value)}
-                className="h-9 max-w-[9.5rem] shrink-0 rounded-l-md border border-border bg-muted px-2 text-sm text-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
+                className={(stackOnMobile ? 'h-11 w-full min-w-0 rounded-md sm:h-9 sm:w-auto sm:max-w-[9.5rem] sm:shrink-0 sm:rounded-r-none ' : 'h-9 max-w-[9.5rem] shrink-0 rounded-l-md ') + 'border border-border bg-muted px-2 text-sm text-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring'}
             >
                 {phoneCountries.map((item) => (
                     <option key={item.code} value={item.code}>

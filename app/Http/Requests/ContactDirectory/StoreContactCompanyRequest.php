@@ -2,10 +2,18 @@
 
 namespace App\Http\Requests\ContactDirectory;
 
+use App\Http\Requests\ContactDirectory\Concerns\ValidatesContactMethods;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreContactCompanyRequest extends FormRequest
 {
+    use ValidatesContactMethods;
+
+    protected function contactMethodOwnerLabel(): string
+    {
+        return 'company';
+    }
+
     public function authorize(): bool
     {
         return $this->user()->hasPermission('manage-contacts-directory');
@@ -24,6 +32,9 @@ class StoreContactCompanyRequest extends FormRequest
             'country' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string'],
             'is_active' => ['nullable', 'boolean'],
+            ...$this->contactMethodRules(),
+            'phone_numbers.*.id' => ['prohibited'],
+            'email_addresses.*.id' => ['prohibited'],
         ];
     }
 }

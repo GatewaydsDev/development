@@ -216,6 +216,10 @@ Route::middleware(['auth', 'prevent-back-history', 'can:view-contacts-directory'
 
         Route::prefix('companies')->name('companies.')->group(function () {
             Route::get('/', [ContactCompanyController::class, 'index'])->name('index');
+            Route::get('/create', [ContactCompanyController::class, 'create'])->name('create')
+                ->middleware('can:manage-contacts-directory');
+            Route::get('/{company}/edit', [ContactCompanyController::class, 'edit'])->name('edit')
+                ->middleware('can:manage-contacts-directory');
             Route::get('/{company}', [ContactCompanyController::class, 'show'])->name('show');
             Route::post('/', [ContactCompanyController::class, 'store'])->name('store')
                 ->middleware('can:manage-contacts-directory');
