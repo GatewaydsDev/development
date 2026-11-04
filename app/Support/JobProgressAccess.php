@@ -15,8 +15,7 @@ class JobProgressAccess
     public static function canOpen(User $user): bool
     {
         return $user->isSuperAdmin()
-            || EmployeeAccess::isManager($user)
-            || EmployeeAccess::isForeman($user)
+            || ((EmployeeAccess::isManager($user) || EmployeeAccess::isForeman($user)) && $user->hasPermission('view-job-progress'))
             || self::isQualityControl($user);
     }
 

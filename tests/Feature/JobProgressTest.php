@@ -283,3 +283,22 @@ test('job progress summarises hours and pay by week, and hides pay from the fore
             ->where('progress.payroll.total_pay', '0.00')
             ->where('canSeePay', false));
 });
+
+test('a foreman level gets the field operations screens and can lose them', function () {
+    $foreman = progressUser(UserLevel::FOREMAN);
+
+    foreach (['view-work-schedule', 'view-job-progress', 'view-daily-tasks', 'view-attendance'] as $permission) {
+        expect($foreman->hasPermission($permission))->toBeTrue();
+    }
+
+    $this->actingAs($foreman)->get(route('admin.job-progress.index'))->assertOk();
+    $this->actingAs($foreman)->get(route('admin.employee-schedules.index'))->assertOk();
+    $this->actingAs($foreman)->get(route('admin.employee-attendance.index'))->assertOk();
+
+    $level = $foreman->level;
+    $level->forceFill(['permissions' => array_merge($level->permissions, ['view-job-progress' => false, 'view-attendance' => false])])->save();
+
+    $foreman = $foreman->fresh();
+    $this->actingAs($foreman)->get(route('admin.job-progress.index'))->assertForbidden();
+    $this->actingAs($foreman)->get(route('admin.employee-attendance.index'))->assertForbidden();
+});

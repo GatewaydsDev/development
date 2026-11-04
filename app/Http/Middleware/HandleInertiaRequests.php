@@ -3,16 +3,20 @@
 namespace App\Http\Middleware;
 
 use App\Models\Company;
+use App\Models\SystemUpdate;
 use App\Models\User;
 use App\Support\BidAccess;
+use App\Support\ClientPortalAccess;
 use App\Support\ContractorAccess;
 use App\Support\DailyTaskAccess;
 use App\Support\EmployeeAccess;
+use App\Support\JobProgressAccess;
 use App\Support\ProductAccess;
 use App\Support\ProjectAccess;
 use App\Support\QuotationAccess;
 use App\Support\QuotationRevisionAssignments;
 use App\Support\ServiceAccess;
+use App\Support\SystemUpdateAccess;
 use App\Support\TakeoffAccess;
 use Closure;
 use Illuminate\Http\Request;
@@ -234,19 +238,25 @@ class HandleInertiaRequests extends Middleware
                         ? ContractorAccess::canDelete($request->user())
                         : false,
                     'viewSystemUpdates' => $request->user()
-                        ? \App\Support\SystemUpdateAccess::canView($request->user())
+                        ? SystemUpdateAccess::canView($request->user())
                         : false,
                     'viewDashboard' => $request->user()
                         ? Gate::forUser($request->user())->allows('view-dashboard')
                         : false,
                     'manageClientTeam' => $request->user()
-                        ? \App\Support\ClientPortalAccess::canManageTeam($request->user())
+                        ? ClientPortalAccess::canManageTeam($request->user())
                         : false,
                     'viewClientPortal' => $request->user()
-                        ? \App\Support\ClientPortalAccess::canOpen($request->user())
+                        ? ClientPortalAccess::canOpen($request->user())
                         : false,
                     'viewJobProgress' => $request->user() instanceof User
-                        ? \App\Support\JobProgressAccess::canOpen($request->user())
+                        ? JobProgressAccess::canOpen($request->user())
+                        : false,
+                    'viewWorkSchedule' => $request->user()
+                        ? Gate::forUser($request->user())->allows('view-work-schedule')
+                        : false,
+                    'viewAttendance' => $request->user()
+                        ? Gate::forUser($request->user())->allows('view-attendance')
                         : false,
                     'viewMySchedule' => $request->user()
                         ? Gate::forUser($request->user())->allows('view-my-schedule')
@@ -286,7 +296,7 @@ class HandleInertiaRequests extends Middleware
                         : false,
                 ],
                 'systemUpdatesUnread' => fn (): int => $request->user()
-                    ? \App\Models\SystemUpdate::unreadCountFor($request->user())
+                    ? SystemUpdate::unreadCountFor($request->user())
                     : 0,
                 'notifications' => $request->user() && Gate::forUser($request->user())->allows('manage-notifications')
                     ? [

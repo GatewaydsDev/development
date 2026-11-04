@@ -13,7 +13,7 @@ class DailyTaskAccess
 
     public static function mustComplete(User $user): bool
     {
-        return ! $user->isSuperAdmin() && EmployeeAccess::isForeman($user);
+        return ! $user->isSuperAdmin() && EmployeeAccess::isForeman($user) && $user->hasPermission('view-daily-tasks');
     }
 
     public static function canOpen(User $user): bool

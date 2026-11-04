@@ -144,6 +144,9 @@ export default function DashboardSidebar({
     const canManageProjectControl = Boolean(can.manageProjectControl);
     const canOpenDailyTasks = Boolean(can.openDailyTasks);
     const canViewJobProgress = Boolean(can.viewJobProgress);
+    const canViewWorkSchedule =
+        canViewEmployees && Boolean(can.viewWorkSchedule);
+    const canViewAttendance = canViewEmployees && Boolean(can.viewAttendance);
     const dailyTasksPending = Number(page.props.dailyTasksPending ?? 0);
     const canCorrectRecords = Boolean(can.correctRecords);
     const canViewCompany = Boolean(can.viewCompany);
@@ -264,7 +267,7 @@ export default function DashboardSidebar({
         {
             label: 'Field operations',
             items: [
-                ...(canViewEmployees
+                ...(canViewWorkSchedule
                     ? [
                           {
                               title: 'Work Schedule',
@@ -302,7 +305,7 @@ export default function DashboardSidebar({
                           },
                       ]
                     : []),
-                ...(canViewEmployees
+                ...(canViewAttendance
                     ? [
                           {
                               title: 'Attendance',
@@ -314,7 +317,7 @@ export default function DashboardSidebar({
                           },
                       ]
                     : []),
-                ...(canViewMySchedule && !canViewEmployees
+                ...(canViewMySchedule && !canViewWorkSchedule
                     ? [
                           {
                               title: 'My schedule',

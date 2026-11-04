@@ -6,11 +6,11 @@ use App\Http\Controllers\Admin\AiDraftController;
 use App\Http\Controllers\Admin\BidCatalogController;
 use App\Http\Controllers\Admin\BidController;
 use App\Http\Controllers\Admin\CertificationController;
+use App\Http\Controllers\Admin\ClientCompanyController;
 use App\Http\Controllers\Admin\CompanyController;
 use App\Http\Controllers\Admin\ContactController;
 use App\Http\Controllers\Admin\ContractorController;
 use App\Http\Controllers\Admin\DailyTaskController;
-use App\Http\Controllers\Admin\JobProgressController;
 use App\Http\Controllers\Admin\DailyTaskTitleController;
 use App\Http\Controllers\Admin\DocumentSettingController;
 use App\Http\Controllers\Admin\EditorImageController;
@@ -19,17 +19,16 @@ use App\Http\Controllers\Admin\EmployeeController;
 use App\Http\Controllers\Admin\EmployeeWorkScheduleController;
 use App\Http\Controllers\Admin\ExpenseController;
 use App\Http\Controllers\Admin\ImpersonationController;
+use App\Http\Controllers\Admin\JobProgressController;
 use App\Http\Controllers\Admin\JobTitleController;
 use App\Http\Controllers\Admin\LanguageController;
 use App\Http\Controllers\Admin\MyScheduleController;
+use App\Http\Controllers\Admin\PresenceController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ProfessionController;
-use App\Http\Controllers\Admin\ProjectControlController;
-use App\Http\Controllers\Admin\ClientCompanyController;
 use App\Http\Controllers\Admin\ProjectClientAccessController;
+use App\Http\Controllers\Admin\ProjectControlController;
 use App\Http\Controllers\Admin\ProjectController;
-use App\Http\Controllers\ClientPortalController;
-use App\Http\Controllers\ClientTeamController;
 use App\Http\Controllers\Admin\QuotationController;
 use App\Http\Controllers\Admin\QuotationRevisionAssignmentController;
 use App\Http\Controllers\Admin\RecordCorrectionController;
@@ -41,12 +40,17 @@ use App\Http\Controllers\Admin\TakeoffController;
 use App\Http\Controllers\Admin\TakeoffWorkspaceController;
 use App\Http\Controllers\Admin\UserActivityController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\UserDefaultsController;
+use App\Http\Controllers\ClientPortalController;
+use App\Http\Controllers\ClientTeamController;
+use App\Http\Controllers\ContactDirectory\AddressTypeController;
 use App\Http\Controllers\ContactDirectory\ContactCompanyController;
 use App\Http\Controllers\ContactDirectory\ContactDirectoryController;
 use App\Http\Controllers\ContactDirectory\ContactDirectoryInquiryController;
 use App\Http\Controllers\ContactDirectory\ContactEmailController;
 use App\Http\Controllers\ContactDirectory\EmailTemplateController;
 use App\Http\Controllers\ContactDirectory\FollowUpController;
+use App\Http\Controllers\ContactDirectory\FollowUpTaskOptionController;
 use App\Http\Controllers\ContactDirectory\MyDayController;
 use App\Http\Controllers\ContactDirectory\PriceRequestController;
 use App\Http\Controllers\ContactDirectory\SupplierQuoteController;
@@ -57,7 +61,9 @@ use App\Http\Controllers\InternalChatController;
 use App\Http\Controllers\MailboxController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\SeoController;
+use App\Http\Controllers\WebAuthn\WebAuthnRegisterController;
 use App\Models\Company;
 use App\Services\TwilioSmsService;
 use Illuminate\Support\Facades\Route;
@@ -116,10 +122,10 @@ Route::post('/contact', [ContactSubmissionController::class, 'store'])
     ->middleware('throttle:5,1')
     ->name('contact.store');
 
-Route::post('/presence/ping', [\App\Http\Controllers\Admin\PresenceController::class, 'ping'])
+Route::post('/presence/ping', [PresenceController::class, 'ping'])
     ->middleware('auth')
     ->name('presence.ping');
-Route::get('/presence', [\App\Http\Controllers\Admin\PresenceController::class, 'index'])
+Route::get('/presence', [PresenceController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('presence.index');
 
@@ -210,9 +216,9 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
 });
 
 Route::middleware(['auth', 'prevent-back-history', 'can:manage-profile'])->group(function () {
-    Route::post('/webauthn/register/options', [\App\Http\Controllers\WebAuthn\WebAuthnRegisterController::class, 'options'])->name('webauthn.register.options');
-    Route::post('/webauthn/register', [\App\Http\Controllers\WebAuthn\WebAuthnRegisterController::class, 'register'])->name('webauthn.register');
-    Route::delete('/webauthn/credentials/{credential}', [\App\Http\Controllers\WebAuthn\WebAuthnRegisterController::class, 'destroy'])->name('webauthn.destroy');
+    Route::post('/webauthn/register/options', [WebAuthnRegisterController::class, 'options'])->name('webauthn.register.options');
+    Route::post('/webauthn/register', [WebAuthnRegisterController::class, 'register'])->name('webauthn.register');
+    Route::delete('/webauthn/credentials/{credential}', [WebAuthnRegisterController::class, 'destroy'])->name('webauthn.destroy');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
@@ -244,10 +250,10 @@ Route::middleware(['auth', 'prevent-back-history', 'can:view-contacts-directory'
                 ->middleware('can:log-communications');
         });
 
-        Route::post('/address-types', [\App\Http\Controllers\ContactDirectory\AddressTypeController::class, 'store'])->name('address-types.store')
+        Route::post('/address-types', [AddressTypeController::class, 'store'])->name('address-types.store')
             ->middleware('can:manage-contacts-directory');
 
-        Route::post('/follow-up-task-options', [\App\Http\Controllers\ContactDirectory\FollowUpTaskOptionController::class, 'store'])->name('task-options.store')
+        Route::post('/follow-up-task-options', [FollowUpTaskOptionController::class, 'store'])->name('task-options.store')
             ->middleware('can:manage-follow-ups');
 
         Route::prefix('companies')->name('companies.')->group(function () {
@@ -341,9 +347,9 @@ Route::middleware(['auth', 'prevent-back-history', 'can:view-contacts-directory'
     });
 
 Route::middleware(['auth'])->group(function () {
-    Route::post('/push-subscriptions', [\App\Http\Controllers\PushSubscriptionController::class, 'store'])->name('push-subscriptions.store');
-    Route::post('/push-subscriptions/test', [\App\Http\Controllers\PushSubscriptionController::class, 'test'])->name('push-subscriptions.test');
-    Route::delete('/push-subscriptions', [\App\Http\Controllers\PushSubscriptionController::class, 'destroy'])->name('push-subscriptions.destroy');
+    Route::post('/push-subscriptions', [PushSubscriptionController::class, 'store'])->name('push-subscriptions.store');
+    Route::post('/push-subscriptions/test', [PushSubscriptionController::class, 'test'])->name('push-subscriptions.test');
+    Route::delete('/push-subscriptions', [PushSubscriptionController::class, 'destroy'])->name('push-subscriptions.destroy');
 });
 
 Route::middleware(['auth', 'prevent-back-history', 'can:manage-notifications'])
@@ -534,7 +540,7 @@ Route::middleware(['auth', 'prevent-back-history'])
             ->name('my-schedule.index');
 
         Route::get('/employees/schedules', [EmployeeWorkScheduleController::class, 'index'])
-            ->middleware('can:view-employees')
+            ->middleware(['can:view-employees', 'can:view-work-schedule'])
             ->name('employee-schedules.index');
         Route::get('/employees/schedules/rates/{employee}', [EmployeeWorkScheduleController::class, 'rates'])
             ->middleware('can:view-employees')
@@ -559,7 +565,7 @@ Route::middleware(['auth', 'prevent-back-history'])
             ->name('employee-schedules.destroy');
 
         Route::get('/employees/attendance', [EmployeeAttendanceController::class, 'index'])
-            ->middleware('can:view-employees')
+            ->middleware(['can:view-employees', 'can:view-attendance'])
             ->name('employee-attendance.index');
         Route::get('/employees/attendance/create', [EmployeeAttendanceController::class, 'create'])
             ->middleware('can:create-employees')
@@ -1019,9 +1025,9 @@ Route::middleware(['auth', 'prevent-back-history', 'can:manage-access'])
     ->prefix('administration')
     ->name('admin.')
     ->group(function () {
-        Route::get('/user-defaults', [\App\Http\Controllers\Admin\UserDefaultsController::class, 'edit'])
+        Route::get('/user-defaults', [UserDefaultsController::class, 'edit'])
             ->name('user-defaults.edit');
-        Route::patch('/user-defaults', [\App\Http\Controllers\Admin\UserDefaultsController::class, 'update'])
+        Route::patch('/user-defaults', [UserDefaultsController::class, 'update'])
             ->name('user-defaults.update');
         Route::get('/access-control', [AccessControlController::class, 'index'])
             ->name('access-control.index');

@@ -116,6 +116,8 @@ export type PageProps<
             deleteContractors: boolean;
             viewMySchedule?: boolean;
             viewJobProgress?: boolean;
+            viewWorkSchedule?: boolean;
+            viewAttendance?: boolean;
         manageClientTeam?: boolean;
         viewClientPortal?: boolean;
             viewDashboard?: boolean;

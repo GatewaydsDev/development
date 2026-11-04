@@ -209,6 +209,26 @@ return [
             'group' => 'Client portal',
             'description' => 'Add, remove and set the project access of other people in the same client company.',
         ],
+        'view-work-schedule' => [
+            'name' => 'Open work schedule',
+            'group' => 'Field operations',
+            'description' => 'Open the work schedule screen. Foremen only see the schedules they lead.',
+        ],
+        'view-job-progress' => [
+            'name' => 'Open job progress',
+            'group' => 'Field operations',
+            'description' => 'Follow task progress, crew hours, photos and quality control for jobs. Foremen only see their own jobs.',
+        ],
+        'view-daily-tasks' => [
+            'name' => 'Open daily tasks',
+            'group' => 'Field operations',
+            'description' => 'Open the daily task checklist and complete the tasks assigned to the foreman.',
+        ],
+        'view-attendance' => [
+            'name' => 'Open attendance',
+            'group' => 'Field operations',
+            'description' => 'Open the attendance screen. Foremen only see their own employees.',
+        ],
         'view-my-schedule' => [
             'name' => 'See my work schedule',
             'group' => 'Employees',
@@ -320,6 +340,10 @@ return [
         ],
         UserLevel::ADMINISTRATOR => [
             'view-dashboard',
+            'view-work-schedule',
+            'view-job-progress',
+            'view-daily-tasks',
+            'view-attendance',
             'manage-profile',
             'view-company',
             'view-projects',
@@ -367,6 +391,10 @@ return [
         ],
         UserLevel::ADMIN => [
             'view-dashboard',
+            'view-work-schedule',
+            'view-job-progress',
+            'view-daily-tasks',
+            'view-attendance',
             'manage-profile',
             'view-company',
             'view-projects',
@@ -402,6 +430,10 @@ return [
         ],
         UserLevel::FOREMAN => [
             'view-dashboard',
+            'view-work-schedule',
+            'view-job-progress',
+            'view-daily-tasks',
+            'view-attendance',
             'manage-profile',
             'view-employees',
             'view-my-schedule',
