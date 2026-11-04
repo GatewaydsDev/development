@@ -118,17 +118,15 @@ class ScheduleAttendance
             if ($day) {
                 $attributes = ['worked' => true, 'scheduled' => true, 'employee_work_schedule_id' => $schedule->id];
 
-                if ($day->rate_type === EmployeePayRate::RATE_HOURLY) {
-                    $hours = self::validHours($entry['hours'] ?? null, $day->hours);
+                $hours = self::validHours($entry['hours'] ?? null, $day->hours ?? self::DEFAULT_HOURS);
 
-                    if ($hours === null) {
-                        $errors[$employee->uuid] = 'Enter the hours worked (up to 24).';
+                if ($hours === null) {
+                    $errors[$employee->uuid] = 'Enter the hours worked (up to 24).';
 
-                        continue;
-                    }
-
-                    $attributes['hours'] = $hours;
+                    continue;
                 }
+
+                $attributes['hours'] = $hours;
 
                 $day->update($attributes);
 
@@ -143,16 +141,12 @@ class ScheduleAttendance
                 continue;
             }
 
-            $hours = null;
+            $hours = self::validHours($entry['hours'] ?? null, self::DEFAULT_HOURS);
 
-            if ($rate->rate_type === EmployeePayRate::RATE_HOURLY) {
-                $hours = self::validHours($entry['hours'] ?? null, self::DEFAULT_HOURS);
+            if ($hours === null) {
+                $errors[$employee->uuid] = 'Enter the hours worked (up to 24).';
 
-                if ($hours === null) {
-                    $errors[$employee->uuid] = 'Enter the hours worked (up to 24).';
-
-                    continue;
-                }
+                continue;
             }
 
             $week = EmployeeAttendanceWeek::query()->firstOrCreate([

@@ -227,9 +227,7 @@ class JobProgressController extends Controller
             'rate_type' => $rate->rate_type,
             'custom_rate_type' => $rate->rate_type === EmployeePayRate::RATE_CUSTOM ? $rate->custom_rate_type : null,
             'amount' => $rate->amount,
-            'hours' => $rate->rate_type === EmployeePayRate::RATE_HOURLY
-                ? ($day->hours ?? ScheduleAttendance::DEFAULT_HOURS)
-                : null,
+            'hours' => $day->hours ?? ScheduleAttendance::DEFAULT_HOURS,
         ]);
 
         return back()->with('success', 'Crew rate updated.');

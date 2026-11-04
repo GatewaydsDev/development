@@ -422,7 +422,7 @@ export default function Show({
                                         <div key={week.week_start} className="flex flex-col gap-1">
                                             <p className="flex justify-between text-xs font-medium uppercase text-muted-foreground">
                                                 <span>
-                                                    Week of {week.week_start}
+                                                    Week of {formatDate(week.week_start)}
                                                 </span>
                                                 <span>
                                                     {week.hours} h
@@ -466,30 +466,32 @@ export default function Show({
                                         No activity recorded yet.
                                     </p>
                                 ) : (
-                                    <ul>
-                                        {progress.timeline.map((entry) => (
-                                            <li key={entry.date}>
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        goTo(entry.date)
-                                                    }
-                                                    className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted ${
-                                                        entry.date === date
-                                                            ? 'bg-muted font-medium'
-                                                            : ''
+                                    <table className="w-full text-sm">
+                                        <thead>
+                                            <tr className="text-left text-xs uppercase text-muted-foreground">
+                                                <th className="px-2 py-1 font-medium">Date</th>
+                                                <th className="px-2 py-1 text-right font-medium">Crew</th>
+                                                <th className="px-2 py-1 text-right font-medium">Tasks</th>
+                                                <th className="px-2 py-1 text-right font-medium">Photos</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {progress.timeline.map((entry) => (
+                                                <tr
+                                                    key={entry.date}
+                                                    onClick={() => goTo(entry.date)}
+                                                    className={`cursor-pointer hover:bg-muted ${
+                                                        entry.date === date ? 'bg-muted font-medium' : ''
                                                     }`}
                                                 >
-                                                    <span>{entry.date}</span>
-                                                    <span className="text-xs text-muted-foreground">
-                                                        {entry.present} crew ·{' '}
-                                                        {entry.tasks} tasks ·{' '}
-                                                        {entry.photos} photos
-                                                    </span>
-                                                </button>
-                                            </li>
-                                        ))}
-                                    </ul>
+                                                    <td className="px-2 py-1.5">{formatDate(entry.date)}</td>
+                                                    <td className="px-2 py-1.5 text-right">{entry.present}</td>
+                                                    <td className="px-2 py-1.5 text-right">{entry.tasks}</td>
+                                                    <td className="px-2 py-1.5 text-right">{entry.photos}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
                                 )}
                             </CardContent>
                         </Card>
@@ -498,6 +500,12 @@ export default function Show({
             </div>
         </AuthenticatedLayout>
     );
+}
+
+function formatDate(value: string): string {
+    const [year, month, day] = value.split('-');
+
+    return year && month && day ? `${month}/${day}/${year}` : value;
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
