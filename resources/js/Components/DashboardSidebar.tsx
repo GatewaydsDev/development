@@ -219,32 +219,6 @@ export default function DashboardSidebar({
                           },
                       ]
                     : []),
-                ...(canOpenDailyTasks
-                    ? [
-                          {
-                              title: 'Daily tasks',
-                              href: route('admin.daily-tasks.index'),
-                              icon: ClipboardCheckIcon,
-                              active: isRouteActive('admin.daily-tasks.*'),
-                              alert: dailyTasksPending > 0,
-                              badge:
-                                  dailyTasksPending > 0
-                                      ? dailyTasksPending
-                                      : undefined,
-                              badgeVariant: 'destructive' as const,
-                          },
-                      ]
-                    : []),
-                ...(canViewJobProgress
-                    ? [
-                          {
-                              title: 'Job progress',
-                              href: route('admin.job-progress.index'),
-                              icon: GaugeIcon,
-                              active: isRouteActive('admin.job-progress.*'),
-                          },
-                      ]
-                    : []),
                 ...(canManageProjectControl
                     ? [
                           {
@@ -282,6 +256,71 @@ export default function DashboardSidebar({
                               href: route('admin.takeoffs.index'),
                               icon: RulerIcon,
                               active: isRouteActive('admin.takeoffs.*'),
+                          },
+                      ]
+                    : []),
+            ],
+        },
+        {
+            label: 'Field operations',
+            items: [
+                ...(canViewEmployees
+                    ? [
+                          {
+                              title: 'Work Schedule',
+                              href: route('admin.employee-schedules.index'),
+                              icon: CalendarClockIcon,
+                              active: isRouteActive(
+                                  'admin.employee-schedules.*',
+                              ),
+                          },
+                      ]
+                    : []),
+                ...(canViewJobProgress
+                    ? [
+                          {
+                              title: 'Job progress',
+                              href: route('admin.job-progress.index'),
+                              icon: GaugeIcon,
+                              active: isRouteActive('admin.job-progress.*'),
+                          },
+                      ]
+                    : []),
+                ...(canOpenDailyTasks
+                    ? [
+                          {
+                              title: 'Daily tasks',
+                              href: route('admin.daily-tasks.index'),
+                              icon: ClipboardCheckIcon,
+                              active: isRouteActive('admin.daily-tasks.*'),
+                              alert: dailyTasksPending > 0,
+                              badge:
+                                  dailyTasksPending > 0
+                                      ? dailyTasksPending
+                                      : undefined,
+                              badgeVariant: 'destructive' as const,
+                          },
+                      ]
+                    : []),
+                ...(canViewEmployees
+                    ? [
+                          {
+                              title: 'Attendance',
+                              href: route('admin.employee-attendance.index'),
+                              icon: CalendarDaysIcon,
+                              active: isRouteActive(
+                                  'admin.employee-attendance.*',
+                              ),
+                          },
+                      ]
+                    : []),
+                ...(canViewMySchedule && !canViewEmployees
+                    ? [
+                          {
+                              title: 'My schedule',
+                              href: route('admin.my-schedule.index'),
+                              icon: CalendarClockIcon,
+                              active: isRouteActive('admin.my-schedule.*'),
                           },
                       ]
                     : []),
@@ -392,16 +431,6 @@ export default function DashboardSidebar({
                           },
                       ]
                     : []),
-                ...(canViewMySchedule && !canViewEmployees
-                    ? [
-                          {
-                              title: 'My schedule',
-                              href: route('admin.my-schedule.index'),
-                              icon: CalendarClockIcon,
-                              active: isRouteActive('admin.my-schedule.*'),
-                          },
-                      ]
-                    : []),
                 ...(canViewEmployees
                     ? [
                           {
@@ -409,22 +438,6 @@ export default function DashboardSidebar({
                               href: route('admin.employees.index'),
                               icon: UsersIcon,
                               active: isRouteActive('admin.employees.*'),
-                          },
-                          {
-                              title: 'Attendance',
-                              href: route('admin.employee-attendance.index'),
-                              icon: CalendarDaysIcon,
-                              active: isRouteActive(
-                                  'admin.employee-attendance.*',
-                              ),
-                          },
-                          {
-                              title: 'Work Schedule',
-                              href: route('admin.employee-schedules.index'),
-                              icon: CalendarClockIcon,
-                              active: isRouteActive(
-                                  'admin.employee-schedules.*',
-                              ),
                           },
                       ]
                     : []),

@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\EmployeeAttendanceController;
 use App\Http\Controllers\Api\EmployeeController;
 use App\Http\Controllers\Api\EmployeeWorkdayController;
 use App\Http\Controllers\Api\ForemanDailyTaskController;
+use App\Http\Controllers\Api\ForemanJobProgressController;
 use App\Http\Controllers\Api\ForemanScheduleController;
 use App\Http\Controllers\Api\EmployeeWorkScheduleController;
 use App\Http\Controllers\Admin\PresenceController;
@@ -60,6 +61,7 @@ Route::middleware('auth:sanctum')->prefix('client-portal')->group(function () {
 Route::middleware('auth:sanctum')->get('/dashboard', [DashboardController::class, 'show']);
 
 Route::middleware('auth:sanctum')->get('/me/work-schedule', [ForemanScheduleController::class, 'show']);
+Route::middleware('auth:sanctum')->get('/me/job-progress', [ForemanJobProgressController::class, 'index']);
 
 Route::middleware('auth:sanctum')->prefix('me/daily-tasks')->group(function () {
     Route::get('/', [ForemanDailyTaskController::class, 'index']);
