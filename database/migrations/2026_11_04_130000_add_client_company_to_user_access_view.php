@@ -100,7 +100,7 @@ FROM users u
 LEFT JOIN user_levels l ON l.id = u.level_id
 LEFT JOIN client_company_users cu ON cu.user_id = u.id
 LEFT JOIN client_companies cc ON cc.id = cu.client_company_id
-LEFT JOIN employees e ON e.user_id = u.id AND e.deleted_at IS NULL
+LEFT JOIN employees e ON e.user_id = u.id
 WHERE u.deleted_at IS NULL
 ORDER BY u.id
 SQL);

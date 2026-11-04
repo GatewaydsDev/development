@@ -73,7 +73,7 @@ SELECT
     (SELECT COUNT(*) FROM employee_work_schedules ws WHERE ws.foreman_user_id = u.id) AS foreman_schedules_count
 FROM users u
 LEFT JOIN user_levels l ON l.id = u.level_id
-LEFT JOIN employees e ON e.user_id = u.id AND e.deleted_at IS NULL
+LEFT JOIN employees e ON e.user_id = u.id
 WHERE u.deleted_at IS NULL
 ORDER BY u.id
 SQL);
