@@ -204,6 +204,70 @@ class ScheduleAttendance
             ->first();
     }
 
+    /**
+     * Days worked, hours and pay per employee for each week of the schedule.
+     * Hourly rates pay amount x hours; every other rate pays its amount per day.
+     *
+     * @return array{weeks: list<array<string, mixed>>, total_hours: string, total_pay: string}
+     */
+    public static function summary(EmployeeWorkSchedule $schedule): array
+    {
+        $days = EmployeeAttendanceDay::query()
+            ->where('employee_work_schedule_id', $schedule->id)
+            ->where('worked', true)
+            ->with('week.employee:id,first_name,last_name')
+            ->orderBy('work_date')
+            ->get();
+
+        $pay = fn (EmployeeAttendanceDay $day): float => $day->rate_type === EmployeePayRate::RATE_HOURLY
+            ? (float) $day->amount * (float) $day->hours
+            : (float) $day->amount;
+
+        $weeks = $days->groupBy(fn (EmployeeAttendanceDay $day): string => $day->week->week_start->toDateString())
+            ->sortKeys()
+            ->map(function (Collection $weekDays, string $start) use ($pay): array {
+                $employees = $weekDays->groupBy('week.employee_id')->map(fn (Collection $items): array => [
+                    'name' => $items->first()->week->employee?->fullName() ?? 'Employee',
+                    'days' => $items->count(),
+                    'hours' => round((float) $items->sum('hours'), 2),
+                    'pay' => round($items->sum($pay), 2),
+                ])->sortBy('name')->values();
+
+                return [
+                    'week_start' => $start,
+                    'week_end' => Carbon::parse($start)->addDays(6)->toDateString(),
+                    'employees' => $employees->all(),
+                    'hours' => round((float) $employees->sum('hours'), 2),
+                    'pay' => round((float) $employees->sum('pay'), 2),
+                ];
+            })->values();
+
+        return [
+            'weeks' => $weeks->all(),
+            'total_hours' => number_format((float) $weeks->sum('hours'), 2, '.', ''),
+            'total_pay' => number_format((float) $weeks->sum('pay'), 2, '.', ''),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $summary
+     * @return array<string, mixed>
+     */
+    public static function withoutPay(array $summary): array
+    {
+        $summary['total_pay'] = '0.00';
+
+        foreach ($summary['weeks'] as &$week) {
+            $week['pay'] = 0;
+
+            foreach ($week['employees'] as &$employee) {
+                $employee['pay'] = 0;
+            }
+        }
+
+        return $summary;
+    }
+
     private static function rateLabel(EmployeePayRate $rate): string
     {
         $type = $rate->rate_type === EmployeePayRate::RATE_CUSTOM

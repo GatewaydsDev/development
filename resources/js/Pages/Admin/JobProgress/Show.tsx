@@ -58,6 +58,17 @@ type Props = {
     progress: {
         summary: JobSummary;
         tasks: Task[];
+        payroll: {
+            weeks: {
+                week_start: string;
+                week_end: string;
+                hours: number;
+                pay: number;
+                employees: { name: string; days: number; hours: number; pay: number }[];
+            }[];
+            total_hours: string;
+            total_pay: string;
+        };
         attendance: {
             members: AttendanceMemberData[];
         };
@@ -79,6 +90,7 @@ type Props = {
         }[];
     };
     can: { inspect: boolean; update: boolean };
+    canSeePay: boolean;
     statuses: Record<string, string>;
     checklist: Record<string, string>;
     results: Record<string, string>;
@@ -90,6 +102,7 @@ export default function Show({
     today,
     progress,
     can,
+    canSeePay,
     statuses,
     checklist,
     results,
@@ -394,6 +407,54 @@ export default function Show({
                                         </ul>
                                     )}
                                 </div>
+                            </CardContent>
+                        </Card>
+
+                        <h3 className="text-lg font-semibold">Hours and pay</h3>
+                        <Card>
+                            <CardContent className="flex flex-col gap-4 p-4 text-sm">
+                                {progress.payroll.weeks.length === 0 ? (
+                                    <p className="text-muted-foreground">
+                                        No attendance recorded yet.
+                                    </p>
+                                ) : (
+                                    progress.payroll.weeks.map((week) => (
+                                        <div key={week.week_start} className="flex flex-col gap-1">
+                                            <p className="flex justify-between text-xs font-medium uppercase text-muted-foreground">
+                                                <span>
+                                                    Week of {week.week_start}
+                                                </span>
+                                                <span>
+                                                    {week.hours} h
+                                                    {canSeePay && ` · $${week.pay.toFixed(2)}`}
+                                                </span>
+                                            </p>
+                                            {week.employees.map((employee) => (
+                                                <p key={employee.name} className="flex justify-between gap-2">
+                                                    <span>
+                                                        {employee.name}
+                                                        <span className="text-xs text-muted-foreground">
+                                                            {' '}· {employee.days} day(s)
+                                                        </span>
+                                                    </span>
+                                                    <span className="text-muted-foreground">
+                                                        {employee.hours} h
+                                                        {canSeePay && ` · $${employee.pay.toFixed(2)}`}
+                                                    </span>
+                                                </p>
+                                            ))}
+                                        </div>
+                                    ))
+                                )}
+                                {progress.payroll.weeks.length > 0 && (
+                                    <p className="flex justify-between border-t border-border pt-2 font-semibold">
+                                        <span>Total</span>
+                                        <span>
+                                            {progress.payroll.total_hours} h
+                                            {canSeePay && ` · $${Number(progress.payroll.total_pay).toFixed(2)}`}
+                                        </span>
+                                    </p>
+                                )}
                             </CardContent>
                         </Card>
 

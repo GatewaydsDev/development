@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\DailyTaskPhoto;
+use App\Models\EmployeeAttendanceDay;
+use App\Models\EmployeePayRate;
+use App\Models\EmployeeWorkSchedule;
 use App\Models\Project;
 use App\Models\User;
 use App\Support\ClientPortalAccess;
@@ -52,6 +55,7 @@ class ClientPortalController extends Controller
 
         $project->load('status:id,name,slug');
         $progress = ProjectProgress::for($project);
+        $progress['schedules'] = $this->withToday($progress['schedules']);
 
         return response()->json([
             'project' => [
@@ -62,6 +66,45 @@ class ClientPortalController extends Controller
             ],
             'progress' => $progress,
         ]);
+    }
+
+    /**
+     * Adds today's rate and hours to each crew member (matched by name within a schedule).
+     *
+     * @param  list<array<string, mixed>>  $schedules
+     * @return list<array<string, mixed>>
+     */
+    private function withToday(array $schedules): array
+    {
+        $today = now()->toDateString();
+
+        return array_map(function (array $schedule) use ($today): array {
+            $model = EmployeeWorkSchedule::query()->where('uuid', $schedule['uuid'])->first();
+            $days = $model
+                ? EmployeeAttendanceDay::query()
+                    ->where('employee_work_schedule_id', $model->id)
+                    ->whereDate('work_date', $today)
+                    ->with('week.employee')
+                    ->get()
+                    ->keyBy(fn ($day) => $day->week?->employee?->fullName())
+                : collect();
+
+            $schedule['crew'] = array_map(function (array $member) use ($days): array {
+                $day = $days->get($member['name']);
+                $type = $day?->rate_type;
+
+                $member['rate'] = $day ? (
+                    ($type === EmployeePayRate::RATE_CUSTOM ? ($day->custom_rate_type ?: 'Custom') : ucfirst(str_replace('_', ' ', $type)))
+                    .' · $'.number_format((float) $day->amount, 2)
+                ) : null;
+                $member['hours_today'] = $day?->hours !== null ? (float) $day->hours : null;
+                $member['worked_today'] = $day?->worked;
+
+                return $member;
+            }, $schedule['crew']);
+
+            return $schedule;
+        }, $schedules);
     }
 
     public function photo(Request $request, DailyTaskPhoto $photo): StreamedResponse

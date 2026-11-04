@@ -100,6 +100,7 @@ class JobProgress
                 ];
             })->values()->all(),
             'attendance' => ScheduleAttendance::payload($schedule, $date),
+            'payroll' => ScheduleAttendance::summary($schedule),
             'day' => [
                 'date' => $date,
                 'updates' => $dayCompletions->map(fn (DailyTaskCompletion $completion): array => [

@@ -259,3 +259,27 @@ test('a rate that belongs to another employee is rejected for the crew', functio
         ->post(route('admin.job-progress.crew.update', [$schedule->uuid, $worker->uuid]), ['employee_pay_rate_id' => $rate->id])
         ->assertSessionHasErrors('employee_pay_rate_id');
 });
+
+test('job progress summarises hours and pay by week, and hides pay from the foreman', function () {
+    ['schedule' => $schedule, 'foreman' => $foreman, 'worker' => $worker] = progressJob();
+    $week = EmployeeAttendanceWeek::create([
+        'employee_id' => $worker->id,
+        'week_start' => EmployeeAttendanceWeek::mondayOf(now()->toDateString())->toDateString(),
+    ]);
+    $week->days()->create([
+        'work_date' => now()->toDateString(), 'rate_type' => 'hourly', 'amount' => 20, 'hours' => 5,
+        'scheduled' => true, 'worked' => true, 'employee_work_schedule_id' => $schedule->id,
+    ]);
+    $admin = progressUser(UserLevel::SUPER_ADMIN);
+
+    $this->actingAs($admin)->get(route('admin.job-progress.show', $schedule->uuid))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('progress.payroll.total_pay', '100.00')
+            ->where('progress.payroll.weeks.0.employees.0.hours', 5)
+            ->where('canSeePay', true));
+
+    $this->actingAs($foreman)->get(route('admin.job-progress.show', $schedule->uuid))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('progress.payroll.total_pay', '0.00')
+            ->where('canSeePay', false));
+});

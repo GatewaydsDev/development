@@ -72,6 +72,12 @@ class JobProgressController extends Controller
             ? $queried
             : now()->toDateString();
 
+        $progress = JobProgress::detail($schedule, $date, 'admin.daily-task-photos.show');
+
+        if (! JobProgressAccess::canViewAll($user)) {
+            $progress['payroll'] = ScheduleAttendance::withoutPay($progress['payroll']);
+        }
+
         return Inertia::render('Admin/JobProgress/Show', [
             'job' => [
                 ...$this->schedulePayload($schedule),
@@ -81,7 +87,8 @@ class JobProgressController extends Controller
             ],
             'date' => $date,
             'today' => now()->toDateString(),
-            'progress' => JobProgress::detail($schedule, $date, 'admin.daily-task-photos.show'),
+            'progress' => $progress,
+            'canSeePay' => JobProgressAccess::canViewAll($user),
             'can' => [
                 'inspect' => JobProgressAccess::canInspect($user, $schedule),
                 'update' => JobProgressAccess::canUpdateProgress($user, $schedule),
