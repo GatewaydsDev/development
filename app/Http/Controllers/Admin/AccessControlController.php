@@ -7,11 +7,77 @@ use App\Models\UserLevel;
 use App\Support\UserLevelAccess;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class AccessControlController extends Controller
 {
+    public function index(): Response
+    {
+        $total = count(config('access.permissions', []));
+
+        $levels = UserLevel::query()
+            ->withCount('users')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (UserLevel $level): array => [
+                'id' => $level->id,
+                'uuid' => $level->uuid,
+                'name' => $level->name,
+                'locked' => $level->isSuperAdminLevel(),
+                'users_count' => $level->users_count,
+                'permissions_count' => collect(config('access.permissions', []))
+                    ->keys()
+                    ->filter(fn (string $permission): bool => $level->hasPermission($permission))
+                    ->count(),
+                'mobile_count' => collect(config('access.permissions', []))
+                    ->keys()
+                    ->filter(fn (string $permission): bool => $level->hasMobilePermission($permission))
+                    ->count(),
+            ])
+            ->all();
+
+        return Inertia::render('Admin/AccessControl/Index', [
+            'levels' => $levels,
+            'totalPermissions' => $total,
+        ]);
+    }
+
+    public function rename(Request $request, UserLevel $level): RedirectResponse
+    {
+        if ($level->isSuperAdminLevel()) {
+            throw ValidationException::withMessages([
+                'name' => 'Super Admin cannot be renamed.',
+            ]);
+        }
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+        ]);
+
+        $name = trim($validated['name']);
+        UserLevelAccess::assertNameIsAvailable($name, $level->id);
+        $level->forceFill(['name' => $name])->save();
+
+        return back()->with('success', 'User level renamed.');
+    }
+
+    public function destroy(UserLevel $level): RedirectResponse
+    {
+        if ($level->isSuperAdminLevel()) {
+            return back()->with('error', 'Super Admin cannot be deleted.');
+        }
+
+        if ($level->users()->exists()) {
+            return back()->with('error', 'This level is assigned to users. Reassign them before deleting it.');
+        }
+
+        $level->delete();
+
+        return back()->with('success', 'User level deleted.');
+    }
+
     public function edit(Request $request): Response
     {
         $permissions = collect(config('access.permissions', []))
@@ -50,7 +116,9 @@ class AccessControlController extends Controller
         return Inertia::render('Admin/AccessControl/Edit', [
             'permissions' => $permissions,
             'levels' => $levels,
-            'selectedLevelId' => $this->selectedLevelId($request),
+            'selectedLevelId' => $this->selectedLevelId($request)
+                ?? collect($levels)->firstWhere('locked', false)['id']
+                ?? ($levels[0]['id'] ?? null),
         ]);
     }
 
@@ -137,7 +205,7 @@ class AccessControlController extends Controller
             });
 
         return redirect()
-            ->route('admin.users.index')
+            ->route('admin.access-control.index')
             ->with('success', 'Access control permissions updated successfully.');
     }
 

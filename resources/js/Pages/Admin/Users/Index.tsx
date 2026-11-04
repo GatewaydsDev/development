@@ -44,8 +44,12 @@ import {
     ArchiveRestoreIcon,
     ChevronDownIcon,
     EditIcon,
+    BuildingIcon,
     LogInIcon,
     MailIcon,
+    MonitorIcon,
+    SmartphoneIcon,
+    TabletIcon,
     PhoneIcon,
     SearchIcon,
     ShieldIcon,
@@ -79,12 +83,17 @@ type UserRow = {
     } | null;
     created_at: string | null;
     last_login_at: string | null;
+    last_login_device?: 'website' | 'mobile' | 'tablet' | null;
     status?: string;
     can_change_status?: boolean;
     can_archive?: boolean;
     archived?: boolean;
     block_history?: BlockLog[];
+    client_role?: 'master' | 'manager' | 'viewer';
+    company_name?: string | null;
 };
+
+type ClientGroup = { uuid: string; name: string; members: UserRow[] };
 
 type PaginationLink = {
     url: string | null;
@@ -106,6 +115,7 @@ type UsersPaginator = {
 type BlockLogRow = BlockLog & { user_status?: string | null; can_change_status?: boolean };
 
 type IndexProps = {
+    clientGroups?: ClientGroup[];
     canArchiveUsers?: boolean;
     filters: {
         search?: string;
@@ -618,10 +628,32 @@ const AVATAR_TONES = [
 
 const avatarTone = (id: number) => AVATAR_TONES[id % AVATAR_TONES.length];
 
+const loginDevices = {
+    website: { label: 'Website', Icon: MonitorIcon },
+    mobile: { label: 'Mobile', Icon: SmartphoneIcon },
+    tablet: { label: 'Tablet', Icon: TabletIcon },
+} as const;
+
+function LoginDeviceBadge({ device }: { device?: UserRow['last_login_device'] }) {
+    if (!device) {
+        return <span className="text-sm text-muted-foreground">—</span>;
+    }
+
+    const { label, Icon } = loginDevices[device];
+
+    return (
+        <Badge variant="outline" className="gap-1.5">
+            <Icon className="size-3.5" />
+            {label}
+        </Badge>
+    );
+}
+
 export default function Index({
     filters,
     canArchiveUsers,
     users,
+    clientGroups = [],
     blockLogs,
     registrationRequests = [],
     registrationLevels = [],
@@ -633,6 +665,7 @@ export default function Index({
     const canImpersonate = Boolean(auth.can?.impersonateUsers);
     const isSuperAdminUser = Boolean(canArchiveUsers);
     const [search, setSearch] = useState(filters.search ?? '');
+    const [openGroups, setOpenGroups] = useState<string[]>([]);
     const [archiveTarget, setArchiveTarget] = useState<UserRow | null>(null);
     const [impersonationTarget, setImpersonationTarget] =
         useState<UserRow | null>(null);
@@ -649,6 +682,182 @@ export default function Index({
             },
         );
     };
+
+    const renderUser = (user: UserRow) => (
+                                        <div
+                                            key={user.id}
+                                            className="grid gap-3 border-b border-border px-4 py-4 transition-colors last:border-b-0 hover:bg-muted/40 xl:grid-cols-[1.6fr_1.5fr_1.1fr_0.8fr_1fr_0.9fr_0.8fr_minmax(200px,auto)] xl:items-center xl:gap-4"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <span
+                                                    className={`flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${avatarTone(user.id)}`}
+                                                    aria-hidden="true"
+                                                >
+                                                    {initials(user.name)}
+                                                </span>
+                                                <div className="min-w-0">
+                                                    <p className="truncate font-semibold text-foreground">
+                                                        {user.name}
+                                                    </p>
+                                                    <p className="truncate text-xs text-muted-foreground">
+                                                        {user.job_title ?? 'No job title'}
+                                                    </p>
+                                                    {user.preferred_language && (
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {user.preferred_language.name} ({user.preferred_language.abbreviation.toUpperCase()})
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="min-w-0 space-y-1 text-sm text-muted-foreground">
+                                                <p className="flex items-center gap-1.5 truncate">
+                                                    <MailIcon className="size-3.5 shrink-0" />
+                                                    <span className="truncate">{user.primary_email ?? user.email}</span>
+                                                </p>
+                                                {user.primary_phone && (
+                                                    <p className="flex items-center gap-1.5">
+                                                        <PhoneIcon className="size-3.5 shrink-0" />
+                                                        {user.primary_phone}
+                                                    </p>
+                                                )}
+                                                {user.microsoft_mailbox && (
+                                                    <p className="truncate text-xs">Mailbox: {user.microsoft_mailbox}</p>
+                                                )}
+                                            </div>
+                                            <div className="min-w-0 text-sm text-muted-foreground">
+                                                <DirectoryFieldLabel hideFrom="xl">Company</DirectoryFieldLabel>
+                                                <span className="block truncate text-foreground">{user.company_name ?? '—'}</span>
+                                            </div>
+                                            <div>
+                                                <DirectoryFieldLabel hideFrom="xl">Level</DirectoryFieldLabel>
+                                                <div className="flex flex-wrap gap-1">
+<Badge variant="outline">{user.level?.name ?? 'No level'}</Badge>
+{user.client_role === 'master' && <Badge>Master</Badge>}
+</div>
+                                            </div>
+                                            <div className="flex flex-col items-start gap-1">
+                                                <DirectoryFieldLabel hideFrom="xl">Status</DirectoryFieldLabel>
+                                                <UserStatusControl user={user} />
+                                                {canUpdateUsers && (
+                                                    <BlockHistoryButton name={user.name} logs={user.block_history ?? []} />
+                                                )}
+                                            </div>
+                                            <div className="text-sm text-muted-foreground">
+                                                <DirectoryFieldLabel hideFrom="xl">Last login</DirectoryFieldLabel>
+                                                {user.last_login_at ?? 'Never'}
+                                            </div>
+                                            <div>
+                                                <DirectoryFieldLabel hideFrom="xl">Login type</DirectoryFieldLabel>
+                                                <LoginDeviceBadge device={user.last_login_device} />
+                                            </div>
+                                            <div className="flex min-w-0 flex-col gap-1 md:items-end">
+                                                <DirectoryFieldLabel hideFrom="xl">
+                                                    Actions
+                                                </DirectoryFieldLabel>
+                                                <div className="flex flex-wrap gap-1.5 md:justify-end">
+                                                {user.archived && (
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => router.patch(route('admin.users.restore', user.uuid), {}, { preserveScroll: true })}
+                                                    >
+                                                        <ArchiveRestoreIcon data-icon="inline-start" />
+                                                        Restore
+                                                    </Button>
+                                                )}
+
+                                                {!user.archived && canManageAccess &&
+                                                    user.level && (
+                                                        <ActionHint hint="Edit permissions">
+                                                            <Button
+                                                                variant="outline"
+                                                                size="icon-sm"
+                                                                className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 dark:border-indigo-800/60 dark:text-indigo-400 dark:hover:bg-indigo-950/40"
+                                                                asChild
+                                                            >
+                                                                <Link
+                                                                    href={`${route('admin.access-control.edit')}?level=${user.level.uuid}`}
+                                                                    aria-label="Edit permissions"
+                                                                >
+                                                                    <SlidersHorizontalIcon className="size-4" />
+                                                                </Link>
+                                                            </Button>
+                                                        </ActionHint>
+                                                    )}
+
+                                                {!user.archived && canImpersonate &&
+                                                    user.id !== auth.user.id && (
+                                                        <ActionHint hint="Sign in as this user">
+                                                            <Button
+                                                                variant="outline"
+                                                                size="icon-sm"
+                                                                className="border-sky-200 text-sky-700 hover:bg-sky-50 hover:text-sky-800 dark:border-sky-800/60 dark:text-sky-300 dark:hover:bg-sky-950/40"
+                                                                aria-label={`Sign in as ${user.name}`}
+                                                                onClick={() =>
+                                                                    setImpersonationTarget(
+                                                                        user,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <LogInIcon className="size-4" />
+                                                            </Button>
+                                                        </ActionHint>
+                                                    )}
+
+                                                {!user.archived && canUpdateUsers && (
+                                                    <ActionHint hint="Edit this user">
+                                                        <Button
+                                                            variant="outline"
+                                                            size="icon-sm"
+                                                            className="border-amber-200 text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:border-amber-800/60 dark:text-amber-400 dark:hover:bg-amber-950/40"
+                                                            asChild
+                                                        >
+                                                            <Link
+                                                                href={route(
+                                                                    'admin.users.edit',
+                                                                    user.uuid,
+                                                                )}
+                                                                aria-label="Edit this user"
+                                                            >
+                                                                <EditIcon className="size-4" />
+                                                            </Link>
+                                                        </Button>
+                                                    </ActionHint>
+                                                )}
+
+                                                {user.can_archive && (
+                                                    <ActionHint hint="Archive this user">
+                                                        <Button
+                                                            variant="outline"
+                                                            size="icon-sm"
+                                                            className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-800/60 dark:text-red-400 dark:hover:bg-red-950/40"
+                                                            aria-label={`Archive ${user.name}`}
+                                                            onClick={() => setArchiveTarget(user)}
+                                                        >
+                                                            <ArchiveIcon className="size-4" />
+                                                        </Button>
+                                                    </ActionHint>
+                                                )}
+
+                                                {!user.archived && !canManageAccess &&
+                                                    !canUpdateUsers &&
+                                                    !(
+                                                        canImpersonate &&
+                                                        user.id !== auth.user.id
+                                                    ) && (
+                                                    <Badge variant="outline">
+                                                        View only
+                                                    </Badge>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+    );
+
+    const toggleGroup = (uuid: string) =>
+        setOpenGroups((current) =>
+            current.includes(uuid) ? current.filter((id) => id !== uuid) : [...current, uuid],
+        );
 
     return (
         <AuthenticatedLayout
@@ -783,176 +992,55 @@ export default function Index({
 
                         <CardContent>
                             <div className="overflow-x-auto rounded-lg border border-border">
-                                <div className="hidden grid-cols-[1.6fr_1.5fr_0.8fr_1fr_0.9fr_minmax(200px,auto)] gap-4 border-b border-border bg-muted/60 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground xl:grid">
+                                <div className="hidden grid-cols-[1.6fr_1.5fr_1.1fr_0.8fr_1fr_0.9fr_0.8fr_minmax(200px,auto)] gap-4 border-b border-border bg-muted/60 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground xl:grid">
                                     <div>User</div>
                                     <div>Contact</div>
+                                    <div>Company</div>
                                     <div>Level</div>
                                     <div>Status</div>
                                     <div>Last login</div>
+                                    <div>Login type</div>
                                     <div className="text-right">Actions</div>
                                 </div>
 
-                                {users.data.length > 0 ? (
-                                    users.data.map((user) => (
-                                        <div
-                                            key={user.id}
-                                            className="grid gap-3 border-b border-border px-4 py-4 transition-colors last:border-b-0 hover:bg-muted/40 xl:grid-cols-[1.6fr_1.5fr_0.8fr_1fr_0.9fr_minmax(200px,auto)] xl:items-center xl:gap-4"
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <span
-                                                    className={`flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${avatarTone(user.id)}`}
-                                                    aria-hidden="true"
-                                                >
-                                                    {initials(user.name)}
+                                {clientGroups.map((group) => {
+                                    const open = openGroups.includes(group.uuid) || search.trim() !== '';
+                                    const master = group.members.find((member) => member.client_role === 'master');
+
+                                    return (
+                                        <div key={group.uuid} className="border-b border-border">
+                                            <button
+                                                type="button"
+                                                onClick={() => toggleGroup(group.uuid)}
+                                                aria-expanded={open}
+                                                className="flex w-full items-center justify-between gap-3 bg-muted/30 px-4 py-4 text-left transition-colors hover:bg-muted/50"
+                                            >
+                                                <span className="flex min-w-0 items-center gap-3">
+                                                    <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                                                        <BuildingIcon className="size-5" />
+                                                    </span>
+                                                    <span className="min-w-0">
+                                                        <span className="block truncate font-semibold text-foreground">{group.name}</span>
+                                                        <span className="block truncate text-xs text-muted-foreground">
+                                                            Client company · {group.members.length} user{group.members.length === 1 ? '' : 's'}
+                                                            {master ? ` · Master: ${master.name}` : ''}
+                                                        </span>
+                                                    </span>
                                                 </span>
-                                                <div className="min-w-0">
-                                                    <p className="truncate font-semibold text-foreground">
-                                                        {user.name}
-                                                    </p>
-                                                    <p className="truncate text-xs text-muted-foreground">
-                                                        {user.job_title ?? 'No job title'}
-                                                    </p>
-                                                    {user.preferred_language && (
-                                                        <p className="text-xs text-muted-foreground">
-                                                            {user.preferred_language.name} ({user.preferred_language.abbreviation.toUpperCase()})
-                                                        </p>
-                                                    )}
+                                                <ChevronDownIcon className={`size-4 shrink-0 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`} />
+                                            </button>
+                                            {open && (
+                                                <div className="ml-6 border-l-2 border-emerald-200 dark:border-emerald-900">
+                                                    {group.members.map((member) => renderUser(member))}
                                                 </div>
-                                            </div>
-                                            <div className="min-w-0 space-y-1 text-sm text-muted-foreground">
-                                                <p className="flex items-center gap-1.5 truncate">
-                                                    <MailIcon className="size-3.5 shrink-0" />
-                                                    <span className="truncate">{user.primary_email ?? user.email}</span>
-                                                </p>
-                                                {user.primary_phone && (
-                                                    <p className="flex items-center gap-1.5">
-                                                        <PhoneIcon className="size-3.5 shrink-0" />
-                                                        {user.primary_phone}
-                                                    </p>
-                                                )}
-                                                {user.microsoft_mailbox && (
-                                                    <p className="truncate text-xs">Mailbox: {user.microsoft_mailbox}</p>
-                                                )}
-                                            </div>
-                                            <div>
-                                                <DirectoryFieldLabel hideFrom="xl">Level</DirectoryFieldLabel>
-                                                <Badge variant="outline">{user.level?.name ?? 'No level'}</Badge>
-                                            </div>
-                                            <div className="flex flex-col items-start gap-1">
-                                                <DirectoryFieldLabel hideFrom="xl">Status</DirectoryFieldLabel>
-                                                <UserStatusControl user={user} />
-                                                {canUpdateUsers && (
-                                                    <BlockHistoryButton name={user.name} logs={user.block_history ?? []} />
-                                                )}
-                                            </div>
-                                            <div className="text-sm text-muted-foreground">
-                                                <DirectoryFieldLabel hideFrom="xl">Last login</DirectoryFieldLabel>
-                                                {user.last_login_at ?? 'Never'}
-                                            </div>
-                                            <div className="flex min-w-0 flex-col gap-1 md:items-end">
-                                                <DirectoryFieldLabel hideFrom="xl">
-                                                    Actions
-                                                </DirectoryFieldLabel>
-                                                <div className="flex flex-wrap gap-1.5 md:justify-end">
-                                                {user.archived && (
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() => router.patch(route('admin.users.restore', user.uuid), {}, { preserveScroll: true })}
-                                                    >
-                                                        <ArchiveRestoreIcon data-icon="inline-start" />
-                                                        Restore
-                                                    </Button>
-                                                )}
-
-                                                {!user.archived && canManageAccess &&
-                                                    user.level && (
-                                                        <ActionHint hint="Edit permissions">
-                                                            <Button
-                                                                variant="outline"
-                                                                size="icon-sm"
-                                                                className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 dark:border-indigo-800/60 dark:text-indigo-400 dark:hover:bg-indigo-950/40"
-                                                                asChild
-                                                            >
-                                                                <Link
-                                                                    href={`${route('admin.access-control.edit')}?level=${user.level.uuid}`}
-                                                                    aria-label="Edit permissions"
-                                                                >
-                                                                    <SlidersHorizontalIcon className="size-4" />
-                                                                </Link>
-                                                            </Button>
-                                                        </ActionHint>
-                                                    )}
-
-                                                {!user.archived && canImpersonate &&
-                                                    user.id !== auth.user.id && (
-                                                        <ActionHint hint="Sign in as this user">
-                                                            <Button
-                                                                variant="outline"
-                                                                size="icon-sm"
-                                                                className="border-sky-200 text-sky-700 hover:bg-sky-50 hover:text-sky-800 dark:border-sky-800/60 dark:text-sky-300 dark:hover:bg-sky-950/40"
-                                                                aria-label={`Sign in as ${user.name}`}
-                                                                onClick={() =>
-                                                                    setImpersonationTarget(
-                                                                        user,
-                                                                    )
-                                                                }
-                                                            >
-                                                                <LogInIcon className="size-4" />
-                                                            </Button>
-                                                        </ActionHint>
-                                                    )}
-
-                                                {!user.archived && canUpdateUsers && (
-                                                    <ActionHint hint="Edit this user">
-                                                        <Button
-                                                            variant="outline"
-                                                            size="icon-sm"
-                                                            className="border-amber-200 text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:border-amber-800/60 dark:text-amber-400 dark:hover:bg-amber-950/40"
-                                                            asChild
-                                                        >
-                                                            <Link
-                                                                href={route(
-                                                                    'admin.users.edit',
-                                                                    user.uuid,
-                                                                )}
-                                                                aria-label="Edit this user"
-                                                            >
-                                                                <EditIcon className="size-4" />
-                                                            </Link>
-                                                        </Button>
-                                                    </ActionHint>
-                                                )}
-
-                                                {user.can_archive && (
-                                                    <ActionHint hint="Archive this user">
-                                                        <Button
-                                                            variant="outline"
-                                                            size="icon-sm"
-                                                            className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-800/60 dark:text-red-400 dark:hover:bg-red-950/40"
-                                                            aria-label={`Archive ${user.name}`}
-                                                            onClick={() => setArchiveTarget(user)}
-                                                        >
-                                                            <ArchiveIcon className="size-4" />
-                                                        </Button>
-                                                    </ActionHint>
-                                                )}
-
-                                                {!user.archived && !canManageAccess &&
-                                                    !canUpdateUsers &&
-                                                    !(
-                                                        canImpersonate &&
-                                                        user.id !== auth.user.id
-                                                    ) && (
-                                                    <Badge variant="outline">
-                                                        View only
-                                                    </Badge>
-                                                    )}
-                                                </div>
-                                            </div>
+                                            )}
                                         </div>
-                                    ))
-                                ) : (
+                                    );
+                                })}
+
+                                {users.data.length > 0 ? (
+                                    users.data.map((user) => renderUser(user))
+                                ) : clientGroups.length === 0 ? (
                                     <div className="px-4 py-12 text-center">
                                         <UsersIcon className="mx-auto size-10 text-muted-foreground" />
                                         <p className="mt-3 font-medium">
@@ -963,7 +1051,7 @@ export default function Index({
                                             first user.
                                         </p>
                                     </div>
-                                )}
+                                ) : null}
                             </div>
 
                             <PaginationNav

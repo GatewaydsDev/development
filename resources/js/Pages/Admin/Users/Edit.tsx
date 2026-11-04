@@ -1,6 +1,9 @@
+import ClientCompanyUsers, { type ClientCompanyTeamData } from '@/Components/ClientCompanyUsers';
 import type { CreatableOption } from '@/Components/CreatableSelect';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import UserForm from '@/Pages/Admin/Users/Partials/UserForm';
+import UserForm, {
+    type UserDefaultsData,
+} from '@/Pages/Admin/Users/Partials/UserForm';
 import { Head, Link } from '@inertiajs/react';
 
 type Level = {
@@ -58,6 +61,9 @@ type EditProps = {
     canAssignMailbox?: boolean;
     superAdminLevelNames?: string[];
     positions?: CreatableOption[];
+    userDefaults?: UserDefaultsData | null;
+    clientCompanies?: { uuid: string; name: string }[];
+    clientCompany?: ClientCompanyTeamData | null;
     managedUser: ManagedUser;
 };
 
@@ -69,6 +75,9 @@ export default function Edit({
     canAssignMailbox = false,
     superAdminLevelNames,
     positions = [],
+    userDefaults = null,
+    clientCompanies = [],
+    clientCompany = null,
     managedUser,
 }: EditProps) {
     return (
@@ -110,6 +119,8 @@ export default function Edit({
                         superAdminLevelNames={superAdminLevelNames}
                         canChangeStatus={managedUser.can_change_status ?? false}
                         positions={positions}
+                        userDefaults={userDefaults}
+                        clientCompanies={clientCompanies}
                         microsoftSecretSaved={
                             managedUser.microsoft_client_secret_saved ?? false
                         }
@@ -140,10 +151,13 @@ export default function Edit({
                             level_id: managedUser.level_id
                                 ? String(managedUser.level_id)
                                 : '',
+                            client_company_uuid: clientCompany?.uuid ?? '',
+                            client_company_master: clientCompany?.is_master ?? false,
                             emails: managedUser.emails ?? [],
                             phones: managedUser.phones ?? [],
                         }}
                     />
+                    {clientCompany && <ClientCompanyUsers company={clientCompany} />}
                 </div>
             </div>
         </AuthenticatedLayout>

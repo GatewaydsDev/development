@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BidController;
+use App\Http\Controllers\Api\ClientPortalController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\EmployeeAttendanceController;
 use App\Http\Controllers\Api\EmployeeController;
@@ -9,8 +10,12 @@ use App\Http\Controllers\Api\EmployeeWorkdayController;
 use App\Http\Controllers\Api\ForemanDailyTaskController;
 use App\Http\Controllers\Api\ForemanScheduleController;
 use App\Http\Controllers\Api\EmployeeWorkScheduleController;
+use App\Http\Controllers\Admin\PresenceController;
+use App\Http\Controllers\Api\LoginLogController;
+use App\Http\Controllers\Api\PasskeyController;
 use App\Http\Controllers\Api\ProjectController;
 use App\Http\Controllers\Api\QuotationController;
+use App\Http\Controllers\Api\UserAccessController;
 use App\Http\Controllers\Api\UserLevelController;
 use App\Http\Controllers\PostmarkWebhookController;
 use Illuminate\Support\Facades\Route;
@@ -29,12 +34,28 @@ Route::prefix('auth')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('user', [AuthController::class, 'user']);
         Route::get('privileges', [AuthController::class, 'privileges']);
+        Route::get('access', [UserAccessController::class, 'me']);
+        Route::get('passkeys', [PasskeyController::class, 'index']);
+        Route::delete('passkeys/{credential}', [PasskeyController::class, 'destroy']);
         Route::post('logout', [AuthController::class, 'logout']);
         Route::put('password', [AuthController::class, 'updatePassword']);
     });
 });
 
 Route::middleware('auth:sanctum')->get('/user', [AuthController::class, 'user']);
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/me/login-history', [LoginLogController::class, 'mine']);
+    Route::get('/login-logs', [LoginLogController::class, 'index']);
+    Route::get('/presence', [PresenceController::class, 'index']);
+    Route::post('/presence/ping', [PresenceController::class, 'ping']);
+});
+
+Route::middleware('auth:sanctum')->prefix('client-portal')->group(function () {
+    Route::get('/projects', [ClientPortalController::class, 'index']);
+    Route::get('/projects/{project:uuid}', [ClientPortalController::class, 'show']);
+    Route::get('/photos/{photo:uuid}', [ClientPortalController::class, 'photo']);
+});
 
 Route::middleware('auth:sanctum')->get('/dashboard', [DashboardController::class, 'show']);
 
@@ -64,6 +85,8 @@ Route::middleware('auth:sanctum')->prefix('quotations')->group(function () {
     Route::get('/{quotation}', [QuotationController::class, 'show']);
     Route::match(['put', 'patch'], '/{quotation}', [QuotationController::class, 'update']);
 });
+
+Route::middleware('auth:sanctum')->get('/users/access', [UserAccessController::class, 'index']);
 
 Route::middleware('auth:sanctum')->prefix('user-levels')->group(function () {
     Route::get('/', [UserLevelController::class, 'index']);
@@ -105,6 +128,7 @@ Route::middleware('auth:sanctum')->prefix('employees')->group(function () {
 
 Route::middleware('auth:sanctum')->prefix('projects')->group(function () {
     Route::get('/', [ProjectController::class, 'index']);
+    Route::get('/overview', [ProjectController::class, 'overview']);
     Route::get('/version', [ProjectController::class, 'version']);
     Route::get('/options', [ProjectController::class, 'options']);
     Route::post('/', [ProjectController::class, 'store']);

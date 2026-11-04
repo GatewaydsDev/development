@@ -35,8 +35,13 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        $user = $request->user();
+        $home = $user && ! $user->hasPermission('view-dashboard') && $user->hasPermission('view-client-portal')
+            ? route('portal.index', absolute: false)
+            : route('dashboard', absolute: false);
+
         $target = redirect()
-            ->intended(route('dashboard', absolute: false))
+            ->intended($home)
             ->getTargetUrl();
 
         return Inertia::location($target);

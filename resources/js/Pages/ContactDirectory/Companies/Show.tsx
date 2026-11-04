@@ -40,9 +40,10 @@ type Paginated<T> = { data: T[]; current_page: number; last_page: number; total:
 type Props = PageProps<{
     company: Company & { contacts_count: number };
     contacts: Paginated<Contact>;
+    projects: { uuid: string; name: string; project_number: string | null }[];
 }>;
 
-export default function CompaniesShow({ company, contacts, auth }: Props) {
+export default function CompaniesShow({ company, contacts, projects = [], auth }: Props) {
     return (
         <AuthenticatedLayout fullWidth stickyTitle={company.name} header={<div>
             <nav aria-label="Breadcrumb" className="mb-2 flex flex-wrap items-center gap-2 text-sm font-medium text-muted-foreground"><Link href={route('contact-directory.companies.index')} className="transition hover:text-foreground">Companies</Link><span>/</span><span className="text-foreground">Details</span></nav>
@@ -109,6 +110,18 @@ export default function CompaniesShow({ company, contacts, auth }: Props) {
                             <p className="text-muted-foreground">{[address.city, [address.state, address.postal_code].filter(Boolean).join(' ')].filter(Boolean).join(', ')}</p>
                             {address.country && <p className="text-muted-foreground">{address.country}</p>}
                         </div>)}
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader><CardTitle className="text-base">Projects</CardTitle></CardHeader>
+                    <CardContent className="flex flex-wrap gap-2">
+                        {projects.length === 0 && <p className="text-sm text-muted-foreground">Not linked to any project yet.</p>}
+                        {projects.map((project) => (
+                            <Link key={project.uuid} href={route('admin.projects.show', project.uuid)}>
+                                <Badge variant="secondary">{project.project_number ? `${project.project_number} · ` : ''}{project.name}</Badge>
+                            </Link>
+                        ))}
                     </CardContent>
                 </Card>
 

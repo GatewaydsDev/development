@@ -3,7 +3,9 @@
 namespace App\Models\ContactDirectory;
 
 use App\Models\Concerns\HasUuidRouteKey;
+use App\Models\Project;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -40,6 +42,11 @@ class ContactCompany extends Model
     public function contacts(): HasMany
     {
         return $this->hasMany(ContactDirectoryContact::class, 'company_id');
+    }
+
+    public function projects(): BelongsToMany
+    {
+        return $this->belongsToMany(Project::class, 'project_contact_company')->withTimestamps()->orderBy('projects.name');
     }
 
     public function addresses(): HasMany

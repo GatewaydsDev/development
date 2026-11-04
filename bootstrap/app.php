@@ -8,6 +8,7 @@ use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\LogUserPageAccess;
 use App\Http\Middleware\PreventBackHistory;
 use App\Http\Middleware\SecurityHeaders;
+use App\Http\Middleware\TrackPresence;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -40,8 +41,13 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             SecurityHeaders::class,
             LogUserPageAccess::class,
+            TrackPresence::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
+        ]);
+
+        $middleware->api(append: [
+            TrackPresence::class,
         ]);
 
         $middleware->alias([

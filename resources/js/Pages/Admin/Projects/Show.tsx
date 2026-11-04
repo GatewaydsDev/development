@@ -20,6 +20,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@/Components/ui/card';
+import ClientCompanyCard, { type ClientCompanyData } from '@/Components/ClientCompanyCard';
 import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import { formatCurrency } from '@/lib/money';
@@ -43,6 +44,8 @@ import {
 type ShowProps = {
     project: ProjectPayload;
     options: ProjectOptions;
+    clientCompany?: ClientCompanyData | null;
+    clientCompanies?: { uuid: string; name: string }[];
 };
 
 function ProjectNote({
@@ -91,7 +94,7 @@ function DetailItem({
     );
 }
 
-export default function Show({ project, options }: ShowProps) {
+export default function Show({ project, options, clientCompany = null, clientCompanies = [] }: ShowProps) {
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const removeProject = () => {
         router.delete(route('admin.projects.destroy', project.uuid));
@@ -377,6 +380,16 @@ export default function Show({ project, options }: ShowProps) {
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="flex flex-col gap-6">
+                            {project.companies && project.companies.length > 0 && (
+                                <div className="flex flex-wrap gap-2">
+                                    {project.companies.map((company) => (
+                                        <Badge key={company.uuid} variant="secondary">
+                                            {company.name}
+                                            {company.main_office ? ` · ${company.main_office}` : ''}
+                                        </Badge>
+                                    ))}
+                                </div>
+                            )}
                             {project.contractors?.length > 0 ? (
                                 <div className="flex flex-col gap-3">
                                     {project.contractors.map(
@@ -483,6 +496,14 @@ export default function Show({ project, options }: ShowProps) {
                             )}
                         </CardContent>
                     </Card>
+
+                    {options.can.update && (
+                        <ClientCompanyCard
+                            projectUuid={project.uuid}
+                            company={clientCompany}
+                            companies={clientCompanies}
+                        />
+                    )}
                 </div>
             </div>
 

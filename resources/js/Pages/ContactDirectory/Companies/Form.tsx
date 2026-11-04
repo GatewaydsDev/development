@@ -63,6 +63,7 @@ export default function CompanyForm({ company, addressTypes }: PageProps<{ compa
     const inputClass = 'h-11 w-full min-w-0 border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring';
     const labelClass = 'text-foreground';
     const updateAddress = (index: number, changes: Partial<AddressRow>) => form.setData('addresses', form.data.addresses.map((row, i) => (i === index ? { ...row, ...changes } : row)));
+    const setMainOffice = (index: number, checked: boolean) => form.setData('addresses', form.data.addresses.map((row, i) => ({ ...row, is_headquarters: i === index ? checked || form.data.addresses.length === 1 : checked ? false : row.is_headquarters })));
     const addAddress = () => form.setData('addresses', [...form.data.addresses, blankAddress(form.data.addresses.length === 0, String(addressTypes.find((type) => type.name === (form.data.addresses.length === 0 ? 'Office' : 'Branch office'))?.id ?? ''))]);
     const removeAddress = (index: number) => form.setData('addresses', form.data.addresses.filter((_, i) => i !== index));
     const submit = (event: FormEvent) => {
@@ -96,14 +97,14 @@ export default function CompanyForm({ company, addressTypes }: PageProps<{ compa
                             </div>
                             </FormSection>
                             <ContactMethodFields phones={form.data.phones} emails={form.data.emails} setRows={(field, rows) => form.setData(field, rows)} errors={errors} />
-                            <FormSection title="Company addresses" description="Add every office or location. Tick “Headquarters” on each main office; a company can have more than one." icon={MapPinIcon} tone="violet">
+                            <FormSection title="Company addresses" description="Add every office or location. Mark one location as the main office." icon={MapPinIcon} tone="violet">
                             <div className="space-y-4">
                                 {form.data.addresses.length === 0 && <p className="text-sm text-muted-foreground">No addresses added yet.</p>}
                                 {form.data.addresses.map((address, index) => <div key={index} className="min-w-0 rounded-md border border-violet-200 bg-background p-4 dark:border-violet-900">
                                     <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                                         <div className="flex flex-wrap items-center gap-3">
                                             <div className="w-56"><CreatableSelect id={`company-address-${index}-type`} label="Office type" value={address.address_type_id} options={addressTypes} optionsProp="addressTypes" createRoute={route('contact-directory.address-types.store')} entityLabel="office type" placeholder="Select or add a type" compact error={errors[`addresses.${index}.address_type_id`]} onChange={(typeId) => updateAddress(index, { address_type_id: typeId })} /></div>
-                                            <label className="flex items-center gap-2 text-sm font-medium text-foreground"><input type="checkbox" className="accent-violet-600" checked={address.is_headquarters} onChange={(event) => updateAddress(index, { is_headquarters: event.target.checked })} />Headquarters / main office</label>
+                                            <label className="flex items-center gap-2 text-sm font-medium text-foreground"><input type="checkbox" className="accent-violet-600" checked={address.is_headquarters} onChange={(event) => setMainOffice(index, event.target.checked)} />Main office</label>
                                         </div>
                                         <Button type="button" variant="outline" size="sm" className="text-destructive" onClick={() => removeAddress(index)}><Trash2Icon className="size-4" aria-hidden="true" />Remove</Button>
                                     </div>

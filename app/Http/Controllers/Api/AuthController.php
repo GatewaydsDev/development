@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Support\PasswordResetLink;
 use App\Models\User;
+use App\Models\UserLoginLog;
+use App\Support\LoginAudit;
 use App\Support\RegistrationAccess;
 use App\Support\UserPrivileges;
 use Illuminate\Auth\Events\Lockout;
@@ -94,7 +96,13 @@ class AuthController extends Controller
 
     public function logout(Request $request): JsonResponse
     {
-        $token = $request->user()?->currentAccessToken();
+        $user = $request->user();
+        if ($user instanceof User) {
+            $user->forceFill(['last_logout_at' => now()])->saveQuietly();
+            LoginAudit::record($user, UserLoginLog::LOGOUT, $request, 'sanctum');
+        }
+
+        $token = $user?->currentAccessToken();
 
         if ($token instanceof PersonalAccessToken) {
             $token->delete();
@@ -216,6 +224,7 @@ class AuthController extends Controller
     private function userPayload(User $user): array
     {
         $user->loadMissing('level');
+        $company = $user->clientCompanies()->first();
 
         return [
             'id' => $user->id,
@@ -224,8 +233,17 @@ class AuthController extends Controller
             'email' => $user->email,
             'role' => $user->role,
             'level' => $user->level?->name,
+            'client_company' => $company ? [
+                'uuid' => $company->uuid,
+                'name' => $company->name,
+                'is_master' => (bool) $company->pivot->is_master,
+            ] : null,
             'avatar_url' => $user->avatar_url,
             'initials' => $user->initials,
+            'face_id' => [
+                'enabled' => $user->webAuthnCredentials()->whereNull('disabled_at')->exists(),
+                'count' => $user->webAuthnCredentials()->count(),
+            ],
             'email_verified_at' => $user->email_verified_at,
         ];
     }

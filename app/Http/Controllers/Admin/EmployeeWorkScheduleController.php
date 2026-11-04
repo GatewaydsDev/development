@@ -11,6 +11,7 @@ use App\Models\Project;
 use App\Models\WorkScheduleListing;
 use App\Models\User;
 use App\Models\UserLevel;
+use App\Support\CrewAssignments;
 use App\Support\EmployeeAccess;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -67,38 +68,9 @@ class EmployeeWorkScheduleController extends Controller
             ->where('uuid', $employee)
             ->firstOrFail();
 
-        $groups = $record->skills
-            ->map(fn ($skill): array => ['id' => $skill->id, 'name' => $skill->name])
-            ->keyBy('id');
-
-        foreach ($record->payRates as $rate) {
-            if ($rate->skill_id && ! $groups->has($rate->skill_id)) {
-                $groups->put($rate->skill_id, ['id' => $rate->skill_id, 'name' => $rate->skill?->name ?? 'Skill removed']);
-            }
-        }
-
-        $labels = [
-            'half_day' => 'Half day',
-            'day_off' => 'Day off',
-        ];
-
         return response()->json([
             'name' => $record->fullName(),
-            'groups' => $groups->sortBy('name')->values()->map(fn (array $group): array => [
-                ...$group,
-                'rates' => $record->payRates
-                    ->where('skill_id', $group['id'])
-                    ->map(fn ($rate): array => [
-                        'id' => $rate->id,
-                        'label' => $rate->rate_type === 'custom'
-                            ? ($rate->custom_rate_type ?: 'Custom')
-                            : ($labels[$rate->rate_type] ?? ucfirst(str_replace('_', ' ', $rate->rate_type))),
-                        'amount' => (string) $rate->amount,
-                        'notes' => $rate->notes,
-                    ])
-                    ->values()
-                    ->all(),
-            ])->all(),
+            'groups' => CrewAssignments::options($record),
         ]);
     }
 
@@ -139,6 +111,7 @@ class EmployeeWorkScheduleController extends Controller
         return Inertia::render('Admin/EmployeeSchedules/Edit', [
             ...$this->formOptions(),
             'schedule' => $this->payload($schedule),
+            'crewAssignments' => CrewAssignments::forSchedule($schedule),
         ]);
     }
 
@@ -334,6 +307,9 @@ class EmployeeWorkScheduleController extends Controller
             'notes' => ['nullable', 'string', 'max:60000'],
             'daily_task_uuids' => ['nullable', 'array'],
             'daily_task_uuids.*' => ['string', 'distinct', Rule::exists(DailyTask::class, 'uuid')],
+            'crew_assignments' => ['nullable', 'array'],
+            'crew_assignments.*.skill_id' => ['nullable', 'integer'],
+            'crew_assignments.*.employee_pay_rate_id' => ['nullable', 'integer'],
         ], [
             'ends_on.after_or_equal' => 'Choose an end date on or after the start date.',
         ]);
@@ -410,7 +386,29 @@ class EmployeeWorkScheduleController extends Controller
             $schedule = EmployeeWorkSchedule::query()->create($attributes);
         }
 
-        $schedule->employees()->sync($employeeIds);
+        $previous = $schedule->employees()->get()->keyBy('id');
+        $sync = [];
+
+        foreach ($employeeIds as $employeeId) {
+            $employee = Employee::query()->find($employeeId);
+            $submitted = $request->has('crew_assignments')
+                ? ($validated['crew_assignments'][$employee?->uuid] ?? [])
+                : null;
+            $pivot = $previous->get($employeeId)?->pivot;
+            $skillId = $submitted !== null ? ($submitted['skill_id'] ?? null) : $pivot?->skill_id;
+            $rateId = $submitted !== null ? ($submitted['employee_pay_rate_id'] ?? null) : $pivot?->employee_pay_rate_id;
+            $assignment = $employee ? CrewAssignments::resolve($employee, $skillId, $rateId) : null;
+
+            if ($employee && $assignment === null) {
+                throw ValidationException::withMessages([
+                    "crew_assignments.{$employee->uuid}.employee_pay_rate_id" => 'Choose a skill and rate that belong to this employee.',
+                ]);
+            }
+
+            $sync[$employeeId] = $assignment ?? ['skill_id' => null, 'employee_pay_rate_id' => null];
+        }
+
+        $schedule->employees()->sync($sync);
 
         if ($request->has('daily_task_uuids')) {
             $schedule->dailyTasks()->sync(

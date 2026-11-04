@@ -19,6 +19,7 @@ class DashboardController extends Controller
         $snapshot = DashboardSnapshot::for($user);
 
         return Inertia::render('Dashboard', [
+            'canWatchPresence' => $user->isSuperAdmin(),
             'charts' => $snapshot['charts'],
             'listVersion' => $snapshot['listVersion'],
             'bidListVersion' => $snapshot['bidListVersion'],

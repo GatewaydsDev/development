@@ -10,6 +10,7 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -61,8 +62,14 @@ class User extends Authenticatable implements WebAuthnAuthenticatable
         'avatar',
         'signature_path',
         'dashboard_theme',
+        'dashboard_gradient',
+        'dashboard_surface',
         'date_of_birth',
         'last_login_at',
+        'last_login_device',
+        'last_seen_at',
+        'last_seen_device',
+        'last_logout_at',
         'role',
         'language_id',
         'level_id',
@@ -112,6 +119,8 @@ class User extends Authenticatable implements WebAuthnAuthenticatable
             'date_of_birth' => 'date',
             'email_verified_at' => 'datetime',
             'last_login_at' => 'datetime',
+            'last_seen_at' => 'datetime',
+            'last_logout_at' => 'datetime',
             'login_locked_at' => 'datetime',
             'password' => 'hashed',
             'is_master' => 'boolean',
@@ -279,6 +288,20 @@ class User extends Authenticatable implements WebAuthnAuthenticatable
         }
 
         return false;
+    }
+
+    public function clientCompanies(): BelongsToMany
+    {
+        return $this->belongsToMany(ClientCompany::class, 'client_company_users')
+            ->withPivot(['is_master', 'all_projects', 'invited_by'])
+            ->withTimestamps();
+    }
+
+    public function clientProjects(): BelongsToMany
+    {
+        return $this->belongsToMany(Project::class, 'project_client_users')
+            ->withPivot(['is_owner', 'invited_by'])
+            ->withTimestamps();
     }
 
     public function workSchedules(): HasMany

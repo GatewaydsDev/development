@@ -1,18 +1,16 @@
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import FormActionFab from '@/Components/FormActionFab';
-import { Badge } from '@/Components/ui/badge';
+import FormActionFab from "@/Components/FormActionFab";
+import { Badge } from "@/Components/ui/badge";
+import { Button } from "@/Components/ui/button";
+import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
+import { cn } from "@/lib/utils";
+import { Head, Link, useForm } from "@inertiajs/react";
 import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/Components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/Components/ui/tabs';
-import { cn } from '@/lib/utils';
-import { Head, Link, useForm } from '@inertiajs/react';
-import { CheckCircle2Icon, SmartphoneIcon } from 'lucide-react';
-import { FormEventHandler } from 'react';
+    GlobeIcon,
+    LockIcon,
+    ShieldCheckIcon,
+    SmartphoneIcon,
+} from "lucide-react";
+import { FormEventHandler, useMemo, useState } from "react";
 
 type Permission = {
     key: string;
@@ -41,360 +39,37 @@ type AccessControlForm = {
     mobile_levels: Record<string, Record<string, boolean>>;
 };
 
-type PermissionMatrixProps = {
-    groupedPermissions: Record<string, Permission[]>;
-    levels: Level[];
-    selectedLevelId?: number | null;
-    scope: string;
-    isDisabled: (level: Level, permission: Permission) => boolean;
-    isChecked: (level: Level, permission: Permission) => boolean;
-    onToggle: (levelId: number, permissionKey: string, checked: boolean) => void;
-};
-
-const permissionGroupStyles: Record<
-    string,
-    { panel: string; header: string; title: string; badge: string }
-> = {
-    Pages: {
-        panel: 'border-slate-300/60 dark:border-slate-700/70',
-        header: 'border-slate-900/20 bg-slate-900 dark:border-slate-400/20',
-        title: 'text-slate-50',
-        badge: 'border-slate-600/30 bg-slate-500/10 text-slate-800 dark:border-slate-300/30 dark:bg-slate-400/10 dark:text-slate-200',
-    },
-    Account: {
-        panel: 'border-cyan-300/60 dark:border-cyan-800/70',
-        header: 'border-cyan-900/20 bg-cyan-950 dark:border-cyan-400/20',
-        title: 'text-cyan-50',
-        badge: 'border-cyan-600/30 bg-cyan-500/10 text-cyan-800 dark:border-cyan-300/30 dark:bg-cyan-400/10 dark:text-cyan-200',
-    },
-    Users: {
-        panel: 'border-blue-300/60 dark:border-blue-800/70',
-        header: 'border-blue-900/20 bg-blue-950 dark:border-blue-400/20',
-        title: 'text-blue-50',
-        badge: 'border-blue-600/30 bg-blue-500/10 text-blue-800 dark:border-blue-300/30 dark:bg-blue-400/10 dark:text-blue-200',
-    },
-    Company: {
-        panel: 'border-amber-300/60 dark:border-amber-800/70',
-        header: 'border-amber-900/20 bg-amber-950 dark:border-amber-400/20',
-        title: 'text-amber-50',
-        badge: 'border-amber-600/30 bg-amber-500/10 text-amber-800 dark:border-amber-300/30 dark:bg-amber-400/10 dark:text-amber-200',
-    },
-    'Access Control': {
-        panel: 'border-violet-300/60 dark:border-violet-800/70',
-        header: 'border-violet-900/20 bg-violet-950 dark:border-violet-400/20',
-        title: 'text-violet-50',
-        badge: 'border-violet-600/30 bg-violet-500/10 text-violet-800 dark:border-violet-300/30 dark:bg-violet-400/10 dark:text-violet-200',
-    },
-    Notifications: {
-        panel: 'border-rose-300/60 dark:border-rose-800/70',
-        header: 'border-rose-900/20 bg-rose-950 dark:border-rose-400/20',
-        title: 'text-rose-50',
-        badge: 'border-rose-600/30 bg-rose-500/10 text-rose-800 dark:border-rose-300/30 dark:bg-rose-400/10 dark:text-rose-200',
-    },
-    Projects: {
-        panel: 'border-indigo-300/60 dark:border-indigo-800/70',
-        header: 'border-indigo-900/20 bg-indigo-950 dark:border-indigo-400/20',
-        title: 'text-indigo-50',
-        badge: 'border-indigo-600/30 bg-indigo-500/10 text-indigo-800 dark:border-indigo-300/30 dark:bg-indigo-400/10 dark:text-indigo-200',
-    },
-    Employees: {
-        panel: 'border-orange-300/60 dark:border-orange-800/70',
-        header: 'border-orange-900/20 bg-orange-950 dark:border-orange-400/20',
-        title: 'text-orange-50',
-        badge: 'border-orange-600/30 bg-orange-500/10 text-orange-800 dark:border-orange-300/30 dark:bg-orange-400/10 dark:text-orange-200',
-    },
-};
-
-function groupStyle(group: string) {
+function Switch({
+    checked,
+    disabled,
+    label,
+    onChange,
+}: {
+    checked: boolean;
+    disabled?: boolean;
+    label: string;
+    onChange: (checked: boolean) => void;
+}) {
     return (
-        permissionGroupStyles[group] ?? {
-            panel: 'border-border',
-            header: 'border-emerald-900/20 bg-emerald-950 dark:border-emerald-400/20',
-            title: 'text-emerald-50',
-            badge: 'border-emerald-600/30 bg-emerald-500/10 text-emerald-800 dark:border-emerald-300/30 dark:bg-emerald-400/10 dark:text-emerald-200',
-        }
-    );
-}
-
-function PermissionMatrix({
-    groupedPermissions,
-    levels,
-    selectedLevelId,
-    scope,
-    isDisabled,
-    isChecked,
-    onToggle,
-}: PermissionMatrixProps) {
-    return (
-        <>
-            {Object.entries(groupedPermissions).map(([group, groupPermissions]) => {
-                const styles = groupStyle(group);
-
-                return (
-                    <div
-                        key={group}
-                        className={cn(
-                            'overflow-hidden rounded-lg border',
-                            styles.panel,
-                        )}
-                    >
-                        <div
-                            className={cn(
-                                'border-b px-4 py-4',
-                                styles.header,
-                            )}
-                        >
-                            <h3
-                                className={cn(
-                                    'text-lg font-bold tracking-wide sm:text-xl',
-                                    styles.title,
-                                )}
-                            >
-                                {group}
-                            </h3>
-                        </div>
-
-                        <div className="overflow-x-auto">
-                            <div className="min-w-[760px]">
-                                <div
-                                    className="grid border-b border-border bg-background px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                                    style={{
-                                        gridTemplateColumns: `minmax(220px, 1.4fr) repeat(${levels.length}, minmax(120px, 1fr))`,
-                                    }}
-                                >
-                                    <div>Permission</div>
-                                    {levels.map((level) => (
-                                        <div
-                                            key={level.id}
-                                            className={
-                                                'rounded-md px-2 py-1 text-center ' +
-                                                (selectedLevelId === level.id
-                                                    ? 'bg-primary text-primary-foreground'
-                                                    : '')
-                                            }
-                                        >
-                                            {level.name}
-                                        </div>
-                                    ))}
-                                </div>
-
-                                {groupPermissions.map((permission) => (
-                                    <div
-                                        key={permission.key}
-                                        className="grid items-center border-b border-border px-4 py-4 last:border-b-0"
-                                        style={{
-                                            gridTemplateColumns: `minmax(220px, 1.4fr) repeat(${levels.length}, minmax(120px, 1fr))`,
-                                        }}
-                                    >
-                                        <div className="pr-4">
-                                            <div className="flex items-center gap-2">
-                                                <p className="font-medium text-foreground">
-                                                    {permission.name}
-                                                </p>
-                                                <Badge
-                                                    variant="outline"
-                                                    className={styles.badge}
-                                                >
-                                                    {permission.key}
-                                                </Badge>
-                                            </div>
-                                            <p className="mt-1 text-sm text-muted-foreground">
-                                                {permission.description}
-                                            </p>
-                                        </div>
-
-                                        {levels.map((level) => {
-                                            const checked = isChecked(
-                                                level,
-                                                permission,
-                                            );
-                                            const disabled = isDisabled(
-                                                level,
-                                                permission,
-                                            );
-
-                                            return (
-                                                <label
-                                                    key={`${scope}-${level.id}-${permission.key}`}
-                                                    className={
-                                                        'flex justify-center rounded-md py-1 ' +
-                                                        (selectedLevelId ===
-                                                        level.id
-                                                            ? 'bg-muted'
-                                                            : '')
-                                                    }
-                                                >
-                                                    <span className="sr-only">
-                                                        {checked
-                                                            ? 'Deny'
-                                                            : 'Grant'}{' '}
-                                                        {permission.name} for{' '}
-                                                        {level.name} on the{' '}
-                                                        {scope}
-                                                    </span>
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={checked}
-                                                        disabled={disabled}
-                                                        onChange={(event) =>
-                                                            onToggle(
-                                                                level.id,
-                                                                permission.key,
-                                                                event.target
-                                                                    .checked,
-                                                            )
-                                                        }
-                                                        className="size-5 rounded border-border text-primary shadow-sm focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
-                                                    />
-                                                </label>
-                                            );
-                                        })}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                );
-            })}
-        </>
-    );
-}
-
-function NewLevelForm({ permissions }: { permissions: Permission[] }) {
-    const groupedPermissions = permissions.reduce<Record<string, Permission[]>>(
-        (groups, permission) => ({
-            ...groups,
-            [permission.group]: [
-                ...(groups[permission.group] ?? []),
-                permission,
-            ],
-        }),
-        {},
-    );
-    const { data, setData, post, processing, errors } = useForm({
-        name: '',
-        grant_mobile: true,
-        permissions: Object.fromEntries(
-            permissions.map((permission) => [permission.key, false]),
-        ),
-    });
-
-    const submit: FormEventHandler = (event) => {
-        event.preventDefault();
-
-        post(route('admin.access-control.levels.store'), {
-            preserveScroll: true,
-        });
-    };
-
-    return (
-        <form onSubmit={submit}>
-            <Card className="shadow-sm">
-                <CardHeader>
-                    <CardTitle>New user level</CardTitle>
-                    <CardDescription>
-                        Create a level such as Employee and choose its website
-                        access now. The same checks are granted on the mobile
-                        app when that option is on. Super Admin cannot be
-                        created here.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-5">
-                    <div className="flex max-w-md flex-col gap-2">
-                        <label
-                            htmlFor="new-level-name"
-                            className="text-sm font-medium text-foreground"
-                        >
-                            Level name
-                        </label>
-                        <input
-                            id="new-level-name"
-                            value={data.name}
-                            onChange={(event) =>
-                                setData('name', event.target.value)
-                            }
-                            className="h-11 rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring"
-                            placeholder="Employee"
-                        />
-                        {errors.name && (
-                            <p className="text-sm text-destructive">
-                                {errors.name}
-                            </p>
-                        )}
-                    </div>
-
-                    <label className="flex items-center gap-2 text-sm text-foreground">
-                        <input
-                            type="checkbox"
-                            checked={data.grant_mobile}
-                            onChange={(event) =>
-                                setData('grant_mobile', event.target.checked)
-                            }
-                        />
-                        Grant these rights on the mobile app
-                    </label>
-
-                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                        {Object.entries(groupedPermissions).map(
-                            ([group, groupPermissions]) => (
-                                <fieldset
-                                    key={group}
-                                    className="rounded-lg border border-border p-4"
-                                >
-                                    <legend className="px-1 text-sm font-semibold text-foreground">
-                                        {group}
-                                    </legend>
-                                    <div className="flex flex-col gap-2">
-                                        {groupPermissions.map((permission) => (
-                                            <label
-                                                key={permission.key}
-                                                className="flex items-start gap-2 text-sm text-foreground"
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    className="mt-1"
-                                                    checked={
-                                                        data.permissions[
-                                                            permission.key
-                                                        ] ?? false
-                                                    }
-                                                    onChange={(event) =>
-                                                        setData('permissions', {
-                                                            ...data.permissions,
-                                                            [permission.key]:
-                                                                event.target
-                                                                    .checked,
-                                                        })
-                                                    }
-                                                />
-                                                <span>
-                                                    <span className="block">
-                                                        {permission.name}
-                                                    </span>
-                                                    <span className="block text-xs text-muted-foreground">
-                                                        {permission.description}
-                                                    </span>
-                                                </span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                </fieldset>
-                            ),
-                        )}
-                    </div>
-
-                    <div>
-                        <button
-                            type="submit"
-                            disabled={processing}
-                            className="inline-flex h-10 items-center rounded-md bg-emerald-700 px-4 text-sm font-medium text-white transition hover:bg-emerald-800 disabled:opacity-60"
-                        >
-                            Create level
-                        </button>
-                    </div>
-                </CardContent>
-            </Card>
-        </form>
+        <button
+            type="button"
+            role="switch"
+            aria-checked={checked}
+            aria-label={label}
+            disabled={disabled}
+            onClick={() => onChange(!checked)}
+            className={cn(
+                "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+                checked ? "bg-emerald-600" : "bg-muted-foreground/30",
+            )}
+        >
+            <span
+                className={cn(
+                    "inline-block size-5 rounded-full bg-white shadow transition-transform",
+                    checked ? "translate-x-5" : "translate-x-0.5",
+                )}
+            />
+        </button>
     );
 }
 
@@ -404,87 +79,94 @@ export default function Edit({
     selectedLevelId,
 }: AccessControlProps) {
     const { data, setData, patch, processing } = useForm<AccessControlForm>({
-        levels: levels.reduce<Record<string, Record<string, boolean>>>(
-            (currentLevels, level) => ({
-                ...currentLevels,
-                [level.id]: level.permissions,
-            }),
-            {},
+        levels: Object.fromEntries(
+            levels.map((level) => [level.id, level.permissions]),
         ),
-        mobile_levels: levels.reduce<Record<string, Record<string, boolean>>>(
-            (currentLevels, level) => ({
-                ...currentLevels,
-                [level.id]: level.mobile_permissions,
-            }),
-            {},
+        mobile_levels: Object.fromEntries(
+            levels.map((level) => [level.id, level.mobile_permissions]),
         ),
     });
+    const [activeId, setActiveId] = useState(
+        selectedLevelId ?? levels[0]?.id ?? null,
+    );
+    const active = levels.find((level) => level.id === activeId) ?? null;
 
-    const groupedPermissions = permissions.reduce<Record<string, Permission[]>>(
-        (groups, permission) => ({
-            ...groups,
-            [permission.group]: [
-                ...(groups[permission.group] ?? []),
-                permission,
-            ],
-        }),
-        {},
+    const groups = useMemo(
+        () =>
+            permissions.reduce<Record<string, Permission[]>>(
+                (acc, permission) => ({
+                    ...acc,
+                    [permission.group]: [
+                        ...(acc[permission.group] ?? []),
+                        permission,
+                    ],
+                }),
+                {},
+            ),
+        [permissions],
     );
 
-    const togglePermission = (
-        levelId: number,
-        permissionKey: string,
-        checked: boolean,
-    ) => {
+    const website = (level: Level, key: string) =>
+        level.locked ? true : Boolean(data.levels[level.id]?.[key]);
+    const mobile = (level: Level, key: string) =>
+        level.locked
+            ? true
+            : Boolean(
+                  data.levels[level.id]?.[key] &&
+                  data.mobile_levels[level.id]?.[key],
+              );
+
+    const countFor = (level: Level, scope: "web" | "mobile") =>
+        permissions.filter((permission) =>
+            scope === "web"
+                ? website(level, permission.key)
+                : mobile(level, permission.key),
+        ).length;
+
+    const setWebsite = (level: Level, keys: string[], checked: boolean) => {
         setData({
-            ...data,
             levels: {
                 ...data.levels,
-                [levelId]: {
-                    ...data.levels[levelId],
-                    [permissionKey]: checked,
+                [level.id]: {
+                    ...data.levels[level.id],
+                    ...Object.fromEntries(keys.map((key) => [key, checked])),
                 },
             },
             mobile_levels: checked
                 ? data.mobile_levels
                 : {
                       ...data.mobile_levels,
-                      [levelId]: {
-                          ...data.mobile_levels[levelId],
-                          [permissionKey]: false,
+                      [level.id]: {
+                          ...data.mobile_levels[level.id],
+                          ...Object.fromEntries(
+                              keys.map((key) => [key, false]),
+                          ),
                       },
                   },
         });
     };
 
-    const toggleMobilePermission = (
-        levelId: number,
-        permissionKey: string,
-        checked: boolean,
-    ) => {
-        if (!data.levels[levelId]?.[permissionKey]) {
-            return;
-        }
+    const setMobile = (level: Level, keys: string[], checked: boolean) => {
+        const allowed = keys.filter((key) => data.levels[level.id]?.[key]);
 
-        setData('mobile_levels', {
+        setData("mobile_levels", {
             ...data.mobile_levels,
-            [levelId]: {
-                ...data.mobile_levels[levelId],
-                [permissionKey]: checked,
+            [level.id]: {
+                ...data.mobile_levels[level.id],
+                ...Object.fromEntries(allowed.map((key) => [key, checked])),
             },
         });
     };
 
     const submit: FormEventHandler = (event) => {
         event.preventDefault();
-
-        patch(route('admin.access-control.update'));
+        patch(route("admin.access-control.update"));
     };
 
     return (
         <AuthenticatedLayout
             header={
-                <div>
+                <div className="flex flex-col gap-1">
                     <nav
                         aria-label="Breadcrumb"
                         className="flex items-center gap-2 text-sm font-medium text-muted-foreground"
@@ -492,147 +174,232 @@ export default function Edit({
                         <span>Administration</span>
                         <span>/</span>
                         <Link
-                            href={route('admin.users.index')}
+                            href={route("admin.access-control.index")}
                             className="transition hover:text-foreground"
                         >
-                            Users
+                            Access Control
                         </Link>
                         <span>/</span>
-                        <span className="text-foreground">
-                            Access Control
-                        </span>
+                        <span className="text-foreground">Permissions</span>
                     </nav>
                     <h2 className="text-xl font-semibold leading-tight text-emerald-700 dark:text-emerald-300">
-                        User level permissions
+                        Grant permissions
                     </h2>
                 </div>
             }
         >
-            <Head title="Access Control" />
+            <Head title="Grant permissions" />
 
-            <div className="py-6 sm:py-8">
-                <div className="flex w-full flex-col gap-6 px-4 sm:px-6 lg:px-8">
-                    <NewLevelForm permissions={permissions} />
-                    <form onSubmit={submit} className="w-full min-w-0 max-w-full pr-4 pb-28 sm:pr-20 lg:pb-6">
-                        <FormActionFab
-                            cancelHref={route('admin.users.index')}
-                            saveLabel="Save permissions"
-                            disabled={processing}
-                        />
-                        <Tabs defaultValue="permissions" className="gap-4">
-                            <TabsList>
-                                <TabsTrigger value="permissions">
-                                    Regular permissions
-                                </TabsTrigger>
-                                <TabsTrigger value="mobile">
-                                    <SmartphoneIcon data-icon="inline-start" />
-                                    Mobile
-                                </TabsTrigger>
-                            </TabsList>
+            <form
+                onSubmit={submit}
+                className="px-4 py-6 pb-28 sm:px-6 sm:py-8 lg:px-8 lg:pb-8"
+            >
+                <FormActionFab
+                    cancelHref={route("admin.access-control.index")}
+                    saveLabel="Save permissions"
+                    disabled={processing}
+                />
+                <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
+                    <aside className="flex flex-col gap-2 lg:sticky lg:top-20 lg:self-start">
+                        <p className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            User levels
+                        </p>
+                        <div className="flex gap-2 overflow-x-auto lg:flex-col">
+                            {levels.map((level) => (
+                                <button
+                                    key={level.id}
+                                    type="button"
+                                    onClick={() => setActiveId(level.id)}
+                                    className={cn(
+                                        "flex shrink-0 items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-left text-sm transition",
+                                        level.id === activeId
+                                            ? "border-emerald-600 bg-emerald-50 text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-100"
+                                            : "border-border bg-card hover:bg-muted/50",
+                                    )}
+                                >
+                                    <span className="flex items-center gap-2 font-medium">
+                                        {level.name}
+                                        {level.locked && (
+                                            <LockIcon className="size-3.5 text-muted-foreground" />
+                                        )}
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">
+                                        {countFor(level, "web")}/
+                                        {permissions.length}
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+                        <Button variant="outline" size="sm" asChild>
+                            <Link href={route("admin.access-control.index")}>
+                                Manage levels
+                            </Link>
+                        </Button>
+                    </aside>
 
-                            <TabsContent value="permissions">
-                                <Card className="shadow-sm">
-                                    <CardHeader>
-                                        <CardTitle>Permission matrix</CardTitle>
-                                        <CardDescription>
-                                            Grant or deny abilities by user
-                                            level. Super Admin remains fully
-                                            checked.
-                                        </CardDescription>
-                                    </CardHeader>
+                    {active ? (
+                        <section className="flex min-w-0 flex-col gap-5">
+                            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-4 shadow-sm">
+                                <div className="flex items-center gap-3">
+                                    <span className="flex size-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                                        <ShieldCheckIcon className="size-5" />
+                                    </span>
+                                    <div>
+                                        <h3 className="text-lg font-semibold text-foreground">
+                                            {active.name}
+                                        </h3>
+                                        <p className="text-sm text-muted-foreground">
+                                            {active.locked
+                                                ? "Super Admin always has full access and cannot be changed."
+                                                : "Choose what this level can do on the website and mobile app."}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex gap-2">
+                                    <Badge variant="secondary">
+                                        <GlobeIcon className="size-3" />
+                                        {countFor(active, "web")}/
+                                        {permissions.length} website
+                                    </Badge>
+                                    <Badge variant="secondary">
+                                        <SmartphoneIcon className="size-3" />
+                                        {countFor(active, "mobile")}/
+                                        {permissions.length} mobile
+                                    </Badge>
+                                </div>
+                            </div>
 
-                                    <CardContent className="flex flex-col gap-6">
-                                        <PermissionMatrix
-                                            groupedPermissions={
-                                                groupedPermissions
-                                            }
-                                            levels={levels}
-                                            selectedLevelId={selectedLevelId}
-                                            scope="website"
-                                            isDisabled={(level) => level.locked}
-                                            isChecked={(level, permission) =>
-                                                Boolean(
-                                                    data.levels[level.id]?.[
-                                                        permission.key
-                                                    ],
-                                                )
-                                            }
-                                            onToggle={togglePermission}
-                                        />
+                            {Object.entries(groups).map(([group, items]) => {
+                                const keys = items.map((item) => item.key);
+                                const allWeb = keys.every((key) =>
+                                    website(active, key),
+                                );
+                                const allMobile = keys.every((key) =>
+                                    mobile(active, key),
+                                );
 
-                                        <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
-                                            <CheckCircle2Icon className="mt-0.5 size-4 shrink-0" />
-                                            <p>
-                                                Changes are applied immediately
-                                                after saving. Checked boxes
-                                                mean the user level is granted
-                                                that permission.
-                                            </p>
+                                return (
+                                    <div
+                                        key={group}
+                                        className="overflow-hidden rounded-lg border border-border bg-card shadow-sm"
+                                    >
+                                        <div className="flex items-center justify-between gap-4 border-b border-border bg-muted/40 px-4 py-3">
+                                            <h4 className="font-semibold text-foreground">
+                                                {group}
+                                            </h4>
+                                            <div className="flex items-center gap-5 text-xs font-medium text-muted-foreground">
+                                                <label className="flex items-center gap-2">
+                                                    <GlobeIcon className="size-3.5" />
+                                                    All
+                                                    <Switch
+                                                        label={`Toggle all ${group} on the website`}
+                                                        checked={allWeb}
+                                                        disabled={active.locked}
+                                                        onChange={(checked) =>
+                                                            setWebsite(
+                                                                active,
+                                                                keys,
+                                                                checked,
+                                                            )
+                                                        }
+                                                    />
+                                                </label>
+                                                <label className="flex items-center gap-2">
+                                                    <SmartphoneIcon className="size-3.5" />
+                                                    All
+                                                    <Switch
+                                                        label={`Toggle all ${group} on mobile`}
+                                                        checked={allMobile}
+                                                        disabled={active.locked}
+                                                        onChange={(checked) =>
+                                                            setMobile(
+                                                                active,
+                                                                keys,
+                                                                checked,
+                                                            )
+                                                        }
+                                                    />
+                                                </label>
+                                            </div>
                                         </div>
-                                    </CardContent>
-                                </Card>
-                            </TabsContent>
-
-                            <TabsContent value="mobile">
-                                <Card className="shadow-sm">
-                                    <CardHeader>
-                                        <CardTitle>
-                                            Mobile application
-                                        </CardTitle>
-                                        <CardDescription>
-                                            Delegate which of the website
-                                            rights are available when this user
-                                            level signs in on the mobile app. A
-                                            right can only be granted here when
-                                            the level already has it on the
-                                            website. Super Admin remains fully
-                                            checked.
-                                        </CardDescription>
-                                    </CardHeader>
-
-                                    <CardContent className="flex flex-col gap-6">
-                                        <PermissionMatrix
-                                            groupedPermissions={
-                                                groupedPermissions
-                                            }
-                                            levels={levels}
-                                            selectedLevelId={selectedLevelId}
-                                            scope="mobile app"
-                                            isDisabled={(level, permission) =>
-                                                level.locked ||
-                                                !data.levels[level.id]?.[
-                                                    permission.key
-                                                ]
-                                            }
-                                            isChecked={(level, permission) =>
-                                                Boolean(
-                                                    data.levels[level.id]?.[
-                                                        permission.key
-                                                    ] &&
-                                                        data.mobile_levels[
-                                                            level.id
-                                                        ]?.[permission.key],
-                                                )
-                                            }
-                                            onToggle={toggleMobilePermission}
-                                        />
-
-                                        <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
-                                            <SmartphoneIcon className="mt-0.5 size-4 shrink-0" />
-                                            <p>
-                                                Unchecked boxes hide that route
-                                                in the mobile app. Removing a
-                                                website permission also removes
-                                                it from the mobile app.
-                                            </p>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </TabsContent>
-                        </Tabs>
-                    </form>
+                                        <ul className="divide-y divide-border">
+                                            {items.map((permission) => (
+                                                <li
+                                                    key={permission.key}
+                                                    className="flex items-center justify-between gap-4 px-4 py-3"
+                                                >
+                                                    <div className="min-w-0">
+                                                        <p className="font-medium text-foreground">
+                                                            {permission.name}
+                                                        </p>
+                                                        <p className="text-sm text-muted-foreground">
+                                                            {
+                                                                permission.description
+                                                            }
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex shrink-0 items-center gap-5">
+                                                        <Switch
+                                                            label={`${permission.name} on the website`}
+                                                            checked={website(
+                                                                active,
+                                                                permission.key,
+                                                            )}
+                                                            disabled={
+                                                                active.locked
+                                                            }
+                                                            onChange={(
+                                                                checked,
+                                                            ) =>
+                                                                setWebsite(
+                                                                    active,
+                                                                    [
+                                                                        permission.key,
+                                                                    ],
+                                                                    checked,
+                                                                )
+                                                            }
+                                                        />
+                                                        <Switch
+                                                            label={`${permission.name} on mobile`}
+                                                            checked={mobile(
+                                                                active,
+                                                                permission.key,
+                                                            )}
+                                                            disabled={
+                                                                active.locked ||
+                                                                !website(
+                                                                    active,
+                                                                    permission.key,
+                                                                )
+                                                            }
+                                                            onChange={(
+                                                                checked,
+                                                            ) =>
+                                                                setMobile(
+                                                                    active,
+                                                                    [
+                                                                        permission.key,
+                                                                    ],
+                                                                    checked,
+                                                                )
+                                                            }
+                                                        />
+                                                    </div>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                );
+                            })}
+                        </section>
+                    ) : (
+                        <p className="text-muted-foreground">
+                            No user levels yet.
+                        </p>
+                    )}
                 </div>
-            </div>
+            </form>
         </AuthenticatedLayout>
     );
 }

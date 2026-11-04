@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\CompanyController;
 use App\Http\Controllers\Admin\ContactController;
 use App\Http\Controllers\Admin\ContractorController;
 use App\Http\Controllers\Admin\DailyTaskController;
+use App\Http\Controllers\Admin\JobProgressController;
 use App\Http\Controllers\Admin\DailyTaskTitleController;
 use App\Http\Controllers\Admin\DocumentSettingController;
 use App\Http\Controllers\Admin\EditorImageController;
@@ -24,7 +25,11 @@ use App\Http\Controllers\Admin\MyScheduleController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ProfessionController;
 use App\Http\Controllers\Admin\ProjectControlController;
+use App\Http\Controllers\Admin\ClientCompanyController;
+use App\Http\Controllers\Admin\ProjectClientAccessController;
 use App\Http\Controllers\Admin\ProjectController;
+use App\Http\Controllers\ClientPortalController;
+use App\Http\Controllers\ClientTeamController;
 use App\Http\Controllers\Admin\QuotationController;
 use App\Http\Controllers\Admin\QuotationRevisionAssignmentController;
 use App\Http\Controllers\Admin\RecordCorrectionController;
@@ -111,9 +116,31 @@ Route::post('/contact', [ContactSubmissionController::class, 'store'])
     ->middleware('throttle:5,1')
     ->name('contact.store');
 
+Route::post('/presence/ping', [\App\Http\Controllers\Admin\PresenceController::class, 'ping'])
+    ->middleware('auth')
+    ->name('presence.ping');
+Route::get('/presence', [\App\Http\Controllers\Admin\PresenceController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('presence.index');
+
 Route::get('/dashboard', DashboardController::class)
     ->middleware(['auth', 'verified', 'prevent-back-history', 'can:view-dashboard'])
     ->name('dashboard');
+
+Route::middleware(['auth', 'verified', 'prevent-back-history', 'can:view-client-portal'])
+    ->prefix('portal')
+    ->name('portal.')
+    ->group(function () {
+        Route::get('/', [ClientPortalController::class, 'index'])->name('index');
+        Route::get('/photos/{photo}', [ClientPortalController::class, 'photo'])->name('photos.show');
+        Route::get('/projects/{project}', [ClientPortalController::class, 'show'])->name('projects.show');
+        Route::middleware('can:manage-client-team')->prefix('team')->name('team.')->group(function () {
+            Route::get('/', [ClientTeamController::class, 'index'])->name('index');
+            Route::post('/', [ClientTeamController::class, 'store'])->name('store');
+            Route::patch('/{member}', [ClientTeamController::class, 'update'])->name('update');
+            Route::delete('/{member}', [ClientTeamController::class, 'destroy'])->name('destroy');
+        });
+    });
 
 Route::middleware(['auth', 'verified', 'prevent-back-history'])->group(function () {
     Route::get('/appearance', [DashboardThemeController::class, 'edit'])->name('appearance.edit');
@@ -407,6 +434,13 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::post('/daily-tasks/{dailyTask}/progress', [DailyTaskController::class, 'progress'])->name('daily-tasks.progress');
         Route::get('/daily-task-photos/{photo}', [DailyTaskController::class, 'photo'])->name('daily-task-photos.show');
         Route::delete('/daily-task-photos/{photo}', [DailyTaskController::class, 'destroyPhoto'])->name('daily-task-photos.destroy');
+        Route::get('/job-progress', [JobProgressController::class, 'index'])->name('job-progress.index');
+        Route::get('/job-progress/quality-reports/{report}', [JobProgressController::class, 'report'])->name('job-progress.report');
+        Route::get('/job-progress/{schedule}', [JobProgressController::class, 'show'])->name('job-progress.show');
+        Route::post('/job-progress/{schedule}/attendance', [JobProgressController::class, 'setAttendance'])->name('job-progress.attendance');
+        Route::post('/job-progress/{schedule}/crew/{employee}', [JobProgressController::class, 'updateCrew'])->name('job-progress.crew.update');
+        Route::post('/job-progress/{schedule}/tasks/{dailyTask}/progress', [JobProgressController::class, 'updateTask'])->name('job-progress.tasks.update');
+        Route::post('/job-progress/{schedule}/tasks/{dailyTask}/quality-reports', [JobProgressController::class, 'storeReport'])->name('job-progress.reports.store');
         Route::get('/project-control', [ProjectControlController::class, 'index'])->name('project-control.index');
         Route::get('/project-control/export', [ProjectControlController::class, 'export'])->name('project-control.export');
         Route::post('/project-control/import', [ProjectControlController::class, 'import'])->name('project-control.import');
@@ -958,6 +992,24 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::delete('/projects/{project}', [ProjectController::class, 'destroy'])
             ->middleware('can:delete-projects')
             ->name('projects.destroy');
+        Route::post('/client-companies/{company}/members', [ClientCompanyController::class, 'storeMember'])
+            ->middleware('can:update-users')
+            ->name('client-companies.members.store');
+        Route::delete('/client-companies/{company}/members/{member}', [ClientCompanyController::class, 'destroyMember'])
+            ->middleware('can:update-users')
+            ->name('client-companies.members.destroy');
+        Route::post('/projects/{project}/client-company', [ProjectClientAccessController::class, 'storeCompany'])
+            ->middleware('can:update-projects')
+            ->name('projects.client-company.store');
+        Route::delete('/projects/{project}/client-company', [ProjectClientAccessController::class, 'destroyCompany'])
+            ->middleware('can:update-projects')
+            ->name('projects.client-company.destroy');
+        Route::post('/projects/{project}/client-users', [ProjectClientAccessController::class, 'store'])
+            ->middleware('can:update-projects')
+            ->name('projects.client-users.store');
+        Route::delete('/projects/{project}/client-users/{member}', [ProjectClientAccessController::class, 'destroy'])
+            ->middleware('can:update-projects')
+            ->name('projects.client-users.destroy');
 
         Route::post('/editor-images', [EditorImageController::class, 'store'])
             ->name('editor-images.store');
@@ -967,8 +1019,18 @@ Route::middleware(['auth', 'prevent-back-history', 'can:manage-access'])
     ->prefix('administration')
     ->name('admin.')
     ->group(function () {
-        Route::get('/access-control', [AccessControlController::class, 'edit'])
+        Route::get('/user-defaults', [\App\Http\Controllers\Admin\UserDefaultsController::class, 'edit'])
+            ->name('user-defaults.edit');
+        Route::patch('/user-defaults', [\App\Http\Controllers\Admin\UserDefaultsController::class, 'update'])
+            ->name('user-defaults.update');
+        Route::get('/access-control', [AccessControlController::class, 'index'])
+            ->name('access-control.index');
+        Route::get('/access-control/permissions', [AccessControlController::class, 'edit'])
             ->name('access-control.edit');
+        Route::patch('/access-control/levels/{level}', [AccessControlController::class, 'rename'])
+            ->name('access-control.levels.rename');
+        Route::delete('/access-control/levels/{level}', [AccessControlController::class, 'destroy'])
+            ->name('access-control.levels.destroy');
         Route::post('/access-control/levels', [AccessControlController::class, 'store'])
             ->name('access-control.levels.store');
         Route::patch('/access-control', [AccessControlController::class, 'update'])

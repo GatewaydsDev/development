@@ -75,6 +75,7 @@ class ContactCompanyController extends Controller
 
         return Inertia::render('ContactDirectory/Companies/Show', [
             'company' => $company,
+            'projects' => $company->projects()->get(['projects.uuid', 'projects.name', 'projects.project_number'])->map->only(['uuid', 'name', 'project_number'])->values(),
             'contacts' => $contacts,
         ]);
     }

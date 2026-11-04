@@ -15,6 +15,7 @@ type EditProps = {
     dailyTasks?: ScheduleDailyTask[];
     statuses: ScheduleStatusOption[];
     schedule: SchedulePayload;
+    crewAssignments?: Record<string, { skill_id: number | null; employee_pay_rate_id: number | null }>;
 };
 
 export default function Edit({
@@ -24,6 +25,7 @@ export default function Edit({
     dailyTasks = [],
     statuses,
     schedule,
+    crewAssignments,
 }: EditProps) {
     return (
         <AuthenticatedLayout
@@ -68,6 +70,7 @@ export default function Edit({
                         dailyTasks={dailyTasks}
                         statuses={statuses}
                         schedule={schedule}
+                        crewAssignments={crewAssignments}
                     />
                 </div>
             </div>

@@ -1217,3 +1217,32 @@ test('a new priority can be added and saved on a project', function () {
 
     expect(Project::query()->where('name', 'Rush dock project')->value('priority'))->toBe('rush');
 });
+
+test('a project can be linked to more than one company and updated', function () {
+    $admin = projectAdmin();
+    $a = \App\Models\ContactDirectory\ContactCompany::create(['name' => 'Alpha Builders']);
+    $b = \App\Models\ContactDirectory\ContactCompany::create(['name' => 'Beta Glazing']);
+    $c = \App\Models\ContactDirectory\ContactCompany::create(['name' => 'Gamma Doors']);
+    $base = [
+        'name' => 'Shared job', 'project_number' => '', 'assigned_to' => '', 'status_id' => projectStatusId(),
+        'priority' => 'normal', 'estimated_start_date' => '', 'estimated_end_date' => '', 'completed_at' => '',
+        'public_notes' => '', 'internal_notes' => '', 'contractors' => [], 'scopes' => [], 'revisions' => [], 'prices' => [],
+    ];
+
+    $this->actingAs($admin)->post(route('admin.projects.store'), [...$base, 'company_uuids' => [$a->uuid, $b->uuid]])
+        ->assertSessionHasNoErrors();
+    $project = Project::where('name', 'Shared job')->firstOrFail();
+    expect($project->contactCompanies->pluck('name')->all())->toBe(['Alpha Builders', 'Beta Glazing']);
+
+    $this->actingAs($admin)->patch(route('admin.projects.update', $project), [...$base, 'company_uuids' => [$c->uuid]])
+        ->assertSessionHasNoErrors();
+    expect($project->fresh()->contactCompanies->pluck('name')->all())->toBe(['Gamma Doors']);
+
+    $this->actingAs($admin)->patch(route('admin.projects.update', $project), [...$base, 'company_uuids' => ['missing']])
+        ->assertSessionHasErrors('company_uuids.0');
+
+    $this->actingAs($admin)->get(route('admin.projects.edit', $project))
+        ->assertInertia(fn ($page) => $page->where('project.companies.0.name', 'Gamma Doors')->has('options.companies', 3));
+    $this->actingAs($admin)->get(route('contact-directory.companies.show', $c))
+        ->assertInertia(fn ($page) => $page->where('projects.0.name', 'Shared job'));
+});

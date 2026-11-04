@@ -137,6 +137,7 @@ function projectSchema(options: ProjectOptions, canEditCoreFields: boolean) {
                 .string()
                 .trim()
                 .max(60000, 'Internal notes must be 60,000 characters or less.'),
+            company_uuids: z.array(z.string()),
             contractors: z.array(
                 z.object({
                     contractor_id: z.string(),
@@ -468,8 +469,8 @@ export default function ProjectForm({
             return;
         }
 
-        const projectValues = { ...values };
-        delete projectValues.budget_amount;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { budget_amount: _budgetAmount, ...projectValues } = values;
         const payload = {
             ...projectValues,
             ...(canViewSensitive
@@ -487,6 +488,7 @@ export default function ProjectForm({
                           })),
                   }
                 : {}),
+            company_uuids: values.company_uuids ?? [],
             contractors: (values.contractors ?? []).filter(
                 (contractor) =>
                     contractor.contractor_id.trim() !== '' ||
@@ -921,6 +923,47 @@ export default function ProjectForm({
                             </div>
                         </div>
                     </section>
+
+                        {canEditCoreFields && (
+                            <section className="flex flex-col gap-3 rounded-xl border p-5 border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30">
+                                <div>
+                                    <h3 className="text-base font-semibold text-foreground">
+                                        Companies
+                                    </h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        Select every company executing this job.
+                                    </p>
+                                </div>
+                                {options.companies.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground">
+                                        No companies yet. Add them in the Contact Directory.
+                                    </p>
+                                ) : (
+                                    <div className="grid max-h-56 gap-2 overflow-y-auto rounded-lg border border-border bg-background/60 p-3 sm:grid-cols-2 lg:grid-cols-3">
+                                        {options.companies.map((company) => (
+                                            <label
+                                                key={company.uuid}
+                                                className="flex items-center gap-2 text-sm text-foreground"
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={data.company_uuids.includes(company.uuid)}
+                                                    onChange={(event) =>
+                                                        setData(
+                                                            'company_uuids',
+                                                            event.target.checked
+                                                                ? [...data.company_uuids, company.uuid]
+                                                                : data.company_uuids.filter((uuid) => uuid !== company.uuid),
+                                                        )
+                                                    }
+                                                />
+                                                {company.name}
+                                            </label>
+                                        ))}
+                                    </div>
+                                )}
+                            </section>
+                        )}
 
                         {canEditCoreFields && (
                             <section className="flex flex-col gap-4 rounded-xl border p-5 border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30">

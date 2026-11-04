@@ -88,6 +88,7 @@ class EmployeeWorkSchedule extends Model
     public function employees(): BelongsToMany
     {
         return $this->belongsToMany(Employee::class, 'work_schedule_employees')
+            ->withPivot(['skill_id', 'employee_pay_rate_id'])
             ->withTimestamps();
     }
 

@@ -1,3 +1,4 @@
+import { syncThemeMode } from '@/Components/ThemeProvider';
 import DashboardSidebar from '@/Components/DashboardSidebar';
 import { Dialog as DialogPrimitive } from 'radix-ui';
 import ExpenseUpdates from '@/Components/ExpenseUpdates';
@@ -97,6 +98,33 @@ export default function Authenticated({
     });
 
     useEffect(() => {
+        const token = () => {
+            const raw = document.cookie
+                .split('; ')
+                .find((item) => item.startsWith('XSRF-TOKEN='))
+                ?.slice('XSRF-TOKEN='.length);
+
+            return raw ? decodeURIComponent(raw) : '';
+        };
+        const ping = () => {
+            if (document.visibilityState !== 'visible') {
+                return;
+            }
+
+            void fetch(route('presence.ping'), {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-XSRF-TOKEN': token() },
+                credentials: 'same-origin',
+            }).catch(() => undefined);
+        };
+
+        ping();
+        const timer = window.setInterval(ping, 60000);
+
+        return () => window.clearInterval(timer);
+    }, []);
+
+    useEffect(() => {
         const query = window.matchMedia('(min-width: 1024px)');
         const close = (event: MediaQueryListEvent) => {
             if (event.matches) {
@@ -117,6 +145,26 @@ export default function Authenticated({
             document.documentElement.dataset.dashboardTheme = 'gateway';
         };
     }, [user.dashboard_theme]);
+
+    useLayoutEffect(() => {
+        document.documentElement.dataset.dashboardGradient =
+            user.dashboard_gradient || 'none';
+
+        return () => {
+            document.documentElement.dataset.dashboardGradient = 'none';
+        };
+    }, [user.dashboard_gradient]);
+
+    useLayoutEffect(() => {
+        document.documentElement.dataset.dashboardSurface =
+            user.dashboard_surface || 'default';
+        syncThemeMode();
+
+        return () => {
+            document.documentElement.dataset.dashboardSurface = 'default';
+            syncThemeMode();
+        };
+    }, [user.dashboard_surface]);
 
     useEffect(() => {
         if (typeof window === 'undefined') {

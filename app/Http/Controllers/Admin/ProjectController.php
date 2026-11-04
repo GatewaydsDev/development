@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Bid;
 use App\Models\Company;
+use App\Models\ContactDirectory\ContactCompany;
 use App\Models\Contractor;
 use App\Models\Product;
 use App\Models\Project;
@@ -16,6 +17,7 @@ use App\Models\ProjectScopeType;
 use App\Models\ProjectStatus;
 use App\Models\Quotation;
 use App\Models\Service;
+use App\Models\ClientCompany;
 use App\Models\User;
 use App\Models\UserLevel;
 use App\Support\BidAccess;
@@ -265,14 +267,34 @@ class ProjectController extends Controller
             'assignee:id,name',
             'creator:id,name',
             'contractors.contacts',
+            'contactCompanies.headquarters',
             'scopes.product',
             'scopes.service',
             'revisions.user:id,name',
             'prices',
             'status',
+            'clientCompany.users',
         ]);
 
         return Inertia::render('Admin/Projects/Show', [
+            'clientCompany' => $project->clientCompany ? [
+                'uuid' => $project->clientCompany->uuid,
+                'name' => $project->clientCompany->name,
+                'members' => $project->clientCompany->users
+                    ->sortByDesc(fn (User $member) => (int) $member->pivot->is_master)
+                    ->map(fn (User $member): array => [
+                        'uuid' => $member->uuid,
+                        'name' => $member->name,
+                        'email' => $member->email,
+                        'role' => $member->pivot->is_master
+                            ? 'master'
+                            : ($member->hasPermission('manage-client-team') ? 'manager' : 'viewer'),
+                        'last_login_at' => $member->last_login_at?->toDateTimeString(),
+                    ])
+                    ->values()
+                    ->all(),
+            ] : null,
+            'clientCompanies' => ClientCompany::query()->orderBy('name')->get(['uuid', 'name'])->all(),
             'project' => $this->projectPayload($project, $request->user()),
             'options' => $this->options($request->user(), $project),
             'can' => $this->capabilities($request->user()),
@@ -286,6 +308,7 @@ class ProjectController extends Controller
         $project->load([
             'assignee:id,name',
             'contractors.contacts',
+            'contactCompanies.headquarters',
             'scopes.product',
             'scopes.service',
             'revisions.user:id,name',
@@ -422,6 +445,7 @@ class ProjectController extends Controller
             ->with([
                 'assignee:id,name',
                 'contractors.contacts',
+                'contactCompanies.headquarters',
                 'scopes.product',
                 'scopes.service',
                 'revisions',
@@ -434,6 +458,10 @@ class ProjectController extends Controller
                     ->with(['scopes.title', 'stages.type']),
                 'takeoffs' => fn ($query) => $query
                     ->select('id', 'uuid', 'project_id', 'title', 'status')
+                    ->latest('id'),
+                'workSchedules' => fn ($query) => $query
+                    ->select('id', 'uuid', 'project_id', 'starts_on', 'ends_on', 'status')
+                    ->withCount('employees')
                     ->latest('id'),
             ])
             ->select('projects.*')
@@ -552,6 +580,8 @@ class ProjectController extends Controller
                 'site_postal_code' => PostalCode::optionalRules(),
                 'site_country' => ['nullable', 'string', 'max:255'],
                 'contractors' => ['array'],
+                'company_uuids' => ['nullable', 'array'],
+                'company_uuids.*' => ['string', Rule::exists(ContactCompany::class, 'uuid')->whereNull('deleted_at')],
                 'contractors.*.contractor_id' => [
                     'nullable',
                     'integer',
@@ -766,6 +796,11 @@ class ProjectController extends Controller
         }
 
         $this->syncContractors($project, $validated['contractors'] ?? []);
+        if (array_key_exists('company_uuids', $validated)) {
+            $project->contactCompanies()->sync(
+                ContactCompany::query()->whereIn('uuid', $validated['company_uuids'] ?? [])->pluck('id')->all(),
+            );
+        }
         $this->syncScopes($project, $validated['scopes'] ?? []);
         $this->syncRevisions($project, $validated['revisions'] ?? [], $request->user());
     }
@@ -1033,6 +1068,16 @@ class ProjectController extends Controller
             'site_state' => $project->site_state,
             'site_postal_code' => $project->site_postal_code,
             'site_country' => $project->site_country,
+            'companies' => $project->contactCompanies
+                ->map(fn (ContactCompany $company): array => [
+                    'uuid' => $company->uuid,
+                    'name' => $company->name,
+                    'main_office' => $company->headquarters
+                        ? collect([$company->headquarters->city, $company->headquarters->state])->filter()->implode(', ')
+                        : null,
+                ])
+                ->values()
+                ->all(),
             'contractors' => $project->contractors
                 ->map(fn (Contractor $contractor): array => [
                     'id' => $contractor->id,
@@ -1101,6 +1146,7 @@ class ProjectController extends Controller
             'quotation' => $this->linkedQuotation($project),
             'bid' => $this->linkedBid($project),
             'takeoff' => $this->linkedTakeoff($project),
+            'work_schedule' => $this->linkedWorkSchedule($project),
             'bids_count' => (int) ($project->bids_count ?? $project->bids()->count()),
             'latest_bid_id' => $project->latest_bid_id
                 ? (int) $project->latest_bid_id
@@ -1194,6 +1240,27 @@ class ProjectController extends Controller
     /**
      * @return array{uuid: string, title: string, status: string, status_label: string}|null
      */
+    private function linkedWorkSchedule(Project $project): ?array
+    {
+        $schedule = $project->relationLoaded('workSchedules')
+            ? $project->workSchedules->sortByDesc('id')->first()
+            : $project->workSchedules()->withCount('employees')->first();
+
+        if (! $schedule) {
+            return null;
+        }
+
+        return [
+            'uuid' => $schedule->uuid,
+            'starts_on' => $schedule->starts_on?->toDateString(),
+            'ends_on' => $schedule->ends_on?->toDateString(),
+            'status' => (string) $schedule->status,
+            'status_label' => Str::headline((string) $schedule->status),
+            'employees_count' => (int) ($schedule->employees_count ?? $schedule->employees()->count()),
+            'schedules_count' => $project->workSchedules->count(),
+        ];
+    }
+
     private function linkedTakeoff(Project $project): ?array
     {
         $takeoff = $project->relationLoaded('takeoffs')
@@ -1301,6 +1368,12 @@ class ProjectController extends Controller
                     'id' => $service->id,
                     'name' => $service->name,
                 ])
+                ->all(),
+            'companies' => ContactCompany::query()
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(['uuid', 'name'])
+                ->map(fn (ContactCompany $company): array => ['uuid' => $company->uuid, 'name' => $company->name])
                 ->all(),
             'contractors' => Contractor::query()
                 ->with([

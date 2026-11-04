@@ -236,6 +236,18 @@ class HandleInertiaRequests extends Middleware
                     'viewSystemUpdates' => $request->user()
                         ? \App\Support\SystemUpdateAccess::canView($request->user())
                         : false,
+                    'viewDashboard' => $request->user()
+                        ? Gate::forUser($request->user())->allows('view-dashboard')
+                        : false,
+                    'manageClientTeam' => $request->user()
+                        ? \App\Support\ClientPortalAccess::canManageTeam($request->user())
+                        : false,
+                    'viewClientPortal' => $request->user()
+                        ? \App\Support\ClientPortalAccess::canOpen($request->user())
+                        : false,
+                    'viewJobProgress' => $request->user() instanceof User
+                        ? \App\Support\JobProgressAccess::canOpen($request->user())
+                        : false,
                     'viewMySchedule' => $request->user()
                         ? Gate::forUser($request->user())->allows('view-my-schedule')
                         : false,

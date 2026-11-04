@@ -11,6 +11,8 @@ export interface User {
     initials?: string;
     last_login_at?: string | null;
     dashboard_theme?: string | null;
+    dashboard_gradient?: string | null;
+    dashboard_surface?: string | null;
     level?: {
         id: number;
         name: string;
@@ -113,6 +115,10 @@ export type PageProps<
             updateContractors: boolean;
             deleteContractors: boolean;
             viewMySchedule?: boolean;
+            viewJobProgress?: boolean;
+        manageClientTeam?: boolean;
+        viewClientPortal?: boolean;
+            viewDashboard?: boolean;
             viewSystemUpdates?: boolean;
             viewEmployees: boolean;
             createEmployees: boolean;
@@ -147,6 +153,7 @@ export type PageProps<
     flash?: {
         success?: string | null;
         error?: string | null;
+        counted_opening_id?: number | null;
         importedScopeText?: string | null;
         importedScopeTextTemplateId?: number | null;
         importedShippingText?: string | null;

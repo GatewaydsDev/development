@@ -7,6 +7,7 @@ import TextInput from '@/Components/TextInput';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import type { PageProps } from '@/types';
 import { cn } from '@/lib/utils';
 import { DownloadIcon, DraftingCompassIcon, ListIcon, PlusIcon } from 'lucide-react';
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -52,7 +53,7 @@ function openingSpecs(opening: TakeoffDetail['openings'][number]): string {
 }
 
 export default function Show({ takeoff, templates, quotations, can }: Props) {
-    const countedOpeningId = usePage<{ flash: { counted_opening_id?: number | null } }>().props.flash.counted_opening_id;
+    const countedOpeningId = usePage<PageProps>().props.flash?.counted_opening_id;
     const [section, setSection] = useState<(typeof sections)[number]['id']>('workspace');
     const [selectedOpeningId, setSelectedOpeningId] = useState<number | null>(null);
     const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(() => {
@@ -478,14 +479,14 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                 </nav>
                 {section === 'workspace' ? (
                     <div className="flex flex-wrap gap-2 rounded-xl border border-[#c5d0dc] bg-[#eef3f8] p-1.5 shadow-sm dark:border-[#353a42] dark:bg-[#212429]">
-                        <a href="#takeoff-openings" className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700">
+                        <button type="button" onClick={() => document.getElementById('takeoff-openings')?.scrollIntoView({ behavior: 'smooth' })} className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700">
                             <ListIcon className="size-4" />
                             Openings
-                        </a>
-                        <a href="#takeoff-drawing" className="inline-flex items-center gap-2 rounded-lg bg-sky-700 px-3 py-2 text-sm font-medium text-white hover:bg-sky-800">
+                        </button>
+                        <button type="button" onClick={() => document.getElementById('takeoff-drawing')?.scrollIntoView({ behavior: 'smooth' })} className="inline-flex items-center gap-2 rounded-lg bg-sky-700 px-3 py-2 text-sm font-medium text-white hover:bg-sky-800">
                             <DraftingCompassIcon className="size-4" />
                             Drawing
-                        </a>
+                        </button>
                     </div>
                 ) : null}
                 </div>
@@ -890,7 +891,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                     <div className="space-y-2">
                         {takeoff.flags.length === 0 ? <p className="text-sm">No review flags.</p> : null}
                         {takeoff.flags.map((flag, index) => (
-                            <button key={`${flag.code}-${flag.opening_id}-${index}`} type="button" className="block w-full rounded-md border p-3 text-left text-sm" onClick={() => { if (flag.opening_id) { openOpening(flag.opening_id); setSection('workspace'); setMobilePane('schedule'); } }}>
+                            <button key={`${flag.code}-${flag.opening_id}-${index}`} type="button" className="block w-full rounded-md border p-3 text-left text-sm" onClick={() => { if (flag.opening_id) { openOpening(flag.opening_id); setSection('workspace'); } }}>
                                 {flag.message}
                             </button>
                         ))}

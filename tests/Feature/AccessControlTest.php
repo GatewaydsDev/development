@@ -68,7 +68,7 @@ test('permission changes are enforced by laravel gates', function () {
                 ],
             ],
         ])
-        ->assertRedirect(route('admin.users.index', absolute: false));
+        ->assertRedirect(route('admin.access-control.index', absolute: false));
 
     $admin->refresh();
 
@@ -127,7 +127,7 @@ test('mobile rights can be removed without changing the website permission', fun
                 $projectManagerLevel->id => $mobile,
             ],
         ])
-        ->assertRedirect(route('admin.users.index', absolute: false));
+        ->assertRedirect(route('admin.access-control.index', absolute: false));
 
     $projectManagerLevel->refresh();
 
@@ -159,7 +159,7 @@ test('mobile rights cannot exceed the website permission', function () {
                 $userLevel->id => $mobile,
             ],
         ])
-        ->assertRedirect(route('admin.users.index', absolute: false));
+        ->assertRedirect(route('admin.access-control.index', absolute: false));
 
     $userLevel->refresh();
 
@@ -181,4 +181,127 @@ test('custom permissions cannot grant access control without super admin level',
     $this->actingAs($user)
         ->get(route('admin.access-control.edit'))
         ->assertForbidden();
+});
+
+test('super admins can list, rename and delete user levels', function () {
+    $superAdminLevel = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $superAdmin = User::factory()->create(['level_id' => $superAdminLevel->id]);
+    $level = UserLevel::create(['name' => 'Estimator', 'permissions' => [], 'mobile_permissions' => []]);
+
+    $this->actingAs($superAdmin)
+        ->get(route('admin.access-control.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Admin/AccessControl/Index')
+            ->has('levels')
+        );
+
+    $this->actingAs($superAdmin)
+        ->patch(route('admin.access-control.levels.rename', $level), ['name' => 'Senior Estimator'])
+        ->assertSessionHasNoErrors();
+    expect($level->fresh()->name)->toBe('Senior Estimator');
+
+    $this->actingAs($superAdmin)
+        ->delete(route('admin.access-control.levels.destroy', $level));
+    expect(UserLevel::find($level->id))->toBeNull();
+});
+
+test('levels with users and the super admin level cannot be deleted', function () {
+    $superAdminLevel = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $superAdmin = User::factory()->create(['level_id' => $superAdminLevel->id]);
+    $level = UserLevel::create(['name' => 'Estimator', 'permissions' => [], 'mobile_permissions' => []]);
+    User::factory()->create(['level_id' => $level->id]);
+
+    $this->actingAs($superAdmin)->delete(route('admin.access-control.levels.destroy', $level));
+    $this->actingAs($superAdmin)->delete(route('admin.access-control.levels.destroy', $superAdminLevel));
+
+    expect(UserLevel::find($level->id))->not->toBeNull()
+        ->and(UserLevel::find($superAdminLevel->id))->not->toBeNull();
+});
+
+test('super admins can save user defaults and see them when creating a user', function () {
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $admin = User::factory()->create(['level_id' => $level->id]);
+
+    $this->actingAs($admin)
+        ->patch(route('admin.user-defaults.update'), [
+            'password' => 'Welcome@2026!',
+            'level_id' => $level->id,
+        ])
+        ->assertSessionHasNoErrors();
+
+    $this->actingAs($admin)
+        ->get(route('admin.users.create'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('userDefaults.password', 'Welcome@2026!')
+            ->where('userDefaults.level_id', $level->id)
+        );
+});
+
+test('only super admins can read live presence', function () {
+    $superLevel = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $admin = User::factory()->create(['level_id' => $superLevel->id]);
+    $other = User::factory()->create(['level_id' => UserLevel::firstOrCreate(['name' => UserLevel::USER])->id]);
+
+    $this->actingAs($other)->getJson(route('presence.index'))->assertForbidden();
+
+    $admin->forceFill(['last_seen_at' => now(), 'last_seen_device' => 'mobile'])->save();
+
+    $this->actingAs($admin)->getJson(route('presence.index'))
+        ->assertOk()
+        ->assertJsonPath('devices.mobile', 1)
+        ->assertJson(fn ($json) => $json->has('counts.online')->etc());
+
+    $admin->forceFill(['last_logout_at' => now()->addSecond()])->save();
+
+    $this->actingAs($admin)->getJson(route('presence.index'))
+        ->assertJsonPath('devices.mobile', 0);
+});
+
+test('logins and logouts are stored with device and location', function () {
+    $user = User::factory()->create();
+
+    $this->withHeaders([
+        'User-Agent' => 'Mozilla/5.0 (iPhone; CPU iPhone OS 17) Mobile/15E148',
+        'CF-IPCountry' => 'US',
+        'CF-IPCity' => 'Newark',
+    ])->post(route('login'), ['email' => $user->email, 'password' => 'password']);
+
+    $this->post(route('logout'));
+
+    $logs = \App\Models\UserLoginLog::query()->where('user_id', $user->id)->orderBy('id')->get();
+
+    expect($logs->pluck('event')->all())->toBe(['login', 'logout'])
+        ->and($logs->first()->device_type)->toBe('mobile')
+        ->and($logs->first()->country)->toBe('US')
+        ->and($logs->first()->city)->toBe('Newark');
+});
+
+test('users can save a dashboard gradient and invalid ones are rejected', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->patch(route('appearance.update'), ['gradient' => 'voice-orb'])->assertSessionHasNoErrors();
+    expect($user->fresh()->dashboard_gradient)->toBe('voice-orb');
+
+    $this->actingAs($user)->patch(route('appearance.update'), ['gradient' => 'nope'])->assertSessionHasErrors('gradient');
+    $this->actingAs($user)->patch(route('appearance.update'), ['theme' => 'ocean'])->assertSessionHasNoErrors();
+    expect($user->fresh()->dashboard_theme)->toBe('ocean')->and($user->fresh()->dashboard_gradient)->toBe('voice-orb');
+});
+
+test('choosing a dark surface also sets its accent and can be cleared', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->patch(route('appearance.update'), ['surface' => 'midnight'])->assertSessionHasNoErrors();
+    expect($user->fresh()->dashboard_surface)->toBe('midnight')->and($user->fresh()->dashboard_theme)->toBe('indigo');
+
+    $this->actingAs($user)->patch(route('appearance.update'), ['surface' => 'bogus'])->assertSessionHasErrors('surface');
+    $this->actingAs($user)->patch(route('appearance.update'), ['surface' => 'default'])->assertSessionHasNoErrors();
+    expect($user->fresh()->dashboard_surface)->toBe('default');
+});
+
+test('light surfaces can be chosen and set their accent', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->patch(route('appearance.update'), ['surface' => 'ivory'])->assertSessionHasNoErrors();
+    expect($user->fresh()->dashboard_surface)->toBe('ivory')->and($user->fresh()->dashboard_theme)->toBe('amber');
 });

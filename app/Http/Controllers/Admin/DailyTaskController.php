@@ -12,6 +12,7 @@ use App\Models\UserLevel;
 use App\Models\DailyTaskPhoto;
 use App\Models\EmployeeWorkSchedule;
 use App\Support\DailyTaskAccess;
+use App\Support\JobProgressAccess;
 use App\Support\ScheduleAttendance;
 use App\Support\DailyTaskChecklist;
 use App\Support\DailyTaskProgressRules;
@@ -187,7 +188,13 @@ class DailyTaskController extends Controller
 
     public function photoResponse(User $user, DailyTaskPhoto $photo): StreamedResponse
     {
-        abort_unless($photo->completion->user_id === $user->id || DailyTaskAccess::canManage($user), 403);
+        $schedule = $photo->completion->schedule;
+        abort_unless(
+            $photo->completion->user_id === $user->id
+                || DailyTaskAccess::canManage($user)
+                || ($schedule !== null && JobProgressAccess::canView($user, $schedule)),
+            403,
+        );
         abort_unless(Storage::disk('local')->exists($photo->path), 404);
 
         return Storage::disk('local')->response($photo->path, $photo->original_name, [

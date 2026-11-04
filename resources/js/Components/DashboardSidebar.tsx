@@ -23,6 +23,7 @@ import {
     HardHatIcon,
     IdCardIcon,
     LayoutDashboardIcon,
+    KeyRoundIcon,
     LockKeyholeIcon,
     LogOutIcon,
     MailIcon,
@@ -32,6 +33,7 @@ import {
     PanelLeftCloseIcon,
     ChartLineIcon,
     ClipboardCheckIcon,
+    GaugeIcon,
     ReceiptIcon,
     PanelLeftOpenIcon,
     ShieldCheckIcon,
@@ -131,12 +133,17 @@ export default function DashboardSidebar({
     const canViewContractors = Boolean(can.viewContractors);
     const canViewEmployees = Boolean(can.viewEmployees);
     const canViewMySchedule = Boolean(can.viewMySchedule);
+    const canViewClientPortal = Boolean(can.viewClientPortal);
+    const canManageClientTeam = Boolean(can.manageClientTeam);
+    const canViewDashboard = Boolean(can.viewDashboard);
+    const isClientOnly = canViewClientPortal && !canViewDashboard;
     const canViewUsers = Boolean(can.viewUsers);
     const canManageAccess = Boolean(can.manageAccess);
     const canViewUserActivity = Boolean(can.viewUserActivity);
     const canManageExpenses = Boolean(can.manageExpenses);
     const canManageProjectControl = Boolean(can.manageProjectControl);
     const canOpenDailyTasks = Boolean(can.openDailyTasks);
+    const canViewJobProgress = Boolean(can.viewJobProgress);
     const dailyTasksPending = Number(page.props.dailyTasksPending ?? 0);
     const canCorrectRecords = Boolean(can.correctRecords);
     const canViewCompany = Boolean(can.viewCompany);
@@ -154,21 +161,49 @@ export default function DashboardSidebar({
         {
             label: 'Overview',
             items: [
-                {
-                    title: 'Dashboard',
-                    href: route('dashboard'),
-                    icon: LayoutDashboardIcon,
-                    active: isRouteActive('dashboard'),
-                },
-                {
-                    title: 'Email',
-                    href: route('mailbox.index'),
-                    icon: MailIcon,
-                    active: isRouteActive('mailbox.*'),
-                    alert: unreadMail > 0,
-                    badge: unreadMail > 0 ? unreadMail : undefined,
-                    badgeVariant: 'destructive',
-                },
+                ...(canViewClientPortal
+                    ? [
+                          {
+                              title: 'My projects',
+                              href: route('portal.index'),
+                              icon: BriefcaseIcon,
+                              active: isRouteActive('portal.*'),
+                          },
+                      ]
+                    : []),
+                ...(canManageClientTeam
+                    ? [
+                          {
+                              title: 'Company team',
+                              href: route('portal.team.index'),
+                              icon: UsersIcon,
+                              active: isRouteActive('portal.team.*'),
+                          },
+                      ]
+                    : []),
+                ...(canViewDashboard
+                    ? [
+                          {
+                              title: 'Dashboard',
+                              href: route('dashboard'),
+                              icon: LayoutDashboardIcon,
+                              active: isRouteActive('dashboard'),
+                          },
+                      ]
+                    : []),
+                ...(!isClientOnly
+                    ? [
+                          {
+                              title: 'Email',
+                              href: route('mailbox.index'),
+                              icon: MailIcon,
+                              active: isRouteActive('mailbox.*'),
+                              alert: unreadMail > 0,
+                              badge: unreadMail > 0 ? unreadMail : undefined,
+                              badgeVariant: 'destructive' as const,
+                          },
+                      ]
+                    : []),
             ],
         },
         {
@@ -197,6 +232,16 @@ export default function DashboardSidebar({
                                       ? dailyTasksPending
                                       : undefined,
                               badgeVariant: 'destructive' as const,
+                          },
+                      ]
+                    : []),
+                ...(canViewJobProgress
+                    ? [
+                          {
+                              title: 'Job progress',
+                              href: route('admin.job-progress.index'),
+                              icon: GaugeIcon,
+                              active: isRouteActive('admin.job-progress.*'),
                           },
                       ]
                     : []),
@@ -401,8 +446,14 @@ export default function DashboardSidebar({
                 ...(canManageAccess
                     ? [
                           {
+                              title: 'User Defaults',
+                              href: route('admin.user-defaults.edit'),
+                              icon: KeyRoundIcon,
+                              active: isRouteActive('admin.user-defaults.*'),
+                          },
+                          {
                               title: 'Access Control',
-                              href: route('admin.access-control.edit'),
+                              href: route('admin.access-control.index'),
                               icon: LockKeyholeIcon,
                               active: isRouteActive('admin.access-control.*'),
                           },

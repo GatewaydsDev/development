@@ -37,6 +37,7 @@ import {
     ClipboardCheckIcon,
     DollarSignIcon,
     EditIcon,
+    GaugeIcon,
     HardHatIcon,
     MapPinIcon,
     PlusIcon,
@@ -522,6 +523,23 @@ export default function Index({ filters, statuses, schedules, can, roleOptions }
                                         </div>
                                     </div>
                                     <div className="flex gap-1.5">
+                                        <Button
+                                            variant="outline"
+                                            size="icon-sm"
+                                            className="border-emerald-200 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:border-emerald-800/60 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
+                                            asChild
+                                        >
+                                            <Link
+                                                href={route(
+                                                    'admin.job-progress.show',
+                                                    schedule.uuid,
+                                                )}
+                                                aria-label="Job progress"
+                                                title="Job progress"
+                                            >
+                                                <GaugeIcon className="size-4" />
+                                            </Link>
+                                        </Button>
                                         {can.update && (
                                             <Button
                                                 variant="outline"

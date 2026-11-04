@@ -280,11 +280,25 @@ it('only accepts digits and dashes in an address postal code', function () {
     ])->assertSessionHasNoErrors();
 });
 
-it('allows more than one headquarters', function () {
+it('collapses several headquarters flags into one main office', function () {
     actingAs($this->admin)->post(route('contact-directory.companies.store'), [
         ...$this->payload,
         'addresses' => [['city' => 'A', 'is_headquarters' => true], ['city' => 'B', 'is_headquarters' => true]],
     ])->assertSessionHasNoErrors();
 
-    expect(ContactCompany::sole()->addresses->where('is_headquarters', true))->toHaveCount(2);
+    expect(ContactCompany::sole()->addresses->where('is_headquarters', true))->toHaveCount(1);
+});
+
+it('keeps exactly one main office address per company', function () {
+    $payload = $this->payload;
+    $payload['addresses'][0]['is_headquarters'] = true;
+    actingAs($this->admin)->post(route('contact-directory.companies.store'), $payload)->assertSessionHasNoErrors();
+    $company = ContactCompany::where('name', 'Gateway supplier')->firstOrFail();
+    expect($company->addresses()->where('is_headquarters', true)->count())->toBe(1)
+        ->and($company->headquarters->city)->toBe('Allentown');
+
+    $payload['addresses'][0]['is_headquarters'] = false;
+    $payload['addresses'][1]['is_headquarters'] = false;
+    actingAs($this->admin)->patch(route('contact-directory.companies.update', $company), $payload)->assertSessionHasNoErrors();
+    expect($company->addresses()->where('is_headquarters', true)->count())->toBe(1);
 });

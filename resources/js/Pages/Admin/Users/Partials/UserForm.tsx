@@ -7,6 +7,7 @@ import UserContactFields, {
     type UserContactRow,
 } from '@/Pages/Admin/Users/Partials/UserContactFields';
 import InputError from '@/Components/InputError';
+import SearchableSelect from '@/Components/SearchableSelect';
 import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
 import UserAvatar from '@/Components/UserAvatar';
@@ -20,7 +21,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@/Components/ui/card';
-import {useForm} from '@inertiajs/react';
+import {Link, useForm} from '@inertiajs/react';
 import {
     Check,
     ContactIcon,
@@ -30,6 +31,7 @@ import {
     KeyRoundIcon,
     PlugIcon,
     ShieldCheckIcon,
+    SparklesIcon,
     UserRoundIcon,
     type LucideIcon,
 } from 'lucide-react';
@@ -61,6 +63,9 @@ type UserFormData = {
     date_of_birth: string;
     language_id: string;
     level_id: string;
+    client_company_uuid: string;
+    client_company_name: string;
+    client_company_master: boolean;
     status: string;
     status_reason: string;
     password: string;
@@ -95,6 +100,34 @@ type UserFormProps = {
     initialValues?: Partial<Omit<UserFormData, 'avatar'>>;
     currentAvatarUrl?: string | null;
     passwordOptional?: boolean;
+    userDefaults?: UserDefaultsData | null;
+    clientCompanies?: { uuid: string; name: string }[];
+};
+
+export type UserDefaultsData = {
+    password: string | null;
+    level_id: number | null;
+    language_id: number | null;
+    can_manage: boolean;
+};
+
+const generatePassword = () => {
+    const chars =
+        'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%&*?';
+    const bytes = crypto.getRandomValues(new Uint32Array(14));
+    const body = Array.from(bytes, (byte) => chars[byte % chars.length]);
+
+    return `${body.join('')}Aa1!`;
+};
+
+const passwordStrength = (value: string) => {
+    return [
+        value.length >= 8,
+        value.length >= 12,
+        /[a-z]/.test(value) && /[A-Z]/.test(value),
+        /\d/.test(value),
+        /[^A-Za-z0-9]/.test(value),
+    ].filter(Boolean).length;
 };
 
 const formatDateOfBirth = (value: string) => {
@@ -240,6 +273,8 @@ function CopyableIdInput({
     );
 }
 
+const NEW_COMPANY = '__new__';
+
 export default function UserForm({
                                      userId,
                                      levels,
@@ -259,7 +294,10 @@ export default function UserForm({
                                      initialValues = {},
                                      currentAvatarUrl = null,
                                      passwordOptional = false,
+                                     userDefaults = null,
+                                     clientCompanies = [],
                                  }: UserFormProps) {
+    const applyDefaults = !passwordOptional && userDefaults !== null;
     const [addedPositions, setAddedPositions] = useState<CreatableOption[]>([]);
     const [showPassword, setShowPassword] = useState(false);
     const [showMicrosoftSecret, setShowMicrosoftSecret] = useState(false);
@@ -276,12 +314,25 @@ export default function UserForm({
             email: initialValues.email ?? '',
             avatar: null,
             date_of_birth: initialValues.date_of_birth ?? '',
-            language_id: initialValues.language_id ?? '',
-            level_id: initialValues.level_id ?? '',
+            language_id:
+                initialValues.language_id ??
+                (applyDefaults && userDefaults?.language_id
+                    ? String(userDefaults.language_id)
+                    : ''),
+            level_id:
+                initialValues.level_id ??
+                (applyDefaults && userDefaults?.level_id
+                    ? String(userDefaults.level_id)
+                    : ''),
+            client_company_uuid: initialValues.client_company_uuid ?? '',
+            client_company_name: '',
+            client_company_master: initialValues.client_company_master ?? false,
             status: initialValues.status ?? 'active',
             status_reason: '',
-            password: '',
-            password_confirmation: '',
+            password: applyDefaults ? (userDefaults?.password ?? '') : '',
+            password_confirmation: applyDefaults
+                ? (userDefaults?.password ?? '')
+                : '',
             job_title: initialValues.job_title ?? '',
             microsoft_mailbox: initialValues.microsoft_mailbox ?? '',
             microsoft_tenant_id: initialValues.microsoft_tenant_id ?? '',
@@ -294,9 +345,30 @@ export default function UserForm({
             phones: initialValues.phones ?? [],
         });
 
+    const [passwordCopied, setPasswordCopied] = useState(false);
+    const strength = passwordStrength(data.password);
+
+    const setBothPasswords = (value: string) => {
+        setData((current) => ({
+            ...current,
+            password: value,
+            password_confirmation: value,
+        }));
+        setShowPassword(true);
+        setShowPasswordConfirmation(true);
+    };
+
+    const copyPassword = async () => {
+        await navigator.clipboard.writeText(data.password);
+        setPasswordCopied(true);
+        window.setTimeout(() => setPasswordCopied(false), 1500);
+    };
+
     const selectedLevelName =
         levels.find((level) => String(level.id) === data.level_id)?.name ?? '';
     const editingSuperAdmin = superAdminLevelNames.includes(selectedLevelName);
+    const isClientLevel = ['Client', 'Client Manager'].includes(selectedLevelName);
+    const creatingCompany = data.client_company_uuid === NEW_COMPANY;
     const positionOptions = useMemo(() => {
         const options = new Map<string, CreatableOption>();
 
@@ -335,7 +407,17 @@ export default function UserForm({
         const levelName =
             levels.find((level) => String(level.id) === formData.level_id)
                 ?.name ?? '';
-        const rest = {...payload};
+        const rest: Partial<typeof payload> = {...payload};
+
+        if (!['Client', 'Client Manager'].includes(levelName)) {
+            rest.client_company_uuid = '';
+            rest.client_company_name = '';
+            rest.client_company_master = false;
+        } else if (rest.client_company_uuid === NEW_COMPANY) {
+            rest.client_company_uuid = '';
+        } else {
+            rest.client_company_name = '';
+        }
 
         if (!canAssignMailbox) {
             delete rest.microsoft_mailbox;
@@ -750,6 +832,51 @@ export default function UserForm({
                             onChange={(levelId) => setData('level_id', levelId)}
                         />
 
+                        {isClientLevel && (
+                            <div className="flex w-full flex-col gap-3 rounded-lg border border-dashed border-border p-4 md:w-1/2">
+                                <label htmlFor="client_company_uuid" className="text-sm font-medium">
+                                    Client company
+                                </label>
+                                <SearchableSelect
+                                    id="client_company_uuid"
+                                    value={data.client_company_uuid}
+                                    options={clientCompanies.map((company) => ({
+                                        value: company.uuid,
+                                        label: company.name,
+                                    }))}
+                                    selectedLabel={
+                                        creatingCompany
+                                            ? `New: ${data.client_company_name}`
+                                            : undefined
+                                    }
+                                    placeholder="Search for a company"
+                                    createLabel="Create company"
+                                    onChange={(uuid) => {
+                                        setData('client_company_uuid', uuid);
+                                        setData('client_company_name', '');
+                                    }}
+                                    onCreate={(name) => {
+                                        setData('client_company_uuid', NEW_COMPANY);
+                                        setData('client_company_name', name);
+                                    }}
+                                />
+                                <InputError message={errors.client_company_uuid || errors.client_company_name} />
+                                {selectedLevelName === 'Client Manager' && (
+                                    <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                                        <input
+                                            type="checkbox"
+                                            checked={data.client_company_master}
+                                            onChange={(e) => setData('client_company_master', e.target.checked)}
+                                        />
+                                        Master account of the company (the owner)
+                                    </label>
+                                )}
+                                <p className="text-xs text-muted-foreground">
+                                    Clients only see the projects of their company. Add the company's other users after saving.
+                                </p>
+                            </div>
+                        )}
+
                         {userId && !editingSuperAdmin && canChangeStatus ? (
                             <div className="flex w-full flex-col gap-2 md:w-1/2">
                                 <label
@@ -963,7 +1090,83 @@ export default function UserForm({
                     ) : null}
 
                     <FormSection icon={KeyRoundIcon} title="Password"
-                                 description="Set a strong password, or leave blank to keep the current one.">
+                                 description={
+                                     passwordOptional
+                                         ? 'Leave blank to keep the current password, or set a new one.'
+                                         : 'Choose a password for the first sign-in.'
+                                 }>
+                        <div className="flex flex-wrap items-center gap-2">
+                            {userDefaults?.password ? (
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setBothPasswords(
+                                            userDefaults.password ?? '',
+                                        )
+                                    }
+                                    className="inline-flex h-9 items-center gap-2 rounded-md bg-emerald-700 px-3 text-sm font-medium text-white transition hover:bg-emerald-800"
+                                >
+                                    <KeyRoundIcon className="size-4"/>
+                                    Use default password
+                                </button>
+                            ) : null}
+                            <button
+                                type="button"
+                                onClick={() => setBothPasswords(generatePassword())}
+                                className="inline-flex h-9 items-center gap-2 rounded-md border border-border px-3 text-sm font-medium transition hover:bg-muted"
+                            >
+                                <SparklesIcon className="size-4"/>
+                                Generate
+                            </button>
+                            <button
+                                type="button"
+                                disabled={data.password === ''}
+                                onClick={copyPassword}
+                                className="inline-flex h-9 items-center gap-2 rounded-md border border-border px-3 text-sm font-medium transition hover:bg-muted disabled:opacity-50"
+                            >
+                                {passwordCopied ? (
+                                    <Check className="size-4"/>
+                                ) : (
+                                    <Copy className="size-4"/>
+                                )}
+                                {passwordCopied ? 'Copied' : 'Copy'}
+                            </button>
+                            {userDefaults?.can_manage ? (
+                                <Link
+                                    href={route('admin.user-defaults.edit')}
+                                    className="ms-auto text-sm font-medium text-emerald-700 hover:underline dark:text-emerald-300"
+                                >
+                                    {userDefaults.password
+                                        ? 'Change default password'
+                                        : 'Set a default password'}
+                                </Link>
+                            ) : null}
+                        </div>
+                        {data.password !== '' ? (
+                            <div className="flex items-center gap-3">
+                                <div className="flex h-1.5 w-40 gap-1">
+                                    {[1, 2, 3, 4, 5].map((step) => (
+                                        <span
+                                            key={step}
+                                            className={`h-full flex-1 rounded-full ${
+                                                step <= strength
+                                                    ? strength >= 4
+                                                        ? 'bg-emerald-600'
+                                                        : 'bg-amber-500'
+                                                    : 'bg-muted'
+                                            }`}
+                                        />
+                                    ))}
+                                </div>
+                                <span className="text-xs text-muted-foreground">
+                                    {strength >= 4
+                                        ? 'Strong'
+                                        : strength >= 3
+                                          ? 'Fair'
+                                          : 'Weak'}
+                                </span>
+                            </div>
+                        ) : null}
                         <div className="grid gap-5 md:grid-cols-2">
                             <div className="flex flex-col gap-2">
                                 <InputLabel

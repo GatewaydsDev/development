@@ -47,6 +47,7 @@ export type ProjectOptions = {
         name: string;
     }>;
     contractors: ContractorOption[];
+    companies: Array<{ uuid: string; name: string }>;
     can: ProjectCapabilities;
     nextProjectNumber?: string;
 };
@@ -119,6 +120,7 @@ export type ProjectPayload = {
     }>;
     internal_notes?: string | null;
     contractors: ProjectContractor[];
+    companies?: Array<{ uuid: string; name: string; main_office: string | null }>;
     scopes: ProjectScope[];
     revisions: ProjectRevision[];
     assignee: {
@@ -147,6 +149,15 @@ export type ProjectPayload = {
         title: string;
         status: string;
         status_label: string;
+    } | null;
+    work_schedule?: {
+        uuid: string;
+        starts_on: string | null;
+        ends_on: string | null;
+        status: string;
+        status_label: string;
+        employees_count: number;
+        schedules_count: number;
     } | null;
     bids_count?: number;
     latest_bid_uuid?: string | null;
@@ -221,6 +232,7 @@ export type ProjectFormData = {
     public_notes: string;
     internal_notes: string;
     contractors: ProjectContractorFormData[];
+    company_uuids: string[];
     scopes: ProjectScopeFormData[];
     revisions: ProjectRevisionFormData[];
 };
@@ -352,6 +364,7 @@ export function projectToFormData(
                   : [blankPrice()],
         public_notes: project?.public_notes ?? '',
         internal_notes: project?.internal_notes ?? '',
+        company_uuids: project?.companies?.map((company) => company.uuid) ?? [],
         contractors:
             project?.contractors && project.contractors.length > 0
                 ? project.contractors.map((contractor) => ({

@@ -15,6 +15,13 @@ class CompanyAddresses
         }
 
         $rows = array_values($data['addresses'] ?? []);
+
+        // A company has exactly one main office: the first one flagged, or the first address.
+        $mainIndex = collect($rows)->search(fn ($row): bool => (bool) ($row['is_headquarters'] ?? false));
+        foreach ($rows as $index => $row) {
+            $rows[$index]['is_headquarters'] = $index === ($mainIndex === false ? 0 : $mainIndex);
+        }
+
         $relation = $company->addresses();
         $keepIds = collect($rows)->pluck('id')->filter()->all();
         (clone $relation)->whereNotIn('id', $keepIds)->delete();

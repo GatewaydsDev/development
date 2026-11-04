@@ -57,7 +57,7 @@ class ScheduleAttendance
                 : null,
             'members' => $members->map(function (Employee $employee) use ($schedule, $days): array {
                 $day = $days->get($employee->id);
-                $rate = self::defaultRate($employee);
+                $rate = CrewAssignments::rateFor($schedule, $employee) ?? self::defaultRate($employee);
                 $foreman = $employee->user_id !== null && (int) $employee->user_id === (int) $schedule->foreman_user_id;
                 $elsewhere = $day
                     && $day->employee_work_schedule_id !== null
@@ -66,6 +66,11 @@ class ScheduleAttendance
                 return [
                     'uuid' => $employee->uuid,
                     'name' => $employee->fullName(),
+                    'skill' => $rate?->skill?->name,
+                    'options' => CrewAssignments::options($employee),
+                    'pay_rate_id' => $rate?->id,
+                    'skill_id' => $rate?->skill_id,
+                    'rate_label' => $rate ? self::rateLabel($rate) : null,
                     'is_foreman' => $foreman,
                     'present' => (bool) ($day?->worked) && ! $elsewhere,
                     'hours' => $day?->hours !== null ? number_format((float) $day->hours, 2, '.', '') : null,
@@ -130,7 +135,7 @@ class ScheduleAttendance
                 continue;
             }
 
-            $rate = self::defaultRate($employee);
+            $rate = CrewAssignments::rateFor($schedule, $employee) ?? self::defaultRate($employee);
 
             if (! $rate) {
                 $errors[$employee->uuid] = 'No pay rate on file. Ask the office to add one.';
@@ -197,6 +202,15 @@ class ScheduleAttendance
             ->whereDate('work_date', $date->toDateString())
             ->whereHas('week', fn ($query) => $query->where('employee_id', $employee->id))
             ->first();
+    }
+
+    private static function rateLabel(EmployeePayRate $rate): string
+    {
+        $type = $rate->rate_type === EmployeePayRate::RATE_CUSTOM
+            ? ($rate->custom_rate_type ?: 'Custom')
+            : ucfirst(str_replace('_', ' ', $rate->rate_type));
+
+        return $type.' · $'.number_format((float) $rate->amount, 2);
     }
 
     /** A daily rate is preferred, then hourly, then whichever rate was added first. */

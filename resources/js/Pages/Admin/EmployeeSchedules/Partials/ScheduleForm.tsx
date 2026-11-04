@@ -1,5 +1,6 @@
 import CertificationBadge from "@/Components/CertificationBadge";
 import CreatableSelect from "@/Components/CreatableSelect";
+import CrewRatePicker, { type RateGroup } from "@/Components/CrewRatePicker";
 import FormActionFab from "@/Components/FormActionFab";
 import InputError from "@/Components/InputError";
 import InputLabel from "@/Components/InputLabel";
@@ -15,7 +16,7 @@ import {
 import { Button } from "@/Components/ui/button";
 import { useForm } from "@inertiajs/react";
 import { PlusIcon, Trash2Icon } from "lucide-react";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import type {
     ScheduleDailyTask,
     ScheduleCertification,
@@ -23,6 +24,60 @@ import type {
     SchedulePayload,
     ScheduleStatusOption,
 } from "../types";
+
+type CrewAssignment = {
+    skill_id: number | null;
+    employee_pay_rate_id: number | null;
+};
+
+function CrewAssignmentRow({
+    employee,
+    value,
+    error,
+    onChange,
+}: {
+    employee: ScheduleOption;
+    value: CrewAssignment;
+    error?: string;
+    onChange: (value: CrewAssignment) => void;
+}) {
+    const [groups, setGroups] = useState<RateGroup[] | null>(null);
+
+    useEffect(() => {
+        const controller = new AbortController();
+
+        fetch(route("admin.employee-schedules.rates", employee.uuid ?? ""), {
+            headers: { Accept: "application/json" },
+            signal: controller.signal,
+        })
+            .then((response) => (response.ok ? response.json() : null))
+            .then((data) => setGroups(data?.groups ?? []))
+            .catch(() => undefined);
+
+        return () => controller.abort();
+    }, [employee.uuid]);
+
+    return (
+        <div className="flex flex-col gap-2 rounded-md border border-border p-3">
+            <p className="text-sm font-medium">
+                {employee.full_name ?? employee.name}
+            </p>
+            {groups === null ? (
+                <p className="text-xs text-muted-foreground">Loading rates...</p>
+            ) : (
+                <CrewRatePicker
+                    groups={groups}
+                    skillId={value.skill_id}
+                    rateId={value.employee_pay_rate_id}
+                    onChange={(skill_id, employee_pay_rate_id) =>
+                        onChange({ skill_id, employee_pay_rate_id })
+                    }
+                />
+            )}
+            <InputError message={error} />
+        </div>
+    );
+}
 
 function EmployeeChoice({
     employee,
@@ -167,6 +222,7 @@ type ScheduleFormProps = {
     defaultDate?: string;
     defaultEndDate?: string;
     schedule?: SchedulePayload;
+    crewAssignments?: Record<string, CrewAssignment>;
 };
 
 function saturdayOfWeek(date: string): string {
@@ -195,6 +251,7 @@ export default function ScheduleForm({
     defaultDate = "",
     defaultEndDate,
     schedule,
+    crewAssignments = {},
 }: ScheduleFormProps) {
     const [employeeSearch, setEmployeeSearch] = useState("");
     const { data, setData, post, processing, errors, transform } = useForm({
@@ -210,6 +267,7 @@ export default function ScheduleForm({
         quality_control_uuid: schedule?.quality_control?.uuid ?? "",
         notes: schedule?.notes ?? "",
         daily_task_uuids: schedule?.daily_task_uuids ?? [],
+        crew_assignments: crewAssignments as Record<string, CrewAssignment>,
     });
 
     transform((formData) => {
@@ -685,6 +743,40 @@ export default function ScheduleForm({
                                                 toggleEmployee(
                                                     employee.uuid ?? "",
                                                 )
+                                            }
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                        {selectedEmployees.length > 0 && (
+                            <div className="flex flex-col gap-2">
+                                <p className="text-xs font-medium text-muted-foreground">
+                                    Skill and pay rate for this job
+                                </p>
+                                <div className="grid gap-2 lg:grid-cols-2">
+                                    {selectedEmployees.map((employee) => (
+                                        <CrewAssignmentRow
+                                            key={employee.uuid}
+                                            employee={employee}
+                                            value={
+                                                data.crew_assignments[
+                                                    employee.uuid ?? ""
+                                                ] ?? {
+                                                    skill_id: null,
+                                                    employee_pay_rate_id: null,
+                                                }
+                                            }
+                                            error={
+                                                (errors as Record<string, string>)[
+                                                    `crew_assignments.${employee.uuid}.employee_pay_rate_id`
+                                                ]
+                                            }
+                                            onChange={(value) =>
+                                                setData("crew_assignments", {
+                                                    ...data.crew_assignments,
+                                                    [employee.uuid ?? ""]: value,
+                                                })
                                             }
                                         />
                                     ))}

@@ -1,0 +1,88 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Facades\DB;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
+        DB::statement('DROP VIEW IF EXISTS user_access_overview');
+
+        DB::statement(<<<'SQL'
+CREATE VIEW user_access_overview AS
+SELECT
+    u.id,
+    u.uuid,
+    u.name,
+    u.email,
+    u.job_title,
+    u.role,
+    u.avatar,
+    u.account_status,
+    u.email_verified_at,
+    u.last_login_at,
+    u.last_seen_at,
+    u.created_at,
+    u.level_id,
+    l.uuid AS level_uuid,
+    l.name AS level,
+    l.permissions AS level_permissions,
+    l.mobile_permissions AS level_mobile_permissions,
+    (u.is_master = 1 OR l.name IN ('Super Admin', 'Superadmin', 'Super-Admin')) AS is_super_admin,
+    (l.name = 'Client') AS is_client,
+    (l.name = 'Foreman') AS is_foreman,
+    (l.name = 'Employee') AS is_employee,
+    (u.level_id IS NOT NULL AND l.name <> 'Client') AS is_team_member,
+    e.id AS employee_id,
+    e.uuid AS employee_uuid,
+    e.job_title AS employee_job_title,
+    e.department AS employee_department,
+    e.employment_status AS employee_status,
+    (
+        SELECT JSON_ARRAYAGG(JSON_OBJECT(
+            'id', p.id,
+            'uuid', p.uuid,
+            'project_number', p.project_number,
+            'name', p.name,
+            'is_owner', pcu.is_owner = 1
+        ))
+        FROM project_client_users pcu
+        JOIN projects p ON p.id = pcu.project_id
+        WHERE pcu.user_id = u.id
+    ) AS client_projects,
+    (SELECT COUNT(*) FROM project_client_users pcu WHERE pcu.user_id = u.id) AS client_projects_count,
+    (
+        SELECT JSON_ARRAYAGG(JSON_OBJECT(
+            'id', ws.id,
+            'uuid', ws.uuid,
+            'project_id', ws.project_id,
+            'project_name', p.name,
+            'starts_on', ws.starts_on,
+            'ends_on', ws.ends_on,
+            'status', ws.status
+        ))
+        FROM employee_work_schedules ws
+        JOIN projects p ON p.id = ws.project_id
+        WHERE ws.foreman_user_id = u.id
+    ) AS foreman_schedules,
+    (SELECT COUNT(*) FROM employee_work_schedules ws WHERE ws.foreman_user_id = u.id) AS foreman_schedules_count
+FROM users u
+LEFT JOIN user_levels l ON l.id = u.level_id
+LEFT JOIN employees e ON e.user_id = u.id AND e.deleted_at IS NULL
+WHERE u.deleted_at IS NULL
+ORDER BY u.id
+SQL);
+    }
+
+    public function down(): void
+    {
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement('DROP VIEW IF EXISTS user_access_overview');
+        }
+    }
+};

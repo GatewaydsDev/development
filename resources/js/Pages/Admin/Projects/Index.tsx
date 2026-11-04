@@ -91,6 +91,7 @@ export default function Index({
     const canViewBids = Boolean(auth.can?.viewBids);
     const canViewQuotations = Boolean(auth.can?.viewQuotations);
     const canViewTakeoffs = Boolean(auth.can?.viewTakeoffs);
+    const canViewSchedules = Boolean(auth.can?.viewEmployees);
     const [search, setSearch] = useState(filters.search ?? '');
     const [status, setStatus] = useState(filters.status ?? '');
     const highlightedProjectUuid = filters.highlight ?? null;
@@ -281,7 +282,7 @@ export default function Index({
                                 >
                                     <div>Project</div>
                                     <div>Contractors</div>
-                                    <div>Quotation, bid, takeoff</div>
+                                    <div>Quotation, bid, takeoff, schedule</div>
                                     <div>Bid scope</div>
                                     <div>Status</div>
                                     <div>Priority</div>
@@ -317,6 +318,11 @@ export default function Index({
                                                 <DirectoryFieldLabel hideFrom="xl">
                                                     Contractors
                                                 </DirectoryFieldLabel>
+                                                {project.companies?.length ? (
+                                                    <p className="mb-2 truncate font-medium text-foreground">
+                                                        {project.companies.map((company) => company.name).join(', ')}
+                                                    </p>
+                                                ) : null}
                                                 {project.contractors?.length ? (
                                                     <div className="flex flex-col gap-3">
                                                         {project.contractors.map(
@@ -347,7 +353,7 @@ export default function Index({
                                             </div>
                                             <div className="flex min-w-0 flex-col gap-2">
                                                 <DirectoryFieldLabel hideFrom="xl">
-                                                    Quotation, bid, takeoff
+                                                    Quotation, bid, takeoff, schedule
                                                 </DirectoryFieldLabel>
                                                 <LinkedRecord
                                                     label="Quotation"
@@ -381,6 +387,21 @@ export default function Index({
                                                             : null
                                                     }
                                                     className="border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100"
+                                                />
+                                                <LinkedRecord
+                                                    label="Schedule"
+                                                    name={
+                                                        project.work_schedule
+                                                            ? `${project.work_schedule.starts_on ?? '—'} → ${project.work_schedule.ends_on ?? '—'} · ${project.work_schedule.employees_count} crew${project.work_schedule.schedules_count > 1 ? ` · latest of ${project.work_schedule.schedules_count}` : ''}`
+                                                            : null
+                                                    }
+                                                    status={project.work_schedule?.status_label}
+                                                    href={
+                                                        canViewSchedules && project.work_schedule
+                                                            ? route('admin.employee-schedules.edit', project.work_schedule.uuid)
+                                                            : null
+                                                    }
+                                                    className="border-emerald-200 bg-emerald-50 text-emerald-950 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-100"
                                                 />
                                             </div>
                                             <div className="min-w-0">

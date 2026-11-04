@@ -199,6 +199,16 @@ return [
             'group' => 'Employees',
             'description' => 'Open the employees and attendance pages. Foremen only see the employees designated to them.',
         ],
+        'view-client-portal' => [
+            'name' => 'Open the client portal',
+            'group' => 'Client portal',
+            'description' => 'See the status, crew, progress and photos of the projects shared with the signed-in client.',
+        ],
+        'manage-client-team' => [
+            'name' => 'Manage the client company team',
+            'group' => 'Client portal',
+            'description' => 'Add, remove and set the project access of other people in the same client company.',
+        ],
         'view-my-schedule' => [
             'name' => 'See my work schedule',
             'group' => 'Employees',
@@ -395,6 +405,15 @@ return [
             'manage-profile',
             'view-employees',
             'view-my-schedule',
+        ],
+        UserLevel::CLIENT => [
+            'manage-profile',
+            'view-client-portal',
+        ],
+        UserLevel::CLIENT_MANAGER => [
+            'manage-profile',
+            'view-client-portal',
+            'manage-client-team',
         ],
         UserLevel::EMPLOYEE => [
             'view-dashboard',

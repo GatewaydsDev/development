@@ -14,6 +14,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@/Components/ui/card';
+import { PresenceWatcher } from '@/Components/PresenceWatcher';
 import { useProjectListRefresh } from '@/hooks/useProjectListRefresh';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { cn } from '@/lib/utils';
@@ -42,6 +43,7 @@ type DashboardProps = {
         activeProjects: number;
     } | null;
     emailActivity?: EmailActivity;
+    canWatchPresence?: boolean;
 };
 
 function formatChartTotal(items: BarChartItem[], money: boolean): string {
@@ -130,6 +132,7 @@ export default function Dashboard({
     quotationListVersion = null,
     stats,
     emailActivity,
+    canWatchPresence = false,
 }: DashboardProps) {
     const { auth } = usePage<PageProps>().props;
     const can = auth.can ?? {};
@@ -184,6 +187,8 @@ export default function Dashboard({
                         </Badge>
                     )}
                 </div>
+
+                {canWatchPresence && <PresenceWatcher />}
 
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                     {showGraphics && charts && (
