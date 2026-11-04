@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\PresenceController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BidController;
 use App\Http\Controllers\Api\ClientPortalController;
@@ -7,11 +8,11 @@ use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\EmployeeAttendanceController;
 use App\Http\Controllers\Api\EmployeeController;
 use App\Http\Controllers\Api\EmployeeWorkdayController;
+use App\Http\Controllers\Api\EmployeeWorkScheduleController;
 use App\Http\Controllers\Api\ForemanDailyTaskController;
 use App\Http\Controllers\Api\ForemanJobProgressController;
 use App\Http\Controllers\Api\ForemanScheduleController;
-use App\Http\Controllers\Api\EmployeeWorkScheduleController;
-use App\Http\Controllers\Admin\PresenceController;
+use App\Http\Controllers\Api\JobProgressOverviewController;
 use App\Http\Controllers\Api\LoginLogController;
 use App\Http\Controllers\Api\PasskeyController;
 use App\Http\Controllers\Api\ProjectController;
@@ -62,6 +63,11 @@ Route::middleware('auth:sanctum')->get('/dashboard', [DashboardController::class
 
 Route::middleware('auth:sanctum')->get('/me/work-schedule', [ForemanScheduleController::class, 'show']);
 Route::middleware('auth:sanctum')->get('/me/job-progress', [ForemanJobProgressController::class, 'index']);
+
+Route::middleware('auth:sanctum')->prefix('job-progress')->group(function () {
+    Route::get('/', [JobProgressOverviewController::class, 'index']);
+    Route::get('/{schedule}', [JobProgressOverviewController::class, 'show']);
+});
 
 Route::middleware('auth:sanctum')->prefix('me/daily-tasks')->group(function () {
     Route::get('/', [ForemanDailyTaskController::class, 'index']);
