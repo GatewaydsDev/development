@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\DailyTaskPhoto;
 use App\Models\EmployeeAttendanceDay;
-use App\Models\EmployeePayRate;
 use App\Models\EmployeeWorkSchedule;
 use App\Models\Project;
 use App\Models\User;
@@ -57,6 +56,8 @@ class ClientPortalController extends Controller
         $progress = ProjectProgress::for($project);
         $progress['schedules'] = $this->withToday($progress['schedules']);
 
+        $progress['attendance_summary'] = $this->attendanceSummary($progress['schedules']);
+
         return response()->json([
             'project' => [
                 ...$this->summary($project),
@@ -69,7 +70,8 @@ class ClientPortalController extends Controller
     }
 
     /**
-     * Adds today's rate and hours to each crew member (matched by name within a schedule).
+     * Adds today's attendance and the work history to each crew member (matched by name within a schedule).
+     * Pay rates are intentionally left out: clients must not see them.
      *
      * @param  list<array<string, mixed>>  $schedules
      * @return list<array<string, mixed>>
@@ -80,31 +82,85 @@ class ClientPortalController extends Controller
 
         return array_map(function (array $schedule) use ($today): array {
             $model = EmployeeWorkSchedule::query()->where('uuid', $schedule['uuid'])->first();
-            $days = $model
+            $byName = $model
                 ? EmployeeAttendanceDay::query()
                     ->where('employee_work_schedule_id', $model->id)
-                    ->whereDate('work_date', $today)
                     ->with('week.employee')
+                    ->orderByDesc('work_date')
                     ->get()
-                    ->keyBy(fn ($day) => $day->week?->employee?->fullName())
+                    ->groupBy(fn ($day) => $day->week?->employee?->fullName())
                 : collect();
 
-            $schedule['crew'] = array_map(function (array $member) use ($days): array {
-                $day = $days->get($member['name']);
-                $type = $day?->rate_type;
+            $schedule['crew'] = array_map(function (array $member) use ($byName, $today): array {
+                $days = $byName->get($member['name'], collect());
+                $day = $days->first(fn ($d) => $d->work_date->toDateString() === $today);
 
-                $member['rate'] = $day ? (
-                    ($type === EmployeePayRate::RATE_CUSTOM ? ($day->custom_rate_type ?: 'Custom') : ucfirst(str_replace('_', ' ', $type)))
-                    .' · $'.number_format((float) $day->amount, 2)
-                ) : null;
-                $member['hours_today'] = $day?->hours !== null ? (float) $day->hours : null;
                 $member['worked_today'] = $day?->worked;
+                $member['history'] = $days->map(fn ($d): array => [
+                    'date' => $d->work_date->toDateString(),
+                    'hours' => $d->hours !== null ? (float) $d->hours : null,
+                    'worked' => (bool) $d->worked,
+                ])->values()->all();
 
                 return $member;
             }, $schedule['crew']);
 
             return $schedule;
         }, $schedules);
+    }
+
+    /**
+     * Counts the distinct days with work on the project, plus recorded hours, across the crew history. Never includes pay rates or costs.
+     *
+     * @param  list<array<string, mixed>>  $schedules
+     * @return array<string, mixed>
+     */
+    private function attendanceSummary(array $schedules): array
+    {
+        $people = [];
+        $dates = [];
+
+        foreach ($schedules as $schedule) {
+            $seen = [];
+
+            foreach ($schedule['crew'] as $member) {
+                if (isset($seen[$member['name']])) {
+                    continue;
+                }
+                $seen[$member['name']] = true;
+
+                foreach ($member['history'] as $day) {
+                    if (! $day['worked']) {
+                        continue;
+                    }
+
+                    $dates[$day['date']]['people'][$member['name']] = true;
+                    $dates[$day['date']]['hours'] = ($dates[$day['date']]['hours'] ?? 0) + ($day['hours'] ?? 0);
+                    $entry = &$people[$member['name']];
+                    $entry ??= ['name' => $member['name'], 'days' => 0, 'hours' => 0.0];
+                    $entry['days']++;
+                    $entry['hours'] += $day['hours'] ?? 0;
+                    unset($entry);
+                }
+            }
+        }
+
+        $people = array_values($people);
+
+        return [
+            'total_days' => count($dates),
+            'total_hours' => array_sum(array_column($people, 'hours')),
+            'people' => $people,
+            'days' => collect($dates)
+                ->map(fn (array $d, string $date): array => [
+                    'date' => $date,
+                    'people' => array_keys($d['people']),
+                    'hours' => $d['hours'],
+                ])
+                ->sortByDesc('date')
+                ->values()
+                ->all(),
+        ];
     }
 
     public function photo(Request $request, DailyTaskPhoto $photo): StreamedResponse

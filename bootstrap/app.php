@@ -28,6 +28,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withSchedule(function (Schedule $schedule): void {
         $schedule->command('user-activities:archive')->daily();
+        $schedule->command('mail:deliver-notifications')->everyMinute()->withoutOverlapping();
         $schedule->command('project-control:deliver-reminders')->everyMinute()->withoutOverlapping();
         $schedule->command('contact-directory:deliver-follow-up-reminders')->everyMinute()->withoutOverlapping();
     })
