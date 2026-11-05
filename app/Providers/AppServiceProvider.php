@@ -14,11 +14,10 @@ use App\Models\Project;
 use App\Models\Quotation;
 use App\Models\Skill;
 use App\Models\User;
-use App\Models\UserLoginLog;
-use App\Support\LoginAudit;
-use App\Support\LoginDevice;
 use App\Models\UserActivity;
 use App\Models\UserLevel;
+use App\Models\UserLoginLog;
+use App\Models\UserPresenceDevice;
 use App\Observers\AuditModelObserver;
 use App\Observers\BidObserver;
 use App\Observers\EmployeeObserver;
@@ -27,6 +26,8 @@ use App\Observers\QuotationObserver;
 use App\Observers\SkillObserver;
 use App\Services\UserActivityLogger;
 use App\Support\DocumentAppearance;
+use App\Support\LoginAudit;
+use App\Support\LoginDevice;
 use App\Support\TakeoffAccess;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
@@ -93,6 +94,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(Logout::class, function (Logout $event): void {
             if ($event->user instanceof User) {
                 $event->user->forceFill(['last_logout_at' => now()])->saveQuietly();
+                UserPresenceDevice::markLoggedOut($event->user, LoginDevice::detect(request(), $event->guard));
                 LoginAudit::record($event->user, UserLoginLog::LOGOUT, request(), $event->guard);
             }
         });

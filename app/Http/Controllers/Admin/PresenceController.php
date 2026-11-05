@@ -7,6 +7,8 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 class PresenceController extends Controller
 {
@@ -24,24 +26,29 @@ class PresenceController extends Controller
         abort_unless($request->user()?->isSuperAdmin(), 403);
 
         $users = User::query()
-            ->with('level:id,name')
+            ->with(['level:id,name', 'presenceDevices'])
             ->orderBy('name')
             ->get(['id', 'name', 'level_id', 'last_login_at', 'last_seen_at', 'last_seen_device', 'last_login_device', 'last_logout_at'])
             ->map(function (User $user): array {
-                $status = $this->status($user);
+                $sessions = $this->sessions($user);
+                $status = $this->bestStatus($sessions);
+                $active = $sessions->where('status', '!=', 'offline')->values();
 
                 return [
                     'id' => $user->id,
                     'name' => $user->name,
                     'level' => $user->level?->name,
                     'status' => $status,
-                    'device' => $status === 'offline' ? null : ($user->last_seen_device ?? $user->last_login_device),
+                    'device' => $active->first()['device'] ?? null,
+                    'devices' => $active->all(),
                     'last_seen_at' => $user->last_seen_at?->toIso8601String(),
                     'last_logout_at' => $user->last_logout_at?->toIso8601String(),
                 ];
             });
 
-        $active = $users->where('status', '!=', 'offline');
+        $deviceCount = fn (string $device): int => $users->sum(
+            fn (array $user): int => collect($user['devices'])->where('device', $device)->count(),
+        );
 
         return response()->json([
             'users' => $users->sortBy([['status', 'asc'], ['name', 'asc']])->values(),
@@ -51,19 +58,54 @@ class PresenceController extends Controller
                 'offline' => $users->where('status', 'offline')->count(),
             ],
             'devices' => [
-                'website' => $active->where('device', 'website')->count(),
-                'mobile' => $active->where('device', 'mobile')->count(),
-                'tablet' => $active->where('device', 'tablet')->count(),
+                'website' => $deviceCount('website'),
+                'mobile' => $deviceCount('mobile'),
+                'tablet' => $deviceCount('tablet'),
             ],
             'generated_at' => now()->toIso8601String(),
         ]);
     }
 
-    private function status(User $user): string
+    /**
+     * One entry per device the user has been seen on. Users without device rows yet fall back to
+     * the single last-seen device stored on the user.
+     *
+     * @return Collection<int, array{device: string, status: string, last_seen_at: string|null}>
+     */
+    private function sessions(User $user): Collection
     {
-        $seen = $user->last_seen_at;
+        if ($user->presenceDevices->isNotEmpty()) {
+            return $user->presenceDevices->map(fn ($row): array => [
+                'device' => $row->device,
+                'status' => $this->statusFor($row->last_seen_at, $row->logged_out_at),
+                'last_seen_at' => $row->last_seen_at?->toIso8601String(),
+            ])->values();
+        }
 
-        if ($seen === null || ($user->last_logout_at !== null && $user->last_logout_at >= $seen)) {
+        if ($user->last_seen_at === null) {
+            return collect();
+        }
+
+        return collect([[
+            'device' => $user->last_seen_device ?? $user->last_login_device ?? 'website',
+            'status' => $this->statusFor($user->last_seen_at, $user->last_logout_at),
+            'last_seen_at' => $user->last_seen_at->toIso8601String(),
+        ]]);
+    }
+
+    /** @param Collection<int, array{status: string}> $sessions */
+    private function bestStatus(Collection $sessions): string
+    {
+        return match (true) {
+            $sessions->contains('status', 'online') => 'online',
+            $sessions->contains('status', 'away') => 'away',
+            default => 'offline',
+        };
+    }
+
+    private function statusFor(?Carbon $seen, ?Carbon $loggedOut): string
+    {
+        if ($seen === null || ($loggedOut !== null && $loggedOut >= $seen)) {
             return 'offline';
         }
 

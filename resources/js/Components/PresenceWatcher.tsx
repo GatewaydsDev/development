@@ -24,6 +24,7 @@ type PresenceUser = {
     level: string | null;
     status: Status;
     device: Device | null;
+    devices: { device: Device; status: Status; last_seen_at: string | null }[];
     last_seen_at: string | null;
     last_logout_at: string | null;
 };
@@ -259,9 +260,6 @@ export function PresenceWatcher() {
                         <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                             {presence.users.map((user) => {
                                 const style = statusStyle[user.status];
-                                const Icon = user.device
-                                    ? deviceMeta[user.device].Icon
-                                    : null;
 
                                 return (
                                     <li
@@ -295,14 +293,31 @@ export function PresenceWatcher() {
                                                     : `${style.label.toLowerCase()} · ${ago(user.last_seen_at)}`}
                                             </p>
                                         </div>
-                                        {Icon && (
-                                            <Icon
-                                                className="size-4 shrink-0 text-muted-foreground"
-                                                aria-label={
-                                                    user.device ?? undefined
-                                                }
-                                            />
-                                        )}
+                                        <div className="flex shrink-0 items-center gap-1.5">
+                                            {user.devices.map((session) => {
+                                                const { Icon, label } =
+                                                    deviceMeta[session.device];
+
+                                                return (
+                                                    <span
+                                                        key={session.device}
+                                                        title={`${label} · ${ago(session.last_seen_at)}`}
+                                                        className="flex items-center"
+                                                    >
+                                                        <Icon
+                                                            className={cn(
+                                                                "size-4",
+                                                                session.status ===
+                                                                    "online"
+                                                                    ? "text-emerald-500"
+                                                                    : "text-muted-foreground",
+                                                            )}
+                                                            aria-label={label}
+                                                        />
+                                                    </span>
+                                                );
+                                            })}
+                                        </div>
                                     </li>
                                 );
                             })}

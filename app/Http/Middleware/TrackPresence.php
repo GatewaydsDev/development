@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\User;
+use App\Models\UserPresenceDevice;
 use App\Support\LoginDevice;
 use Closure;
 use Illuminate\Http\Request;
@@ -17,11 +18,17 @@ class TrackPresence
         $guard = $request->bearerToken() ? 'sanctum' : null;
         $user = $guard ? $request->user('sanctum') : $request->user();
 
-        if ($user instanceof User && $this->isStale($user)) {
-            $user->forceFill([
-                'last_seen_at' => now(),
-                'last_seen_device' => LoginDevice::detect($request, $guard),
-            ])->saveQuietly();
+        if ($user instanceof User) {
+            $device = LoginDevice::detect($request, $guard);
+
+            UserPresenceDevice::touchFor($user, $device);
+
+            if ($this->isStale($user)) {
+                $user->forceFill([
+                    'last_seen_at' => now(),
+                    'last_seen_device' => $device,
+                ])->saveQuietly();
+            }
         }
 
         return $response;

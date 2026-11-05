@@ -191,6 +191,11 @@ class User extends Authenticatable implements WebAuthnAuthenticatable
         return $this->belongsTo(Language::class, 'language_id');
     }
 
+    public function presenceDevices(): HasMany
+    {
+        return $this->hasMany(UserPresenceDevice::class);
+    }
+
     public function level(): BelongsTo
     {
         return $this->belongsTo(UserLevel::class);

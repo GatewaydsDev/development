@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Support\PasswordResetLink;
 use App\Models\User;
 use App\Models\UserLoginLog;
+use App\Models\UserPresenceDevice;
 use App\Support\LoginAudit;
+use App\Support\LoginDevice;
+use App\Support\PasswordResetLink;
 use App\Support\RegistrationAccess;
 use App\Support\UserPrivileges;
 use Illuminate\Auth\Events\Lockout;
@@ -99,6 +101,7 @@ class AuthController extends Controller
         $user = $request->user();
         if ($user instanceof User) {
             $user->forceFill(['last_logout_at' => now()])->saveQuietly();
+            UserPresenceDevice::markLoggedOut($user, LoginDevice::detect($request, 'sanctum'));
             LoginAudit::record($user, UserLoginLog::LOGOUT, $request, 'sanctum');
         }
 

@@ -2,6 +2,8 @@
 
 use App\Models\User;
 use App\Models\UserLevel;
+use App\Models\UserLoginLog;
+use App\Models\UserPresenceDevice;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -269,7 +271,7 @@ test('logins and logouts are stored with device and location', function () {
 
     $this->post(route('logout'));
 
-    $logs = \App\Models\UserLoginLog::query()->where('user_id', $user->id)->orderBy('id')->get();
+    $logs = UserLoginLog::query()->where('user_id', $user->id)->orderBy('id')->get();
 
     expect($logs->pluck('event')->all())->toBe(['login', 'logout'])
         ->and($logs->first()->device_type)->toBe('mobile')
@@ -304,4 +306,38 @@ test('light surfaces can be chosen and set their accent', function () {
 
     $this->actingAs($user)->patch(route('appearance.update'), ['surface' => 'ivory'])->assertSessionHasNoErrors();
     expect($user->fresh()->dashboard_surface)->toBe('ivory')->and($user->fresh()->dashboard_theme)->toBe('amber');
+});
+
+test('live presence shows a user on every device they are signed in on', function () {
+    $superLevel = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $admin = User::factory()->create(['level_id' => $superLevel->id]);
+    $worker = User::factory()->create();
+
+    foreach (['mobile', 'tablet', 'website'] as $device) {
+        UserPresenceDevice::create(['user_id' => $worker->id, 'device' => $device, 'last_seen_at' => now()]);
+    }
+
+    $response = $this->actingAs($admin)->getJson(route('presence.index'))->assertOk();
+
+    $row = collect($response->json('users'))->firstWhere('id', $worker->id);
+    expect(collect($row['devices'])->pluck('device')->sort()->values()->all())->toBe(['mobile', 'tablet', 'website'])
+        ->and($response->json('devices.mobile'))->toBe(1)
+        ->and($response->json('devices.tablet'))->toBe(1)
+        ->and($response->json('devices.website'))->toBe(1);
+
+    UserPresenceDevice::markLoggedOut($worker, 'tablet');
+    UserPresenceDevice::query()->where('device', 'tablet')->update(['logged_out_at' => now()->addSecond()]);
+
+    $response = $this->actingAs($admin)->getJson(route('presence.index'));
+    expect($response->json('devices.tablet'))->toBe(0)
+        ->and($response->json('devices.mobile'))->toBe(1);
+});
+
+test('the presence middleware records each device separately', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->withHeaders(['X-Device-Type' => 'mobile'])->post(route('presence.ping'));
+    $this->actingAs($user)->withHeaders(['X-Device-Type' => 'tablet'])->post(route('presence.ping'));
+
+    expect(UserPresenceDevice::query()->where('user_id', $user->id)->pluck('device')->sort()->values()->all())->toBe(['mobile', 'tablet']);
 });
