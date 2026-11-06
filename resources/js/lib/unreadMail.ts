@@ -21,12 +21,25 @@ const acknowledgedIds = new Set<string>();
 const listeners = new Set<(count: number) => void>();
 const errorListeners = new Set<(failing: boolean) => void>();
 let failing = false;
+let unreadMessageIds: string[] = [];
+const messageIdListeners = new Set<(ids: string[]) => void>();
 
 function setFailing(next: boolean): void {
     if (failing !== next) {
         failing = next;
         errorListeners.forEach((listener) => listener(failing));
     }
+}
+
+function setUnreadMessageIds(messages: UnreadMessage[]): void {
+    const next = messages.map((message) => message.id);
+
+    if (next.length === unreadMessageIds.length && next.every((id, index) => id === unreadMessageIds[index])) {
+        return;
+    }
+
+    unreadMessageIds = next;
+    messageIdListeners.forEach((listener) => listener(unreadMessageIds));
 }
 
 function audioContextConstructor(): typeof AudioContext | null {
@@ -177,6 +190,7 @@ async function refreshUnreadMail(): Promise<void> {
 
         setFailing(data.error === true);
         announceNewMail(messages);
+        setUnreadMessageIds(messages);
         applyServerCount(Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0);
     } catch {
         // Keep the last count when Microsoft 365 does not answer.
@@ -313,4 +327,19 @@ export function useUnreadMail(): number {
     }, []);
 
     return count;
+}
+
+export function useUnreadMailMessageIds(): string[] {
+    const [ids, setIds] = useState(unreadMessageIds);
+
+    useEffect(() => {
+        messageIdListeners.add(setIds);
+        setIds(unreadMessageIds);
+
+        return () => {
+            messageIdListeners.delete(setIds);
+        };
+    }, []);
+
+    return ids;
 }

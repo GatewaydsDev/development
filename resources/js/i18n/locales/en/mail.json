@@ -105,6 +105,7 @@
   "sentNotice": "Microsoft 365 accepted the message for sending.",
   "newEmail": "New email",
   "openEmail": "Open",
+  "dismissIncomingAlerts": "Dismiss current alerts",
   "deviceNotifications": "Device notifications",
   "turnOnDeviceNotifications": "Turn on email notifications for this device, including when the website is closed",
   "turnOffDeviceNotifications": "Turn off notifications for this device",
