@@ -543,7 +543,7 @@ export default function Index({
                                                     className={cn(
                                                         'relative min-w-0 rounded-md border',
                                                         folder !== 'sent' && !item.is_read
-                                                            ? 'border-red-500/40 bg-red-500/5'
+                                                            ? 'border-sky-400/70 bg-sky-100/70 dark:border-sky-700 dark:bg-sky-950/45'
                                                             : 'border-border',
                                                     )}
                                                 >
@@ -570,7 +570,7 @@ export default function Index({
                                                         ) : item.is_read ? (
                                                             <MailOpenIcon className="size-3.5 shrink-0 text-emerald-600" />
                                                         ) : (
-                                                            <MailIcon className="size-3.5 shrink-0 text-red-600" />
+                                                            <MailIcon className="size-3.5 shrink-0 text-sky-700 dark:text-sky-300" />
                                                         )}
                                                         <span className={folder !== 'sent' && !item.is_read ? 'font-semibold' : 'font-medium'}>
                                                             {item.subject || t('noSubject')}
