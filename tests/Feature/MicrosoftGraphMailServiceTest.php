@@ -162,6 +162,41 @@ test('microsoft graph tokens are cached and refreshed after they are rejected', 
     Http::assertSent(fn ($request) => $request->hasHeader('Authorization', 'Bearer second-token'));
 });
 
+test('mailbox read status filters are sent to microsoft graph', function () {
+    Http::fake(function ($request) {
+        if (str_contains($request->url(), 'login.microsoftonline.com')) {
+            return Http::response([
+                'access_token' => 'graph-token',
+                'expires_in' => 3600,
+            ]);
+        }
+
+        return Http::response(['value' => []]);
+    });
+
+    $mail = app(MicrosoftGraphMailService::class);
+    $mail->listFolder('sales@gateway-ds.com', 'inbox', status: 'unread');
+    $mail->listFolder('sales@gateway-ds.com', 'inbox', status: 'read');
+    $mail->listFolder('sales@gateway-ds.com', 'sent', status: 'unread');
+
+    $filters = collect(Http::recorded())
+        ->map(function (array $pair): ?string {
+            if (! str_contains($pair[0]->url(), 'graph.microsoft.com')) {
+                return null;
+            }
+
+            parse_str((string) parse_url($pair[0]->url(), PHP_URL_QUERY), $query);
+
+            return $query['$filter'] ?? null;
+        })
+        ->filter()
+        ->values();
+
+    expect($filters)->toHaveCount(2)
+        ->and($filters[0])->toContain('isRead eq false')
+        ->and($filters[1])->toContain('isRead eq true');
+});
+
 test('a super admin sends mail with that persons microsoft credentials', function () {
     $level = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
     $admin = User::factory()->create([

@@ -131,9 +131,13 @@ class MicrosoftGraphMailService
     /**
      * @return array{messages: list<array<string, mixed>>, nextLink: ?string}
      */
-    public function listFolder(string $mailbox, string $folder, ?string $nextUrl = null): array
-    {
-        $url = $nextUrl ?? $this->folderUrl($mailbox, $folder);
+    public function listFolder(
+        string $mailbox,
+        string $folder,
+        ?string $nextUrl = null,
+        string $status = 'all',
+    ): array {
+        $url = $nextUrl ?? $this->folderUrl($mailbox, $folder, $status);
 
         if ($nextUrl !== null) {
             app(MicrosoftGraphPageCursor::class)->assertLink($nextUrl, $mailbox, $folder);
@@ -1078,7 +1082,7 @@ class MicrosoftGraphMailService
         return trim($detail);
     }
 
-    private function folderUrl(string $mailbox, string $folder): string
+    private function folderUrl(string $mailbox, string $folder, string $status = 'all'): string
     {
         $graphFolder = match ($folder) {
             'sent' => 'sentitems',
@@ -1090,7 +1094,9 @@ class MicrosoftGraphMailService
             '$select' => 'id,subject,from,toRecipients,receivedDateTime,sentDateTime,bodyPreview,isRead,hasAttachments',
             '$top' => 25,
             '$orderby' => $order,
-        ]);
+        ] + ($folder === 'inbox' && in_array($status, ['read', 'unread'], true)
+            ? ['$filter' => 'receivedDateTime ge 1900-01-01T00:00:00Z and isRead eq '.($status === 'read' ? 'true' : 'false')]
+            : []));
 
         return $this->userUrl($mailbox)."/mailFolders/{$graphFolder}/messages?{$query}";
     }

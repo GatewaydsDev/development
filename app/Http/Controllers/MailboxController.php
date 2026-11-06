@@ -33,6 +33,7 @@ class MailboxController extends Controller
         $user = $this->effectiveUser($request->user());
         $mailbox = $this->mailbox($user?->microsoft_mailbox);
         $folder = $this->folder($request->query('folder'));
+        $status = $this->status($folder, $request->query('status'));
         $messageToken = $request->query('message');
 
         $savedRecipients = $this->savedRecipients($user);
@@ -41,16 +42,25 @@ class MailboxController extends Controller
             abort_if(is_string($messageToken) && $messageToken !== '', 403);
             abort_if(is_string($request->query('cursor')) && $request->query('cursor') !== '', 403);
 
-            return Inertia::render('Email/Index', $this->props(null, $folder, [], null, null, null, $savedRecipients));
+            return Inertia::render('Email/Index', $this->props(
+                null,
+                $folder,
+                [],
+                null,
+                null,
+                null,
+                $savedRecipients,
+                status: $status,
+            ));
         }
 
         $cursor = $request->query('cursor');
 
         try {
             $nextUrl = is_string($cursor) && $cursor !== ''
-                ? $cursors->resolve($user->id, $mailbox, $folder, $cursor)
+                ? $cursors->resolve($user->id, $mailbox, $folder, $cursor, $status)
                 : null;
-            $page = $graph->actingAs($user)->listFolder($mailbox, $folder, $nextUrl);
+            $page = $graph->actingAs($user)->listFolder($mailbox, $folder, $nextUrl, $status);
         } catch (MicrosoftGraphException $exception) {
             return Inertia::render('Email/Index', $this->props(
                 $mailbox,
@@ -62,6 +72,7 @@ class MailboxController extends Controller
                 $savedRecipients,
                 $user,
                 $this->unreadTotal($user, $mailbox, $graph, $states),
+                status: $status,
             ));
         }
 
@@ -101,7 +112,7 @@ class MailboxController extends Controller
         }
 
         try {
-            $nextCursor = $cursors->store($user->id, $mailbox, $folder, $page['nextLink']);
+            $nextCursor = $cursors->store($user->id, $mailbox, $folder, $page['nextLink'], $status);
         } catch (MicrosoftGraphException $exception) {
             report($exception);
             $nextCursor = null;
@@ -118,6 +129,7 @@ class MailboxController extends Controller
             $user,
             $this->unreadFloor($folder, $messages, $this->unreadTotal($user, $mailbox, $graph, $states)),
             $folder === 'inbox' ? $this->unreadSnapshot($user, $mailbox, $graph, $states)['blocked'] : 0,
+            $status,
         ));
     }
 
@@ -475,6 +487,15 @@ class MailboxController extends Controller
         return in_array($folder, ['sent', 'archive'], true) ? $folder : 'inbox';
     }
 
+    private function status(string $folder, mixed $status): string
+    {
+        if ($folder !== 'inbox') {
+            return 'all';
+        }
+
+        return in_array($status, ['read', 'unread'], true) ? $status : 'all';
+    }
+
     /**
      * @param  list<array<string, mixed>>  $messages
      * @param  array<string, mixed>|null  $message
@@ -492,10 +513,12 @@ class MailboxController extends Controller
         ?User $user = null,
         int $unreadCount = 0,
         int $blockedCount = 0,
+        string $status = 'all',
     ): array {
         return [
             'mailbox' => $mailbox,
             'folder' => $folder,
+            'status' => $status,
             'messages' => $messages,
             'nextCursor' => $nextCursor,
             'message' => $message,

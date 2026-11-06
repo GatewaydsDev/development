@@ -8,8 +8,13 @@ use Illuminate\Support\Str;
 
 class MicrosoftGraphPageCursor
 {
-    public function store(int $userId, string $mailbox, string $folder, ?string $nextLink): ?string
-    {
+    public function store(
+        int $userId,
+        string $mailbox,
+        string $folder,
+        ?string $nextLink,
+        string $status = 'all',
+    ): ?string {
         if ($nextLink === null || $nextLink === '') {
             return null;
         }
@@ -21,14 +26,20 @@ class MicrosoftGraphPageCursor
             'user_id' => $userId,
             'mailbox' => strtolower($mailbox),
             'folder' => $folder,
+            'status' => $status,
             'url' => $nextLink,
         ], now()->addMinutes(20));
 
         return $token;
     }
 
-    public function resolve(int $userId, string $mailbox, string $folder, string $token): string
-    {
+    public function resolve(
+        int $userId,
+        string $mailbox,
+        string $folder,
+        string $token,
+        string $status = 'all',
+    ): string {
         $payload = Cache::get($this->key($token));
 
         if (
@@ -36,6 +47,7 @@ class MicrosoftGraphPageCursor
             || ($payload['user_id'] ?? null) !== $userId
             || ($payload['mailbox'] ?? null) !== strtolower($mailbox)
             || ($payload['folder'] ?? null) !== $folder
+            || ($payload['status'] ?? 'all') !== $status
             || ! is_string($payload['url'] ?? null)
         ) {
             throw new MicrosoftGraphException('That mail page is no longer available. Refresh the folder and try again.');

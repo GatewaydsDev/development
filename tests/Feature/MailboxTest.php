@@ -714,6 +714,61 @@ test('incoming mail is shown as plain text and pagination stays on the graph mai
     Http::assertNotSent(fn ($request) => str_contains($request->url(), 'evil.example'));
 });
 
+test('inbox status filters use graph and stay bound to their pagination cursor', function () {
+    $user = mailboxUser();
+    $next = 'https://graph.microsoft.com/v1.0/users/'.rawurlencode('ricardo@gateway-ds.com').'/mailFolders/inbox/messages?$skiptoken=unread-page-2';
+    fakeMailboxGraph(['nextLink' => $next]);
+
+    $cursor = null;
+
+    $this->actingAs($user)
+        ->get(route('mailbox.index', ['status' => 'unread']))
+        ->assertOk()
+        ->assertInertia(function (Assert $page) use (&$cursor) {
+            $page->where('folder', 'inbox')
+                ->where('status', 'unread');
+
+            $cursor = $page->toArray()['props']['nextCursor'];
+        });
+
+    expect($cursor)->toBeString()->not->toBe('');
+
+    Http::assertSent(function ($request) {
+        if (! str_contains($request->url(), '/mailFolders/inbox/messages')) {
+            return false;
+        }
+
+        parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);
+
+        return str_contains((string) ($query['$filter'] ?? ''), 'isRead eq false');
+    });
+
+    $this->actingAs($user)
+        ->get(route('mailbox.index', ['cursor' => $cursor]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('status', 'all')
+            ->where('graphError', fn ($error) => is_string($error) && $error !== '')
+        );
+
+    $this->actingAs($user)
+        ->get(route('mailbox.index', ['status' => 'unread', 'cursor' => $cursor]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('status', 'unread'));
+
+    Http::assertSent(fn ($request) => $request->url() === $next);
+
+    $this->actingAs($user)
+        ->get(route('mailbox.index', ['status' => 'unexpected']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('status', 'all'));
+
+    $this->actingAs($user)
+        ->get(route('mailbox.index', ['folder' => 'sent', 'status' => 'read']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page->where('status', 'all'));
+});
+
 test('a message that cannot be opened leaves the rest of the folder on screen', function () {
     $user = mailboxUser();
     Cache::flush();

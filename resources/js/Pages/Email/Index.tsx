@@ -26,7 +26,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/Components/ui/dropdown-menu';
-import { ArchiveIcon, ArrowLeftIcon, DownloadIcon, ForwardIcon, MailIcon, MailOpenIcon, MoreVerticalIcon, PaperclipIcon, RefreshCwIcon, ReplyAllIcon, ReplyIcon, SendIcon, XIcon } from 'lucide-react';
+import { ArchiveIcon, ArrowLeftIcon, ChevronDownIcon, DownloadIcon, ForwardIcon, MailIcon, MailOpenIcon, MoreVerticalIcon, PaperclipIcon, RefreshCwIcon, ReplyAllIcon, ReplyIcon, SendIcon, XIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import MailSettings from '@/Pages/Email/MailSettings';
@@ -75,6 +75,7 @@ type AttachmentViewer = {
 type Props = {
     mailbox: string | null;
     folder: 'inbox' | 'sent' | 'archive';
+    status: 'all' | 'unread' | 'read';
     messages: MailSummary[];
     nextCursor: string | null;
     message: MailMessage | null;
@@ -289,6 +290,7 @@ const formatWhen = (value: string | null) => {
 export default function Index({
     mailbox,
     folder,
+    status,
     messages,
     nextCursor,
     message,
@@ -315,6 +317,7 @@ export default function Index({
     const [acting, setActing] = useState(false);
     const [viewer, setViewer] = useState<AttachmentViewer | null>(null);
     const [viewerFailed, setViewerFailed] = useState(false);
+    const [showBlocked, setShowBlocked] = useState(false);
 
     useEffect(() => {
         const visible =
@@ -335,9 +338,14 @@ export default function Index({
         }
     }, [folder, message, list]);
 
-    const folderHref = (nextFolder: 'inbox' | 'sent' | 'archive', cursor?: string | null) =>
+    const folderHref = (
+        nextFolder: 'inbox' | 'sent' | 'archive',
+        cursor?: string | null,
+        nextStatus: 'all' | 'unread' | 'read' = nextFolder === 'inbox' ? status : 'all',
+    ) =>
         route('mailbox.index', {
             folder: nextFolder,
+            ...(nextFolder === 'inbox' && nextStatus !== 'all' ? { status: nextStatus } : {}),
             ...(cursor ? { cursor } : {}),
         });
 
@@ -421,7 +429,7 @@ export default function Index({
                         <div ref={mailRef}>
                         <ResizableWorkspace id="email" sideDefault={384} className="items-start">
                         <div className="flex min-w-0 flex-col gap-4">
-                            <p className="text-sm text-muted-foreground">{t('received')}</p>
+                            <p className="hidden text-sm text-muted-foreground sm:block">{t('received')}</p>
                             {flash?.success ? (
                                 <p className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-800 dark:text-emerald-200">
                                     {flash.success}
@@ -438,10 +446,27 @@ export default function Index({
                                 </div>
                             ) : null}
                             {folder === 'inbox' && blockedCount > 0 ? (
-                                <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-950 dark:text-amber-100">
-                                    <span className="font-medium">{blockedCount} blocked or undeliverable {blockedCount === 1 ? 'email is' : 'emails are'} hidden</span>{' '}
-                                    from this inbox (latest 100 messages checked).
-                                </p>
+                                <div>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="min-h-11 touch-manipulation border-amber-500/40 text-amber-950 dark:text-amber-100"
+                                        aria-expanded={showBlocked}
+                                        aria-controls="blocked-email-details"
+                                        onClick={() => setShowBlocked((open) => !open)}
+                                    >
+                                        {t('blockedEmails', { count: blockedCount })}
+                                        <ChevronDownIcon className={cn('size-4 transition-transform', showBlocked && 'rotate-180')} />
+                                    </Button>
+                                    {showBlocked ? (
+                                        <p
+                                            id="blocked-email-details"
+                                            className="mt-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-950 dark:text-amber-100"
+                                        >
+                                            {t('blockedExplanation', { count: blockedCount })}
+                                        </p>
+                                    ) : null}
+                                </div>
                             ) : null}
                             {graphError ? (
                                 <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -491,6 +516,22 @@ export default function Index({
                                 <Card className={message ? 'max-md:hidden border-sky-200 dark:border-sky-900' : 'border-sky-200 dark:border-sky-900'}>
                                     <CardHeader>
                                         <CardTitle>{folderTitle}</CardTitle>
+                                        {folder === 'inbox' ? (
+                                            <div className="grid grid-cols-3 gap-2 pt-1" aria-label={t('filterByStatus')}>
+                                                {(['all', 'unread', 'read'] as const).map((nextStatus) => (
+                                                    <Button
+                                                        key={nextStatus}
+                                                        className="min-h-11 touch-manipulation"
+                                                        variant={status === nextStatus ? 'default' : 'outline'}
+                                                        asChild
+                                                    >
+                                                        <Link href={folderHref('inbox', null, nextStatus)}>
+                                                            {t(nextStatus === 'all' ? 'allMessages' : nextStatus === 'unread' ? 'unreadMessage' : 'readMessage')}
+                                                        </Link>
+                                                    </Button>
+                                                ))}
+                                            </div>
+                                        ) : null}
                                     </CardHeader>
                                     <CardContent className="grid gap-2">
                                         {list.length === 0 ? (
@@ -518,6 +559,7 @@ export default function Index({
                                                 <Link
                                                     href={route('mailbox.index', {
                                                         folder,
+                                                        ...(folder === 'inbox' && status !== 'all' ? { status } : {}),
                                                         message: item.id,
                                                     })}
                                                     className="block min-h-11 min-w-0 rounded-md py-3 pe-12 ps-3 text-left touch-manipulation hover:bg-muted"

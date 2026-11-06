@@ -7,8 +7,9 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/Components/ui/alert-dialog';
-import { BellRingIcon, SmartphoneIcon } from 'lucide-react';
+import { BellIcon, BellRingIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 const publicKey = () => document.querySelector<HTMLMetaElement>('meta[name="vapid-public-key"]')?.content ?? '';
 
@@ -42,6 +43,7 @@ const isIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
 const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
 
 export default function PushNotificationButton() {
+    const { t } = useTranslation('mail');
     const [supported, setSupported] = useState(false);
     const [subscribed, setSubscribed] = useState(false);
     const [busy, setBusy] = useState(false);
@@ -64,19 +66,19 @@ export default function PushNotificationButton() {
 
     const enable = async () => {
         if (isIos() && !isStandalone()) {
-            setMessage('On iPhone, tap the Share button, choose "Add to Home Screen", then open Gateway from the Home Screen and tap this button again.');
+            setMessage(t('notificationIosHelp'));
 
             return;
         }
 
         if (!('PushManager' in window) || !('Notification' in window)) {
-            setMessage('This browser does not support push notifications.');
+            setMessage(t('notificationUnsupported'));
 
             return;
         }
 
         if ((await Notification.requestPermission()) !== 'granted') {
-            setMessage('Notifications are blocked. Allow them for this site in your browser or phone settings, then try again.');
+            setMessage(t('notificationBlocked'));
 
             return;
         }
@@ -92,7 +94,9 @@ export default function PushNotificationButton() {
             headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-XSRF-TOKEN': xsrf() },
         }).then((response) => response.json()).catch(() => ({ sent: 0, reason: 'Could not reach the server.' }));
 
-        setMessage(result.sent > 0 ? 'Notifications are on for this device. A test notification was just sent.' : `Notifications are on, but the test failed: ${result.reason}`);
+        setMessage(result.sent > 0
+            ? t('notificationEnabled')
+            : t('notificationTestFailed', { reason: result.reason }));
     };
 
     const disable = async () => {
@@ -105,7 +109,7 @@ export default function PushNotificationButton() {
         }
 
         setSubscribed(false);
-        setMessage('Notifications are off for this device.');
+        setMessage(t('notificationDisabled'));
     };
 
     const toggle = async () => {
@@ -114,7 +118,7 @@ export default function PushNotificationButton() {
         try {
             await (subscribed ? disable() : enable());
         } catch {
-            setMessage('Could not change notification settings. Please try again.');
+            setMessage(t('notificationChangeFailed'));
         } finally {
             setBusy(false);
         }
@@ -126,19 +130,19 @@ export default function PushNotificationButton() {
                 type="button"
                 disabled={busy}
                 onClick={toggle}
-                title={subscribed ? 'Phone notifications on (tap to turn off)' : 'Turn on phone notifications'}
-                aria-label={subscribed ? 'Turn off phone notifications' : 'Turn on phone notifications'}
+                title={subscribed ? t('turnOffDeviceNotifications') : t('turnOnDeviceNotifications')}
+                aria-label={subscribed ? t('turnOffDeviceNotifications') : t('turnOnDeviceNotifications')}
                 className={
                     'inline-flex size-9 items-center justify-center rounded-md border bg-background transition hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring ' +
                     (subscribed ? 'border-emerald-500/60 text-emerald-600' : 'border-border text-muted-foreground')
                 }
             >
-                {subscribed ? <BellRingIcon className="size-4" /> : <SmartphoneIcon className="size-4" />}
+                {subscribed ? <BellRingIcon className="size-4" /> : <BellIcon className="size-4" />}
             </button>
             <AlertDialog open={message !== null} onOpenChange={(open) => !open && setMessage(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Phone notifications</AlertDialogTitle>
+                        <AlertDialogTitle>{t('deviceNotifications')}</AlertDialogTitle>
                         <AlertDialogDescription>{message}</AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter><AlertDialogAction>OK</AlertDialogAction></AlertDialogFooter>
