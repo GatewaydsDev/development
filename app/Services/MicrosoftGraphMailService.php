@@ -623,6 +623,20 @@ class MicrosoftGraphMailService
         }
     }
 
+    public function setAllInboxRead(string $mailbox, bool $isRead): void
+    {
+        $url = 'https://graph.microsoft.com/beta/users/'.rawurlencode($mailbox)
+            .'/mailFolders/inbox/updateAllMessagesReadState';
+        $response = $this->graph('POST', $url, [
+            'isRead' => $isRead,
+            'suppressReadReceipts' => true,
+        ], false);
+
+        if ($response->failed()) {
+            throw new MicrosoftGraphException($this->failureMessage($response, false));
+        }
+    }
+
     public function moveMessage(string $mailbox, string $messageId, string $destination): void
     {
         $url = $this->userUrl($mailbox).'/messages/'.rawurlencode($messageId).'/move';

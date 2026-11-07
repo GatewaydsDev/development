@@ -202,6 +202,31 @@ class MailboxController extends Controller
         return back();
     }
 
+    public function updateAllStates(
+        Request $request,
+        MicrosoftGraphMailService $graph,
+        MailboxStateService $states,
+    ): RedirectResponse {
+        $user = $this->effectiveUser($request->user());
+        $mailbox = $this->mailbox($user?->microsoft_mailbox);
+        abort_unless($user instanceof User && $mailbox !== null, 403);
+
+        $request->validate([
+            'is_read' => ['required', 'boolean'],
+        ]);
+        $isRead = $request->boolean('is_read');
+
+        $states->markAllRead($user, $mailbox, $isRead, $graph->actingAs($user));
+        Cache::forget($this->unreadCacheKey($user, $mailbox));
+
+        return back()->with(
+            'success',
+            $isRead
+                ? 'Microsoft 365 is marking every inbox email as read.'
+                : 'Microsoft 365 is marking every inbox email as unread.',
+        );
+    }
+
     public function archive(
         Request $request,
         MicrosoftGraphMailService $graph,

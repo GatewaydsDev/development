@@ -6,6 +6,7 @@ import { usePage } from '@inertiajs/react';
 import { ArrowLeftIcon, CheckIcon, DownloadIcon, FileTextIcon, MessageCircleIcon, PaperclipIcon, SendIcon, UserPlusIcon, UsersIcon, XIcon } from 'lucide-react';
 import { setUnreadChat } from '@/lib/unreadChat';
 import { FormEvent, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 
 type ChatAttachment = {
@@ -173,6 +174,7 @@ export default function InternalChat() {
     const [error, setError] = useState<string | null>(null);
     const [viewer, setViewer] = useState<ChatAttachment | null>(null);
     const [besideFormActions, setBesideFormActions] = useState(false);
+    const [mobileNavSlot, setMobileNavSlot] = useState<HTMLElement | null>(null);
     const listRef = useRef<HTMLDivElement>(null);
     const fileRef = useRef<HTMLInputElement>(null);
     const knownLatest = useRef<number | null>(null);
@@ -182,6 +184,10 @@ export default function InternalChat() {
     openRef.current = open;
     personRef.current = person;
     groupRef.current = group;
+
+    useEffect(() => {
+        setMobileNavSlot(document.getElementById('mobile-chat-nav-slot'));
+    }, []);
 
     useEffect(() => {
         const sync = () => setBesideFormActions(Number(document.body.dataset.formActionFab || 0) > 0);
@@ -825,7 +831,7 @@ export default function InternalChat() {
                 type="button"
                 onClick={() => setOpen((value) => !value)}
                 aria-label={unread > 0 ? `Open internal chat, ${unread} new messages` : 'Open internal chat'}
-                className={`fixed z-40 flex size-14 items-center justify-center rounded-full bg-emerald-700 text-white shadow-lg shadow-emerald-950/20 hover:bg-emerald-800 ${besideFormActions ? 'bottom-[max(2.75rem,calc(env(safe-area-inset-bottom)+1.75rem))] end-[max(6.25rem,calc(env(safe-area-inset-right)+5.5rem))] sm:bottom-16 sm:end-[7.75rem] landscape:bottom-[2.4rem] landscape:end-[5.5rem]' : 'bottom-5 end-5'} ${unread > 0 ? 'ring-4 ring-red-500/40' : ''}`}
+                className={`fixed z-40 hidden size-14 items-center justify-center rounded-full bg-emerald-700 text-white shadow-lg shadow-emerald-950/20 hover:bg-emerald-800 lg:flex ${besideFormActions ? 'bottom-16 end-[7.75rem]' : 'bottom-5 end-5'} ${unread > 0 ? 'ring-4 ring-red-500/40' : ''}`}
             >
                 <MessageCircleIcon className="size-6" />
                 {unread > 0 ? (
@@ -834,6 +840,30 @@ export default function InternalChat() {
                     </span>
                 ) : null}
             </button>
+            {mobileNavSlot
+                ? createPortal(
+                    <button
+                        type="button"
+                        onClick={() => setOpen((value) => !value)}
+                        aria-label={unread > 0 ? `Open internal chat, ${unread} new messages` : 'Open internal chat'}
+                        aria-pressed={open}
+                        title="Internal chat"
+                        className={`relative inline-flex size-10 items-center justify-center rounded-md border transition focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background ${
+                            open
+                                ? 'border-emerald-700 bg-emerald-700 text-white'
+                                : 'border-border bg-background text-foreground hover:bg-muted'
+                        }`}
+                    >
+                        <MessageCircleIcon className="size-5" />
+                        {unread > 0 ? (
+                            <span className="absolute -end-1.5 -top-1.5 flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold leading-5 text-white">
+                                {unread > 99 ? '99+' : unread}
+                            </span>
+                        ) : null}
+                    </button>,
+                    mobileNavSlot,
+                )
+                : null}
             <Dialog open={viewer !== null} onClose={() => setViewer(null)} className="relative z-50">
                 <div className="fixed inset-0 bg-slate-950/70" aria-hidden="true" />
                 <div className="fixed inset-0 overflow-y-auto p-4">

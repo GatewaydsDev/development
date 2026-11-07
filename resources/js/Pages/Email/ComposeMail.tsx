@@ -895,8 +895,32 @@ export default function ComposeMail({
     };
 
     return (
-        <form onSubmit={submit} className="min-w-0">
-            <div className="min-w-0 overflow-hidden rounded-lg border border-emerald-200 bg-background dark:border-emerald-900">
+        <form
+            onSubmit={submit}
+            className="min-w-0 max-sm:fixed max-sm:inset-0 max-sm:z-50 max-sm:overflow-y-auto max-sm:bg-background max-sm:pb-[env(safe-area-inset-bottom)]"
+        >
+            <div className="sticky top-0 z-30 flex min-h-14 items-center justify-between gap-2 border-b border-border bg-background/95 px-2 backdrop-blur sm:hidden">
+                <button
+                    type="button"
+                    className="inline-flex size-11 items-center justify-center rounded-full text-muted-foreground touch-manipulation hover:bg-muted hover:text-foreground"
+                    aria-label={t('discard')}
+                    onClick={onDiscard}
+                >
+                    <XIcon className="size-5" />
+                </button>
+                <p className="min-w-0 flex-1 truncate text-center text-base font-semibold text-foreground">
+                    {t('newMessage')}
+                </p>
+                <Button
+                    type="submit"
+                    disabled={form.processing}
+                    className="min-h-10 shrink-0 bg-emerald-700 px-3 text-white hover:bg-emerald-800"
+                >
+                    <SendIcon className="size-4" />
+                    {form.processing ? t('sending') : t('send')}
+                </Button>
+            </div>
+            <div className="min-w-0 overflow-hidden rounded-lg border border-emerald-200 bg-background max-sm:rounded-none max-sm:border-0 dark:border-emerald-900">
             <input
                 ref={fileRef}
                 type="file"
@@ -1011,8 +1035,8 @@ export default function ComposeMail({
                 <InputError message={form.errors.subject} />
             </div>
 
-            <div className="border-b border-sky-200 bg-sky-50 dark:border-sky-900 dark:bg-sky-950/30">
-                <div role="tablist" aria-label={t('composeRibbon')} className="flex snap-x overflow-x-auto border-b border-sky-200 px-1 touch-pan-x dark:border-sky-900 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:px-2">
+            <div className="border-b border-sky-200 bg-sky-50 max-sm:sticky max-sm:top-14 max-sm:z-20 dark:border-sky-900 dark:bg-sky-950/30">
+                <div role="tablist" aria-label={t('composeRibbon')} className="grid grid-cols-4 border-b border-sky-200 px-1 dark:border-sky-900 sm:flex sm:snap-x sm:overflow-x-auto sm:touch-pan-x sm:px-2 sm:[-ms-overflow-style:none] sm:[scrollbar-width:none] sm:[&::-webkit-scrollbar]:hidden">
                     {ribbonTabs.map((tab) => (
                         <button
                             key={tab.id}
@@ -1020,7 +1044,7 @@ export default function ComposeMail({
                             role="tab"
                             aria-selected={ribbonTab === tab.id}
                             onClick={() => setRibbonTab(tab.id)}
-                            className={`h-10 shrink-0 snap-start border-b-2 px-2 text-xs font-medium sm:px-3 sm:text-sm ${
+                            className={`min-h-11 min-w-0 shrink-0 border-b-2 px-1 text-[11px] font-medium leading-tight sm:h-10 sm:snap-start sm:px-3 sm:text-sm ${
                                 ribbonTab === tab.id
                                     ? 'border-emerald-700 text-emerald-800 dark:border-emerald-300 dark:text-emerald-200'
                                     : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -1033,11 +1057,11 @@ export default function ComposeMail({
                 <div className="flex min-h-14 items-center gap-1 overflow-x-auto overscroll-x-contain px-2 py-1.5 touch-pan-x [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                     {ribbonTab === 'message' ? (
                         <>
-                            <Button type="submit" disabled={form.processing} className="h-10 shrink-0 bg-emerald-700 px-4 text-white hover:bg-emerald-800">
+                            <Button type="submit" disabled={form.processing} className="h-10 shrink-0 bg-emerald-700 px-4 text-white hover:bg-emerald-800 max-sm:hidden">
                                 <SendIcon className="size-4" />
                                 {form.processing ? t('sending') : t('send')}
                             </Button>
-                            <Button type="button" variant="outline" className="h-10 shrink-0" onClick={onDiscard}>
+                            <Button type="button" variant="outline" className="h-10 shrink-0 max-sm:hidden" onClick={onDiscard}>
                                 <XIcon className="size-4" />
                                 {t('discard')}
                             </Button>

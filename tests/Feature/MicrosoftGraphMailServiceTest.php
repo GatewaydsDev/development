@@ -197,6 +197,26 @@ test('mailbox read status filters are sent to microsoft graph', function () {
         ->and($filters[1])->toContain('isRead eq true');
 });
 
+test('all inbox messages can be marked read through microsoft graph', function () {
+    Http::fake([
+        'https://login.microsoftonline.com/*' => Http::response([
+            'access_token' => 'graph-token',
+            'expires_in' => 3600,
+        ]),
+        'https://graph.microsoft.com/*' => Http::response('', 202),
+    ]);
+
+    app(MicrosoftGraphMailService::class)
+        ->setAllInboxRead('sales@gateway-ds.com', true);
+
+    Http::assertSent(function ($request) {
+        return $request->method() === 'POST'
+            && $request->url() === 'https://graph.microsoft.com/beta/users/sales%40gateway-ds.com/mailFolders/inbox/updateAllMessagesReadState'
+            && $request['isRead'] === true
+            && $request['suppressReadReceipts'] === true;
+    });
+});
+
 test('a super admin sends mail with that persons microsoft credentials', function () {
     $level = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
     $admin = User::factory()->create([

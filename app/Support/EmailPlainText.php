@@ -13,8 +13,47 @@ class EmailPlainText
         if ($looksLikeHtml) {
             $text = preg_replace('/<(script|style)\b[^>]*>.*?<\/\1>/is', '', $text) ?? $text;
             $text = preg_replace('/<img\b[^>]*>/i', '', $text) ?? $text;
+            $text = preg_replace_callback(
+                '/<a\b[^>]*href=["\'](https?:\/\/[^"\']+)["\'][^>]*>(.*?)<\/a>/is',
+                static function (array $matches): string {
+                    $label = trim(strip_tags($matches[2]));
+                    $url = html_entity_decode($matches[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+                    return $label === '' || $label === $url ? $url : $label.' ('.$url.')';
+                },
+                $text,
+            ) ?? $text;
+            $text = preg_replace_callback(
+                '/<ol\b[^>]*>(.*?)<\/ol>/is',
+                static function (array $matches): string {
+                    $position = 0;
+
+                    return preg_replace_callback(
+                        '/<li\b[^>]*>(.*?)<\/li>/is',
+                        static function (array $item) use (&$position): string {
+                            $position++;
+
+                            return $position.'. '.$item[1]."\n";
+                        },
+                        $matches[1],
+                    ) ?? $matches[1];
+                },
+                $text,
+            ) ?? $text;
+            $text = preg_replace_callback(
+                '/<ul\b[^>]*>(.*?)<\/ul>/is',
+                static fn (array $matches): string => preg_replace_callback(
+                    '/<li\b[^>]*>(.*?)<\/li>/is',
+                    static fn (array $item): string => '• '.$item[1]."\n",
+                    $matches[1],
+                ) ?? $matches[1],
+                $text,
+            ) ?? $text;
+            $text = preg_replace('/<li\b[^>]*>/i', '• ', $text) ?? $text;
+            $text = preg_replace('/<h([1-6])\b[^>]*>/i', "\n### ", $text) ?? $text;
+            $text = preg_replace('/<blockquote\b[^>]*>/i', "\n> ", $text) ?? $text;
             $text = preg_replace('/<br\s*\/?>/i', "\n", $text) ?? $text;
-            $text = preg_replace('/<\/(p|div|tr|h[1-6]|li)>/i', "\n", $text) ?? $text;
+            $text = preg_replace('/<\/(p|div|tr|h[1-6]|li|blockquote)>/i', "\n", $text) ?? $text;
             $text = strip_tags($text);
             $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
         }

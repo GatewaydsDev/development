@@ -605,6 +605,7 @@ export default function Authenticated({
                             >
                                 <ZapIcon data-icon="inline-start" />
                             </Button>
+                            <div id="mobile-chat-nav-slot" className="contents" />
                             <UnreadMailButton />
                             <RevisionAssignmentsMenu />
                             <button

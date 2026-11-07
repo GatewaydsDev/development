@@ -2,6 +2,7 @@
 
 use App\Exceptions\MicrosoftGraphException;
 use App\Models\Employee;
+use App\Models\MailMessageState;
 use App\Models\MailSavedRecipient;
 use App\Models\User;
 use App\Models\UserActivity;
@@ -1131,6 +1132,40 @@ test('a message can be marked unread and archived', function () {
     Http::assertSent(fn ($request) => $request->method() === 'POST'
         && str_contains($request->url(), '/move')
         && ($request['destinationId'] ?? null) === 'archive');
+});
+
+test('every inbox message can be marked read while archived state is retained', function () {
+    $user = mailboxUser();
+    fakeMailboxGraph();
+
+    MailMessageState::query()->create([
+        'user_id' => $user->id,
+        'mailbox' => 'ricardo@gateway-ds.com',
+        'message_key' => hash('sha256', 'inbox-message'),
+        'message_id' => 'inbox-message',
+        'is_read' => false,
+        'is_archived' => false,
+    ]);
+    $archived = MailMessageState::query()->create([
+        'user_id' => $user->id,
+        'mailbox' => 'ricardo@gateway-ds.com',
+        'message_key' => hash('sha256', 'archived-message'),
+        'message_id' => 'archived-message',
+        'is_read' => false,
+        'is_archived' => true,
+    ]);
+
+    $this->actingAs($user)
+        ->patch(route('mailbox.state.all'), ['is_read' => 1])
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Microsoft 365 is marking every inbox email as read.');
+
+    expect(MailMessageState::query()->whereKey($archived->id)->exists())->toBeTrue()
+        ->and(MailMessageState::query()->where('message_id', 'inbox-message')->exists())->toBeFalse();
+
+    Http::assertSent(fn ($request) => $request->method() === 'POST'
+        && str_contains($request->url(), '/mailFolders/inbox/updateAllMessagesReadState')
+        && $request['isRead'] === true);
 });
 
 test('outgoing mail writes the signature into the message and does not attach a logo', function () {

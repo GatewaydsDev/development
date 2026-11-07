@@ -24,8 +24,8 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/Components/ui/dropdown-menu';
-import { ArchiveIcon, ArrowLeftIcon, ChevronDownIcon, DownloadIcon, ForwardIcon, MailIcon, MailOpenIcon, MoreVerticalIcon, PaperclipIcon, RefreshCwIcon, ReplyAllIcon, ReplyIcon, SendIcon, XIcon } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { ArchiveIcon, ArrowLeftIcon, ChevronDownIcon, DownloadIcon, ForwardIcon, MailIcon, MailOpenIcon, MoreVerticalIcon, PaperclipIcon, RefreshCwIcon, ReplyAllIcon, ReplyIcon, SendIcon, SquarePenIcon, XIcon } from 'lucide-react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { emptyStationery, type MailStationeryData } from '@/Pages/Email/mailLayouts';
 
@@ -289,6 +289,142 @@ type ConversationSection = {
     depth: number;
 };
 
+function InlineMessageText({ text }: { text: string }) {
+    const parts = text.split(/((?:https?:\/\/|www\.)[^\s<>()]+|[\w.+-]+@[\w.-]+\.[A-Za-z]{2,})/gi);
+
+    return parts.map((part, index) => {
+        if (/^(?:https?:\/\/|www\.)/i.test(part)) {
+            const trailing = part.match(/[),.;!?]+$/)?.[0] ?? '';
+            const cleanUrl = trailing === '' ? part : part.slice(0, -trailing.length);
+            const href = /^www\./i.test(cleanUrl) ? `https://${cleanUrl}` : cleanUrl;
+
+            return (
+                <span key={`${part}-${index}`}>
+                    <a className="font-medium text-sky-700 underline underline-offset-2 dark:text-sky-300" href={href} target="_blank" rel="noopener noreferrer">
+                        {cleanUrl}
+                    </a>
+                    {trailing}
+                </span>
+            );
+        }
+
+        if (/^[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}$/i.test(part)) {
+            return (
+                <a key={`${part}-${index}`} className="font-medium text-sky-700 underline underline-offset-2 dark:text-sky-300" href={`mailto:${part}`}>
+                    {part}
+                </a>
+            );
+        }
+
+        return part;
+    });
+}
+
+function FormattedMessageText({ text }: { text: string }) {
+    const lines = text.replace(/\r\n?/g, '\n').split('\n');
+    const blocks: ReactNode[] = [];
+    let index = 0;
+
+    while (index < lines.length) {
+        const line = lines[index].trim();
+
+        if (line === '') {
+            index += 1;
+            continue;
+        }
+
+        const heading = line.match(/^(#{1,3})\s+(.+)$/);
+        if (heading) {
+            blocks.push(
+                <h3 key={`heading-${index}`} className="text-base font-semibold leading-6 text-foreground">
+                    <InlineMessageText text={heading[2]} />
+                </h3>,
+            );
+            index += 1;
+            continue;
+        }
+
+        if (/^\s*[-*•]\s+/.test(lines[index])) {
+            const items: string[] = [];
+
+            while (index < lines.length && /^\s*[-*•]\s+/.test(lines[index])) {
+                items.push(lines[index].replace(/^\s*[-*•]\s+/, '').trim());
+                index += 1;
+            }
+
+            blocks.push(
+                <ul key={`bullets-${index}`} className="ms-5 list-disc space-y-1 text-sm leading-6 text-foreground marker:text-emerald-700">
+                    {items.map((item, itemIndex) => <li key={`${item}-${itemIndex}`}><InlineMessageText text={item} /></li>)}
+                </ul>,
+            );
+            continue;
+        }
+
+        if (/^\s*\d+[.)]\s+/.test(lines[index])) {
+            const items: string[] = [];
+
+            while (index < lines.length && /^\s*\d+[.)]\s+/.test(lines[index])) {
+                items.push(lines[index].replace(/^\s*\d+[.)]\s+/, '').trim());
+                index += 1;
+            }
+
+            blocks.push(
+                <ol key={`numbers-${index}`} className="ms-5 list-decimal space-y-1 text-sm leading-6 text-foreground marker:font-semibold marker:text-emerald-700">
+                    {items.map((item, itemIndex) => <li key={`${item}-${itemIndex}`}><InlineMessageText text={item} /></li>)}
+                </ol>,
+            );
+            continue;
+        }
+
+        if (/^\s*>/.test(lines[index])) {
+            const quoted: string[] = [];
+
+            while (index < lines.length && /^\s*>/.test(lines[index])) {
+                quoted.push(lines[index].replace(/^\s*>\s?/, ''));
+                index += 1;
+            }
+
+            blocks.push(
+                <blockquote key={`quote-${index}`} className="border-s-4 border-sky-400 bg-sky-500/5 px-3 py-2 text-sm italic leading-6 text-muted-foreground">
+                    {quoted.map((quotedLine, quotedIndex) => (
+                        <span key={`${quotedLine}-${quotedIndex}`}>
+                            <InlineMessageText text={quotedLine} />
+                            {quotedIndex < quoted.length - 1 ? <br /> : null}
+                        </span>
+                    ))}
+                </blockquote>,
+            );
+            continue;
+        }
+
+        const paragraph: string[] = [];
+        while (
+            index < lines.length
+            && lines[index].trim() !== ''
+            && !/^(#{1,3})\s+/.test(lines[index].trim())
+            && !/^\s*[-*•]\s+/.test(lines[index])
+            && !/^\s*\d+[.)]\s+/.test(lines[index])
+            && !/^\s*>/.test(lines[index])
+        ) {
+            paragraph.push(lines[index].trim());
+            index += 1;
+        }
+
+        blocks.push(
+            <p key={`paragraph-${index}`} className="text-sm leading-6 text-foreground">
+                {paragraph.map((paragraphLine, paragraphIndex) => (
+                    <span key={`${paragraphLine}-${paragraphIndex}`}>
+                        <InlineMessageText text={paragraphLine} />
+                        {paragraphIndex < paragraph.length - 1 ? <br /> : null}
+                    </span>
+                ))}
+            </p>,
+        );
+    }
+
+    return <div className="grid gap-3 break-words [overflow-wrap:anywhere]">{blocks}</div>;
+}
+
 function isConversationBoundary(lines: string[], index: number): boolean {
     const line = lines[index]?.trim() ?? '';
     const startsQuotedBlock = /^>{1,}\s*/.test(line)
@@ -357,11 +493,7 @@ function ConversationBody({ body }: { body: string }) {
     ];
 
     if (sections.length === 1) {
-        return (
-            <pre className="max-w-full whitespace-pre-wrap break-words font-sans text-sm text-foreground [overflow-wrap:anywhere]">
-                {body}
-            </pre>
-        );
+        return <FormattedMessageText text={body} />;
     }
 
     return (
@@ -378,9 +510,7 @@ function ConversationBody({ body }: { body: string }) {
                               ? t('previousMessage')
                               : t('earlierMessage')}
                     </p>
-                    <pre className="max-w-full whitespace-pre-wrap break-words font-sans text-sm text-foreground [overflow-wrap:anywhere]">
-                        {section.text}
-                    </pre>
+                    <FormattedMessageText text={section.text} />
                 </section>
             ))}
         </div>
@@ -410,6 +540,7 @@ export default function Index({
     const [draft, setDraft] = useState<ComposeDraft | undefined>(undefined);
     const [draftKey, setDraftKey] = useState(0);
     const [acting, setActing] = useState(false);
+    const [bulkActing, setBulkActing] = useState(false);
     const [viewer, setViewer] = useState<AttachmentViewer | null>(null);
     const [viewerFailed, setViewerFailed] = useState(false);
     const [showBlocked, setShowBlocked] = useState(false);
@@ -476,6 +607,31 @@ export default function Index({
         );
     };
 
+    const changeAllRead = (isRead: boolean) => {
+        if (!isRead && !window.confirm(t('confirmMarkAllUnread'))) {
+            return;
+        }
+
+        setBulkActing(true);
+        router.patch(
+            route('mailbox.state.all'),
+            { is_read: isRead ? 1 : 0 },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    if (isRead) {
+                        setUnreadMail(0);
+                    }
+
+                    window.setTimeout(() => {
+                        router.reload({ only: ['messages', 'unreadCount'] });
+                    }, 2000);
+                },
+                onFinish: () => setBulkActing(false),
+            },
+        );
+    };
+
     const changeArchive = (messageId: string, archived: boolean) => {
         setActing(true);
         router.post(
@@ -511,8 +667,8 @@ export default function Index({
         >
             <Head title={t('title')} />
 
-            <div className="py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:py-8">
-                <div className="flex w-full min-w-0 flex-col gap-4 px-3 sm:gap-6 sm:px-6 lg:px-8">
+            <div className="py-3 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:py-8 sm:pb-8">
+                <div className="flex w-full min-w-0 flex-col gap-3 px-0 sm:gap-6 sm:px-6 lg:px-8">
                     {mailbox === null ? (
                         <Card className="border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30">
                             <CardHeader>
@@ -521,7 +677,7 @@ export default function Index({
                             </CardHeader>
                         </Card>
                     ) : (
-                        <div className="flex min-w-0 flex-col gap-4">
+                        <div className="flex min-w-0 flex-col gap-3 sm:gap-4">
                             <p className="hidden text-sm text-muted-foreground sm:block">{t('received')}</p>
                             {flash?.success ? (
                                 <p className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-800 dark:text-emerald-200">
@@ -567,7 +723,7 @@ export default function Index({
                                 </p>
                             ) : null}
 
-                            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+                            <div className="hidden flex-wrap items-center gap-2 sm:flex">
                                 <Button className="min-h-11 touch-manipulation" variant={folder === 'inbox' ? 'default' : 'outline'} asChild>
                                     <Link href={folderHref('inbox')}>{t('inbox')}</Link>
                                 </Button>
@@ -605,28 +761,52 @@ export default function Index({
                             ) : null}
 
                             {showCompose ? null : (
-                            <div className="grid min-w-0 gap-4 md:grid-cols-[minmax(14rem,20rem)_minmax(0,1fr)]">
-                                <Card className={message ? 'max-md:hidden border-sky-200 dark:border-sky-900' : 'border-sky-200 dark:border-sky-900'}>
-                                    <CardHeader>
+                            <div className="grid min-w-0 gap-3 md:grid-cols-[minmax(14rem,20rem)_minmax(0,1fr)] md:gap-4">
+                                <Card className={cn('max-sm:rounded-none max-sm:border-x-0', message ? 'max-md:hidden border-sky-200 dark:border-sky-900' : 'border-sky-200 dark:border-sky-900')}>
+                                    <CardHeader className="p-3 sm:p-6">
                                         <CardTitle>{folderTitle}</CardTitle>
                                         {folder === 'inbox' ? (
-                                            <div className="grid grid-cols-3 gap-2 pt-1" aria-label={t('filterByStatus')}>
-                                                {(['all', 'unread', 'read'] as const).map((nextStatus) => (
-                                                    <Button
-                                                        key={nextStatus}
-                                                        className="min-h-11 touch-manipulation"
-                                                        variant={status === nextStatus ? 'default' : 'outline'}
-                                                        asChild
-                                                    >
-                                                        <Link href={folderHref('inbox', null, nextStatus)}>
-                                                            {t(nextStatus === 'all' ? 'allMessages' : nextStatus === 'unread' ? 'unreadMessage' : 'readMessage')}
-                                                        </Link>
-                                                    </Button>
-                                                ))}
+                                            <div className="grid gap-2 pt-1">
+                                                <div className="grid grid-cols-3 gap-1.5 sm:gap-2" aria-label={t('filterByStatus')}>
+                                                    {(['all', 'unread', 'read'] as const).map((nextStatus) => (
+                                                        <Button
+                                                            key={nextStatus}
+                                                            className="min-h-10 touch-manipulation px-2 text-xs sm:min-h-11 sm:text-sm"
+                                                            variant={status === nextStatus ? 'default' : 'outline'}
+                                                            asChild
+                                                        >
+                                                            <Link href={folderHref('inbox', null, nextStatus)}>
+                                                                {t(nextStatus === 'all' ? 'allMessages' : nextStatus === 'unread' ? 'unreadMessage' : 'readMessage')}
+                                                            </Link>
+                                                        </Button>
+                                                    ))}
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
+                                                <Button
+                                                    type="button"
+                                                    className="min-h-10 touch-manipulation px-2 text-xs sm:text-sm"
+                                                    variant="outline"
+                                                    disabled={bulkActing}
+                                                    onClick={() => changeAllRead(true)}
+                                                >
+                                                    <MailOpenIcon className="size-4" />
+                                                    {t('markAllRead')}
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    className="min-h-10 touch-manipulation px-2 text-xs sm:text-sm"
+                                                    variant="outline"
+                                                    disabled={bulkActing}
+                                                    onClick={() => changeAllRead(false)}
+                                                >
+                                                    <MailIcon className="size-4" />
+                                                    {t('markAllUnread')}
+                                                </Button>
+                                                </div>
                                             </div>
                                         ) : null}
                                     </CardHeader>
-                                    <CardContent className="grid gap-2">
+                                    <CardContent className="grid gap-2 p-2 pt-0 sm:p-6 sm:pt-0">
                                         {list.length === 0 ? (
                                             <p className="text-sm text-muted-foreground">{t('empty')}</p>
                                         ) : (
@@ -655,7 +835,7 @@ export default function Index({
                                                         ...(folder === 'inbox' && status !== 'all' ? { status } : {}),
                                                         message: item.id,
                                                     })}
-                                                    className="block min-h-11 min-w-0 rounded-md py-3 pe-12 ps-3 text-left touch-manipulation hover:bg-muted"
+                                                    className="block min-h-11 min-w-0 rounded-md py-3.5 pe-12 ps-3 text-left touch-manipulation hover:bg-muted sm:py-3"
                                                 >
                                                     <p className="flex items-center gap-2 break-words text-foreground">
                                                         {folder === 'sent' ? (
@@ -698,10 +878,10 @@ export default function Index({
                                     </CardContent>
                                 </Card>
 
-                                <Card className={message ? 'border-emerald-200 dark:border-emerald-900' : 'max-md:hidden border-emerald-200 dark:border-emerald-900'}>
-                                    <CardHeader>
+                                <Card className={cn('max-sm:rounded-none max-sm:border-x-0', message ? 'border-emerald-200 dark:border-emerald-900' : 'max-md:hidden border-emerald-200 dark:border-emerald-900')}>
+                                    <CardHeader className="p-3 sm:p-6">
                                         {message ? (
-                                            <Button variant="outline" className="mb-2 min-h-11 w-fit touch-manipulation md:hidden" asChild>
+                                            <Button variant="ghost" className="mb-1 min-h-11 w-fit touch-manipulation px-2 md:hidden" asChild>
                                                 <Link href={folderHref(folder)}>
                                                     <ArrowLeftIcon className="size-4" />
                                                     {t('back')}
@@ -737,14 +917,14 @@ export default function Index({
                                             </CardDescription>
                                         ) : null}
                                     </CardHeader>
-                                    <CardContent>
+                                    <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
                                         {message ? (
                                             <div className="grid gap-3">
-                                                <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+                                                <div className="grid grid-cols-3 gap-1.5 sm:flex sm:flex-wrap sm:gap-2">
                                                     <Button
                                                         type="button"
                                                         variant="outline"
-                                                        className="min-h-11 touch-manipulation"
+                                                        className="min-h-11 touch-manipulation px-2 text-xs sm:text-sm"
                                                         onClick={() =>
                                                             openCompose({
                                                                 to: mailboxAddress(message.from),
@@ -764,7 +944,7 @@ export default function Index({
                                                     <Button
                                                         type="button"
                                                         variant="outline"
-                                                        className="min-h-11 touch-manipulation"
+                                                        className="min-h-11 touch-manipulation px-2 text-xs sm:text-sm"
                                                         onClick={() => {
                                                             const recipients = replyAllAddresses(message, mailbox ?? '');
 
@@ -786,7 +966,7 @@ export default function Index({
                                                     <Button
                                                         type="button"
                                                         variant="outline"
-                                                        className="min-h-11 touch-manipulation"
+                                                        className="min-h-11 touch-manipulation px-2 text-xs sm:text-sm"
                                                         onClick={() =>
                                                             openCompose({
                                                                 to: '',
@@ -930,6 +1110,65 @@ export default function Index({
                     )}
                 </div>
             </div>
+            {mailbox ? (
+                <nav
+                    aria-label={t('mailbox')}
+                    className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-border bg-background/95 px-1 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_-16px_rgba(15,23,42,0.55)] backdrop-blur sm:hidden"
+                >
+                    <Link
+                        href={folderHref('inbox')}
+                        className={cn(
+                            'relative flex min-h-16 flex-col items-center justify-center gap-1 rounded-md px-1 text-[11px] font-medium touch-manipulation',
+                            folder === 'inbox' ? 'text-emerald-700 dark:text-emerald-300' : 'text-muted-foreground',
+                        )}
+                    >
+                        <MailIcon className="size-5" />
+                        {t('inbox')}
+                        {unreadCount > 0 ? (
+                            <span className="absolute end-2 top-1.5 min-w-5 rounded-full bg-sky-600 px-1 text-center text-[10px] leading-5 text-white">
+                                {unreadCount > 99 ? '99+' : unreadCount}
+                            </span>
+                        ) : null}
+                    </Link>
+                    <Link
+                        href={folderHref('sent')}
+                        className={cn(
+                            'flex min-h-16 flex-col items-center justify-center gap-1 rounded-md px-1 text-[11px] font-medium touch-manipulation',
+                            folder === 'sent' ? 'text-emerald-700 dark:text-emerald-300' : 'text-muted-foreground',
+                        )}
+                    >
+                        <SendIcon className="size-5" />
+                        {t('sent')}
+                    </Link>
+                    <button
+                        type="button"
+                        className="flex min-h-16 flex-col items-center justify-center gap-1 rounded-md bg-emerald-700 px-1 text-[11px] font-semibold text-white touch-manipulation"
+                        onClick={() => openCompose()}
+                    >
+                        <SquarePenIcon className="size-5" />
+                        {t('compose')}
+                    </button>
+                    <Link
+                        href={folderHref('archive')}
+                        className={cn(
+                            'flex min-h-16 flex-col items-center justify-center gap-1 rounded-md px-1 text-[11px] font-medium touch-manipulation',
+                            folder === 'archive' ? 'text-emerald-700 dark:text-emerald-300' : 'text-muted-foreground',
+                        )}
+                    >
+                        <ArchiveIcon className="size-5" />
+                        {t('archive')}
+                    </Link>
+                    <button
+                        type="button"
+                        className="flex min-h-16 flex-col items-center justify-center gap-1 rounded-md px-1 text-[11px] font-medium text-muted-foreground touch-manipulation"
+                        onClick={refresh}
+                        disabled={refreshing}
+                    >
+                        <RefreshCwIcon className={refreshing ? 'size-5 animate-spin' : 'size-5'} />
+                        {t('refresh')}
+                    </button>
+                </nav>
+            ) : null}
             <Dialog open={viewer !== null} onClose={() => setViewer(null)} className="relative z-50">
                 <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm" aria-hidden="true" />
                 <div className="fixed inset-0 overflow-y-auto p-3 sm:p-6">
