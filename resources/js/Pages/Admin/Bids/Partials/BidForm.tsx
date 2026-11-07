@@ -690,7 +690,7 @@ export default function BidForm({
     }, []);
 
     return (
-        <form onSubmit={submit} className="flex w-full min-w-0 max-w-full flex-col gap-6 pr-4 pb-28 sm:pr-20 lg:pb-6">
+        <form onSubmit={submit} className="flex w-full min-w-0 max-w-full flex-col gap-4 pb-28 sm:gap-6 lg:pr-20 lg:pb-6">
             <div data-section-stack className="z-30 bg-background pb-2 md:sticky md:top-[4.75rem] lg:top-[7.25rem]">
             <nav
                 aria-label="Bid sections"
@@ -725,12 +725,12 @@ export default function BidForm({
             </nav>
             </div>
 
-            <Card id="bid-details" className="scroll-mt-48 overflow-visible shadow-sm border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30">
-                <CardHeader>
+            <Card id="bid-details" className="scroll-mt-48 overflow-visible border-sky-200 bg-sky-50/70 shadow-sm max-sm:rounded-none max-sm:border-x-0 dark:border-sky-900 dark:bg-sky-950/30">
+                <CardHeader className="p-3 sm:p-6">
                     <CardTitle>{title}</CardTitle>
                     <CardDescription>{description}</CardDescription>
                 </CardHeader>
-                <CardContent className="flex flex-col gap-6">
+                <CardContent className="flex flex-col gap-4 p-3 pt-0 sm:gap-6 sm:p-6 sm:pt-0">
                     <div className="flex flex-col gap-5">
                         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
                             <div className="flex min-w-0 flex-col gap-2">
@@ -942,7 +942,7 @@ export default function BidForm({
                 </CardContent>
             </Card>
 
-            <section id="bid-revisions" className="scroll-mt-48 flex flex-col gap-4 rounded-xl border p-5 border-violet-200 bg-violet-50/70 dark:border-violet-900 dark:bg-violet-950/30">
+            <section id="bid-revisions" className="scroll-mt-48 flex flex-col gap-4 rounded-xl border border-violet-200 bg-violet-50/70 p-3 dark:border-violet-900 dark:bg-violet-950/30 sm:p-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h3 className="text-base font-semibold text-foreground">
@@ -955,6 +955,7 @@ export default function BidForm({
                     <Button
                         type="button"
                         variant="create"
+                        className="min-h-11 w-full sm:w-auto"
                         onClick={() =>
                             appendRevision(
                                 blankRevision(
@@ -1065,6 +1066,7 @@ export default function BidForm({
                                         <Button
                                             type="button"
                                             variant="destructive"
+                                            className="min-h-11 w-full sm:w-auto"
                                             aria-label={`Remove revision ${index + 1}`}
                                             onClick={() =>
                                                 setPendingDelete({
@@ -1086,7 +1088,7 @@ export default function BidForm({
                 )}
             </section>
 
-            <section id="bid-stages" className="scroll-mt-48 flex flex-col gap-4 rounded-xl border p-5 border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30">
+            <section id="bid-stages" className="scroll-mt-48 flex flex-col gap-4 rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 dark:border-emerald-900 dark:bg-emerald-950/30 sm:p-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h3 className="text-base font-semibold text-foreground">
@@ -1100,6 +1102,7 @@ export default function BidForm({
                     <Button
                         type="button"
                         variant="create"
+                        className="min-h-11 w-full sm:w-auto"
                         onClick={() => appendStage(blankStage())}
                     >
                         <PlusIcon className="size-4" />
@@ -1188,6 +1191,7 @@ export default function BidForm({
                                     <Button
                                         type="button"
                                         variant="destructive"
+                                        className="min-h-11 w-full sm:w-auto"
                                         aria-label={`Remove stage ${index + 1}`}
                                         onClick={() => {
                                             const stageName =

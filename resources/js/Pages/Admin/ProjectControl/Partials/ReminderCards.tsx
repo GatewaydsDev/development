@@ -72,8 +72,31 @@ export default function ReminderCards({ reminders }: { reminders: ScheduledRemin
     }
 
     return (
-        <div className="overflow-x-auto rounded-lg border border-rose-200 bg-background dark:border-rose-900">
-            <table className="min-w-full text-sm">
+        <div className="rounded-lg border border-rose-200 bg-background dark:border-rose-900">
+            <div className="grid gap-2 p-2 md:hidden">
+                {reminders.map((reminder) => (
+                    <article key={reminder.uuid} className="rounded-lg border border-border bg-card p-3 shadow-sm">
+                        <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                                <p className="text-sm font-semibold text-foreground">{displayReminderWhen(reminder.remind_at)}</p>
+                                <p className="mt-1 break-words text-xs text-muted-foreground">{reminder.user_name || '—'}</p>
+                            </div>
+                            <ReminderStatus status={reminder.status} />
+                        </div>
+                        <p className="mt-2 break-words text-sm text-foreground">{reminder.note?.trim() || 'No note'}</p>
+                        <p className="mt-2 break-all text-xs text-muted-foreground">{reminderHow(reminder)}</p>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="mt-3 min-h-11 w-full"
+                            onClick={() => router.delete(route('admin.project-control.reminders.destroy', reminder.uuid), { preserveScroll: true })}
+                        >
+                            Remove
+                        </Button>
+                    </article>
+                ))}
+            </div>
+            <table className="hidden min-w-full text-sm md:table">
                 <thead>
                     <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
                         <th className="px-3 py-2 font-medium">When</th>

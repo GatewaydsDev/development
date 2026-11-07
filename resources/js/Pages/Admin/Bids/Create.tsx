@@ -39,16 +39,17 @@ export default function Create({ options, importQuotationUuid = null }: CreatePr
                             Add bid
                         </h2>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
                         <Button
                             type="button"
                             variant="outline"
+                            className="min-h-11 w-full sm:w-auto"
                             onClick={() => window.print()}
                         >
                             <PrinterIcon className="size-4" />
                             Print
                         </Button>
-                        <Button variant="outline" asChild>
+                        <Button variant="outline" className="min-h-11 w-full sm:w-auto" asChild>
                             <Link href={route('admin.bids.index')}>
                                 <ArrowLeftIcon className="size-4" />
                                 Back to bids
@@ -60,8 +61,8 @@ export default function Create({ options, importQuotationUuid = null }: CreatePr
         >
             <Head title="Add Bid" />
 
-            <div className="py-6 sm:py-8">
-                <div className="w-full px-4 sm:px-6 lg:px-8">
+            <div className="py-3 sm:py-8">
+                <div className="w-full px-3 sm:px-6 lg:px-8">
                     <BidForm
                         action={route('admin.bids.store')}
                         title="Bid information"

@@ -703,7 +703,36 @@ export default function ProjectControlForm({
                 className="border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30"
                 onAdd={() => openBid(null)}
             >
-                <div className="mt-4 overflow-x-auto rounded-lg border border-amber-200 bg-background dark:border-amber-900">
+                <div className="mt-4 grid gap-2 md:hidden">
+                    {form.data.bids.length === 0 ? (
+                        <p className="rounded-lg border border-amber-200 bg-background p-4 text-sm text-muted-foreground">
+                            No revisions yet. Use Add to enter the first one.
+                        </p>
+                    ) : form.data.bids.map((bid, index) => {
+                        const error = lineError('bids', index);
+
+                        return (
+                            <button
+                                key={`${bid.name}-${index}`}
+                                type="button"
+                                className={`w-full rounded-lg border bg-background p-3 text-left shadow-sm ${error ? 'border-red-400 bg-red-50 dark:bg-red-950/30' : 'border-amber-200'}`}
+                                onClick={() => openBid(index)}
+                            >
+                                <span className="flex items-start justify-between gap-2">
+                                    <span className="min-w-0 break-words font-semibold text-foreground">{cell(bid.name)}</span>
+                                    <span className="shrink-0 text-sm font-semibold text-foreground">{amount(bid.amount) === null ? '—' : money(amount(bid.amount))}</span>
+                                </span>
+                                <span className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                                    <span>{displayDate(bid.quoted_on)}</span>
+                                    <span className="text-right">{standingLabel(bid.standing)}</span>
+                                </span>
+                                {bid.document ? <span className="mt-2 block break-words text-sm text-muted-foreground">{bid.document}</span> : null}
+                                {error ? <span className="mt-2 block text-sm text-destructive">{error}</span> : null}
+                            </button>
+                        );
+                    })}
+                </div>
+                <div className="mt-4 hidden overflow-x-auto rounded-lg border border-amber-200 bg-background md:block dark:border-amber-900">
                     <table className="w-full min-w-[40rem] border-collapse text-left text-sm">
                         <thead className="bg-amber-100/80 text-xs uppercase tracking-wide text-amber-950 dark:bg-amber-950/60 dark:text-amber-100">
                             <tr>
@@ -784,7 +813,35 @@ export default function ProjectControlForm({
                         <p className="text-muted-foreground">No takeoff is connected to this job yet. Save an opening, then use Takeoff inside the row.</p>
                     )}
                 </div>
-                <div className="mt-4 overflow-x-auto max-h-96 overflow-y-auto rounded-lg border border-violet-200 bg-background dark:border-violet-900">
+                <div className="mt-4 grid max-h-[32rem] gap-2 overflow-y-auto md:hidden">
+                    {form.data.openings.length === 0 ? (
+                        <p className="rounded-lg border border-violet-200 bg-background p-4 text-sm text-muted-foreground">
+                            No openings yet. Use Add to enter the first one.
+                        </p>
+                    ) : form.data.openings.map((opening, index) => {
+                        const error = lineError('openings', index);
+
+                        return (
+                            <button
+                                key={opening.id ?? `new-${index}`}
+                                type="button"
+                                className={`w-full rounded-lg border bg-background p-3 text-left shadow-sm ${error ? 'border-red-400 bg-red-50 dark:bg-red-950/30' : 'border-violet-200'}`}
+                                onClick={() => openOpening(index)}
+                            >
+                                <span className="flex items-start justify-between gap-2">
+                                    <span className="font-semibold text-foreground">{cell(opening.mark)}</span>
+                                    <span className="shrink-0 text-sm text-muted-foreground">Qty {cell(opening.quantity)}</span>
+                                </span>
+                                <span className="mt-1 block break-words text-sm text-foreground">{cell(opening.description)}</span>
+                                <span className="mt-2 block text-xs text-muted-foreground">
+                                    {[opening.size, opening.category, opening.requirement, opening.supplier].filter(Boolean).join(' · ') || 'No additional details'}
+                                </span>
+                                {error ? <span className="mt-2 block text-sm text-destructive">{error}</span> : null}
+                            </button>
+                        );
+                    })}
+                </div>
+                <div className="mt-4 hidden max-h-96 overflow-x-auto overflow-y-auto rounded-lg border border-violet-200 bg-background md:block dark:border-violet-900">
                     <table className="w-full min-w-[44rem] border-collapse text-left text-sm">
                         <thead className="sticky top-0 z-10 bg-violet-100/80 text-xs uppercase tracking-wide text-violet-950 dark:bg-violet-950/60 dark:text-violet-100">
                             <tr>
@@ -856,7 +913,40 @@ export default function ProjectControlForm({
                 className="border-orange-200 bg-orange-50/70 dark:border-orange-900 dark:bg-orange-950/30"
                 onAdd={() => openProcurement(null)}
             >
-                <div className="mt-4 overflow-x-auto rounded-lg border border-orange-200 bg-background dark:border-orange-900">
+                <div className="mt-4 grid gap-2 md:hidden">
+                    {form.data.procurements.length === 0 ? (
+                        <p className="rounded-lg border border-orange-200 bg-background p-4 text-sm text-muted-foreground">
+                            No procurement lines yet. Use Add to enter the first one.
+                        </p>
+                    ) : form.data.procurements.map((procurement, index) => {
+                        const error = lineError('procurements', index);
+
+                        return (
+                            <button
+                                key={`${procurement.assembly}-${index}`}
+                                type="button"
+                                className={`w-full rounded-lg border bg-background p-3 text-left shadow-sm ${error ? 'border-red-400 bg-red-50 dark:bg-red-950/30' : 'border-orange-200'}`}
+                                onClick={() => openProcurement(index)}
+                            >
+                                <span className="flex items-start justify-between gap-2">
+                                    <span className="min-w-0 break-words font-semibold text-foreground">{cell(procurement.assembly)}</span>
+                                    <span className="shrink-0 text-sm font-semibold text-foreground">
+                                        {amount(procurement.supplier_cost) === null ? '—' : money(amount(procurement.supplier_cost))}
+                                    </span>
+                                </span>
+                                <span className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                                    <span>Qty {cell(procurement.quantity)}</span>
+                                    <span className="text-right">{cell(procurement.order_status)}</span>
+                                </span>
+                                <span className="mt-2 block break-words text-sm text-muted-foreground">
+                                    {[procurement.manufacturer, procurement.po_number ? `PO ${procurement.po_number}` : ''].filter(Boolean).join(' · ') || 'No additional details'}
+                                </span>
+                                {error ? <span className="mt-2 block text-sm text-destructive">{error}</span> : null}
+                            </button>
+                        );
+                    })}
+                </div>
+                <div className="mt-4 hidden overflow-x-auto rounded-lg border border-orange-200 bg-background md:block dark:border-orange-900">
                     <table className="w-full min-w-[44rem] border-collapse text-left text-sm">
                         <thead className="bg-orange-100/80 text-xs uppercase tracking-wide text-orange-950 dark:bg-orange-950/60 dark:text-orange-100">
                             <tr>

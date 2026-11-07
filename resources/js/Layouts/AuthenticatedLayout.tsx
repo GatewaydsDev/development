@@ -185,6 +185,9 @@ export default function Authenticated({
     const [navHeight, setNavHeight] = useState(0);
     const [pageTitleVisible, setPageTitleVisible] = useState(true);
     const [headerHeading, setHeaderHeading] = useState('');
+    const [headerBreadcrumb, setHeaderBreadcrumb] = useState<
+        Array<{ label: string; href: string | null }>
+    >([]);
     const compactTitle = (stickyTitle ?? headerHeading).trim();
     const showCompactTitle = Boolean(header && compactTitle && !pageTitleVisible);
 
@@ -218,14 +221,36 @@ export default function Authenticated({
 
         if (!headerElement) {
             setHeaderHeading('');
+            setHeaderBreadcrumb([]);
             setPageTitleVisible(true);
             return;
         }
 
         const titleElement =
             headerElement.querySelector('h2') ?? headerElement;
+        const breadcrumbElement =
+            headerElement.querySelector<HTMLElement>('nav[aria-label="Breadcrumb"]')
+            ?? headerElement.querySelector<HTMLElement>('nav');
 
         setHeaderHeading(titleElement.textContent?.trim() ?? '');
+        setHeaderBreadcrumb(
+            breadcrumbElement
+                ? Array.from(breadcrumbElement.children).flatMap((child) => {
+                    const label = child.textContent?.trim() ?? '';
+
+                    if (label === '') {
+                        return [];
+                    }
+
+                    return [{
+                        label,
+                        href: child instanceof HTMLAnchorElement
+                            ? child.getAttribute('href')
+                            : null,
+                    }];
+                })
+                : [],
+        );
 
         const updateTitleVisibility = () => {
             const navBottom =
@@ -728,9 +753,37 @@ export default function Authenticated({
                                     : 'lg:left-64 xl:left-72 2xl:left-80',
                             )}
                             style={{ top: navHeight }}
-                            aria-hidden="true"
                         >
-                            <div className={cn('mx-auto w-full px-4 py-3 sm:px-6 lg:px-8')}>
+                            <div className={cn('mx-auto grid w-full gap-0.5 px-4 py-2 sm:px-6 lg:px-8')}>
+                                {headerBreadcrumb.length > 0 ? (
+                                    <nav
+                                        aria-label="Breadcrumb"
+                                        className="flex min-w-0 items-center gap-1.5 overflow-hidden text-xs font-medium text-muted-foreground"
+                                    >
+                                        {headerBreadcrumb.map((item, index) =>
+                                            item.href ? (
+                                                <Link
+                                                    key={`${item.label}-${index}`}
+                                                    href={item.href}
+                                                    className="shrink-0 transition hover:text-foreground"
+                                                >
+                                                    {item.label}
+                                                </Link>
+                                            ) : (
+                                                <span
+                                                    key={`${item.label}-${index}`}
+                                                    className={cn(
+                                                        item.label === '/'
+                                                            ? 'shrink-0'
+                                                            : 'min-w-0 truncate last:text-foreground',
+                                                    )}
+                                                >
+                                                    {item.label}
+                                                </span>
+                                            ),
+                                        )}
+                                    </nav>
+                                ) : null}
                                 <p className="truncate text-lg font-semibold leading-tight text-emerald-700 dark:text-emerald-300">
                                     {compactTitle}
                                 </p>

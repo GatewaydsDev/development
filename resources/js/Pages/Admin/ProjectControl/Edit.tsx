@@ -8,7 +8,7 @@ import ProjectControlForm, { type ConnectedTakeoff, type ControlDraft, type Cont
 import type { ScheduledReminder } from './Partials/ReminderCards';
 import type { ReminderPerson } from './Partials/ReminderDialog';
 
-export default function Edit({ control, people, terms, connectedTakeoff = null, reminders = [], projectUrl = null, canCreateProject = false, canCreateTakeoff = false }: { projectUrl?: string | null; canCreateProject?: boolean; canCreateTakeoff?: boolean; control: ControlDraft & { uuid: string }; people: ReminderPerson[]; terms: ControlTerms; connectedTakeoff?: ConnectedTakeoff; reminders?: ScheduledReminder[] }) {
+export default function Edit({ control, people, terms, connectedTakeoff = null, reminders = [], projectUrl = null, canCreateProject = false, canCreateTakeoff = false }: { projectUrl?: string | null; canCreateProject?: boolean; canCreateTakeoff?: boolean; control: ControlDraft & { uuid: string }; people: ReminderPerson[]; terms: ControlTerms; connectedTakeoff?: ConnectedTakeoff | null; reminders?: ScheduledReminder[] }) {
     const [convert, setConvert] = useState<ConvertKind | null>(null);
 
     return (
@@ -32,8 +32,8 @@ export default function Edit({ control, people, terms, connectedTakeoff = null, 
             }
         >
             <Head title={control.name || 'Edit job'} />
-            <div className="space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-                <section className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-900 dark:bg-emerald-950/30">
+            <div className="space-y-4 px-3 py-3 sm:space-y-6 sm:px-6 sm:py-8 lg:px-8">
+                <section className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-3 dark:border-emerald-900 dark:bg-emerald-950/30 sm:p-4">
                     <h3 className="text-base font-semibold text-foreground">Convert this job</h3>
                     <p className="mt-1 text-sm text-muted-foreground">
                         Turn this job into a project and a takeoff without leaving this page. Save any edits below first.
@@ -46,13 +46,13 @@ export default function Edit({ control, people, terms, connectedTakeoff = null, 
                             </p>
                             <div className="mt-3">
                                 {projectUrl ? (
-                                    <Button asChild variant="outline" size="sm">
+                                    <Button asChild variant="outline" className="min-h-11 w-full sm:w-auto">
                                         <Link href={projectUrl}><FolderPlusIcon data-icon="inline-start" />View project</Link>
                                     </Button>
                                 ) : (
                                     <Button
                                         type="button"
-                                        size="sm"
+                                        className="min-h-11 w-full sm:w-auto"
                                         disabled={!canCreateProject}
                                         onClick={() => setConvert('project')}
                                     >
@@ -71,13 +71,13 @@ export default function Edit({ control, people, terms, connectedTakeoff = null, 
                             </p>
                             <div className="mt-3">
                                 {connectedTakeoff ? (
-                                    <Button asChild variant="outline" size="sm">
+                                    <Button asChild variant="outline" className="min-h-11 w-full sm:w-auto">
                                         <Link href={connectedTakeoff.url}><RulerIcon data-icon="inline-start" />Open takeoff</Link>
                                     </Button>
                                 ) : (
                                     <Button
                                         type="button"
-                                        size="sm"
+                                        className="min-h-11 w-full sm:w-auto"
                                         disabled={!canCreateTakeoff}
                                         onClick={() => setConvert('takeoff')}
                                     >

@@ -23,7 +23,7 @@ export default function Create({ control, people, terms }: { control: ControlDra
             }
         >
             <Head title="Add job" />
-            <div className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+            <div className="px-3 py-3 sm:px-6 sm:py-8 lg:px-8">
                 <ProjectControlForm action={route('admin.project-control.store')} method="post" control={control} people={people} terms={terms} />
             </div>
         </AuthenticatedLayout>

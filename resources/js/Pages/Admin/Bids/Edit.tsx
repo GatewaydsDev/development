@@ -39,8 +39,8 @@ export default function Edit({ bid, options }: EditProps) {
                             Edit bid
                         </h2>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <Button variant="outline" asChild>
+                    <div className="grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
+                        <Button variant="outline" className="min-h-11 w-full sm:w-auto" asChild>
                             <a
                                 href={route('admin.bids.print', bid.uuid)}
                                 target="_blank"
@@ -50,13 +50,13 @@ export default function Edit({ bid, options }: EditProps) {
                                 Print
                             </a>
                         </Button>
-                        <Button variant="outline" asChild>
+                        <Button variant="outline" className="min-h-11 w-full sm:w-auto" asChild>
                             <a href={route('admin.bids.export.pdf', bid.uuid)}>
                                 <FileTextIcon className="size-4" />
                                 PDF
                             </a>
                         </Button>
-                        <Button variant="outline" asChild>
+                        <Button variant="outline" className="min-h-11 w-full sm:w-auto" asChild>
                             <Link href={route('admin.bids.show', bid.uuid)}>
                                 <EyeIcon className="size-4" />
                                 View
@@ -68,8 +68,8 @@ export default function Edit({ bid, options }: EditProps) {
         >
             <Head title={`Edit bid for ${bid.project?.name ?? 'project'}`} />
 
-            <div className="py-6 sm:py-8">
-                <div className="w-full px-4 sm:px-6 lg:px-8">
+            <div className="py-3 sm:py-8">
+                <div className="w-full px-3 sm:px-6 lg:px-8">
                     <BidForm
                         action={route('admin.bids.update', bid.uuid)}
                         method="patch"

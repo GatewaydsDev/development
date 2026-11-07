@@ -11,6 +11,7 @@ import {
 } from '@/Components/ui/dialog';
 import ConvertJobDialog from './Partials/ConvertJobDialog';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { cn } from '@/lib/utils';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { BellIcon, DownloadIcon, FolderPlusIcon, EditIcon, ExpandIcon, EyeIcon, PlusIcon, SearchIcon, UploadIcon } from 'lucide-react';
 import { FormEvent, useState } from 'react';
@@ -224,10 +225,10 @@ export default function Index({
                             Update the job, its current bid, and its openings. Pipeline value uses each active job&apos;s current value. Subset bids and opening prices stay out of that total.
                         </p>
                     </div>
-                    <div className="flex shrink-0 flex-wrap items-center gap-2">
+                    <div className="grid w-full shrink-0 grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
 
 
-                        <Button variant="outline" asChild className="border-sky-300 bg-sky-600 text-white hover:bg-sky-700 hover:text-white">
+                        <Button variant="outline" asChild className="min-h-11 w-full border-sky-300 bg-sky-600 text-white hover:bg-sky-700 hover:text-white sm:w-auto">
                                 <a href={route('admin.project-control.export', {
                                 search: filters.search || undefined,
                                 start: filters.start || undefined,
@@ -238,27 +239,27 @@ export default function Index({
                             </a>
                         </Button>
 
-                        <form onSubmit={submitImport} className="flex flex-wrap items-center justify-end gap-2">
+                        <form onSubmit={submitImport} className="col-span-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 sm:order-none sm:flex sm:flex-wrap sm:justify-end">
                             <input
                                 name="workbook"
                                 type="file"
                                 accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                                 required
-                                className="h-8 max-w-40 text-sm text-muted-foreground file:mr-2 file:h-8 file:rounded-md file:border-0 file:bg-amber-100 file:px-2 file:text-sm file:font-medium file:text-amber-900"
+                                className="h-11 min-w-0 w-full text-xs text-muted-foreground file:mr-2 file:h-11 file:rounded-md file:border-0 file:bg-amber-100 file:px-2 file:text-xs file:font-medium file:text-amber-900 sm:h-8 sm:max-w-40 sm:text-sm sm:file:h-8 sm:file:text-sm"
                                 aria-label="September workbook"
                             />
-                            <Button type="submit" className="bg-amber-600 text-white hover:bg-amber-700" disabled={importing}>
+                            <Button type="submit" className="min-h-11 bg-amber-600 text-white hover:bg-amber-700 sm:min-h-9" disabled={importing}>
                                 <UploadIcon className="h-4 w-4" />
                                 {importing ? 'Importing' : 'Import'}
                             </Button>
                         </form>                        
 
-                        <Button type="button" className="bg-sky-700 text-white hover:bg-sky-800" onClick={() => openReminder(catalog[0]?.uuid ?? '')}>
+                        <Button type="button" className="min-h-11 w-full bg-sky-700 text-white hover:bg-sky-800 sm:w-auto" onClick={() => openReminder(catalog[0]?.uuid ?? '')}>
                             <BellIcon className="h-4 w-4" />
                             Reminder
                         </Button>
 
-                        <Button asChild variant="create">
+                        <Button asChild variant="create" className="min-h-11 w-full sm:w-auto">
                             <Link href={route('admin.project-control.create')}>
                                 <PlusIcon className="h-4 w-4" />
                                 Add job
@@ -270,7 +271,7 @@ export default function Index({
         >
             <Head title="Project control" />
 
-            <div className="space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+            <div className="space-y-4 px-3 py-3 sm:space-y-6 sm:px-6 sm:py-8 lg:px-8">
                 <form onSubmit={applySearch} className="flex flex-col gap-3 rounded-lg border border-sky-200 bg-sky-50/70 p-4 dark:border-sky-900 dark:bg-sky-950/30 sm:flex-row sm:flex-wrap sm:items-end">
                     <label className="block w-full min-w-0 flex-1 text-sm font-medium text-foreground sm:min-w-48">
                         Search
@@ -310,16 +311,16 @@ export default function Index({
                     ) : null}
                 </form>
 
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                <div className="grid grid-cols-2 items-stretch gap-2 sm:gap-3 xl:grid-cols-5">
                     <SummaryCard label="Pipeline value" value={money(summary.pipeline_value)} detail={`${summary.active_count} active jobs`} />
                     <SummaryCard label="Known margin" value={summary.known_margin === null ? '—' : `${summary.known_margin}%`} detail={`${money(summary.known_profit)} on ${money(summary.known_cost)} known cost`} />
                     <SummaryCard label="Deposits due" value={money(summary.deposits_due)} detail="From the deposit percent on active jobs" />
                     <SummaryCard label="Openings still unordered" value={String(summary.unordered_openings)} detail="Active jobs with no purchase order" />
-                    <SummaryCard label="Who to call this week" value={String(summary.calls_this_week)} detail="Follow-ups due through Sunday, including earlier ones still open" />
+                    <SummaryCard label="Who to call this week" value={String(summary.calls_this_week)} detail="Follow-ups due through Sunday, including earlier ones still open" className="col-span-2 sm:col-span-1" />
                 </div>
 
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <nav className="flex flex-wrap gap-2" aria-label="Reports">
+                    <nav className="-mx-3 flex snap-x gap-2 overflow-x-auto px-3 pb-1 touch-pan-x sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0" aria-label="Reports">
                         {reports.map((item) => (
                             <Link
                                 key={item.id}
@@ -331,8 +332,8 @@ export default function Index({
                                 })}
                                 className={
                                     report === item.id
-                                        ? 'inline-flex h-8 items-center rounded-md bg-emerald-700 px-3 text-sm font-medium text-white'
-                                        : 'inline-flex h-8 items-center rounded-md border border-border bg-card px-3 text-sm font-medium text-foreground hover:bg-muted'
+                                        ? 'inline-flex min-h-11 shrink-0 snap-start items-center rounded-md bg-emerald-700 px-3 text-sm font-medium text-white sm:min-h-8'
+                                        : 'inline-flex min-h-11 shrink-0 snap-start items-center rounded-md border border-border bg-card px-3 text-sm font-medium text-foreground hover:bg-muted sm:min-h-8'
                                 }
                             >
                                 {item.label}
@@ -389,12 +390,12 @@ const SUMMARY_TONES: Record<string, string> = {
     'Who to call this week': 'border-rose-200 bg-rose-50/70 text-rose-800 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-200',
 };
 
-function SummaryCard({ label, value, detail }: { label: string; value: string; detail: string }) {
+function SummaryCard({ label, value, detail, className }: { label: string; value: string; detail: string; className?: string }) {
     return (
-        <section className={`rounded-lg border p-4 ${SUMMARY_TONES[label] ?? 'border-border bg-card'}`}>
+        <section className={cn('rounded-lg border p-3 sm:p-4', SUMMARY_TONES[label] ?? 'border-border bg-card', className)}>
             <p className="text-xs font-semibold uppercase tracking-wide">{label}</p>
-            <p className="mt-2 text-2xl font-semibold text-foreground">{value}</p>
-            <p className="mt-1 text-sm text-muted-foreground">{detail}</p>
+            <p className="mt-2 break-words text-xl font-semibold text-foreground sm:text-2xl">{value}</p>
+            <p className="mt-1 text-xs text-muted-foreground sm:text-sm">{detail}</p>
         </section>
     );
 }
@@ -414,11 +415,11 @@ function CallList({ calls }: { calls: JobRow[] }) {
                             className="rounded-lg border border-border bg-card p-4 transition hover:border-emerald-700"
                         >
                             <div className="flex items-start justify-between gap-3">
-                                <div>
+                                <div className="min-w-0">
                                     <p className="font-medium text-foreground">{job.customer || 'Customer not set'}</p>
-                                    <p className="text-sm text-muted-foreground">{job.job_code} · {job.name}</p>
+                                    <p className="break-words text-sm text-muted-foreground">{job.job_code} · {job.name}</p>
                                 </div>
-                                <p className="text-sm font-medium text-foreground">{displayDate(job.next_follow_up_date)}</p>
+                                <p className="shrink-0 text-xs font-medium text-foreground sm:text-sm">{displayDate(job.next_follow_up_date)}</p>
                             </div>
                             <div className="mt-3">
                                 <ColumnText label="Next step" value={job.next_step || 'No next step recorded.'} wide />
@@ -458,16 +459,16 @@ function JobTable({
                     <p className="text-sm text-muted-foreground">No jobs in this report.</p>
                 ) : (
                     jobs.map((job) => (
-                        <article key={job.uuid} className="rounded-lg border border-border bg-card p-4">
+                        <article key={job.uuid} className="rounded-lg border border-border bg-card p-3 shadow-sm sm:p-4">
                             <div className="flex items-start justify-between gap-3">
-                                <div>
+                                <div className="min-w-0">
                                     <Link href={route('admin.project-control.edit', job.uuid)} className="text-base font-semibold text-emerald-700 hover:underline dark:text-emerald-300">
                                         {job.job_code}
                                     </Link>
                                     <ReminderBadges reminders={forJob(job.uuid)} onOpen={setOpenReminder} />
                                     <JobActions jobUuid={job.uuid} projectUrl={job.project} />
                                 </div>
-                                <p className="text-sm font-medium text-foreground">{money(job.current_value)}</p>
+                                <p className="shrink-0 text-sm font-medium text-foreground">{money(job.current_value)}</p>
                             </div>
                             <div className="mt-2">
                                 <ColumnText label="Project" value={job.name} wide />
@@ -689,13 +690,13 @@ function JobActions({ jobUuid, projectUrl }: { jobUuid: string; projectUrl: stri
     const jobHref = route('admin.project-control.edit', jobUuid);
 
     return (
-        <div className="flex flex-nowrap gap-1">
+        <div className="mt-2 flex flex-nowrap gap-2 md:mt-0 md:gap-1">
             <ActionHint hint="View job">
                 <Button
                     asChild
                     variant="outline"
                     size="icon-sm"
-                    className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 dark:border-indigo-800/60 dark:text-indigo-400 dark:hover:bg-indigo-950/40"
+                    className="size-11 border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 dark:border-indigo-800/60 dark:text-indigo-400 dark:hover:bg-indigo-950/40 md:size-8"
                 >
                     <Link href={jobHref} aria-label="View job">
                         <EyeIcon className="size-4" />
@@ -708,7 +709,7 @@ function JobActions({ jobUuid, projectUrl }: { jobUuid: string; projectUrl: stri
                         asChild
                         variant="outline"
                         size="icon-sm"
-                        className="border-emerald-200 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:border-emerald-800/60 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
+                        className="size-11 border-emerald-200 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:border-emerald-800/60 dark:text-emerald-400 dark:hover:bg-emerald-950/40 md:size-8"
                     >
                         <Link href={projectUrl} aria-label="View project">
                             <FolderPlusIcon className="size-4" />
@@ -720,7 +721,7 @@ function JobActions({ jobUuid, projectUrl }: { jobUuid: string; projectUrl: stri
                     <Button
                         variant="outline"
                         size="icon-sm"
-                        className="border-emerald-200 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:border-emerald-800/60 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
+                        className="size-11 border-emerald-200 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:border-emerald-800/60 dark:text-emerald-400 dark:hover:bg-emerald-950/40 md:size-8"
                         aria-label="Create project from this job"
                         onClick={() => setConvert(true)}
                     >
@@ -734,7 +735,7 @@ function JobActions({ jobUuid, projectUrl }: { jobUuid: string; projectUrl: stri
                     asChild
                     variant="outline"
                     size="icon-sm"
-                    className="border-amber-200 text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:border-amber-800/60 dark:text-amber-400 dark:hover:bg-amber-950/40"
+                    className="size-11 border-amber-200 text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:border-amber-800/60 dark:text-amber-400 dark:hover:bg-amber-950/40 md:size-8"
                 >
                     <Link href={jobHref} aria-label="Edit job">
                         <EditIcon className="size-4" />

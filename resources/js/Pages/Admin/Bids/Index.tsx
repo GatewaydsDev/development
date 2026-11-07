@@ -112,7 +112,7 @@ export default function Index({
                     </div>
 
                     {options.can.create && (
-                        <Button asChild variant="create">
+                        <Button asChild variant="create" className="w-full sm:w-auto">
                             <Link href={route('admin.bids.create')}>
                                 <PlusIcon className="size-4" />
                                 Add bid
@@ -124,45 +124,45 @@ export default function Index({
         >
             <Head title="Bids" />
 
-            <div className="py-6 sm:py-8">
-                <div className="flex w-full flex-col gap-6 px-4 sm:px-6 lg:px-8">
-                    <div className="grid gap-4 sm:grid-cols-2 md:ml-auto md:w-full md:max-w-2xl">
+            <div className="py-3 sm:py-8">
+                <div className="flex w-full flex-col gap-4 px-3 sm:gap-6 sm:px-6 lg:px-8">
+                    <div className="grid grid-cols-2 gap-2 sm:gap-4 md:ml-auto md:w-full md:max-w-2xl">
                         <Card className="border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30">
-                            <CardHeader>
+                            <CardHeader className="p-3 sm:p-6">
                                 <CardTitle className="flex items-center gap-2">
                                     <ClipboardListIcon className="size-4 text-sky-600 dark:text-sky-300" />
                                     Total bids
                                 </CardTitle>
-                                <CardDescription>
+                                <CardDescription className="max-sm:hidden">
                                     Current records in the system.
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent>
-                                <p className="text-3xl font-semibold">
+                            <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+                                <p className="break-words text-xl font-semibold sm:text-3xl">
                                     {bids.total}
                                 </p>
                             </CardContent>
                         </Card>
                         <Card className="border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30">
-                            <CardHeader>
+                            <CardHeader className="p-3 sm:p-6">
                                 <CardTitle className="flex items-center gap-2">
                                     <DollarSignIcon className="size-4 text-emerald-600 dark:text-emerald-300" />
                                     Total bid value
                                 </CardTitle>
-                                <CardDescription>
+                                <CardDescription className="max-sm:hidden">
                                     Combined value of matching bids.
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent>
-                                <p className="text-3xl font-semibold text-emerald-700 dark:text-emerald-300">
+                            <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+                                <p className="break-words text-xl font-semibold text-emerald-700 dark:text-emerald-300 sm:text-3xl">
                                     {summary?.formatted_total_amount ?? formatMoney(0)}
                                 </p>
                             </CardContent>
                         </Card>
                     </div>
 
-                    <Card className="border-sky-200 shadow-sm dark:border-sky-900">
-                        <CardHeader className="gap-4 md:grid-cols-[1fr_auto] md:items-center">
+                    <Card className="border-sky-200 shadow-sm max-sm:rounded-none max-sm:border-x-0 dark:border-sky-900">
+                        <CardHeader className="gap-4 p-3 sm:p-6 md:grid-cols-[1fr_auto] md:items-center">
                             <div>
                                 <CardTitle>Bid directory</CardTitle>
                                 <CardDescription>
@@ -174,7 +174,7 @@ export default function Index({
                                     onSubmit={submit}
                                     className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row"
                                 >
-                                    <div className="relative">
+                                    <div className="relative w-full">
                                         <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                                         <input
                                             value={search}
@@ -185,13 +185,13 @@ export default function Index({
                                             className="h-11 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm text-foreground sm:w-64"
                                         />
                                     </div>
-                                    <Button type="submit" size="sm" className="self-center bg-emerald-600 text-white hover:bg-emerald-700">
+                                    <Button type="submit" className="min-h-11 w-full bg-emerald-600 text-white hover:bg-emerald-700 sm:w-auto">
                                         <SearchIcon data-icon="inline-start" />
                                         Search
                                     </Button>
                                 </form>
-                                <div className="flex flex-wrap gap-2 sm:justify-end">
-                                    <Button variant="outline" asChild>
+                                <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+                                    <Button variant="outline" className="min-w-0 px-2" asChild>
                                         <a
                                             href={route(
                                                 'admin.bids.list.print',
@@ -204,7 +204,7 @@ export default function Index({
                                             Print
                                         </a>
                                     </Button>
-                                    <Button variant="outline" asChild>
+                                    <Button variant="outline" className="min-w-0 px-2" asChild>
                                         <a
                                             href={route(
                                                 'admin.bids.list.export.pdf',
@@ -215,7 +215,7 @@ export default function Index({
                                             PDF
                                         </a>
                                     </Button>
-                                    <Button variant="outline" asChild>
+                                    <Button variant="outline" className="min-w-0 px-2 text-xs sm:text-sm" asChild>
                                         <a
                                             href={route(
                                                 'admin.bids.list.export.word',
@@ -230,17 +230,17 @@ export default function Index({
                             </div>
                         </CardHeader>
 
-                        <CardContent>
-                            <div className="overflow-x-auto rounded-lg border border-border">
+                        <CardContent className="p-2 pt-0 sm:p-6 sm:pt-0">
+                            <div className="rounded-lg border border-border max-lg:border-0">
                                 {bids.data.length > 0 ? (
                                     <>
-                                        <div className="lg:hidden">
+                                        <div className="grid gap-3 lg:hidden">
                                             {bids.data.map((bid) => (
                                                 <div
                                                     data-bid-row={bid.uuid}
                                                     key={bid.id}
                                                     className={cn(
-                                                        'grid gap-3 border-b border-border px-4 py-4 last:border-b-0',
+                                                        'grid gap-3 rounded-xl border border-border bg-card p-4 shadow-sm',
                                                         highlightedBidUuid ===
                                                             bid.uuid &&
                                                             'bg-emerald-50 dark:bg-emerald-950/30',
@@ -475,14 +475,14 @@ function BidProjectCell({
             {hideLabel ? null : (
                 <DirectoryFieldLabel>Project</DirectoryFieldLabel>
             )}
-            <p className="truncate font-medium text-foreground">
+            <p className="break-words font-semibold text-foreground lg:truncate lg:font-medium">
                 {bid.project?.name || 'Untitled project'}
             </p>
-            <p className="truncate text-sm text-muted-foreground">
+            <p className="break-words text-sm text-muted-foreground lg:truncate">
                 {bid.project?.project_number || 'No project number'}
             </p>
             {contractors.length > 0 && (
-                <p className="truncate text-sm text-muted-foreground">
+                <p className="break-words text-sm text-muted-foreground lg:truncate">
                     Contractor{contractors.length > 1 ? 's' : ''}:{' '}
                     {contractors
                         .map((contractor) => contractor.name)
@@ -541,12 +541,12 @@ function BidDirectoryActions({
     canUpdate: boolean;
 }) {
     return (
-        <div className="flex flex-nowrap gap-1.5">
+        <div className="grid grid-cols-5 gap-2 lg:flex lg:flex-nowrap lg:gap-1.5">
             <ActionHint hint="Print this bid">
                 <Button
                     variant="outline"
                     size="icon-sm"
-                    className="border-sky-200 text-sky-600 hover:bg-sky-50 hover:text-sky-700 dark:border-sky-800/60 dark:text-sky-400 dark:hover:bg-sky-950/40"
+                    className="size-11 border-sky-200 text-sky-600 hover:bg-sky-50 hover:text-sky-700 dark:border-sky-800/60 dark:text-sky-400 dark:hover:bg-sky-950/40 lg:size-8"
                     asChild
                 >
                     <a
@@ -563,7 +563,7 @@ function BidDirectoryActions({
                 <Button
                     variant="outline"
                     size="icon-sm"
-                    className="border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-800/60 dark:text-rose-400 dark:hover:bg-rose-950/40"
+                    className="size-11 border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-800/60 dark:text-rose-400 dark:hover:bg-rose-950/40 lg:size-8"
                     asChild
                 >
                     <a
@@ -578,7 +578,7 @@ function BidDirectoryActions({
                 <Button
                     variant="outline"
                     size="icon-sm"
-                    className="border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:border-blue-800/60 dark:text-blue-400 dark:hover:bg-blue-950/40"
+                    className="size-11 border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:border-blue-800/60 dark:text-blue-400 dark:hover:bg-blue-950/40 lg:size-8"
                     asChild
                 >
                     <a
@@ -593,7 +593,7 @@ function BidDirectoryActions({
                 <Button
                     variant="outline"
                     size="icon-sm"
-                    className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 dark:border-indigo-800/60 dark:text-indigo-400 dark:hover:bg-indigo-950/40"
+                    className="size-11 border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 dark:border-indigo-800/60 dark:text-indigo-400 dark:hover:bg-indigo-950/40 lg:size-8"
                     asChild
                 >
                     <Link
@@ -609,7 +609,7 @@ function BidDirectoryActions({
                     <Button
                         variant="outline"
                         size="icon-sm"
-                        className="border-amber-200 text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:border-amber-800/60 dark:text-amber-400 dark:hover:bg-amber-950/40"
+                        className="size-11 border-amber-200 text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:border-amber-800/60 dark:text-amber-400 dark:hover:bg-amber-950/40 lg:size-8"
                         asChild
                     >
                         <Link

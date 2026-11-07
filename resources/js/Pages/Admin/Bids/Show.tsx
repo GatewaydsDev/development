@@ -49,11 +49,11 @@ function DetailItem({
     value?: string | number | null;
 }) {
     return (
-        <div className="rounded-lg border border-border bg-background p-4">
-            <dt className="text-sm font-medium text-muted-foreground">
+        <div className="min-w-0 rounded-lg border border-border bg-background p-3 sm:p-4">
+            <dt className="text-xs font-medium text-muted-foreground sm:text-sm">
                 {label}
             </dt>
-            <dd className="mt-1 text-base font-medium text-foreground">
+            <dd className="mt-1 break-words text-sm font-medium text-foreground sm:text-base">
                 {value || 'Not added yet'}
             </dd>
         </div>
@@ -98,8 +98,8 @@ export default function Show({ bid, options }: ShowProps) {
                             Bid details
                         </h2>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                        <Button variant="outline" asChild>
+                    <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
+                        <Button variant="outline" className="min-h-11 w-full sm:w-auto" asChild>
                             <a
                                 href={route('admin.bids.print', bid.uuid)}
                                 target="_blank"
@@ -109,20 +109,20 @@ export default function Show({ bid, options }: ShowProps) {
                                 Print
                             </a>
                         </Button>
-                        <Button variant="outline" asChild>
+                        <Button variant="outline" className="min-h-11 w-full sm:w-auto" asChild>
                             <a href={route('admin.bids.export.pdf', bid.uuid)}>
                                 <FileTextIcon className="size-4" />
                                 PDF
                             </a>
                         </Button>
-                        <Button variant="outline" asChild>
+                        <Button variant="outline" className="min-h-11 w-full text-xs sm:w-auto sm:text-sm" asChild>
                             <a href={route('admin.bids.export.word', bid.uuid)}>
                                 <FileTextIcon className="size-4" />
                                 Word 2026
                             </a>
                         </Button>
                         {options.can.update && (
-                            <Button asChild>
+                            <Button asChild className="min-h-11 w-full sm:w-auto">
                                 <Link href={route('admin.bids.edit', bid.uuid)}>
                                     <EditIcon className="size-4" />
                                     Edit
@@ -130,7 +130,7 @@ export default function Show({ bid, options }: ShowProps) {
                             </Button>
                         )}
                         {bid.quotation ? (
-                            <Button variant="outline" asChild>
+                            <Button variant="outline" className="min-h-11 w-full sm:w-auto" asChild>
                                 <Link
                                     href={route(
                                         'admin.quotations.show',
@@ -145,6 +145,7 @@ export default function Show({ bid, options }: ShowProps) {
                         {options.can.delete && (
                             <Button
                                 variant="outline"
+                                className="min-h-11 w-full sm:w-auto"
                                 onClick={() => setIsDeleteOpen(true)}
                             >
                                 <TrashIcon className="size-4" />
@@ -157,10 +158,10 @@ export default function Show({ bid, options }: ShowProps) {
         >
             <Head title={`Bid: ${bid.project?.name ?? 'Details'}`} />
 
-            <div className="py-6 sm:py-8">
-                <div className="flex w-full flex-col gap-6 px-4 sm:px-6 lg:px-8">
-                    <Card className="border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/30">
-                        <CardHeader>
+            <div className="py-3 sm:py-8">
+                <div className="flex w-full flex-col gap-4 px-3 sm:gap-6 sm:px-6 lg:px-8">
+                    <Card className="border-sky-200 bg-sky-50/70 max-sm:rounded-none max-sm:border-x-0 dark:border-sky-900 dark:bg-sky-950/30">
+                        <CardHeader className="p-3 sm:p-6">
                             <CardTitle className="flex items-center gap-2">
                                 <ClipboardListIcon className="size-4 text-sky-600 dark:text-sky-300" />
                                 Project
@@ -169,8 +170,8 @@ export default function Show({ bid, options }: ShowProps) {
                                 The project this bid belongs to.
                             </CardDescription>
                         </CardHeader>
-                        <CardContent>
-                            <dl className="grid gap-4 md:grid-cols-3">
+                        <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+                            <dl className="grid grid-cols-2 gap-2 sm:gap-4 md:grid-cols-3">
                                 <DetailItem
                                     label="Project name"
                                     value={bid.project?.name}
@@ -295,8 +296,8 @@ export default function Show({ bid, options }: ShowProps) {
                         </CardContent>
                     </Card>
 
-                    <Card className="border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30">
-                        <CardHeader>
+                    <Card className="border-amber-200 bg-amber-50/70 max-sm:rounded-none max-sm:border-x-0 dark:border-amber-900 dark:bg-amber-950/30">
+                        <CardHeader className="p-3 sm:p-6">
                             <CardTitle className="flex items-center gap-2">
                                 <HammerIcon className="size-4 text-muted-foreground" />
                                 Contractors
@@ -305,12 +306,12 @@ export default function Show({ bid, options }: ShowProps) {
                                 Contractors on this job.
                             </CardDescription>
                         </CardHeader>
-                        <CardContent className="flex flex-col gap-6">
+                        <CardContent className="flex flex-col gap-4 p-3 pt-0 sm:gap-6 sm:p-6 sm:pt-0">
                             {(bid.project?.contractors?.length ?? 0) > 0 ? (
                                 bid.project?.contractors?.map((contractor) => (
                                     <dl
                                         key={contractor.id}
-                                        className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"
+                                        className="grid grid-cols-2 gap-2 sm:gap-4 xl:grid-cols-4"
                                     >
                                         <DetailItem
                                             label="Company name"
@@ -339,19 +340,19 @@ export default function Show({ bid, options }: ShowProps) {
                         </CardContent>
                     </Card>
 
-                    <Card className="border-violet-200 bg-violet-50/70 dark:border-violet-900 dark:bg-violet-950/30">
-                        <CardHeader>
+                    <Card className="border-violet-200 bg-violet-50/70 max-sm:rounded-none max-sm:border-x-0 dark:border-violet-900 dark:bg-violet-950/30">
+                        <CardHeader className="p-3 sm:p-6">
                             <CardTitle>Stages</CardTitle>
                             <CardDescription>
                                 One-to-many bid stages such as preliminary bid.
                             </CardDescription>
                         </CardHeader>
-                        <CardContent className="flex flex-col gap-3">
+                        <CardContent className="flex flex-col gap-3 p-3 pt-0 sm:p-6 sm:pt-0">
                             {bid.stages.length > 0 ? (
                                 bid.stages.map((stage) => (
                                     <div
                                         key={stage.id ?? stage.stage_type_id}
-                                        className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-4"
+                                        className="flex flex-col items-start gap-2 rounded-lg border border-border p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:p-4"
                                     >
                                         <div>
                                             <p className="font-medium text-foreground">
