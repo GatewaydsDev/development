@@ -271,6 +271,33 @@ test('bulk read falls back to graph batches when the folder action is denied', f
     });
 });
 
+test('bulk read returns local message ids when graph write access is denied', function () {
+    Http::fake(function ($request) {
+        if (str_contains($request->url(), 'login.microsoftonline.com')) {
+            return Http::response(['access_token' => 'graph-token', 'expires_in' => 3600]);
+        }
+
+        if ($request->method() === 'GET' && str_contains($request->url(), '/mailFolders/inbox?')) {
+            return Http::response(['error' => ['message' => 'Access denied']], 403);
+        }
+
+        if ($request->method() === 'GET' && str_contains($request->url(), '/mailFolders/inbox/messages?')) {
+            return Http::response(['value' => [['id' => 'message-1'], ['id' => 'message-2']]]);
+        }
+
+        if ($request->method() === 'POST' && str_ends_with($request->url(), '/$batch')) {
+            return Http::response(['error' => ['message' => 'Access denied']], 403);
+        }
+
+        return Http::response([], 500);
+    });
+
+    $localIds = app(MicrosoftGraphMailService::class)
+        ->setAllInboxRead('sales@gateway-ds.com', true);
+
+    expect($localIds)->toBe(['message-1', 'message-2']);
+});
+
 test('a super admin sends mail with that persons microsoft credentials', function () {
     $level = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
     $admin = User::factory()->create([

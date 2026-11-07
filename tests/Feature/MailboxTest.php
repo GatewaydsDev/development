@@ -1172,6 +1172,44 @@ test('every inbox message can be marked read while archived state is retained', 
         && $request['isRead'] === true);
 });
 
+test('bulk read is tracked locally when microsoft denies mailbox write access', function () {
+    $user = mailboxUser();
+    Cache::flush();
+    config([
+        'services.microsoft.tenant_id' => 'tenant-id',
+        'services.microsoft.client_id' => 'client-id',
+        'services.microsoft.client_secret' => 'client-secret',
+    ]);
+
+    Http::fake(function ($request) {
+        if (str_contains($request->url(), 'login.microsoftonline.com')) {
+            return Http::response(['access_token' => 'graph-token', 'expires_in' => 3600]);
+        }
+
+        if ($request->method() === 'GET' && str_contains($request->url(), '/mailFolders/inbox?')) {
+            return Http::response(['error' => ['message' => 'Access denied']], 403);
+        }
+
+        if ($request->method() === 'GET' && str_contains($request->url(), '/mailFolders/inbox/messages?')) {
+            return Http::response(['value' => [['id' => 'message-1'], ['id' => 'message-2']]]);
+        }
+
+        return Http::response(['error' => ['message' => 'Access denied']], 403);
+    });
+
+    $this->actingAs($user)
+        ->post(route('mailbox.state.all'), ['is_read' => 1])
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    expect(MailMessageState::query()
+        ->where('user_id', $user->id)
+        ->where('mailbox', 'ricardo@gateway-ds.com')
+        ->where('is_read', true)
+        ->where('counts_in_graph_unread', true)
+        ->count())->toBe(2);
+});
+
 test('a microsoft bulk read failure returns to the mailbox instead of a server error', function () {
     $user = mailboxUser();
     Cache::flush();

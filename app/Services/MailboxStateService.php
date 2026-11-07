@@ -38,13 +38,20 @@ class MailboxStateService
 
     public function markAllRead(User $user, string $mailbox, bool $isRead, MicrosoftGraphMailService $graph): void
     {
-        $graph->setAllInboxRead($mailbox, $isRead);
+        $localMessageIds = $graph->setAllInboxRead($mailbox, $isRead);
 
         MailMessageState::query()
             ->where('user_id', $user->id)
             ->where('mailbox', $mailbox)
             ->where('is_archived', false)
             ->delete();
+
+        foreach ($localMessageIds as $messageId) {
+            $this->save($user, $mailbox, $messageId, null, [
+                'is_read' => $isRead,
+                'counts_in_graph_unread' => $isRead,
+            ]);
+        }
     }
 
     public function archive(

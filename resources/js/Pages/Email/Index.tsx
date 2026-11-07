@@ -14,7 +14,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@/Components/ui/card';
-import { acknowledgeUnreadMail, setUnreadMail } from '@/lib/unreadMail';
+import { acknowledgeUnreadMail, adjustUnreadMail, setUnreadMail } from '@/lib/unreadMail';
 import { cn } from '@/lib/utils';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
@@ -597,6 +597,14 @@ export default function Index({
     const folderTitle = folder === 'sent' ? t('sent') : folder === 'archive' ? t('archive') : t('inbox');
 
     const changeRead = (messageId: string, isRead: boolean) => {
+        const current = list.find((item) => item.id === messageId);
+
+        if (isRead && current?.is_read === false) {
+            acknowledgeUnreadMail(messageId);
+        } else if (!isRead && current?.is_read !== false) {
+            adjustUnreadMail(1);
+        }
+
         setActing(true);
         router.patch(
             route('mailbox.state'),
@@ -770,49 +778,65 @@ export default function Index({
                                         <CardTitle>{folderTitle}</CardTitle>
                                         {folder === 'inbox' ? (
                                             <div className="grid gap-2 pt-1">
-                                                <div className="grid grid-cols-3 gap-1.5 sm:gap-2" aria-label={t('filterByStatus')}>
+                                                <div
+                                                    className="grid grid-cols-3 items-stretch gap-2"
+                                                    aria-label={t('filterByStatus')}
+                                                >
                                                     {(['all', 'unread', 'read'] as const).map((nextStatus) => (
-                                                        <Button
+                                                        <Link
                                                             key={nextStatus}
-                                                            className="min-h-10 touch-manipulation px-2 text-xs sm:min-h-11 sm:text-sm"
-                                                            variant={status === nextStatus ? 'default' : 'outline'}
-                                                            asChild
+                                                            href={folderHref('inbox', null, nextStatus)}
+                                                            aria-current={status === nextStatus ? 'page' : undefined}
+                                                            className={cn(
+                                                                'flex h-11 min-w-0 items-center justify-center gap-1 rounded-md border px-1 text-center text-xs font-medium leading-none touch-manipulation sm:text-sm',
+                                                                status === nextStatus
+                                                                    ? 'border-emerald-700 bg-emerald-700 text-white shadow-sm'
+                                                                    : 'border-border bg-background text-muted-foreground hover:border-emerald-500 hover:text-foreground',
+                                                            )}
                                                         >
-                                                            <Link href={folderHref('inbox', null, nextStatus)}>
-                                                                {nextStatus === 'unread' ? <MailIcon className="size-3.5" /> : null}
+                                                            <span className="truncate">
                                                                 {t(
                                                                     nextStatus === 'all'
                                                                         ? 'allMessages'
                                                                         : nextStatus === 'unread'
-                                                                          ? 'unreadOnly'
+                                                                          ? 'unreadMessage'
                                                                           : 'readMessage',
-                                                                    nextStatus === 'unread' ? { count: unreadCount } : undefined,
                                                                 )}
-                                                            </Link>
-                                                        </Button>
+                                                            </span>
+                                                            {nextStatus === 'unread' ? (
+                                                                <span
+                                                                    className={cn(
+                                                                        'shrink-0 rounded-full px-1.5 py-0.5 text-[10px] leading-none',
+                                                                        status === 'unread'
+                                                                            ? 'bg-white/20 text-white'
+                                                                            : 'bg-sky-600 text-white',
+                                                                    )}
+                                                                >
+                                                                    {unreadCount > 99 ? '99+' : unreadCount}
+                                                                </span>
+                                                            ) : null}
+                                                        </Link>
                                                     ))}
                                                 </div>
-                                                <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
-                                                <Button
-                                                    type="button"
-                                                    className="min-h-10 touch-manipulation px-2 text-xs sm:text-sm"
-                                                    variant="outline"
-                                                    disabled={bulkActing}
-                                                    onClick={() => setBulkConfirmation(true)}
-                                                >
-                                                    <MailOpenIcon className="size-4" />
-                                                    {t('markAllRead')}
-                                                </Button>
-                                                <Button
-                                                    type="button"
-                                                    className="min-h-10 touch-manipulation px-2 text-xs sm:text-sm"
-                                                    variant="outline"
-                                                    disabled={bulkActing}
-                                                    onClick={() => setBulkConfirmation(false)}
-                                                >
-                                                    <MailIcon className="size-4" />
-                                                    {t('markAllUnread')}
-                                                </Button>
+                                                <div className="grid grid-cols-2 items-stretch gap-2">
+                                                    <Button
+                                                        type="button"
+                                                        className="h-11 min-w-0 w-full touch-manipulation border-border px-1 text-[11px] sm:px-2 sm:text-xs"
+                                                        variant="outline"
+                                                        disabled={bulkActing}
+                                                        onClick={() => setBulkConfirmation(true)}
+                                                    >
+                                                        <span className="truncate">{t('markAllRead')}</span>
+                                                    </Button>
+                                                    <Button
+                                                        type="button"
+                                                        className="h-11 min-w-0 w-full touch-manipulation border-border px-1 text-[11px] sm:px-2 sm:text-xs"
+                                                        variant="outline"
+                                                        disabled={bulkActing}
+                                                        onClick={() => setBulkConfirmation(false)}
+                                                    >
+                                                        <span className="truncate">{t('markAllUnread')}</span>
+                                                    </Button>
                                                 </div>
                                             </div>
                                         ) : null}
@@ -846,6 +870,11 @@ export default function Index({
                                                         ...(folder === 'inbox' && status !== 'all' ? { status } : {}),
                                                         message: item.id,
                                                     })}
+                                                    onClick={() => {
+                                                        if (folder === 'inbox' && !item.is_read) {
+                                                            acknowledgeUnreadMail(item.id);
+                                                        }
+                                                    }}
                                                     className="block min-h-11 min-w-0 rounded-md py-3.5 pe-12 ps-3 text-left touch-manipulation hover:bg-muted sm:py-3"
                                                 >
                                                     <p className="flex items-center gap-2 break-words text-foreground">

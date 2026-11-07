@@ -137,6 +137,13 @@ export function setUnreadMail(count: number): void {
     notify();
 }
 
+export function adjustUnreadMail(change: number): void {
+    const next = Math.max(0, shown + change);
+    serverUnread = serverUnread === null ? next : Math.max(0, serverUnread + change);
+    shown = next;
+    notify();
+}
+
 export function acknowledgeUnreadMail(messageId: string): void {
     if (messageId === '' || acknowledgedIds.has(messageId)) {
         return;
@@ -154,7 +161,13 @@ export function acknowledgeUnreadMail(messageId: string): void {
 
     if (serverUnread !== null) {
         shown = Math.max(0, shown - 1);
+        serverUnread = Math.max(0, serverUnread - 1);
         notify();
+    }
+
+    if (unreadMessageIds.includes(messageId)) {
+        unreadMessageIds = unreadMessageIds.filter((id) => id !== messageId);
+        messageIdListeners.forEach((listener) => listener(unreadMessageIds));
     }
 
     void refreshUnreadMail();

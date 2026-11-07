@@ -623,7 +623,10 @@ class MicrosoftGraphMailService
         }
     }
 
-    public function setAllInboxRead(string $mailbox, bool $isRead): void
+    /**
+     * @return list<string> Message IDs that must be tracked locally because Graph denied write access.
+     */
+    public function setAllInboxRead(string $mailbox, bool $isRead): array
     {
         $folder = $this->graph(
             'GET',
@@ -633,6 +636,10 @@ class MicrosoftGraphMailService
         );
 
         if ($folder->failed()) {
+            if (in_array($folder->status(), [403, 404, 405], true)) {
+                return $this->setInboxMessagesReadInBatches($mailbox, 'inbox', $isRead);
+            }
+
             throw new MicrosoftGraphException($this->failureMessage($folder, false));
         }
 
@@ -650,17 +657,20 @@ class MicrosoftGraphMailService
         ], false);
 
         if (in_array($response->status(), [403, 404, 405], true)) {
-            $this->setInboxMessagesReadInBatches($mailbox, $folderId, $isRead);
-
-            return;
+            return $this->setInboxMessagesReadInBatches($mailbox, $folderId, $isRead);
         }
 
         if ($response->failed()) {
             throw new MicrosoftGraphException($this->failureMessage($response, false));
         }
+
+        return [];
     }
 
-    private function setInboxMessagesReadInBatches(string $mailbox, string $folderId, bool $isRead): void
+    /**
+     * @return list<string>
+     */
+    private function setInboxMessagesReadInBatches(string $mailbox, string $folderId, bool $isRead): array
     {
         $query = http_build_query([
             '$select' => 'id',
@@ -669,6 +679,8 @@ class MicrosoftGraphMailService
         ]);
         $url = $this->userUrl($mailbox).'/mailFolders/'.rawurlencode($folderId).'/messages?'.$query;
         $page = 0;
+        $localMessageIds = [];
+        $writesDenied = false;
 
         while ($url !== null) {
             $page++;
@@ -690,6 +702,12 @@ class MicrosoftGraphMailService
                 ->all();
 
             foreach (array_chunk($messageIds, 20) as $chunk) {
+                if ($writesDenied) {
+                    array_push($localMessageIds, ...$chunk);
+
+                    continue;
+                }
+
                 $requests = [];
 
                 foreach ($chunk as $index => $messageId) {
@@ -710,6 +728,13 @@ class MicrosoftGraphMailService
                 );
 
                 if ($batch->failed()) {
+                    if (in_array($batch->status(), [403, 405], true)) {
+                        array_push($localMessageIds, ...$chunk);
+                        $writesDenied = true;
+
+                        continue;
+                    }
+
                     throw new MicrosoftGraphException($this->failureMessage($batch, false));
                 }
 
@@ -722,11 +747,19 @@ class MicrosoftGraphMailService
                 foreach ($results as $result) {
                     $status = is_array($result) ? (int) ($result['status'] ?? 500) : 500;
 
-                    if ($status >= 400) {
+                    if ($status === 403 || $status === 405) {
+                        $requestId = is_array($result) ? (int) ($result['id'] ?? 0) : 0;
+
+                        if ($requestId > 0 && isset($chunk[$requestId - 1])) {
+                            $localMessageIds[] = $chunk[$requestId - 1];
+                        }
+
+                        continue;
+                    }
+
+                    if ($status >= 400 && $status !== 404) {
                         throw new MicrosoftGraphException(
-                            $status === 403
-                                ? 'Microsoft 365 denied access to update one or more Inbox messages.'
-                                : 'Microsoft Graph bulk update failed: HTTP '.$status,
+                            'Microsoft Graph bulk update failed: HTTP '.$status,
                         );
                     }
                 }
@@ -737,6 +770,8 @@ class MicrosoftGraphMailService
                 ? $next
                 : null;
         }
+
+        return array_values(array_unique($localMessageIds));
     }
 
     public function moveMessage(string $mailbox, string $messageId, string $destination): void
