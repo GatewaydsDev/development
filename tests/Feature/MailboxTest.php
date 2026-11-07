@@ -1190,13 +1190,13 @@ test('a microsoft bulk read failure returns to the mailbox instead of a server e
             return Http::response(['id' => 'actual-inbox-folder-id']);
         }
 
-        return Http::response(['error' => ['message' => 'Method not allowed']], 405);
+        return Http::response(['error' => ['message' => 'Service unavailable']], 500);
     });
 
     $this->actingAs($user)
         ->post(route('mailbox.state.all'), ['is_read' => 1])
         ->assertRedirect()
-        ->assertSessionHas('error', fn (string $message) => str_contains($message, 'HTTP 405'));
+        ->assertSessionHas('error', fn (string $message) => str_contains($message, 'HTTP 500'));
 });
 
 test('outgoing mail writes the signature into the message and does not attach a logo', function () {

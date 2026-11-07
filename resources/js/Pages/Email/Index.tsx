@@ -541,6 +541,7 @@ export default function Index({
     const [draftKey, setDraftKey] = useState(0);
     const [acting, setActing] = useState(false);
     const [bulkActing, setBulkActing] = useState(false);
+    const [bulkConfirmation, setBulkConfirmation] = useState<boolean | null>(null);
     const [viewer, setViewer] = useState<AttachmentViewer | null>(null);
     const [viewerFailed, setViewerFailed] = useState(false);
     const [showBlocked, setShowBlocked] = useState(false);
@@ -608,12 +609,7 @@ export default function Index({
     };
 
     const changeAllRead = (isRead: boolean) => {
-        const confirmation = isRead ? t('confirmMarkAllRead') : t('confirmMarkAllUnread');
-
-        if (!window.confirm(confirmation)) {
-            return;
-        }
-
+        setBulkConfirmation(null);
         setBulkActing(true);
         router.post(
             route('mailbox.state.all'),
@@ -783,7 +779,15 @@ export default function Index({
                                                             asChild
                                                         >
                                                             <Link href={folderHref('inbox', null, nextStatus)}>
-                                                                {t(nextStatus === 'all' ? 'allMessages' : nextStatus === 'unread' ? 'unreadMessage' : 'readMessage')}
+                                                                {nextStatus === 'unread' ? <MailIcon className="size-3.5" /> : null}
+                                                                {t(
+                                                                    nextStatus === 'all'
+                                                                        ? 'allMessages'
+                                                                        : nextStatus === 'unread'
+                                                                          ? 'unreadOnly'
+                                                                          : 'readMessage',
+                                                                    nextStatus === 'unread' ? { count: unreadCount } : undefined,
+                                                                )}
                                                             </Link>
                                                         </Button>
                                                     ))}
@@ -794,7 +798,7 @@ export default function Index({
                                                     className="min-h-10 touch-manipulation px-2 text-xs sm:text-sm"
                                                     variant="outline"
                                                     disabled={bulkActing}
-                                                    onClick={() => changeAllRead(true)}
+                                                    onClick={() => setBulkConfirmation(true)}
                                                 >
                                                     <MailOpenIcon className="size-4" />
                                                     {t('markAllRead')}
@@ -804,7 +808,7 @@ export default function Index({
                                                     className="min-h-10 touch-manipulation px-2 text-xs sm:text-sm"
                                                     variant="outline"
                                                     disabled={bulkActing}
-                                                    onClick={() => changeAllRead(false)}
+                                                    onClick={() => setBulkConfirmation(false)}
                                                 >
                                                     <MailIcon className="size-4" />
                                                     {t('markAllUnread')}
@@ -1176,6 +1180,40 @@ export default function Index({
                     </button>
                 </nav>
             ) : null}
+            <Dialog
+                open={bulkConfirmation !== null}
+                onClose={() => setBulkConfirmation(null)}
+                className="relative z-50"
+            >
+                <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm" aria-hidden="true" />
+                <div className="fixed inset-0 flex items-center justify-center p-4">
+                    <DialogPanel className="w-full max-w-md rounded-2xl border border-border bg-background p-5 shadow-2xl">
+                        <DialogTitle className="text-lg font-semibold text-foreground">
+                            {t('confirmBulkReadTitle')}
+                        </DialogTitle>
+                        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                            {bulkConfirmation === false ? t('confirmMarkAllUnread') : t('confirmMarkAllRead')}
+                        </p>
+                        <div className="mt-5 grid grid-cols-2 gap-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="min-h-11 touch-manipulation"
+                                onClick={() => setBulkConfirmation(null)}
+                            >
+                                {t('cancel')}
+                            </Button>
+                            <Button
+                                type="button"
+                                className="min-h-11 bg-emerald-700 text-white touch-manipulation hover:bg-emerald-800"
+                                onClick={() => changeAllRead(bulkConfirmation !== false)}
+                            >
+                                {bulkConfirmation === false ? t('markAllUnread') : t('markAllRead')}
+                            </Button>
+                        </div>
+                    </DialogPanel>
+                </div>
+            </Dialog>
             <Dialog open={viewer !== null} onClose={() => setViewer(null)} className="relative z-50">
                 <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm" aria-hidden="true" />
                 <div className="fixed inset-0 overflow-y-auto p-3 sm:p-6">

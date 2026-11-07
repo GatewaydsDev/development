@@ -649,8 +649,93 @@ class MicrosoftGraphMailService
             'suppressReadReceipts' => true,
         ], false);
 
+        if (in_array($response->status(), [403, 404, 405], true)) {
+            $this->setInboxMessagesReadInBatches($mailbox, $folderId, $isRead);
+
+            return;
+        }
+
         if ($response->failed()) {
             throw new MicrosoftGraphException($this->failureMessage($response, false));
+        }
+    }
+
+    private function setInboxMessagesReadInBatches(string $mailbox, string $folderId, bool $isRead): void
+    {
+        $query = http_build_query([
+            '$select' => 'id',
+            '$filter' => 'isRead eq '.($isRead ? 'false' : 'true'),
+            '$top' => 100,
+        ]);
+        $url = $this->userUrl($mailbox).'/mailFolders/'.rawurlencode($folderId).'/messages?'.$query;
+        $page = 0;
+
+        while ($url !== null) {
+            $page++;
+
+            if ($page > 100) {
+                throw new MicrosoftGraphException('Microsoft 365 returned too many Inbox pages to update safely.');
+            }
+
+            $response = $this->graph('GET', $url, null, false);
+
+            if ($response->failed()) {
+                throw new MicrosoftGraphException($this->failureMessage($response, false));
+            }
+
+            $messageIds = collect($response->json('value') ?? [])
+                ->filter(fn ($item): bool => is_array($item) && is_string($item['id'] ?? null) && $item['id'] !== '')
+                ->map(fn (array $item): string => $item['id'])
+                ->values()
+                ->all();
+
+            foreach (array_chunk($messageIds, 20) as $chunk) {
+                $requests = [];
+
+                foreach ($chunk as $index => $messageId) {
+                    $requests[] = [
+                        'id' => (string) ($index + 1),
+                        'method' => 'PATCH',
+                        'url' => '/users/'.rawurlencode($mailbox).'/messages/'.rawurlencode($messageId),
+                        'headers' => ['Content-Type' => 'application/json'],
+                        'body' => ['isRead' => $isRead],
+                    ];
+                }
+
+                $batch = $this->graph(
+                    'POST',
+                    'https://graph.microsoft.com/v1.0/$batch',
+                    ['requests' => $requests],
+                    false,
+                );
+
+                if ($batch->failed()) {
+                    throw new MicrosoftGraphException($this->failureMessage($batch, false));
+                }
+
+                $results = $batch->json('responses');
+
+                if (! is_array($results)) {
+                    throw new MicrosoftGraphException('Microsoft 365 returned an unreadable bulk update response.');
+                }
+
+                foreach ($results as $result) {
+                    $status = is_array($result) ? (int) ($result['status'] ?? 500) : 500;
+
+                    if ($status >= 400) {
+                        throw new MicrosoftGraphException(
+                            $status === 403
+                                ? 'Microsoft 365 denied access to update one or more Inbox messages.'
+                                : 'Microsoft Graph bulk update failed: HTTP '.$status,
+                        );
+                    }
+                }
+            }
+
+            $next = $response->json('@odata.nextLink');
+            $url = is_string($next) && str_starts_with($next, 'https://graph.microsoft.com/')
+                ? $next
+                : null;
         }
     }
 
