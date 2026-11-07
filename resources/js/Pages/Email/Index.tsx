@@ -1,5 +1,3 @@
-import ResizableWorkspace from '@/Components/ResizableWorkspace';
-import StickyDocumentToolbar from '@/Components/StickyDocumentToolbar';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import ComposeMail, {
     mailboxAddress,
@@ -27,9 +25,8 @@ import {
     DropdownMenuTrigger,
 } from '@/Components/ui/dropdown-menu';
 import { ArchiveIcon, ArrowLeftIcon, ChevronDownIcon, DownloadIcon, ForwardIcon, MailIcon, MailOpenIcon, MoreVerticalIcon, PaperclipIcon, RefreshCwIcon, ReplyAllIcon, ReplyIcon, SendIcon, XIcon } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import MailSettings from '@/Pages/Email/MailSettings';
 import { emptyStationery, type MailStationeryData } from '@/Pages/Email/mailLayouts';
 
 type MailSummary = {
@@ -287,6 +284,109 @@ const formatWhen = (value: string | null) => {
     }).format(date);
 };
 
+type ConversationSection = {
+    text: string;
+    depth: number;
+};
+
+function isConversationBoundary(lines: string[], index: number): boolean {
+    const line = lines[index]?.trim() ?? '';
+    const startsQuotedBlock = /^>{1,}\s*/.test(line)
+        && !/^>{1,}\s*/.test(lines[index - 1]?.trim() ?? '');
+
+    if (
+        /^(?:On .{1,300} wrote:|El .{1,300} escribió:)$/i.test(line)
+        || /^[-_]{2,}\s*(?:Original Message|Forwarded message|Mensaje original|Mensaje reenviado)\s*[-_]{2,}$/i.test(line)
+        || startsQuotedBlock
+    ) {
+        return true;
+    }
+
+    if (/^(?:From|De):\s*.+/i.test(line)) {
+        const previous = lines[index - 1]?.trim() ?? '';
+
+        if (/^[-_]{2,}\s*(?:Original Message|Forwarded message|Mensaje original|Mensaje reenviado)\s*[-_]{2,}$/i.test(previous)) {
+            return false;
+        }
+
+        const nearby = lines.slice(index + 1, index + 7).map((item) => item.trim());
+        const hasDate = nearby.some((item) => /^(?:Sent|Date|Enviado|Fecha):/i.test(item));
+        const hasRecipient = nearby.some((item) => /^(?:To|Subject|Para|Asunto):/i.test(item));
+
+        return hasDate && hasRecipient;
+    }
+
+    return false;
+}
+
+function conversationSections(body: string): ConversationSection[] {
+    const lines = body.replace(/\r\n?/g, '\n').split('\n');
+    const sections: ConversationSection[] = [];
+    let start = 0;
+
+    for (let index = 1; index < lines.length; index += 1) {
+        if (!isConversationBoundary(lines, index)) {
+            continue;
+        }
+
+        const text = lines.slice(start, index).join('\n').trim();
+
+        if (text !== '') {
+            sections.push({ text, depth: sections.length });
+            start = index;
+        }
+    }
+
+    const remaining = lines.slice(start).join('\n').trim();
+
+    if (remaining !== '') {
+        sections.push({ text: remaining, depth: sections.length });
+    }
+
+    return sections.length > 0 ? sections : [{ text: body, depth: 0 }];
+}
+
+function ConversationBody({ body }: { body: string }) {
+    const { t } = useTranslation('mail');
+    const sections = conversationSections(body);
+    const colors = [
+        'border-emerald-500/50 bg-emerald-500/5',
+        'border-sky-500/50 bg-sky-500/10',
+        'border-amber-500/50 bg-amber-500/10',
+        'border-violet-500/50 bg-violet-500/10',
+    ];
+
+    if (sections.length === 1) {
+        return (
+            <pre className="max-w-full whitespace-pre-wrap break-words font-sans text-sm text-foreground [overflow-wrap:anywhere]">
+                {body}
+            </pre>
+        );
+    }
+
+    return (
+        <div className="grid gap-3">
+            {sections.map((section) => (
+                <section
+                    key={`${section.depth}-${section.text.slice(0, 40)}`}
+                    className={`rounded-md border border-s-4 p-3 ${colors[section.depth % colors.length]}`}
+                >
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        {section.depth === 0
+                            ? t('currentMessage')
+                            : section.depth === 1
+                              ? t('previousMessage')
+                              : t('earlierMessage')}
+                    </p>
+                    <pre className="max-w-full whitespace-pre-wrap break-words font-sans text-sm text-foreground [overflow-wrap:anywhere]">
+                        {section.text}
+                    </pre>
+                </section>
+            ))}
+        </div>
+    );
+}
+
 export default function Index({
     mailbox,
     folder,
@@ -296,10 +396,6 @@ export default function Index({
     message,
     graphError,
     savedRecipients = [],
-    signature = null,
-    headerUrl = null,
-    headerWidth = 100,
-    footerColors = [],
     stationery = emptyStationery,
     emailTemplates = [],
     unreadCount = 0,
@@ -308,7 +404,6 @@ export default function Index({
 }: Props) {
     const list = Array.isArray(messages) ? messages : [];
     const { t } = useTranslation('mail');
-    const mailRef = useRef<HTMLDivElement>(null);
     const flash = usePage().props.flash as { success?: string | null } | undefined;
     const [refreshing, setRefreshing] = useState(false);
     const [showCompose, setShowCompose] = useState(false);
@@ -426,8 +521,6 @@ export default function Index({
                             </CardHeader>
                         </Card>
                     ) : (
-                        <div ref={mailRef}>
-                        <ResizableWorkspace id="email" sideDefault={384} className="items-start">
                         <div className="flex min-w-0 flex-col gap-4">
                             <p className="hidden text-sm text-muted-foreground sm:block">{t('received')}</p>
                             {flash?.success ? (
@@ -716,21 +809,21 @@ export default function Index({
                                                 message.has_attachments ? (
                                                     <section
                                                         aria-label={t('attachments')}
-                                                        className="grid gap-2 rounded-lg border-2 border-emerald-700 bg-emerald-50 p-3 dark:bg-emerald-950/40"
+                                                        className="flex flex-wrap gap-1.5 rounded-lg border border-emerald-700/60 bg-emerald-50 p-2 dark:bg-emerald-950/40"
                                                     >
-                                                        <p className="text-sm font-semibold text-emerald-900 dark:text-emerald-100">
+                                                        <p className="w-full text-xs font-semibold uppercase tracking-wide text-emerald-900 dark:text-emerald-100">
                                                             {t('attachments')}
                                                         </p>
                                                         {(message.attachments ?? []).length === 0 &&
                                                         (message.images ?? []).length === 0 ? (
-                                                            <p className="text-sm text-muted-foreground">{t('attachmentMissing')}</p>
+                                                            <p className="w-full text-sm text-muted-foreground">{t('attachmentMissing')}</p>
                                                         ) : null}
                                                         {(message.attachments ?? []).length === 0
                                                             ? (message.images ?? []).map((image, index) =>
                                                                   image.src.startsWith('data:image/') ? (
                                                                       <div
                                                                           key={`${image.name}-${index}`}
-                                                                          className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-emerald-700/30 bg-background px-3 py-2"
+                                                                          className="flex w-72 max-w-full flex-wrap items-center justify-between gap-2 rounded-md border border-emerald-700/30 bg-background px-2 py-1.5 shadow-sm"
                                                                       >
                                                                           <button
                                                                               type="button"
@@ -743,20 +836,28 @@ export default function Index({
                                                                               <img
                                                                                   src={image.src}
                                                                                   alt={image.name}
-                                                                                  className="size-12 rounded border border-border object-cover"
+                                                                                  className="size-9 rounded border border-border object-cover"
                                                                               />
-                                                                              <span className="truncate text-sm font-medium">{image.name}</span>
+                                                                              <span className="truncate text-xs font-medium">{image.name}</span>
                                                                           </button>
-                                                                          <Button
-                                                                              type="button"
-                                                                              className="min-h-11 bg-emerald-700 text-white hover:bg-emerald-800"
-                                                                              onClick={() => {
-                                                                                  setViewerFailed(false);
-                                                                                  setViewer({ name: image.name, src: image.src });
-                                                                              }}
-                                                                          >
-                                                                              {t('openAttachment')}
-                                                                          </Button>
+                                                                          <div className="flex items-center gap-1.5">
+                                                                              <Button
+                                                                                  type="button"
+                                                                                  className="h-9 bg-emerald-700 px-3 text-white hover:bg-emerald-800"
+                                                                                  onClick={() => {
+                                                                                      setViewerFailed(false);
+                                                                                      setViewer({ name: image.name, src: image.src });
+                                                                                  }}
+                                                                              >
+                                                                                  {t('openAttachment')}
+                                                                              </Button>
+                                                                              <Button asChild variant="outline" className="h-9 px-3">
+                                                                                  <a href={downloadHref(image.src)} download={image.name}>
+                                                                                      <DownloadIcon className="size-4" />
+                                                                                      {t('downloadAttachment')}
+                                                                                  </a>
+                                                                              </Button>
+                                                                          </div>
                                                                       </div>
                                                                   ) : null,
                                                               )
@@ -764,38 +865,46 @@ export default function Index({
                                                         {(message.attachments ?? []).map((file) => (
                                                             <div
                                                                 key={file.id}
-                                                                className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-emerald-700/30 bg-background px-3 py-2"
+                                                                className="flex w-72 max-w-full flex-wrap items-center justify-between gap-2 rounded-md border border-emerald-700/30 bg-background px-2 py-1.5 shadow-sm"
                                                             >
-                                                                <span className="flex min-w-0 items-center gap-2 text-sm">
-                                                                    <PaperclipIcon className="size-4 shrink-0" />
+                                                                <span className="flex min-w-0 items-center gap-1.5 text-xs">
+                                                                    <PaperclipIcon className="size-3.5 shrink-0" />
                                                                     <span className="truncate font-medium">{file.name}</span>
                                                                     <span className="shrink-0 text-muted-foreground">{fileSize(file.size)}</span>
                                                                 </span>
-                                                                {file.image ? (
-                                                                    <Button
-                                                                        type="button"
-                                                                        className="min-h-11 bg-emerald-700 text-white hover:bg-emerald-800"
-                                                                        onClick={() => {
-                                                                            setViewerFailed(false);
-                                                                            setViewer({
-                                                                                name: file.name,
-                                                                                src: attachmentUrl(message.id, file.id),
-                                                                            });
-                                                                        }}
-                                                                    >
-                                                                        {t('openAttachment')}
-                                                                    </Button>
-                                                                ) : (
-                                                                    <Button asChild className="min-h-11 bg-emerald-700 text-white hover:bg-emerald-800">
-                                                                        <a
-                                                                            href={attachmentUrl(message.id, file.id)}
-                                                                            target="_blank"
-                                                                            rel="noopener noreferrer"
+                                                                <div className="flex items-center gap-1.5">
+                                                                    {file.image ? (
+                                                                        <Button
+                                                                            type="button"
+                                                                            className="h-9 bg-emerald-700 px-3 text-white hover:bg-emerald-800"
+                                                                            onClick={() => {
+                                                                                setViewerFailed(false);
+                                                                                setViewer({
+                                                                                    name: file.name,
+                                                                                    src: attachmentUrl(message.id, file.id),
+                                                                                });
+                                                                            }}
                                                                         >
                                                                             {t('openAttachment')}
+                                                                        </Button>
+                                                                    ) : (
+                                                                        <Button asChild className="h-9 bg-emerald-700 px-3 text-white hover:bg-emerald-800">
+                                                                            <a
+                                                                                href={attachmentUrl(message.id, file.id)}
+                                                                                target="_blank"
+                                                                                rel="noopener noreferrer"
+                                                                            >
+                                                                                {t('openAttachment')}
+                                                                            </a>
+                                                                        </Button>
+                                                                    )}
+                                                                    <Button asChild variant="outline" className="h-9 px-3">
+                                                                        <a href={downloadHref(attachmentUrl(message.id, file.id))} download={file.name}>
+                                                                            <DownloadIcon className="size-4" />
+                                                                            {t('downloadAttachment')}
                                                                         </a>
                                                                     </Button>
-                                                                )}
+                                                                </div>
                                                             </div>
                                                         ))}
                                                     </section>
@@ -808,9 +917,7 @@ export default function Index({
                                                         {t('cc')}: {message.cc?.join(', ')}
                                                     </p>
                                                 ) : null}
-                                                <pre className="max-w-full whitespace-pre-wrap break-words font-sans text-sm text-foreground [overflow-wrap:anywhere]">
-                                                    {message.body}
-                                                </pre>
+                                                <ConversationBody body={message.body} />
                                             </div>
                                         ) : (
                                             <p className="text-sm text-muted-foreground">{t('select')}</p>
@@ -819,19 +926,6 @@ export default function Index({
                                 </Card>
                             </div>
                             )}
-                        </div>
-                        <div className="min-w-0">
-                        <StickyDocumentToolbar scopeRef={mailRef} propertiesPanel>
-                            <MailSettings
-                                signature={signature}
-                                headerUrl={headerUrl}
-                                headerWidth={headerWidth}
-                                footerColors={footerColors}
-                                stationery={stationery}
-                            />
-                        </StickyDocumentToolbar>
-                        </div>
-                        </ResizableWorkspace>
                         </div>
                     )}
                 </div>

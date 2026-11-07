@@ -98,7 +98,11 @@ function layoutLabel(layout: MailLayoutId): string {
     return '';
 }
 
-export function buildLayout(layout: MailLayoutId, stationery: MailStationeryData): string {
+export function buildLayout(
+    layout: MailLayoutId,
+    stationery: MailStationeryData,
+    writing = writingRoom(),
+): string {
     const signature = section('signature', signatureHtml(stationery, 'new'));
     const hasHeader = stationery.header.trim() !== '';
     const hasFooter = stationery.footer.trim() !== '';
@@ -108,11 +112,7 @@ export function buildLayout(layout: MailLayoutId, stationery: MailStationeryData
         : '';
     const footer = hasFooter ? section('footer', stationery.footer) : '';
 
-    if (layout === 'blank' || layout === 'note') {
-        return `<div data-gateway-mail="${layout}">${writingRoom()}${signature}</div>`;
-    }
-
-    return `<div data-gateway-mail="${layout}">${header}${writingRoom()}${signature}${footer}</div>`;
+    return `<div data-gateway-mail="${layout}">${header}${writing}${signature}${footer}</div>`;
 }
 
 export function placeReplySignature(body: string, signature: string): string {
