@@ -625,8 +625,25 @@ class MicrosoftGraphMailService
 
     public function setAllInboxRead(string $mailbox, bool $isRead): void
     {
+        $folder = $this->graph(
+            'GET',
+            $this->userUrl($mailbox).'/mailFolders/inbox?$select=id',
+            null,
+            false,
+        );
+
+        if ($folder->failed()) {
+            throw new MicrosoftGraphException($this->failureMessage($folder, false));
+        }
+
+        $folderId = $folder->json('id');
+
+        if (! is_string($folderId) || $folderId === '') {
+            throw new MicrosoftGraphException('Microsoft 365 could not identify the Inbox folder.');
+        }
+
         $url = 'https://graph.microsoft.com/beta/users/'.rawurlencode($mailbox)
-            .'/mailFolders/inbox/updateAllMessagesReadState';
+            .'/mailFolders/'.rawurlencode($folderId).'/updateAllMessagesReadState';
         $response = $this->graph('POST', $url, [
             'isRead' => $isRead,
             'suppressReadReceipts' => true,

@@ -59,6 +59,10 @@ function fakeMailboxGraph(array $pages = []): void
             return Http::response('', 202);
         }
 
+        if ($request->method() === 'GET' && str_ends_with($path, '/mailFolders/inbox')) {
+            return Http::response(['id' => 'actual-inbox-folder-id']);
+        }
+
         if (preg_match('#/messages/[^?]+#', $request->url()) === 1) {
             return Http::response([
                 'id' => 'msg-1',
@@ -1156,7 +1160,7 @@ test('every inbox message can be marked read while archived state is retained', 
     ]);
 
     $this->actingAs($user)
-        ->patch(route('mailbox.state.all'), ['is_read' => 1])
+        ->post(route('mailbox.state.all'), ['is_read' => 1])
         ->assertRedirect()
         ->assertSessionHas('success', 'Microsoft 365 is marking every inbox email as read.');
 
@@ -1164,8 +1168,35 @@ test('every inbox message can be marked read while archived state is retained', 
         ->and(MailMessageState::query()->where('message_id', 'inbox-message')->exists())->toBeFalse();
 
     Http::assertSent(fn ($request) => $request->method() === 'POST'
-        && str_contains($request->url(), '/mailFolders/inbox/updateAllMessagesReadState')
+        && str_contains($request->url(), '/mailFolders/actual-inbox-folder-id/updateAllMessagesReadState')
         && $request['isRead'] === true);
+});
+
+test('a microsoft bulk read failure returns to the mailbox instead of a server error', function () {
+    $user = mailboxUser();
+    Cache::flush();
+    config([
+        'services.microsoft.tenant_id' => 'tenant-id',
+        'services.microsoft.client_id' => 'client-id',
+        'services.microsoft.client_secret' => 'client-secret',
+    ]);
+
+    Http::fake(function ($request) {
+        if (str_contains($request->url(), 'login.microsoftonline.com')) {
+            return Http::response(['access_token' => 'graph-token', 'expires_in' => 3600]);
+        }
+
+        if ($request->method() === 'GET') {
+            return Http::response(['id' => 'actual-inbox-folder-id']);
+        }
+
+        return Http::response(['error' => ['message' => 'Method not allowed']], 405);
+    });
+
+    $this->actingAs($user)
+        ->post(route('mailbox.state.all'), ['is_read' => 1])
+        ->assertRedirect()
+        ->assertSessionHas('error', fn (string $message) => str_contains($message, 'HTTP 405'));
 });
 
 test('outgoing mail writes the signature into the message and does not attach a logo', function () {

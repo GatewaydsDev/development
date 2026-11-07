@@ -170,7 +170,7 @@ Route::middleware(['auth', 'prevent-back-history'])->group(function () {
     Route::patch('/email/state', [MailboxController::class, 'updateState'])
         ->middleware('throttle:60,1,mailbox-state')
         ->name('mailbox.state');
-    Route::patch('/email/state/all', [MailboxController::class, 'updateAllStates'])
+    Route::post('/email/state/all', [MailboxController::class, 'updateAllStates'])
         ->middleware('throttle:6,1,mailbox-state-all')
         ->name('mailbox.state.all');
     Route::post('/email/archive', [MailboxController::class, 'archive'])

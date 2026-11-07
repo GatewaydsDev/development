@@ -216,7 +216,12 @@ class MailboxController extends Controller
         ]);
         $isRead = $request->boolean('is_read');
 
-        $states->markAllRead($user, $mailbox, $isRead, $graph->actingAs($user));
+        try {
+            $states->markAllRead($user, $mailbox, $isRead, $graph->actingAs($user));
+        } catch (MicrosoftGraphException $exception) {
+            return back()->with('error', $exception->getMessage());
+        }
+
         Cache::forget($this->unreadCacheKey($user, $mailbox));
 
         return back()->with(

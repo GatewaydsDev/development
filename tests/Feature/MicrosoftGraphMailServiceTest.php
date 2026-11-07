@@ -198,20 +198,27 @@ test('mailbox read status filters are sent to microsoft graph', function () {
 });
 
 test('all inbox messages can be marked read through microsoft graph', function () {
-    Http::fake([
-        'https://login.microsoftonline.com/*' => Http::response([
-            'access_token' => 'graph-token',
-            'expires_in' => 3600,
-        ]),
-        'https://graph.microsoft.com/*' => Http::response('', 202),
-    ]);
+    Http::fake(function ($request) {
+        if (str_contains($request->url(), 'login.microsoftonline.com')) {
+            return Http::response([
+                'access_token' => 'graph-token',
+                'expires_in' => 3600,
+            ]);
+        }
+
+        if ($request->method() === 'GET' && str_contains($request->url(), '/mailFolders/inbox')) {
+            return Http::response(['id' => 'actual-inbox-folder-id']);
+        }
+
+        return Http::response('', 202);
+    });
 
     app(MicrosoftGraphMailService::class)
         ->setAllInboxRead('sales@gateway-ds.com', true);
 
     Http::assertSent(function ($request) {
         return $request->method() === 'POST'
-            && $request->url() === 'https://graph.microsoft.com/beta/users/sales%40gateway-ds.com/mailFolders/inbox/updateAllMessagesReadState'
+            && $request->url() === 'https://graph.microsoft.com/beta/users/sales%40gateway-ds.com/mailFolders/actual-inbox-folder-id/updateAllMessagesReadState'
             && $request['isRead'] === true
             && $request['suppressReadReceipts'] === true;
     });

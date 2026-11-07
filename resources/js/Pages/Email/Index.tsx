@@ -534,7 +534,7 @@ export default function Index({
 }: Props) {
     const list = Array.isArray(messages) ? messages : [];
     const { t } = useTranslation('mail');
-    const flash = usePage().props.flash as { success?: string | null } | undefined;
+    const flash = usePage().props.flash as { success?: string | null; error?: string | null } | undefined;
     const [refreshing, setRefreshing] = useState(false);
     const [showCompose, setShowCompose] = useState(false);
     const [draft, setDraft] = useState<ComposeDraft | undefined>(undefined);
@@ -608,12 +608,14 @@ export default function Index({
     };
 
     const changeAllRead = (isRead: boolean) => {
-        if (!isRead && !window.confirm(t('confirmMarkAllUnread'))) {
+        const confirmation = isRead ? t('confirmMarkAllRead') : t('confirmMarkAllUnread');
+
+        if (!window.confirm(confirmation)) {
             return;
         }
 
         setBulkActing(true);
-        router.patch(
+        router.post(
             route('mailbox.state.all'),
             { is_read: isRead ? 1 : 0 },
             {
@@ -682,6 +684,11 @@ export default function Index({
                             {flash?.success ? (
                                 <p className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-800 dark:text-emerald-200">
                                     {flash.success}
+                                </p>
+                            ) : null}
+                            {flash?.error ? (
+                                <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                                    {flash.error}
                                 </p>
                             ) : null}
                             {deliveryProblems.length > 0 ? (

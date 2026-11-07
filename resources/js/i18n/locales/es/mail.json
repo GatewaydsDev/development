@@ -18,6 +18,7 @@
   "markUnread": "Marcar como no leído",
   "markAllRead": "Marcar todos como leídos",
   "markAllUnread": "Marcar todos como no leídos",
+  "confirmMarkAllRead": "¿Marcar todos los correos de la bandeja de entrada como leídos?",
   "confirmMarkAllUnread": "¿Marcar todos los correos de la bandeja de entrada como no leídos?",
   "moveToInbox": "Mover a la bandeja",
   "appearance": "Firma, encabezado y pie",
