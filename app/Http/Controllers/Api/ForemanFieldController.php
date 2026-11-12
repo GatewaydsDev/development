@@ -12,6 +12,8 @@ use App\Models\User;
 use App\Support\DailyTaskAccess;
 use App\Support\EmployeeAccess;
 use App\Support\JobProgressAccess;
+use App\Support\JobProgressRealtime;
+use App\Support\QualityControlAssignments;
 use App\Support\ScheduleAttendance;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -67,9 +69,10 @@ class ForemanFieldController extends Controller
 
     public function qualityControl(Request $request): JsonResponse
     {
-        $user = $this->foreman($request);
+        $user = $this->qualityUser($request);
         $employeeId = Employee::query()->where('user_id', $user->id)->value('id');
         $today = now()->toDateString();
+        $canSend = QualityControlAssignments::canSend($user, mobile: true);
 
         $schedules = $employeeId === null
             ? collect()
@@ -77,12 +80,12 @@ class ForemanFieldController extends Controller
                 ->where('quality_control_employee_id', $employeeId)
                 ->where('status', EmployeeWorkSchedule::STATUS_ACTIVE)
                 ->whereDate('ends_on', '>=', $today)
-                ->with(['project:id,uuid,name,project_number', 'dailyTasks' => fn ($query) => $query->where('requires_quality_control', true)])
+                ->with(['project:id,uuid,name,project_number,client_company_id', 'dailyTasks' => fn ($query) => $query->where('requires_quality_control', true)])
                 ->orderBy('starts_on')
                 ->get();
 
-        $items = $schedules->flatMap(function (EmployeeWorkSchedule $schedule): array {
-            return $schedule->dailyTasks->map(function (DailyTask $task) use ($schedule): array {
+        $items = $schedules->flatMap(function (EmployeeWorkSchedule $schedule) use ($canSend): array {
+            return $schedule->dailyTasks->map(function (DailyTask $task) use ($schedule, $canSend): array {
                 $completion = DailyTaskCompletion::query()
                     ->where('employee_work_schedule_id', $schedule->id)
                     ->where('daily_task_id', $task->id)
@@ -106,6 +109,9 @@ class ForemanFieldController extends Controller
                         'notes' => $report->notes,
                         'corrective_action' => $report->corrective_action,
                     ] : null,
+                    'recipients' => $canSend
+                        ? QualityControlAssignments::recipientPayload($schedule)
+                        : [],
                 ];
             })->all();
         })->values();
@@ -113,13 +119,14 @@ class ForemanFieldController extends Controller
         return response()->json([
             'checklist' => QualityControlReport::CHECKLIST,
             'results' => QualityControlReport::RESULTS,
+            'can_send_reports' => $canSend,
             'data' => $items,
         ]);
     }
 
     public function storeReport(Request $request, EmployeeWorkSchedule $schedule, DailyTask $dailyTask): JsonResponse
     {
-        $user = $this->foreman($request);
+        $user = $this->qualityUser($request);
         abort_unless(JobProgressAccess::canInspect($user, $schedule), 403);
         abort_unless($schedule->dailyTasks()->whereKey($dailyTask->id)->exists(), 404);
 
@@ -132,6 +139,7 @@ class ForemanFieldController extends Controller
             'fail_reasons.*' => ['nullable', 'string', 'max:1000'],
             'notes' => ['nullable', 'string', 'max:3000'],
             'corrective_action' => ['nullable', 'string', 'max:3000'],
+            'assigned_to_user_uuid' => ['nullable', 'string'],
         ]);
 
         $checklist = collect($keys)->mapWithKeys(fn (string $key): array => [$key => $data['checklist'][$key] ?? QualityControlReport::ANSWER_NA])->all();
@@ -159,6 +167,14 @@ class ForemanFieldController extends Controller
             throw ValidationException::withMessages(['corrective_action' => 'Describe the corrective action needed.']);
         }
 
+        $recipientUuid = $data['assigned_to_user_uuid'] ?? null;
+
+        if (filled($recipientUuid)) {
+            abort_unless(QualityControlAssignments::canSend($user, mobile: true), 403);
+        }
+
+        $recipient = QualityControlAssignments::resolveRecipient($schedule, $recipientUuid);
+
         $report = QualityControlReport::create([
             'employee_work_schedule_id' => $schedule->id,
             'daily_task_id' => $dailyTask->id,
@@ -167,6 +183,8 @@ class ForemanFieldController extends Controller
                 ->where('daily_task_id', $dailyTask->id)
                 ->latest('work_date')->latest('id')->value('id'),
             'inspector_user_id' => $user->id,
+            'assigned_to_user_id' => $recipient?->id,
+            'assigned_at' => $recipient ? now() : null,
             'inspected_on' => now()->toDateString(),
             'result' => $data['result'],
             'checklist' => $checklist,
@@ -175,13 +193,27 @@ class ForemanFieldController extends Controller
             'corrective_action' => $data['result'] === QualityControlReport::RESULT_PASSED ? null : $data['corrective_action'],
         ]);
 
-        return response()->json(['uuid' => $report->uuid, 'result' => $report->result], 201);
+        JobProgressRealtime::changed($schedule, 'quality_control');
+
+        return response()->json([
+            'uuid' => $report->uuid,
+            'result' => $report->result,
+            'assigned_to' => $recipient?->only(['uuid', 'name', 'email']),
+        ], 201);
     }
 
     private function foreman(Request $request): User
     {
         $user = $request->user();
         abort_unless($user instanceof User && EmployeeAccess::isForeman($user) && DailyTaskAccess::mustComplete($user), 403);
+
+        return $user;
+    }
+
+    private function qualityUser(Request $request): User
+    {
+        $user = $request->user();
+        abort_unless($user instanceof User && JobProgressAccess::canOpen($user), 403);
 
         return $user;
     }

@@ -8,9 +8,10 @@ import {
 } from '@/Components/ui/card';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router } from '@inertiajs/react';
-import { GaugeIcon } from 'lucide-react';
+import { GaugeIcon, RadioIcon } from 'lucide-react';
 import ProgressBar from './Partials/ProgressBar';
 import type { JobSchedule, JobSummary } from './types';
+import useJobProgressLive from './useJobProgressLive';
 
 type Job = JobSchedule & { summary: JobSummary };
 
@@ -21,13 +22,24 @@ type Props = {
 };
 
 export default function Index({ status, statuses, jobs }: Props) {
+    useJobProgressLive(
+        jobs.map((job) => job.uuid),
+        ['jobs'],
+    );
+
     return (
         <AuthenticatedLayout
             header={
                 <div>
-                    <h2 className="text-xl font-semibold leading-tight text-emerald-700 dark:text-emerald-300">
-                        Job progress
-                    </h2>
+                    <div className="flex items-center gap-2">
+                        <h2 className="text-xl font-semibold leading-tight text-emerald-700 dark:text-emerald-300">
+                            Job progress
+                        </h2>
+                        <Badge variant="secondary" className="gap-1.5">
+                            <RadioIcon className="size-3 animate-pulse text-emerald-500" />
+                            Live
+                        </Badge>
+                    </div>
                     <p className="text-sm text-muted-foreground">
                         Schedule, crew attendance, task progress, photos and
                         quality control for each job.

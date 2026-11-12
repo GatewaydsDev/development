@@ -21,11 +21,24 @@ class MicrosoftGraphMailService
     /** Super admin whose saved Microsoft 365 app signs system emails with no signed-in user. */
     private ?User $credentialOwner = null;
 
+    private ?int $requestTimeout = null;
+
+    private ?int $connectTimeout = null;
+
     public function actingAs(?User $user): self
     {
         $copy = clone $this;
         $copy->actor = $user;
         $copy->credentialOwner = null;
+
+        return $copy;
+    }
+
+    public function withTimeouts(int $requestTimeout, int $connectTimeout): self
+    {
+        $copy = clone $this;
+        $copy->requestTimeout = max(1, $requestTimeout);
+        $copy->connectTimeout = max(1, min($connectTimeout, $copy->requestTimeout));
 
         return $copy;
     }
@@ -946,10 +959,12 @@ class MicrosoftGraphMailService
         $attempt = 0;
 
         while (true) {
-            $pending = Http::withToken($this->accessToken())
+            $this->assertCircuitClosed($sending);
+
+            $pending = Http::withToken($this->accessToken($sending))
                 ->acceptJson()
-                ->timeout(20)
-                ->connectTimeout(10);
+                ->timeout($this->requestTimeout())
+                ->connectTimeout($this->connectTimeout());
 
             if ($method === 'GET') {
                 $pending = $pending->withHeaders([
@@ -964,11 +979,9 @@ class MicrosoftGraphMailService
                     default => $body === null ? $pending->post($url) : $pending->post($url, $body),
                 };
             } catch (ConnectionException $exception) {
-                if ($sending) {
-                    throw $exception;
-                }
+                $this->openCircuit();
 
-                throw new MicrosoftGraphException('Microsoft 365 did not respond. Refresh and try again.');
+                throw new MicrosoftGraphException($this->unavailableMessage($sending));
             }
 
             if ($response->status() === 401 && $attempt === 0) {
@@ -978,18 +991,28 @@ class MicrosoftGraphMailService
                 continue;
             }
 
-            if (! $sending && $response->status() === 429 && $attempt === 0) {
-                $this->honorRetryAfter($response);
-                $attempt++;
+            if ($response->status() === 429) {
+                $retryAfter = max(1, min(60, (int) $response->header('Retry-After')));
+                $this->openCircuit($retryAfter);
 
-                continue;
+                throw new MicrosoftGraphException(
+                    $sending
+                        ? 'Microsoft 365 is limiting requests. The message was not sent.'
+                        : 'Microsoft 365 is limiting requests. Try again in a moment.',
+                );
+            }
+
+            if (in_array($response->status(), [502, 503, 504], true)) {
+                $this->openCircuit();
+
+                throw new MicrosoftGraphException($this->unavailableMessage($sending));
             }
 
             return $response;
         }
     }
 
-    private function accessToken(): string
+    private function accessToken(bool $sending): string
     {
         $cached = Cache::get($this->tokenCacheKey());
 
@@ -999,19 +1022,31 @@ class MicrosoftGraphMailService
 
         [$tenantId, $clientId, $clientSecret] = $this->credentials();
 
-        $response = Http::asForm()
-            ->acceptJson()
-            ->timeout(20)
-            ->connectTimeout(10)
-            ->post(
-                "https://login.microsoftonline.com/{$tenantId}/oauth2/v2.0/token",
-                [
-                    'client_id' => $clientId,
-                    'client_secret' => $clientSecret,
-                    'scope' => 'https://graph.microsoft.com/.default',
-                    'grant_type' => 'client_credentials',
-                ]
-            );
+        try {
+            $response = Http::asForm()
+                ->acceptJson()
+                ->timeout($this->requestTimeout())
+                ->connectTimeout($this->connectTimeout())
+                ->post(
+                    "https://login.microsoftonline.com/{$tenantId}/oauth2/v2.0/token",
+                    [
+                        'client_id' => $clientId,
+                        'client_secret' => $clientSecret,
+                        'scope' => 'https://graph.microsoft.com/.default',
+                        'grant_type' => 'client_credentials',
+                    ]
+                );
+        } catch (ConnectionException) {
+            $this->openCircuit();
+
+            throw new MicrosoftGraphException($this->unavailableMessage($sending));
+        }
+
+        if (in_array($response->status(), [502, 503, 504], true)) {
+            $this->openCircuit();
+
+            throw new MicrosoftGraphException($this->unavailableMessage($sending));
+        }
 
         if ($response->failed()) {
             throw new MicrosoftGraphException(
@@ -1035,6 +1070,48 @@ class MicrosoftGraphMailService
         Cache::put($this->tokenCacheKey(), $token, $ttl);
 
         return $token;
+    }
+
+    private function requestTimeout(): int
+    {
+        return $this->requestTimeout
+            ?? max(1, (int) config('services.microsoft.request_timeout', 20));
+    }
+
+    private function connectTimeout(): int
+    {
+        $configured = $this->connectTimeout
+            ?? max(1, (int) config('services.microsoft.connect_timeout', 10));
+
+        return min($configured, $this->requestTimeout());
+    }
+
+    private function assertCircuitClosed(bool $sending): void
+    {
+        if (Cache::has($this->circuitCacheKey())) {
+            throw new MicrosoftGraphException($this->unavailableMessage($sending));
+        }
+    }
+
+    private function openCircuit(?int $seconds = null): void
+    {
+        $seconds ??= max(15, (int) config('services.microsoft.circuit_breaker_seconds', 60));
+        Cache::put($this->circuitCacheKey(), true, $seconds);
+    }
+
+    private function circuitCacheKey(): string
+    {
+        return 'microsoft-graph:circuit:'.hash('sha256', implode('|', [
+            (string) config('services.microsoft.tenant_id'),
+            (string) config('services.microsoft.client_id'),
+        ]));
+    }
+
+    private function unavailableMessage(bool $sending): string
+    {
+        return $sending
+            ? 'Microsoft 365 did not confirm the message. It was not sent again.'
+            : 'Microsoft 365 is temporarily unavailable. Other features are still available.';
     }
 
     public function forgetAccessToken(): void
@@ -1177,15 +1254,6 @@ class MicrosoftGraphMailService
         [$tenantId, $clientId, $clientSecret] = $this->credentials();
 
         return 'microsoft-graph:token:'.hash('sha256', $tenantId.'|'.$clientId.'|'.$clientSecret);
-    }
-
-    private function honorRetryAfter(Response $response): void
-    {
-        $wait = (int) $response->header('Retry-After');
-
-        if ($wait > 0 && $wait <= 5) {
-            sleep($wait);
-        }
     }
 
     private function failureMessage(Response $response, bool $sending): string

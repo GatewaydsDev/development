@@ -13,6 +13,7 @@ use App\Support\EmployeeAccess;
 use App\Support\JobProgressAccess;
 use App\Support\ProductAccess;
 use App\Support\ProjectAccess;
+use App\Support\QualityControlAssignments;
 use App\Support\QuotationAccess;
 use App\Support\QuotationRevisionAssignments;
 use App\Support\ServiceAccess;
@@ -251,6 +252,15 @@ class HandleInertiaRequests extends Middleware
                         : false,
                     'viewJobProgress' => $request->user() instanceof User
                         ? JobProgressAccess::canOpen($request->user())
+                        : false,
+                    'sendQualityControlReports' => $request->user() instanceof User
+                        ? QualityControlAssignments::canSend($request->user())
+                        : false,
+                    'createScheduleTasks' => $request->user()
+                        ? Gate::forUser($request->user())->allows('create-schedule-tasks')
+                        : false,
+                    'updateScheduleTasks' => $request->user()
+                        ? Gate::forUser($request->user())->allows('update-schedule-tasks')
                         : false,
                     'viewWorkSchedule' => $request->user()
                         ? Gate::forUser($request->user())->allows('view-work-schedule')

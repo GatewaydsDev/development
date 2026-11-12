@@ -1,15 +1,23 @@
 <?php
 
+use App\Events\JobProgressChanged;
+use App\Models\Certification;
 use App\Models\DailyTask;
 use App\Models\DailyTaskCompletion;
-use App\Models\User;
-use App\Models\UserLevel;
+use App\Models\DailyTaskTitle;
+use App\Models\Employee;
 use App\Models\EmployeeWorkSchedule;
+use App\Models\JobTitle;
 use App\Models\Project;
 use App\Models\ProjectStatus;
+use App\Models\User;
+use App\Models\UserLevel;
+use App\Models\WorkScheduleOverview;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
+use Laravel\Sanctum\Sanctum;
 
 function dailyTaskUser(string $levelName): User
 {
@@ -113,13 +121,13 @@ test('job titles are created from the dropdown and linked to employees', functio
 
     $this->actingAs($admin)->post(route('admin.job-titles.store'), ['name' => 'Site Lead'])
         ->assertSessionHasNoErrors();
-    $title = \App\Models\JobTitle::where('name', 'Site Lead')->firstOrFail();
+    $title = JobTitle::where('name', 'Site Lead')->firstOrFail();
 
-    $employee = \App\Models\Employee::create([
+    $employee = Employee::create([
         'first_name' => 'Ana',
         'last_name' => 'Silva',
         'email' => 'ana@example.com',
-        'employment_status' => \App\Models\Employee::STATUS_ACTIVE,
+        'employment_status' => Employee::STATUS_ACTIVE,
         'job_title_id' => $title->id,
     ]);
 
@@ -172,11 +180,11 @@ test('super admins attach daily tasks when saving a work schedule', function () 
             ->has('dailyTasks', 1)
             ->where('schedule.daily_task_uuids', []));
 
-    $employee = \App\Models\Employee::create([
+    $employee = Employee::create([
         'first_name' => 'Crew',
         'last_name' => 'Hand',
         'email' => 'hand@example.com',
-        'employment_status' => \App\Models\Employee::STATUS_ACTIVE,
+        'employment_status' => Employee::STATUS_ACTIVE,
     ]);
 
     $this->actingAs($admin)->patch(route('admin.employee-schedules.update', $schedule), [
@@ -193,6 +201,7 @@ test('super admins attach daily tasks when saving a work schedule', function () 
 });
 
 test('a foreman records progress, notes and photos for a scheduled task', function () {
+    Event::fake([JobProgressChanged::class]);
     Storage::fake('local');
     $foreman = dailyTaskUser(UserLevel::FOREMAN);
     $other = dailyTaskUser(UserLevel::FOREMAN);
@@ -206,6 +215,12 @@ test('a foreman records progress, notes and photos for a scheduled task', functi
         'notes' => 'Half the frames inspected',
         'photos' => [UploadedFile::fake()->image('frame.jpg')],
     ])->assertSessionHasNoErrors();
+
+    Event::assertDispatched(
+        JobProgressChanged::class,
+        fn (JobProgressChanged $event) => $event->scheduleUuid === $schedule->uuid
+            && $event->change === 'task',
+    );
 
     $completion = DailyTaskCompletion::firstOrFail();
     expect($completion->status)->toBe('in_progress')
@@ -251,12 +266,13 @@ test('inactive or out of range schedules do not put tasks on the checklist', fun
 });
 
 test('the mobile api lists and updates the foreman checklist', function () {
+    Event::fake([JobProgressChanged::class]);
     Storage::fake('local');
     $foreman = dailyTaskUser(UserLevel::FOREMAN);
     $task = DailyTask::create(['title' => 'Check scaffolding', 'is_active' => true]);
     $schedule = fieldSchedule($foreman, [$task]);
 
-    Laravel\Sanctum\Sanctum::actingAs($foreman);
+    Sanctum::actingAs($foreman);
 
     $this->getJson('/api/me/daily-tasks')
         ->assertOk()
@@ -273,17 +289,108 @@ test('the mobile api lists and updates the foreman checklist', function () {
         ->assertJsonPath('task.status', 'blocked')
         ->assertJsonCount(1, 'task.photos')
         ->assertJsonPath('pending', 1);
+
+    Event::assertDispatched(
+        JobProgressChanged::class,
+        fn (JobProgressChanged $event) => $event->scheduleUuid === $schedule->uuid
+            && $event->change === 'task',
+    );
+
+    $photo = DailyTaskCompletion::firstOrFail()->photos()->firstOrFail();
+    $this->deleteJson("/api/me/daily-tasks/photos/{$photo->getRouteKey()}")
+        ->assertOk();
+
+    Event::assertDispatchedTimes(JobProgressChanged::class, 2);
+});
+
+test('a permitted foreman creates and updates audited tasks only on their own schedule', function () {
+    $foreman = dailyTaskUser(UserLevel::FOREMAN);
+    $other = dailyTaskUser(UserLevel::FOREMAN);
+    $schedule = fieldSchedule($foreman, []);
+
+    Sanctum::actingAs($foreman);
+    $response = $this->postJson("/api/me/daily-tasks/schedules/{$schedule->uuid}", [
+        'title' => 'Verify opening dimensions',
+        'description' => 'Measure before installation',
+        'performed_by' => 'foreman',
+        'requires_photo' => true,
+        'requires_quality_control' => false,
+    ])->assertCreated()
+        ->assertJsonPath('task.created_by.id', $foreman->id)
+        ->assertJsonPath('task.updated_by.id', $foreman->id);
+
+    $task = DailyTask::where('uuid', $response->json('task.uuid'))->firstOrFail();
+    expect($task->created_by)->toBe($foreman->id)
+        ->and($task->updated_by)->toBe($foreman->id)
+        ->and($task->foreman_user_id)->toBe($foreman->id)
+        ->and($schedule->dailyTasks()->whereKey($task->id)->exists())->toBeTrue();
+
+    $this->patchJson("/api/me/daily-tasks/schedules/{$schedule->uuid}/{$task->uuid}", [
+        'title' => 'Verify final opening dimensions',
+        'description' => 'Measure before installation',
+        'performed_by' => 'foreman',
+        'requires_photo' => true,
+        'requires_quality_control' => true,
+    ])->assertOk()
+        ->assertJsonPath('task.title', 'Verify final opening dimensions')
+        ->assertJsonPath('task.updated_by.id', $foreman->id);
+
+    $overview = WorkScheduleOverview::query()->whereKey($schedule->id)->firstOrFail();
+    expect($overview->daily_tasks[0]['title'])->toBe('Verify final opening dimensions')
+        ->and((int) $overview->daily_tasks[0]['created_by_id'])->toBe($foreman->id)
+        ->and((int) $overview->daily_tasks[0]['updated_by_id'])->toBe($foreman->id);
+
+    $this->getJson('/api/me/work-schedule')
+        ->assertOk()
+        ->assertJsonPath('schedules.0.daily_tasks.0.title', 'Verify final opening dimensions')
+        ->assertJsonPath('schedules.0.daily_tasks.0.updated_by_name', $foreman->name);
+
+    Sanctum::actingAs($other);
+    $this->patchJson("/api/me/daily-tasks/schedules/{$schedule->uuid}/{$task->uuid}", [
+        'title' => 'Unauthorized change',
+        'description' => null,
+        'performed_by' => 'anyone',
+        'requires_photo' => false,
+        'requires_quality_control' => false,
+    ])->assertForbidden();
+
+    Sanctum::actingAs($foreman);
+    $this->deleteJson("/api/me/daily-tasks/schedules/{$schedule->uuid}/{$task->uuid}")
+        ->assertOk()
+        ->assertJsonPath('message', 'Task removed from the work schedule.');
+
+    expect($schedule->dailyTasks()->whereKey($task->id)->exists())->toBeFalse()
+        ->and($task->fresh()->is_active)->toBeFalse()
+        ->and($task->fresh()->updated_by)->toBe($foreman->id);
+
+    $permissions = $foreman->level->permissions;
+    $foreman->level->forceFill([
+        'permissions' => [
+            ...$permissions,
+            'create-schedule-tasks' => false,
+        ],
+    ])->save();
+    $foreman->unsetRelation('level');
+    Sanctum::actingAs($foreman);
+
+    $this->postJson("/api/me/daily-tasks/schedules/{$schedule->uuid}", [
+        'title' => 'Permission denied',
+        'description' => null,
+        'performed_by' => 'anyone',
+        'requires_photo' => false,
+        'requires_quality_control' => false,
+    ])->assertForbidden();
 });
 
 test('the schedule foreman dropdown lists employees with their job title', function () {
     $admin = dailyTaskUser(UserLevel::SUPER_ADMIN);
     $foremanUser = dailyTaskUser(UserLevel::FOREMAN);
-    $title = \App\Models\JobTitle::create(['name' => 'Site Superintendent']);
-    \App\Models\Employee::create([
+    $title = JobTitle::create(['name' => 'Site Superintendent']);
+    Employee::create([
         'first_name' => 'Marta',
         'last_name' => 'Lopes',
         'email' => 'marta@example.com',
-        'employment_status' => \App\Models\Employee::STATUS_ACTIVE,
+        'employment_status' => Employee::STATUS_ACTIVE,
         'user_id' => $foremanUser->id,
         'job_title_id' => $title->id,
     ]);
@@ -305,11 +412,11 @@ test('an employee login stays in the users list even when the name matches the p
     $admin = dailyTaskUser(UserLevel::SUPER_ADMIN);
     $foreman = dailyTaskUser(UserLevel::FOREMAN);
     $foreman->forceFill(['name' => 'Ricardo Scarpim', 'email' => 'rscarpim@example.com'])->save();
-    \App\Models\Employee::create([
+    Employee::create([
         'first_name' => 'Ricardo',
         'last_name' => 'Scarpim',
         'email' => 'rscarpim@example.com',
-        'employment_status' => \App\Models\Employee::STATUS_ACTIVE,
+        'employment_status' => Employee::STATUS_ACTIVE,
         'user_id' => $foreman->id,
     ]);
 
@@ -322,11 +429,11 @@ test('an employee login sharing the private account name can be opened for editi
     $admin = dailyTaskUser(UserLevel::SUPER_ADMIN);
     $foreman = dailyTaskUser(UserLevel::FOREMAN);
     $foreman->forceFill(['name' => 'Ricardo Scarpim', 'email' => 'rscarpim2@example.com'])->save();
-    \App\Models\Employee::create([
+    Employee::create([
         'first_name' => 'Ricardo',
         'last_name' => 'Scarpim',
         'email' => 'rscarpim2@example.com',
-        'employment_status' => \App\Models\Employee::STATUS_ACTIVE,
+        'employment_status' => Employee::STATUS_ACTIVE,
         'user_id' => $foreman->id,
     ]);
 
@@ -337,17 +444,17 @@ test('a schedule accepts only quality control employees and certifications can b
     $admin = dailyTaskUser(UserLevel::SUPER_ADMIN);
     $foreman = dailyTaskUser(UserLevel::FOREMAN);
     $schedule = fieldSchedule($foreman, []);
-    $make = fn (string $name, bool $qc) => \App\Models\Employee::create([
+    $make = fn (string $name, bool $qc) => Employee::create([
         'first_name' => $name,
         'last_name' => 'Test',
         'email' => strtolower($name).'@example.com',
-        'employment_status' => \App\Models\Employee::STATUS_ACTIVE,
+        'employment_status' => Employee::STATUS_ACTIVE,
         'is_quality_control' => $qc,
     ]);
     $inspector = $make('Quinn', true);
     $regular = $make('Rex', false);
 
-    $payload = fn (\App\Models\Employee $qc) => [
+    $payload = fn (Employee $qc) => [
         'project_uuid' => $schedule->project->uuid,
         'starts_on' => $schedule->starts_on->toDateString(),
         'ends_on' => $schedule->ends_on->toDateString(),
@@ -364,7 +471,7 @@ test('a schedule accepts only quality control employees and certifications can b
 
     expect($schedule->fresh()->quality_control_employee_id)->toBe($inspector->id);
 
-    $certification = \App\Models\Certification::findOrCreateByName('Scaffold Competent');
+    $certification = Certification::findOrCreateByName('Scaffold Competent');
     $this->actingAs($admin)->patch(route('admin.certifications.update', $certification), ['is_competent_person' => true])
         ->assertSessionHasNoErrors();
     expect($certification->fresh()->is_competent_person)->toBeTrue();
@@ -383,7 +490,7 @@ test('daily tasks pick a reusable title from a catalog', function () {
     $admin = dailyTaskUser(UserLevel::SUPER_ADMIN);
 
     $this->actingAs($admin)->post(route('admin.daily-task-titles.store'), ['name' => 'Safety walk'])->assertSessionHasNoErrors();
-    $titleId = \App\Models\DailyTaskTitle::where('name', 'Safety walk')->value('id');
+    $titleId = DailyTaskTitle::where('name', 'Safety walk')->value('id');
 
     $this->actingAs($admin)->post(route('admin.daily-tasks.store'), [
         'daily_task_title_id' => $titleId,
@@ -403,7 +510,7 @@ test('daily tasks pick a reusable title from a catalog', function () {
 
 test('the same active task cannot be added twice', function () {
     $admin = dailyTaskUser(UserLevel::SUPER_ADMIN);
-    $titleId = \App\Models\DailyTaskTitle::create(['name' => 'Lockout check'])->id;
+    $titleId = DailyTaskTitle::create(['name' => 'Lockout check'])->id;
     $body = ['daily_task_title_id' => $titleId, 'is_active' => true];
 
     $this->actingAs($admin)->post(route('admin.daily-tasks.store'), $body)->assertSessionHasNoErrors();
@@ -414,7 +521,7 @@ test('the same active task cannot be added twice', function () {
 
 test('an inactive task still blocks adding the same task again', function () {
     $admin = dailyTaskUser(UserLevel::SUPER_ADMIN);
-    $titleId = \App\Models\DailyTaskTitle::create(['name' => 'Door check'])->id;
+    $titleId = DailyTaskTitle::create(['name' => 'Door check'])->id;
     DailyTask::create(['title' => 'Door check', 'is_active' => false]);
 
     $this->actingAs($admin)->post(route('admin.daily-tasks.store'), ['daily_task_title_id' => $titleId, 'is_active' => true])
@@ -427,11 +534,11 @@ test('an employee sees only their own jobs and cannot manage levels or employees
     $worker = dailyTaskUser(UserLevel::EMPLOYEE);
     $other = dailyTaskUser(UserLevel::EMPLOYEE);
 
-    $make = fn (User $user, string $name) => \App\Models\Employee::create([
+    $make = fn (User $user, string $name) => Employee::create([
         'first_name' => $name,
         'last_name' => 'Test',
         'email' => strtolower($name).'@example.com',
-        'employment_status' => \App\Models\Employee::STATUS_ACTIVE,
+        'employment_status' => Employee::STATUS_ACTIVE,
         'user_id' => $user->id,
     ]);
     $crew = $make($worker, 'Wally');
@@ -462,11 +569,11 @@ test('an employee sees only their own jobs and cannot manage levels or employees
 
 test('a foreman delegates a task to a crew member but restricted tasks stay with their role', function () {
     $foreman = dailyTaskUser(UserLevel::FOREMAN);
-    $mk = fn (string $name) => \App\Models\Employee::create([
+    $mk = fn (string $name) => Employee::create([
         'first_name' => $name,
         'last_name' => 'Test',
         'email' => strtolower($name).'@example.com',
-        'employment_status' => \App\Models\Employee::STATUS_ACTIVE,
+        'employment_status' => Employee::STATUS_ACTIVE,
     ]);
     $crew = $mk('Crew');
     $foremanEmployee = $mk('Lead');

@@ -80,12 +80,27 @@ class AccessControlController extends Controller
 
     public function edit(Request $request): Response
     {
-        $permissions = collect(config('access.permissions', []))
+        $configuredPermissions = collect(config('access.permissions', []));
+        $singlePageByGroup = $configuredPermissions
+            ->mapToGroups(fn (array $permission, string $key): array => [$permission['group'] => $key])
+            ->map(function ($keys): ?string {
+                $viewKeys = $keys->filter(
+                    fn (string $key): bool => str_starts_with($key, 'view-'),
+                );
+
+                return $viewKeys->count() === 1 ? $viewKeys->first() : null;
+            });
+
+        $permissions = $configuredPermissions
             ->map(fn (array $permission, string $key): array => [
                 'key' => $key,
                 'name' => $permission['name'],
                 'group' => $permission['group'],
                 'description' => $permission['description'],
+                'parent_key' => $permission['parent']
+                    ?? (! str_starts_with($key, 'view-')
+                        ? $singlePageByGroup->get($permission['group'])
+                        : null),
             ])
             ->values()
             ->all();

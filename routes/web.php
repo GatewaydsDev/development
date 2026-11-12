@@ -128,6 +128,9 @@ Route::post('/presence/ping', [PresenceController::class, 'ping'])
 Route::get('/presence', [PresenceController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('presence.index');
+Route::get('/presence/{user}/activities', [PresenceController::class, 'activities'])
+    ->middleware(['auth', 'verified'])
+    ->name('presence.activities');
 
 Route::get('/dashboard', DashboardController::class)
     ->middleware(['auth', 'verified', 'prevent-back-history', 'can:view-dashboard'])
@@ -139,6 +142,7 @@ Route::middleware(['auth', 'verified', 'prevent-back-history', 'can:view-client-
     ->group(function () {
         Route::get('/', [ClientPortalController::class, 'index'])->name('index');
         Route::get('/photos/{photo}', [ClientPortalController::class, 'photo'])->name('photos.show');
+        Route::get('/quality-reports/{report}', [ClientPortalController::class, 'qualityReport'])->name('quality-reports.show');
         Route::get('/projects/{project}', [ClientPortalController::class, 'show'])->name('projects.show');
         Route::middleware('can:manage-client-team')->prefix('team')->name('team.')->group(function () {
             Route::get('/', [ClientTeamController::class, 'index'])->name('index');
@@ -413,6 +417,9 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::get('/users/{user}/edit', [UserController::class, 'edit'])
             ->middleware('can:update-users')
             ->name('users.edit');
+        Route::patch('/users/{user}/permissions', [UserController::class, 'updatePermissions'])
+            ->middleware('can:manage-access')
+            ->name('users.permissions.update');
         Route::patch('/users/{user}', [UserController::class, 'update'])
             ->middleware('can:update-users')
             ->name('users.update');
@@ -445,6 +452,7 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::delete('/daily-task-photos/{photo}', [DailyTaskController::class, 'destroyPhoto'])->name('daily-task-photos.destroy');
         Route::get('/job-progress', [JobProgressController::class, 'index'])->name('job-progress.index');
         Route::get('/job-progress/quality-reports/{report}', [JobProgressController::class, 'report'])->name('job-progress.report');
+        Route::post('/job-progress/quality-reports/{report}/assign', [JobProgressController::class, 'assignReport'])->name('job-progress.reports.assign');
         Route::get('/job-progress/{schedule}', [JobProgressController::class, 'show'])->name('job-progress.show');
         Route::post('/job-progress/{schedule}/attendance', [JobProgressController::class, 'setAttendance'])->name('job-progress.attendance');
         Route::post('/job-progress/{schedule}/crew/{employee}', [JobProgressController::class, 'updateCrew'])->name('job-progress.crew.update');

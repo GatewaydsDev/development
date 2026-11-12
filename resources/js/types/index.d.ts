@@ -116,6 +116,10 @@ export type PageProps<
             deleteContractors: boolean;
             viewMySchedule?: boolean;
             viewJobProgress?: boolean;
+            sendQualityControlReports?: boolean;
+            createScheduleTasks?: boolean;
+            updateScheduleTasks?: boolean;
+            deleteScheduleTasks?: boolean;
             viewWorkSchedule?: boolean;
             viewAttendance?: boolean;
         manageClientTeam?: boolean;

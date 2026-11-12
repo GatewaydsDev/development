@@ -7,8 +7,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Employee;
 use App\Models\EmployeeWorkSchedule;
 use App\Models\Project;
-use App\Models\WorkScheduleListing;
 use App\Models\User;
+use App\Models\WorkScheduleOverview;
 use App\Support\EmployeeAccess;
 use App\Support\UserPrivileges;
 use Illuminate\Http\JsonResponse;
@@ -23,7 +23,7 @@ class EmployeeWorkScheduleController extends Controller
         $search = trim((string) $request->query('search', ''));
         $perPage = min(100, max(1, $request->integer('per_page', 15)));
 
-        $schedules = EmployeeAccess::scopeVisibleScheduleListings(WorkScheduleListing::query(), $user)
+        $schedules = EmployeeAccess::scopeVisibleScheduleListings(WorkScheduleOverview::query(), $user)
             ->when($date, fn ($query) => $query->covering($date))
             ->when($this->admin()->statusQuery($request->query('status')), fn ($query, $status) => $query->where(
                 'status',
@@ -58,7 +58,7 @@ class EmployeeWorkScheduleController extends Controller
             ->orderByDesc('id')
             ->paginate($perPage)
             ->withQueryString()
-            ->through(fn (WorkScheduleListing $listing): array => $this->admin()->listingPayload($listing));
+            ->through(fn (WorkScheduleOverview $listing): array => $this->admin()->listingPayload($listing));
 
         return response()->json([
             'data' => $schedules->items(),
@@ -148,6 +148,9 @@ class EmployeeWorkScheduleController extends Controller
             'create' => UserPrivileges::allows($user, 'create-employees'),
             'update' => UserPrivileges::allows($user, 'update-employees'),
             'delete' => UserPrivileges::allows($user, 'delete-employees'),
+            'create_schedule_tasks' => UserPrivileges::allows($user, 'create-schedule-tasks'),
+            'update_schedule_tasks' => UserPrivileges::allows($user, 'update-schedule-tasks'),
+            'delete_schedule_tasks' => UserPrivileges::allows($user, 'delete-schedule-tasks'),
         ];
     }
 

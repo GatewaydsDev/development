@@ -86,6 +86,7 @@ class JobProgress
                     'performers' => $state['latest']?->performers->map(fn ($employee): string => $employee->fullName())->values()->all() ?? [],
                     'notes' => $state['latest']?->notes,
                     'updated_on' => $state['latest']?->work_date?->toDateString(),
+                    'last_changed_at' => $state['latest']?->updated_at?->toIso8601String(),
                     'photos' => $history->flatMap(fn (DailyTaskCompletion $completion) => $completion->photos
                         ->map(fn (DailyTaskPhoto $photo): array => [
                             'uuid' => $photo->uuid,
@@ -126,6 +127,9 @@ class JobProgress
             'result' => $report->result,
             'result_label' => QualityControlReport::RESULTS[$report->result] ?? $report->result,
             'inspector' => $report->inspector?->name,
+            'failed_checks' => collect($report->checklist)
+                ->filter(fn (string $answer): bool => $answer === QualityControlReport::ANSWER_FAIL)
+                ->count(),
         ];
     }
 

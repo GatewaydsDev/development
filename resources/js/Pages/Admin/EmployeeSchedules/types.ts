@@ -40,6 +40,17 @@ export type SchedulePayload = {
     foreman: SchedulePerson | null;
     employees: SchedulePerson[];
     daily_task_uuids?: string[];
+    daily_tasks?: ScheduleListingTask[];
+};
+
+export type ScheduleListingTask = {
+    uuid: string;
+    title: string;
+    description: string | null;
+    performed_by: string;
+    performed_by_label: string;
+    requires_photo: boolean;
+    requires_quality_control: boolean;
 };
 
 export type ScheduleDailyTask = {

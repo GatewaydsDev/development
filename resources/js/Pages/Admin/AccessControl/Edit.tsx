@@ -17,6 +17,7 @@ type Permission = {
     name: string;
     group: string;
     description: string;
+    parent_key?: string | null;
 };
 
 type Level = {
@@ -59,13 +60,15 @@ function Switch({
             disabled={disabled}
             onClick={() => onChange(!checked)}
             className={cn(
-                "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
-                checked ? "bg-emerald-600" : "bg-muted-foreground/30",
+                "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-2 shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+                checked
+                    ? "border-emerald-700 bg-emerald-600 dark:border-emerald-400"
+                    : "border-muted-foreground/45 bg-muted",
             )}
         >
             <span
                 className={cn(
-                    "inline-block size-5 rounded-full bg-white shadow transition-transform",
+                    "inline-block size-4 rounded-full border border-black/10 bg-white shadow transition-transform",
                     checked ? "translate-x-5" : "translate-x-0.5",
                 )}
             />
@@ -271,6 +274,19 @@ export default function Edit({
 
                             {Object.entries(groups).map(([group, items]) => {
                                 const keys = items.map((item) => item.key);
+                                const itemKeys = new Set(keys);
+                                const roots = items.filter(
+                                    (item) =>
+                                        !item.parent_key ||
+                                        !itemKeys.has(item.parent_key),
+                                );
+                                const orderedItems = roots.flatMap((root) => [
+                                    root,
+                                    ...items.filter(
+                                        (item) =>
+                                            item.parent_key === root.key,
+                                    ),
+                                ]);
                                 const allWeb = keys.every((key) =>
                                     website(active, key),
                                 );
@@ -323,12 +339,77 @@ export default function Edit({
                                             </div>
                                         </div>
                                         <ul className="divide-y divide-border">
-                                            {items.map((permission) => (
-                                                <li
-                                                    key={permission.key}
-                                                    className="flex items-center justify-between gap-4 px-4 py-3"
-                                                >
-                                                    <div className="min-w-0">
+                                            {orderedItems.map((permission) => {
+                                                const isChild = Boolean(
+                                                    permission.parent_key &&
+                                                        itemKeys.has(
+                                                            permission.parent_key,
+                                                        ),
+                                                );
+                                                const children = items.filter(
+                                                    (item) =>
+                                                        item.parent_key ===
+                                                        permission.key,
+                                                );
+                                                const childSiblings = isChild
+                                                    ? items.filter(
+                                                          (item) =>
+                                                              item.parent_key ===
+                                                              permission.parent_key,
+                                                      )
+                                                    : [];
+                                                const isLastChild =
+                                                    isChild &&
+                                                    childSiblings.at(-1)
+                                                        ?.key ===
+                                                        permission.key;
+
+                                                return (
+                                                    <li
+                                                        key={permission.key}
+                                                        className={cn(
+                                                            "relative flex items-center justify-between gap-4 px-4 py-3",
+                                                            children.length >
+                                                                0 && "pl-10",
+                                                            isChild &&
+                                                                "bg-muted/15 pl-12 sm:pl-14",
+                                                        )}
+                                                    >
+                                                        {children.length >
+                                                            0 && (
+                                                            <>
+                                                                <span
+                                                                    aria-hidden="true"
+                                                                    className="absolute left-5 top-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-emerald-600 bg-card"
+                                                                />
+                                                                <span
+                                                                    aria-hidden="true"
+                                                                    className="absolute bottom-0 left-5 top-1/2 border-l-2 border-emerald-600/55"
+                                                                />
+                                                            </>
+                                                        )}
+                                                        {isChild && (
+                                                            <>
+                                                                <span
+                                                                    aria-hidden="true"
+                                                                    className={cn(
+                                                                        "absolute left-5 top-0 border-l-2 border-emerald-600/55",
+                                                                        isLastChild
+                                                                            ? "h-1/2"
+                                                                            : "h-full",
+                                                                    )}
+                                                                />
+                                                                <span
+                                                                    aria-hidden="true"
+                                                                    className="absolute left-5 top-1/2 w-5 border-t-2 border-emerald-600/55 sm:w-7"
+                                                                />
+                                                                <span
+                                                                    aria-hidden="true"
+                                                                    className="absolute left-10 top-1/2 size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-600/70 sm:left-12"
+                                                                />
+                                                            </>
+                                                        )}
+                                                        <div className="min-w-0">
                                                         <p className="font-medium text-foreground">
                                                             {permission.name}
                                                         </p>
@@ -337,8 +418,8 @@ export default function Edit({
                                                                 permission.description
                                                             }
                                                         </p>
-                                                    </div>
-                                                    <div className="flex shrink-0 items-center gap-5">
+                                                        </div>
+                                                        <div className="flex shrink-0 items-center gap-5">
                                                         <Switch
                                                             label={`${permission.name} on the website`}
                                                             checked={website(
@@ -385,9 +466,10 @@ export default function Edit({
                                                                 )
                                                             }
                                                         />
-                                                    </div>
-                                                </li>
-                                            ))}
+                                                        </div>
+                                                    </li>
+                                                );
+                                            })}
                                         </ul>
                                     </div>
                                 );

@@ -49,6 +49,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->api(append: [
             TrackPresence::class,
+            'throttle:api',
         ]);
 
         $middleware->alias([

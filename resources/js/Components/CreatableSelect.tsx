@@ -67,6 +67,8 @@ type CreatableSelectProps = {
     stateInitials?: boolean;
     showCreateFooter?: boolean;
     onUseWithoutSaving?: (name: string) => void;
+    autoFocus?: boolean;
+    onOpen?: () => void;
 };
 
 const nameSchema = z
@@ -117,6 +119,8 @@ export default function CreatableSelect({
     stateInitials = false,
     showCreateFooter = false,
     onUseWithoutSaving,
+    autoFocus = false,
+    onOpen,
 }: CreatableSelectProps) {
     const listboxId = useId();
     const containerRef = useRef<HTMLDivElement>(null);
@@ -522,6 +526,7 @@ export default function CreatableSelect({
                     aria-expanded={isOpen}
                     aria-controls={listboxId}
                     value={query}
+                    autoFocus={autoFocus}
                     autoComplete="off"
                     autoCapitalize={stateInitials ? 'characters' : undefined}
                     maxLength={stateInitials ? 2 : undefined}
@@ -536,6 +541,7 @@ export default function CreatableSelect({
                         stateInitials && stateInitialsInputClassName,
                     )}
                     onFocus={() => {
+                        onOpen?.();
                         setHasTyped(false);
                         setIsOpen(true);
                         window.requestAnimationFrame(() => {

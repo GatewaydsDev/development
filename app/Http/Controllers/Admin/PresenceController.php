@@ -4,11 +4,14 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\UserActivity;
+use App\Support\LoginDevice;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\Rule;
 
 class PresenceController extends Controller
 {
@@ -28,7 +31,7 @@ class PresenceController extends Controller
         $users = User::query()
             ->with(['level:id,name', 'presenceDevices'])
             ->orderBy('name')
-            ->get(['id', 'name', 'level_id', 'last_login_at', 'last_seen_at', 'last_seen_device', 'last_login_device', 'last_logout_at'])
+            ->get(['id', 'uuid', 'name', 'level_id', 'last_login_at', 'last_seen_at', 'last_seen_device', 'last_login_device', 'last_logout_at'])
             ->map(function (User $user): array {
                 $sessions = $this->sessions($user);
                 $status = $this->bestStatus($sessions);
@@ -36,9 +39,11 @@ class PresenceController extends Controller
 
                 return [
                     'id' => $user->id,
+                    'uuid' => $user->uuid,
                     'name' => $user->name,
                     'level' => $user->level?->name,
                     'status' => $status,
+                    'logged_in_at' => $user->last_login_at?->toIso8601String(),
                     'device' => $active->first()['device'] ?? null,
                     'devices' => $active->all(),
                     'last_seen_at' => $user->last_seen_at?->toIso8601String(),
@@ -63,6 +68,66 @@ class PresenceController extends Controller
                 'tablet' => $deviceCount('tablet'),
             ],
             'generated_at' => now()->toIso8601String(),
+        ]);
+    }
+
+    public function activities(Request $request, User $user): JsonResponse
+    {
+        abort_unless($request->user()?->isSuperAdmin(), 403);
+
+        $validated = $request->validate([
+            'days' => ['nullable', 'integer', Rule::in([4, 10, 30, 90, 365])],
+            'event_type' => ['nullable', 'string', 'max:50'],
+        ]);
+        $days = (int) ($validated['days'] ?? 4);
+        $from = now()->subDays($days);
+        $base = UserActivity::query()
+            ->where('user_id', $user->id)
+            ->where('occurred_at', '>=', $from);
+        $eventTypes = (clone $base)
+            ->whereNotNull('event_type')
+            ->distinct()
+            ->orderBy('event_type')
+            ->pluck('event_type')
+            ->values();
+        $activities = $base
+            ->when(
+                $validated['event_type'] ?? null,
+                fn ($query, string $eventType) => $query->where('event_type', $eventType),
+            )
+            ->latest('occurred_at')
+            ->limit(500)
+            ->get()
+            ->map(fn (UserActivity $activity): array => [
+                'id' => $activity->id,
+                'event_type' => $activity->event_type,
+                'action' => $activity->action,
+                'description' => $activity->description,
+                'page_name' => $activity->page_name,
+                'route_name' => $activity->route_name,
+                'method' => $activity->method,
+                'path' => $activity->path,
+                'ip_address' => $activity->ip_address,
+                'user_agent' => $activity->user_agent,
+                'device_type' => LoginDevice::fromUserAgent(
+                    $activity->user_agent,
+                    str_starts_with(ltrim((string) $activity->path, '/'), 'api/')
+                        ? LoginDevice::MOBILE
+                        : LoginDevice::WEBSITE,
+                ),
+                'metadata' => $activity->metadata,
+                'occurred_at' => $activity->occurred_at?->toIso8601String(),
+            ]);
+
+        return response()->json([
+            'user' => [
+                'uuid' => $user->uuid,
+                'name' => $user->name,
+                'level' => $user->level?->name,
+            ],
+            'days' => $days,
+            'event_types' => $eventTypes,
+            'activities' => $activities,
         ]);
     }
 

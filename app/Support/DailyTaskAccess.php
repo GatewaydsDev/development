@@ -2,6 +2,8 @@
 
 namespace App\Support;
 
+use App\Models\DailyTask;
+use App\Models\EmployeeWorkSchedule;
 use App\Models\User;
 
 class DailyTaskAccess
@@ -19,6 +21,77 @@ class DailyTaskAccess
     public static function canOpen(User $user): bool
     {
         return self::canManage($user) || self::mustComplete($user);
+    }
+
+    public static function canCreateForSchedule(User $user, EmployeeWorkSchedule $schedule, bool $mobile = false): bool
+    {
+        $granted = $mobile
+            ? $user->hasMobilePermission('create-schedule-tasks')
+            : $user->hasPermission('create-schedule-tasks');
+
+        return $granted
+            && EmployeeAccess::isForeman($user)
+            && (int) $schedule->foreman_user_id === (int) $user->id;
+    }
+
+    public static function canUpdateForSchedule(
+        User $user,
+        EmployeeWorkSchedule $schedule,
+        DailyTask $task,
+        bool $mobile = false,
+    ): bool {
+        return self::canChangeForSchedule(
+            $user,
+            $schedule,
+            $task,
+            'update-schedule-tasks',
+            $mobile,
+        );
+    }
+
+    public static function canDeleteForSchedule(
+        User $user,
+        EmployeeWorkSchedule $schedule,
+        DailyTask $task,
+        bool $mobile = false,
+    ): bool {
+        return self::canChangeForSchedule(
+            $user,
+            $schedule,
+            $task,
+            'delete-schedule-tasks',
+            $mobile,
+        );
+    }
+
+    private static function canChangeForSchedule(
+        User $user,
+        EmployeeWorkSchedule $schedule,
+        DailyTask $task,
+        string $permission,
+        bool $mobile,
+    ): bool {
+        $granted = $mobile
+            ? $user->hasMobilePermission($permission)
+            : $user->hasPermission($permission);
+
+        if (! $granted
+            || ! EmployeeAccess::isForeman($user)
+            || (int) $schedule->foreman_user_id !== (int) $user->id
+            || (int) $task->foreman_user_id !== (int) $user->id
+            || (int) $task->created_by !== (int) $user->id
+        ) {
+            return false;
+        }
+
+        $scheduleIds = $task->schedules()->pluck('employee_work_schedules.id');
+
+        return $scheduleIds->isNotEmpty()
+            && ! EmployeeWorkSchedule::query()
+                ->whereIn('id', $scheduleIds)
+                ->where('foreman_user_id', '!=', $user->id)
+                ->exists()
+            && $scheduleIds->contains($schedule->id);
     }
 
     /**

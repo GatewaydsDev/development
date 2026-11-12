@@ -31,8 +31,11 @@ use App\Support\LoginDevice;
 use App\Support\TakeoffAccess;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\Vite;
@@ -56,6 +59,7 @@ class AppServiceProvider extends ServiceProvider
     {
         WordSettings::setOutputEscapingEnabled(true);
         $this->registerActivityAuditing();
+        $this->registerApiRateLimiter();
 
         Gate::before(function (User $user): ?bool {
             return $user->isSuperAdmin() ? true : null;
@@ -86,6 +90,19 @@ class AppServiceProvider extends ServiceProvider
             $colors = $view->getData()['colors'] ?? DocumentAppearance::current()->css();
             $view->with('colors', $colors);
             $view->with('c', $colors);
+        });
+    }
+
+    private function registerApiRateLimiter(): void
+    {
+        RateLimiter::for('api', function (Request $request): Limit {
+            $user = $request->user();
+
+            return $user
+                ? Limit::perMinute(config('api.rate_limits.authenticated_per_minute', 300))
+                    ->by('api:user:'.$user->getAuthIdentifier())
+                : Limit::perMinute(config('api.rate_limits.guest_per_minute', 60))
+                    ->by('api:ip:'.$request->ip());
         });
     }
 

@@ -7,9 +7,11 @@ use App\Models\DailyTaskPhoto;
 use App\Models\EmployeeAttendanceDay;
 use App\Models\EmployeeWorkSchedule;
 use App\Models\Project;
+use App\Models\QualityControlReport;
 use App\Models\User;
 use App\Support\ClientPortalAccess;
 use App\Support\ProjectProgress;
+use App\Support\QualityControlAssignments;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -44,6 +46,9 @@ class ClientPortalController extends Controller
         return response()->json([
             'company' => $company ? ['uuid' => $company->uuid, 'name' => $company->name] : null,
             'data' => $projects,
+            'quality_reports' => QualityControlAssignments::assignedTo($user)
+                ->map(fn (QualityControlReport $report): array => QualityControlAssignments::reportPayload($report))
+                ->values(),
         ]);
     }
 
@@ -173,6 +178,16 @@ class ClientPortalController extends Controller
 
         return Storage::disk('local')->response($photo->path, $photo->original_name, [
             'Cache-Control' => 'private, max-age=86400',
+        ]);
+    }
+
+    public function qualityReport(Request $request, QualityControlReport $report): JsonResponse
+    {
+        $user = $this->client($request);
+        abort_unless((int) $report->assigned_to_user_id === (int) $user->id, 404);
+
+        return response()->json([
+            'report' => QualityControlAssignments::reportPayload($report),
         ]);
     }
 

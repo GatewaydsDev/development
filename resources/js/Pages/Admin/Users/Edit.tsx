@@ -4,6 +4,9 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import UserForm, {
     type UserDefaultsData,
 } from '@/Pages/Admin/Users/Partials/UserForm';
+import UserPermissionOverrides, {
+    type UserAccessPermission,
+} from '@/Pages/Admin/Users/Partials/UserPermissionOverrides';
 import { Head, Link } from '@inertiajs/react';
 
 type Level = {
@@ -44,20 +47,18 @@ type ManagedUser = {
         country?: string;
         is_primary: boolean;
     }>;
-};
-
-type AccessPermission = {
-    key: string;
-    name: string;
-    group: string;
-    description: string;
+    permission_overrides?: Record<string, boolean>;
+    mobile_permission_overrides?: Record<string, boolean>;
+    level_permissions?: Record<string, boolean>;
+    level_mobile_permissions?: Record<string, boolean>;
 };
 
 type EditProps = {
     levels: Level[];
     languages: Language[];
-    accessPermissions?: AccessPermission[];
+    accessPermissions?: UserAccessPermission[];
     canCreateUserLevel?: boolean;
+    canManageIndividualPermissions?: boolean;
     canAssignMailbox?: boolean;
     superAdminLevelNames?: string[];
     positions?: CreatableOption[];
@@ -72,6 +73,7 @@ export default function Edit({
     languages,
     accessPermissions = [],
     canCreateUserLevel = false,
+    canManageIndividualPermissions = false,
     canAssignMailbox = false,
     superAdminLevelNames,
     positions = [],
@@ -157,6 +159,26 @@ export default function Edit({
                             phones: managedUser.phones ?? [],
                         }}
                     />
+                    {canManageIndividualPermissions && managedUser.level && (
+                        <UserPermissionOverrides
+                            userUuid={managedUser.uuid}
+                            userName={managedUser.name}
+                            levelName={managedUser.level.name}
+                            permissions={accessPermissions}
+                            permissionOverrides={
+                                managedUser.permission_overrides ?? {}
+                            }
+                            mobilePermissionOverrides={
+                                managedUser.mobile_permission_overrides ?? {}
+                            }
+                            levelPermissions={
+                                managedUser.level_permissions ?? {}
+                            }
+                            levelMobilePermissions={
+                                managedUser.level_mobile_permissions ?? {}
+                            }
+                        />
+                    )}
                     {clientCompany && <ClientCompanyUsers company={clientCompany} />}
                 </div>
             </div>

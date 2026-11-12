@@ -1,9 +1,14 @@
 <?php
 
+use App\Models\Certification;
+use App\Models\DailyTask;
 use App\Models\Employee;
+use App\Models\EmployeeAttendanceDay;
+use App\Models\EmployeeAttendanceWeek;
 use App\Models\EmployeeWorkSchedule;
 use App\Models\Project;
 use App\Models\ProjectStatus;
+use App\Models\Skill;
 use App\Models\User;
 use App\Models\UserLevel;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -54,6 +59,12 @@ test('a job can be scheduled with a foreman and attending employees', function (
     $project = scheduleProject($admin, 'Harbor Doors');
     $jordan = scheduleEmployee('jordan.schedule@example.com', 'Jordan');
     $sam = scheduleEmployee('sam.schedule@example.com', 'Sam');
+    $task = DailyTask::create([
+        'title' => 'Install frames',
+        'is_active' => true,
+        'requires_photo' => true,
+        'requires_quality_control' => true,
+    ]);
 
     $this->actingAs($admin)
         ->post(route('admin.employee-schedules.store'), [
@@ -63,6 +74,7 @@ test('a job can be scheduled with a foreman and attending employees', function (
             'status' => 'active',
             'foreman_user_id' => $foreman->id,
             'employee_uuids' => [$jordan->uuid, $sam->uuid],
+            'daily_task_uuids' => [$task->uuid],
             'notes' => 'Morning install',
         ])
         ->assertSessionHasNoErrors()
@@ -89,6 +101,9 @@ test('a job can be scheduled with a foreman and attending employees', function (
             ->where('schedules.data.0.status', 'active')
             ->where('schedules.data.0.date_label', 'Monday, Oct 5 – Saturday, Oct 10, 2026')
             ->has('schedules.data.0.employees', 2)
+            ->where('schedules.data.0.daily_tasks.0.title', 'Install frames')
+            ->where('schedules.data.0.daily_tasks.0.requires_photo', true)
+            ->where('schedules.data.0.daily_tasks.0.requires_quality_control', true)
         );
 });
 
@@ -175,7 +190,7 @@ test('a job can require a competent person who holds that certification', functi
     $jordan = scheduleEmployee('jordan.competent@example.com', 'Jordan');
     $sam = scheduleEmployee('sam.competent@example.com', 'Sam');
 
-    $certification = \App\Models\Certification::findOrCreateByName(
+    $certification = Certification::findOrCreateByName(
         'OSHA competent person',
         true,
     );
@@ -233,7 +248,7 @@ test('employee search matches a skill or a qualification', function () {
 
     $welder->skills()->create(['name' => 'Orbital welding']);
 
-    $certification = \App\Models\Certification::findOrCreateByName('OSHA 30', true);
+    $certification = Certification::findOrCreateByName('OSHA 30', true);
     $qualified->certifications()->create([
         'certification_id' => $certification->id,
     ]);
@@ -286,7 +301,7 @@ test('an employee can store a competent person certification', function () {
 test('an employee pay rates can be loaded from the schedule list', function () {
     $admin = scheduleAdmin();
     $employee = scheduleEmployee('rates.person@example.com', 'Rita');
-    $skill = \App\Models\Skill::create(['name' => 'Painter']);
+    $skill = Skill::create(['name' => 'Painter']);
     $employee->skills()->attach($skill->id);
     $employee->payRates()->create([
         'skill_id' => $skill->id,
@@ -383,7 +398,7 @@ function attendanceSchedule(User $admin, User $foreman, array $employees, string
 
 function attendanceRate(Employee $employee, string $type = 'daily', string $amount = '200'): void
 {
-    $skill = App\Models\Skill::firstOrCreate(['name' => 'Carpenter']);
+    $skill = Skill::firstOrCreate(['name' => 'Carpenter']);
     $employee->payRates()->create(['skill_id' => $skill->id, 'rate_type' => $type, 'amount' => $amount]);
 }
 
@@ -404,7 +419,7 @@ test('a foreman marking crew present creates linked attendance and absent remove
         ]])
         ->assertSessionHasNoErrors();
 
-    $days = App\Models\EmployeeAttendanceDay::query()->where('employee_work_schedule_id', $schedule->id)->get();
+    $days = EmployeeAttendanceDay::query()->where('employee_work_schedule_id', $schedule->id)->get();
     expect($days)->toHaveCount(2)
         ->and($days->every(fn ($d) => $d->worked && $d->scheduled))->toBeTrue()
         ->and((float) $days->firstWhere('rate_type', 'hourly')->hours)->toBe(6.0);
@@ -415,7 +430,7 @@ test('a foreman marking crew present creates linked attendance and absent remove
         ]])
         ->assertSessionHasNoErrors();
 
-    expect(App\Models\EmployeeAttendanceDay::query()->where('employee_work_schedule_id', $schedule->id)->count())->toBe(1);
+    expect(EmployeeAttendanceDay::query()->where('employee_work_schedule_id', $schedule->id)->count())->toBe(1);
 });
 
 test('attendance reports missing rates and other-job conflicts', function () {
@@ -504,7 +519,7 @@ test('bulk attendance can be recorded against a work schedule crew', function ()
         ->post(route('admin.employee-attendance.bulk.store'), $payload([$row($jordan, '7.5')]))
         ->assertSessionHasNoErrors();
 
-    $day = App\Models\EmployeeAttendanceDay::query()->where('employee_work_schedule_id', $schedule->id)->first();
+    $day = EmployeeAttendanceDay::query()->where('employee_work_schedule_id', $schedule->id)->first();
     expect($day)->not->toBeNull()->and((float) $day->hours)->toBe(7.5);
 
     $this->actingAs($admin)
@@ -547,15 +562,15 @@ test('adding an attendance week for an employee adds them to the chosen work sch
         ->assertSessionHasNoErrors();
 
     expect($schedule->employees()->whereKey($newcomer->id)->exists())->toBeTrue()
-        ->and(App\Models\EmployeeAttendanceDay::where('employee_work_schedule_id', $schedule->id)->count())->toBe(1);
+        ->and(EmployeeAttendanceDay::where('employee_work_schedule_id', $schedule->id)->count())->toBe(1);
 });
 
 test('the attendance list shows each employee skills', function () {
     $admin = scheduleAdmin();
     $jordan = scheduleEmployee('jordan.skills@example.com', 'Jordan');
     attendanceRate($jordan);
-    $jordan->skills()->sync([App\Models\Skill::firstWhere('name', 'Carpenter')->id]);
-    $week = App\Models\EmployeeAttendanceWeek::create(['employee_id' => $jordan->id, 'week_start' => '2026-10-05']);
+    $jordan->skills()->sync([Skill::firstWhere('name', 'Carpenter')->id]);
+    $week = EmployeeAttendanceWeek::create(['employee_id' => $jordan->id, 'week_start' => '2026-10-05']);
     $week->days()->create([
         'work_date' => '2026-10-05', 'skill_id' => $jordan->payRates()->first()->skill_id,
         'employee_pay_rate_id' => $jordan->payRates()->first()->id, 'rate_type' => 'daily',

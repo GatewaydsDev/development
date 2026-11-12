@@ -1,9 +1,12 @@
 <?php
 
+use App\Jobs\RefreshDashboardEmailActivity;
 use App\Models\User;
+use App\Support\DashboardEmailActivity;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
@@ -80,6 +83,7 @@ test('dashboard summarizes received and sent email per day for the signed-in use
     );
 
     $user = User::factory()->create(['microsoft_mailbox' => 'Ricardo@Gateway-DS.com']);
+    DashboardEmailActivity::refresh($user, 7);
 
     $this->actingAs($user)
         ->get(route('dashboard', ['emailRange' => 7]))
@@ -124,6 +128,50 @@ test('email activity reports when no mailbox is assigned', function () {
     Http::assertNothingSent();
 });
 
+test('uncached email activity is queued without making the dashboard wait for microsoft 365', function () {
+    Queue::fake();
+    Http::fake();
+    $user = User::factory()->create(['microsoft_mailbox' => 'ricardo@gateway-ds.com']);
+
+    $this->actingAs($user)
+        ->get(route('dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->loadDeferredProps(fn (Assert $reload) => $reload
+                ->where('emailActivity.status', 'loading')
+                ->where('emailActivity.range', 14)));
+
+    Queue::assertPushed(
+        RefreshDashboardEmailActivity::class,
+        fn (RefreshDashboardEmailActivity $job) => $job->userId === $user->id && $job->range === 14,
+    );
+    Http::assertNothingSent();
+});
+
+test('email activity keeps the last successful data when microsoft 365 is unavailable', function () {
+    fakeEmailActivityGraph(
+        inbox: [inboxItem('2026-11-02T13:00:00Z')],
+        sent: [['sentDateTime' => '2026-11-02T10:00:00Z']],
+    );
+
+    $user = User::factory()->create(['microsoft_mailbox' => 'ricardo@gateway-ds.com']);
+    DashboardEmailActivity::refresh($user, 7);
+    Cache::forget("dashboard-email-activity:{$user->id}:ricardo@gateway-ds.com:7");
+
+    Http::fake([
+        'https://graph.microsoft.com/*' => Http::response([
+            'error' => ['code' => 'ServiceUnavailable'],
+        ], 503),
+    ]);
+
+    $activity = DashboardEmailActivity::refresh($user, 7);
+
+    expect($activity)
+        ->status->toBe('ok')
+        ->totals->received->toBe(1)
+        ->totals->sent->toBe(1);
+});
+
 test('email activity shows a friendly error when microsoft 365 fails', function () {
     Http::fake(function ($request) {
         if (str_contains($request->url(), 'login.microsoftonline.com')) {
@@ -134,6 +182,7 @@ test('email activity shows a friendly error when microsoft 365 fails', function 
     });
 
     $user = User::factory()->create(['microsoft_mailbox' => 'ricardo@gateway-ds.com']);
+    DashboardEmailActivity::refresh($user, 999);
 
     $this->actingAs($user)
         ->get(route('dashboard', ['emailRange' => 999]))

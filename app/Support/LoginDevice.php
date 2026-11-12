@@ -22,7 +22,15 @@ class LoginDevice
             return $declared;
         }
 
-        $agent = (string) $request->userAgent();
+        return self::fromUserAgent(
+            (string) $request->userAgent(),
+            $guard === 'sanctum' ? self::MOBILE : self::WEBSITE,
+        );
+    }
+
+    public static function fromUserAgent(?string $agent, string $fallback = self::WEBSITE): string
+    {
+        $agent = (string) $agent;
 
         if (preg_match('/iPad|Tablet|PlayBook|Silk|Kindle|(Android(?!.*Mobile))/i', $agent)) {
             return self::TABLET;
@@ -32,7 +40,6 @@ class LoginDevice
             return self::MOBILE;
         }
 
-        // Token logins come from the mobile app even when the client sends no device hints.
-        return $guard === 'sanctum' ? self::MOBILE : self::WEBSITE;
+        return $fallback;
     }
 }

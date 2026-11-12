@@ -8,8 +8,8 @@ use App\Models\EmployeeAttendanceWeek;
 use App\Models\EmployeePayRate;
 use App\Models\EmployeeWorkSchedule;
 use App\Models\User;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 /**
  * Links a work schedule's crew to the payroll attendance records: when the foreman
@@ -91,6 +91,7 @@ class ScheduleAttendance
         $members = self::members($schedule)->keyBy('uuid');
         $workDate = Carbon::parse($date)->startOfDay();
         $errors = [];
+        $changed = false;
 
         foreach ($entries as $entry) {
             $employee = $members->get($entry['employee_uuid'] ?? '');
@@ -110,6 +111,7 @@ class ScheduleAttendance
             if (! $entry['present']) {
                 if ($day && (int) $day->employee_work_schedule_id === $schedule->id) {
                     $day->delete();
+                    $changed = true;
                 }
 
                 continue;
@@ -129,6 +131,7 @@ class ScheduleAttendance
                 $attributes['hours'] = $hours;
 
                 $day->update($attributes);
+                $changed = true;
 
                 continue;
             }
@@ -167,6 +170,11 @@ class ScheduleAttendance
                 'worked' => true,
                 'employee_work_schedule_id' => $schedule->id,
             ]);
+            $changed = true;
+        }
+
+        if ($changed) {
+            JobProgressRealtime::changed($schedule, 'attendance');
         }
 
         return $errors;

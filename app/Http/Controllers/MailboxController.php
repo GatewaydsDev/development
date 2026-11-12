@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Exceptions\MicrosoftGraphException;
 use App\Models\MailSavedRecipient;
 use App\Models\User;
+use App\Services\ContactDirectory\EmailTemplateRenderer;
 use App\Services\MailboxStateService;
 use App\Services\MicrosoftGraphMailService;
 use App\Services\MicrosoftGraphPageCursor;
@@ -397,7 +398,7 @@ class MailboxController extends Controller
             'attachments.*' => ['file', 'max:2048'],
         ]);
 
-        $leftover = app(\App\Services\ContactDirectory\EmailTemplateRenderer::class)
+        $leftover = app(EmailTemplateRenderer::class)
             ->leftoverPlaceholders($validated['subject'].' '.$validated['body']);
 
         if ($leftover !== []) {
@@ -501,6 +502,11 @@ class MailboxController extends Controller
         return 'mailbox-unread:'.$user->id.':'.$mailbox;
     }
 
+    private function unreadStaleCacheKey(User $user, string $mailbox): string
+    {
+        return $this->unreadCacheKey($user, $mailbox).':stale';
+    }
+
     private function mailbox(mixed $mailbox): ?string
     {
         if (! is_string($mailbox)) {
@@ -560,7 +566,7 @@ class MailboxController extends Controller
             'footerColors' => $user?->mailFooterColors() ?? [],
             'stationery' => app(MailStationery::class)->payload($user),
             'emailTemplates' => $user
-                ? app(\App\Services\ContactDirectory\EmailTemplateRenderer::class)->availableFor($user)
+                ? app(EmailTemplateRenderer::class)->availableFor($user)
                 : [],
             'unreadCount' => $unreadCount,
             'blockedCount' => $blockedCount,
@@ -589,7 +595,7 @@ class MailboxController extends Controller
     }
 
     /**
-     * @return array{unread: int, blocked: int, messages: list<array{id: string, subject: string, from: string, preview: string}>}
+     * @return array{unread: int, blocked: int, messages: list<array{id: string, subject: string, from: string, preview: string}>, error?: bool}
      */
     private function unreadSnapshot(
         User $user,
@@ -606,24 +612,31 @@ class MailboxController extends Controller
             && is_array($cached['messages'] ?? null)
             && is_int($cached['blocked'] ?? null)
         ) {
-            return [
+            $snapshot = [
                 'unread' => $cached['unread'],
                 'messages' => $cached['messages'],
                 'blocked' => $cached['blocked'],
             ];
+
+            return ($cached['error'] ?? false) === true
+                ? $snapshot + ['error' => true]
+                : $snapshot;
         }
 
+        $stale = Cache::get($this->unreadStaleCacheKey($user, $mailbox));
         $graphUnread = 0;
         $messages = [];
         $bounces = ['unread' => 0, 'total' => 0];
-
         $failed = false;
+        $monitor = $graph->actingAs($user)->withTimeouts(
+            (int) config('services.microsoft.monitor_request_timeout', 3),
+            (int) config('services.microsoft.monitor_connect_timeout', 1),
+        );
 
         try {
-            $graphUnread = $graph->actingAs($user)->unreadInboxCount($mailbox);
-            $bounces = $graph->actingAs($user)->bounceStats($mailbox);
+            $graphUnread = $monitor->unreadInboxCount($mailbox);
+            $bounces = $monitor->bounceStats($mailbox);
         } catch (MicrosoftGraphException $exception) {
-            // Keep the zero defaults when Graph is unavailable, but leave a trace in the log.
             $failed = true;
             report($exception);
         }
@@ -632,12 +645,30 @@ class MailboxController extends Controller
             $messages = $states->dropCleared(
                 $user,
                 $mailbox,
-                $graph->actingAs($user)->recentUnread($mailbox),
+                $monitor->recentUnread($mailbox),
             );
         } catch (MicrosoftGraphException $exception) {
             $failed = true;
             $messages = [];
             report($exception);
+        }
+
+        if (
+            $failed
+            && is_array($stale)
+            && is_int($stale['unread'] ?? null)
+            && is_array($stale['messages'] ?? null)
+            && is_int($stale['blocked'] ?? null)
+        ) {
+            $snapshot = [
+                'unread' => $stale['unread'],
+                'messages' => $stale['messages'],
+                'blocked' => $stale['blocked'],
+                'error' => true,
+            ];
+            Cache::put($cacheKey, $snapshot, 30);
+
+            return $snapshot;
         }
 
         $snapshot = [
@@ -646,7 +677,11 @@ class MailboxController extends Controller
             'blocked' => $bounces['total'],
         ];
 
-        Cache::put($cacheKey, $snapshot, 15);
+        Cache::put($cacheKey, $failed ? $snapshot + ['error' => true] : $snapshot, $failed ? 30 : 15);
+
+        if (! $failed) {
+            Cache::put($this->unreadStaleCacheKey($user, $mailbox), $snapshot, 86400);
+        }
 
         return $failed ? $snapshot + ['error' => true] : $snapshot;
     }

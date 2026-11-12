@@ -9,11 +9,17 @@ import {
 } from '@/Components/ui/card';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeftIcon, CameraIcon, ShieldCheckIcon } from 'lucide-react';
+import {
+    ArrowLeftIcon,
+    CameraIcon,
+    RadioIcon,
+    ShieldCheckIcon,
+} from 'lucide-react';
 import { useState } from 'react';
 import AttendanceMember, { type AttendanceMemberData } from './Partials/AttendanceMember';
 import ProgressBar from './Partials/ProgressBar';
 import QualityReportForm from './Partials/QualityReportForm';
+import TaskActivityIndicator from './Partials/TaskActivityIndicator';
 import TaskProgressForm from './Partials/TaskProgressForm';
 import {
     resultClasses,
@@ -22,6 +28,7 @@ import {
     type JobSummary,
     type ReportSummary,
 } from './types';
+import useJobProgressLive from './useJobProgressLive';
 
 type Task = {
     uuid: string;
@@ -38,6 +45,7 @@ type Task = {
     performers: string[];
     notes: string | null;
     updated_on: string | null;
+    last_changed_at: string | null;
     photos: {
         uuid: string;
         url: string;
@@ -89,7 +97,12 @@ type Props = {
             photos: number;
         }[];
     };
-    can: { inspect: boolean; update: boolean };
+    can: {
+        inspect: boolean;
+        update: boolean;
+        send_quality_reports: boolean;
+    };
+    reportRecipients: { uuid: string; name: string; email: string }[];
     canSeePay: boolean;
     statuses: Record<string, string>;
     checklist: Record<string, string>;
@@ -106,10 +119,13 @@ export default function Show({
     statuses,
     checklist,
     results,
+    reportRecipients,
 }: Props) {
     const [inspecting, setInspecting] = useState<string | null>(null);
     const [updating, setUpdating] = useState<string | null>(null);
     const { summary } = progress;
+
+    useJobProgressLive([job.uuid], ['job', 'today', 'progress']);
 
     const goTo = (value: string) =>
         router.get(
@@ -128,11 +144,17 @@ export default function Show({
                     >
                         <ArrowLeftIcon className="size-3" /> Job progress
                     </Link>
-                    <h2 className="text-xl font-semibold leading-tight text-emerald-700 dark:text-emerald-300">
-                        {job.project?.name ?? 'Job'}
-                        {job.project?.project_number &&
-                            ` · ${job.project.project_number}`}
-                    </h2>
+                    <div className="flex items-center gap-2">
+                        <h2 className="text-xl font-semibold leading-tight text-emerald-700 dark:text-emerald-300">
+                            {job.project?.name ?? 'Job'}
+                            {job.project?.project_number &&
+                                ` · ${job.project.project_number}`}
+                        </h2>
+                        <Badge variant="secondary" className="gap-1.5">
+                            <RadioIcon className="size-3 animate-pulse text-emerald-500" />
+                            Live
+                        </Badge>
+                    </div>
                     <p className="text-sm text-muted-foreground">
                         {job.starts_on} → {job.ends_on} · {job.status_label}
                         {job.foreman && ` · Foreman ${job.foreman}`}
@@ -210,6 +232,9 @@ export default function Show({
                                         >
                                             {task.status_label}
                                         </span>
+                                        <TaskActivityIndicator
+                                            changedAt={task.last_changed_at}
+                                        />
                                         {task.requires_photo && (
                                             <Badge variant="outline">
                                                 <CameraIcon className="mr-1 size-3" />
@@ -221,7 +246,7 @@ export default function Show({
                                         )}
                                         {task.requires_quality_control && (
                                             <span
-                                                className={`rounded-full px-2 py-0.5 text-xs ${
+                                                className={`inline-flex flex-col rounded-lg px-3 py-1 text-xs leading-tight ${
                                                     task.quality_control
                                                         ? (resultClasses[
                                                               task
@@ -235,6 +260,18 @@ export default function Show({
                                                 {task.quality_control
                                                     ?.result_label ??
                                                     'Not inspected'}
+                                                {task.quality_control && (
+                                                    <span className="mt-0.5 font-normal opacity-80">
+                                                        {formatDate(
+                                                            task
+                                                                .quality_control
+                                                                .inspected_on,
+                                                        )}
+                                                        {task.quality_control
+                                                            .inspector &&
+                                                            ` · ${task.quality_control.inspector}`}
+                                                    </span>
+                                                )}
                                             </span>
                                         )}
                                     </div>
@@ -257,7 +294,7 @@ export default function Show({
                                             {task.performers.length > 0 &&
                                                 `By ${task.performers.join(', ')}`}
                                             {task.updated_on &&
-                                                ` · updated ${task.updated_on}`}
+                                                ` · updated ${formatDate(task.updated_on)}`}
                                         </p>
                                     )}
                                     {task.notes && <p>{task.notes}</p>}
@@ -297,7 +334,10 @@ export default function Show({
                                                     href={photo.url}
                                                     target="_blank"
                                                     rel="noreferrer"
-                                                    title={photo.work_date}
+                                                    title={formatDate(
+                                                        photo.work_date,
+                                                    )}
+                                                    className="flex flex-col items-center gap-1"
                                                 >
                                                     <img
                                                         src={photo.url}
@@ -305,6 +345,11 @@ export default function Show({
                                                         className="size-20 rounded-md border border-border object-cover"
                                                         loading="lazy"
                                                     />
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {formatDate(
+                                                            photo.work_date,
+                                                        )}
+                                                    </span>
                                                 </a>
                                             ))}
                                         </div>
@@ -312,6 +357,11 @@ export default function Show({
 
                                     {task.requires_quality_control && (
                                         <div className="flex flex-col gap-2 border-t border-border pt-3">
+                                            {task.reports.length > 0 && (
+                                                <QualitySummary
+                                                    reports={task.reports}
+                                                />
+                                            )}
                                             {task.reports.map((report) => (
                                                 <Link
                                                     key={report.uuid}
@@ -322,7 +372,9 @@ export default function Show({
                                                     className="flex items-center justify-between text-xs hover:underline"
                                                 >
                                                     <span>
-                                                        {report.inspected_on}
+                                                        {formatDate(
+                                                            report.inspected_on,
+                                                        )}
                                                         {report.inspector &&
                                                             ` · ${report.inspector}`}
                                                     </span>
@@ -341,6 +393,11 @@ export default function Show({
                                                         today={today}
                                                         checklist={checklist}
                                                         results={results}
+                                                        recipients={
+                                                            can.send_quality_reports
+                                                                ? reportRecipients
+                                                                : []
+                                                        }
                                                         onDone={() =>
                                                             setInspecting(null)
                                                         }
@@ -513,6 +570,44 @@ function Stat({ label, value }: { label: string; value: string }) {
         <div>
             <p className="text-xs text-muted-foreground">{label}</p>
             <p className="text-lg font-semibold">{value}</p>
+        </div>
+    );
+}
+
+function QualitySummary({ reports }: { reports: ReportSummary[] }) {
+    const rework = reports.filter(
+        (report) => report.result === 'rework',
+    ).length;
+    const failed = reports.filter(
+        (report) => report.result === 'failed',
+    ).length;
+    const problems = reports.reduce(
+        (total, report) => total + report.failed_checks,
+        0,
+    );
+
+    return (
+        <div>
+            <p className="mb-2 text-xs font-medium uppercase text-muted-foreground">
+                Quality control summary
+            </p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <QualityMetric label="Inspections" value={reports.length} />
+                <QualityMetric label="Rework required" value={rework} />
+                <QualityMetric label="Failed reports" value={failed} />
+                <QualityMetric label="Problems found" value={problems} />
+            </div>
+        </div>
+    );
+}
+
+function QualityMetric({ label, value }: { label: string; value: number }) {
+    return (
+        <div className="flex min-h-16 flex-col justify-between rounded-md border border-border bg-muted/30 p-2 text-center">
+            <span className="text-xs leading-tight text-muted-foreground">
+                {label}
+            </span>
+            <span className="text-lg font-semibold tabular-nums">{value}</span>
         </div>
     );
 }

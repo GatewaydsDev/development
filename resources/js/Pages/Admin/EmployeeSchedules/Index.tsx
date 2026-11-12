@@ -39,6 +39,7 @@ import {
     EditIcon,
     GaugeIcon,
     HardHatIcon,
+    ListChecksIcon,
     MapPinIcon,
     PlusIcon,
     SearchIcon,
@@ -731,6 +732,106 @@ export default function Index({ filters, statuses, schedules, can, roleOptions }
                                                             </td>
                                                         </tr>
                                                     ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    <div className="lg:col-span-4">
+                                        <FieldLabel
+                                            icon={ListChecksIcon}
+                                            tone="bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300"
+                                        >
+                                            {`Tasks to be performed (${schedule.daily_tasks?.length ?? 0})`}
+                                        </FieldLabel>
+                                        <div className="mt-2 overflow-x-auto rounded-lg border border-border">
+                                            <table className="w-full text-sm">
+                                                <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                                                    <tr>
+                                                        <th className="w-12 px-3 py-1.5 text-center font-medium">
+                                                            #
+                                                        </th>
+                                                        <th className="px-3 py-1.5 font-medium">
+                                                            Task
+                                                        </th>
+                                                        <th className="px-3 py-1.5 font-medium">
+                                                            Performed by
+                                                        </th>
+                                                        <th className="px-3 py-1.5 font-medium">
+                                                            Requirements
+                                                        </th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-border">
+                                                    {(
+                                                        schedule.daily_tasks ??
+                                                        []
+                                                    ).map((task, index) => (
+                                                        <tr
+                                                            key={task.uuid}
+                                                            className="align-top"
+                                                        >
+                                                            <td className="px-3 py-2 text-center tabular-nums text-muted-foreground">
+                                                                {index + 1}
+                                                            </td>
+                                                            <td className="px-3 py-2">
+                                                                <p className="font-medium text-foreground">
+                                                                    {task.title}
+                                                                </p>
+                                                                {task.description && (
+                                                                    <p className="mt-0.5 text-xs text-muted-foreground">
+                                                                        {
+                                                                            task.description
+                                                                        }
+                                                                    </p>
+                                                                )}
+                                                            </td>
+                                                            <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
+                                                                {
+                                                                    task.performed_by_label
+                                                                }
+                                                            </td>
+                                                            <td className="px-3 py-2">
+                                                                <div className="flex flex-wrap gap-1">
+                                                                    {task.requires_photo && (
+                                                                        <Badge
+                                                                            variant="outline"
+                                                                            className="border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
+                                                                        >
+                                                                            Photos
+                                                                        </Badge>
+                                                                    )}
+                                                                    {task.requires_quality_control && (
+                                                                        <Badge
+                                                                            variant="outline"
+                                                                            className="border-violet-300 bg-violet-50 text-violet-800 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-200"
+                                                                        >
+                                                                            Quality control
+                                                                        </Badge>
+                                                                    )}
+                                                                    {!task.requires_photo &&
+                                                                        !task.requires_quality_control && (
+                                                                            <span className="text-xs text-muted-foreground">
+                                                                                None
+                                                                            </span>
+                                                                        )}
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                    {(
+                                                        schedule.daily_tasks ??
+                                                        []
+                                                    ).length === 0 && (
+                                                        <tr>
+                                                            <td
+                                                                colSpan={4}
+                                                                className="px-3 py-4 text-center text-muted-foreground"
+                                                            >
+                                                                No daily tasks
+                                                                assigned.
+                                                            </td>
+                                                        </tr>
+                                                    )}
                                                 </tbody>
                                             </table>
                                         </div>

@@ -9,7 +9,13 @@ import {
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { cn } from '@/lib/utils';
 import { Head, Link } from '@inertiajs/react';
-import { BriefcaseIcon, CameraIcon, HardHatIcon, MapPinIcon } from 'lucide-react';
+import {
+    BriefcaseIcon,
+    CameraIcon,
+    HardHatIcon,
+    MapPinIcon,
+    ShieldAlertIcon,
+} from 'lucide-react';
 
 type PortalProject = {
     uuid: string;
@@ -21,6 +27,18 @@ type PortalProject = {
     overall_progress: number | null;
     is_working_today: boolean;
     photos_count: number;
+};
+
+type QualityReport = {
+    uuid: string;
+    project: {
+        name: string;
+        project_number: string | null;
+    } | null;
+    task: string | null;
+    inspected_on: string | null;
+    result_label: string;
+    corrective_action: string | null;
 };
 
 export function ProgressBar({ value }: { value: number | null }) {
@@ -57,9 +75,11 @@ export const statusClassName = (status?: string | null) => {
 export default function Index({
     projects,
     company,
+    qualityReports,
 }: {
     projects: PortalProject[];
     company: string | null;
+    qualityReports: QualityReport[];
 }) {
     return (
         <AuthenticatedLayout
@@ -77,6 +97,53 @@ export default function Index({
         >
             <Head title="My projects" />
             <div className="grid w-full gap-5 px-4 py-6 sm:px-6 sm:py-8 lg:grid-cols-2 lg:px-8 2xl:grid-cols-3">
+                {qualityReports.length > 0 && (
+                    <Card className="border-amber-300 lg:col-span-2 2xl:col-span-3 dark:border-amber-800">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <ShieldAlertIcon className="size-5 text-amber-600" />
+                                Quality control reports sent to you
+                            </CardTitle>
+                            <CardDescription>
+                                Review the failed checks and corrective action
+                                requested for these jobs.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="grid gap-3 md:grid-cols-2">
+                            {qualityReports.map((report) => (
+                                <Link
+                                    key={report.uuid}
+                                    href={route(
+                                        'portal.quality-reports.show',
+                                        report.uuid,
+                                    )}
+                                    className="rounded-lg border border-border bg-background p-3 transition hover:border-amber-500"
+                                >
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <span className="font-medium">
+                                            {report.task ?? 'Quality report'}
+                                        </span>
+                                        <Badge variant="outline">
+                                            {report.result_label}
+                                        </Badge>
+                                    </div>
+                                    <p className="mt-1 text-sm text-muted-foreground">
+                                        {report.project?.name}
+                                        {report.project?.project_number &&
+                                            ` · ${report.project.project_number}`}
+                                        {report.inspected_on &&
+                                            ` · ${report.inspected_on}`}
+                                    </p>
+                                    {report.corrective_action && (
+                                        <p className="mt-2 line-clamp-2 text-sm text-amber-800 dark:text-amber-300">
+                                            {report.corrective_action}
+                                        </p>
+                                    )}
+                                </Link>
+                            ))}
+                        </CardContent>
+                    </Card>
+                )}
                 {projects.length === 0 ? (
                     <Card className="lg:col-span-2 2xl:col-span-3">
                         <CardContent className="flex items-center gap-3 p-6 text-sm text-muted-foreground">

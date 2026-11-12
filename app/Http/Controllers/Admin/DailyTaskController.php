@@ -4,26 +4,26 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\DailyTask;
-use App\Models\DailyTaskTitle;
 use App\Models\DailyTaskCompletion;
-use App\Models\Employee;
+use App\Models\DailyTaskPhoto;
+use App\Models\DailyTaskTitle;
+use App\Models\EmployeeWorkSchedule;
 use App\Models\User;
 use App\Models\UserLevel;
-use App\Models\DailyTaskPhoto;
-use App\Models\EmployeeWorkSchedule;
 use App\Support\DailyTaskAccess;
-use App\Support\JobProgressAccess;
-use App\Support\ScheduleAttendance;
 use App\Support\DailyTaskChecklist;
 use App\Support\DailyTaskProgressRules;
-use Illuminate\Support\Facades\Storage;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use App\Support\JobProgressAccess;
+use App\Support\JobProgressRealtime;
+use App\Support\ScheduleAttendance;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DailyTaskController extends Controller
 {
@@ -82,6 +82,7 @@ class DailyTaskController extends Controller
             ...collect($data)->filter(fn ($value, $key) => $key !== 'title' || $value !== null)->all(),
             'sort_order' => (int) DailyTask::query()->max('sort_order') + 1,
             'created_by' => $user->id,
+            'updated_by' => $user->id,
         ]);
 
         return back()->with('success', 'Daily task added.');
@@ -89,12 +90,15 @@ class DailyTaskController extends Controller
 
     public function update(Request $request, DailyTask $dailyTask): RedirectResponse
     {
-        $this->manager($request);
+        $user = $this->manager($request);
 
         $data = $this->validated($request);
         $this->rejectDuplicate($this->duplicateOf($data, $dailyTask));
 
-        $dailyTask->update(collect($data)->filter(fn ($value, $key) => $key !== 'title' || $value !== null)->all());
+        $dailyTask->update([
+            ...collect($data)->filter(fn ($value, $key) => $key !== 'title' || $value !== null)->all(),
+            'updated_by' => $user->id,
+        ]);
 
         return back()->with('success', 'Daily task updated.');
     }
@@ -181,7 +185,12 @@ class DailyTaskController extends Controller
         $user = $this->actor($request);
         abort_unless($photo->completion->user_id === $user->id || DailyTaskAccess::canManage($user), 403);
 
+        $schedule = $photo->completion->schedule;
         $photo->delete();
+
+        if ($schedule !== null) {
+            JobProgressRealtime::changed($schedule, 'task');
+        }
 
         return back();
     }

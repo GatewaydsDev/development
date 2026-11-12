@@ -18,11 +18,11 @@ import { Skeleton } from '@/Components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { Link, router } from '@inertiajs/react';
 import { InboxIcon, MailWarningIcon, SendIcon } from 'lucide-react';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 
 export type EmailActivity = {
-    status: 'ok' | 'no_mailbox' | 'error';
+    status: 'ok' | 'no_mailbox' | 'loading' | 'error';
     mailbox: string | null;
     range: number;
     days: Array<{
@@ -111,6 +111,22 @@ export function EmailActivitySkeleton() {
 export function EmailActivityChart({ activity }: { activity: EmailActivity }) {
     const [loading, setLoading] = useState(false);
 
+    useEffect(() => {
+        if (activity.status !== 'loading') {
+            return;
+        }
+
+        const timer = window.setInterval(() => {
+            router.reload({
+                only: ['emailActivity'],
+                async: true,
+                showProgress: false,
+            });
+        }, 4_000);
+
+        return () => window.clearInterval(timer);
+    }, [activity.status]);
+
     const changeRange = (next: number) => {
         if (next === activity.range) {
             return;
@@ -135,6 +151,10 @@ export function EmailActivityChart({ activity }: { activity: EmailActivity }) {
                 </div>
             </Shell>
         );
+    }
+
+    if (activity.status === 'loading') {
+        return <EmailActivitySkeleton />;
     }
 
     if (activity.status === 'error') {

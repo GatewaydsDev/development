@@ -14,9 +14,9 @@ import {
     CardTitle,
 } from "@/Components/ui/card";
 import { Button } from "@/Components/ui/button";
-import { useForm } from "@inertiajs/react";
+import { router, useForm } from "@inertiajs/react";
 import { PlusIcon, Trash2Icon } from "lucide-react";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import type {
     ScheduleDailyTask,
     ScheduleCertification,
@@ -254,6 +254,8 @@ export default function ScheduleForm({
     crewAssignments = {},
 }: ScheduleFormProps) {
     const [employeeSearch, setEmployeeSearch] = useState("");
+    const [focusNewDailyTask, setFocusNewDailyTask] = useState(false);
+    const lastTaskRefresh = useRef(0);
     const { data, setData, post, processing, errors, transform } = useForm({
         project_uuid: schedule?.project?.uuid ?? "",
         starts_on: schedule?.starts_on ?? schedule?.work_date ?? defaultDate,
@@ -279,6 +281,22 @@ export default function ScheduleForm({
 
         return method === "patch" ? { ...payload, _method: "PATCH" } : payload;
     });
+
+    const refreshDailyTasks = () => {
+        const now = Date.now();
+
+        if (now - lastTaskRefresh.current < 5_000) {
+            return;
+        }
+
+        lastTaskRefresh.current = now;
+        router.reload({
+            only: ["dailyTasks"],
+            preserveScroll: true,
+            preserveState: true,
+            showProgress: false,
+        } as never);
+    };
 
     const selectedForeman = useMemo(
         () =>
@@ -854,6 +872,14 @@ export default function ScheduleForm({
                                             optionsProp="dailyTasks"
                                             entityLabel="task"
                                             placeholder="Type to search or add a task"
+                                            onOpen={refreshDailyTasks}
+                                            autoFocus={
+                                                focusNewDailyTask &&
+                                                index ===
+                                                    data.daily_task_uuids
+                                                        .length -
+                                                        1
+                                            }
                                             onChange={(uuid) =>
                                                 setData(
                                                     "daily_task_uuids",
@@ -921,14 +947,15 @@ export default function ScheduleForm({
                             ))}
                             <Button
                                 type="button"
-                                variant="outline"
-                                className="w-fit"
-                                onClick={() =>
+                                variant="create"
+                                className="w-fit self-end"
+                                onClick={() => {
+                                    setFocusNewDailyTask(true);
                                     setData("daily_task_uuids", [
                                         ...data.daily_task_uuids,
                                         "",
-                                    ])
-                                }
+                                    ]);
+                                }}
                             >
                                 <PlusIcon className="size-4" />
                                 Add task

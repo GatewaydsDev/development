@@ -127,6 +127,8 @@ class User extends Authenticatable implements WebAuthnAuthenticatable
             'microsoft_client_secret' => 'encrypted',
             'mail_footer_colors' => 'array',
             'mail_stationery' => 'array',
+            'permission_overrides' => 'array',
+            'mobile_permission_overrides' => 'array',
         ];
     }
 
@@ -399,8 +401,12 @@ class User extends Authenticatable implements WebAuthnAuthenticatable
             return true;
         }
 
-        if (in_array($permission, ['view-users', 'create-users', 'update-users', 'manage-access'], true)) {
+        if ($permission === 'manage-access') {
             return false;
+        }
+
+        if (is_array($this->permission_overrides) && array_key_exists($permission, $this->permission_overrides)) {
+            return (bool) $this->permission_overrides[$permission];
         }
 
         return $this->level?->hasPermission($permission) ?? false;
@@ -414,6 +420,10 @@ class User extends Authenticatable implements WebAuthnAuthenticatable
 
         if (! $this->hasPermission($permission)) {
             return false;
+        }
+
+        if (is_array($this->mobile_permission_overrides) && array_key_exists($permission, $this->mobile_permission_overrides)) {
+            return (bool) $this->mobile_permission_overrides[$permission];
         }
 
         return $this->level?->hasMobilePermission($permission) ?? false;

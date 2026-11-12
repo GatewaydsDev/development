@@ -32,6 +32,7 @@ export type ReportSummary = {
     result: string;
     result_label: string;
     inspector: string | null;
+    failed_checks: number;
 };
 
 export const statusClasses: Record<string, string> = {

@@ -5,30 +5,31 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ClientCompany;
 use App\Models\ContactDirectory\ContactCompany;
-use Closure;
 use App\Models\Employee;
 use App\Models\Language;
-use App\Models\Profession;
 use App\Models\LoginBlockLog;
-use App\Models\User;
+use App\Models\Profession;
 use App\Models\RegistrationRequest;
+use App\Models\User;
+use App\Models\UserEmail;
+use App\Models\UserLevel;
+use App\Models\UserPhone;
 use App\Support\ClientCompanyTeam;
 use App\Support\ClientPortalAccess;
 use App\Support\LoginLockout;
 use App\Support\RegistrationApproval;
-use App\Models\UserEmail;
-use App\Models\UserLevel;
-use App\Models\UserPhone;
 use App\Support\UserContacts;
 use App\Support\UserDefaults;
 use App\Support\UserLevelAccess;
 use Carbon\CarbonImmutable;
+use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules;
@@ -468,6 +469,8 @@ class UserController extends Controller
             'languages' => $this->languages(),
             'accessPermissions' => UserLevelAccess::catalog(),
             'canCreateUserLevel' => (bool) request()->user()?->isSuperAdmin(),
+            'canManageIndividualPermissions' => (bool) request()->user()?->isSuperAdmin()
+                && ! $user->isSuperAdmin(),
             'canAssignMailbox' => $canManageMicrosoft,
             'positions' => $this->positions(),
             'superAdminLevelNames' => UserLevel::SUPER_ADMIN_ALIASES,
@@ -514,6 +517,18 @@ class UserController extends Controller
                         'name' => $user->level->name,
                     ]
                     : null,
+                'permission_overrides' => $user->permission_overrides ?? [],
+                'mobile_permission_overrides' => $user->mobile_permission_overrides ?? [],
+                'level_permissions' => collect(config('access.permissions', []))
+                    ->keys()
+                    ->mapWithKeys(fn (string $permission): array => [
+                        $permission => $user->level?->hasPermission($permission) ?? false,
+                    ]),
+                'level_mobile_permissions' => collect(config('access.permissions', []))
+                    ->keys()
+                    ->mapWithKeys(fn (string $permission): array => [
+                        $permission => $user->level?->hasMobilePermission($permission) ?? false,
+                    ]),
                 'emails' => $user->emails
                     ->map(fn (UserEmail $email): array => [
                         'email' => $email->email,
@@ -615,6 +630,54 @@ class UserController extends Controller
         return redirect()
             ->route('admin.users.index')
             ->with('success', 'User updated successfully.');
+    }
+
+    public function updatePermissions(Request $request, User $user): RedirectResponse
+    {
+        abort_unless($request->user()?->isSuperAdmin(), 403);
+        abort_if($user->isSuperAdmin(), 422, 'Super Admin permissions cannot be overridden.');
+
+        if (! Schema::hasColumns('users', ['permission_overrides', 'mobile_permission_overrides'])) {
+            throw ValidationException::withMessages([
+                'permission_overrides' => 'The permission override database migration has not been run yet.',
+            ]);
+        }
+
+        $validated = $request->validate([
+            'permission_overrides' => ['present', 'array'],
+            'permission_overrides.*' => ['nullable', 'boolean'],
+            'mobile_permission_overrides' => ['present', 'array'],
+            'mobile_permission_overrides.*' => ['nullable', 'boolean'],
+        ]);
+        $keys = collect(config('access.permissions', []))->keys();
+        $normalize = fn (array $overrides): array => $keys
+            ->filter(fn (string $permission): bool => array_key_exists($permission, $overrides)
+                && $overrides[$permission] !== null)
+            ->mapWithKeys(fn (string $permission): array => [
+                $permission => filter_var($overrides[$permission], FILTER_VALIDATE_BOOLEAN),
+            ])
+            ->all();
+
+        $websiteOverrides = $normalize($validated['permission_overrides']);
+        $mobileOverrides = $normalize($validated['mobile_permission_overrides']);
+
+        DB::transaction(function () use ($user, $websiteOverrides, $mobileOverrides): void {
+            $lockedUser = User::query()->lockForUpdate()->findOrFail($user->id);
+            $lockedUser->forceFill([
+                'permission_overrides' => $websiteOverrides,
+                'mobile_permission_overrides' => $mobileOverrides,
+            ])->saveOrFail();
+            $saved = $lockedUser->fresh();
+
+            if ($saved?->permission_overrides !== $websiteOverrides
+                || $saved?->mobile_permission_overrides !== $mobileOverrides) {
+                throw ValidationException::withMessages([
+                    'permission_overrides' => 'The permission overrides could not be verified after saving.',
+                ]);
+            }
+        }, attempts: 3);
+
+        return back()->with('success', "Individual permissions updated for {$user->name}.");
     }
 
     public function updateStatus(Request $request, User $user, LoginLockout $lockout): RedirectResponse
@@ -767,7 +830,7 @@ class UserController extends Controller
     }
 
     /**
-     * @return array<string, list<ValidationRule|string|\Closure>>
+     * @return array<string, list<ValidationRule|string|Closure>>
      */
     private function microsoftCredentialRules(Request $request): array
     {
@@ -783,7 +846,7 @@ class UserController extends Controller
                 'nullable',
                 'string',
                 'max:255',
-                function (string $attribute, mixed $value, \Closure $fail): void {
+                function (string $attribute, mixed $value, Closure $fail): void {
                     if (! is_string($value) || $value === '') {
                         return;
                     }

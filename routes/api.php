@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\ProjectController;
 use App\Http\Controllers\Api\QuotationController;
 use App\Http\Controllers\Api\UserAccessController;
 use App\Http\Controllers\Api\UserLevelController;
+use App\Http\Controllers\Api\UserProfileController;
 use App\Http\Controllers\PostmarkWebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -41,11 +42,13 @@ Route::prefix('auth')->group(function () {
         Route::get('passkeys', [PasskeyController::class, 'index']);
         Route::delete('passkeys/{credential}', [PasskeyController::class, 'destroy']);
         Route::post('logout', [AuthController::class, 'logout']);
+        Route::post('profile', [AuthController::class, 'updateProfile']);
         Route::put('password', [AuthController::class, 'updatePassword']);
     });
 });
 
 Route::middleware('auth:sanctum')->get('/user', [AuthController::class, 'user']);
+Route::middleware('auth:sanctum')->get('/profile', [UserProfileController::class, 'show']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me/login-history', [LoginLogController::class, 'mine']);
@@ -56,6 +59,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
 Route::middleware('auth:sanctum')->prefix('client-portal')->group(function () {
     Route::get('/projects', [ClientPortalController::class, 'index']);
+    Route::get('/quality-reports/{report:uuid}', [ClientPortalController::class, 'qualityReport']);
     Route::get('/projects/{project:uuid}', [ClientPortalController::class, 'show']);
     Route::get('/photos/{photo:uuid}', [ClientPortalController::class, 'photo']);
 });
@@ -78,6 +82,9 @@ Route::middleware('auth:sanctum')->prefix('job-progress')->group(function () {
 
 Route::middleware('auth:sanctum')->prefix('me/daily-tasks')->group(function () {
     Route::get('/', [ForemanDailyTaskController::class, 'index']);
+    Route::post('/schedules/{schedule:uuid}', [ForemanDailyTaskController::class, 'store']);
+    Route::patch('/schedules/{schedule:uuid}/{dailyTask:uuid}', [ForemanDailyTaskController::class, 'updateDefinition']);
+    Route::delete('/schedules/{schedule:uuid}/{dailyTask:uuid}', [ForemanDailyTaskController::class, 'destroyDefinition']);
     Route::post('/{dailyTask}/progress', [ForemanDailyTaskController::class, 'progress']);
     Route::get('/photos/{photo}', [ForemanDailyTaskController::class, 'photo'])->name('api.daily-task-photos.show');
     Route::delete('/photos/{photo}', [ForemanDailyTaskController::class, 'destroyPhoto']);

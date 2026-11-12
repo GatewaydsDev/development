@@ -1,5 +1,6 @@
 <?php
 
+use App\Exceptions\MicrosoftGraphException;
 use App\Models\User;
 use App\Models\UserLevel;
 use App\Services\MicrosoftGraphMailService;
@@ -391,4 +392,24 @@ test('impersonating a super admin without app credentials uses the master app on
     Http::assertSent(function ($request) {
         return str_contains($request->url(), '/users/'.rawurlencode('larryd@gateway-ds.com').'/mailFolders/inbox/messages');
     });
+});
+
+test('a microsoft outage opens the circuit so later requests fail immediately', function () {
+    Http::fake([
+        'https://login.microsoftonline.com/*' => Http::response([
+            'access_token' => 'graph-token',
+            'expires_in' => 3600,
+        ]),
+        'https://graph.microsoft.com/*' => Http::response([], 503),
+    ]);
+
+    $graph = app(MicrosoftGraphMailService::class);
+
+    expect(fn () => $graph->unreadInboxCount('ricardo@gateway-ds.com'))
+        ->toThrow(MicrosoftGraphException::class, 'Other features are still available');
+
+    expect(fn () => $graph->recentUnread('ricardo@gateway-ds.com'))
+        ->toThrow(MicrosoftGraphException::class, 'Other features are still available');
+
+    Http::assertSentCount(2);
 });

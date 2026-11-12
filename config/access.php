@@ -122,16 +122,19 @@ return [
         'create-quotations' => [
             'name' => 'Add new quotations',
             'group' => 'Quotations',
+            'parent' => 'view-quotations',
             'description' => 'Open the add quotation page and create quotations.',
         ],
         'update-quotations' => [
             'name' => 'Update quotations',
             'group' => 'Quotations',
+            'parent' => 'view-quotations',
             'description' => 'Open edit quotation pages and save quotation updates.',
         ],
         'delete-quotations' => [
             'name' => 'Delete quotations',
             'group' => 'Quotations',
+            'parent' => 'view-quotations',
             'description' => 'Remove quotation records.',
         ],
         'view-products' => [
@@ -142,16 +145,19 @@ return [
         'create-products' => [
             'name' => 'Add new products',
             'group' => 'Products',
+            'parent' => 'view-products',
             'description' => 'Open the add product page and create doors or parts.',
         ],
         'update-products' => [
             'name' => 'Update products',
             'group' => 'Products',
+            'parent' => 'view-products',
             'description' => 'Open edit product pages and save product updates.',
         ],
         'delete-products' => [
             'name' => 'Delete products',
             'group' => 'Products',
+            'parent' => 'view-products',
             'description' => 'Remove product records.',
         ],
         'view-services' => [
@@ -162,16 +168,19 @@ return [
         'create-services' => [
             'name' => 'Add new services',
             'group' => 'Services',
+            'parent' => 'view-services',
             'description' => 'Open the add service page and create services.',
         ],
         'update-services' => [
             'name' => 'Update services',
             'group' => 'Services',
+            'parent' => 'view-services',
             'description' => 'Open edit service pages and save service updates.',
         ],
         'delete-services' => [
             'name' => 'Delete services',
             'group' => 'Services',
+            'parent' => 'view-services',
             'description' => 'Remove service records.',
         ],
         'view-contractors' => [
@@ -182,16 +191,19 @@ return [
         'create-contractors' => [
             'name' => 'Add new contractors',
             'group' => 'Contractors',
+            'parent' => 'view-contractors',
             'description' => 'Open the add contractor page and create general contractors.',
         ],
         'update-contractors' => [
             'name' => 'Update contractors',
             'group' => 'Contractors',
+            'parent' => 'view-contractors',
             'description' => 'Open edit contractor pages and save contractor updates.',
         ],
         'delete-contractors' => [
             'name' => 'Delete contractors',
             'group' => 'Contractors',
+            'parent' => 'view-contractors',
             'description' => 'Remove contractor records.',
         ],
         'view-employees' => [
@@ -219,10 +231,34 @@ return [
             'group' => 'Field operations',
             'description' => 'Follow task progress, crew hours, photos and quality control for jobs. Foremen only see their own jobs.',
         ],
+        'send-quality-control-reports' => [
+            'name' => 'Send quality control reports',
+            'group' => 'Field operations',
+            'parent' => 'view-job-progress',
+            'description' => 'Assign a quality control report to a person in the project’s client company.',
+        ],
         'view-daily-tasks' => [
             'name' => 'Open daily tasks',
             'group' => 'Field operations',
             'description' => 'Open the daily task checklist and complete the tasks assigned to the foreman.',
+        ],
+        'create-schedule-tasks' => [
+            'name' => 'Add tasks to own schedules',
+            'group' => 'Field operations',
+            'parent' => 'view-daily-tasks',
+            'description' => 'Create a task attached only to a work schedule led by the signed-in foreman.',
+        ],
+        'update-schedule-tasks' => [
+            'name' => 'Update tasks on own schedules',
+            'group' => 'Field operations',
+            'parent' => 'view-daily-tasks',
+            'description' => 'Update foreman-created tasks attached only to work schedules they lead.',
+        ],
+        'delete-schedule-tasks' => [
+            'name' => 'Remove tasks from own schedules',
+            'group' => 'Field operations',
+            'parent' => 'view-daily-tasks',
+            'description' => 'Remove foreman-created tasks from work schedules led by the signed-in foreman.',
         ],
         'view-attendance' => [
             'name' => 'Open attendance',
@@ -237,16 +273,19 @@ return [
         'create-employees' => [
             'name' => 'Add new employees',
             'group' => 'Employees',
+            'parent' => 'view-employees',
             'description' => 'Open the add employee page and create employees.',
         ],
         'update-employees' => [
             'name' => 'Update employees',
             'group' => 'Employees',
+            'parent' => 'view-employees',
             'description' => 'Open edit employee pages and save employee updates.',
         ],
         'delete-employees' => [
             'name' => 'Delete employees',
             'group' => 'Employees',
+            'parent' => 'view-employees',
             'description' => 'Remove employee records.',
         ],
         'view-takeoffs' => [
@@ -257,36 +296,43 @@ return [
         'create-takeoffs' => [
             'name' => 'Add takeoffs',
             'group' => 'Takeoffs',
+            'parent' => 'view-takeoffs',
             'description' => 'Create a takeoff for a project.',
         ],
         'update-takeoffs' => [
             'name' => 'Update takeoffs',
             'group' => 'Takeoffs',
+            'parent' => 'view-takeoffs',
             'description' => 'Edit openings, drawings, and takeoff details.',
         ],
         'delete-takeoffs' => [
             'name' => 'Delete takeoffs',
             'group' => 'Takeoffs',
+            'parent' => 'view-takeoffs',
             'description' => 'Delete a takeoff that has not been transferred to a quotation.',
         ],
         'approve-takeoffs' => [
             'name' => 'Approve takeoffs',
             'group' => 'Takeoffs',
+            'parent' => 'view-takeoffs',
             'description' => 'Mark a takeoff as internally reviewed. This does not certify product compliance.',
         ],
         'view-takeoff-pricing' => [
             'name' => 'See takeoff pricing',
             'group' => 'Takeoffs',
+            'parent' => 'view-takeoffs',
             'description' => 'See costs, markup, margin, and supplier pricing.',
         ],
         'export-takeoffs' => [
             'name' => 'Export takeoffs',
             'group' => 'Takeoffs',
+            'parent' => 'view-takeoffs',
             'description' => 'Download a takeoff opening schedule.',
         ],
         'convert-takeoffs' => [
             'name' => 'Convert takeoffs to quotations',
             'group' => 'Takeoffs',
+            'parent' => 'view-takeoffs',
             'description' => 'Copy reviewed takeoff selling prices onto an existing quotation.',
         ],
     ],
@@ -301,6 +347,10 @@ return [
             'view-company',
             'manage-access',
             'manage-notifications',
+            'send-quality-control-reports',
+            'create-schedule-tasks',
+            'update-schedule-tasks',
+            'delete-schedule-tasks',
             'view-projects',
             'create-projects',
             'update-projects',
@@ -342,7 +392,11 @@ return [
             'view-dashboard',
             'view-work-schedule',
             'view-job-progress',
+            'send-quality-control-reports',
             'view-daily-tasks',
+            'create-schedule-tasks',
+            'update-schedule-tasks',
+            'delete-schedule-tasks',
             'view-attendance',
             'manage-profile',
             'view-company',
@@ -393,7 +447,11 @@ return [
             'view-dashboard',
             'view-work-schedule',
             'view-job-progress',
+            'send-quality-control-reports',
             'view-daily-tasks',
+            'create-schedule-tasks',
+            'update-schedule-tasks',
+            'delete-schedule-tasks',
             'view-attendance',
             'manage-profile',
             'view-company',
@@ -433,6 +491,9 @@ return [
             'view-work-schedule',
             'view-job-progress',
             'view-daily-tasks',
+            'create-schedule-tasks',
+            'update-schedule-tasks',
+            'delete-schedule-tasks',
             'view-attendance',
             'manage-profile',
             'view-employees',

@@ -87,6 +87,7 @@ class UserLevelAccess
                 'name' => $permission['name'],
                 'group' => $permission['group'],
                 'description' => $permission['description'],
+                'parent_key' => $permission['parent'] ?? null,
             ])
             ->values()
             ->all();

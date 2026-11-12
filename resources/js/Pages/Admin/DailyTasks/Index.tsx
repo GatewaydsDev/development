@@ -29,7 +29,7 @@ import {
     PlusIcon,
     Trash2Icon,
 } from 'lucide-react';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useRef, useState } from 'react';
 
 type Task = {
     uuid: string;
@@ -74,6 +74,7 @@ function TaskManager({
     taskTitles: { id: number; name: string }[];
 }) {
     const [editing, setEditing] = useState<Task | null>(null);
+    const formRef = useRef<HTMLFormElement>(null);
     const form = useForm<{
         daily_task_title_id: string;
         description: string;
@@ -107,6 +108,15 @@ function TaskManager({
             requires_photo: task.requires_photo,
             requires_quality_control: task.requires_quality_control,
             performed_by: task.performed_by,
+        });
+        window.requestAnimationFrame(() => {
+            formRef.current?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center',
+            });
+            formRef.current
+                ?.querySelector<HTMLInputElement>('#daily-task-title')
+                ?.focus();
         });
     };
 
@@ -155,7 +165,39 @@ function TaskManager({
                 </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
-                <form onSubmit={submit} className="grid gap-3 rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-900 dark:bg-emerald-950/30 md:grid-cols-2">
+                <form
+                    ref={formRef}
+                    onSubmit={submit}
+                    className={`grid gap-3 rounded-xl border p-4 transition-colors md:grid-cols-2 ${
+                        editing
+                            ? 'border-amber-400 bg-amber-50/80 ring-2 ring-amber-200 dark:border-amber-700 dark:bg-amber-950/30 dark:ring-amber-900'
+                            : 'border-emerald-200 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30'
+                    }`}
+                >
+                    <div className="flex flex-wrap items-center justify-between gap-2 md:col-span-2">
+                        <div>
+                            <p className="flex items-center gap-2 font-semibold">
+                                {editing ? (
+                                    <PencilIcon className="size-4 text-amber-600" />
+                                ) : (
+                                    <PlusIcon className="size-4 text-emerald-600" />
+                                )}
+                                {editing
+                                    ? `Editing: ${editing.title}`
+                                    : 'Add a new daily task'}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                                {editing
+                                    ? 'You are changing an existing task. Save or cancel before continuing.'
+                                    : 'Complete the fields below to create a reusable task.'}
+                            </p>
+                        </div>
+                        {editing && (
+                            <Badge className="bg-amber-500 text-white hover:bg-amber-500">
+                                Edit mode
+                            </Badge>
+                        )}
+                    </div>
                     <CreatableSelect
                         id="daily-task-title"
                         label="Task"
@@ -264,7 +306,7 @@ function TaskManager({
                             disabled={form.processing}
                         >
                             {!editing && <PlusIcon data-icon="inline-start" />}
-                            {editing ? 'Save task' : 'Add task'}
+                            {editing ? 'Save changes' : 'Add task'}
                         </Button>
                     </div>
                 </form>
@@ -278,7 +320,11 @@ function TaskManager({
                     {tasks.map((task) => (
                         <div
                             key={task.uuid}
-                            className="flex items-center gap-3 rounded-md border border-sky-200 bg-sky-50/50 p-3 dark:border-sky-900 dark:bg-sky-950/20"
+                            className={`flex items-center gap-3 rounded-md border p-3 ${
+                                editing?.uuid === task.uuid
+                                    ? 'border-amber-400 bg-amber-50 ring-2 ring-amber-200 dark:border-amber-700 dark:bg-amber-950/30 dark:ring-amber-900'
+                                    : 'border-sky-200 bg-sky-50/50 dark:border-sky-900 dark:bg-sky-950/20'
+                            }`}
                         >
                             <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2 font-medium">
@@ -324,8 +370,16 @@ function TaskManager({
                             </Button>
                             <Button
                                 size="icon-sm"
-                                variant="outline"
-                                aria-label="Edit task"
+                                variant={
+                                    editing?.uuid === task.uuid
+                                        ? 'default'
+                                        : 'outline'
+                                }
+                                aria-label={
+                                    editing?.uuid === task.uuid
+                                        ? 'Currently editing task'
+                                        : 'Edit task'
+                                }
                                 onClick={() => edit(task)}
                             >
                                 <PencilIcon />

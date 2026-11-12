@@ -8,14 +8,16 @@ use App\Models\Employee;
 use App\Models\EmployeeCertification;
 use App\Models\EmployeeWorkSchedule;
 use App\Models\Project;
-use App\Models\WorkScheduleListing;
 use App\Models\User;
 use App\Models\UserLevel;
+use App\Models\WorkScheduleListing;
 use App\Support\CrewAssignments;
 use App\Support\EmployeeAccess;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -42,8 +44,31 @@ class EmployeeWorkScheduleController extends Controller
             ->orderBy('starts_on')
             ->orderBy('id')
             ->paginate(15)
-            ->withQueryString()
-            ->through(fn (WorkScheduleListing $listing): array => $this->listingPayload($listing));
+            ->withQueryString();
+
+        $dailyTasks = EmployeeWorkSchedule::query()
+            ->whereIn('id', $schedules->getCollection()->pluck('id'))
+            ->with(['dailyTasks' => fn ($query) => $query->active()->ordered()])
+            ->get()
+            ->mapWithKeys(fn (EmployeeWorkSchedule $schedule): array => [
+                $schedule->id => $schedule->dailyTasks
+                    ->map(fn (DailyTask $task): array => [
+                        'uuid' => $task->uuid,
+                        'title' => $task->title,
+                        'description' => $task->description,
+                        'performed_by' => $task->performed_by,
+                        'performed_by_label' => DailyTask::PERFORMERS[$task->performed_by] ?? 'Foreman or crew',
+                        'requires_photo' => (bool) $task->requires_photo,
+                        'requires_quality_control' => (bool) $task->requires_quality_control,
+                    ])
+                    ->values()
+                    ->all(),
+            ]);
+
+        $schedules->through(fn (WorkScheduleListing $listing): array => [
+            ...$this->listingPayload($listing),
+            'daily_tasks' => $dailyTasks->get($listing->id, []),
+        ]);
 
         return Inertia::render('Admin/EmployeeSchedules/Index', [
             'filters' => [
@@ -58,7 +83,7 @@ class EmployeeWorkScheduleController extends Controller
         ]);
     }
 
-    public function rates(Request $request, string $employee): \Illuminate\Http\JsonResponse
+    public function rates(Request $request, string $employee): JsonResponse
     {
         $user = $request->user();
         abort_unless($user instanceof User && EmployeeAccess::canView($user), 403);
@@ -498,6 +523,8 @@ class EmployeeWorkScheduleController extends Controller
                 ? $this->foremanPayload($listing)
                 : null,
             'employees' => $this->listingEmployees($listing),
+            'crew_assignments' => $this->jsonList($listing->crew_assignments ?? []),
+            'daily_tasks' => $this->jsonList($listing->daily_tasks ?? []),
         ];
     }
 
@@ -727,7 +754,7 @@ class EmployeeWorkScheduleController extends Controller
             ->all();
     }
 
-    private function dateLabel(?\Illuminate\Support\Carbon $start, ?\Illuminate\Support\Carbon $end): ?string
+    private function dateLabel(?Carbon $start, ?Carbon $end): ?string
     {
         if (! $start) {
             return null;
@@ -880,12 +907,12 @@ class EmployeeWorkScheduleController extends Controller
     }
 
     /** Monday of the current week (the coming Monday when today is Sunday). */
-    private function defaultWeekStart(): \Illuminate\Support\Carbon
+    private function defaultWeekStart(): Carbon
     {
         $today = now();
 
         return $today->isSunday()
             ? $today->copy()->addDay()->startOfDay()
-            : $today->copy()->startOfWeek(\Illuminate\Support\Carbon::MONDAY)->startOfDay();
+            : $today->copy()->startOfWeek(Carbon::MONDAY)->startOfDay();
     }
 }

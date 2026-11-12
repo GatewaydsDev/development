@@ -8,7 +8,7 @@ use App\Models\Contractor;
 use App\Models\ContractorContact;
 use App\Models\Project;
 use App\Models\User;
-use App\Models\WorkScheduleListing;
+use App\Models\WorkScheduleOverview;
 use App\Support\EmployeeAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -23,7 +23,7 @@ class ForemanScheduleController extends Controller
         $today = now()->toDateString();
         $until = now()->addDays(13)->toDateString();
 
-        $listings = WorkScheduleListing::query()
+        $listings = WorkScheduleOverview::query()
             ->where('foreman_user_id', $user->id)
             ->whereDate('starts_on', '<=', $until)
             ->whereDate('ends_on', '>=', $today)
@@ -39,8 +39,13 @@ class ForemanScheduleController extends Controller
 
         return response()->json([
             'date' => $today,
+            'can' => [
+                'create_tasks' => $user->hasMobilePermission('create-schedule-tasks'),
+                'update_tasks' => $user->hasMobilePermission('update-schedule-tasks'),
+                'delete_tasks' => $user->hasMobilePermission('delete-schedule-tasks'),
+            ],
             'schedules' => $listings
-                ->map(function (WorkScheduleListing $listing) use ($projects): array {
+                ->map(function (WorkScheduleOverview $listing) use ($projects): array {
                     $payload = app(AdminEmployeeWorkScheduleController::class)->listingPayload($listing);
                     $project = $projects->get($listing->project_id);
 

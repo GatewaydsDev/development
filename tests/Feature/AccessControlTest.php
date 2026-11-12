@@ -1,9 +1,11 @@
 <?php
 
 use App\Models\User;
+use App\Models\UserActivity;
 use App\Models\UserLevel;
 use App\Models\UserLoginLog;
 use App\Models\UserPresenceDevice;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -17,8 +19,107 @@ test('super admins can view the access control page', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->component('Admin/AccessControl/Edit')
             ->has('permissions')
+            ->where('permissions', function ($permissions): bool {
+                $permissions = collect($permissions);
+
+                return $permissions->contains(
+                    fn (array $permission): bool => $permission['key'] === 'delete-schedule-tasks'
+                        && $permission['group'] === 'Field operations'
+                        && $permission['name'] === 'Remove tasks from own schedules'
+                        && $permission['parent_key'] === 'view-daily-tasks',
+                ) && $permissions->contains(
+                    fn (array $permission): bool => $permission['key'] === 'view-takeoff-pricing'
+                        && $permission['parent_key'] === 'view-takeoffs',
+                );
+            })
             ->has('levels')
         );
+});
+
+test('super admins can override permissions for one user without changing their level', function () {
+    $superAdminLevel = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $foremanLevel = UserLevel::firstOrCreate(['name' => UserLevel::FOREMAN]);
+    $superAdmin = User::factory()->create(['level_id' => $superAdminLevel->id]);
+    $john = User::factory()->create(['name' => 'John Foreman', 'level_id' => $foremanLevel->id]);
+    $maria = User::factory()->create(['name' => 'Maria Foreman', 'level_id' => $foremanLevel->id]);
+
+    expect($john->hasPermission('delete-schedule-tasks'))->toBeTrue()
+        ->and($maria->hasPermission('delete-schedule-tasks'))->toBeTrue();
+
+    $websiteOverrides = collect(config('access.permissions'))
+        ->keys()
+        ->mapWithKeys(fn (string $permission): array => [$permission => null])
+        ->merge([
+            'view-users' => true,
+            'create-schedule-tasks' => false,
+            'delete-schedule-tasks' => false,
+        ])
+        ->all();
+    $mobileOverrides = collect(config('access.permissions'))
+        ->keys()
+        ->mapWithKeys(fn (string $permission): array => [$permission => null])
+        ->merge([
+            'view-users' => true,
+            'create-schedule-tasks' => false,
+            'delete-schedule-tasks' => false,
+        ])
+        ->all();
+
+    $this->actingAs($superAdmin)
+        ->patch(route('admin.users.permissions.update', $john), [
+            'permission_overrides' => $websiteOverrides,
+            'mobile_permission_overrides' => $mobileOverrides,
+        ])
+        ->assertSessionHasNoErrors();
+
+    $stored = DB::table('users')->where('id', $john->id)->firstOrFail();
+    expect(json_decode($stored->permission_overrides, true))->toBe([
+        'view-users' => true,
+        'create-schedule-tasks' => false,
+        'delete-schedule-tasks' => false,
+    ])->and(json_decode($stored->mobile_permission_overrides, true))->toBe([
+        'view-users' => true,
+        'create-schedule-tasks' => false,
+        'delete-schedule-tasks' => false,
+    ]);
+    $this->assertDatabaseHas('user_activities', [
+        'user_id' => $superAdmin->id,
+        'event_type' => UserActivity::TYPE_RECORD_UPDATED,
+        'subject_type' => User::class,
+        'subject_id' => $john->id,
+    ]);
+
+    expect($john->fresh()->hasPermission('create-schedule-tasks'))->toBeFalse()
+        ->and($john->fresh()->hasPermission('delete-schedule-tasks'))->toBeFalse()
+        ->and($john->fresh()->hasMobilePermission('delete-schedule-tasks'))->toBeFalse()
+        ->and($john->fresh()->hasPermission('view-users'))->toBeTrue()
+        ->and($john->fresh()->hasMobilePermission('view-users'))->toBeTrue()
+        ->and(Gate::forUser($john->fresh())->allows('view-users'))->toBeTrue()
+        ->and($maria->fresh()->hasPermission('create-schedule-tasks'))->toBeTrue()
+        ->and($maria->fresh()->hasPermission('delete-schedule-tasks'))->toBeTrue()
+        ->and($maria->fresh()->hasPermission('view-users'))->toBeFalse();
+
+    $this->actingAs($superAdmin)
+        ->get(route('admin.users.edit', $john))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('canManageIndividualPermissions', true)
+            ->where('accessPermissions', function ($permissions): bool {
+                $parents = collect($permissions)->pluck('parent_key', 'key');
+
+                return collect([
+                    'create-employees' => 'view-employees',
+                    'create-contractors' => 'view-contractors',
+                    'create-services' => 'view-services',
+                    'create-products' => 'view-products',
+                    'create-quotations' => 'view-quotations',
+                ])->every(
+                    fn (string $parent, string $permission): bool => $parents->get($permission) === $parent,
+                );
+            })
+            ->where('managedUser.permission_overrides.view-users', true)
+            ->where('managedUser.mobile_permission_overrides.view-users', true)
+            ->where('managedUser.permission_overrides.create-schedule-tasks', false)
+            ->where('managedUser.level_permissions.create-schedule-tasks', true));
 });
 
 test('non super admins cannot view access control', function () {
@@ -247,10 +348,18 @@ test('only super admins can read live presence', function () {
 
     $this->actingAs($other)->getJson(route('presence.index'))->assertForbidden();
 
-    $admin->forceFill(['last_seen_at' => now(), 'last_seen_device' => 'mobile'])->save();
+    $admin->forceFill([
+        'last_login_at' => now()->subMinutes(5),
+        'last_seen_at' => now(),
+        'last_seen_device' => 'mobile',
+    ])->save();
 
     $this->actingAs($admin)->getJson(route('presence.index'))
         ->assertOk()
+        ->assertJsonFragment([
+            'id' => $admin->id,
+            'logged_in_at' => $admin->last_login_at->toIso8601String(),
+        ])
         ->assertJsonPath('devices.mobile', 1)
         ->assertJson(fn ($json) => $json->has('counts.online')->etc());
 
@@ -258,6 +367,50 @@ test('only super admins can read live presence', function () {
 
     $this->actingAs($admin)->getJson(route('presence.index'))
         ->assertJsonPath('devices.mobile', 0);
+});
+
+test('live presence activity defaults to four days and supports filters', function () {
+    $superLevel = UserLevel::firstOrCreate(['name' => UserLevel::SUPER_ADMIN]);
+    $admin = User::factory()->create(['level_id' => $superLevel->id]);
+    $worker = User::factory()->create();
+    UserActivity::create([
+        'user_id' => $worker->id,
+        'event_type' => UserActivity::TYPE_LOGIN,
+        'action' => 'logged in',
+        'description' => 'Recent login',
+        'user_agent' => 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)',
+        'occurred_at' => now()->subDays(3),
+    ]);
+    UserActivity::create([
+        'user_id' => $worker->id,
+        'event_type' => UserActivity::TYPE_PAGE_VIEW,
+        'action' => 'viewed dashboard',
+        'description' => 'Older page view',
+        'occurred_at' => now()->subDays(20),
+    ]);
+
+    $this->actingAs($worker)
+        ->getJson(route('presence.activities', $worker))
+        ->assertForbidden();
+
+    $this->actingAs($admin)
+        ->getJson(route('presence.activities', $worker))
+        ->assertOk()
+        ->assertJsonCount(1, 'activities')
+        ->assertJsonPath('activities.0.description', 'Recent login')
+        ->assertJsonPath('activities.0.device_type', 'mobile')
+        ->assertJsonPath('days', 4);
+
+    $this->actingAs($admin)
+        ->getJson(route('presence.activities', [
+            'user' => $worker,
+            'days' => 30,
+            'event_type' => UserActivity::TYPE_PAGE_VIEW,
+        ]))
+        ->assertOk()
+        ->assertJsonCount(1, 'activities')
+        ->assertJsonPath('activities.0.description', 'Older page view')
+        ->assertJsonPath('days', 30);
 });
 
 test('logins and logouts are stored with device and location', function () {

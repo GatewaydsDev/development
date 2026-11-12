@@ -42,6 +42,7 @@ class DailyTask extends Model
         'foreman_user_id',
         'sort_order',
         'created_by',
+        'updated_by',
     ];
 
     protected function casts(): array
@@ -93,6 +94,16 @@ class DailyTask extends Model
     public function foreman(): BelongsTo
     {
         return $this->belongsTo(User::class, 'foreman_user_id');
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function updater(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'updated_by');
     }
 
     public function employees(): BelongsToMany

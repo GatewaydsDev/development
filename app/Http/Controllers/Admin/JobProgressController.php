@@ -7,6 +7,7 @@ use App\Models\DailyTask;
 use App\Models\DailyTaskCompletion;
 use App\Models\DailyTaskPhoto;
 use App\Models\Employee;
+use App\Models\EmployeeAttendanceDay;
 use App\Models\EmployeePayRate;
 use App\Models\EmployeeWorkSchedule;
 use App\Models\QualityControlReport;
@@ -14,6 +15,8 @@ use App\Models\User;
 use App\Support\CrewAssignments;
 use App\Support\JobProgress;
 use App\Support\JobProgressAccess;
+use App\Support\JobProgressRealtime;
+use App\Support\QualityControlAssignments;
 use App\Support\ScheduleAttendance;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -61,7 +64,7 @@ class JobProgressController extends Controller
         abort_unless(JobProgressAccess::canView($user, $schedule), 403);
 
         $schedule->load([
-            'project:id,uuid,name,project_number',
+            'project:id,uuid,name,project_number,client_company_id',
             'foreman:id,name',
             'competentPerson:id,first_name,last_name',
             'qualityControl:id,first_name,last_name',
@@ -92,7 +95,11 @@ class JobProgressController extends Controller
             'can' => [
                 'inspect' => JobProgressAccess::canInspect($user, $schedule),
                 'update' => JobProgressAccess::canUpdateProgress($user, $schedule),
+                'send_quality_reports' => QualityControlAssignments::canSend($user),
             ],
+            'reportRecipients' => QualityControlAssignments::canSend($user)
+                ? QualityControlAssignments::recipientPayload($schedule)
+                : [],
             'statuses' => DailyTaskCompletion::STATUSES,
             'checklist' => QualityControlReport::CHECKLIST,
             'results' => QualityControlReport::RESULTS,
@@ -115,6 +122,7 @@ class JobProgressController extends Controller
             'fail_reasons.*' => ['nullable', 'string', 'max:1000'],
             'notes' => ['nullable', 'string', 'max:3000'],
             'corrective_action' => ['nullable', 'string', 'max:3000'],
+            'assigned_to_user_uuid' => ['nullable', 'string'],
         ]);
 
         $checklist = collect($keys)->mapWithKeys(fn (string $key): array => [$key => $data['checklist'][$key] ?? QualityControlReport::ANSWER_NA])->all();
@@ -144,6 +152,13 @@ class JobProgressController extends Controller
         }
 
         $inspectedOn = $data['inspected_on'] ?? now()->toDateString();
+        $recipientUuid = $data['assigned_to_user_uuid'] ?? null;
+
+        if (filled($recipientUuid)) {
+            abort_unless(QualityControlAssignments::canSend($user), 403);
+        }
+
+        $recipient = QualityControlAssignments::resolveRecipient($schedule, $recipientUuid);
 
         QualityControlReport::create([
             'employee_work_schedule_id' => $schedule->id,
@@ -153,6 +168,8 @@ class JobProgressController extends Controller
                 ->where('daily_task_id', $dailyTask->id)
                 ->latest('work_date')->latest('id')->value('id'),
             'inspector_user_id' => $user->id,
+            'assigned_to_user_id' => $recipient?->id,
+            'assigned_at' => $recipient ? now() : null,
             'inspected_on' => $inspectedOn,
             'result' => $data['result'],
             'checklist' => $checklist,
@@ -160,6 +177,8 @@ class JobProgressController extends Controller
             'notes' => $data['notes'] ?? null,
             'corrective_action' => $data['result'] === QualityControlReport::RESULT_PASSED ? null : $data['corrective_action'],
         ]);
+
+        JobProgressRealtime::changed($schedule, 'quality_control');
 
         return back()->with('success', 'Quality control report saved.');
     }
@@ -214,7 +233,7 @@ class JobProgressController extends Controller
         $schedule->employees()->syncWithoutDetaching([$employee->id => $assignment]);
 
         $rate = $assignment['employee_pay_rate_id'] ? EmployeePayRate::query()->find($assignment['employee_pay_rate_id']) : null;
-        $day = $rate ? \App\Models\EmployeeAttendanceDay::query()
+        $day = $rate ? EmployeeAttendanceDay::query()
             ->where('employee_work_schedule_id', $schedule->id)
             ->whereDate('work_date', $data['date'] ?? now()->toDateString())
             ->whereHas('week', fn ($query) => $query->where('employee_id', $employee->id))
@@ -229,6 +248,8 @@ class JobProgressController extends Controller
             'amount' => $rate->amount,
             'hours' => $day->hours ?? ScheduleAttendance::DEFAULT_HOURS,
         ]);
+
+        JobProgressRealtime::changed($schedule, 'crew');
 
         return back()->with('success', 'Crew rate updated.');
     }
@@ -300,6 +321,8 @@ class JobProgressController extends Controller
             ]);
         }
 
+        JobProgressRealtime::changed($schedule, 'task');
+
         return back()->with('success', 'Task progress updated.');
     }
 
@@ -307,7 +330,7 @@ class JobProgressController extends Controller
     {
         $user = $this->actor($request);
         $schedule = $report->schedule()->with([
-            'project:id,uuid,name,project_number',
+            'project:id,uuid,name,project_number,client_company_id',
             'foreman:id,name',
             'qualityControl:id,first_name,last_name',
         ])->firstOrFail();
@@ -321,6 +344,7 @@ class JobProgressController extends Controller
                 'notes' => $report->notes,
                 'corrective_action' => $report->corrective_action,
                 'quality_control' => $schedule->qualityControl?->fullName(),
+                'assigned_to' => $report->assignedTo?->only(['uuid', 'name', 'email']),
                 'checklist' => collect(QualityControlReport::CHECKLIST)
                     ->map(fn (string $label, string $key): array => [
                         'label' => $label,
@@ -328,7 +352,40 @@ class JobProgressController extends Controller
                         'reason' => $report->fail_reasons[$key] ?? null,
                     ])->values()->all(),
             ],
+            'canSend' => QualityControlAssignments::canSend($user),
+            'reportRecipients' => QualityControlAssignments::canSend($user)
+                ? QualityControlAssignments::recipientPayload($schedule)
+                : [],
         ]);
+    }
+
+    public function assignReport(Request $request, QualityControlReport $report): RedirectResponse
+    {
+        $user = $this->actor($request);
+        $schedule = $report->schedule()->with('project.clientCompany')->firstOrFail();
+
+        abort_unless(JobProgressAccess::canView($user, $schedule), 403);
+        abort_unless(QualityControlAssignments::canSend($user), 403);
+
+        $data = $request->validate([
+            'assigned_to_user_uuid' => ['nullable', 'string'],
+        ]);
+        $recipient = QualityControlAssignments::resolveRecipient(
+            $schedule,
+            $data['assigned_to_user_uuid'] ?? null,
+        );
+
+        $report->update([
+            'assigned_to_user_id' => $recipient?->id,
+            'assigned_at' => $recipient ? now() : null,
+        ]);
+
+        JobProgressRealtime::changed($schedule, 'quality_control');
+
+        return back()->with(
+            'success',
+            $recipient ? "Report sent to {$recipient->name}." : 'Report assignment removed.',
+        );
     }
 
     /**

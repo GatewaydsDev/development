@@ -260,7 +260,8 @@ export default function Show({ project, progress, canManageTeam }: Props) {
                                         />
                                         <span className="block p-2 text-xs text-muted-foreground">
                                             {photo.task ?? 'Photo'}
-                                            {photo.work_date && ` · ${photo.work_date}`}
+                                            {photo.work_date &&
+                                                ` · ${formatDate(photo.work_date)}`}
                                         </span>
                                     </a>
                                 ))}
@@ -287,4 +288,10 @@ export default function Show({ project, progress, canManageTeam }: Props) {
             </div>
         </AuthenticatedLayout>
     );
+}
+
+function formatDate(value: string): string {
+    const [year, month, day] = value.split('-');
+
+    return year && month && day ? `${month}/${day}/${year}` : value;
 }

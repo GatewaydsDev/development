@@ -176,6 +176,10 @@ class DailyTaskChecklist
             ]);
         }
 
+        if ($schedule !== null) {
+            JobProgressRealtime::changed($schedule, 'task');
+        }
+
         return $completion->load('photos', 'performers');
     }
 

@@ -1,8 +1,8 @@
 import { Button } from '@/Components/ui/button';
 import { Card, CardContent } from '@/Components/ui/card';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link } from '@inertiajs/react';
-import { ArrowLeftIcon, PrinterIcon } from 'lucide-react';
+import { Head, Link, useForm } from '@inertiajs/react';
+import { ArrowLeftIcon, PrinterIcon, SendIcon } from 'lucide-react';
 import { resultClasses, type JobSchedule } from './types';
 
 type Props = {
@@ -17,8 +17,15 @@ type Props = {
         notes: string | null;
         corrective_action: string | null;
         quality_control: string | null;
+        assigned_to: {
+            uuid: string;
+            name: string;
+            email: string;
+        } | null;
         checklist: { label: string; answer: string; reason: string | null }[];
     };
+    canSend: boolean;
+    reportRecipients: { uuid: string; name: string; email: string }[];
 };
 
 const answerLabels: Record<string, string> = {
@@ -27,7 +34,23 @@ const answerLabels: Record<string, string> = {
     na: 'N/A',
 };
 
-export default function Report({ job, report }: Props) {
+export default function Report({
+    job,
+    report,
+    canSend,
+    reportRecipients,
+}: Props) {
+    const assignment = useForm({
+        assigned_to_user_uuid: report.assigned_to?.uuid ?? '',
+    });
+    const submitAssignment = (event: React.FormEvent) => {
+        event.preventDefault();
+        assignment.post(
+            route('admin.job-progress.reports.assign', report.uuid),
+            { preserveScroll: true },
+        );
+    };
+
     return (
         <AuthenticatedLayout
             header={
@@ -46,7 +69,43 @@ export default function Report({ job, report }: Props) {
         >
             <Head title="Quality control report" />
             <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6 sm:py-8">
-                <div className="flex justify-end print:hidden">
+                <div className="flex flex-wrap justify-end gap-2 print:hidden">
+                    {canSend && reportRecipients.length > 0 && (
+                        <form
+                            onSubmit={submitAssignment}
+                            className="flex flex-wrap items-center gap-2"
+                        >
+                            <select
+                                value={assignment.data.assigned_to_user_uuid}
+                                onChange={(event) =>
+                                    assignment.setData(
+                                        'assigned_to_user_uuid',
+                                        event.target.value,
+                                    )
+                                }
+                                className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+                            >
+                                <option value="">Not assigned</option>
+                                {reportRecipients.map((recipient) => (
+                                    <option
+                                        key={recipient.uuid}
+                                        value={recipient.uuid}
+                                    >
+                                        {recipient.name} · {recipient.email}
+                                    </option>
+                                ))}
+                            </select>
+                            <Button
+                                type="submit"
+                                variant="outline"
+                                size="sm"
+                                disabled={assignment.processing}
+                            >
+                                <SendIcon className="mr-1 size-4" />
+                                {report.assigned_to ? 'Update recipient' : 'Send'}
+                            </Button>
+                        </form>
+                    )}
                     <Button
                         type="button"
                         variant="outline"
@@ -77,12 +136,23 @@ export default function Report({ job, report }: Props) {
                         </div>
 
                         <dl className="grid gap-3 sm:grid-cols-2">
-                            <Item label="Inspection date" value={report.inspected_on} />
+                            <Item
+                                label="Inspection date"
+                                value={formatDate(report.inspected_on)}
+                            />
                             <Item label="Inspector" value={report.inspector} />
                             <Item label="Foreman" value={job.foreman} />
                             <Item
                                 label="Quality control person"
                                 value={report.quality_control}
+                            />
+                            <Item
+                                label="Sent to"
+                                value={
+                                    report.assigned_to
+                                        ? `${report.assigned_to.name} · ${report.assigned_to.email}`
+                                        : null
+                                }
                             />
                         </dl>
 
@@ -141,4 +211,10 @@ function Item({ label, value }: { label: string; value: string | null }) {
             <dd className="whitespace-pre-line">{value ?? '—'}</dd>
         </div>
     );
+}
+
+function formatDate(value: string): string {
+    const [year, month, day] = value.split('-');
+
+    return year && month && day ? `${month}/${day}/${year}` : value;
 }

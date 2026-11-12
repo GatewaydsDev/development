@@ -1,12 +1,80 @@
 <?php
 
+use App\Http\Controllers\Api\UserAccessController;
+use App\Http\Controllers\Api\UserProfileController;
 use App\Models\User;
+use App\Models\UserAccessOverview;
 use App\Models\UserActivity;
 use App\Models\UserLevel;
+use App\Models\UserProfileOverview;
 use App\Notifications\ResetPasswordNotification;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\Storage;
+
+test('the user access api payload includes individual and effective permissions', function () {
+    $row = new UserAccessOverview;
+    $row->forceFill([
+        'id' => 10,
+        'is_super_admin' => false,
+        'level_permissions' => ['view-daily-tasks' => true, 'manage-access' => true],
+        'level_mobile_permissions' => ['view-daily-tasks' => true],
+        'permission_overrides' => ['view-daily-tasks' => false],
+        'mobile_permission_overrides' => [],
+        'effective_permissions' => ['view-daily-tasks' => false, 'manage-access' => true],
+        'effective_mobile_permissions' => ['view-daily-tasks' => true],
+    ]);
+    $method = new ReflectionMethod(UserAccessController::class, 'payload');
+    $payload = $method->invoke(app(UserAccessController::class), $row);
+
+    expect($payload['level_permissions']['view-daily-tasks'])->toBeTrue()
+        ->and($payload['permission_overrides']['view-daily-tasks'])->toBeFalse()
+        ->and($payload['effective_permissions']['view-daily-tasks'])->toBeFalse()
+        ->and($payload['effective_mobile_permissions']['view-daily-tasks'])->toBeFalse()
+        ->and($payload['effective_permissions']['manage-access'])->toBeFalse();
+});
+
+test('the user profile api payload includes the complete mysql profile structure', function () {
+    $row = new UserProfileOverview;
+    $row->forceFill([
+        'id' => 12,
+        'uuid' => '3cd0e6db-4d2f-4f36-b85f-8ab0da5ad78d',
+        'name' => 'John Foreman',
+        'email' => 'john@example.com',
+        'level_id' => 4,
+        'level_uuid' => 'cfeb6a2a-71b7-4c90-963d-54a7f0cf28dd',
+        'level_name' => UserLevel::FOREMAN,
+        'language_id' => 1,
+        'language_uuid' => '5261dde3-9dde-40ac-b6d0-57748c28523b',
+        'language_name' => 'English',
+        'language_abbreviation' => 'en',
+        'contact_emails' => [['email' => 'john@example.com', 'is_primary' => true]],
+        'contact_phones' => [['country' => 'US', 'phone' => '5551234567', 'is_primary' => true]],
+        'employee_id' => 7,
+        'employee_uuid' => '3f89fe31-ef09-4fbb-aab1-30ef402fdcb8',
+        'employee_first_name' => 'John',
+        'employee_last_name' => 'Foreman',
+        'employee_skills' => [['id' => 1, 'name' => 'Installation']],
+        'employee_professions' => [],
+        'employee_certifications' => [],
+        'employee_pay_rates' => [],
+        'effective_permissions' => ['view-daily-tasks' => true],
+        'effective_mobile_permissions' => ['view-daily-tasks' => true],
+        'permission_overrides' => [],
+        'mobile_permission_overrides' => [],
+    ]);
+    $method = new ReflectionMethod(UserProfileController::class, 'payload');
+    $payload = $method->invoke(app(UserProfileController::class), $row);
+
+    expect($payload['name'])->toBe('John Foreman')
+        ->and($payload['level']['name'])->toBe(UserLevel::FOREMAN)
+        ->and($payload['language']['abbreviation'])->toBe('en')
+        ->and($payload['contacts']['phones'][0]['phone'])->toBe('5551234567')
+        ->and($payload['employee']['skills'][0]['name'])->toBe('Installation')
+        ->and($payload['permissions']['mobile']['view-daily-tasks'])->toBeTrue();
+});
 
 test('mobile users can log in and receive a bearer token', function () {
     $user = User::factory()->create();
@@ -93,10 +161,21 @@ test('mobile registration requires a valid access code', function () {
 
 test('the current user route requires a token', function () {
     $this->getJson('/api/auth/user')->assertUnauthorized();
+    $this->getJson('/api/profile')->assertUnauthorized();
 });
 
 test('the privileges route requires a token', function () {
     $this->getJson('/api/auth/privileges')->assertUnauthorized();
+});
+
+test('authenticated api traffic is rate limited per user', function () {
+    config()->set('api.rate_limits.authenticated_per_minute', 2);
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::USER]);
+    $user = User::factory()->create(['level_id' => $level->id]);
+
+    $this->actingAs($user, 'sanctum')->getJson('/api/auth/privileges')->assertOk();
+    $this->actingAs($user, 'sanctum')->getJson('/api/auth/privileges')->assertOk();
+    $this->actingAs($user, 'sanctum')->getJson('/api/auth/privileges')->assertTooManyRequests();
 });
 
 test('login returns the privileges that decide which routes the user can open', function () {
@@ -192,6 +271,66 @@ test('mobile privileges omit rights that were not delegated', function () {
         ->assertJsonPath('can.updateProjects', false)
         ->assertJsonPath('can.viewBids', true)
         ->assertJsonPath('can.updateBids', true);
+});
+
+test('an individual mobile override grants one foreman access to the users api', function () {
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::FOREMAN]);
+    $john = User::factory()->create(['level_id' => $level->id]);
+    $maria = User::factory()->create(['level_id' => $level->id]);
+    $john->forceFill([
+        'permission_overrides' => ['view-users' => true],
+        'mobile_permission_overrides' => ['view-users' => true],
+    ])->saveOrFail();
+
+    $this->actingAs($john, 'sanctum')
+        ->getJson('/api/auth/privileges')
+        ->assertOk()
+        ->assertJsonPath('can.viewUsers', true);
+
+    // SQLite cannot create the MySQL view, but reaching 501 proves authorization passed.
+    $this->actingAs($john, 'sanctum')
+        ->getJson('/api/users/access')
+        ->assertStatus(501);
+
+    expect($john->fresh()->hasMobilePermission('view-users'))->toBeTrue()
+        ->and($maria->fresh()->hasMobilePermission('view-users'))->toBeFalse();
+});
+
+test('individual overrides take precedence over level defaults for the users api', function () {
+    $level = UserLevel::create([
+        'name' => 'Users API Test',
+        'permissions' => ['view-users' => true],
+        'mobile_permissions' => ['view-users' => true],
+    ]);
+    $allowed = User::factory()->create(['level_id' => $level->id]);
+    $websiteDenied = User::factory()->create([
+        'level_id' => $level->id,
+        'permission_overrides' => ['view-users' => false],
+        'mobile_permission_overrides' => ['view-users' => true],
+    ]);
+    $mobileDenied = User::factory()->create([
+        'level_id' => $level->id,
+        'mobile_permission_overrides' => ['view-users' => false],
+    ]);
+
+    expect($allowed->hasMobilePermission('view-users'))->toBeTrue()
+        ->and($websiteDenied->hasPermission('view-users'))->toBeFalse()
+        ->and($websiteDenied->hasMobilePermission('view-users'))->toBeFalse()
+        ->and($mobileDenied->hasPermission('view-users'))->toBeTrue()
+        ->and($mobileDenied->hasMobilePermission('view-users'))->toBeFalse();
+
+    // SQLite cannot create the MySQL view, so 501 means the effective permission passed.
+    $this->actingAs($allowed, 'sanctum')
+        ->getJson('/api/users/access')
+        ->assertStatus(501);
+
+    $this->actingAs($websiteDenied, 'sanctum')
+        ->getJson('/api/users/access')
+        ->assertForbidden();
+
+    $this->actingAs($mobileDenied, 'sanctum')
+        ->getJson('/api/users/access')
+        ->assertForbidden();
 });
 
 test('super admins receive every privilege', function () {
@@ -312,4 +451,55 @@ test('mobile users can change their password while signed in', function () {
     $this->withToken($token)
         ->getJson('/api/auth/user')
         ->assertOk();
+});
+
+test('mobile users can update their profile while signed in', function () {
+    Storage::fake('public');
+    $level = UserLevel::firstOrCreate(['name' => UserLevel::USER]);
+    $user = User::factory()->create([
+        'role' => 'user',
+        'level_id' => $level->id,
+    ]);
+    $token = $user->createToken('phone')->plainTextToken;
+
+    $this->withToken($token)
+        ->post('/api/auth/profile', [
+            'name' => 'Updated Mobile User',
+            'email' => 'updated-mobile@example.com',
+            'avatar' => UploadedFile::fake()->image('avatar.jpg'),
+        ], ['Accept' => 'application/json'])
+        ->assertOk()
+        ->assertJsonPath('user.name', 'Updated Mobile User')
+        ->assertJsonPath('user.email', 'updated-mobile@example.com');
+
+    $user->refresh();
+    $this->assertDatabaseHas('users', [
+        'id' => $user->id,
+        'name' => 'Updated Mobile User',
+        'email' => 'updated-mobile@example.com',
+    ]);
+    Storage::disk('public')->assertExists($user->avatar);
+});
+
+test('an individual mobile override can deny profile access', function () {
+    $level = UserLevel::create([
+        'name' => 'Profile API Test',
+        'permissions' => ['manage-profile' => true],
+        'mobile_permissions' => ['manage-profile' => true],
+    ]);
+    $user = User::factory()->create([
+        'level_id' => $level->id,
+        'mobile_permission_overrides' => ['manage-profile' => false],
+    ]);
+
+    $this->actingAs($user, 'sanctum')
+        ->getJson('/api/profile')
+        ->assertForbidden();
+
+    $this->actingAs($user, 'sanctum')
+        ->postJson('/api/auth/profile', [
+            'name' => 'Denied Update',
+            'email' => 'denied@example.com',
+        ])
+        ->assertForbidden();
 });

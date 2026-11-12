@@ -11,7 +11,9 @@ class QualityControlReport extends Model
     use HasUuidRouteKey;
 
     public const RESULT_PASSED = 'passed';
+
     public const RESULT_REWORK = 'rework';
+
     public const RESULT_FAILED = 'failed';
 
     /**
@@ -24,7 +26,9 @@ class QualityControlReport extends Model
     ];
 
     public const ANSWER_PASS = 'pass';
+
     public const ANSWER_FAIL = 'fail';
+
     public const ANSWER_NA = 'na';
 
     public const ANSWERS = [self::ANSWER_PASS, self::ANSWER_FAIL, self::ANSWER_NA];
@@ -45,6 +49,8 @@ class QualityControlReport extends Model
         'daily_task_id',
         'daily_task_completion_id',
         'inspector_user_id',
+        'assigned_to_user_id',
+        'assigned_at',
         'inspected_on',
         'result',
         'checklist',
@@ -57,6 +63,7 @@ class QualityControlReport extends Model
     {
         return [
             'inspected_on' => 'date',
+            'assigned_at' => 'datetime',
             'checklist' => 'array',
             'fail_reasons' => 'array',
         ];
@@ -80,5 +87,10 @@ class QualityControlReport extends Model
     public function inspector(): BelongsTo
     {
         return $this->belongsTo(User::class, 'inspector_user_id');
+    }
+
+    public function assignedTo(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_to_user_id');
     }
 }

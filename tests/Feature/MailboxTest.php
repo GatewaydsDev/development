@@ -1435,6 +1435,47 @@ test('the signed in mailbox reports how many emails are unread', function () {
     Http::assertSentCount(5);
 });
 
+test('unread polling keeps the last count while microsoft 365 is unavailable', function () {
+    $user = mailboxUser('larryd@gateway-ds.com');
+
+    Cache::flush();
+    config([
+        'services.microsoft.tenant_id' => 'tenant-id',
+        'services.microsoft.client_id' => 'client-id',
+        'services.microsoft.client_secret' => 'client-secret',
+    ]);
+
+    $outage = false;
+
+    Http::fake(function ($request) use (&$outage) {
+        if (str_contains($request->url(), 'login.microsoftonline.com')) {
+            return Http::response([
+                'access_token' => 'graph-token',
+                'expires_in' => 3600,
+            ]);
+        }
+
+        return $outage
+            ? Http::response([], 503)
+            : Http::response(['unreadItemCount' => 3]);
+    });
+
+    $this->actingAs($user)
+        ->getJson(route('mailbox.unread'))
+        ->assertOk()
+        ->assertJson(['unread' => 3]);
+
+    Cache::forget('mailbox-unread:'.$user->id.':larryd@gateway-ds.com');
+    $outage = true;
+
+    $this->getJson(route('mailbox.unread'))
+        ->assertOk()
+        ->assertJson([
+            'unread' => 3,
+            'error' => true,
+        ]);
+});
+
 test('blocked emails are left out of the unread count and reported separately', function () {
     $user = mailboxUser('larryd@gateway-ds.com');
 

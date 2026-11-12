@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Models\UserAccessOverview;
 use App\Support\UserPrivileges;
 use Illuminate\Http\JsonResponse;
@@ -28,7 +29,8 @@ class UserAccessController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        abort_unless($request->user()->can('view-users'), 403);
+        $user = $request->user();
+        abort_unless($user instanceof User && UserPrivileges::allows($user, 'view-users'), 403);
 
         if ($unavailable = $this->unavailable()) {
             return $unavailable;
@@ -54,7 +56,31 @@ class UserAccessController extends Controller
 
     private function payload(UserAccessOverview $row): array
     {
-        return $row->makeHidden(['level_permissions', 'level_mobile_permissions'])->toArray();
+        $payload = $row->toArray();
+        $mergedWebsite = $row->effective_permissions ?? [];
+        $mergedMobile = $row->effective_mobile_permissions ?? [];
+        $restricted = ['manage-access'];
+
+        $effectiveWebsite = collect(config('access.permissions', []))
+            ->keys()
+            ->mapWithKeys(fn (string $permission): array => [
+                $permission => $row->is_super_admin
+                    || (! in_array($permission, $restricted, true)
+                        && (bool) ($mergedWebsite[$permission] ?? false)),
+            ])
+            ->all();
+        $effectiveMobile = collect($effectiveWebsite)
+            ->mapWithKeys(fn (bool $granted, string $permission): array => [
+                $permission => $granted
+                    && ($row->is_super_admin || (bool) ($mergedMobile[$permission] ?? false)),
+            ])
+            ->all();
+
+        return [
+            ...$payload,
+            'effective_permissions' => $effectiveWebsite,
+            'effective_mobile_permissions' => $effectiveMobile,
+        ];
     }
 
     private function unavailable(): ?JsonResponse

@@ -18,6 +18,10 @@ class UserAccessOverview extends Model
         return [
             'level_permissions' => 'array',
             'level_mobile_permissions' => 'array',
+            'permission_overrides' => 'array',
+            'mobile_permission_overrides' => 'array',
+            'effective_permissions' => 'array',
+            'effective_mobile_permissions' => 'array',
             'client_projects' => 'array',
             'foreman_schedules' => 'array',
             'is_super_admin' => 'boolean',

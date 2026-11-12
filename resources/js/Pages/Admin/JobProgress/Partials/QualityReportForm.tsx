@@ -7,6 +7,7 @@ type Props = {
     today: string;
     checklist: Record<string, string>;
     results: Record<string, string>;
+    recipients: { uuid: string; name: string; email: string }[];
     onDone: () => void;
 };
 
@@ -22,6 +23,7 @@ export default function QualityReportForm({
     today,
     checklist,
     results,
+    recipients,
     onDone,
 }: Props) {
     const form = useForm({
@@ -33,6 +35,7 @@ export default function QualityReportForm({
         fail_reasons: {} as Record<string, string>,
         notes: '',
         corrective_action: '',
+        assigned_to_user_uuid: '',
     });
 
     const submit = (event: React.FormEvent) => {
@@ -175,6 +178,36 @@ export default function QualityReportForm({
                     {form.errors.corrective_action && (
                         <span className="text-xs text-red-600">
                             {form.errors.corrective_action}
+                        </span>
+                    )}
+                </label>
+            )}
+
+            {recipients.length > 0 && (
+                <label className="flex flex-col gap-1">
+                    <span className="text-xs text-muted-foreground">
+                        Send report to
+                    </span>
+                    <select
+                        value={form.data.assigned_to_user_uuid}
+                        onChange={(event) =>
+                            form.setData(
+                                'assigned_to_user_uuid',
+                                event.target.value,
+                            )
+                        }
+                        className="rounded-md border border-border bg-background px-2 py-1.5"
+                    >
+                        <option value="">Do not send now</option>
+                        {recipients.map((recipient) => (
+                            <option key={recipient.uuid} value={recipient.uuid}>
+                                {recipient.name} · {recipient.email}
+                            </option>
+                        ))}
+                    </select>
+                    {form.errors.assigned_to_user_uuid && (
+                        <span className="text-xs text-red-600">
+                            {form.errors.assigned_to_user_uuid}
                         </span>
                     )}
                 </label>

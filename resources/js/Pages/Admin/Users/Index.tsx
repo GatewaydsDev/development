@@ -42,9 +42,14 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     ArchiveIcon,
     ArchiveRestoreIcon,
+    BriefcaseBusinessIcon,
     ChevronDownIcon,
+    CircleHelpIcon,
+    CrownIcon,
     EditIcon,
+    EyeIcon,
     BuildingIcon,
+    HardHatIcon,
     LogInIcon,
     MailIcon,
     MonitorIcon,
@@ -57,6 +62,8 @@ import {
     UserPlusIcon,
     UsersIcon,
     ShieldAlertIcon,
+    ShieldCheckIcon,
+    UserRoundIcon,
 } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 
@@ -628,6 +635,58 @@ const AVATAR_TONES = [
 
 const avatarTone = (id: number) => AVATAR_TONES[id % AVATAR_TONES.length];
 
+function UserLevelBadge({ name }: { name?: string | null }) {
+    const normalized = name?.trim().toLowerCase() ?? '';
+    let Icon = CircleHelpIcon;
+    let tone =
+        'border-slate-300 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-950/50 dark:text-slate-300';
+
+    if (['super admin', 'superadmin', 'super-admin'].includes(normalized)) {
+        Icon = CrownIcon;
+        tone =
+            'border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-300';
+    } else if (normalized === 'administrator') {
+        Icon = ShieldCheckIcon;
+        tone =
+            'border-violet-300 bg-violet-50 text-violet-800 dark:border-violet-700 dark:bg-violet-950/50 dark:text-violet-300';
+    } else if (normalized === 'admin') {
+        Icon = ShieldIcon;
+        tone =
+            'border-blue-300 bg-blue-50 text-blue-800 dark:border-blue-700 dark:bg-blue-950/50 dark:text-blue-300';
+    } else if (normalized === 'project manager') {
+        Icon = BriefcaseBusinessIcon;
+        tone =
+            'border-indigo-300 bg-indigo-50 text-indigo-800 dark:border-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300';
+    } else if (normalized === 'foreman') {
+        Icon = HardHatIcon;
+        tone =
+            'border-orange-300 bg-orange-50 text-orange-800 dark:border-orange-700 dark:bg-orange-950/50 dark:text-orange-300';
+    } else if (normalized === 'employee') {
+        Icon = UserRoundIcon;
+        tone =
+            'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300';
+    } else if (normalized === 'client manager') {
+        Icon = BuildingIcon;
+        tone =
+            'border-cyan-300 bg-cyan-50 text-cyan-800 dark:border-cyan-700 dark:bg-cyan-950/50 dark:text-cyan-300';
+    } else if (normalized === 'client') {
+        Icon = BuildingIcon;
+        tone =
+            'border-sky-300 bg-sky-50 text-sky-800 dark:border-sky-700 dark:bg-sky-950/50 dark:text-sky-300';
+    } else if (normalized === 'visitor') {
+        Icon = EyeIcon;
+    } else if (normalized === 'user') {
+        Icon = UserRoundIcon;
+    }
+
+    return (
+        <Badge variant="outline" className={`gap-1.5 font-semibold ${tone}`}>
+            <Icon className="size-3.5" />
+            {name ?? 'No level'}
+        </Badge>
+    );
+}
+
 const loginDevices = {
     website: { label: 'Website', Icon: MonitorIcon },
     mobile: { label: 'Mobile', Icon: SmartphoneIcon },
@@ -731,7 +790,7 @@ export default function Index({
                                             <div>
                                                 <DirectoryFieldLabel hideFrom="xl">Level</DirectoryFieldLabel>
                                                 <div className="flex flex-wrap gap-1">
-<Badge variant="outline">{user.level?.name ?? 'No level'}</Badge>
+<UserLevelBadge name={user.level?.name} />
 {user.client_role === 'master' && <Badge>Master</Badge>}
 </div>
                                             </div>

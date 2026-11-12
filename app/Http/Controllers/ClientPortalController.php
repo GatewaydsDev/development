@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\DailyTaskPhoto;
 use App\Models\Project;
+use App\Models\QualityControlReport;
 use App\Models\User;
 use App\Support\ClientPortalAccess;
 use App\Support\ProjectProgress;
+use App\Support\QualityControlAssignments;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -41,6 +43,9 @@ class ClientPortalController extends Controller
             'company' => ClientPortalAccess::company($user)?->name,
             'canManageTeam' => ClientPortalAccess::canManageTeam($user),
             'projects' => $projects,
+            'qualityReports' => QualityControlAssignments::assignedTo($user)
+                ->map(fn (QualityControlReport $report): array => QualityControlAssignments::reportPayload($report))
+                ->all(),
         ]);
     }
 
@@ -50,6 +55,7 @@ class ClientPortalController extends Controller
         abort_unless(ClientPortalAccess::canViewProject($user, $project), 404);
 
         $project->load('status:id,name,slug');
+
         return Inertia::render('Portal/Show', [
             'project' => [
                 'uuid' => $project->uuid,
@@ -73,6 +79,16 @@ class ClientPortalController extends Controller
 
         return Storage::disk('local')->response($photo->path, $photo->original_name, [
             'Cache-Control' => 'private, max-age=86400',
+        ]);
+    }
+
+    public function qualityReport(Request $request, QualityControlReport $report): Response
+    {
+        $user = $this->client($request);
+        abort_unless((int) $report->assigned_to_user_id === (int) $user->id, 404);
+
+        return Inertia::render('Portal/QualityReport', [
+            'report' => QualityControlAssignments::reportPayload($report),
         ]);
     }
 

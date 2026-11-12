@@ -67,6 +67,13 @@ return [
         'client_secret_id' => env('MICROSOFT_CLIENT_SECRET_ID', env('Entra_SECRET_ID')),
         'mail_from' => env('MICROSOFT_MAIL_FROM', 'sales@gateway-ds.com'),
         'notification_from' => env('MICROSOFT_NOTIFICATION_FROM', 'notifications@gateway-ds.com'),
+        'request_timeout' => (int) env('MICROSOFT_REQUEST_TIMEOUT', 20),
+        'connect_timeout' => (int) env('MICROSOFT_CONNECT_TIMEOUT', 10),
+        'monitor_request_timeout' => (int) env('MICROSOFT_MONITOR_REQUEST_TIMEOUT', 3),
+        'monitor_connect_timeout' => (int) env('MICROSOFT_MONITOR_CONNECT_TIMEOUT', 1),
+        'circuit_breaker_seconds' => (int) env('MICROSOFT_CIRCUIT_BREAKER_SECONDS', 60),
+        'dashboard_request_timeout' => (int) env('MICROSOFT_DASHBOARD_REQUEST_TIMEOUT', 4),
+        'dashboard_connect_timeout' => (int) env('MICROSOFT_DASHBOARD_CONNECT_TIMEOUT', 2),
         'mail_from_name' => env(
             'MICROSOFT_MAIL_FROM_NAME',
             'Gateway Door Systems'
