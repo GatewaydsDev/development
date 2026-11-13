@@ -1,8 +1,8 @@
-const STORAGE_KEY = 'gateway-vault-intro-seen';
+const STORAGE_KEY = 'gateway-threshold-intro-seen';
 
 let hasPlayedThisLoad = false;
 
-export const SITE_VAULT_INTRO_MS = 6200;
+export const SITE_VAULT_INTRO_MS = 1900;
 
 function hasSeenIntro(): boolean {
     if (hasPlayedThisLoad) {

@@ -85,6 +85,9 @@ export default function PublicLayout({ children }: PropsWithChildren) {
     const quotePhoneNumber = companyPhoneNumber?.replace(/\D/g, '') ?? '';
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
         useState(false);
+    const [delayGearsForIntro] = useState(
+        () => !isAuthPage && isSiteVaultIntroPending(),
+    );
     const headerRef = useRef<HTMLElement>(null);
     const navRowRef = useRef<HTMLDivElement>(null);
     const navClusterRef = useRef<HTMLDivElement>(null);
@@ -247,9 +250,7 @@ export default function PublicLayout({ children }: PropsWithChildren) {
             {!isAuthPage && <SiteVaultIntro />}
             {!isAuthPage && (
                 <FloatingSiteGear
-                    delayMs={
-                        isSiteVaultIntroPending() ? SITE_VAULT_INTRO_MS : 400
-                    }
+                    delayMs={delayGearsForIntro ? SITE_VAULT_INTRO_MS : 400}
                 />
             )}
             <header
