@@ -1,8 +1,6 @@
 import AiDraftButton from '@/Components/AiDraftButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import FormActionFab from '@/Components/FormActionFab';
-import ResizableWorkspace from '@/Components/ResizableWorkspace';
-import StickyDocumentToolbar from '@/Components/StickyDocumentToolbar';
 import TextInput from '@/Components/TextInput';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
@@ -12,12 +10,14 @@ import { cn } from '@/lib/utils';
 import { DownloadIcon, DraftingCompassIcon, ListIcon, PlusIcon } from 'lucide-react';
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { countMark } from './pinLabels';
-import OpeningEditor, { openingPayload, type OpeningForm } from './Partials/OpeningEditor';
+import OpeningEditor, { openingForm, openingPayload, type OpeningForm } from './Partials/OpeningEditor';
+import OpeningReview from './Partials/OpeningReview';
 import PdfWorkspace, { savedCountTool, type CountTool, type PdfPoint } from './Partials/PdfWorkspace';
 import {
     marginLabel,
     money,
     statusLabel,
+    type OpeningProposal,
     type AssemblyTemplate,
     type ConversionLine,
     type TakeoffAbilities,
@@ -84,9 +84,33 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
     const [uploadingPdf, setUploadingPdf] = useState(false);
     const [uploadError, setUploadError] = useState<string | null>(null);
     const [countTool, setCountTool] = useState<CountTool>(() => savedCountTool());
+    const [activeProposal, setActiveProposal] = useState<OpeningProposal | null>(null);
+
+    useEffect(() => {
+        if (activeProposal && activeProposal.document_id !== selectedDocumentId) {
+            setSelectedDocumentId(activeProposal.document_id);
+        }
+    }, [activeProposal, selectedDocumentId]);
+
+    const undoKey = `gateway.takeoff-undo.${takeoff.uuid}`;
+    const [undoIds, setUndoIds] = useState<number[]>(() => {
+        try {
+            const parsed = JSON.parse(sessionStorage.getItem(undoKey) ?? '[]') as unknown;
+
+            return Array.isArray(parsed) ? parsed.filter((id): id is number => typeof id === 'number') : [];
+        } catch {
+            return [];
+        }
+    });
     const documentIds = useRef(takeoff.documents.map((document) => document.id));
-    const workspaceRef = useRef<HTMLDivElement>(null);
+    const [paletteView, setPaletteView] = useState<'drawing' | 'inspector'>('drawing');
     const [creating, setCreating] = useState(false);
+
+    useEffect(() => {
+        if (selectedOpeningId || creating) {
+            setPaletteView('inspector');
+        }
+    }, [selectedOpeningId, creating]);
     const [pendingMarker, setPendingMarker] = useState<PdfPoint | null>(null);
     const [drafts, setDrafts] = useState<Record<string, OpeningForm>>({});
     const [query, setQuery] = useState('');
@@ -161,8 +185,24 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
 
         setSelectedOpeningId(opening.id);
         setCreating(false);
+        setPaletteView('inspector');
         setSection('workspace');
-    }, [countedOpeningId, takeoff.openings]);
+        setUndoIds((current) => {
+            if (current.at(-1) === opening.id) {
+                return current;
+            }
+
+            const next = [...current, opening.id].slice(-30);
+
+            try {
+                sessionStorage.setItem(undoKey, JSON.stringify(next));
+            } catch {
+                // Undo still works until the page is closed.
+            }
+
+            return next;
+        });
+    }, [countedOpeningId, takeoff.openings, undoKey]);
 
     useEffect(() => {
         const ids = takeoff.documents.map((document) => document.id);
@@ -227,6 +267,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
 
         setSelectedOpeningId(id);
         setCreating(false);
+        setPaletteView('inspector');
         const marker = opening?.markers[0];
 
         if (marker) {
@@ -234,7 +275,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
         }
     };
 
-    const countOpening = (point: PdfPoint, tool: 'door' | 'window') => {
+    const countOpening = (point: PdfPoint, tool: 'door' | 'window', box?: { x: number; y: number; x2: number; y2: number }) => {
         if (!can.update || takeoff.status === 'archived') {
             return;
         }
@@ -243,9 +284,62 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
             opening_type: tool,
             document_id: point.documentId,
             page: point.page,
-            x: point.x,
-            y: point.y,
+            x: box?.x ?? point.x,
+            y: box?.y ?? point.y,
+            ...(box ? { x2: box.x2, y2: box.y2 } : {}),
         }, { preserveScroll: true });
+    };
+
+    const undoLastCount = () => {
+        const openingId = undoIds.at(-1);
+
+        if (!openingId) {
+            return;
+        }
+
+        const next = undoIds.slice(0, -1);
+        setUndoIds(next);
+
+        try {
+            sessionStorage.setItem(undoKey, JSON.stringify(next));
+        } catch {
+            // The count is still removed for this visit.
+        }
+
+        if (selectedOpeningId === openingId) {
+            setSelectedOpeningId(null);
+        }
+
+        router.delete(route('admin.takeoffs.openings.destroy', [takeoff.uuid, openingId]), { preserveScroll: true });
+    };
+
+    const saveMarkDetails = (openingId: number, details: { opening_type: 'door' | 'window'; width: string; height: string; notes: string; callout: string | null }) => {
+        const opening = takeoff.openings.find((item) => item.id === openingId);
+
+        if (!opening) {
+            return;
+        }
+
+        const calloutChanged = (opening.callout?.trim() || null) !== details.callout;
+
+        router.patch(route('admin.takeoffs.openings.update', [takeoff.uuid, opening.id]), openingPayload({
+            ...openingForm(opening, false),
+            opening_type: details.opening_type,
+            width: details.width,
+            height: details.height,
+            notes: details.notes,
+        }, opening.updated_at, null), {
+            preserveScroll: true,
+            onSuccess: () => {
+                if (!calloutChanged) {
+                    return;
+                }
+
+                router.patch(route('admin.takeoffs.openings.callout', [takeoff.uuid, opening.id]), {
+                    callout: details.callout,
+                }, { preserveScroll: true });
+            },
+        });
     };
 
     const csrf = () => decodeURIComponent(document.cookie.split('; ').find((row) => row.startsWith('XSRF-TOKEN='))?.split('=')[1] ?? '');
@@ -447,7 +541,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                         {details.errors.margin_percent ? <p className="text-sm text-destructive">{details.errors.margin_percent}</p> : null}
                     </div>
                 </form>
-                <div data-section-stack className="z-30 flex flex-col gap-2 bg-background pb-2 md:sticky md:top-[4.75rem] lg:top-[7.25rem]">
+                <div data-section-stack className="z-20 flex flex-col gap-2 bg-background pb-2 md:sticky md:top-[var(--app-sticky-top,4.75rem)]">
                 <nav aria-label="Takeoff sections" data-document-toolbar data-pinned="true" className="rounded-xl border border-[#c5d0dc] bg-[#eef3f8] p-1.5 text-[#0a2540] shadow-sm dark:border-[#353a42] dark:bg-[#212429] dark:text-[#e6e8eb]">
                     <div className="flex gap-1 overflow-x-auto">
                         {sections.map((item, index) => {
@@ -492,13 +586,50 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                 </div>
 
                 {section === 'workspace' ? (
-                    <div ref={workspaceRef} className="flex flex-col gap-3">
-                        <ResizableWorkspace id="takeoff" sideDefault={448} sideFirstWhenStacked className="items-start">
+                    <div className="flex flex-col gap-3">
                             <div className="flex min-w-0 flex-col gap-4">
                             <div id="takeoff-drawing" className="min-w-0">
+                                <OpeningReview
+                                    proposals={takeoff.proposals ?? []}
+                                    canEdit={editable}
+                                    onActive={setActiveProposal}
+                                    onConfirm={(proposal, kind) => {
+                                        router.post(route('admin.takeoffs.proposals.confirm', [takeoff.uuid, proposal.document_id]), {
+                                            tag: proposal.tag,
+                                            opening_type: kind,
+                                        }, { preserveScroll: true });
+                                    }}
+                                    onDismiss={(proposal) => {
+                                        router.post(route('admin.takeoffs.proposals.dismiss', [takeoff.uuid, proposal.document_id]), {
+                                            tag: proposal.tag,
+                                        }, { preserveScroll: true });
+                                    }}
+                                />
                                 <PdfWorkspace
                                     documents={takeoff.documents}
                                     openings={takeoff.openings}
+                                    review={activeProposal?.markers[0] ? {
+                                        tag: activeProposal.tag,
+                                        page: activeProposal.markers[0].page,
+                                        x: activeProposal.markers[0].x,
+                                        y: activeProposal.markers[0].y,
+                                    } : null}
+                                    markups={takeoff.markups ?? []}
+                                    onMarkup={editable ? (markup) => {
+                                        router.post(route('admin.takeoffs.markups.store', takeoff.uuid), {
+                                            document_id: markup.documentId,
+                                            page: markup.page,
+                                            kind: markup.kind,
+                                            color: markup.color,
+                                            points: markup.points,
+                                        }, { preserveScroll: true, preserveState: true });
+                                    } : undefined}
+                                    onDeleteMarkup={editable ? (markupId) => {
+                                        router.delete(route('admin.takeoffs.markups.destroy', [takeoff.uuid, markupId]), {
+                                            preserveScroll: true,
+                                            preserveState: true,
+                                        });
+                                    } : undefined}
                                     selectedDocumentId={selectedDocumentId}
                                     selectedOpeningId={selectedOpeningId}
                                     selectedMarkerId={selected?.markers[0]?.id ?? null}
@@ -519,6 +650,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                         page: point.page,
                                         label_x: point.labelX,
                                         label_y: point.labelY,
+                                        ...(point.x2 != null && point.y2 != null ? { x2: point.x2, y2: point.y2 } : {}),
                                     }, { preserveScroll: true })}
                                     onRename={(openingId, callout) => router.patch(route('admin.takeoffs.openings.callout', [takeoff.uuid, openingId]), { callout }, { preserveScroll: true })}
                                     onRemove={(markerId) => router.delete(route('admin.takeoffs.markers.destroy', [takeoff.uuid, markerId]), { preserveScroll: true })}
@@ -527,6 +659,80 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                     uploading={uploadingPdf}
                                     uploadError={uploadError}
                                     tool={countTool}
+                                    onToolChange={setCountTool}
+                                    onSaveDetails={saveMarkDetails}
+                                    onUndo={editable ? undoLastCount : undefined}
+                                    canUndo={undoIds.length > 0}
+                                    onSaveRotation={editable ? (documentId, rotation) => {
+                                        router.patch(route('admin.takeoffs.documents.rotation', [takeoff.uuid, documentId]), { rotation }, {
+                                            preserveScroll: true,
+                                            preserveState: true,
+                                        });
+                                    } : undefined}
+                                    paletteView={paletteView}
+                                    onPaletteView={setPaletteView}
+                                    inspector={(
+                                        <div className="flex flex-col gap-3">
+                                                <OpeningEditor
+                                                    takeoffUuid={takeoff.uuid}
+                                                    opening={creating ? null : selected}
+                                                    openings={takeoff.openings}
+                                                    creating={creating}
+                                                    documents={takeoff.documents}
+                                                    pendingMarker={pendingMarker}
+                                                    canEdit={editable}
+                                                    tool={countTool}
+                                                    unsavedIds={Object.keys(drafts).filter((key) => key !== 'new').map((key) => Number(key))}
+                                                    newUnsaved={Boolean(drafts.new)}
+                                                    fieldErrors={fieldErrorsFor(creating ? 'new' : String(selectedOpeningId ?? ''))}
+                                                    draft={creating ? drafts.new ?? null : selectedOpeningId ? drafts[String(selectedOpeningId)] ?? null : null}
+                                                    embedded
+                                                    onToolChange={setCountTool}
+                                                    onDraft={rememberDraft}
+                                                    onSelect={(choice) => {
+                                                        if (choice !== null && choice !== 'new') {
+                                                            openOpening(choice);
+                                                            return;
+                                                        }
+
+                                                        if (choice === 'new') {
+                                                            setCreating(true);
+                                                            setPaletteView('inspector');
+                                                            setSelectedOpeningId(null);
+                                                            return;
+                                                        }
+
+                                                        setPendingMarker(null);
+                                                        setCreating(false);
+                                                        setSelectedOpeningId(null);
+                                                    }}
+                                                />
+                                            {selected && !creating ? (
+                                                <form className="grid gap-2" onSubmit={(event) => {
+                                                    event.preventDefault();
+                                                    const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+                                                    router.post(route('admin.takeoffs.references.store', [takeoff.uuid, selected.id]), data, { preserveScroll: true });
+                                                    event.currentTarget.reset();
+                                                }}>
+                                                    <p className="text-sm font-semibold">References for {selected.label}</p>
+                                                    <p className="text-sm text-muted-foreground">Add a schedule or specification reference. This does not change quantity.</p>
+                                                    <select name="document_id" className="h-12 rounded-md border-gray-300 py-2 text-sm leading-6">
+                                                        <option value="">Document</option>
+                                                        {takeoff.documents.map((item) => <option key={item.id} value={item.id}>{item.original_filename}</option>)}
+                                                    </select>
+                                                    <TextInput name="page" placeholder="Page" />
+                                                    <TextInput name="section" placeholder="Section" />
+                                                    <TextInput name="note" placeholder="Note" />
+                                                    {editable ? <Button type="submit" variant="outline" size="sm">Add reference</Button> : null}
+                                                    <ul className="text-sm text-muted-foreground">
+                                                        {selected.references.map((reference) => <li key={reference.id}>{reference.section || 'Reference'} {reference.page ? `p. ${reference.page}` : ''} {reference.note}</li>)}
+                                                    </ul>
+                                                </form>
+                                            ) : (
+                                                <p className="text-sm text-muted-foreground">Select an opening on the drawing, then add its schedule or specification references here.</p>
+                                            )}
+                                        </div>
+                                    )}
                                 />
                             </div>
                             <div id="takeoff-openings" className="flex flex-col gap-3">
@@ -535,7 +741,7 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                         <ListIcon className="size-4" />
                                         Openings
                                     </h3>
-                                    <p className="text-sm text-muted-foreground">Every opening on this takeoff is one row. Click a row to edit it in the object inspector.</p>
+                                    <p className="text-sm text-muted-foreground">Every opening on this takeoff is one row. Click a row and the drawing card opens its Object inspector tab.</p>
                                 </div>
                                 <div className="grid gap-2 md:grid-cols-2">
                                     <TextInput value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Opening tag" />
@@ -718,66 +924,6 @@ export default function Show({ takeoff, templates, quotations, can }: Props) {
                                 ) : null}
                             </div>
                             </div>
-                            <div className="min-w-0">
-                                <StickyDocumentToolbar scopeRef={workspaceRef} propertiesPanel>
-                                    <div className="flex flex-col gap-3">
-                                        <OpeningEditor
-                                            takeoffUuid={takeoff.uuid}
-                                            opening={creating ? null : selected}
-                                            openings={takeoff.openings}
-                                            creating={creating}
-                                            documents={takeoff.documents}
-                                            pendingMarker={pendingMarker}
-                                            canEdit={editable}
-                                            tool={countTool}
-                                            unsavedIds={Object.keys(drafts).filter((key) => key !== 'new').map((key) => Number(key))}
-                                            newUnsaved={Boolean(drafts.new)}
-                                            fieldErrors={fieldErrorsFor(creating ? 'new' : String(selectedOpeningId ?? ''))}
-                                            draft={creating ? drafts.new ?? null : selectedOpeningId ? drafts[String(selectedOpeningId)] ?? null : null}
-                                            onToolChange={setCountTool}
-                                            onDraft={rememberDraft}
-                                            onSelect={(choice) => {
-                                                if (choice !== null && choice !== 'new') {
-                                                    openOpening(choice);
-                                                    return;
-                                                }
-
-                                                if (choice === 'new') {
-                                                    setCreating(true);
-                                                    setSelectedOpeningId(null);
-                                                    return;
-                                                }
-
-                                                setPendingMarker(null);
-                                                setCreating(false);
-                                                setSelectedOpeningId(null);
-                                            }}
-                                        />
-                                        {selected && !creating ? (
-                                            <form className="grid gap-2 rounded-md border bg-card p-3" onSubmit={(event) => {
-                                                event.preventDefault();
-                                                const data = Object.fromEntries(new FormData(event.currentTarget).entries());
-                                                router.post(route('admin.takeoffs.references.store', [takeoff.uuid, selected.id]), data, { preserveScroll: true });
-                                                event.currentTarget.reset();
-                                            }}>
-                                                <p className="text-sm">Add a schedule or specification reference. This does not change quantity.</p>
-                                                <select name="document_id" className="h-12 rounded-md border-gray-300 py-2 text-sm leading-6">
-                                                    <option value="">Document</option>
-                                                    {takeoff.documents.map((item) => <option key={item.id} value={item.id}>{item.original_filename}</option>)}
-                                                </select>
-                                                <TextInput name="page" placeholder="Page" />
-                                                <TextInput name="section" placeholder="Section" />
-                                                <TextInput name="note" placeholder="Note" />
-                                                {editable ? <Button type="submit" variant="outline" size="sm">Add reference</Button> : null}
-                                                <ul className="text-sm text-muted-foreground">
-                                                    {selected.references.map((reference) => <li key={reference.id}>{reference.section || 'Reference'} {reference.page ? `p. ${reference.page}` : ''} {reference.note}</li>)}
-                                                </ul>
-                                            </form>
-                                        ) : null}
-                                    </div>
-                                </StickyDocumentToolbar>
-                            </div>
-                        </ResizableWorkspace>
                     </div>
                 ) : null}
 

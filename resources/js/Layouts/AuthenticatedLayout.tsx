@@ -217,6 +217,32 @@ export default function Authenticated({
     }, [showingNavigationDropdown]);
 
     useEffect(() => {
+        const applyStickyTop = () => {
+            const nav = navRef.current?.getBoundingClientRect().height ?? 0;
+            const title = window.document.querySelector('[data-sticky-page-title]')?.getBoundingClientRect().height ?? 0;
+            window.document.documentElement.style.setProperty('--app-sticky-top', `${Math.round(nav + title)}px`);
+        };
+
+        applyStickyTop();
+        const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(applyStickyTop);
+        if (navRef.current) {
+            observer?.observe(navRef.current);
+        }
+        const title = window.document.querySelector('[data-sticky-page-title]');
+        if (title) {
+            observer?.observe(title);
+        }
+        window.addEventListener('scroll', applyStickyTop, { passive: true });
+        window.addEventListener('resize', applyStickyTop);
+
+        return () => {
+            observer?.disconnect();
+            window.removeEventListener('scroll', applyStickyTop);
+            window.removeEventListener('resize', applyStickyTop);
+        };
+    }, [navHeight, showCompactTitle]);
+
+    useEffect(() => {
         const headerElement = headerRef.current;
 
         if (!headerElement) {
@@ -428,7 +454,8 @@ export default function Authenticated({
                 ) : null}
                 <nav
                     ref={navRef}
-                    className="sticky top-0 z-30 border-b border-border bg-background"
+                    data-app-nav
+                    className="sticky top-0 z-50 isolate border-b border-border bg-background"
                 >
                 <div className="w-full px-4 sm:px-6 lg:px-8">
                     <div className="flex min-w-0 items-center justify-between gap-3 overflow-visible py-2 sm:py-2.5 md:py-3 lg:gap-8">

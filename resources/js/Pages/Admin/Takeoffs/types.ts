@@ -27,9 +27,19 @@ export type TakeoffDocument = {
     sheet_number: string | null;
     sheet_title: string | null;
     page_count: number | null;
+    rotation: number;
     uploaded_at: string | null;
     uploader: string | null;
     download_url: string | null;
+};
+
+export type SheetMarkup = {
+    id: number;
+    document_id: number;
+    page: number;
+    kind: 'pen' | 'box';
+    color: string;
+    points: { x: number; y: number }[];
 };
 
 export type TakeoffMarker = {
@@ -38,6 +48,8 @@ export type TakeoffMarker = {
     page: number;
     x: string;
     y: string;
+    x2?: string | null;
+    y2?: string | null;
     label_x?: string | null;
     label_y?: string | null;
 };
@@ -153,6 +165,29 @@ export type SupplierQuote = {
     original_filename: string | null;
 };
 
+export type OpeningProposal = {
+    document_id: number;
+    tag: string;
+    opening_type: 'door' | 'window';
+    location: string | null;
+    quantity: string | null;
+    width: string | null;
+    height: string | null;
+    depth: string | null;
+    dimension_unit: string | null;
+    frame_type: string | null;
+    handing: string | null;
+    hardware_set: string | null;
+    glazing: string | null;
+    finish: string | null;
+    acoustic_requirement: string | null;
+    fire_requirement: string | null;
+    notes: string | null;
+    requirement_page: number | null;
+    requirement_section: string | null;
+    markers: { page: number; x: number; y: number }[];
+};
+
 export type TakeoffDetail = {
     id: number;
     uuid: string;
@@ -168,6 +203,8 @@ export type TakeoffDetail = {
     project: { id: number; uuid: string; name: string; project_number: string | null } | null;
     estimate: TakeoffEstimate | null;
     documents: TakeoffDocument[];
+    proposals: OpeningProposal[];
+    markups: SheetMarkup[];
     openings: TakeoffOpening[];
     groups: TakeoffGroup[];
     supplier_quotes: SupplierQuote[];

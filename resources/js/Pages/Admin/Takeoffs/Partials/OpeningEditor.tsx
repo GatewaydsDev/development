@@ -2,7 +2,7 @@ import InspectorSelect from '@/Components/InspectorSelect';
 import InputError from '@/Components/InputError';
 import { Button } from '@/Components/ui/button';
 import { router, usePage } from '@inertiajs/react';
-import { AppWindowIcon, DoorOpenIcon, MousePointer2Icon, SearchIcon, Trash2Icon } from 'lucide-react';
+import { AppWindowIcon, DoorOpenIcon, HandIcon, MousePointer2Icon, SearchIcon, Trash2Icon } from 'lucide-react';
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import { countMark } from '../pinLabels';
 import type { TakeoffDocument, TakeoffOpening } from '../types';
@@ -27,9 +27,11 @@ type Props = {
     onToolChange: (tool: CountTool) => void;
     onDraft: (key: string, form: OpeningForm | null) => void;
     onSelect: (choice: number | 'new' | null) => void;
+    panel?: 'basics' | 'size' | 'specs' | 'requirements' | 'notes';
+    embedded?: boolean;
 };
 
-function openingForm(opening: TakeoffOpening | null, creating: boolean) {
+export function openingForm(opening: TakeoffOpening | null, creating: boolean) {
     const waived: Record<string, string> = opening?.waived_checks && !Array.isArray(opening.waived_checks) ? opening.waived_checks : {};
 
     if (!opening || creating) {
@@ -492,6 +494,8 @@ export default function OpeningEditor({
     onToolChange,
     onDraft,
     onSelect,
+    panel,
+    embedded = false,
 }: Props) {
     const selectionKey = creating ? 'new' : opening?.id ?? null;
     const [form, setForm] = useState<OpeningForm>(() => draft ?? openingForm(opening, creating));
@@ -499,7 +503,7 @@ export default function OpeningEditor({
     const [products, setProducts] = useState<{ id: number; name: string; manufacturer: string | null }[]>([]);
     const [changed, setChanged] = useState(draft !== null);
     const [query, setQuery] = useState('');
-    const [inspectorTab, setInspectorTab] = useState<'tools' | 'properties'>(canEdit ? 'tools' : 'properties');
+    const [inspectorTab, setInspectorTab] = useState<'tools' | 'properties'>(embedded || !canEdit ? 'properties' : 'tools');
     const page = usePage<{
         doorTypes?: { id: number; name: string }[];
         openingCategories?: { id: number | null; name: string }[];
@@ -583,12 +587,12 @@ export default function OpeningEditor({
     const needsSave = canEdit && editing && (changed || pendingMarker !== null);
 
     return (
-        <aside aria-label="Object Inspector" className="object-inspector min-w-0">
-            <div className="overflow-visible border border-[#b0b0b0] bg-[#f0f0f0] text-neutral-900 shadow-sm">
-                <div className={`flex items-center justify-between gap-2 border-b px-2 py-1.5 ${needsSave ? 'border-red-300 bg-red-600 text-white' : 'border-[#b0b0b0] bg-[#f4f4f4]'}`}>
+        <aside aria-label="Object Inspector" className={panel || embedded ? 'bg-white' : 'object-inspector min-w-0'}>
+            <div className={`bg-[#f0f0f0] text-neutral-900 ${panel || embedded ? '' : 'overflow-visible border border-[#b0b0b0] shadow-sm'}`}>
+                {panel || embedded ? null : <div className={`flex items-center justify-between gap-2 border-b px-2 py-1.5 ${needsSave ? 'border-red-300 bg-red-600 text-white' : 'border-[#b0b0b0] bg-[#f4f4f4]'}`}>
                     <p className="text-sm font-semibold">Object Inspector</p>
                     {needsSave ? <span className="text-[12px] font-semibold uppercase tracking-wide">Not saved</span> : null}
-                </div>
+                </div>}
                 {needsSave ? (
                     <p className="border-b border-red-300 bg-red-50 px-2 py-1.5 text-[12px] font-semibold text-red-800">
                         This {spotLabel} is not saved. Save takeoff keeps it with every other change on this takeoff.
@@ -619,7 +623,7 @@ export default function OpeningEditor({
                         ))}
                     </InspectorSelect>
                 </div>
-                <div className="flex items-end border-b border-[#b0b0b0] bg-[#f0f0f0] px-1" role="tablist" aria-label="Object inspector">
+                {panel || embedded ? null : <div className="flex items-end border-b border-[#b0b0b0] bg-[#f0f0f0] px-1" role="tablist" aria-label="Object inspector">
                     {canEdit ? (
                         <button
                             type="button"
@@ -640,8 +644,8 @@ export default function OpeningEditor({
                     >
                         Properties
                     </button>
-                </div>
-                {inspectorTab === 'tools' && canEdit ? (
+                </div>}
+                {!embedded && !panel && inspectorTab === 'tools' && canEdit ? (
                     <div className="border-b border-[#b0b0b0] bg-white p-2">
                         <div role="group" aria-label="Drawing tools" className="grid grid-cols-2 gap-2">
                             <Button type="button" size="sm" className={`h-10 w-full ${tool === 'door' ? 'border-emerald-700 bg-emerald-600 text-white hover:bg-emerald-700 hover:text-white' : 'border-emerald-300 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 hover:text-emerald-950'}`} variant="outline" aria-pressed={tool === 'door'} onClick={() => onToolChange('door')}>
@@ -656,6 +660,10 @@ export default function OpeningEditor({
                                 <MousePointer2Icon data-icon="inline-start" />
                                 Select
                             </Button>
+                            <Button type="button" size="sm" className={`h-10 w-full ${tool === 'hand' ? 'border-slate-700 bg-slate-600 text-white hover:bg-slate-700 hover:text-white' : 'border-slate-300 bg-slate-50 text-slate-900 hover:bg-slate-100 hover:text-slate-950'}`} variant="outline" aria-pressed={tool === 'hand'} onClick={() => onToolChange('hand')}>
+                                <HandIcon data-icon="inline-start" />
+                                Hand
+                            </Button>
                             <Button type="button" size="sm" className={`h-10 w-full ${tool === 'remove' ? 'border-rose-700 bg-rose-600 text-white hover:bg-rose-700 hover:text-white' : 'border-rose-300 bg-rose-50 text-rose-900 hover:bg-rose-100 hover:text-rose-950'}`} variant="outline" aria-pressed={tool === 'remove'} onClick={() => onToolChange('remove')}>
                                 <Trash2Icon data-icon="inline-start" />
                                 Remove
@@ -666,7 +674,7 @@ export default function OpeningEditor({
                         </p>
                     </div>
                 ) : null}
-                <div hidden={inspectorTab === 'tools' && canEdit}>
+                <div hidden={!embedded && !panel && inspectorTab === 'tools' && canEdit}>
                 <label className="flex items-center gap-1.5 border-b border-[#b0b0b0] bg-white px-2">
                     <SearchIcon className="size-4 shrink-0 text-neutral-500" />
                     <input
@@ -686,7 +694,7 @@ export default function OpeningEditor({
                     <form id="opening-editor" onSubmit={(event) => event.preventDefault()} className="bg-white">
                         {editing ? (
                             <>
-                                <PropertyGroup name="Basics" summary={form.tag || (creating ? 'New' : opening?.label)} defaultOpen>
+                                {(!panel || panel === 'basics') ? <PropertyGroup name="Basics" summary={form.tag || (creating ? 'New' : opening?.label)} defaultOpen>
                                     <PropertyRow name="Bulk quantity">
                                         <InspectorCheck label="Bulk quantity record" checked={form.is_bulk} disabled={!canEdit} onChange={(checked) => set('is_bulk', checked)} />
                                     </PropertyRow>
@@ -743,8 +751,8 @@ export default function OpeningEditor({
                                             <option value="installation">Installation only</option>
                                         </InspectorSelect>
                                     </PropertyRow>
-                                </PropertyGroup>
-                                <PropertyGroup name="Size" summary={sizeSummary ? `${sizeSummary} ${form.dimension_unit}` : form.dimension_unit} defaultOpen>
+                                </PropertyGroup> : null}
+                                {(!panel || panel === 'size') ? <PropertyGroup name="Size" summary={sizeSummary ? `${sizeSummary} ${form.dimension_unit}` : form.dimension_unit} defaultOpen={panel === 'size' || !panel}>
                                     {text('Width', 'width')}
                                     {text('Height', 'height')}
                                     {text('Depth', 'depth')}
@@ -756,8 +764,8 @@ export default function OpeningEditor({
                                             <option value="cm">Centimeters</option>
                                         </InspectorSelect>
                                     </PropertyRow>
-                                </PropertyGroup>
-                                <PropertyGroup name="Specs" summary={form.product_model || form.frame_type}>
+                                </PropertyGroup> : null}
+                                {(!panel || panel === 'specs') ? <PropertyGroup name="Specs" summary={form.product_model || form.frame_type} defaultOpen={panel === 'specs'}>
                                     {text('Frame', 'frame_type')}
                                     {text('Handing', 'handing')}
                                     {text('Hardware set', 'hardware_set')}
@@ -795,8 +803,8 @@ export default function OpeningEditor({
                                             </InspectorSelect>
                                         </PropertyRow>
                                     ) : null}
-                                </PropertyGroup>
-                                <PropertyGroup name="Requirements" summary={form.verification_status}>
+                                </PropertyGroup> : null}
+                                {(!panel || panel === 'requirements') ? <PropertyGroup name="Requirements" summary={form.verification_status} defaultOpen={panel === 'requirements'}>
                                     {area('Acoustic / STC', 'acoustic_requirement')}
                                     {area('RF shielding', 'rf_requirement')}
                                     {area('Fire rating', 'fire_requirement')}
@@ -827,8 +835,8 @@ export default function OpeningEditor({
                                     {area('Verified RF', 'verified_rf')}
                                     {area('Verified fire', 'verified_fire')}
                                     {area('Verified ballistic', 'verified_ballistic')}
-                                </PropertyGroup>
-                                <PropertyGroup name="Notes" summary={form.disposition === 'active' ? 'Active' : form.disposition === 'excluded' ? 'Excluded' : 'Not applicable'}>
+                                </PropertyGroup> : null}
+                                {(!panel || panel === 'notes') ? <PropertyGroup name="Notes" summary={form.disposition === 'active' ? 'Active' : form.disposition === 'excluded' ? 'Excluded' : 'Not applicable'} defaultOpen={panel === 'notes'}>
                                     <PropertyRow name="Disposition">
                                         <InspectorSelect aria-label="Disposition" className={inspectorSelect} value={form.disposition} disabled={!canEdit} onChange={(event) => set('disposition', event.target.value)}>
                                             <option value="active">Active</option>
@@ -848,7 +856,7 @@ export default function OpeningEditor({
                                     <PropertyRow name="Needs review">
                                         <InspectorCheck label="Still needs review after a document change" checked={form.needs_review} disabled={!canEdit} onChange={(checked) => set('needs_review', checked)} />
                                     </PropertyRow>
-                                </PropertyGroup>
+                                </PropertyGroup> : null}
                             </>
                         ) : (
                             <p className="px-2 py-3 text-sm text-neutral-600">
@@ -858,7 +866,7 @@ export default function OpeningEditor({
                     </form>
                 </InspectorQuery.Provider>
                 </div>
-                <div hidden={inspectorTab === 'tools' && canEdit} className="border-t border-[#b0b0b0] bg-[#f4f4f4] px-2 py-1 text-[11px] text-neutral-600">
+                <div hidden={!embedded && !panel && inspectorTab === 'tools' && canEdit} className="border-t border-[#b0b0b0] bg-[#f4f4f4] px-2 py-1 text-[11px] text-neutral-600">
                     {query.trim()
                         ? `Showing matches for “${query.trim()}”`
                         : editing

@@ -68,6 +68,11 @@ class Takeoff extends Model
         return $this->hasMany(TakeoffDocument::class)->orderBy('id');
     }
 
+    public function markups(): HasMany
+    {
+        return $this->hasMany(TakeoffMarkup::class)->orderBy('id');
+    }
+
     public function openings(): HasMany
     {
         return $this->hasMany(TakeoffOpening::class)->orderBy('sort_order')->orderBy('id');

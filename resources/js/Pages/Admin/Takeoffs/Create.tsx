@@ -113,7 +113,7 @@ export default function Create({ projects, projectId }: { projects: ProjectOptio
                         onChange={(event) => form.setData('file', event.target.files?.[0] ?? null)}
                     />
                     <p className="mt-1 text-xs text-muted-foreground">
-                        Upload a PDF up to 64 MB. The drawing is scanned for every door and window, and each one is added once with its specs. You can remove any opening you will not use.
+                        Upload a PDF up to 64 MB. The drawing is read for every door and window. You confirm each one before it is added, and the measurements, location, and other specs that can be read come with it.
                     </p>
                     <InputError message={form.errors.file} className="mt-1" />
                 </section>

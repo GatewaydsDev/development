@@ -13,6 +13,8 @@ class TakeoffMarker extends Model
         'page',
         'x',
         'y',
+        'x2',
+        'y2',
         'label_x',
         'label_y',
     ];
@@ -23,6 +25,8 @@ class TakeoffMarker extends Model
             'page' => 'integer',
             'x' => 'decimal:6',
             'y' => 'decimal:6',
+            'x2' => 'decimal:6',
+            'y2' => 'decimal:6',
             'label_x' => 'decimal:6',
             'label_y' => 'decimal:6',
         ];

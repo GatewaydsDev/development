@@ -591,6 +591,7 @@ export default function DashboardSidebar({
 
     return (
         <aside
+            data-app-sidebar
             className={cn(
                 'flex h-full w-full flex-col overflow-hidden rounded-2xl border border-[#cfe0d6] bg-[linear-gradient(180deg,#f4faf6_0%,#d7e8df_100%)] shadow-sm transition-[padding] duration-500 ease-in-out motion-reduce:transition-none dark:border-white/10 dark:bg-[linear-gradient(180deg,#1b342b_0%,#102019_100%)]',
                 collapsed ? 'p-2' : 'p-4 sm:p-5',

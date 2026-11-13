@@ -25,7 +25,7 @@ import {
     DropdownMenuTrigger,
 } from '@/Components/ui/dropdown-menu';
 import { ArchiveIcon, ArrowLeftIcon, ChevronDownIcon, DownloadIcon, ForwardIcon, MailIcon, MailOpenIcon, MoreVerticalIcon, PaperclipIcon, RefreshCwIcon, ReplyAllIcon, ReplyIcon, SendIcon, SquarePenIcon, XIcon } from 'lucide-react';
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { emptyStationery, type MailStationeryData } from '@/Pages/Email/mailLayouts';
 
@@ -534,7 +534,10 @@ export default function Index({
 }: Props) {
     const list = Array.isArray(messages) ? messages : [];
     const { t } = useTranslation('mail');
-    const flash = usePage().props.flash as { success?: string | null; error?: string | null } | undefined;
+    const page = usePage();
+    const flash = page.props.flash as { success?: string | null; error?: string | null } | undefined;
+    const currentCursor = new URLSearchParams(page.url.split('?')[1] ?? '').get('cursor');
+    const listScrollKey = `mailbox-list-scroll:${folder}:${status}:${currentCursor ?? 'first'}`;
     const [refreshing, setRefreshing] = useState(false);
     const [showCompose, setShowCompose] = useState(false);
     const [draft, setDraft] = useState<ComposeDraft | undefined>(undefined);
@@ -545,6 +548,8 @@ export default function Index({
     const [viewer, setViewer] = useState<AttachmentViewer | null>(null);
     const [viewerFailed, setViewerFailed] = useState(false);
     const [showBlocked, setShowBlocked] = useState(false);
+    const listPane = useRef<HTMLDivElement>(null);
+    const messagePane = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const visible =
@@ -564,6 +569,35 @@ export default function Index({
             acknowledgeUnreadMail(message.id);
         }
     }, [folder, message, list]);
+
+    useLayoutEffect(() => {
+        const pane = listPane.current;
+
+        if (!pane) {
+            return;
+        }
+
+        const saved = window.sessionStorage.getItem(listScrollKey);
+        const position = saved === null ? Number.NaN : Number(saved);
+
+        pane.scrollTop = Number.isFinite(position) ? Math.max(0, position) : 0;
+    }, [listScrollKey, list, message]);
+
+    useLayoutEffect(() => {
+        if (messagePane.current) {
+            messagePane.current.scrollTop = 0;
+        }
+    }, [message?.id]);
+
+    const rememberListScroll = () => {
+        const pane = listPane.current;
+
+        if (!pane) {
+            return;
+        }
+
+        window.sessionStorage.setItem(listScrollKey, String(pane.scrollTop));
+    };
 
     const folderHref = (
         nextFolder: 'inbox' | 'sent' | 'archive',
@@ -630,7 +664,10 @@ export default function Index({
                     }
 
                     window.setTimeout(() => {
-                        router.reload({ only: ['messages', 'unreadCount'] });
+                        rememberListScroll();
+                        router.reload({
+                            only: ['messages', 'unreadCount'],
+                        });
                     }, 2000);
                 },
                 onFinish: () => setBulkActing(false),
@@ -673,8 +710,15 @@ export default function Index({
         >
             <Head title={t('title')} />
 
-            <div className="py-3 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:py-8 sm:pb-8">
-                <div className="flex w-full min-w-0 flex-col gap-3 px-0 sm:gap-6 sm:px-6 lg:px-8">
+            <div className="py-3 sm:py-6">
+                <div
+                    className={cn(
+                        'flex w-full min-w-0 flex-col gap-3 px-0 sm:gap-4 sm:px-6 lg:px-8',
+                        showCompose
+                            ? ''
+                            : 'h-[calc(100dvh-16.5rem)] overflow-hidden sm:h-[calc(100dvh-13.5rem)]',
+                    )}
+                >
                     {mailbox === null ? (
                         <Card className="border-amber-200 bg-amber-50/70 dark:border-amber-900 dark:bg-amber-950/30">
                             <CardHeader>
@@ -683,7 +727,7 @@ export default function Index({
                             </CardHeader>
                         </Card>
                     ) : (
-                        <div className="flex min-w-0 flex-col gap-3 sm:gap-4">
+                        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 sm:gap-4">
                             <p className="hidden text-sm text-muted-foreground sm:block">{t('received')}</p>
                             {flash?.success ? (
                                 <p className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-800 dark:text-emerald-200">
@@ -772,9 +816,14 @@ export default function Index({
                             ) : null}
 
                             {showCompose ? null : (
-                            <div className="grid min-w-0 gap-3 md:grid-cols-[minmax(14rem,20rem)_minmax(0,1fr)] md:gap-4">
-                                <Card className={cn('max-sm:rounded-none max-sm:border-x-0', message ? 'max-md:hidden border-sky-200 dark:border-sky-900' : 'border-sky-200 dark:border-sky-900')}>
-                                    <CardHeader className="p-3 sm:p-6">
+                            <div
+                                className={cn(
+                                    'grid min-h-0 min-w-0 flex-1 overflow-hidden gap-3 md:grid-cols-[minmax(16rem,22rem)_minmax(0,1fr)] md:grid-rows-1 md:gap-4',
+                                    message ? 'grid-rows-[minmax(0,1fr)_minmax(12rem,46%)]' : 'grid-rows-1',
+                                )}
+                            >
+                                <Card className="flex h-full min-h-0 flex-col gap-0 overflow-hidden border-sky-200 py-0 max-sm:rounded-none max-sm:border-x-0 dark:border-sky-900">
+                                    <CardHeader className="shrink-0 gap-3 border-b p-3">
                                         <CardTitle>{folderTitle}</CardTitle>
                                         {folder === 'inbox' ? (
                                             <div className="grid gap-2 pt-1">
@@ -841,7 +890,11 @@ export default function Index({
                                             </div>
                                         ) : null}
                                     </CardHeader>
-                                    <CardContent className="grid gap-2 p-2 pt-0 sm:p-6 sm:pt-0">
+                                    <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden p-0">
+                                        <div
+                                            ref={listPane}
+                                            className="grid min-h-0 flex-1 content-start gap-2 overflow-y-auto overscroll-y-contain p-2"
+                                        >
                                         {list.length === 0 ? (
                                             <p className="text-sm text-muted-foreground">{t('empty')}</p>
                                         ) : (
@@ -868,9 +921,13 @@ export default function Index({
                                                     href={route('mailbox.index', {
                                                         folder,
                                                         ...(folder === 'inbox' && status !== 'all' ? { status } : {}),
+                                                        ...(currentCursor ? { cursor: currentCursor } : {}),
                                                         message: item.id,
                                                     })}
+                                                    preserveScroll
+                                                    preserveState
                                                     onClick={() => {
+                                                        rememberListScroll();
                                                         if (folder === 'inbox' && !item.is_read) {
                                                             acknowledgeUnreadMail(item.id);
                                                         }
@@ -915,14 +972,24 @@ export default function Index({
                                                 <Link href={folderHref(folder)}>{t('first')}</Link>
                                             </Button>
                                         </div>
+                                        </div>
                                     </CardContent>
                                 </Card>
 
-                                <Card className={cn('max-sm:rounded-none max-sm:border-x-0', message ? 'border-emerald-200 dark:border-emerald-900' : 'max-md:hidden border-emerald-200 dark:border-emerald-900')}>
-                                    <CardHeader className="p-3 sm:p-6">
+                                <Card
+                                    className={cn(
+                                        'flex h-full min-h-0 flex-col gap-0 overflow-hidden border-emerald-200 py-0 max-sm:rounded-none max-sm:border-x-0 dark:border-emerald-900',
+                                        message ? '' : 'max-md:hidden',
+                                    )}
+                                >
+                                    <CardHeader className="shrink-0 gap-3 border-b p-3">
                                         {message ? (
                                             <Button variant="ghost" className="mb-1 min-h-11 w-fit touch-manipulation px-2 md:hidden" asChild>
-                                                <Link href={folderHref(folder)}>
+                                                <Link
+                                                    href={folderHref(folder, currentCursor)}
+                                                    preserveScroll
+                                                    preserveState
+                                                >
                                                     <ArrowLeftIcon className="size-4" />
                                                     {t('back')}
                                                 </Link>
@@ -957,7 +1024,11 @@ export default function Index({
                                             </CardDescription>
                                         ) : null}
                                     </CardHeader>
-                                    <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+                                    <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden p-0">
+                                        <div
+                                            ref={messagePane}
+                                            className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-3"
+                                        >
                                         {message ? (
                                             <div className="grid gap-3">
                                                 <div className="grid grid-cols-3 gap-1.5 sm:flex sm:flex-wrap sm:gap-2">
@@ -1142,6 +1213,7 @@ export default function Index({
                                         ) : (
                                             <p className="text-sm text-muted-foreground">{t('select')}</p>
                                         )}
+                                        </div>
                                     </CardContent>
                                 </Card>
                             </div>

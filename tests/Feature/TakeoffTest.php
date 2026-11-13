@@ -698,17 +698,27 @@ test('the system names a takeoff and reads doors from an uploaded drawing', func
         ->and($document->sheet_title)->toBe('Door Schedule')
         ->and($document->revision_label)->toBe('B');
 
-    expect($takeoff->openings)->toHaveCount(3)
-        ->and($takeoff->openings()->where('tag', 'D1')->exists())->toBeTrue()
-        ->and($takeoff->openings()->where('tag', 'D2')->exists())->toBeTrue()
-        ->and($takeoff->openings()->where('tag', 'D3')->exists())->toBeTrue();
+    expect($takeoff->openings)->toHaveCount(0);
 
-    $this->actingAs($admin)->post(route('admin.takeoffs.documents.store', $takeoff), [
-        'file' => UploadedFile::fake()->createWithContent('level-1-again.pdf', takeoffDrawingPdf()),
-        'document_type' => 'drawing',
+    $this->actingAs($admin)->post(route('admin.takeoffs.proposals.confirm', [$takeoff, $document]), [
+        'tag' => 'D1',
+        'opening_type' => 'door',
     ])->assertRedirect();
 
-    expect($takeoff->openings()->count())->toBe(3);
+    $opening = $takeoff->openings()->first();
+    expect($opening->tag)->toBe('D1')
+        ->and($opening->opening_type)->toBe('door')
+        ->and($opening->location)->toBe('Lobby')
+        ->and($opening->handing)->toBe('RH')
+        ->and((string) $opening->width)->toBe('36.000')
+        ->and((string) $opening->height)->toBe('84.000');
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.proposals.dismiss', [$takeoff, $document]), [
+        'tag' => 'D2',
+    ])->assertRedirect();
+
+    expect($takeoff->openings()->count())->toBe(1)
+        ->and($takeoff->openings()->where('tag', 'D2')->exists())->toBeFalse();
 });
 
 test('a blank title is named from the project and a typed title is kept', function () {
@@ -761,6 +771,119 @@ test('uploading a drawing replaces a generic takeoff name', function () {
     $takeoff->refresh();
     expect($takeoff->title)->toBe('GDS-2026-0142 Shielded lab — A-601 Door Schedule (3 doors)')
         ->and($takeoff->openings)->toHaveCount(3);
+});
+
+test('a drawing rotation is saved with the sheet', function () {
+    $admin = takeoffUser();
+    $takeoff = takeoffRecord($admin);
+    $document = $takeoff->documents()->create([
+        'original_filename' => 'level-1.pdf',
+        'storage_path' => 'takeoffs/level-1.pdf',
+        'mime' => 'application/pdf',
+        'size' => 128,
+        'document_type' => 'drawing',
+        'uploaded_by' => $admin->id,
+    ]);
+
+    $this->actingAs($admin)->patch(route('admin.takeoffs.documents.rotation', [$takeoff, $document]), [
+        'rotation' => 90,
+    ])->assertRedirect();
+
+    expect($document->fresh()->rotation)->toBe(90);
+
+    $this->actingAs($admin)->patch(route('admin.takeoffs.documents.rotation', [$takeoff, $document]), [
+        'rotation' => 45,
+    ])->assertSessionHasErrors('rotation');
+});
+
+test('a pen outline is saved on the sheet and can be removed', function () {
+    $admin = takeoffUser();
+    $takeoff = takeoffRecord($admin);
+    $document = $takeoff->documents()->create([
+        'original_filename' => 'level-1.pdf',
+        'storage_path' => 'takeoffs/level-1.pdf',
+        'mime' => 'application/pdf',
+        'size' => 128,
+        'document_type' => 'drawing',
+        'uploaded_by' => $admin->id,
+    ]);
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.markups.store', $takeoff), [
+        'document_id' => $document->id,
+        'page' => 1,
+        'kind' => 'pen',
+        'color' => '#f97316',
+        'points' => [
+            ['x' => 0.2, 'y' => 0.3],
+            ['x' => 0.28, 'y' => 0.36],
+            ['x' => 0.24, 'y' => 0.4],
+        ],
+    ])->assertRedirect();
+
+    $markup = $takeoff->markups()->first();
+    expect($markup)->not->toBeNull()
+        ->and($markup->kind)->toBe('pen')
+        ->and($markup->color)->toBe('#F97316')
+        ->and($markup->points)->toHaveCount(3);
+
+    $this->actingAs($admin)->delete(route('admin.takeoffs.markups.destroy', [$takeoff, $markup]))
+        ->assertRedirect();
+
+    expect($takeoff->markups()->count())->toBe(0);
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.markups.store', $takeoff), [
+        'document_id' => $document->id,
+        'page' => 1,
+        'kind' => 'box',
+        'color' => 'orange',
+        'points' => [
+            ['x' => 0.1, 'y' => 0.1],
+            ['x' => 0.2, 'y' => 0.2],
+        ],
+    ])->assertSessionHasErrors('color');
+});
+
+test('a boxed selection is counted as a numbered opening', function () {
+    $admin = takeoffUser();
+    $takeoff = takeoffRecord($admin);
+    $document = $takeoff->documents()->create([
+        'original_filename' => 'level-1.pdf',
+        'storage_path' => 'takeoffs/level-1.pdf',
+        'mime' => 'application/pdf',
+        'size' => 128,
+        'document_type' => 'drawing',
+        'uploaded_by' => $admin->id,
+    ]);
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.counts.store', $takeoff), [
+        'opening_type' => 'door',
+        'document_id' => $document->id,
+        'page' => 1,
+        'x' => 0.2,
+        'y' => 0.3,
+        'x2' => 0.36,
+        'y2' => 0.48,
+    ])->assertRedirect();
+
+    $opening = $takeoff->openings()->with('markers')->first();
+    $marker = $opening->markers->first();
+
+    expect($opening->tag)->toBe('D1')
+        ->and($opening->opening_type)->toBe('door')
+        ->and($marker->x2)->not->toBeNull()
+        ->and($marker->y2)->not->toBeNull();
+
+    $this->actingAs($admin)->post(route('admin.takeoffs.counts.store', $takeoff), [
+        'opening_type' => 'window',
+        'document_id' => $document->id,
+        'page' => 1,
+        'x' => 0.5,
+        'y' => 0.5,
+        'x2' => 0.7,
+        'y2' => 0.8,
+    ])->assertRedirect();
+
+    expect($takeoff->openings()->where('tag', 'W1')->where('opening_type', 'window')->exists())->toBeTrue();
 });
 
 test('clicking the drawing counts that opening on the sheet', function () {

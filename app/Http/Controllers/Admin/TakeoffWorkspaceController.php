@@ -11,6 +11,7 @@ use App\Models\TakeoffCost;
 use App\Models\TakeoffDocument;
 use App\Models\TakeoffGroup;
 use App\Models\TakeoffMarker;
+use App\Models\TakeoffMarkup;
 use App\Models\TakeoffOpening;
 use App\Models\TakeoffReference;
 use App\Models\TakeoffSupplierQuote;
@@ -89,7 +90,36 @@ class TakeoffWorkspaceController extends Controller
             'title' => $renamed ? $takeoff->title : null,
         ]);
 
-        return back()->with('success', TakeoffScopeImporter::uploadedMessage($scanned['import'], $scanned['scope']));
+        return back()->with('success', TakeoffScopeImporter::foundMessage('Drawing scanned.', $scanned['scope']));
+    }
+
+    public function confirmProposal(Request $request, Takeoff $takeoff, TakeoffDocument $document): RedirectResponse
+    {
+        $user = $this->ensureEditable($request, $takeoff);
+        $this->ownedDocument($takeoff, $document);
+        $data = $request->validate([
+            'tag' => ['required', 'string', 'max:40'],
+            'opening_type' => ['required', Rule::in(['door', 'window'])],
+        ]);
+        $opening = TakeoffScopeImporter::confirm($takeoff, $document, $data['tag'], $data['opening_type']);
+        abort_unless($opening, 422);
+        $this->clearApproval($takeoff, $user);
+        app(ProjectControlTakeoff::class)->connectTakeoff($takeoff);
+        $takeoff->record($user, 'opening.confirmed', 'Confirmed '.$opening->tag.' from '.$document->original_filename.'.');
+
+        return back()->with('success', $opening->tag.' added with the measurements and location read from the drawing.');
+    }
+
+    public function dismissProposal(Request $request, Takeoff $takeoff, TakeoffDocument $document): RedirectResponse
+    {
+        $this->ensureEditable($request, $takeoff);
+        $this->ownedDocument($takeoff, $document);
+        $data = $request->validate([
+            'tag' => ['required', 'string', 'max:40'],
+        ]);
+        TakeoffScopeImporter::dismiss($document, $data['tag']);
+
+        return back()->with('success', $data['tag'].' was skipped.');
     }
 
     public function updateDocument(Request $request, Takeoff $takeoff, TakeoffDocument $document): RedirectResponse
@@ -112,6 +142,55 @@ class TakeoffWorkspaceController extends Controller
         $takeoff->record($user, 'document.updated', 'Updated details for '.$document->original_filename.'.');
 
         return back()->with('success', 'Document details saved.');
+    }
+
+    public function updateRotation(Request $request, Takeoff $takeoff, TakeoffDocument $document): RedirectResponse
+    {
+        $this->ensureEditable($request, $takeoff);
+        $this->ownedDocument($takeoff, $document);
+        $data = $request->validate([
+            'rotation' => ['required', 'integer', Rule::in([0, 90, 180, 270])],
+        ]);
+        $document->update(['rotation' => (int) $data['rotation']]);
+
+        return back();
+    }
+
+    public function storeMarkup(Request $request, Takeoff $takeoff): RedirectResponse
+    {
+        $user = $this->ensureEditable($request, $takeoff);
+        $data = $request->validate([
+            'document_id' => ['required', 'integer'],
+            'page' => ['required', 'integer', 'min:1'],
+            'kind' => ['required', Rule::in(['pen', 'box'])],
+            'color' => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'points' => ['required', 'array', 'min:2', 'max:500'],
+            'points.*.x' => ['required', 'numeric', 'between:0,1'],
+            'points.*.y' => ['required', 'numeric', 'between:0,1'],
+        ]);
+        $this->document($takeoff, (int) $data['document_id']);
+        $takeoff->markups()->create([
+            'document_id' => $data['document_id'],
+            'page' => $data['page'],
+            'kind' => $data['kind'],
+            'color' => strtoupper($data['color']),
+            'points' => array_map(fn (array $point): array => [
+                'x' => round((float) $point['x'], 5),
+                'y' => round((float) $point['y'], 5),
+            ], $data['points']),
+            'created_by' => $user->id,
+        ]);
+
+        return back();
+    }
+
+    public function destroyMarkup(Request $request, Takeoff $takeoff, TakeoffMarkup $markup): RedirectResponse
+    {
+        $this->ensureEditable($request, $takeoff);
+        abort_unless($markup->takeoff_id === $takeoff->id, 404);
+        $markup->delete();
+
+        return back();
     }
 
     public function destroyDocument(Request $request, Takeoff $takeoff, TakeoffDocument $document): RedirectResponse
@@ -147,9 +226,14 @@ class TakeoffWorkspaceController extends Controller
             'page' => ['required', 'integer', 'min:1', 'max:500'],
             'x' => ['required', 'numeric', 'between:0,1'],
             'y' => ['required', 'numeric', 'between:0,1'],
+            'x2' => ['nullable', 'numeric', 'between:0,1'],
+            'y2' => ['nullable', 'numeric', 'between:0,1'],
         ]);
         $document = $this->document($takeoff, (int) $data['document_id']);
-        $specs = TakeoffScopeImporter::specsAt($document, (int) $data['page'], (float) $data['x'], (float) $data['y']) ?? [];
+        $hasBox = isset($data['x2'], $data['y2']);
+        $markX = $hasBox ? ((float) $data['x'] + (float) $data['x2']) / 2 : (float) $data['x'];
+        $markY = $hasBox ? ((float) $data['y'] + (float) $data['y2']) / 2 : (float) $data['y'];
+        $specs = TakeoffScopeImporter::specsAt($document, (int) $data['page'], $markX, $markY) ?? [];
         $type = ($specs['opening_type'] ?? $data['opening_type']) === 'window' ? 'window' : 'door';
         $tag = strtoupper(trim((string) ($specs['tag'] ?? '')));
         $countedTag = false;
@@ -306,12 +390,19 @@ class TakeoffWorkspaceController extends Controller
             'page' => ['required', 'integer', 'min:1', 'max:500'],
             'label_x' => ['nullable', 'numeric', 'between:0,1'],
             'label_y' => ['nullable', 'numeric', 'between:0,1'],
+            'x2' => ['nullable', 'numeric', 'between:0,1'],
+            'y2' => ['nullable', 'numeric', 'between:0,1'],
         ]);
         $changes = [
             'x' => bcadd(TakeoffMoney::raw($data['x']), '0', 6),
             'y' => bcadd(TakeoffMoney::raw($data['y']), '0', 6),
             'page' => $data['page'],
         ];
+
+        if ($request->exists('x2') || $request->exists('y2')) {
+            $changes['x2'] = isset($data['x2']) ? bcadd(TakeoffMoney::raw($data['x2']), '0', 6) : null;
+            $changes['y2'] = isset($data['y2']) ? bcadd(TakeoffMoney::raw($data['y2']), '0', 6) : null;
+        }
 
         if ($request->exists('label_x') || $request->exists('label_y')) {
             $changes['label_x'] = isset($data['label_x']) ? bcadd(TakeoffMoney::raw($data['label_x']), '0', 6) : null;
@@ -941,6 +1032,8 @@ class TakeoffWorkspaceController extends Controller
             'page' => (int) $data['page'],
             'x' => bcadd(TakeoffMoney::raw($data['x']), '0', 6),
             'y' => bcadd(TakeoffMoney::raw($data['y']), '0', 6),
+            'x2' => isset($data['x2']) ? bcadd(TakeoffMoney::raw($data['x2']), '0', 6) : null,
+            'y2' => isset($data['y2']) ? bcadd(TakeoffMoney::raw($data['y2']), '0', 6) : null,
         ]);
     }
 

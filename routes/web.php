@@ -809,9 +809,24 @@ Route::middleware(['auth', 'prevent-back-history'])
         Route::post('/takeoffs/{takeoff}/documents/{document}/scan', [TakeoffWorkspaceController::class, 'scanDocument'])
             ->middleware('can:update-takeoffs')
             ->name('takeoffs.documents.scan');
+        Route::post('/takeoffs/{takeoff}/documents/{document}/proposals/confirm', [TakeoffWorkspaceController::class, 'confirmProposal'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.proposals.confirm');
+        Route::post('/takeoffs/{takeoff}/documents/{document}/proposals/dismiss', [TakeoffWorkspaceController::class, 'dismissProposal'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.proposals.dismiss');
         Route::patch('/takeoffs/{takeoff}/documents/{document}', [TakeoffWorkspaceController::class, 'updateDocument'])
             ->middleware('can:update-takeoffs')
             ->name('takeoffs.documents.update');
+        Route::patch('/takeoffs/{takeoff}/documents/{document}/rotation', [TakeoffWorkspaceController::class, 'updateRotation'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.documents.rotation');
+        Route::post('/takeoffs/{takeoff}/markups', [TakeoffWorkspaceController::class, 'storeMarkup'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.markups.store');
+        Route::delete('/takeoffs/{takeoff}/markups/{markup}', [TakeoffWorkspaceController::class, 'destroyMarkup'])
+            ->middleware('can:update-takeoffs')
+            ->name('takeoffs.markups.destroy');
         Route::delete('/takeoffs/{takeoff}/documents/{document}', [TakeoffWorkspaceController::class, 'destroyDocument'])
             ->middleware('can:update-takeoffs')
             ->name('takeoffs.documents.destroy');

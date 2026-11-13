@@ -6,6 +6,7 @@ use App\Models\Takeoff;
 use App\Models\TakeoffCost;
 use App\Models\TakeoffDocument;
 use App\Models\TakeoffGroup;
+use App\Models\TakeoffMarkup;
 use App\Models\TakeoffOpening;
 use App\Models\TakeoffSupplierQuote;
 use App\Models\User;
@@ -46,6 +47,7 @@ class TakeoffPresenter
             'project:id,uuid,name,project_number',
             'documents.uploader:id,name',
             'openings.markers',
+            'markups',
             'openings.references',
             'openings.costs',
             'openings.product:id,name',
@@ -107,6 +109,15 @@ class TakeoffPresenter
                 'margin' => $pricing['margin'],
             ] : null,
             'documents' => $takeoff->documents->map(fn (TakeoffDocument $document): array => self::document($document))->values()->all(),
+            'proposals' => TakeoffScopeImporter::proposalsFor($takeoff),
+            'markups' => $takeoff->markups->map(fn (TakeoffMarkup $markup): array => [
+                'id' => $markup->id,
+                'document_id' => $markup->document_id,
+                'page' => $markup->page,
+                'kind' => $markup->kind,
+                'color' => $markup->color,
+                'points' => $markup->points,
+            ])->values()->all(),
             'openings' => $takeoff->openings->map(function (TakeoffOpening $opening) use ($showPricing, $pricing, $flagsByOpening): array {
                 return self::opening($opening, $showPricing, $pricing['openings'][$opening->id] ?? null, $flagsByOpening[$opening->id] ?? []);
             })->values()->all(),
@@ -138,6 +149,7 @@ class TakeoffPresenter
             'sheet_number' => $document->sheet_number,
             'sheet_title' => $document->sheet_title,
             'page_count' => $document->page_count,
+            'rotation' => (int) ($document->rotation ?? 0),
             'size' => $document->size,
             'uploaded_at' => $document->created_at?->toIso8601String(),
             'uploader' => $document->relationLoaded('uploader') ? $document->uploader?->name : null,
@@ -210,6 +222,8 @@ class TakeoffPresenter
                 'page' => $marker->page,
                 'x' => (string) $marker->x,
                 'y' => (string) $marker->y,
+                'x2' => $marker->x2 !== null ? (string) $marker->x2 : null,
+                'y2' => $marker->y2 !== null ? (string) $marker->y2 : null,
                 'label_x' => $marker->label_x !== null ? (string) $marker->label_x : null,
                 'label_y' => $marker->label_y !== null ? (string) $marker->label_y : null,
             ])->values()->all(),
