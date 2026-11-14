@@ -587,6 +587,12 @@ export default function Index({
         if (messagePane.current) {
             messagePane.current.scrollTop = 0;
         }
+
+        if (!message?.id || window.matchMedia('(min-width: 768px)').matches) {
+            return;
+        }
+
+        window.scrollTo(0, 0);
     }, [message?.id]);
 
     const rememberListScroll = () => {
@@ -713,10 +719,10 @@ export default function Index({
             <div className="py-3 sm:py-6">
                 <div
                     className={cn(
-                        'flex w-full min-w-0 flex-col gap-3 px-0 sm:gap-4 sm:px-6 lg:px-8',
+                        'flex w-full min-w-0 flex-col gap-3 px-0 pb-[calc(5.25rem+env(safe-area-inset-bottom))] sm:gap-4 sm:px-6 sm:pb-0 lg:px-8',
                         showCompose
-                            ? ''
-                            : 'h-[calc(100dvh-16.5rem)] overflow-hidden sm:h-[calc(100dvh-13.5rem)]',
+                            ? 'max-sm:pb-0'
+                            : 'md:h-[calc(100dvh-13.5rem)] md:overflow-hidden',
                     )}
                 >
                     {mailbox === null ? (
@@ -817,12 +823,12 @@ export default function Index({
 
                             {showCompose ? null : (
                             <div
-                                className={cn(
-                                    'grid min-h-0 min-w-0 flex-1 overflow-hidden gap-3 md:grid-cols-[minmax(16rem,22rem)_minmax(0,1fr)] md:grid-rows-1 md:gap-4',
-                                    message ? 'grid-rows-[minmax(0,1fr)_minmax(12rem,46%)]' : 'grid-rows-1',
-                                )}
+                                className="grid min-w-0 gap-3 md:min-h-0 md:flex-1 md:grid-cols-[minmax(16rem,22rem)_minmax(0,1fr)] md:grid-rows-1 md:gap-4 md:overflow-hidden"
                             >
-                                <Card className="flex h-full min-h-0 flex-col gap-0 overflow-hidden border-sky-200 py-0 max-sm:rounded-none max-sm:border-x-0 dark:border-sky-900">
+                                <Card className={cn(
+                                    'flex flex-col gap-0 border-sky-200 py-0 max-sm:rounded-none max-sm:border-x-0 dark:border-sky-900 md:h-full md:min-h-0 md:overflow-hidden',
+                                    message ? 'max-md:hidden' : '',
+                                )}>
                                     <CardHeader className="shrink-0 gap-3 border-b p-3">
                                         <CardTitle>{folderTitle}</CardTitle>
                                         {folder === 'inbox' ? (
@@ -890,10 +896,10 @@ export default function Index({
                                             </div>
                                         ) : null}
                                     </CardHeader>
-                                    <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden p-0">
+                                    <CardContent className="flex flex-col p-0 md:min-h-0 md:flex-1 md:overflow-hidden">
                                         <div
                                             ref={listPane}
-                                            className="grid min-h-0 flex-1 content-start gap-2 overflow-y-auto overscroll-y-contain p-2"
+                                            className="grid content-start gap-2 p-2 md:min-h-0 md:flex-1 md:overflow-y-auto md:overscroll-y-contain"
                                         >
                                         {list.length === 0 ? (
                                             <p className="text-sm text-muted-foreground">{t('empty')}</p>
@@ -978,7 +984,7 @@ export default function Index({
 
                                 <Card
                                     className={cn(
-                                        'flex h-full min-h-0 flex-col gap-0 overflow-hidden border-emerald-200 py-0 max-sm:rounded-none max-sm:border-x-0 dark:border-emerald-900',
+                                        'flex flex-col gap-0 border-emerald-200 py-0 max-sm:rounded-none max-sm:border-x-0 dark:border-emerald-900 md:h-full md:min-h-0 md:overflow-hidden',
                                         message ? '' : 'max-md:hidden',
                                     )}
                                 >
@@ -1024,14 +1030,14 @@ export default function Index({
                                             </CardDescription>
                                         ) : null}
                                     </CardHeader>
-                                    <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden p-0">
+                                    <CardContent className="flex flex-col p-0 md:min-h-0 md:flex-1 md:overflow-hidden">
                                         <div
                                             ref={messagePane}
-                                            className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-3"
+                                            className="p-3 md:min-h-0 md:flex-1 md:overflow-y-auto md:overscroll-y-contain"
                                         >
                                         {message ? (
                                             <div className="grid gap-3">
-                                                <div className="grid grid-cols-3 gap-1.5 sm:flex sm:flex-wrap sm:gap-2">
+                                                <div className="grid grid-cols-3 gap-1.5 md:flex md:flex-wrap md:gap-2">
                                                     <Button
                                                         type="button"
                                                         variant="outline"
@@ -1114,7 +1120,7 @@ export default function Index({
                                                                   image.src.startsWith('data:image/') ? (
                                                                       <div
                                                                           key={`${image.name}-${index}`}
-                                                                          className="flex w-72 max-w-full flex-wrap items-center justify-between gap-2 rounded-md border border-emerald-700/30 bg-background px-2 py-1.5 shadow-sm"
+                                                                          className="flex w-full max-w-full flex-col gap-2 rounded-md border border-emerald-700/30 bg-background px-2 py-2 shadow-sm sm:w-auto sm:max-w-full sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"
                                                                       >
                                                                           <button
                                                                               type="button"
@@ -1131,10 +1137,10 @@ export default function Index({
                                                                               />
                                                                               <span className="truncate text-xs font-medium">{image.name}</span>
                                                                           </button>
-                                                                          <div className="flex items-center gap-1.5">
+                                                                          <div className="grid grid-cols-2 gap-1.5 sm:flex sm:items-center">
                                                                               <Button
                                                                                   type="button"
-                                                                                  className="h-9 bg-emerald-700 px-3 text-white hover:bg-emerald-800"
+                                                                                  className="min-h-11 bg-emerald-700 px-3 text-white hover:bg-emerald-800 sm:h-9"
                                                                                   onClick={() => {
                                                                                       setViewerFailed(false);
                                                                                       setViewer({ name: image.name, src: image.src });
@@ -1142,7 +1148,7 @@ export default function Index({
                                                                               >
                                                                                   {t('openAttachment')}
                                                                               </Button>
-                                                                              <Button asChild variant="outline" className="h-9 px-3">
+                                                                              <Button asChild variant="outline" className="min-h-11 px-3 sm:h-9">
                                                                                   <a href={downloadHref(image.src)} download={image.name}>
                                                                                       <DownloadIcon className="size-4" />
                                                                                       {t('downloadAttachment')}
@@ -1156,18 +1162,18 @@ export default function Index({
                                                         {(message.attachments ?? []).map((file) => (
                                                             <div
                                                                 key={file.id}
-                                                                className="flex w-72 max-w-full flex-wrap items-center justify-between gap-2 rounded-md border border-emerald-700/30 bg-background px-2 py-1.5 shadow-sm"
+                                                                className="flex w-full max-w-full flex-col gap-2 rounded-md border border-emerald-700/30 bg-background px-2 py-2 shadow-sm sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"
                                                             >
                                                                 <span className="flex min-w-0 items-center gap-1.5 text-xs">
                                                                     <PaperclipIcon className="size-3.5 shrink-0" />
                                                                     <span className="truncate font-medium">{file.name}</span>
                                                                     <span className="shrink-0 text-muted-foreground">{fileSize(file.size)}</span>
                                                                 </span>
-                                                                <div className="flex items-center gap-1.5">
+                                                                <div className="grid grid-cols-2 gap-1.5 sm:flex sm:items-center">
                                                                     {file.image ? (
                                                                         <Button
                                                                             type="button"
-                                                                            className="h-9 bg-emerald-700 px-3 text-white hover:bg-emerald-800"
+                                                                            className="min-h-11 bg-emerald-700 px-3 text-white hover:bg-emerald-800 sm:h-9"
                                                                             onClick={() => {
                                                                                 setViewerFailed(false);
                                                                                 setViewer({
@@ -1179,7 +1185,7 @@ export default function Index({
                                                                             {t('openAttachment')}
                                                                         </Button>
                                                                     ) : (
-                                                                        <Button asChild className="h-9 bg-emerald-700 px-3 text-white hover:bg-emerald-800">
+                                                                        <Button asChild className="min-h-11 bg-emerald-700 px-3 text-white hover:bg-emerald-800 sm:h-9">
                                                                             <a
                                                                                 href={attachmentUrl(message.id, file.id)}
                                                                                 target="_blank"
@@ -1189,7 +1195,7 @@ export default function Index({
                                                                             </a>
                                                                         </Button>
                                                                     )}
-                                                                    <Button asChild variant="outline" className="h-9 px-3">
+                                                                    <Button asChild variant="outline" className="min-h-11 px-3 sm:h-9">
                                                                         <a href={downloadHref(attachmentUrl(message.id, file.id))} download={file.name}>
                                                                             <DownloadIcon className="size-4" />
                                                                             {t('downloadAttachment')}
@@ -1225,7 +1231,10 @@ export default function Index({
             {mailbox ? (
                 <nav
                     aria-label={t('mailbox')}
-                    className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-border bg-background/95 px-1 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_-16px_rgba(15,23,42,0.55)] backdrop-blur sm:hidden"
+                    className={cn(
+                        'fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-border bg-background/95 px-1 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_-16px_rgba(15,23,42,0.55)] backdrop-blur sm:hidden',
+                        showCompose ? 'hidden' : '',
+                    )}
                 >
                     <Link
                         href={folderHref('inbox')}
@@ -1320,7 +1329,7 @@ export default function Index({
                 <div className="fixed inset-0 overflow-y-auto p-3 sm:p-6">
                     <div className="flex min-h-full items-center justify-center">
                         <DialogPanel className="w-full max-w-5xl overflow-hidden rounded-2xl border border-border bg-background shadow-2xl">
-                            <div className="flex items-center justify-between gap-4 border-b border-border px-5 py-4">
+                            <div className="flex flex-col gap-3 border-b border-border px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-5">
                                 <div>
                                     <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-300">
                                         {t('attachedImage')}
@@ -1329,16 +1338,16 @@ export default function Index({
                                         {viewer?.name ?? t('openAttachment')}
                                     </DialogTitle>
                                 </div>
-                                <div className="flex shrink-0 items-center gap-2">
+                                <div className="flex w-full items-center gap-2 sm:w-auto sm:shrink-0">
                                     {viewer ? (
-                                        <Button asChild className="min-h-11 bg-emerald-700 text-white hover:bg-emerald-800">
+                                        <Button asChild className="min-h-11 flex-1 bg-emerald-700 text-white hover:bg-emerald-800 sm:flex-none">
                                             <a href={downloadHref(viewer.src)} download={viewer.name}>
                                                 <DownloadIcon />
                                                 {t('downloadAttachment')}
                                             </a>
                                         </Button>
                                     ) : null}
-                                    <Button type="button" variant="ghost" size="icon" aria-label={t('closeAttachment')} onClick={() => setViewer(null)}>
+                                    <Button type="button" variant="ghost" size="icon" className="size-11 shrink-0" aria-label={t('closeAttachment')} onClick={() => setViewer(null)}>
                                         <XIcon />
                                     </Button>
                                 </div>

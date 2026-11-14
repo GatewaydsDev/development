@@ -1532,6 +1532,43 @@ test('an unread inbox message keeps the mail count when the badge cache is empty
         );
 });
 
+test('a new unread message lights the mail count even when the folder count is still zero', function () {
+    $user = mailboxUser();
+    Cache::flush();
+    config([
+        'services.microsoft.tenant_id' => 'tenant-id',
+        'services.microsoft.client_id' => 'client-id',
+        'services.microsoft.client_secret' => 'client-secret',
+    ]);
+
+    Http::fake(function ($request) {
+        if (str_contains($request->url(), 'login.microsoftonline.com')) {
+            return Http::response(['access_token' => 'graph-token', 'expires_in' => 3600]);
+        }
+
+        if (str_contains($request->url(), 'unreadItemCount')) {
+            return Http::response(['unreadItemCount' => 0]);
+        }
+
+        return Http::response([
+            'value' => [[
+                'id' => 'msg-new',
+                'subject' => 'New shop drawing',
+                'from' => ['emailAddress' => ['name' => 'Site', 'address' => 'site@example.com']],
+                'bodyPreview' => 'Please review.',
+                'isRead' => false,
+                'receivedDateTime' => '2026-11-14T16:00:00Z',
+            ]],
+        ]);
+    });
+
+    $this->actingAs($user)
+        ->getJson(route('mailbox.unread'))
+        ->assertOk()
+        ->assertJsonPath('unread', 1)
+        ->assertJsonPath('messages.0.subject', 'New shop drawing');
+});
+
 test('unread mail includes the message that can be opened', function () {
     $user = mailboxUser();
     Cache::flush();

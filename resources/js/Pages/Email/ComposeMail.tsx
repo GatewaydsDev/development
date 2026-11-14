@@ -897,7 +897,7 @@ export default function ComposeMail({
     return (
         <form
             onSubmit={submit}
-            className="min-w-0 max-sm:fixed max-sm:inset-0 max-sm:z-50 max-sm:overflow-y-auto max-sm:bg-background max-sm:pb-[env(safe-area-inset-bottom)]"
+            className="min-w-0 max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:top-[var(--app-sticky-top,4.75rem)] max-sm:z-30 max-sm:overflow-y-auto max-sm:bg-background max-sm:pb-[env(safe-area-inset-bottom)]"
         >
             <div className="sticky top-0 z-30 flex min-h-14 items-center justify-between gap-2 border-b border-border bg-background/95 px-2 backdrop-blur sm:hidden">
                 <button

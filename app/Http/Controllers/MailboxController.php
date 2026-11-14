@@ -672,12 +672,15 @@ class MailboxController extends Controller
         }
 
         $snapshot = [
-            'unread' => $states->unreadCount($user, $mailbox, max(0, $graphUnread - $bounces['unread'])),
+            'unread' => max(
+                $states->unreadCount($user, $mailbox, max(0, $graphUnread - $bounces['unread'])),
+                count($messages),
+            ),
             'messages' => $messages,
             'blocked' => $bounces['total'],
         ];
 
-        Cache::put($cacheKey, $failed ? $snapshot + ['error' => true] : $snapshot, $failed ? 30 : 15);
+        Cache::put($cacheKey, $failed ? $snapshot + ['error' => true] : $snapshot, $failed ? 30 : 8);
 
         if (! $failed) {
             Cache::put($this->unreadStaleCacheKey($user, $mailbox), $snapshot, 86400);

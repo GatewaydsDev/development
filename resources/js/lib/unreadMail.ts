@@ -202,9 +202,11 @@ async function refreshUnreadMail(): Promise<void> {
         }
 
         setFailing(data.error === true);
-        announceNewMail(messages);
-        setUnreadMessageIds(messages);
-        applyServerCount(Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0);
+        const visibleMessages = messages.filter((message) => !acknowledgedIds.has(message.id));
+        announceNewMail(visibleMessages);
+        setUnreadMessageIds(visibleMessages);
+        const reported = Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
+        applyServerCount(Math.max(reported, visibleMessages.length));
     } catch {
         // Keep the last count when Microsoft 365 does not answer.
     }
@@ -220,7 +222,7 @@ function ensureUnreadMailPolling(): void {
     window.addEventListener('pointerdown', unlockMailChime);
     window.addEventListener('keydown', unlockMailChime);
     void refreshUnreadMail();
-    window.setInterval(() => void refreshUnreadMail(), 20_000);
+    window.setInterval(() => void refreshUnreadMail(), 12_000);
     window.addEventListener('focus', () => void refreshUnreadMail());
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
