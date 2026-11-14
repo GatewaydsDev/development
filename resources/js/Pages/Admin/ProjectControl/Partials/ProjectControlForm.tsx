@@ -26,7 +26,7 @@ import {
 import { Link, router, useForm, usePage } from '@inertiajs/react';
 import { BellIcon, CheckIcon, MailIcon, PencilIcon, PlusIcon, RulerIcon, Trash2Icon } from 'lucide-react';
 import { FormEvent, ReactNode, useState } from 'react';
-import ReminderCards, { type ScheduledReminder } from './ReminderCards';
+import ReminderCards, { displayReminderWhen, type ScheduledReminder } from './ReminderCards';
 import { emailTyping, isEmailAddress, reminderEmails, type ReminderPerson } from './ReminderDialog';
 
 export type BidDraft = {
@@ -287,6 +287,15 @@ const money = (value: number | null) => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
 };
 
+type QueuedReminder = {
+    remind_at: string;
+    note: string;
+    user_ids: number[];
+    notify_popup: boolean;
+    notify_email: boolean;
+    reminder_email: string;
+};
+
 const addButtonClass = 'bg-emerald-600 text-white hover:bg-emerald-700';
 const takeoffButtonClass = 'bg-sky-600 text-white hover:bg-sky-700';
 
@@ -323,6 +332,9 @@ export default function ProjectControlForm({
     const [procurementIndex, setProcurementIndex] = useState<number | null>(null);
     const [procurementDraft, setProcurementDraft] = useState<ProcurementDraft | null>(null);
     const [procurementDraftError, setProcurementDraftError] = useState('');
+    const [queuedReminders, setQueuedReminders] = useState<QueuedReminder[]>([]);
+    const [savingReminder, setSavingReminder] = useState(false);
+    const [reminderSaved, setReminderSaved] = useState(false);
     const costs = [form.data.material_cost, form.data.freight_cost, form.data.labor_cost, form.data.other_cost]
         .map(amount)
         .filter((value): value is number => value !== null);
@@ -346,6 +358,10 @@ export default function ProjectControlForm({
             return {
                 ...data,
                 remind_at: remindAt && !Number.isNaN(remindAt.getTime()) ? remindAt.toISOString() : '',
+                reminders: queuedReminders.map((reminder) => ({
+                    ...reminder,
+                    remind_at: new Date(reminder.remind_at).toISOString(),
+                })),
             };
         });
 
@@ -356,6 +372,83 @@ export default function ProjectControlForm({
         }
 
         form.patch(action);
+    };
+
+    const reminderBlocked = !reminderActive
+        || emailBlocked
+        || (!form.data.notify_popup && !form.data.notify_email)
+        || (form.data.notify_popup && form.data.reminder_user_ids.length === 0)
+        || (form.data.notify_email && reminderAddress === '');
+
+    const clearReminderDraft = () => {
+        form.setData((data) => ({
+            ...data,
+            remind_at: '',
+            reminder_note: '',
+        }));
+        form.clearErrors('remind_at', 'reminder_note', 'reminder_user_ids', 'notify_popup', 'notify_email', 'reminder_email');
+    };
+
+    const addReminder = () => {
+        if (reminderBlocked) {
+            return;
+        }
+
+        const draft: QueuedReminder = {
+            remind_at: form.data.remind_at,
+            note: form.data.reminder_note,
+            user_ids: form.data.reminder_user_ids,
+            notify_popup: form.data.notify_popup,
+            notify_email: form.data.notify_email,
+            reminder_email: form.data.reminder_email,
+        };
+
+        if (!control.uuid) {
+            setQueuedReminders((current) => [...current, draft]);
+            clearReminderDraft();
+            setReminderSaved(true);
+
+            return;
+        }
+
+        setSavingReminder(true);
+        setReminderSaved(false);
+        router.post(route('admin.project-control.reminders.store'), {
+            project_control_id: control.uuid,
+            remind_at: new Date(draft.remind_at).toISOString(),
+            note: draft.note,
+            user_ids: draft.user_ids,
+            notify_popup: draft.notify_popup,
+            notify_email: draft.notify_email,
+            reminder_email: draft.reminder_email,
+        }, {
+            preserveScroll: true,
+            preserveState: true,
+            only: ['reminders'],
+            onSuccess: () => {
+                clearReminderDraft();
+                setReminderSaved(true);
+            },
+            onError: (errors) => {
+                const fields = {
+                    remind_at: errors.remind_at,
+                    reminder_note: errors.note,
+                    reminder_user_ids: errors.user_ids,
+                    notify_popup: errors.notify_popup,
+                    notify_email: errors.notify_email,
+                    reminder_email: errors.reminder_email,
+                } as const;
+
+                (Object.keys(fields) as Array<keyof typeof fields>).forEach((field) => {
+                    const message = fields[field];
+
+                    if (message) {
+                        form.setError(field, message);
+                    }
+                });
+            },
+            onFinish: () => setSavingReminder(false),
+        });
     };
 
     const toggleReminderPerson = (id: number) => {
@@ -1013,12 +1106,34 @@ export default function ProjectControlForm({
             <section className="rounded-lg border border-rose-200 bg-rose-50/70 p-4 dark:border-rose-900 dark:bg-rose-950/30 sm:p-6">
                 <h3 className="text-lg font-semibold text-foreground">Follow-up reminder</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
-                    Leave the date blank to save the job without a new reminder. A filled date is sent to the people you choose.
+                    {control.uuid
+                        ? 'Fill in a reminder and choose Add reminder. It is saved right away, and the form stays open so you can add another.'
+                        : 'Fill in a reminder and choose Add reminder. Each one stays in the list and is saved when you save the job.'}
                 </p>
                 {method === 'patch' ? (
                     <div className="mt-4">
                         <ReminderCards reminders={reminders} />
                     </div>
+                ) : null}
+                {queuedReminders.length > 0 ? (
+                    <ul className="mt-4 space-y-2">
+                        {queuedReminders.map((reminder, index) => (
+                            <li key={`${reminder.remind_at}-${index}`} className="flex items-start justify-between gap-3 rounded-lg border border-rose-200 bg-background px-3 py-2 dark:border-rose-900">
+                                <span className="min-w-0">
+                                    <span className="block text-sm font-medium text-foreground">{displayReminderWhen(reminder.remind_at)}</span>
+                                    <span className="block break-words text-sm text-muted-foreground">{reminder.note.trim() || 'No note'}</span>
+                                </span>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setQueuedReminders((current) => current.filter((_, item) => item !== index))}
+                                >
+                                    Remove
+                                </Button>
+                            </li>
+                        ))}
+                    </ul>
                 ) : null}
                 <div className="mt-4 grid gap-4">
                     <div className="grid sm:grid-cols-12">
@@ -1026,7 +1141,10 @@ export default function ProjectControlForm({
                             <input
                                 type="datetime-local"
                                 value={form.data.remind_at}
-                                onChange={(event) => form.setData('remind_at', event.target.value)}
+                                onChange={(event) => {
+                                    setReminderSaved(false);
+                                    form.setData('remind_at', event.target.value);
+                                }}
                                 className={reminderInputClass}
                             />
                         </Field>
@@ -1131,6 +1249,22 @@ export default function ProjectControlForm({
                         </div>
                         <InputError message={form.errors.reminder_user_ids} className="mt-1" />
                     </fieldset>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+                        {reminderSaved ? (
+                            <p className="text-sm text-emerald-700 sm:mr-auto dark:text-emerald-300">
+                                {control.uuid ? 'Reminder saved. Add another, or keep working on the job.' : 'Reminder added. Add another, then save the job.'}
+                            </p>
+                        ) : null}
+                        <Button
+                            type="button"
+                            className="min-h-11 bg-sky-600 text-white hover:bg-sky-700"
+                            disabled={savingReminder || reminderBlocked}
+                            onClick={addReminder}
+                        >
+                            <PlusIcon className="h-4 w-4" />
+                            Add reminder
+                        </Button>
+                    </div>
                 </div>
             </section>
 

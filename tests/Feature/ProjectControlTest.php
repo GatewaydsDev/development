@@ -422,6 +422,82 @@ test('a follow-up reminder can use a popup and the person microsoft 365 mailbox'
         ->assertSessionHasErrors('reminder_email');
 });
 
+it('saves more than one follow-up reminder on the same job', function () {
+    $admin = controlAdmin();
+    $job = ProjectControl::query()->create([
+        'job_code' => 'J-302',
+        'name' => 'Two reminders',
+        'pipeline_status' => 'active',
+    ]);
+
+    $this->actingAs($admin)
+        ->post(route('admin.project-control.reminders.store'), [
+            'project_control_id' => $job->uuid,
+            'remind_at' => now()->addDay()->toISOString(),
+            'note' => 'First call',
+            'user_ids' => [$admin->id],
+            'notify_popup' => true,
+            'notify_email' => false,
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Reminder saved.');
+
+    $this->actingAs($admin)
+        ->post(route('admin.project-control.reminders.store'), [
+            'project_control_id' => $job->uuid,
+            'remind_at' => now()->addDays(2)->toISOString(),
+            'note' => 'Second call',
+            'user_ids' => [$admin->id],
+            'notify_popup' => true,
+            'notify_email' => false,
+        ])
+        ->assertRedirect();
+
+    $notes = $job->fresh()->reminders->pluck('note')->all();
+
+    expect($notes)->toContain('First call')
+        ->and($notes)->toContain('Second call');
+});
+
+it('saves several follow-up reminders when a job is created', function () {
+    $admin = controlAdmin();
+
+    $this->actingAs($admin)
+        ->post(route('admin.project-control.store'), [
+            'job_code' => 'J-303',
+            'name' => 'Queued reminders',
+            'pipeline_status' => 'active',
+            'counts_in_demonstrated' => false,
+            'bids' => [],
+            'openings' => [],
+            'procurements' => [],
+            'reminders' => [
+                [
+                    'remind_at' => now()->addDay()->toISOString(),
+                    'note' => 'Morning call',
+                    'user_ids' => [$admin->id],
+                    'notify_popup' => true,
+                    'notify_email' => false,
+                ],
+                [
+                    'remind_at' => now()->addDays(3)->toISOString(),
+                    'note' => 'Afternoon call',
+                    'user_ids' => [$admin->id],
+                    'notify_popup' => true,
+                    'notify_email' => false,
+                ],
+            ],
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect();
+
+    $job = ProjectControl::query()->where('job_code', 'J-303')->first();
+    $notes = $job?->reminders->pluck('note')->all() ?? [];
+
+    expect($notes)->toContain('Morning call')
+        ->and($notes)->toContain('Afternoon call');
+});
+
 it('links an opening to a takeoff and saves a reminder with the job', function () {
     $admin = controlAdmin();
     $job = ProjectControl::query()->create([

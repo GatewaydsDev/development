@@ -11,7 +11,7 @@ import {
 } from '@/Components/ui/dialog';
 import { useForm, usePage } from '@inertiajs/react';
 import { BellIcon, MailIcon } from 'lucide-react';
-import { ReactNode, useEffect } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 
 export type ReminderPerson = {
     id: number;
@@ -58,6 +58,7 @@ export default function ReminderDialog({
     onOpenChange: (open: boolean) => void;
 }) {
     const userId = usePage().props.auth.user.id;
+    const [saved, setSaved] = useState(false);
     const form = useForm({
         project_control_id: jobUuid,
         remind_at: '',
@@ -83,6 +84,7 @@ export default function ReminderDialog({
             reminder_email: '',
         });
         form.clearErrors();
+        setSaved(false);
         // Reset only when the dialog opens for a job.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, jobUuid]);
@@ -106,7 +108,16 @@ export default function ReminderDialog({
         }));
         form.post(route('admin.project-control.reminders.store'), {
             preserveScroll: true,
-            onSuccess: () => onOpenChange(false),
+            preserveState: true,
+            onSuccess: () => {
+                form.setData((data) => ({
+                    ...data,
+                    remind_at: '',
+                    note: '',
+                }));
+                form.clearErrors();
+                setSaved(true);
+            },
         });
     };
 
@@ -118,7 +129,7 @@ export default function ReminderDialog({
     return (
         <Dialog open={open} onOpenChange={onOpenChange} modal={false}>
             <DialogContent
-                className="max-w-xl"
+                className="flex max-h-[calc(100dvh-2rem)] max-w-xl flex-col gap-0 overflow-hidden p-0 sm:p-0"
                 onInteractOutside={(event) => {
                     const target = event.target;
 
@@ -127,14 +138,14 @@ export default function ReminderDialog({
                     }
                 }}
             >
-                <DialogHeader>
+                <DialogHeader className="shrink-0 px-4 pt-4 pr-14 pb-2 sm:px-6 sm:pt-6">
                     <DialogTitle>Follow-up reminder</DialogTitle>
                     <DialogDescription>
-                        Choose when to be reminded, who should get it, and whether that is a popup, an email, or both.
+                        Add a reminder, then fill the next one. Each save is kept, so you can add several before you close.
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="grid gap-4">
+                <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto px-4 py-3 sm:px-6">
                     <CreatableSelect
                         id="reminder-job"
                         label="Job"
@@ -152,7 +163,10 @@ export default function ReminderDialog({
                         <input
                             type="datetime-local"
                             value={form.data.remind_at}
-                            onChange={(event) => form.setData('remind_at', event.target.value)}
+                            onChange={(event) => {
+                                setSaved(false);
+                                form.setData('remind_at', event.target.value);
+                            }}
                             className={`${fieldClass} mt-1`}
                         />
                         <InputError message={form.errors.remind_at} className="mt-1" />
@@ -225,12 +239,13 @@ export default function ReminderDialog({
                     </fieldset>
                 </div>
 
-                <DialogFooter>
+                <DialogFooter className="shrink-0 border-t border-border px-4 py-3 sm:px-6">
+                    {saved ? <p className="mr-auto text-sm text-emerald-700 dark:text-emerald-300">Reminder saved. Add another, or close.</p> : null}
                     <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                         Close
                     </Button>
-                    <Button type="button" className="bg-sky-600 text-white hover:bg-sky-700" disabled={form.processing || emailBlocked || (form.data.notify_popup && form.data.user_ids.length === 0) || (form.data.notify_email && !form.data.reminder_email)} onClick={submit}>
-                        Save reminder
+                    <Button type="button" className="bg-sky-600 text-white hover:bg-sky-700" disabled={form.processing || form.data.remind_at.trim() === '' || (!form.data.notify_popup && !form.data.notify_email) || emailBlocked || (form.data.notify_popup && form.data.user_ids.length === 0) || (form.data.notify_email && !form.data.reminder_email)} onClick={submit}>
+                        Add reminder
                     </Button>
                 </DialogFooter>
             </DialogContent>

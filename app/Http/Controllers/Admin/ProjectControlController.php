@@ -79,9 +79,10 @@ class ProjectControlController extends Controller
     {
         $user = $this->authorizeControl($request);
         $data = $this->validated($request);
-        $control = ProjectControl::query()->create(Arr::except($data, ['bids', 'openings', 'procurements', 'remind_at', 'reminder_note', 'reminder_user_ids', 'notify_popup', 'notify_email', 'reminder_email']));
+        $control = ProjectControl::query()->create(Arr::except($data, ['bids', 'openings', 'procurements', 'remind_at', 'reminder_note', 'reminder_user_ids', 'notify_popup', 'notify_email', 'reminder_email', 'reminders']));
         $this->syncLines($control, $data);
         $this->attachReminder($user, $control, $data);
+        $this->attachQueuedReminders($user, $control, $data);
 
         return redirect()
             ->route('admin.project-control.edit', $control)
@@ -117,9 +118,10 @@ class ProjectControlController extends Controller
     {
         $user = $this->authorizeControl($request);
         $data = $this->validated($request, $projectControl);
-        $projectControl->update(Arr::except($data, ['bids', 'openings', 'procurements', 'remind_at', 'reminder_note', 'reminder_user_ids', 'notify_popup', 'notify_email', 'reminder_email']));
+        $projectControl->update(Arr::except($data, ['bids', 'openings', 'procurements', 'remind_at', 'reminder_note', 'reminder_user_ids', 'notify_popup', 'notify_email', 'reminder_email', 'reminders']));
         $this->syncLines($projectControl, $data);
         $this->attachReminder($user, $projectControl, $data);
+        $this->attachQueuedReminders($user, $projectControl, $data);
 
         return redirect()
             ->route('admin.project-control.edit', $projectControl)
@@ -819,6 +821,14 @@ class ProjectControlController extends Controller
             'notify_popup' => ['sometimes', 'boolean'],
             'notify_email' => ['sometimes', 'boolean'],
             'reminder_email' => ['nullable', 'email', 'max:255'],
+            'reminders' => ['nullable', 'array', 'max:20'],
+            'reminders.*.remind_at' => ['required', 'date'],
+            'reminders.*.note' => ['nullable', 'string', 'max:2000'],
+            'reminders.*.user_ids' => ['nullable', 'array', 'max:20'],
+            'reminders.*.user_ids.*' => ['integer', Rule::exists(User::class, 'id')],
+            'reminders.*.notify_popup' => ['boolean'],
+            'reminders.*.notify_email' => ['boolean'],
+            'reminders.*.reminder_email' => ['nullable', 'email', 'max:255'],
             'bids' => ['array', 'max:40'],
             'bids.*.name' => ['required', 'string', 'max:255'],
             'bids.*.quoted_on' => ['nullable', 'date'],
@@ -1017,6 +1027,27 @@ class ProjectControlController extends Controller
             $popup,
             $email,
         );
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function attachQueuedReminders(User $user, ProjectControl $control, array $data): void
+    {
+        foreach ($data['reminders'] ?? [] as $reminder) {
+            if (! is_array($reminder)) {
+                continue;
+            }
+
+            $this->attachReminder($user, $control, [
+                'remind_at' => $reminder['remind_at'] ?? null,
+                'reminder_note' => $reminder['note'] ?? null,
+                'reminder_user_ids' => $reminder['user_ids'] ?? [],
+                'notify_popup' => (bool) ($reminder['notify_popup'] ?? false),
+                'notify_email' => (bool) ($reminder['notify_email'] ?? false),
+                'reminder_email' => $reminder['reminder_email'] ?? null,
+            ]);
+        }
     }
 
     private function blank(): array

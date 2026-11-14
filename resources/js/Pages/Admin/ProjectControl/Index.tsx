@@ -466,7 +466,6 @@ function JobTable({
                                         {job.job_code}
                                     </Link>
                                     <ReminderBadges reminders={forJob(job.uuid)} onOpen={setOpenReminder} />
-                                    <JobActions jobUuid={job.uuid} projectUrl={job.project} />
                                 </div>
                                 <p className="shrink-0 text-sm font-medium text-foreground">{money(job.current_value)}</p>
                             </div>
@@ -514,10 +513,14 @@ function JobTable({
                                     <ColumnText label="Next step" value={job.next_step} wide />
                                 </div>
                             ) : null}
-                            <Button type="button" className="mt-3 min-h-11 w-full bg-sky-600 text-white hover:bg-sky-700" onClick={() => onRemind(job.uuid)}>
-                                <BellIcon className="h-4 w-4" />
-                                Reminder
-                            </Button>
+                            <div className="mt-3">
+                                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actions</p>
+                                <JobActions jobUuid={job.uuid} projectUrl={job.project} />
+                                <Button type="button" className="mt-2 min-h-11 w-full bg-sky-600 text-white hover:bg-sky-700" onClick={() => onRemind(job.uuid)}>
+                                    <BellIcon className="h-4 w-4" />
+                                    Reminder
+                                </Button>
+                            </div>
                         </article>
                     ))
                 )}
@@ -526,7 +529,6 @@ function JobTable({
                 <table className="min-w-full border-separate border-spacing-0 text-sm">
                     <thead>
                         <tr>
-                            <th className={`${headCell} left-0 z-30`}>Actions</th>
                             <th className={headCell}>Job</th>
                             <th className={headCell}>Project</th>
                             <th className={headCell}>Customer</th>
@@ -553,6 +555,7 @@ function JobTable({
                             ) : (
                                 <th className={headCell}>Next step</th>
                             )}
+                            <th className={`${headCell} text-right`}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -565,9 +568,6 @@ function JobTable({
                         ) : (
                             jobs.map((job) => (
                                 <tr key={job.uuid} className="hover:bg-muted/40">
-                                    <td className={`${cell} sticky left-0 z-10 whitespace-nowrap bg-card`}>
-                                        <JobActions jobUuid={job.uuid} projectUrl={job.project} />
-                                    </td>
                                     <td className={`${cell} whitespace-nowrap font-medium`}>
                                         <Link href={route('admin.project-control.edit', job.uuid)} className="text-emerald-700 hover:underline dark:text-emerald-300">
                                             {job.job_code}
@@ -618,6 +618,11 @@ function JobTable({
                                             <ColumnText label="Next step" value={job.next_step} />
                                         </td>
                                     )}
+                                    <td className={`${cell} whitespace-nowrap`}>
+                                        <div className="flex justify-end">
+                                            <JobActions jobUuid={job.uuid} projectUrl={job.project} />
+                                        </div>
+                                    </td>
                                 </tr>
                             ))
                         )}
@@ -690,7 +695,7 @@ function JobActions({ jobUuid, projectUrl }: { jobUuid: string; projectUrl: stri
     const jobHref = route('admin.project-control.edit', jobUuid);
 
     return (
-        <div className="mt-2 flex flex-nowrap gap-2 md:mt-0 md:gap-1">
+        <div className="mt-2 flex flex-nowrap gap-2 md:mt-0 md:justify-end md:gap-1">
             <ActionHint hint="View job">
                 <Button
                     asChild
